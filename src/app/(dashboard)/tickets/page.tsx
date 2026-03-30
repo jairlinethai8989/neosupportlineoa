@@ -52,6 +52,8 @@ const PriorityIndicator = ({ priority }: { priority: string }) => {
   );
 };
 
+import Link from 'next/link';
+
 export default function TicketsPage() {
   const [tickets, setTickets] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -175,7 +177,11 @@ export default function TicketsPage() {
                     borderBottom: '1px solid var(--border)',
                     background: idx % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.01)',
                  }} className="glass-interactive">
-                    <td style={{ padding: '16px 20px', fontWeight: '700', fontSize: '14px', color: 'var(--primary)' }}>{ticket.ticket_no}</td>
+                    <td style={{ padding: '16px 20px', fontWeight: '700', fontSize: '14px', color: 'var(--primary)' }}>
+                      <Link href={`/tickets/${ticket.id}`} style={{ color: 'inherit', textDecoration: 'none' }}>
+                        {ticket.ticket_no}
+                      </Link>
+                    </td>
                     <td style={{ padding: '16px 20px' }}>
                        <p style={{ fontWeight: '600', fontSize: '14px' }}>{ticket.customers?.display_name || 'Anonymous'}</p>
                        <p style={{ fontSize: '11px', color: 'var(--text-muted)' }}>LINE Channel</p>
@@ -189,9 +195,9 @@ export default function TicketsPage() {
                           <button className="glass-interactive flex-center" style={{ width: '32px', height: '32px', borderRadius: '6px', border: 'none', color: 'var(--text-muted)' }}>
                              <MessageSquare size={16} />
                           </button>
-                          <button className="glass-interactive flex-center" style={{ width: '32px', height: '32px', borderRadius: '6px', border: 'none', color: 'var(--text-muted)' }}>
+                          <Link href={`/tickets/${ticket.id}`} className="glass-interactive flex-center" style={{ width: '32px', height: '32px', borderRadius: '6px', border: 'none', color: 'var(--text-muted)', display: 'flex' }}>
                              <ExternalLink size={16} />
-                          </button>
+                          </Link>
                        </div>
                     </td>
                  </tr>
