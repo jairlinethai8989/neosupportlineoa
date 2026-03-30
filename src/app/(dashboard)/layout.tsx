@@ -49,7 +49,7 @@ export default function DashboardLayout({
             >
               {isSidebarOpen ? <X size={20} /> : <Menu size={20} />}
             </button>
-            <div style={{ display: 'none', lg: 'block' }}>
+            <div className="show-desktop">
                <h2 style={{ fontSize: '18px', fontWeight: '800', display: 'flex', flexDirection: 'column', lineHeight: '1.2' }}>
                  <span>ระบบจัดการอัจฉริยะ</span>
                  <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: '600' }}>NEO INTELLIGENCE SUITE</span>
@@ -80,7 +80,7 @@ export default function DashboardLayout({
                     boxShadow: '0 0 10px rgba(115, 103, 240, 0.4)'
                   }}>{agent?.full_name?.charAt(0) || 'A'}</div>
                 )}
-                <div style={{ display: 'none', lg: 'block' }}>
+                <div className="show-desktop">
                    <p style={{ fontSize: '12px', fontWeight: '800' }}>{agent?.full_name || 'Agent'}</p>
                 </div>
              </div>
