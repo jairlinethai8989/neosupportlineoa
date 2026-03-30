@@ -30,6 +30,8 @@ export default function StaffTicketDetailPage() {
   // State for editing
   const [status, setStatus] = useState('');
   const [priority, setPriority] = useState('');
+  const [showToast, setShowToast] = useState(false);
+  const [toastMsg, setToastMsg] = useState('');
 
   const [chatLoading, setChatLoading] = useState(true);
   const [messages, setMessages] = useState<any[]>([]);
@@ -166,6 +168,11 @@ export default function StaffTicketDetailPage() {
       const { data: newMsgs } = await supabase.from('messages').select('*').eq('ticket_id', id).order('created_at', { ascending: true });
       if (newMsgs) setMessages(newMsgs);
 
+      // Trigger SUCCESS FEEDBACK
+      setToastMsg('Ticket resolved successfully! 🎉');
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 3000);
+
     } catch (err: any) {
       alert('Failed to resolve: ' + err.message);
     } finally {
@@ -207,6 +214,11 @@ export default function StaffTicketDetailPage() {
         .eq('ticket_id', id)
         .order('created_at', { ascending: false });
       if (newLogs) setLogs(newLogs);
+      
+      // Trigger SUCCESS FEEDBACK
+      setToastMsg('Changes saved successfully! ✅');
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 3000);
 
     } catch (err: any) {
       alert('Failed to update ticket: ' + err.message);
@@ -422,6 +434,28 @@ export default function StaffTicketDetailPage() {
            </div>
         </div>
       </div>
+       {/* Success Toast */}
+       {showToast && (
+         <div style={{
+           position: 'fixed',
+           top: '24px',
+           right: '24px',
+           background: 'var(--success)',
+           color: 'black',
+           padding: '16px 24px',
+           borderRadius: '12px',
+           fontWeight: '800',
+           display: 'flex',
+           alignItems: 'center',
+           gap: '12px',
+           boxShadow: '0 8px 32px rgba(0, 255, 127, 0.3)',
+           zIndex: 9999,
+           animation: 'slideInRight 0.3s ease-out'
+         }}>
+           <CheckCircle size={20} />
+           {toastMsg}
+         </div>
+       )}
     </div>
   );
 }
