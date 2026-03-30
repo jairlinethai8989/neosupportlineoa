@@ -219,23 +219,31 @@ export default function TicketDetailPage() {
           </div>
 
           {/* Chat Input */}
-          <div style={{ display: 'flex', gap: '8px' }}>
-             <input 
-              type="text" 
-              placeholder="Message your agent..." 
-              value={newMessage}
-              onChange={(e) => setNewMessage(e.target.value)}
-              onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
-              style={{ flex: 1, background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', borderRadius: '10px', padding: '12px 16px', color: 'white' }}
-             />
-             <button 
-              onClick={handleSendMessage}
-              disabled={sending}
-              className="glass-interactive flex-center" 
-              style={{ width: '48px', height: '44px', borderRadius: '10px', border: 'none', background: 'var(--primary)', color: 'black' }}>
-                {sending ? <Loader2 size={18} className="animate-spin" /> : <SendHorizontal size={20} />}
-             </button>
-          </div>
+          {ticket.status !== 'Resolved' && ticket.status !== 'Closed' ? (
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <input 
+                type="text" 
+                placeholder="Message your agent..." 
+                value={newMessage}
+                onChange={(e) => setNewMessage(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+                style={{ flex: 1, background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', borderRadius: '10px', padding: '12px 16px', color: 'white' }}
+              />
+              <button 
+                onClick={handleSendMessage}
+                disabled={sending}
+                className="glass-interactive flex-center" 
+                style={{ width: '48px', height: '44px', borderRadius: '10px', border: 'none', background: 'var(--primary)', color: 'black' }}>
+                  {sending ? <Loader2 size={18} className="animate-spin" /> : <SendHorizontal size={20} />}
+              </button>
+            </div>
+          ) : (
+            <div style={{ padding: '16px', borderRadius: '10px', background: 'rgba(0, 255, 127, 0.05)', border: '1px dotted var(--success)', textAlign: 'center' }}>
+               <p style={{ fontSize: '12px', color: 'var(--success)', fontWeight: '700' }}>
+                  ใบงานนี้เสร็จสมบูรณ์แล้ว ระบบปิดการสนทนาขอบคุณที่ใช้บริการครับ
+               </p>
+            </div>
+          )}
        </section>
 
        {/* 5. Timeline / Logs */}

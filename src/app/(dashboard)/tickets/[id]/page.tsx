@@ -130,6 +130,49 @@ export default function StaffTicketDetailPage() {
     }
   };
 
+  const handleResolve = async () => {
+    setUpdating(true);
+    try {
+      const { error } = await supabase
+        .from('tickets')
+        .update({ status: 'Resolved', updated_at: new Date().toISOString() })
+        .eq('id', id);
+
+      if (error) throw error;
+
+      // 1. Add Log
+      await supabase.from('ticket_logs').insert([{
+        ticket_id: id,
+        action_type: 'status_change',
+        from_status: ticket.status,
+        to_status: 'Resolved',
+        note: 'Agent formally resolved the ticket.'
+      }]);
+
+      // 2. Send automated closing message to private chat
+      await supabase.from('messages').insert([{
+        ticket_id: id,
+        sender_type: 'agent',
+        content: '[System: ใบงานนี้ได้รับการแก้ไขเรียบร้อยแล้ว และระบบสิ้นสุดการสนทนาขอบคุณที่ใช้บริการครับ 🙏]'
+      }]);
+
+      setStatus('Resolved');
+      setTicket({ ...ticket, status: 'Resolved' });
+      
+      // Refresh logs & messages
+      const { data: newLogs } = await supabase.from('ticket_logs').select('*').eq('ticket_id', id).order('created_at', { ascending: false });
+      if (newLogs) setLogs(newLogs);
+      
+      const { data: newMsgs } = await supabase.from('messages').select('*').eq('ticket_id', id).order('created_at', { ascending: true });
+      if (newMsgs) setMessages(newMsgs);
+
+    } catch (err: any) {
+      alert('Failed to resolve: ' + err.message);
+    } finally {
+      setUpdating(false);
+    }
+  };
+
   const handleUpdate = async () => {
     setUpdating(true);
     try {
@@ -207,6 +250,15 @@ export default function StaffTicketDetailPage() {
           </div>
         </div>
         <div style={{ display: 'flex', gap: '12px' }}>
+          {status !== 'Resolved' && status !== 'Closed' && (
+            <button 
+              onClick={handleResolve}
+              disabled={updating}
+              className="glass-interactive flex-center" 
+              style={{ padding: '0 20px', height: '44px', borderRadius: '12px', border: '1px solid var(--success)', background: 'rgba(0, 255, 127, 0.1)', color: 'var(--success)', fontWeight: '800', gap: '8px' }}>
+              {updating ? <Loader2 size={18} className="animate-spin" /> : <CheckCircle size={18} />} End Conversation
+            </button>
+          )}
           <button 
             onClick={handleUpdate}
             disabled={updating}
