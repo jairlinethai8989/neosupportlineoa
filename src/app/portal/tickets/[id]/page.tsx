@@ -12,7 +12,8 @@ import {
   Loader2,
   Calendar,
   AlertCircle,
-  FileText
+  FileText,
+  SendHorizontal
 } from 'lucide-react';
 
 export default function TicketDetailPage() {
@@ -88,17 +89,29 @@ export default function TicketDetailPage() {
 
   const handleSendMessage = async () => {
     if (!newMessage.trim()) return;
+    
+    // Optimistic Update
+    const optimisticMsg = {
+       content: newMessage,
+       sender_type: 'customer',
+       created_at: new Date().toISOString(),
+       ticket_id: id
+    };
+    setMessages(prev => [...prev, optimisticMsg]);
+    const messageToSend = newMessage;
+    setNewMessage('');
     setSending(true);
+
     try {
       const { error } = await supabase.from('messages').insert([{
         ticket_id: id,
         sender_type: 'customer',
-        content: newMessage
+        content: messageToSend
       }]);
       if (error) throw error;
-      setNewMessage('');
     } catch (err: any) {
       alert('Error sending message: ' + err.message);
+      setMessages(prev => prev.filter(m => m !== optimisticMsg));
     } finally {
       setSending(false);
     }
@@ -220,7 +233,7 @@ export default function TicketDetailPage() {
               disabled={sending}
               className="glass-interactive flex-center" 
               style={{ width: '48px', height: '44px', borderRadius: '10px', border: 'none', background: 'var(--primary)', color: 'black' }}>
-                {sending ? <Loader2 size={18} className="animate-spin" /> : <MessageCircle size={20} />}
+                {sending ? <Loader2 size={18} className="animate-spin" /> : <SendHorizontal size={20} />}
              </button>
           </div>
        </section>

@@ -15,7 +15,8 @@ import {
   Loader2,
   Save,
   Trash2,
-  MoreVertical
+  MoreVertical,
+  SendHorizontal
 } from 'lucide-react';
 
 export default function StaffTicketDetailPage() {
@@ -97,6 +98,18 @@ export default function StaffTicketDetailPage() {
 
   const handleSendMessage = async () => {
     if (!newMessage.trim()) return;
+    
+    // Create optimistic message
+    const optimisticMsg = {
+       content: newMessage,
+       sender_type: 'agent',
+       created_at: new Date().toISOString(),
+       ticket_id: id
+    };
+    
+    setMessages(prev => [...prev, optimisticMsg]);
+    const messageToSend = newMessage;
+    setNewMessage('');
     setSending(true);
 
     try {
@@ -104,13 +117,14 @@ export default function StaffTicketDetailPage() {
       const { error } = await supabase.from('messages').insert([{
         ticket_id: id,
         sender_type: 'agent',
-        content: newMessage
+        content: messageToSend
       }]);
 
       if (error) throw error;
-      setNewMessage('');
     } catch (err: any) {
       alert('Error: ' + err.message);
+      // Rollback on error if needed
+      setMessages(prev => prev.filter(m => m !== optimisticMsg));
     } finally {
       setSending(false);
     }
@@ -345,12 +359,12 @@ export default function StaffTicketDetailPage() {
                     onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
                     style={{ flex: 1, background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', borderRadius: '10px', padding: '10px 16px', color: 'white' }}
                  />
-                 <button 
+                  <button 
                   onClick={handleSendMessage}
                   disabled={sending}
                   className="glass-interactive flex-center" 
                   style={{ width: '44px', height: '44px', borderRadius: '10px', border: 'none', background: 'var(--primary)', color: 'black' }}>
-                    {sending ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
+                    {sending ? <Loader2 size={18} className="animate-spin" /> : <SendHorizontal size={18} />}
                  </button>
               </div>
            </div>
