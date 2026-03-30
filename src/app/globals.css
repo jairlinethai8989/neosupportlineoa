@@ -21,18 +21,55 @@
   --sidebar-width: 280px;
   --top-nav-height: 70px;
   --shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+
+  /* Typography */
+  --font-thai: 'Sarabun', 'Inter', -apple-system, sans-serif;
 }
 
-:root[data-theme="light"] {
-  --bg-main: #f8fafc;
-  --bg-card: rgba(255, 255, 255, 0.8);
-  --bg-sidebar: #ffffff;
-  --bg-input: rgba(0, 0, 0, 0.05);
-  
-  --text-main: #0f172a;
-  --text-muted: #64748b;
-  --border: rgba(0, 0, 0, 0.1);
-  --shadow: 0 4px 24px rgba(0, 0, 0, 0.05);
+body, button, input, select, textarea, h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-thai) !important;
+}
+
+/* Light Mode Overrides for Accessibility */
+[data-theme='light'] {
+  --bg-sidebar: #f8f9fa;
+  --bg-main: #ffffff;
+  --text-main: #1a1d23;
+  --text-muted: #4a5568;
+  --border: rgba(0, 0, 0, 0.08);
+  --glass-bg: rgba(255, 255, 255, 0.7);
+  --primary: #5c4df0; /* Slightly darker primary for light mode contrast */
+  --secondary: #edf2f7;
+  --text: #2d3748;
+}
+
+[data-theme='light'] .glass {
+  background: white;
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.04);
+}
+
+[data-theme='light'] .glass-interactive:hover {
+  background: #f1f5f9;
+  border-color: var(--primary);
+}
+
+[data-theme='light'] input, [data-theme='light'] select {
+  background: #f8f9fa !important;
+  color: #1a1d23 !important;
+  border: 1px solid #e2e8f0 !important;
+}
+
+[data-theme='light'] .sidebar {
+  border-right: 1px solid var(--border);
+}
+
+[data-theme='light'] .sidebar span {
+  color: #2d3748 !important;
+}
+
+[data-theme='light'] .sidebar .active span {
+  color: var(--primary) !important;
 }
 
 :root[data-theme="light"] body {

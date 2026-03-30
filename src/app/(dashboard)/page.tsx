@@ -7,7 +7,9 @@ import {
   Clock, 
   CheckCircle,
   TrendingUp,
-  AlertTriangle
+  AlertTriangle,
+  Download,
+  Save
 } from 'lucide-react';
 
 const KPICard = ({ title, value, icon: Icon, color, trend }: any) => (
@@ -56,18 +58,21 @@ export default function Home() {
           <h1 style={{ fontSize: '28px', fontWeight: '800', marginBottom: '4px' }}>สรุปผลบริหารจัดการ</h1>
           <p style={{ color: 'var(--text-muted)', fontSize: '14px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>EXECUTIVE SUMMARY • Real-time overview</p>
         </div>
-        <button className="glass-interactive" style={{ 
-          padding: '10px 20px', 
+        <button className="glass-interactive flex-center" style={{ 
+          padding: '12px 24px', 
           background: 'var(--primary)', 
-          color: '#0a0e14', 
+          color: 'black', 
           border: 'none', 
-          fontWeight: '700',
-          borderRadius: '10px',
-          fontSize: '14px'
+          fontWeight: '800',
+          borderRadius: '14px',
+          gap: '12px',
+          boxShadow: '0 8px 24px rgba(0, 242, 254, 0.3)'
         }}>
-          <span>ส่งออกรายงาน</span>
-          <br/>
-          <span style={{ fontSize: '9px', opacity: 0.8 }}>EXPORT REPORT</span>
+          <Download size={20} />
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', lineHeight: '1.2' }}>
+            <span style={{ fontSize: '14px' }}>ส่งออกรายงาน</span>
+            <span style={{ fontSize: '10px', opacity: 0.7 }}>EXPORT REPORT</span>
+          </div>
         </button>
       </div>
 

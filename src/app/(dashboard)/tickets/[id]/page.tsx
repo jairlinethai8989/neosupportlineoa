@@ -278,162 +278,149 @@ export default function StaffTicketDetailPage() {
             style={{ padding: '0 20px', height: '44px', borderRadius: '12px', border: '1px solid var(--primary)', background: 'var(--primary)', color: 'black', fontWeight: '800', gap: '8px' }}>
             {updating ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />} Save Changes
           </button>
-          <button className="glass-interactive flex-center" style={{ width: '44px', height: '44px', borderRadius: '12px', border: '1px solid var(--border)', color: 'var(--danger)' }}>
-            <Trash2 size={18} />
-          </button>
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1.8fr 1fr', gap: '24px' }}>
-        {/* Left Column: Details & Timeline */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: '24px', alignItems: 'start' }}>
+        {/* Main Area: Chat Workspace (Left) */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-          
-          {/* Main Info Card */}
-          <div className="glass" style={{ padding: '32px' }}>
-            <h3 style={{ fontSize: '18px', fontWeight: '800', marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <AlertCircle size={20} color="var(--primary)" /> Issue Overview
-            </h3>
-            
-            <div style={{ marginBottom: '32px' }}>
-              <label style={{ fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '8px', display: 'block' }}>Subject</label>
-              <h2 style={{ fontSize: '22px', fontWeight: '800' }}>{ticket.subject}</h2>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
-              <div>
-                <label style={{ fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '8px', display: 'block' }}>Current Status</label>
-                <select 
-                  value={status} 
-                  onChange={(e) => setStatus(e.target.value)}
-                  style={{ width: '100%', padding: '12px', borderRadius: '10px', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', color: 'white', fontWeight: '700' }}
-                >
-                  <option value="New">Pending</option>
-                  <option value="Assigned">Assigned</option>
-                  <option value="In Progress">In Progress</option>
-                  <option value="Escalated">Escalated</option>
-                  <option value="Resolved">Resolved</option>
-                  <option value="Closed">Closed</option>
-                </select>
+           <div className="glass" style={{ padding: '32px', display: 'flex', flexDirection: 'column', height: 'calc(100vh - 200px)', minHeight: '600px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                <label style={{ fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', display: 'block' }}>Chat Workspace</label>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '4px 12px', background: 'rgba(0,255,127,0.1)', borderRadius: '20px' }}>
+                   <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--success)' }} />
+                   <span style={{ fontSize: '10px', color: 'var(--success)', fontWeight: '800' }}>LIVE SESSION</span>
+                </div>
               </div>
-              <div>
-                <label style={{ fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '8px', display: 'block' }}>Set Priority</label>
-                <select 
-                  value={priority} 
-                  onChange={(e) => setPriority(e.target.value)}
-                  style={{ width: '100%', padding: '12px', borderRadius: '10px', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', color: 'white', fontWeight: '700' }}
-                >
-                  <option value="Low">Low Priority</option>
-                  <option value="Medium">Medium Priority</option>
-                  <option value="High">High Priority</option>
-                </select>
-              </div>
-            </div>
-          </div>
-
-          {/* Timeline Card */}
-          <div className="glass" style={{ padding: '32px' }}>
-             <h3 style={{ fontSize: '18px', fontWeight: '800', marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <Clock size={20} color="var(--primary)" /> Case Timeline
-             </h3>
-             <div style={{ display: 'flex', flexDirection: 'column', gap: '0', borderLeft: '2px solid var(--border)', marginLeft: '12px', paddingLeft: '24px' }}>
-                {logs.map((log, idx) => (
-                  <div key={idx} style={{ position: 'relative', marginBottom: '32px' }}>
-                    <div style={{ 
-                      position: 'absolute', 
-                      left: '-31px', 
-                      top: '0', 
-                      width: '12px', 
-                      height: '12px', 
-                      borderRadius: '50%', 
-                      background: idx === 0 ? 'var(--primary)' : 'var(--border)',
-                      border: idx === 0 ? '4px solid rgba(0, 242, 254, 0.2)' : 'none'
-                    }} />
-                    <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '4px' }}>
-                      {new Date(log.created_at).toLocaleString()}
-                    </p>
-                    <p style={{ fontSize: '14px', fontWeight: '800' }}>
-                       {log.action_type === 'status_change' ? `Status changed from ${log.from_status} to ${log.to_status}` : log.action_type}
-                    </p>
-                    {log.note && <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.6)', marginTop: '8px', padding: '10px', background: 'rgba(255,255,255,0.03)', borderRadius: '8px' }}>{log.note}</p>}
-                  </div>
-                ))}
-                {logs.length === 0 && <p style={{ color: 'var(--text-muted)' }}>No logs yet.</p>}
-             </div>
-          </div>
-        </div>
-
-        {/* Right Column: Customer & Chat Workspace */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-           {/* Customer Card */}
-           <div className="glass" style={{ padding: '32px' }}>
-              <label style={{ fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '20px', display: 'block' }}>Customer Profile</label>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '20px', marginBottom: '24px' }}>
-                 <div style={{ width: '64px', height: '64px', borderRadius: '20px', background: 'var(--secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
-                    {ticket.customers?.avatar_url ? (
-                       <img src={ticket.customers.avatar_url} alt="avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                    ) : <User size={32} />}
-                 </div>
-                 <div>
-                    <h4 style={{ fontSize: '18px', fontWeight: '800' }}>{ticket.customers?.display_name || 'Neo Customer'}</h4>
-                    <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>LINE Channel Partner</p>
-                 </div>
-              </div>
-              
-              <div style={{ padding: '20px', borderRadius: '16px', background: 'rgba(0, 242, 254, 0.05)', border: '1px solid rgba(0, 242, 254, 0.1)' }}>
-                 <p style={{ fontSize: '12px', lineHeight: '1.6', color: 'rgba(255,255,255,0.7)' }}>
-                    Customer linked via LINE Messaging API. Metadata includes LINE User ID and Profile Sync.
-                 </p>
-              </div>
-           </div>
-
-           {/* Chat Workspace */}
-           <div className="glass" style={{ padding: '32px', display: 'flex', flexDirection: 'column', minHeight: '400px' }}>
-              <label style={{ fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '20px', display: 'block' }}>Chat Workspace</label>
               
               {/* Message History */}
-              <div style={{ flex: 1, overflowY: 'auto', marginBottom: '20px', display: 'flex', flexDirection: 'column', gap: '12px', paddingRight: '4px' }}>
+              <div style={{ flex: 1, overflowY: 'auto', marginBottom: '20px', display: 'flex', flexDirection: 'column', gap: '16px', paddingRight: '12px' }}>
                  {messages.map((msg, idx) => (
                     <div key={idx} style={{ 
                        alignSelf: msg.sender_type === 'agent' ? 'flex-end' : 'flex-start',
-                       maxWidth: '85%',
-                       padding: '10px 14px',
-                       borderRadius: '12px',
-                       background: msg.sender_type === 'agent' ? 'var(--primary)' : 'rgba(255,255,255,0.05)',
-                       color: msg.sender_type === 'agent' ? 'black' : 'white',
+                       maxWidth: '75%',
+                       display: 'flex',
+                       flexDirection: 'column',
+                       alignItems: msg.sender_type === 'agent' ? 'flex-end' : 'flex-start'
                     }}>
-                       <p style={{ fontSize: '13px', fontWeight: msg.sender_type === 'agent' ? '700' : '500' }}>{msg.content}</p>
-                       <p style={{ fontSize: '9px', opacity: 0.6, textAlign: 'right', marginTop: '4px' }}>{new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+                       <div style={{ 
+                          padding: '12px 18px',
+                          borderRadius: '18px',
+                          borderTopRightRadius: msg.sender_type === 'agent' ? '4px' : '18px',
+                          borderTopLeftRadius: msg.sender_type === 'customer' ? '4px' : '18px',
+                          background: msg.sender_type === 'agent' ? 'var(--primary)' : 'var(--secondary)',
+                          color: msg.sender_type === 'agent' ? 'black' : 'var(--text)',
+                          boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+                       }}>
+                          <p style={{ fontSize: '14px', fontWeight: msg.sender_type === 'agent' ? '700' : '500', lineHeight: '1.5' }}>{msg.content}</p>
+                       </div>
+                       <p style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '6px', fontWeight: '600' }}>
+                          {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          {msg.sender_type === 'agent' && ' • Sent by you'}
+                       </p>
                     </div>
                  ))}
                  {messages.length === 0 && (
-                    <div style={{ textAlign: 'center', marginTop: '40px', opacity: 0.3 }}>
-                       <MessageSquare size={32} style={{ marginBottom: '10px' }} />
-                       <p style={{ fontSize: '12px' }}>Start conversation...</p>
+                    <div style={{ textAlign: 'center', marginTop: '100px', opacity: 0.3 }}>
+                       <MessageSquare size={48} style={{ marginBottom: '16px' }} />
+                       <p style={{ fontSize: '16px', fontWeight: '800' }}>No messages yet</p>
+                       <p style={{ fontSize: '12px' }}>Start supporting your customer</p>
                     </div>
                  )}
               </div>
 
               {/* Input Area */}
-              <div style={{ display: 'flex', gap: '10px' }}>
+              <div style={{ display: 'flex', gap: '12px', background: 'rgba(0,0,0,0.03)', padding: '12px', borderRadius: '16px', border: '1px solid var(--border)' }}>
                  <input 
                     type="text" 
-                    placeholder="Type message..." 
+                    placeholder="Type your response to customer..." 
                     value={newMessage}
                     onChange={(e) => setNewMessage(e.target.value)}
                     onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
-                    style={{ flex: 1, background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', borderRadius: '10px', padding: '10px 16px', color: 'white' }}
+                    style={{ flex: 1, background: 'transparent', border: 'none', padding: '12px', color: 'var(--text)', fontSize: '14px', fontWeight: '500', outline: 'none' }}
                  />
-                  <button 
+                 <button 
                   onClick={handleSendMessage}
                   disabled={sending}
                   className="glass-interactive flex-center" 
-                  style={{ width: '44px', height: '44px', borderRadius: '10px', border: 'none', background: 'var(--primary)', color: 'black' }}>
-                    {sending ? <Loader2 size={18} className="animate-spin" /> : <SendHorizontal size={18} />}
+                  style={{ width: '48px', height: '48px', borderRadius: '12px', border: 'none', background: 'var(--primary)', color: 'black' }}>
+                    {sending ? <Loader2 size={18} className="animate-spin" /> : <SendHorizontal size={20} />}
                  </button>
               </div>
            </div>
         </div>
+
+        {/* Sidebar Space (Right) */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+           {/* 1. Customer Context */}
+           <div className="glass" style={{ padding: '24px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '16px' }}>
+                 <div style={{ width: '52px', height: '52px', borderRadius: '16px', background: 'var(--secondary)', overflow: 'hidden' }}>
+                    {ticket.customers?.avatar_url ? (
+                       <img src={ticket.customers.avatar_url} alt="avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    ) : <User size={24} />}
+                 </div>
+                 <div>
+                    <h4 style={{ fontSize: '16px', fontWeight: '800', color: 'var(--text)' }}>{ticket.customers?.display_name || 'Customer'}</h4>
+                    <span style={{ fontSize: '10px', padding: '2px 8px', background: 'rgba(0,242,254,0.1)', color: 'var(--primary)', borderRadius: '4px', fontWeight: '800' }}>CUSTOMER</span>
+                 </div>
+              </div>
+              <button className="glass-interactive" style={{ width: '100%', padding: '10px', borderRadius: '10px', fontSize: '12px', fontWeight: '700', border: '1px solid var(--border)' }}>View Full Profile</button>
+           </div>
+
+           {/* 2. Issue Overview (Smaller) */}
+           <div className="glass" style={{ padding: '20px' }}>
+              <label style={{ fontSize: '10px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '12px', display: 'block' }}>Issue Details</label>
+              <h5 style={{ fontSize: '14px', fontWeight: '800', marginBottom: '16px', lineHeight: '1.4' }}>{ticket.subject}</h5>
+              
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                 <div>
+                    <label style={{ fontSize: '9px', fontWeight: '800', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>Status</label>
+                    <select 
+                      value={status} 
+                      onChange={(e) => setStatus(e.target.value)}
+                      style={{ width: '100%', padding: '8px', borderRadius: '8px', fontSize: '12px', background: 'var(--secondary)', border: '1px solid var(--border)', color: 'var(--text)', fontWeight: '700' }}
+                    >
+                      <option value="New">Pending</option>
+                      <option value="Assigned">Assigned</option>
+                      <option value="In Progress">In Progress</option>
+                      <option value="Escalated">Escalated</option>
+                      <option value="Resolved">Resolved</option>
+                    </select>
+                 </div>
+                 <div>
+                    <label style={{ fontSize: '9px', fontWeight: '800', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>Priority</label>
+                    <select 
+                      value={priority} 
+                      onChange={(e) => setPriority(e.target.value)}
+                      style={{ width: '100%', padding: '8px', borderRadius: '8px', fontSize: '12px', background: 'var(--secondary)', border: '1px solid var(--border)', color: 'var(--text)', fontWeight: '700' }}
+                    >
+                      <option value="Low">Low</option>
+                      <option value="Medium">Medium</option>
+                      <option value="High">High</option>
+                    </select>
+                 </div>
+              </div>
+           </div>
+
+           {/* 3. Timeline (Compressed) */}
+           <div className="glass" style={{ padding: '20px' }}>
+              <label style={{ fontSize: '10px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '16px', display: 'block' }}>Recent activity</label>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', borderLeft: '1px solid var(--border)', marginLeft: '6px', paddingLeft: '16px' }}>
+                 {logs.slice(0, 3).map((log, idx) => (
+                    <div key={idx} style={{ position: 'relative' }}>
+                       <div style={{ position: 'absolute', left: '-19.5px', top: '4px', width: '6px', height: '6px', borderRadius: '50%', background: 'var(--primary)' }} />
+                       <p style={{ fontSize: '10px', color: 'var(--text-muted)' }}>{new Date(log.created_at).toLocaleDateString()}</p>
+                       <p style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text)' }}>
+                          {log.action_type === 'status_change' ? `Modified to ${log.to_status}` : log.action_type}
+                       </p>
+                    </div>
+                 ))}
+              </div>
+           </div>
+        </div>
       </div>
+
        {/* Success Toast */}
        {showToast && (
          <div style={{

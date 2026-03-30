@@ -20,6 +20,20 @@ const AVATAR_OPTIONS = [
   'https://api.dicebear.com/7.x/avataaars/svg?seed=Precious',
   'https://api.dicebear.com/7.x/avataaars/svg?seed=Simba',
   'https://api.dicebear.com/7.x/avataaars/svg?seed=Cookie',
+  'https://api.dicebear.com/7.x/avataaars/svg?seed=Tigger',
+  'https://api.dicebear.com/7.x/avataaars/svg?seed=Misty',
+  'https://api.dicebear.com/7.x/avataaars/svg?seed=Patches',
+  'https://api.dicebear.com/7.x/avataaars/svg?seed=Pumpkin',
+  'https://api.dicebear.com/7.x/bottts/svg?seed=Bella',
+  'https://api.dicebear.com/7.x/bottts/svg?seed=Cocoa',
+  'https://api.dicebear.com/7.x/bottts/svg?seed=Sassy',
+  'https://api.dicebear.com/7.x/bottts/svg?seed=Mocha',
+  'https://api.dicebear.com/7.x/bottts/svg?seed=Oreo',
+  'https://api.dicebear.com/7.x/bottts/svg?seed=Ginger',
+  'https://api.dicebear.com/7.x/bottts/svg?seed=Shadow',
+  'https://api.dicebear.com/7.x/bottts/svg?seed=Buddy',
+  'https://api.dicebear.com/7.x/bottts/svg?seed=Lucky',
+  'https://api.dicebear.com/7.x/bottts/svg?seed=Peanut',
 ];
 
 const DEPARTMENTS = [
@@ -34,6 +48,9 @@ export default function ProfileSettingsPage() {
   const [company, setCompany] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [showToast, setShowToast] = useState(false);
+  const [toastMsg, setToastMsg] = useState('');
 
   useEffect(() => {
     async function fetchData() {
@@ -49,6 +66,40 @@ export default function ProfileSettingsPage() {
     fetchData();
   }, []);
 
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>, target: 'profile' | 'company') => {
+     const file = event.target.files?.[0];
+     if (!file) return;
+
+     setUploading(true);
+     try {
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${Math.random()}.${fileExt}`;
+        const filePath = `${target}/${fileName}`;
+
+        const { error: uploadError, data } = await supabase.storage
+           .from('public') // Assuming 'public' bucket exists
+           .upload(filePath, file);
+
+        if (uploadError) throw uploadError;
+
+        const { data: { publicUrl } } = supabase.storage.from('public').getPublicUrl(filePath);
+
+        if (target === 'profile') {
+           setProfile({ ...profile, avatar_url: publicUrl });
+        } else {
+           setCompany({ ...company, logo_url: publicUrl });
+        }
+        
+        setToastMsg('ไฟล์อัปโหลดสำเร็จ! 🎉');
+        setShowToast(true);
+        setTimeout(() => setShowToast(false), 3000);
+     } catch (err: any) {
+        alert('File upload failed: ' + err.message);
+     } finally {
+        setUploading(false);
+     }
+  };
+
   const handleSaveProfile = async () => {
     setSaving(true);
     try {
@@ -58,7 +109,10 @@ export default function ProfileSettingsPage() {
         department: profile.department,
         updated_at: new Date().toISOString()
       }).eq('id', profile.id);
-      alert('บันทึกข้อมูลส่วนตัวเรียบร้อยแล้ว');
+      
+      setToastMsg('บันทึกข้อมูลส่วนตัวสำเร็จ! ✅');
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 3000);
     } catch (err) {
       alert('Update failed');
     } finally {
@@ -69,13 +123,21 @@ export default function ProfileSettingsPage() {
   const handleSaveCompany = async () => {
     setSaving(true);
     try {
-      await supabase.from('company_settings').upsert({
-        id: company?.id,
-        company_name: company.company_name,
-        logo_url: company.logo_url,
-        updated_at: new Date().toISOString()
-      });
-      alert('บันทึกข้อมูลองค์กรเรียบร้อยแล้ว');
+      if (company?.id) {
+         await supabase.from('company_settings').update({
+           company_name: company.company_name,
+           logo_url: company.logo_url,
+           updated_at: new Date().toISOString()
+         }).eq('id', company.id);
+      } else {
+         await supabase.from('company_settings').insert([{
+           company_name: company.company_name,
+           logo_url: company.logo_url
+         }]);
+      }
+      setToastMsg('บันทึกข้อมูลองค์กรสำเร็จ! ✅');
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 3000);
     } catch (err) {
       alert('Update failed');
     } finally {
@@ -97,7 +159,7 @@ export default function ProfileSettingsPage() {
          <div className="glass" style={{ padding: '32px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '32px' }}>
                <div style={{ background: 'var(--secondary)', padding: '10px', borderRadius: '12px' }}>
-                  <User size={24} color="white" />
+                  <User size={24} color="var(--primary)" />
                </div>
                <div>
                  <h2 style={{ fontSize: '20px', fontWeight: '700', lineHeight: '1.2' }}>ข้อมูลส่วนตัว</h2>
@@ -111,29 +173,35 @@ export default function ProfileSettingsPage() {
                     src={profile?.avatar_url || 'https://ui-avatars.com/api/?name=' + profile?.full_name} 
                     style={{ width: '120px', height: '120px', borderRadius: '30px', objectFit: 'cover', border: '4px solid var(--border)' }} 
                   />
-                  <div style={{ position: 'absolute', bottom: '-10px', right: '-10px', background: 'var(--primary)', padding: '8px', borderRadius: '12px', cursor: 'pointer', boxShadow: '0 4px 15px rgba(0,242,254,0.4)' }}>
-                     <Camera size={20} color="#0a0e14" />
-                  </div>
+                  <label style={{ 
+                     position: 'absolute', bottom: '-10px', right: '-10px', 
+                     background: 'var(--primary)', padding: '8px', borderRadius: '12px', 
+                     cursor: 'pointer', boxShadow: '0 4px 15px rgba(0,242,254,0.4)',
+                     display: 'flex', alignItems: 'center', justifyContent: 'center'
+                  }}>
+                     {uploading ? <Loader2 size={20} className="animate-spin" /> : <Camera size={20} color="#0a0e14" />}
+                     <input type="file" hidden accept="image/*" onChange={(e) => handleFileUpload(e, 'profile')} disabled={uploading} />
+                  </label>
                </div>
                <p style={{ marginTop: '16px', fontSize: '14px', color: 'var(--text-muted)' }}>เลือก Avatar หรืออัปโหลดรูปของคุณ</p>
                
-               <div style={{ display: 'flex', gap: '8px', marginTop: '16px', flexWrap: 'wrap', justifyContent: 'center' }}>
+               <div style={{ display: 'flex', gap: '8px', marginTop: '16px', flexWrap: 'wrap', justifyContent: 'center', maxHeight: '160px', overflowY: 'auto', padding: '8px' }}>
                  {AVATAR_OPTIONS.map((url, idx) => (
-                   <button 
-                    key={idx}
-                    onClick={() => setProfile({...profile, avatar_url: url})}
-                    style={{ 
-                      width: '40px', 
-                      height: '40px', 
-                      borderRadius: '10px', 
-                      overflow: 'hidden', 
-                      border: profile?.avatar_url === url ? '2px solid var(--primary)' : '1px solid var(--border)',
-                      padding: 0,
-                      cursor: 'pointer',
-                      background: 'none'
-                    }}>
-                     <img src={url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                   </button>
+                    <button 
+                     key={idx}
+                     onClick={() => setProfile({...profile, avatar_url: url})}
+                     style={{ 
+                       width: '40px', 
+                       height: '40px', 
+                       borderRadius: '10px', 
+                       overflow: 'hidden', 
+                       border: profile?.avatar_url === url ? '2px solid var(--primary)' : '1px solid var(--border)',
+                       padding: 0,
+                       cursor: 'pointer',
+                       background: 'none'
+                     }}>
+                      <img src={url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    </button>
                  ))}
                </div>
             </div>
@@ -145,7 +213,7 @@ export default function ProfileSettingsPage() {
                     type="text" 
                     value={profile?.full_name || ''} 
                     onChange={e => setProfile({...profile, full_name: e.target.value})}
-                    style={{ width: '100%', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '10px', padding: '14px', color: 'white', outline: 'none' }}
+                    style={{ width: '100%', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '10px', padding: '14px', color: 'var(--text)', outline: 'none' }}
                   />
                </div>
                <div>
@@ -153,7 +221,7 @@ export default function ProfileSettingsPage() {
                   <select 
                     value={profile?.department || ''} 
                     onChange={e => setProfile({...profile, department: e.target.value})}
-                    style={{ width: '100%', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '10px', padding: '14px', color: 'white', outline: 'none', appearance: 'none' }}
+                    style={{ width: '100%', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '10px', padding: '14px', color: 'var(--text)', outline: 'none', appearance: 'none' }}
                   >
                     <option value="">เลือกแผนก...</option>
                     {DEPARTMENTS.map((dept, idx) => (
@@ -161,22 +229,12 @@ export default function ProfileSettingsPage() {
                     ))}
                   </select>
                </div>
-               <div>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '8px' }}>Avatar URL</label>
-                  <input 
-                    type="text" 
-                    placeholder="Enter image URL..."
-                    value={profile?.avatar_url || ''} 
-                    onChange={e => setProfile({...profile, avatar_url: e.target.value})}
-                    style={{ width: '100%', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '10px', padding: '14px', color: 'white', outline: 'none' }}
-                  />
-               </div>
                <button 
                 onClick={handleSaveProfile}
-                disabled={saving}
+                disabled={saving || uploading}
                 className="glass-interactive" 
                 style={{ width: '100%', padding: '16px', borderRadius: '12px', background: 'var(--primary)', border: 'none', color: '#0a0e14', fontWeight: '800', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', marginTop: '12px' }}>
-                  {saving ? <Loader2 className="animate-spin" /> : <><Save size={20} /> บันทึกข้อมูลส่วนตัว</>}
+                  {saving ? <Loader2 className="animate-spin" /> : <><Save size={20} /> บันทึกข้อมูลส่วนตัว (SAVE PROFILE)</>}
                </button>
             </div>
          </div>
@@ -187,48 +245,51 @@ export default function ProfileSettingsPage() {
                <div style={{ background: 'var(--primary)', padding: '10px', borderRadius: '12px' }}>
                   <Building size={24} color="#0a0e14" />
                </div>
-               <h2 style={{ fontSize: '20px', fontWeight: '700' }}>Company Branding</h2>
+               <div>
+                 <h2 style={{ fontSize: '20px', fontWeight: '700', lineHeight: '1.2' }}>ข้อมูลองค์กร</h2>
+                 <p style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Company Branding Settings</p>
+               </div>
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: '32px' }}>
-               <div className="glass" style={{ width: '100%', height: '120px', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', padding: '12px' }}>
+               <div className="glass" style={{ position: 'relative', width: '100%', height: '160px', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', padding: '24px', background: 'rgba(0,0,0,0.02)' }}>
                   {company?.logo_url ? (
                     <img src={company.logo_url} style={{ maxHeight: '100%', maxWidth: '100%', objectFit: 'contain' }} />
                   ) : (
                     <div style={{ textAlign: 'center' }}>
                        <Building size={48} color="var(--border)" />
-                       <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '8px' }}>No Logo Uploaded</p>
+                       <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '8px' }}>โลโก้องค์กร (No Logo)</p>
                     </div>
                   )}
+                  <label style={{ 
+                     position: 'absolute', bottom: '12px', right: '12px', 
+                     background: 'var(--primary)', padding: '8px 12px', borderRadius: '8px', 
+                     cursor: 'pointer', boxShadow: '0 4px 15px rgba(0,0,0,0.2)',
+                     display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', fontWeight: '800'
+                  }}>
+                     {uploading ? <Loader2 size={14} className="animate-spin" /> : <Camera size={14} color="#0a0e14" />}
+                     <span>{uploading ? 'UPLOADING...' : 'อัปโหลดรูป (UPLOAD)'}</span>
+                     <input type="file" hidden accept="image/*" onChange={(e) => handleFileUpload(e, 'company')} disabled={uploading} />
+                  </label>
                </div>
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                <div>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '8px' }}>Company Name</label>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '8px' }}>ชื่อบริษัท/องค์กร (COMPANY NAME)</label>
                   <input 
                     type="text" 
                     value={company?.company_name || ''} 
                     onChange={e => setCompany({...company, company_name: e.target.value})}
-                    style={{ width: '100%', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '10px', padding: '14px', color: 'white', outline: 'none' }}
-                  />
-               </div>
-               <div>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '8px' }}>Company Logo URL</label>
-                  <input 
-                    type="text" 
-                    placeholder="Enter logo image URL..."
-                    value={company?.logo_url || ''} 
-                    onChange={e => setCompany({...company, logo_url: e.target.value})}
-                    style={{ width: '100%', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '10px', padding: '14px', color: 'white', outline: 'none' }}
+                    style={{ width: '100%', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '10px', padding: '14px', color: 'var(--text)', outline: 'none' }}
                   />
                </div>
                <button 
                 onClick={handleSaveCompany}
-                disabled={saving}
+                disabled={saving || uploading}
                 className="glass-interactive" 
-                style={{ width: '100%', padding: '16px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', color: 'white', fontWeight: '800', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', marginTop: '12px' }}>
-                  {saving ? <Loader2 className="animate-spin" /> : <><Save size={20} /> Update Branding</>}
+                style={{ width: '100%', padding: '16px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', color: 'var(--text)', fontWeight: '800', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', marginTop: '12px' }}>
+                  {saving ? <Loader2 className="animate-spin" /> : <><Save size={20} /> บันทึกข้อมูลองค์กร (UPDATE BRANDING)</>}
                </button>
             </div>
 
@@ -236,12 +297,35 @@ export default function ProfileSettingsPage() {
                <div style={{ display: 'flex', gap: '12px' }}>
                   <ShieldCheck size={18} color="var(--primary)" />
                   <p style={{ fontSize: '13px', color: 'var(--text-muted)', lineHeight: '1.5' }}>
-                     Logo will be displayed on the <strong>Sidebar</strong> and <strong>Customer Reports</strong> automatically.
+                     โลโก้นี้จะปรากฏบน **แถบด้านข้าง (Sidebar)** และ **รายงานสรุปผล (Reports)** ของระบบโดยอัตโนมัติ
                   </p>
                </div>
             </div>
          </div>
       </div>
+
+      {/* Success Toast */}
+      {showToast && (
+        <div style={{
+          position: 'fixed',
+          bottom: '24px',
+          right: '24px',
+          background: 'var(--primary)',
+          color: 'black',
+          padding: '16px 24px',
+          borderRadius: '12px',
+          fontWeight: '800',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '12px',
+          boxShadow: '0 8px 32px rgba(0, 242, 254, 0.3)',
+          zIndex: 9999,
+          animation: 'slideInRight 0.3s ease-out'
+        }}>
+          <ShieldCheck size={20} />
+          {toastMsg}
+        </div>
+      )}
     </div>
   );
 }
