@@ -1,12 +1,12 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Prompt } from "next/font/google";
+import { Noto_Sans_Thai } from "next/font/google";
 import Sidebar from "@/components/layout/Sidebar";
 import { Menu, X, Bell, User as UserIcon } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 
-const prompt = Prompt({ subsets: ["latin", "thai"], weight: ['300', '400', '500', '600', '700', '800'] });
+const notoThai = Noto_Sans_Thai({ subsets: ["latin", "thai"], weight: ['300', '400', '500', '600', '700', '800'] });
 
 export default function DashboardLayout({
   children,
@@ -28,7 +28,7 @@ export default function DashboardLayout({
   }, []);
 
   return (
-    <div className={`main-layout ${prompt.className}`}>
+    <div className={`main-layout ${notoThai.className}`}>
       {/* Sidebar Mobile Toggle Overlay */}
       {isSidebarOpen && (
         <div className="sidebar-overlay" onClick={() => setIsSidebarOpen(false)} />
