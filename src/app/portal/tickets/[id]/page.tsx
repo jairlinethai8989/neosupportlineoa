@@ -18,9 +18,9 @@ import {
 export default function TicketDetailPage() {
   const { id } = useParams();
   const router = useRouter();
-  const [ticket, setTicket] = useState<any>(null);
-  const [logs, setLogs] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [messages, setMessages] = useState<any[]>([]);
+  const [newMessage, setNewMessage] = useState('');
+  const [sending, setSending] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -38,17 +38,62 @@ export default function TicketDetailPage() {
 
       if (ticketData) {
         setTicket(ticketData);
+        
+        // Fetch Logs
         const { data: logData } = await supabase
           .from('ticket_logs')
           .select('*')
           .eq('ticket_id', id)
           .order('created_at', { ascending: false });
         if (logData) setLogs(logData);
+
+        // Fetch Internal Messages
+        const { data: msgData } = await supabase
+          .from('messages')
+          .select('*')
+          .eq('ticket_id', id)
+          .order('created_at', { ascending: true });
+        if (msgData) setMessages(msgData);
       }
       setLoading(false);
     }
     fetchTicketData();
+
+    // Real-time subscription for private chat
+    const channel = supabase
+      .channel(`customer-chat-${id}`)
+      .on('postgres_changes', { 
+        event: 'INSERT', 
+        schema: 'public', 
+        table: 'messages',
+        filter: `ticket_id=eq.${id}`
+      }, () => {
+        fetchTicketData();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [id]);
+
+  const handleSendMessage = async () => {
+    if (!newMessage.trim()) return;
+    setSending(true);
+    try {
+      const { error } = await supabase.from('messages').insert([{
+        ticket_id: id,
+        sender_type: 'customer',
+        content: newMessage
+      }]);
+      if (error) throw error;
+      setNewMessage('');
+    } catch (err: any) {
+      alert('Error sending message: ' + err.message);
+    } finally {
+      setSending(false);
+    }
+  };
 
   if (loading) return (
      <div className="flex-center" style={{ height: '100vh', background: '#0a0e14' }}>
@@ -122,28 +167,57 @@ export default function TicketDetailPage() {
              </div>
              <p style={{ fontSize: '18px', fontWeight: '700' }}>{ticket.subject || 'Standard Request'}</p>
           </div>
-
-          <div className="glass" style={{ padding: '20px', background: 'rgba(255,255,255,0.02)' }}>
-             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
-                <User size={18} color="var(--primary)" />
-                <p style={{ fontSize: '13px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Assigned Agent</p>
-             </div>
-             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'var(--secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                   {ticket.assigned_agent?.avatar_url ? (
-                      <img src={ticket.assigned_agent.avatar_url} alt="agent" style={{ width: '40px', height: '40px', borderRadius: '50%' }} />
-                   ) : <User size={20} />}
-                </div>
-                <div>
-                   <p style={{ fontWeight: '700', fontSize: '15px' }}>{ticket.assigned_agent?.full_name || 'System Auto'}</p>
-                   <p style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{ticket.assigned_team?.name || 'Support Team'}</p>
-                </div>
-             </div>
-          </div>
        </div>
 
-       {/* 4. Timeline / Logs */}
-       <section>
+       {/* 4. Private Chat Workspace */}
+       <section className="glass" style={{ padding: '24px', marginBottom: '32px', display: 'flex', flexDirection: 'column', minHeight: '350px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
+             <MessageCircle size={18} color="var(--primary)" />
+             <h3 style={{ fontSize: '16px', fontWeight: '800' }}>Private Chat (Internal)</h3>
+          </div>
+
+          {/* Chat Messages */}
+          <div style={{ flex: 1, overflowY: 'auto', marginBottom: '20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+             {messages.map((msg, idx) => (
+                <div key={idx} style={{ 
+                   alignSelf: msg.sender_type === 'customer' ? 'flex-end' : 'flex-start',
+                   maxWidth: '85%',
+                   padding: '10px 14px',
+                   borderRadius: '12px',
+                   background: msg.sender_type === 'customer' ? 'var(--primary)' : 'rgba(255,255,255,0.05)',
+                   color: msg.sender_type === 'customer' ? 'black' : 'white',
+                }}>
+                   <p style={{ fontSize: '14px', fontWeight: '500' }}>{msg.content}</p>
+                   <p style={{ fontSize: '9px', opacity: 0.6, textAlign: 'right', marginTop: '4px' }}>
+                      {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                   </p>
+                </div>
+             ))}
+             {messages.length === 0 && <p style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '12px', marginTop: '40px' }}>No messages yet. Say hi to the agent!</p>}
+          </div>
+
+          {/* Chat Input */}
+          <div style={{ display: 'flex', gap: '8px' }}>
+             <input 
+              type="text" 
+              placeholder="Message your agent..." 
+              value={newMessage}
+              onChange={(e) => setNewMessage(e.target.value)}
+              onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+              style={{ flex: 1, background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', borderRadius: '10px', padding: '12px 16px', color: 'white' }}
+             />
+             <button 
+              onClick={handleSendMessage}
+              disabled={sending}
+              className="glass-interactive flex-center" 
+              style={{ width: '48px', height: '44px', borderRadius: '10px', border: 'none', background: 'var(--primary)', color: 'black' }}>
+                {sending ? <Loader2 size={18} className="animate-spin" /> : <MessageCircle size={20} />}
+             </button>
+          </div>
+       </section>
+
+       {/* 5. Timeline / Logs */}
+       <section className="glass" style={{ padding: '24px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
              <Clock size={16} color="var(--primary)" />
              <h3 style={{ fontSize: '16px', fontWeight: '800' }}>Progress Timeline</h3>
@@ -151,45 +225,26 @@ export default function TicketDetailPage() {
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0', borderLeft: '2px solid var(--border)', marginLeft: '12px', paddingLeft: '24px' }}>
              {logs.map((log, index) => (
-                <div key={log.id} style={{ position: 'relative', marginBottom: '32px' }}>
+                <div key={log.id} style={{ position: 'relative', marginBottom: '24px' }}>
                    <div style={{ 
                       position: 'absolute', 
                       left: '-31px', 
                       top: '0', 
-                      width: '12px', 
-                      height: '12px', 
+                      width: '10px', 
+                      height: '10px', 
                       borderRadius: '50%', 
                       background: index === 0 ? 'var(--primary)' : 'var(--border)',
-                      border: index === 0 ? '4px solid rgba(0, 242, 254, 0.2)' : 'none'
                    }} />
-                   <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '4px' }}>
+                   <p style={{ fontSize: '10px', color: 'var(--text-muted)', marginBottom: '4px' }}>
                       {new Date(log.created_at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}
                    </p>
-                   <p style={{ fontSize: '14px', fontWeight: '700', marginBottom: '4px' }}>
-                      {log.action_type === 'status_change' ? `Moved to ${log.to_status}` : 
-                       log.action_type === 'resolve' ? 'Ticket Resolved' : 
-                       log.action_type === 'claim' ? 'Agent Claimed' : 'Task Update'}
+                   <p style={{ fontSize: '13px', fontWeight: '700' }}>
+                      {log.action_type === 'status_change' ? `Moved to ${log.to_status}` : 'Task Update'}
                    </p>
-                   {log.note && (
-                      <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.6)', fontStyle: 'italic' }}>
-                         "{log.note}"
-                      </p>
-                   )}
                 </div>
              ))}
-             {logs.length === 0 && (
-                <p style={{ color: 'var(--text-muted)', fontSize: '13px' }}>Waiting for updates...</p>
-             )}
           </div>
        </section>
-
-       {/* 5. Quick Resolve Button if needed or Help */}
-       <div style={{ marginTop: '40px', textAlign: 'center' }}>
-          <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '16px' }}>Need more assistance with this ticket?</p>
-          <button onClick={() => window.open(`https://line.me/R/oaMessage/${process.env.NEXT_PUBLIC_LINE_BOT_ID || ''}/?Ticket%20%23${ticket.ticket_no}`)} className="glass-interactive" style={{ width: '100%', padding: '14px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', color: 'white', border: '1px solid var(--border)', fontWeight: '700', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }}>
-             <MessageCircle size={18} /> Chat with Agent
-          </button>
-       </div>
     </div>
   );
 }

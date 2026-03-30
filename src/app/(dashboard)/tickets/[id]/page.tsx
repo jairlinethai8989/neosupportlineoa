@@ -30,6 +30,11 @@ export default function StaffTicketDetailPage() {
   const [status, setStatus] = useState('');
   const [priority, setPriority] = useState('');
 
+  const [chatLoading, setChatLoading] = useState(true);
+  const [messages, setMessages] = useState<any[]>([]);
+  const [newMessage, setNewMessage] = useState('');
+  const [sending, setSending] = useState(false);
+
   useEffect(() => {
     if (!id) return;
 
@@ -49,19 +54,67 @@ export default function StaffTicketDetailPage() {
         setStatus(ticketData.status);
         setPriority(ticketData.priority);
 
+        // Fetch Logs
         const { data: logData } = await supabase
           .from('ticket_logs')
           .select('*')
           .eq('ticket_id', id)
           .order('created_at', { ascending: false });
-        
         if (logData) setLogs(logData);
+
+        // Fetch Internal Messages for this ticket
+        const { data: messageData } = await supabase
+          .from('messages')
+          .select('*')
+          .eq('ticket_id', id)
+          .order('created_at', { ascending: true });
+        
+        if (messageData) setMessages(messageData);
       }
       setLoading(false);
+      setChatLoading(false);
     }
 
     fetchData();
+
+    // Subscribe to new messages for THIS ticket
+    const channel = supabase
+      .channel(`ticket-messages-${id}`)
+      .on('postgres_changes', { 
+        event: 'INSERT', 
+        schema: 'public', 
+        table: 'messages',
+        filter: `ticket_id=eq.${id}`
+      }, () => {
+        fetchData();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [id]);
+
+  const handleSendMessage = async () => {
+    if (!newMessage.trim()) return;
+    setSending(true);
+
+    try {
+      // INTERNAL ONLY: Save to Supabase messages table
+      const { error } = await supabase.from('messages').insert([{
+        ticket_id: id,
+        sender_type: 'agent',
+        content: newMessage
+      }]);
+
+      if (error) throw error;
+      setNewMessage('');
+    } catch (err: any) {
+      alert('Error: ' + err.message);
+    } finally {
+      setSending(false);
+    }
+  };
 
   const handleUpdate = async () => {
     setUpdating(true);
@@ -89,7 +142,6 @@ export default function StaffTicketDetailPage() {
       }
 
       setTicket({ ...ticket, status, priority });
-      alert('Ticket updated successfully!');
       
       // Refresh logs
       const { data: newLogs } = await supabase
@@ -232,7 +284,7 @@ export default function StaffTicketDetailPage() {
           </div>
         </div>
 
-        {/* Right Column: Customer & Metadata */}
+        {/* Right Column: Customer & Chat Workspace */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
            {/* Customer Card */}
            <div className="glass" style={{ padding: '32px' }}>
@@ -256,15 +308,51 @@ export default function StaffTicketDetailPage() {
               </div>
            </div>
 
-           {/* Quick Actions Card */}
-           <div className="glass" style={{ padding: '32px' }}>
-              <label style={{ fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '20px', display: 'block' }}>Internal Helper</label>
-              <button className="glass-interactive" style={{ width: '100%', padding: '14px', borderRadius: '12px', border: '1px solid var(--border)', background: 'transparent', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
-                 <MessageSquare size={18} color="var(--primary)" /> Open Admin Chat
-              </button>
-              <button className="glass-interactive" style={{ width: '100%', padding: '14px', borderRadius: '12px', border: '1px solid var(--border)', background: 'transparent', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '12px' }}>
-                 <ShieldAlert size={18} color="var(--warning)" /> Flag for Review
-              </button>
+           {/* Chat Workspace */}
+           <div className="glass" style={{ padding: '32px', display: 'flex', flexDirection: 'column', minHeight: '400px' }}>
+              <label style={{ fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '20px', display: 'block' }}>Chat Workspace</label>
+              
+              {/* Message History */}
+              <div style={{ flex: 1, overflowY: 'auto', marginBottom: '20px', display: 'flex', flexDirection: 'column', gap: '12px', paddingRight: '4px' }}>
+                 {messages.map((msg, idx) => (
+                    <div key={idx} style={{ 
+                       alignSelf: msg.sender_type === 'agent' ? 'flex-end' : 'flex-start',
+                       maxWidth: '85%',
+                       padding: '10px 14px',
+                       borderRadius: '12px',
+                       background: msg.sender_type === 'agent' ? 'var(--primary)' : 'rgba(255,255,255,0.05)',
+                       color: msg.sender_type === 'agent' ? 'black' : 'white',
+                    }}>
+                       <p style={{ fontSize: '13px', fontWeight: msg.sender_type === 'agent' ? '700' : '500' }}>{msg.content}</p>
+                       <p style={{ fontSize: '9px', opacity: 0.6, textAlign: 'right', marginTop: '4px' }}>{new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+                    </div>
+                 ))}
+                 {messages.length === 0 && (
+                    <div style={{ textAlign: 'center', marginTop: '40px', opacity: 0.3 }}>
+                       <MessageSquare size={32} style={{ marginBottom: '10px' }} />
+                       <p style={{ fontSize: '12px' }}>Start conversation...</p>
+                    </div>
+                 )}
+              </div>
+
+              {/* Input Area */}
+              <div style={{ display: 'flex', gap: '10px' }}>
+                 <input 
+                    type="text" 
+                    placeholder="Type message..." 
+                    value={newMessage}
+                    onChange={(e) => setNewMessage(e.target.value)}
+                    onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+                    style={{ flex: 1, background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', borderRadius: '10px', padding: '10px 16px', color: 'white' }}
+                 />
+                 <button 
+                  onClick={handleSendMessage}
+                  disabled={sending}
+                  className="glass-interactive flex-center" 
+                  style={{ width: '44px', height: '44px', borderRadius: '10px', border: 'none', background: 'var(--primary)', color: 'black' }}>
+                    {sending ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
+                 </button>
+              </div>
            </div>
         </div>
       </div>
