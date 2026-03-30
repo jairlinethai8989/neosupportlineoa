@@ -18,6 +18,9 @@ import {
 export default function TicketDetailPage() {
   const { id } = useParams();
   const router = useRouter();
+  const [ticket, setTicket] = useState<any>(null);
+  const [logs, setLogs] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [messages, setMessages] = useState<any[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [sending, setSending] = useState(false);
@@ -26,18 +29,20 @@ export default function TicketDetailPage() {
     if (!id) return;
 
     async function fetchTicketData() {
-      const { data: ticketData } = await supabase
-        .from('tickets')
-        .select(`
-          *,
-          assigned_agent:profiles!assigned_agent_id(*),
-          assigned_team:teams!assigned_team_id(*)
-        `)
-        .eq('id', id)
-        .single();
+      try {
+        const { data: ticketData, error: tError } = await supabase
+          .from('tickets')
+          .select(`
+            *,
+            assigned_agent:profiles!assigned_agent_id(*)
+          `)
+          .eq('id', id)
+          .single();
 
-      if (ticketData) {
-        setTicket(ticketData);
+        if (tError) throw tError;
+
+        if (ticketData) {
+          setTicket(ticketData);
         
         // Fetch Logs
         const { data: logData } = await supabase
@@ -55,7 +60,11 @@ export default function TicketDetailPage() {
           .order('created_at', { ascending: true });
         if (msgData) setMessages(msgData);
       }
-      setLoading(false);
+      } catch (err: any) {
+        console.error('Error fetching ticket:', err);
+      } finally {
+        setLoading(false);
+      }
     }
     fetchTicketData();
 
