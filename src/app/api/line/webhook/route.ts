@@ -3,8 +3,8 @@ import { supabase } from '@/lib/supabase';
 import * as line from '@line/bot-sdk';
 
 const config = {
-  channelAccessToken: process.env.LINE_CHANNEL_ACCESS_TOKEN || '',
-  channelSecret: process.env.LINE_CHANNEL_SECRET || '',
+  channelAccessToken: process.env.LINE_CHANNEL_ACCESS_TOKEN || 'unset',
+  channelSecret: process.env.LINE_CHANNEL_SECRET || 'unset',
 };
 
 const client = new line.Client(config);
