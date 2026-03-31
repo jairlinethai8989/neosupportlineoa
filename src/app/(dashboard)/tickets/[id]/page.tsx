@@ -365,7 +365,7 @@ export default function StaffTicketDetailPage() {
                           )}
                        </div>
                        <p style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '6px', fontWeight: '600' }}>
-                          {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          {new Date(msg.created_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', hour12: false })}
                           {msg.sender_type === 'agent' && ' • Sent by you'}
                        </p>
                     </div>

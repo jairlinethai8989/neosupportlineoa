@@ -2,7 +2,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable react/no-unescaped-entities */
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Users, 
   MessageSquare, 
@@ -11,8 +11,10 @@ import {
   TrendingUp,
   AlertTriangle,
   Download,
-  Save
+  Save,
+  Ticket
 } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
 
 const KPICard = ({ title, value, icon: Icon, color, trend }: any) => (
   <div className="glass-interactive" style={{ padding: '24px', flex: 1, minWidth: '240px' }}>
@@ -37,7 +39,7 @@ const KPICard = ({ title, value, icon: Icon, color, trend }: any) => (
           alignItems: 'center',
           gap: '4px'
         }}>
-          <TrendingUp size={14} />
+          {trend !== '-' && <TrendingUp size={14} />}
           {trend}
         </span>
       )}
@@ -53,6 +55,47 @@ const KPICard = ({ title, value, icon: Icon, color, trend }: any) => (
 );
 
 export default function Home() {
+  const [stats, setStats] = useState({
+    totalToday: 0,
+    newTickets: 0,
+    inProgress: 0,
+    pending: 0
+  });
+
+  const [recentLogs, setRecentLogs] = useState<any[]>([]);
+
+  useEffect(() => {
+    async function fetchDashboard() {
+      // 1. Fetch Stats
+      const { data: tickets } = await supabase.from('tickets').select('*');
+      if (tickets) {
+         const today = new Date().toISOString().split('T')[0];
+         setStats({
+           totalToday: tickets.filter(t => t.created_at.startsWith(today)).length,
+           newTickets: tickets.filter(t => t.status === 'New').length,
+           inProgress: tickets.filter(t => t.status === 'In Progress').length,
+           pending: tickets.filter(t => t.status === 'Pending').length
+         });
+      }
+
+      // 2. Fetch Recent Activities
+      const { data: logs } = await supabase
+        .from('ticket_logs')
+        .select(`*, tickets(ticket_no)`)
+        .order('created_at', { ascending: false })
+        .limit(5);
+      if (logs) setRecentLogs(logs);
+    }
+    fetchDashboard();
+
+    const channel = supabase.channel('dashboard-updates')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'tickets' }, fetchDashboard)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'ticket_logs' }, fetchDashboard)
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, []);
+
   return (
     <div style={{ animation: 'fadeIn 0.5s ease-out' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
@@ -79,36 +122,40 @@ export default function Home() {
       </div>
 
       <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap', marginBottom: '32px' }}>
-        <KPICard title={{ thai: 'บทสนทนาทั้งหมด', eng: 'TOTAL CONVERSATIONS' }} value="1,284" icon={MessageSquare} color="#00f2fe" trend="+12.5%" />
-        <KPICard title={{ thai: 'ใบงานที่รอดำเนินการ', eng: 'ACTIVE WORK ORDERS' }} value="48" icon={AlertTriangle} color="#ff9f43" trend="-2.4%" />
-        <KPICard title={{ thai: 'ปิดใบงานวันนี้', eng: 'RESOLVED TODAY' }} value="156" icon={CheckCircle} color="#28c76f" trend="+8.1%" />
-        <KPICard title={{ thai: 'เวลาตอบกลับเฉลี่ย', eng: 'AVG RESPONSE TIME' }} value="1.5m" icon={Clock} color="#7367f0" trend="-15s" />
+        <KPICard title={{ thai: 'ใบงานทั้งหมดวันนี้', eng: 'TOTAL TICKETS TODAY' }} value={stats.totalToday} icon={Ticket} color="#00cfe8" trend="-" />
+        <KPICard title={{ thai: 'ใบงานมาใหม่', eng: 'NEW TICKETS' }} value={stats.newTickets} icon={MessageSquare} color="#00f2fe" trend="-" />
+        <KPICard title={{ thai: 'ใบงานที่กำลังดำเนินงาน', eng: 'IN PROGRESS' }} value={stats.inProgress} icon={Clock} color="#ff9f43" trend="-" />
+        <KPICard title={{ thai: 'ใบงานรอดำเนินการ', eng: 'PENDING' }} value={stats.pending} icon={AlertTriangle} color="#ea5455" trend="-" />
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '24px' }}>
         <div className="glass" style={{ padding: '24px', height: '400px', display: 'flex', flexDirection: 'column' }}>
           <h2 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '24px' }}>แนวโน้มใบงาน (WORK ORDER TREND)</h2>
           <div style={{ flex: 1, position: 'relative', background: 'rgba(255,255,255,0.02)', borderRadius: '12px' }} className="flex-center">
-             <p style={{ color: 'var(--text-muted)' }}>Chart visualization will be here (e.g., SVG/Canvas)</p>
+             <p style={{ color: 'var(--text-muted)' }}>Real-time chart visualization mapping...</p>
           </div>
         </div>
 
         <div className="glass" style={{ padding: '24px', height: '400px', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
           <h2 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '24px' }}>กิจกรรมล่าสุด (RECENT ACTIVITY)</h2>
           <div style={{ flex: 1, overflowY: 'auto' }}>
-            {[1, 2, 3, 4, 5].map((i) => (
-              <div key={i} style={{ 
+            {recentLogs.length === 0 ? (
+                <p style={{ color: 'var(--text-muted)', textAlign: 'center', marginTop: '40px' }}>No recent activities</p>
+            ) : recentLogs.map((log, idx) => (
+              <div key={idx} style={{ 
                 padding: '12px 0', 
-                borderBottom: i === 5 ? 'none' : '1px solid var(--border)',
+                borderBottom: idx === recentLogs.length - 1 ? 'none' : '1px solid var(--border)',
                 display: 'flex',
                 gap: '12px',
                 alignItems: 'start'
               }}>
                 <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--primary)', marginTop: '6px' }} />
                 <div>
-                  <p style={{ fontSize: '14px', fontWeight: '600' }}>ใบงาน #TK123{i} เสร็จสมบูรณ์แล้ว!</p>
-                  <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>เจ้าหน้าที่ Neo ปิดใบงาน "ปัญหาการเข้าสู่ระบบ" จาก LINE OA</p>
-                  <p style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '4px' }}>2 minutes ago</p>
+                  <p style={{ fontSize: '14px', fontWeight: '600' }}>#{log.tickets?.ticket_no} - {log.action_type}</p>
+                  <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{log.note || 'Status updated automatically.'}</p>
+                  <p style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '4px' }}>
+                     {new Date(log.created_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', hour12: false })}
+                  </p>
                 </div>
               </div>
             ))}
