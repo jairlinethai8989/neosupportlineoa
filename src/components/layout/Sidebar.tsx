@@ -57,6 +57,32 @@ const Sidebar = ({ onClickLink }: SidebarProps) => {
   };
 
   const [openMenus, setOpenMenus] = useState<string[]>(['Settings']);
+  const [inboxCount, setInboxCount] = useState(0);
+  const [ticketCount, setTicketCount] = useState(0);
+
+  useEffect(() => {
+    async function fetchCounts() {
+      // Tickets (Only New)
+      const { count: tCount } = await supabase.from('tickets').select('*', { count: 'exact', head: true }).eq('status', 'New');
+      setTicketCount(tCount || 0);
+
+      // Inbox (Active conversations)
+      const { count: iCount } = await supabase.from('conversations').select('*', { count: 'exact', head: true }).eq('status', 'active');
+      setInboxCount(iCount || 0);
+    }
+    
+    fetchCounts();
+
+    // Subscribe to listen to tickets/conversations changes
+    const channel = supabase.channel('sidebar-counts')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'tickets' }, fetchCounts)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'conversations' }, fetchCounts)
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
 
   const toggleMenu = (name: string) => {
     setOpenMenus(prev => 
@@ -66,8 +92,8 @@ const Sidebar = ({ onClickLink }: SidebarProps) => {
 
   const menuItems = [
     { name: 'Dashboard', thai: 'หน้าหลัก', icon: BarChart2, path: '/' },
-    { name: 'Inbox', thai: 'กล่องข้อความ', icon: Inbox, path: '/inbox', count: 5 },
-    { name: 'Tickets', thai: 'รายการใบงาน', icon: Ticket, path: '/tickets', count: 12 },
+    { name: 'Inbox', thai: 'กล่องข้อความ', icon: Inbox, path: '/inbox', count: inboxCount },
+    { name: 'Tickets', thai: 'รายการใบงาน', icon: Ticket, path: '/tickets', count: ticketCount },
     { name: 'Customers', thai: 'รายชื่อลูกค้า', icon: Users, path: '/customers' },
     { 
       name: 'System Settings', 

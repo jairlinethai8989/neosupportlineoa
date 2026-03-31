@@ -82,7 +82,7 @@ export default function CreateTicketPage() {
            customer_id: customerData.id,
            subject: subject,
            description: description || subject,
-           status: 'Pending',
+           status: 'New',
            priority: 'Medium',
            created_at: new Date().toISOString()
         }]).select().single();
@@ -94,10 +94,31 @@ export default function CreateTicketPage() {
            ticket_id: newTicket.id,
            action_type: 'creation',
            note: 'Ticket created via Customer Portal (LIFF)',
-           to_status: 'Pending'
+           to_status: 'New'
         }]);
 
-        // 4. Handle Attachment if exists
+        // 4. Upsert Conversation for Inbox
+        const { data: convs } = await supabase.from('conversations').select('id').eq('customer_id', customerData.id).single();
+        let conversationId = convs?.id;
+        
+        if (!conversationId) {
+            const { data: newConv } = await supabase.from('conversations').insert([{
+                customer_id: customerData.id,
+                status: 'active',
+                current_ticket_id: newTicket.id,
+                last_message_at: new Date().toISOString()
+            }]).select().single();
+            conversationId = newConv?.id;
+        } else {
+            // Update existing conversation to link to this new ticket and bump timestamp
+            await supabase.from('conversations').update({
+                status: 'active',
+                current_ticket_id: newTicket.id,
+                last_message_at: new Date().toISOString()
+            }).eq('id', conversationId);
+        }
+
+        // 5. Handle Attachment if exists
         if (file) {
            const fileExt = file.name.split('.').pop() || 'jpg';
            const fileName = `${newTicket.id}_${Date.now()}.${fileExt}`;
@@ -109,6 +130,7 @@ export default function CreateTicketPage() {
               
               await supabase.from('messages').insert([{
                  ticket_id: newTicket.id,
+                 conversation_id: conversationId,
                  sender_type: 'customer',
                  message_type: messageType,
                  content: publicUrl,
@@ -121,6 +143,7 @@ export default function CreateTicketPage() {
         if (!file && description) {
               await supabase.from('messages').insert([{
                  ticket_id: newTicket.id,
+                 conversation_id: conversationId,
                  sender_type: 'customer',
                  message_type: 'text',
                  content: description,
