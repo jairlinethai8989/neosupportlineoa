@@ -301,7 +301,7 @@ const Sidebar = ({ onClickLink }: SidebarProps) => {
         </button>
         
         <div style={{ textAlign: 'center', marginTop: '12px', opacity: 0.5 }}>
-           <span style={{ fontSize: '10px', fontWeight: '700', letterSpacing: '1px' }}>VERSION 1.1.0 (UPDATED)</span>
+           <span style={{ fontSize: '10px', fontWeight: '700', letterSpacing: '1px' }}>VERSION 1.1.1 (HOTFIX)</span>
         </div>
       </div>
     </aside>
