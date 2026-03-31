@@ -139,16 +139,24 @@ export default function CreateTicketPage() {
            }
         }
 
-        // Send text description as first message if no file but description exists
+        // 6. Send text description as first message if no file but description exists
         if (!file && description) {
-              await supabase.from('messages').insert([{
-                 ticket_id: newTicket.id,
-                 conversation_id: conversationId,
-                 sender_type: 'customer',
-                 message_type: 'text',
-                 content: description,
-                 created_at: new Date().toISOString()
-              }]);
+           await supabase.from('messages').insert([{
+              ticket_id: newTicket.id,
+              conversation_id: conversationId,
+              sender_type: 'customer',
+              message_type: 'text',
+              content: description,
+              created_at: new Date().toISOString()
+           }]);
+        }
+
+        // 7. Notify Group about New Support Request (From Portal)
+        try {
+           const { sendLineGroupNotification } = await import('@/lib/utils/lineNotifications');
+           await sendLineGroupNotification(`🆕 [ตั๋วใหม่จาก Portal] คุณ ${customerData.display_name || 'ลูกค้า'} แจ้งปัญหาเข้ามาครับ\nหัวข้อ: ${subject}\n👉 ตรวจสอบที่หน้าจัดการ: ${process.env.NEXT_PUBLIC_BASE_URL || 'NeoSupport Dashboard'}`);
+        } catch (notifErr) {
+           console.error('Failed to send group notification from portal:', notifErr);
         }
 
         // P2: Redirect to Ticket Detail

@@ -18,13 +18,18 @@ export async function sendLineGroupNotification(message: string) {
     return;
   }
 
+  console.log('Sending LINE group notification to:', groupId);
   try {
-    await client.pushMessage(groupId, {
+    const result = await client.pushMessage(groupId, {
       type: 'text',
       text: message,
     });
-  } catch (error) {
-    console.error('Error sending LINE group notification:', error);
+    console.log('LINE notification sent successfully:', result);
+  } catch (error: any) {
+    console.error('Error sending LINE group notification:', error.message || error);
+    if (error.originalError && error.originalError.response) {
+       console.error('LINE API Detailed Error:', JSON.stringify(error.originalError.response.data));
+    }
   }
 }
 
