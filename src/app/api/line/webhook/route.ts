@@ -13,19 +13,25 @@ const config = {
 const client = new line.Client(config);
 
 export async function POST(req: NextRequest) {
-  const body = await req.json();
-  const signature = req.headers.get('x-line-signature') || '';
+  let body: any;
+  try {
+     body = await req.json();
+  } catch (err) {
+     console.error('Webhook: Non-JSON body received');
+     return NextResponse.json({ error: 'Body required' }, { status: 400 });
+  }
 
-  // 1. Verify Signature (in production, skip here for simplicity in initial demo)
-  // if (!line.validateSignature(JSON.stringify(body), config.channelSecret, signature)) {
-  //   return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
-  // }
-
-  const events: any[] = body.events;
+  const events: any[] = body.events || [];
   
+  // LINE Verification sends empty events array sometimes
+  if (events.length === 0) {
+    console.log('Webhook: Received empty events (Verification?)');
+    return NextResponse.json({ status: 'ok' });
+  }
+
   // Log the source of events to help user find the Group ID
   for (const event of events) {
-    if (event.source.groupId || event.source.roomId) {
+    if (event.source && (event.source.groupId || event.source.roomId)) {
       console.log('--- LINE GROUP/ROOM EVENT DETECTED ---');
       console.log('ID:', event.source.groupId || event.source.roomId);
       console.log('Type:', event.source.type);
@@ -36,18 +42,19 @@ export async function POST(req: NextRequest) {
   for (const event of events) {
     if (event.type === 'message') {
       const lineUserId = event.source.userId;
-      const messageText = event.message.type === 'text' ? event.message.text : '';
+      if (!lineUserId) continue; // Safety check
+      
+      const messageText = event.message.type === 'text' ? event.message.text : `[Attachment: ${event.message.type}]`;
 
       // 2. Map Customer
-      let { data: customer, error: customerError } = await supabase
+      let { data: customer } = await supabase
         .from('customers')
         .select('id, display_name')
         .eq('line_user_id', lineUserId)
         .single();
 
       if (!customer) {
-        // Create customer (optionally fetch profile from LINE)
-        const { data: newCustomer, error: createError } = await supabase
+        const { data: newCustomer } = await supabase
           .from('customers')
           .insert([{ 
              line_user_id: lineUserId, 
@@ -66,7 +73,7 @@ export async function POST(req: NextRequest) {
           .select('id')
           .eq('customer_id', customer.id)
           .eq('status', 'active')
-          .single();
+          .maybeSingle();
 
         if (!conversation) {
           const { data: newConv } = await supabase
@@ -77,8 +84,10 @@ export async function POST(req: NextRequest) {
           conversation = newConv;
 
           // Notify Group about New Support Request (First Message)
-          const { sendLineGroupNotification } = await import('@/lib/utils/lineNotifications');
-          await sendLineGroupNotification(`🆕 [ตั๋วใหม่] คุณ ${customer.display_name || 'ลูกค้าใหม่'} แจ้งปัญหาเข้ามาครับ\nข้อความ: ${messageText?.substring(0, 50)}${messageText?.length > 50 ? '...' : ''}\n👉 ตรวจสอบที่หน้าจัดการ: ${process.env.NEXT_PUBLIC_BASE_URL || 'NeoSupport Dashboard'}`);
+          try {
+            const { sendLineGroupNotification } = await import('@/lib/utils/lineNotifications');
+            await sendLineGroupNotification(`🆕 [ตั๋วใหม่] คุณ ${customer.display_name || 'ลูกค้าใหม่'} แจ้งปัญหาเข้ามาครับ\nข้อความ: ${messageText?.substring(0, 50)}${messageText?.length > 50 ? '...' : ''}\n👉 ตรวจสอบที่หน้าจัดการ: ${process.env.NEXT_PUBLIC_BASE_URL || 'NeoSupport Dashboard'}`);
+          } catch(e) { console.error('Notif failed:', e); }
         }
 
         if (conversation) {
