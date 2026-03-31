@@ -28,6 +28,11 @@ export const ticketService = {
       note: 'Agent claimed the ticket'
     }]);
 
+    // Send Group Notification
+    const { sendLineGroupNotification } = await import('@/lib/utils/lineNotifications');
+    const { data: agent } = await supabase.from('profiles').select('full_name').eq('id', agentId).single();
+    await sendLineGroupNotification(`👷‍♂️ [รับงานแล้ว] แอดมิน ${agent?.full_name || 'Anonymous'} ได้รับตั๋วงาน #${ticket.ticket_no} เรียบร้อยแล้วครับ`);
+
     return ticket;
   },
 
@@ -97,6 +102,16 @@ export const ticketService = {
        note: reason || 'Ticket transferred'
      }]);
 
+     // Send Group Notification
+     const { sendLineGroupNotification } = await import('@/lib/utils/lineNotifications');
+     const { data: agent } = await supabase.from('profiles').select('full_name').eq('id', fromAgentId).single();
+     let transferTarget = 'Team/Agent';
+     if (toAgentId) {
+        const { data: ta } = await supabase.from('profiles').select('full_name').eq('id', toAgentId).single();
+        transferTarget = ta?.full_name || transferTarget;
+     }
+     await sendLineGroupNotification(`🔄 [โอนงาน] แอดมิน ${agent?.full_name || 'Anonymous'} ได้โอนตั๋วงาน #${ticket.ticket_no} ให้กับ ${transferTarget} เรียบร้อยแล้ว\nหมายเหตุ: ${reason || '-'}`);
+
      return ticket;
   },
 
@@ -127,14 +142,17 @@ export const ticketService = {
        note: resolutionSummary
      }]);
 
+     // Send Group Notification
+     const { sendLineGroupNotification } = await import('@/lib/utils/lineNotifications');
+     const { data: agent } = await supabase.from('profiles').select('full_name').eq('id', agentId).single();
+     await sendLineGroupNotification(`✅ [ปิดงาน] แอดมิน ${agent?.full_name || 'Anonymous'} ได้แก้ไขและปิดตั๋วงาน #${ticket.ticket_no} สำเร็จแล้วครับ\nสรุปงาน: ${resolutionSummary}`);
+
      // Trigger CSAT survey record creation
      await supabase.from('csat_surveys').insert([{
         ticket_id: ticketId,
         sent_at: new Date().toISOString()
      }]);
 
-     // TODO: Actually send LINE message via Messaging API here or via Edge Function
-     
      return ticket;
   }
 };

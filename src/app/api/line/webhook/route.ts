@@ -22,6 +22,16 @@ export async function POST(req: NextRequest) {
   // }
 
   const events: any[] = body.events;
+  
+  // Log the source of events to help user find the Group ID
+  for (const event of events) {
+    if (event.source.groupId || event.source.roomId) {
+      console.log('--- LINE GROUP/ROOM EVENT DETECTED ---');
+      console.log('ID:', event.source.groupId || event.source.roomId);
+      console.log('Type:', event.source.type);
+      console.log('---------------------------------------');
+    }
+  }
 
   for (const event of events) {
     if (event.type === 'message') {
@@ -31,7 +41,7 @@ export async function POST(req: NextRequest) {
       // 2. Map Customer
       let { data: customer, error: customerError } = await supabase
         .from('customers')
-        .select('id')
+        .select('id, display_name')
         .eq('line_user_id', lineUserId)
         .single();
 
@@ -65,6 +75,10 @@ export async function POST(req: NextRequest) {
             .select()
             .single();
           conversation = newConv;
+
+          // Notify Group about New Support Request (First Message)
+          const { sendLineGroupNotification } = await import('@/lib/utils/lineNotifications');
+          await sendLineGroupNotification(`🆕 [ตั๋วใหม่] คุณ ${customer.display_name || 'ลูกค้าใหม่'} แจ้งปัญหาเข้ามาครับ\nข้อความ: ${messageText?.substring(0, 50)}${messageText?.length > 50 ? '...' : ''}\n👉 ตรวจสอบที่หน้าจัดการ: ${process.env.NEXT_PUBLIC_BASE_URL || 'NeoSupport Dashboard'}`);
         }
 
         if (conversation) {
