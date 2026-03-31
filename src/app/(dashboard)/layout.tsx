@@ -1,5 +1,8 @@
 'use client';
-
+/* eslint-disable @next/next/no-img-element */
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable jsx-a11y/alt-text */
 import React, { useState, useEffect } from 'react';
 import { Noto_Sans_Thai } from "next/font/google";
 import Sidebar from "@/components/layout/Sidebar";

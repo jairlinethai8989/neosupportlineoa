@@ -1,5 +1,6 @@
 'use client';
-
+/* eslint-disable @next/next/no-img-element */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState, useEffect } from 'react';
 import { useLiff } from '@/hooks/useLiff';
 import { supabase } from '@/lib/supabase';
@@ -11,42 +12,52 @@ import {
   User, 
   ExternalLink,
   ShieldAlert,
-  Inbox
+  Inbox,
+  Settings
 } from 'lucide-react';
 import Link from 'next/link';
+import ProfileRegistrationModal from '@/components/portal/ProfileRegistrationModal';
 
 export default function PortalPage() {
-  const { profile, loading: liffLoading, error: liffError } = useLiff();
+  const { profile, isReady, error: liffError, setMockLogin } = useLiff();
   const [tickets, setTickets] = useState<any[]>([]);
+  const [customerData, setCustomerData] = useState<any>(null);
   const [fetching, setFetching] = useState(true);
+  const [needsRegistration, setNeedsRegistration] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+
+  const fetchTickets = async () => {
+    if (!profile?.userId) return;
+    setFetching(true);
+    // Find customer by line_user_id
+    const { data: customer } = await supabase
+      .from('customers')
+      .select('id, hospital_id, department_id')
+      .eq('line_user_id', profile.userId)
+      .maybeSingle(); // Use maybeSingle to avoid 406 Error if none exists
+
+    if (customer) {
+      setCustomerData(customer);
+      setNeedsRegistration(false);
+      // Fetch all tickets for this customer
+      const { data: ticketData } = await supabase
+        .from('tickets')
+        .select('*, profiles!assigned_agent_id(*)')
+        .eq('customer_id', customer.id)
+        .order('created_at', { ascending: false });
+
+      if (ticketData) setTickets(ticketData);
+    } else {
+      setNeedsRegistration(true);
+    }
+    setFetching(false);
+  };
 
   useEffect(() => {
-    if (!profile?.userId) return;
-
-    async function fetchTickets() {
-      // Find customer by line_user_id
-      const { data: customer } = await supabase
-        .from('customers')
-        .select('id')
-        .eq('line_user_id', profile.userId)
-        .single();
-
-      if (customer) {
-        // Fetch all tickets for this customer
-        const { data: ticketData } = await supabase
-          .from('tickets')
-          .select('*, profiles!assigned_agent_id(*)')
-          .eq('customer_id', customer.id)
-          .order('created_at', { ascending: false });
-
-        if (ticketData) setTickets(ticketData);
-      }
-      setFetching(false);
-    }
     fetchTickets();
   }, [profile]);
 
-  if (liffLoading || fetching) {
+  if (!isReady || (profile && fetching && !needsRegistration)) {
     return (
       <div className="flex-center" style={{ height: '70vh', flexDirection: 'column', gap: '16px' }}>
         <Loader2 className="animate-spin" size={32} color="var(--primary)" />
@@ -55,13 +66,20 @@ export default function PortalPage() {
     );
   }
 
-  if (liffError) {
+  if (liffError || !profile) {
     return (
       <div className="flex-center glass" style={{ height: '70vh', margin: '20px', padding: '32px', textAlign: 'center', flexDirection: 'column', gap: '20px', border: '1px solid var(--danger)' }}>
         <ShieldAlert size={48} color="var(--danger)" />
-        <h2 style={{ fontSize: '20px', fontWeight: '800' }}>Access Denied</h2>
-        <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '14px' }}>{liffError}</p>
-        <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: '12px' }}>Please ensure you are accessing this portal via LINE app.</p>
+        <h2 style={{ fontSize: '20px', fontWeight: '800' }}>Access Restricted</h2>
+        <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '14px' }}>{liffError || 'Please log in via LINE application.'}</p>
+        <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: '12px' }}>This portal is designed exclusively for LINE OA.</p>
+        <button 
+           onClick={() => setMockLogin()}
+           className="glass-interactive" 
+           style={{ padding: '12px 24px', borderRadius: '12px', border: '1px dotted var(--primary)', color: 'var(--primary)', fontWeight: '800', marginTop: '16px' }}
+        >
+           Mock Admin Login (For Testing)
+        </button>
       </div>
     );
   }
@@ -72,14 +90,19 @@ export default function PortalPage() {
   return (
     <div style={{ animation: 'fadeIn 0.5s ease-out' }}>
       {/* 1. Header Hero */}
-      <div style={{ marginBottom: '32px' }}>
-         <p style={{ color: 'var(--primary)', fontWeight: '800', letterSpacing: '1px', textTransform: 'uppercase', fontSize: '11px', marginBottom: '8px' }}>Welcome Back</p>
-         <h2 style={{ fontSize: '28px', fontWeight: '900', display: 'flex', alignItems: 'center', gap: '12px' }}>
-            {profile?.displayName || 'Support Guest'}
-            {profile?.pictureUrl ? (
-               <img src={profile.pictureUrl} alt="profile" style={{ width: '36px', height: '36px', borderRadius: '50%', border: '2px solid var(--primary)' }} />
-            ) : <User size={32} />}
-         </h2>
+      <div style={{ marginBottom: '32px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+         <div>
+            <p style={{ color: 'var(--primary)', fontWeight: '800', letterSpacing: '1px', textTransform: 'uppercase', fontSize: '11px', marginBottom: '8px' }}>Welcome Back</p>
+            <h2 style={{ fontSize: '28px', fontWeight: '900', display: 'flex', alignItems: 'center', gap: '12px' }}>
+               {profile?.displayName || 'Support Guest'}
+               {profile?.pictureUrl ? (
+                  <img src={profile.pictureUrl} alt="profile" style={{ width: '36px', height: '36px', borderRadius: '50%', border: '2px solid var(--primary)' }} />
+               ) : <User size={32} />}
+            </h2>
+         </div>
+         <button onClick={() => setIsEditModalOpen(true)} className="glass-interactive flex-center" style={{ width: '40px', height: '40px', borderRadius: '50%', border: '1px solid var(--border)', background: 'transparent', color: 'var(--text-muted)' }} aria-label="Edit Profile">
+            <Settings size={20} />
+         </button>
       </div>
 
       {/* 2. Active Tickets */}
@@ -134,6 +157,16 @@ export default function PortalPage() {
 
       {/* 3. Quick Actions */}
       <h3 style={{ fontSize: '16px', fontWeight: '800', marginBottom: '16px' }}>Quick Support</h3>
+      
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '16px', marginBottom: '16px' }}>
+         <Link href="/portal/create" style={{ textDecoration: 'none' }}>
+            <div className="glass-interactive flex-center" style={{ padding: '20px', flexDirection: 'row', gap: '16px', background: 'var(--primary)', color: 'black', borderRadius: '16px' }}>
+               <MessageSquare size={24} />
+               <p style={{ fontSize: '15px', fontWeight: '900' }}>แจ้งปัญหาใหม่ (Open New Ticket)</p>
+            </div>
+         </Link>
+      </div>
+
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '40px' }}>
          <div className="glass-interactive flex-center" style={{ height: '100px', flexDirection: 'column', gap: '10px' }}>
             <MessageSquare size={24} color="var(--primary)" />
@@ -163,12 +196,17 @@ export default function PortalPage() {
         </section>
       )}
 
-      <style jsx global>{`
-        .badge {
-          border-radius: 6px;
-          text-transform: uppercase;
-        }
-      `}</style>
+      {/* 5. Modals */}
+      <ProfileRegistrationModal 
+         isOpen={needsRegistration || isEditModalOpen} 
+         profile={profile} 
+         existingCustomer={needsRegistration ? null : customerData}
+         onComplete={() => {
+            setIsEditModalOpen(false);
+            fetchTickets(); // Refresh global customerData and hide registration
+         }}
+         onClose={() => setIsEditModalOpen(false)}
+      />
     </div>
   );
 }

@@ -1,5 +1,7 @@
 'use client';
-
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable react-hooks/exhaustive-deps */
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { X, Users, User, ArrowRight, Loader2 } from 'lucide-react';

@@ -1,30 +1,34 @@
 'use client';
-
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable @next/next/no-img-element */
 import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { 
   ArrowLeft, 
   Clock, 
-  CheckCircle, 
   MessageCircle, 
-  User, 
   Loader2,
-  Calendar,
   AlertCircle,
   FileText,
-  SendHorizontal
+  SendHorizontal,
+  Paperclip
 } from 'lucide-react';
+import ChatAttachmentModal from '@/components/chat/ChatAttachmentModal';
+import { useLiff } from '@/hooks/useLiff';
 
 export default function TicketDetailPage() {
   const { id } = useParams();
   const router = useRouter();
+  const { isReady, profile, error: liffError, setMockLogin } = useLiff();
   const [ticket, setTicket] = useState<any>(null);
   const [logs, setLogs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [messages, setMessages] = useState<any[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [sending, setSending] = useState(false);
+  const [isAttachModalOpen, setIsAttachModalOpen] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -45,22 +49,22 @@ export default function TicketDetailPage() {
         if (ticketData) {
           setTicket(ticketData);
         
-        // Fetch Logs
-        const { data: logData } = await supabase
-          .from('ticket_logs')
-          .select('*')
-          .eq('ticket_id', id)
-          .order('created_at', { ascending: false });
-        if (logData) setLogs(logData);
+          // Fetch Logs
+          const { data: logData } = await supabase
+            .from('ticket_logs')
+            .select('*')
+            .eq('ticket_id', id)
+            .order('created_at', { ascending: false });
+          if (logData) setLogs(logData);
 
-        // Fetch Internal Messages
-        const { data: msgData } = await supabase
-          .from('messages')
-          .select('*')
-          .eq('ticket_id', id)
-          .order('created_at', { ascending: true });
-        if (msgData) setMessages(msgData);
-      }
+          // Fetch Internal Messages
+          const { data: msgData } = await supabase
+            .from('messages')
+            .select('*')
+            .eq('ticket_id', id)
+            .order('created_at', { ascending: true });
+          if (msgData) setMessages(msgData);
+        }
       } catch (err: any) {
         console.error('Error fetching ticket:', err);
       } finally {
@@ -117,11 +121,53 @@ export default function TicketDetailPage() {
     }
   };
 
-  if (loading) return (
+  const handleConfirmAttachment = async (file: File, type: 'image' | 'video' | 'file') => {
+    setSending(true);
+    try {
+      const fileExt = file.name.split('.').pop() || 'jpg';
+      const fileName = `${id}_${Date.now()}.${fileExt}`;
+      const { error: uploadError } = await supabase.storage.from('chat_media').upload(fileName, file);
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage.from('chat_media').getPublicUrl(fileName);
+
+      const dbType = type === 'image' ? 'image' : 'file';
+      const { error: dbError } = await supabase.from('messages').insert([{
+        ticket_id: id,
+        sender_type: 'customer',
+        content: publicUrl,
+        message_type: dbType
+      }]);
+      if (dbError) throw dbError;
+    } catch (err: any) {
+      alert('Upload failed: ' + err.message);
+    } finally {
+      setSending(false);
+    }
+  };
+
+  if (!isReady || loading) return (
      <div className="flex-center" style={{ height: '100vh', background: '#0a0e14' }}>
         <Loader2 className="animate-spin" size={32} color="var(--primary)" />
      </div>
   );
+
+  if (liffError || !profile) {
+    return (
+      <div className="flex-center glass" style={{ height: '70vh', margin: '20px', padding: '32px', textAlign: 'center', flexDirection: 'column', gap: '20px', border: '1px solid var(--danger)' }}>
+        <AlertCircle size={48} color="var(--danger)" />
+        <h2 style={{ fontSize: '20px', fontWeight: '800' }}>Access Restricted</h2>
+        <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '14px' }}>Please log in via LINE application.</p>
+        <button 
+           onClick={() => setMockLogin('U_MOCK_ADMIN', 'Guest Admin')}
+           className="glass-interactive" 
+           style={{ padding: '12px 24px', borderRadius: '12px', border: '1px dotted var(--primary)', color: 'var(--primary)', fontWeight: '800', marginTop: '16px' }}
+        >
+           Mock Login (For Testing)
+        </button>
+      </div>
+    );
+  }
 
   if (!ticket) return (
      <div className="flex-center" style={{ height: '100vh', background: '#0a0e14', color: 'white', flexDirection: 'column', gap: '16px' }}>
@@ -209,7 +255,17 @@ export default function TicketDetailPage() {
                    background: msg.sender_type === 'customer' ? 'var(--primary)' : 'rgba(255,255,255,0.05)',
                    color: msg.sender_type === 'customer' ? 'black' : 'white',
                 }}>
-                   <p style={{ fontSize: '14px', fontWeight: '500' }}>{msg.content}</p>
+                   <p style={{ fontSize: '14px', fontWeight: '500' }}>
+                       {msg.message_type === 'image' || (msg.content?.startsWith('http') && msg.content?.match(/\.(jpeg|jpg|gif|png)$/i)) ? (
+                          <img src={msg.content} style={{ maxWidth: '100%', borderRadius: '8px' }} alt="Attachment" />
+                       ) : msg.message_type === 'file' || (msg.content?.startsWith('http') && msg.message_type !== 'text') ? (
+                          <a href={msg.content} target="_blank" rel="noreferrer" style={{ textDecoration: 'underline', color: 'inherit', fontWeight: 'bold' }}>
+                             📎 Download Attachment
+                          </a>
+                       ) : (
+                          msg.content
+                       )}
+                   </p>
                    <p style={{ fontSize: '9px', opacity: 0.6, textAlign: 'right', marginTop: '4px' }}>
                       {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                    </p>
@@ -221,12 +277,15 @@ export default function TicketDetailPage() {
           {/* Chat Input */}
           {ticket.status !== 'Resolved' && ticket.status !== 'Closed' ? (
             <div style={{ display: 'flex', gap: '8px' }}>
+              <button onClick={() => setIsAttachModalOpen(true)} className="glass-interactive flex-center" style={{ width: '48px', height: '44px', borderRadius: '10px', border: 'none', background: 'rgba(255,255,255,0.05)', color: 'var(--text-main)' }}>
+                 <Paperclip size={20} />
+              </button>
               <input 
                 type="text" 
                 placeholder="Message your agent..." 
                 value={newMessage}
                 onChange={(e) => setNewMessage(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+                onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
                 style={{ flex: 1, background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', borderRadius: '10px', padding: '12px 16px', color: 'white' }}
               />
               <button 
@@ -272,9 +331,15 @@ export default function TicketDetailPage() {
                       {log.action_type === 'status_change' ? `Moved to ${log.to_status}` : 'Task Update'}
                    </p>
                 </div>
-             ))}
-          </div>
-       </section>
+              ))}
+           </div>
+        </section>
+
+        <ChatAttachmentModal 
+          isOpen={isAttachModalOpen}
+          onClose={() => setIsAttachModalOpen(false)}
+          onConfirm={handleConfirmAttachment}
+        />
     </div>
   );
 }

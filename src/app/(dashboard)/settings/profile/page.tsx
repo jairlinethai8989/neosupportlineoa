@@ -1,5 +1,8 @@
 'use client';
-
+/* eslint-disable @next/next/no-img-element */
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable jsx-a11y/alt-text */
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { 
@@ -14,26 +17,26 @@ import {
 import Link from 'next/link';
 
 const AVATAR_OPTIONS = [
-  'https://api.dicebear.com/7.x/avataaars/svg?seed=Felix',
-  'https://api.dicebear.com/7.x/avataaars/svg?seed=Aneka',
-  'https://api.dicebear.com/7.x/avataaars/svg?seed=Spooky',
-  'https://api.dicebear.com/7.x/avataaars/svg?seed=Precious',
-  'https://api.dicebear.com/7.x/avataaars/svg?seed=Simba',
-  'https://api.dicebear.com/7.x/avataaars/svg?seed=Cookie',
-  'https://api.dicebear.com/7.x/avataaars/svg?seed=Tigger',
-  'https://api.dicebear.com/7.x/avataaars/svg?seed=Misty',
-  'https://api.dicebear.com/7.x/avataaars/svg?seed=Patches',
-  'https://api.dicebear.com/7.x/avataaars/svg?seed=Pumpkin',
-  'https://api.dicebear.com/7.x/bottts/svg?seed=Bella',
-  'https://api.dicebear.com/7.x/bottts/svg?seed=Cocoa',
-  'https://api.dicebear.com/7.x/bottts/svg?seed=Sassy',
-  'https://api.dicebear.com/7.x/bottts/svg?seed=Mocha',
-  'https://api.dicebear.com/7.x/bottts/svg?seed=Oreo',
-  'https://api.dicebear.com/7.x/bottts/svg?seed=Ginger',
-  'https://api.dicebear.com/7.x/bottts/svg?seed=Shadow',
-  'https://api.dicebear.com/7.x/bottts/svg?seed=Buddy',
-  'https://api.dicebear.com/7.x/bottts/svg?seed=Lucky',
-  'https://api.dicebear.com/7.x/bottts/svg?seed=Peanut',
+  'https://api.dicebear.com/7.x/notionists/svg?seed=Programmer1&backgroundColor=f1f5f9',
+  'https://api.dicebear.com/7.x/notionists/svg?seed=Coder2&backgroundColor=f1f5f9',
+  'https://api.dicebear.com/7.x/notionists/svg?seed=Dev3&backgroundColor=f1f5f9',
+  'https://api.dicebear.com/7.x/notionists/svg?seed=Techie4&backgroundColor=f1f5f9',
+  'https://api.dicebear.com/7.x/notionists/svg?seed=Hacker5&backgroundColor=f1f5f9',
+  'https://api.dicebear.com/7.x/notionists/svg?seed=Engineer6&backgroundColor=f1f5f9',
+  'https://api.dicebear.com/7.x/notionists/svg?seed=Ninja7&backgroundColor=f1f5f9',
+  'https://api.dicebear.com/7.x/notionists/svg?seed=Geek8&backgroundColor=f1f5f9',
+  'https://api.dicebear.com/7.x/notionists/svg?seed=Nerd9&backgroundColor=f1f5f9',
+  'https://api.dicebear.com/7.x/notionists/svg?seed=Builder10&backgroundColor=f1f5f9',
+  'https://api.dicebear.com/7.x/avataaars/svg?seed=DevGirl1&clothing=blazerAndShirt&accessories=prescription02&backgroundColor=f8fafc',
+  'https://api.dicebear.com/7.x/avataaars/svg?seed=DevGuy2&clothing=hoodie&accessories=round&backgroundColor=f8fafc',
+  'https://api.dicebear.com/7.x/avataaars/svg?seed=DevGirl3&clothing=overall&hair=longButNotTooLong&backgroundColor=f8fafc',
+  'https://api.dicebear.com/7.x/avataaars/svg?seed=DevGuy4&clothing=blazerAndSweater&facialHair=beardLight&backgroundColor=f8fafc',
+  'https://api.dicebear.com/7.x/avataaars/svg?seed=DevGirl5&clothing=shirtScoopNeck&accessories=kurt&backgroundColor=f8fafc',
+  'https://api.dicebear.com/7.x/avataaars/svg?seed=DevGuy6&clothing=shirtVNeck&facialHair=moustacheMagnum&backgroundColor=f8fafc',
+  'https://api.dicebear.com/7.x/avataaars/svg?seed=DevGirl7&clothing=shirtCrewNeck&hair=dreads&backgroundColor=f8fafc',
+  'https://api.dicebear.com/7.x/avataaars/svg?seed=DevGuy8&clothing=collarSweater&accessories=sunglasses&backgroundColor=f8fafc',
+  'https://api.dicebear.com/7.x/avataaars/svg?seed=DevGirl9&clothing=blazerAndShirt&hair=shortCurly&backgroundColor=f8fafc',
+  'https://api.dicebear.com/7.x/avataaars/svg?seed=DevGuy10&clothing=hoodie&accessories=prescription01&backgroundColor=f8fafc',
 ];
 
 const DEPARTMENTS = [

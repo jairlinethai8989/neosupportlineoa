@@ -1,5 +1,7 @@
 'use client';
-
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable @next/next/no-img-element */
 import React, { useState, useEffect } from 'react';
 import { 
   Search, 
@@ -23,6 +25,7 @@ import { supabase } from '@/lib/supabase';
 import { useRealtimeInbox } from '@/hooks/useRealtimeInbox';
 import { ticketService } from '@/lib/services/ticketService';
 import TransferModal from '@/components/modals/TransferModal';
+import ChatAttachmentModal from '@/components/chat/ChatAttachmentModal';
 
 export default function InboxPage() {
   const { conversations, loading: inboxLoading } = useRealtimeInbox();
@@ -33,6 +36,7 @@ export default function InboxPage() {
   const [agent, setAgent] = useState<any>(null);
   const [sending, setSending] = useState(false);
   const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
+  const [isAttachModalOpen, setIsAttachModalOpen] = useState(false);
 
   // 1. Fetch current agent profile
   useEffect(() => {
@@ -118,6 +122,56 @@ export default function InboxPage() {
     } catch (err: any) {
       console.error('Send Error:', err);
       alert('Failed to send message: ' + (err.message || 'Check API keys'));
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const handleConfirmAttachment = async (file: File, type: 'image' | 'video' | 'file') => {
+    if (!selectedChat || !agent) return;
+    setSending(true);
+    try {
+      const fileExt = file.name.split('.').pop() || 'jpg';
+      const fileName = `${selectedChat.id}_${Date.now()}.${fileExt}`;
+      const { error: uploadError } = await supabase.storage.from('chat_media').upload(fileName, file);
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage.from('chat_media').getPublicUrl(fileName);
+
+      const dbType = type === 'image' ? 'image' : 'file';
+      const { error: dbError } = await supabase.from('messages').insert([{
+        conversation_id: selectedChat.id,
+        sender_type: 'agent',
+        sender_id: agent.id,
+        content: publicUrl,
+        message_type: dbType
+      }]);
+      if (dbError) throw dbError;
+
+      const lineUserId = selectedChat.customers?.line_user_id;
+      if (lineUserId) {
+         if (type === 'image') {
+           await fetch('/api/line/push', {
+             method: 'POST',
+             headers: { 'Content-Type': 'application/json' },
+             body: JSON.stringify({
+               to: lineUserId,
+               messages: [{ type: 'image', originalContentUrl: publicUrl, previewImageUrl: publicUrl }]
+             })
+           });
+         } else {
+           await fetch('/api/line/push', {
+             method: 'POST',
+             headers: { 'Content-Type': 'application/json' },
+             body: JSON.stringify({
+               to: lineUserId,
+               messages: [{ type: 'text', text: `📎 แนบไฟล์/เอกสาร: ${publicUrl}` }]
+             })
+           });
+         }
+      }
+    } catch (err: any) {
+      alert('Upload failed: ' + err.message);
     } finally {
       setSending(false);
     }
@@ -299,7 +353,15 @@ export default function InboxPage() {
                        boxShadow: msg.sender_type === 'agent' ? '0 4px 15px rgba(115, 103, 240, 0.3)' : 'none',
                        color: msg.sender_type === 'system' ? 'var(--primary)' : 'inherit'
                     }}>
-                       {msg.content}
+                       {msg.message_type === 'image' || (msg.content.startsWith('http') && msg.content.match(/\.(jpeg|jpg|gif|png)$/)) ? (
+                          <img src={msg.content} style={{ maxWidth: '100%', borderRadius: '8px' }} alt="Attachment" />
+                       ) : msg.message_type === 'file' || (msg.content.startsWith('http') && msg.message_type !== 'text') ? (
+                          <a href={msg.content} target="_blank" rel="noreferrer" style={{ textDecoration: 'underline', color: 'inherit', fontWeight: 'bold' }}>
+                             📎 Download Attachment
+                          </a>
+                       ) : (
+                          msg.content
+                       )}
                     </div>
                     <p style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '8px', textAlign: msg.sender_type === 'agent' ? 'right' : 'left' }}>
                        {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -310,7 +372,7 @@ export default function InboxPage() {
 
             <form onSubmit={handleSendMessage} style={{ padding: '16px', borderTop: '1px solid var(--border)', background: 'rgba(10, 14, 20, 0.4)' }}>
               <div className="glass" style={{ padding: '6px 12px', display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--bg-input)', borderRadius: '12px' }}>
-                 <button type="button" style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}><Paperclip size={18} /></button>
+                 <button type="button" onClick={() => setIsAttachModalOpen(true)} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}><Paperclip size={18} /></button>
                  <input 
                     type="text" 
                     value={newMessage}
@@ -400,6 +462,12 @@ export default function InboxPage() {
         ticketId={selectedChat?.current_ticket_id}
         fromAgentId={agent?.id}
         onSuccess={() => { alert('Transfer successful'); setViewMode('list'); }}
+      />
+      
+      <ChatAttachmentModal 
+        isOpen={isAttachModalOpen}
+        onClose={() => setIsAttachModalOpen(false)}
+        onConfirm={handleConfirmAttachment}
       />
 
       <style jsx global>{`

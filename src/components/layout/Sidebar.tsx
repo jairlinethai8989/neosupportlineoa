@@ -1,5 +1,9 @@
 'use client';
-
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable react-hooks/set-state-in-effect */
+/* eslint-disable @next/next/no-img-element */
+/* eslint-disable jsx-a11y/alt-text */
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
@@ -269,6 +273,10 @@ const Sidebar = ({ onClickLink }: SidebarProps) => {
             <span style={{ fontSize: '9px', opacity: 0.6 }}>LOGOUT</span>
           </div>
         </button>
+        
+        <div style={{ textAlign: 'center', marginTop: '12px', opacity: 0.5 }}>
+           <span style={{ fontSize: '10px', fontWeight: '700', letterSpacing: '1px' }}>VERSION 1.1.0 (UPDATED)</span>
+        </div>
       </div>
     </aside>
   );

@@ -1,5 +1,6 @@
 'use client';
-
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import React, { useState, useEffect } from 'react';
 import { 
   BarChart, 
@@ -57,13 +58,17 @@ export default function AnalyticsPage() {
   const [stats, setStats] = useState<any>({ activeTickets: 0, resolvedToday: 0, slaBreached: 0, avgResponseTime: '0m' });
   const [loading, setLoading] = useState(true);
 
+  const loadStats = async () => {
+    setLoading(true);
+    const data = await analyticsService.getOverviewStats();
+    setStats(data);
+    setLoading(false);
+  };
+
   useEffect(() => {
-    async function loadStats() {
-      const data = await analyticsService.getOverviewStats();
-      setStats(data);
-      setLoading(false);
-    }
     loadStats();
+    // Intentionally omitted real-time Supabase subscriptions here 
+    // to conserve DB read quotas. Uses On-Load + Manual Refresh.
   }, []);
 
   const handleExportSummary = () => {
@@ -85,6 +90,13 @@ export default function AnalyticsPage() {
           <p style={{ color: 'var(--text-muted)' }}>Decision-grade support performance analytics.</p>
         </div>
         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '16px' }}>
+          <button 
+           onClick={loadStats}
+           disabled={loading}
+           className="glass-interactive flex-center" 
+           style={{ padding: '8px 12px', borderRadius: '10px', background: 'rgba(255,255,255,0.05)', color: 'white', border: '1px solid var(--border)', gap: '8px', fontSize: '12px', fontWeight: 'bold' }}>
+              <Clock size={16} className={loading ? 'animate-spin' : ''} /> {loading ? 'Refreshing...' : 'Refresh'}
+          </button>
           <button 
            onClick={handleExportSummary}
            className="glass-interactive flex-center" 

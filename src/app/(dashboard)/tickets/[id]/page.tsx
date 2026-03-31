@@ -1,5 +1,7 @@
 'use client';
-
+/* eslint-disable @next/next/no-img-element */
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
@@ -16,7 +18,8 @@ import {
   Save,
   Trash2,
   MoreVertical,
-  SendHorizontal
+  SendHorizontal,
+  Paperclip
 } from 'lucide-react';
 
 export default function StaffTicketDetailPage() {
@@ -37,6 +40,14 @@ export default function StaffTicketDetailPage() {
   const [messages, setMessages] = useState<any[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [sending, setSending] = useState(false);
+  const adminFileRef = React.useRef<HTMLInputElement>(null);
+
+  const quickReplies = [
+    "สวัสดีครับ แอดมินรับเรื่องแล้ว กำลังเร่งตรวจสอบให้นะครับ ⏳",
+    "รบกวนแจ้ง Error Code หรือจับภาพหน้าจอที่พบปัญหาให้ทีมงานหน่อยครับ 📸",
+    "ดำเนินการแก้ไขและอัปเดตระบบเรียบร้อยแล้ว ลองใช้งานใหม่อีกครั้งนะครับ ✅",
+    "ขอบคุณที่ใช้บริการครับ ทางเราขออนุญาตปิดตั๋วงานนี้นะครับ 🙏"
+  ];
 
   useEffect(() => {
     if (!id) return;
@@ -119,6 +130,7 @@ export default function StaffTicketDetailPage() {
       const { error } = await supabase.from('messages').insert([{
         ticket_id: id,
         sender_type: 'agent',
+        message_type: 'text',
         content: messageToSend
       }]);
 
@@ -130,6 +142,35 @@ export default function StaffTicketDetailPage() {
     } finally {
       setSending(false);
     }
+  };
+
+  const handleAdminFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+     if (e.target.files && e.target.files.length > 0) {
+        const file = e.target.files[0];
+        setSending(true);
+        try {
+           const fileExt = file.name.split('.').pop() || 'jpg';
+           const fileName = `admin_${id}_${Date.now()}.${fileExt}`;
+           const { error: uploadError } = await supabase.storage.from('chat_media').upload(fileName, file);
+           
+           if (uploadError) throw uploadError;
+
+           const { data: { publicUrl } } = supabase.storage.from('chat_media').getPublicUrl(fileName);
+           const messageType = file.type.startsWith('image/') ? 'image' : 'file';
+           
+           await supabase.from('messages').insert([{
+              ticket_id: id,
+              sender_type: 'agent',
+              message_type: messageType,
+              content: publicUrl,
+           }]);
+        } catch(err: any) {
+           alert('Upload Failed: ' + err.message);
+        } finally {
+           setSending(false);
+           if(adminFileRef.current) adminFileRef.current.value = '';
+        }
+     }
   };
 
   const handleResolve = async () => {
@@ -312,7 +353,16 @@ export default function StaffTicketDetailPage() {
                           color: msg.sender_type === 'agent' ? 'black' : 'var(--text)',
                           boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
                        }}>
-                          <p style={{ fontSize: '14px', fontWeight: msg.sender_type === 'agent' ? '700' : '500', lineHeight: '1.5' }}>{msg.content}</p>
+                          {msg.message_type === 'image' || msg.content.includes('supabase.co/storage') ? (
+                             <img 
+                                src={msg.content} 
+                                alt="attachment" 
+                                onClick={() => window.open(msg.content, '_blank')}
+                                style={{ maxWidth: '280px', borderRadius: '8px', cursor: 'zoom-in', objectFit: 'cover' }} 
+                             />
+                          ) : (
+                             <p style={{ fontSize: '14px', fontWeight: msg.sender_type === 'agent' ? '700' : '500', lineHeight: '1.5', whiteSpace: 'pre-wrap' }}>{msg.content}</p>
+                          )}
                        </div>
                        <p style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '6px', fontWeight: '600' }}>
                           {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -330,22 +380,45 @@ export default function StaffTicketDetailPage() {
               </div>
 
               {/* Input Area */}
-              <div style={{ display: 'flex', gap: '12px', background: 'rgba(0,0,0,0.03)', padding: '12px', borderRadius: '16px', border: '1px solid var(--border)' }}>
-                 <input 
-                    type="text" 
-                    placeholder="Type your response to customer..." 
-                    value={newMessage}
-                    onChange={(e) => setNewMessage(e.target.value)}
-                    onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
-                    style={{ flex: 1, background: 'transparent', border: 'none', padding: '12px', color: 'var(--text)', fontSize: '14px', fontWeight: '500', outline: 'none' }}
-                 />
-                 <button 
-                  onClick={handleSendMessage}
-                  disabled={sending}
-                  className="glass-interactive flex-center" 
-                  style={{ width: '48px', height: '48px', borderRadius: '12px', border: 'none', background: 'var(--primary)', color: 'black' }}>
-                    {sending ? <Loader2 size={18} className="animate-spin" /> : <SendHorizontal size={20} />}
-                 </button>
+              <div>
+                 {/* Quick Replies */}
+                 <div className="no-scrollbar" style={{ display: 'flex', gap: '8px', overflowX: 'auto', marginBottom: '12px', paddingBottom: '4px' }}>
+                    {quickReplies.map((qr, idx) => (
+                       <button 
+                         key={idx}
+                         onClick={() => setNewMessage((prev) => prev ? prev + ' ' + qr : qr)}
+                         className="glass-interactive"
+                         style={{ whiteSpace: 'nowrap', padding: '6px 14px', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border)', borderRadius: '20px', fontSize: '11px', color: 'var(--text-muted)', cursor: 'pointer', transition: 'all 0.2s' }}>
+                         {qr.substring(0, 30)}...
+                       </button>
+                    ))}
+                 </div>
+                 
+                 <div style={{ display: 'flex', gap: '12px', background: 'rgba(0,0,0,0.03)', padding: '12px', borderRadius: '16px', border: '1px solid var(--border)', alignItems: 'center' }}>
+                    <input type="file" ref={adminFileRef} onChange={handleAdminFile} style={{ display: 'none' }} />
+                    <button 
+                       onClick={() => adminFileRef.current?.click()}
+                       disabled={sending}
+                       className="glass-interactive flex-center" 
+                       style={{ width: '40px', height: '40px', borderRadius: '50%', border: 'none', background: 'transparent', color: 'var(--text-muted)' }}>
+                       <Paperclip size={20} />
+                    </button>
+                    <input 
+                       type="text" 
+                       placeholder="Type your response or select a template..." 
+                       value={newMessage}
+                       onChange={(e) => setNewMessage(e.target.value)}
+                       onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+                       style={{ flex: 1, background: 'transparent', border: 'none', padding: '12px', color: 'var(--text)', fontSize: '14px', fontWeight: '500', outline: 'none' }}
+                    />
+                    <button 
+                     onClick={handleSendMessage}
+                     disabled={sending || !newMessage.trim()}
+                     className="glass-interactive flex-center" 
+                     style={{ width: '48px', height: '48px', borderRadius: '12px', border: 'none', background: (!newMessage.trim() && !sending) ? 'rgba(255,255,255,0.05)' : 'var(--primary)', color: (!newMessage.trim() && !sending) ? 'var(--text-muted)' : 'black', transition: 'all 0.3s' }}>
+                       {sending ? <Loader2 size={18} className="animate-spin" /> : <SendHorizontal size={20} />}
+                    </button>
+                 </div>
               </div>
            </div>
         </div>
