@@ -105,9 +105,13 @@ export default function InboxPage() {
       
       if (dbError) throw dbError;
 
-      // 2. Real Push to LINE
+      // 2. Real Push to LINE - (DISABLED TO SAVE QUOTA)
+      // We no longer push every single chat message via LINE OA API because it burns the monthly Push quota.
+      // Instead, we rely on the LIFF portal's Realtime listener (`supabase.channel()`).
+      // Only major events (like Ticket Resolved) will trigger an official Push message.
       const lineUserId = selectedChat.customers?.line_user_id;
       if (lineUserId) {
+        /*
         await fetch('/api/line/push', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -116,6 +120,7 @@ export default function InboxPage() {
             messages: [{ type: 'text', text: newMessage }]
           })
         });
+        */
       }
 
       setNewMessage('');
@@ -150,6 +155,8 @@ export default function InboxPage() {
 
       const lineUserId = selectedChat.customers?.line_user_id;
       if (lineUserId) {
+         // DISABLED ATTACHMENT PUSH TO SAVE QUOTA
+         /*
          if (type === 'image') {
            await fetch('/api/line/push', {
              method: 'POST',
@@ -169,6 +176,7 @@ export default function InboxPage() {
              })
            });
          }
+         */
       }
     } catch (err: any) {
       alert('Upload failed: ' + err.message);
