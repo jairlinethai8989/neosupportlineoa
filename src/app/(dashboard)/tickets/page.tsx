@@ -130,6 +130,9 @@ export default function TicketsPage() {
      setTickets(prev => prev.map(t => t.id === ticketId ? { ...t, status: newStatus } : t));
 
      try {
+        const { data: currentAgent } = await supabase.auth.getUser();
+        const { data: agentProfile } = await supabase.from('profiles').select('full_name').eq('id', currentAgent.user?.id).single();
+
         await supabase.from('tickets').update({ status: newStatus, updated_at: new Date().toISOString() }).eq('id', ticketId);
         
         await supabase.from('ticket_logs').insert([{
@@ -137,8 +140,14 @@ export default function TicketsPage() {
            action_type: 'status_change',
            from_status: ticket.status,
            to_status: newStatus,
+           performer_id: currentAgent.user?.id,
            note: `Agent moved ticket via Kanban Board`
         }]);
+
+        // Send Group Notification
+        const { sendLineGroupNotification } = await import('@/lib/utils/lineNotifications');
+        await sendLineGroupNotification(`🔄 [เปลี่ยนสถานะ] แอดมิน ${agentProfile?.full_name || 'Anonymous'} ได้ย้ายตั๋วงาน #${ticket.ticket_no} ไปยังช่อง [${newStatus}]`);
+
      } catch(err) {
         console.error(err);
      }
