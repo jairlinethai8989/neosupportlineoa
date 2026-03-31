@@ -84,7 +84,6 @@ export default function CreateTicketPage() {
            description: description || subject,
            status: 'Pending',
            priority: 'Medium',
-           source: 'LIFF',
            created_at: new Date().toISOString()
         }]).select().single();
 
