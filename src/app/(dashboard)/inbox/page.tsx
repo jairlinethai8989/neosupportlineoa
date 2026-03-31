@@ -221,8 +221,10 @@ export default function InboxPage() {
          message_type: 'text'
       }]);
 
-      // 3. Send to LINE
+      // 3. Send to LINE - DISABLED TO SAVE QUOTA
+      // Customer will see this completely free of charge when checking their LIFF app.
       if (lineUserId) {
+         /*
         await fetch('/api/line/push', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -234,9 +236,10 @@ export default function InboxPage() {
             ]
           })
         });
+        */
       }
 
-      alert('Ticket Resolved and Notification Sent to LINE');
+      alert('Ticket Resolved and Notification Sent to LIFF Portal');
     } catch (err: any) {
       console.error('Resolve Error:', err);
       alert('Failed to resolve ticket: ' + (err.message || 'API Error'));
