@@ -9,11 +9,11 @@ import {
   Calendar,
   Download,
   FileSpreadsheet,
-  File as FileIcon,
-  Maximize2,
-  RefreshCw,
+  LayoutDashboard,
+  Settings,
   LayoutGrid,
-  Settings
+  FileText as FileIcon,
+  RefreshCw
 } from 'lucide-react';
 import { 
   ResponsiveContainer, 
@@ -63,6 +63,23 @@ const COLORS = ['#00f2fe', '#4facfe', '#7367f0', '#28c76f', '#ff9f43', '#ea5455'
  */
 const SortableWidget = ({ id, chart, data, onRemove }: any) => {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
+  const [selectedItems, setSelectedItems] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (data.length > 0 && selectedItems.length === 0) {
+      setSelectedItems(data.map((d: any) => d.name));
+    }
+  }, [data]);
+
+  const filteredData = useMemo(() => {
+    return data.filter((d: any) => selectedItems.includes(d.name));
+  }, [data, selectedItems]);
+
+  const toggleItem = (name: string) => {
+    setSelectedItems(prev => 
+      prev.includes(name) ? prev.filter(i => i !== name) : [...prev, name]
+    );
+  };
   
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -77,11 +94,11 @@ const SortableWidget = ({ id, chart, data, onRemove }: any) => {
       case 'bar':
         return (
           <ResponsiveContainer {...common}>
-            <BarChart data={data}>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+            <BarChart data={filteredData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(128,128,128,0.2)" />
               <XAxis dataKey="name" stroke="var(--text-muted)" fontSize={10} />
               <YAxis stroke="var(--text-muted)" fontSize={10} />
-              <Tooltip contentStyle={{ background: '#0a0e14', border: '1px solid var(--border)' }} />
+              <Tooltip contentStyle={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '8px' }} />
               <Bar dataKey="value" fill="var(--primary)" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
@@ -90,8 +107,8 @@ const SortableWidget = ({ id, chart, data, onRemove }: any) => {
         return (
           <ResponsiveContainer {...common}>
             <PieChart>
-              <Pie data={data} innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value">
-                {data.map((entry: any, index: number) => (
+              <Pie data={filteredData} innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value">
+                {filteredData.map((entry: any, index: number) => (
                   <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                 ))}
               </Pie>
@@ -103,8 +120,8 @@ const SortableWidget = ({ id, chart, data, onRemove }: any) => {
       case 'line':
         return (
           <ResponsiveContainer {...common}>
-            <LineChart data={data}>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+            <LineChart data={filteredData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(128,128,128,0.2)" />
               <XAxis dataKey="name" stroke="var(--text-muted)" fontSize={10} />
               <YAxis stroke="var(--text-muted)" fontSize={10} />
               <Tooltip />
@@ -115,17 +132,17 @@ const SortableWidget = ({ id, chart, data, onRemove }: any) => {
       case 'area':
         return (
           <ResponsiveContainer {...common}>
-            <AreaChart data={data}>
+            <AreaChart data={filteredData}>
               <defs>
                 <linearGradient id={`colorValue-${id}`} x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor="var(--primary)" stopOpacity={0.3}/>
                   <stop offset="95%" stopColor="var(--primary)" stopOpacity={0}/>
                 </linearGradient>
               </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(128,128,128,0.2)" />
               <XAxis dataKey="name" stroke="var(--text-muted)" fontSize={10} />
               <YAxis stroke="var(--text-muted)" fontSize={10} />
-              <Tooltip />
+              <Tooltip cursor={{ stroke: 'var(--primary)', strokeWidth: 2 }} />
               <Area type="monotone" dataKey="value" stroke="var(--primary)" fillOpacity={1} fill={`url(#colorValue-${id})`} />
             </AreaChart>
           </ResponsiveContainer>
@@ -133,8 +150,8 @@ const SortableWidget = ({ id, chart, data, onRemove }: any) => {
       case 'radar':
         return (
           <ResponsiveContainer {...common}>
-            <RadarChart cx="50%" cy="50%" outerRadius="80%" data={data}>
-              <PolarGrid stroke="rgba(255,255,255,0.1)" />
+            <RadarChart cx="50%" cy="50%" outerRadius="80%" data={filteredData}>
+              <PolarGrid stroke="rgba(128,128,128,0.2)" />
               <PolarAngleAxis dataKey="name" stroke="var(--text-muted)" fontSize={10} />
               <Radar name="Performance" dataKey="value" stroke="var(--primary)" fill="var(--primary)" fillOpacity={0.5} />
               <Tooltip />
@@ -145,11 +162,11 @@ const SortableWidget = ({ id, chart, data, onRemove }: any) => {
         return (
           <ResponsiveContainer {...common}>
             <ScatterChart>
-              <CartesianGrid stroke="rgba(255,255,255,0.05)" />
+              <CartesianGrid stroke="rgba(128,128,128,0.2)" />
               <XAxis type="number" dataKey="x" name="time" stroke="var(--text-muted)" fontSize={10} />
               <YAxis type="number" dataKey="y" name="value" stroke="var(--text-muted)" fontSize={10} />
               <Tooltip cursor={{ strokeDasharray: '3 3' }} />
-              <Scatter name="Points" data={data} fill="var(--secondary)" />
+              <Scatter name="Points" data={filteredData} fill="var(--primary)" />
             </ScatterChart>
           </ResponsiveContainer>
         );
@@ -163,12 +180,26 @@ const SortableWidget = ({ id, chart, data, onRemove }: any) => {
       <div style={{ padding: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border)' }}>
         <div {...attributes} {...listeners} style={{ cursor: 'grab', display: 'flex', alignItems: 'center', gap: '8px' }}>
           <chart.icon size={16} color="var(--primary)" />
-          <h3 style={{ fontSize: '12px', fontWeight: '800' }}>{chart.name}</h3>
+          <h3 style={{ fontSize: '13px', fontWeight: '800' }}>{chart.name}</h3>
         </div>
-        <button onClick={() => onRemove(id)} style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', fontSize: '10px', fontWeight: 'bold' }}>REMOVE</button>
+        <button onClick={() => onRemove(id)} style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', fontSize: '11px', fontWeight: '800' }}>ลบออก</button>
       </div>
       <div style={{ padding: '20px' }}>
         {renderChart()}
+        
+        <div style={{ marginTop: '16px', borderTop: '1px solid var(--border)', paddingTop: '12px', display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+           {data.map((d: any) => (
+             <label key={d.name} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', cursor: 'pointer', opacity: selectedItems.includes(d.name) ? 1 : 0.4 }}>
+                <input 
+                  type="checkbox" 
+                  checked={selectedItems.includes(d.name)} 
+                  onChange={() => toggleItem(d.name)}
+                  style={{ accentColor: 'var(--primary)' }}
+                />
+                {d.name}
+             </label>
+           ))}
+        </div>
       </div>
     </div>
   );
@@ -186,7 +217,6 @@ export default function AdvancedAnalyticsPage() {
   const [loading, setLoading] = useState(false);
   const [tickets, setTickets] = useState<any[]>([]);
 
-  // Draggable sensors
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
@@ -207,7 +237,6 @@ export default function AdvancedAnalyticsPage() {
     fetchData();
   }, [dateRange]);
 
-  // Transform raw data for charts
   const chartDataMap = useMemo(() => {
     if (!tickets.length) return {};
     
@@ -224,7 +253,6 @@ export default function AdvancedAnalyticsPage() {
         { name: 'FCR', value: 60 }, { name: 'Tech', value: 85 }
       ],
       'scatter-response': Array.from({ length: 20 }, (_, i) => ({ x: i, y: Math.random() * 100 })),
-      // Add more as needed...
     };
   }, [tickets]);
 
@@ -257,7 +285,6 @@ export default function AdvancedAnalyticsPage() {
 
   return (
     <div style={{ animation: 'fadeIn 0.5s ease-out' }}>
-      {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '24px', marginBottom: '32px' }}>
         <div style={{ flex: '1', minWidth: '300px' }}>
           <h1 style={{ fontSize: '28px', fontWeight: '800', marginBottom: '4px' }}>ศูนย์บริหารสถิติอัจฉริยะ</h1>
@@ -265,13 +292,13 @@ export default function AdvancedAnalyticsPage() {
         </div>
         
         <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
-           <div style={{ display: 'flex', gap: '8px', background: 'rgba(255,255,255,0.05)', padding: '8px 16px', borderRadius: '12px', border: '1px solid var(--border)', alignItems: 'center' }}>
+           <div style={{ display: 'flex', gap: '8px', background: 'var(--bg-card)', padding: '8px 16px', borderRadius: '12px', border: '1px solid var(--border)', alignItems: 'center' }}>
               <Calendar size={14} color="var(--primary)" />
               <input 
                 type="date" 
                 value={dateRange.start} 
                 onChange={e => setDateRange({...dateRange, start: e.target.value})}
-                style={{ background: 'none', border: 'none', color: 'white', fontSize: '12px', outline: 'none', width: '110px' }} 
+                style={{ background: 'none', border: 'none', color: 'var(--text-main)', fontSize: '12px', outline: 'none', width: '110px' }} 
               />
               <span style={{ color: 'var(--text-muted)' }}>-</span>
               <input 
@@ -293,10 +320,10 @@ export default function AdvancedAnalyticsPage() {
         </div>
       </div>
 
-      {/* Widget Selector Overlay */}
+      {/* Widget Selector Wrapped */}
       <div style={{ borderBottom: '1px solid var(--border)', paddingBottom: '20px', marginBottom: '32px' }}>
          <p style={{ fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', marginBottom: '12px', textTransform: 'uppercase', letterSpacing: '1px' }}>เพิ่มวิดเจ็ตสถิติ (Add Statistics Widget)</p>
-         <div style={{ display: 'flex', gap: '10px', overflowX: 'auto', paddingBottom: '10px' }} className="no-scrollbar">
+         <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
             {CHART_TYPES.map(ct => (
               <button 
                 key={ct.id}
@@ -304,11 +331,12 @@ export default function AdvancedAnalyticsPage() {
                 disabled={activeWidgets.includes(ct.id)}
                 className="glass-interactive"
                 style={{ 
-                  padding: '10px 16px', borderRadius: '12px', border: '1px solid var(--border)', 
-                  whiteSpace: 'nowrap', fontSize: '12px', fontWeight: '700',
-                  opacity: activeWidgets.includes(ct.id) ? 0.4 : 1,
-                  display: 'flex', alignItems: 'center', gap: '10px',
-                  background: activeWidgets.includes(ct.id) ? 'rgba(255,255,255,0.02)' : 'rgba(255,255,255,0.05)'
+                  padding: '8px 14px', borderRadius: '10px', border: '1px solid var(--border)', 
+                  fontSize: '12px', fontWeight: '700',
+                  opacity: activeWidgets.includes(ct.id) ? 0.3 : 1,
+                  display: 'flex', alignItems: 'center', gap: '8px',
+                  background: activeWidgets.includes(ct.id) ? 'rgba(255,255,255,0.02)' : 'rgba(255,255,255,0.05)',
+                  cursor: activeWidgets.includes(ct.id) ? 'default' : 'pointer'
                 }}>
                 <ct.icon size={14} color={activeWidgets.includes(ct.id) ? 'var(--text-muted)' : 'var(--primary)'} /> 
                 {ct.name}
