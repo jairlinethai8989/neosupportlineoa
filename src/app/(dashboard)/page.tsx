@@ -69,9 +69,11 @@ export default function Home() {
       // 1. Fetch Stats
       const { data: tickets } = await supabase.from('tickets').select('*');
       if (tickets) {
-         const today = new Date().toISOString().split('T')[0];
+         const todayStart = new Date();
+         todayStart.setHours(0, 0, 0, 0);
+         
          setStats({
-           totalToday: tickets.filter(t => t.created_at.startsWith(today)).length,
+           totalToday: tickets.filter(t => new Date(t.created_at) >= todayStart).length,
            newTickets: tickets.filter(t => t.status === 'New').length,
            inProgress: tickets.filter(t => t.status === 'In Progress').length,
            pending: tickets.filter(t => t.status === 'Pending').length
@@ -154,7 +156,7 @@ export default function Home() {
                   <p style={{ fontSize: '14px', fontWeight: '600' }}>#{log.tickets?.ticket_no} - {log.action_type}</p>
                   <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{log.note || 'Status updated automatically.'}</p>
                   <p style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '4px' }}>
-                     {new Date(log.created_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', hour12: false })}
+                     {new Date(log.created_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })}
                   </p>
                 </div>
               </div>

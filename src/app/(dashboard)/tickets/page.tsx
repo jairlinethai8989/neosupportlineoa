@@ -17,19 +17,26 @@ import { supabase } from '@/lib/supabase';
 import { exportToExcel, exportToPDF } from '@/lib/utils/exportUtils';
 import Link from 'next/link';
 
-const COLUMNS = ['Pending', 'Assigned', 'In Progress', 'Resolved', 'Escalated'];
+const WORKFLOW = [
+  { id: 'New', thai: 'งานใหม่', eng: 'New Ticket' },
+  { id: 'In Progress', thai: 'กำลังดำเนินการ', eng: 'In Progress' },
+  { id: 'Resolved', thai: 'งานเสร็จแล้ว', eng: 'Resolved' },
+  { id: 'Escalated', thai: 'งานส่งต่อ', eng: 'Escalated' },
+  { id: 'Pending', thai: 'งานติดปัญหา', eng: 'Pending' }
+];
 
 const StatusBadge = ({ status }: { status: string }) => {
   const colors: Record<string, string> = {
     'New': '#4facfe',
-    'Pending': '#4facfe',
+    'Pending': '#ea5455',
     'Assigned': '#7367f0',
     'In Progress': '#ff9f43',
     'Resolved': '#28c76f',
     'Closed': '#94a3b8',
-    'Escalated': '#ea5455'
+    'Escalated': '#7367f0'
   };
   const color = colors[status] || 'gray';
+  const label = WORKFLOW.find(w => w.id === status)?.thai || status;
   return (
     <span style={{ 
       padding: '4px 8px', 
@@ -40,7 +47,7 @@ const StatusBadge = ({ status }: { status: string }) => {
       background: `${color}15`, 
       color: color,
       border: `1px solid ${color}30`
-    }}>{status}</span>
+    }}>{label}</span>
   );
 };
 
@@ -208,13 +215,13 @@ export default function TicketsPage() {
 
       {viewMode === 'board' ? (
          <div className="no-scrollbar" style={{ display: 'flex', gap: '20px', overflowX: 'auto', paddingBottom: '20px', flex: 1 }}>
-            {COLUMNS.map(col => {
-               const columnTickets = filteredTickets.filter(t => t.status === col || (col === 'Pending' && t.status === 'New'));
+            {WORKFLOW.map(col => {
+               const columnTickets = filteredTickets.filter(t => t.status === col.id);
                return (
                  <div 
-                   key={col} 
+                   key={col.id} 
                    onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }}
-                   onDrop={(e) => handleDrop(e, col)}
+                   onDrop={(e) => handleDrop(e, col.id)}
                    style={{ 
                       minWidth: '320px', flex: '0 0 auto', 
                       background: 'rgba(255,255,255,0.02)', 
@@ -223,7 +230,10 @@ export default function TicketsPage() {
                       display: 'flex', flexDirection: 'column'
                    }}>
                      <h3 style={{ fontSize: '14px', fontWeight: '800', marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        {col} 
+                        <div style={{ display: 'flex', flexDirection: 'column' }}>
+                           <span>{col.thai}</span>
+                           <span style={{ fontSize: '9px', color: 'var(--text-muted)', fontWeight: 'normal' }}>{col.eng}</span>
+                        </div>
                         <span style={{ fontSize: '11px', padding: '2px 8px', background: 'rgba(255,255,255,0.1)', borderRadius: '12px', color: 'var(--text-muted)' }}>
                            {columnTickets.length}
                         </span>
@@ -247,7 +257,9 @@ export default function TicketsPage() {
                                <p style={{ fontSize: '13px', fontWeight: '600', marginBottom: '12px', lineHeight: '1.4' }}>{ticket.subject}</p>
                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '12px' }}>
                                   <p style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{ticket.customers?.display_name || 'Customer'}</p>
-                                  <p style={{ fontSize: '10px', color: 'var(--text-muted)' }}>{new Date(ticket.created_at).toLocaleDateString()}</p>
+                                  <p style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
+                                     {new Date(ticket.created_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', hour12: false })}
+                                  </p>
                                </div>
                             </div>
                         ))}
