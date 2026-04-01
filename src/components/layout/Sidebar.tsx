@@ -17,7 +17,8 @@ import {
   LogOut,
   ShieldCheck,
   Building,
-  User
+  User,
+  LayoutDashboard
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -96,7 +97,7 @@ const Sidebar = ({ onClickLink, isCollapsed = false }: SidebarProps) => {
   };
 
   const menuItems = [
-    { name: 'Dashboard', thai: 'หน้าหลัก', icon: BarChart2, path: '/' },
+    { name: 'Dashboard', thai: 'หน้าหลัก', icon: LayoutDashboard, path: '/' },
     { name: 'Analytics', thai: 'สถิติ', icon: BarChart2, path: '/analytics' },
     { name: 'Inbox', thai: 'กล่องข้อความ', icon: Inbox, path: '/inbox', count: inboxCount },
     { name: 'Tickets', thai: 'รายการใบงาน', icon: Ticket, path: '/tickets', count: ticketCount },
