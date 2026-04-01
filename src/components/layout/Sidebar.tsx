@@ -75,8 +75,12 @@ const Sidebar = ({ onClickLink }: SidebarProps) => {
 
     // Subscribe to listen to tickets/conversations changes
     const channel = supabase.channel('sidebar-counts')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'tickets' }, fetchCounts)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'conversations' }, fetchCounts)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'tickets' }, () => {
+        fetchCounts();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'conversations' }, () => {
+        fetchCounts();
+      })
       .subscribe();
 
     return () => {
