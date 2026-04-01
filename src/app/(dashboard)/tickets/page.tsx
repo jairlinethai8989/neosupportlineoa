@@ -11,7 +11,8 @@ import {
   FileDown,
   FileSpreadsheet,
   LayoutGrid,
-  List
+  List,
+  AlertCircle
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { exportToExcel, exportToPDF } from '@/lib/utils/exportUtils';
@@ -71,31 +72,43 @@ export default function TicketsPage() {
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<'board' | 'table'>('board');
   const [searchTerm, setSearchTerm] = useState('');
+  const [debugError, setDebugError] = useState<string | null>(null);
 
-  useEffect(() => {
-    async function fetchTickets() {
+  async function fetchTickets() {
+    setDebugError(null);
+    try {
+      // Step 1: Same query as Sidebar but selecting '*'
       const { data, error } = await supabase
         .from('tickets')
-        .select(`
-           *,
-           customers (display_name, company_name),
-           profiles:assigned_agent_id (full_name)
-        `)
+        .select('*')
         .order('created_at', { ascending: false });
 
       if (error) {
-        console.error('Fetch Tickets Error:', error);
-        setLoading(false);
-        return;
+        setDebugError(`RLS/DB Error: ${error.message}`);
+      } else if (data) {
+        // Success fetching raw data
+        console.log('Tickets Load Success:', data.length);
+        
+        // Attempt to join customer info if available
+        const { data: enriched } = await supabase
+          .from('tickets')
+          .select('*, customers(display_name)')
+          .order('created_at', { ascending: false });
+        
+        setTickets(enriched || data);
       }
-
-      if (data) setTickets(data);
+    } catch (err: any) {
+      setDebugError(`App Panic: ${err.message}`);
+    } finally {
       setLoading(false);
     }
+  }
+
+  useEffect(() => {
     fetchTickets();
 
     const channel = supabase
-      .channel('tickets-changes')
+      .channel('tickets-ws-final')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'tickets' }, () => {
         fetchTickets();
       })
@@ -109,26 +122,10 @@ export default function TicketsPage() {
   const handleExportExcel = () => {
      const data = tickets.map(t => ({
         'Ticket ID': t.ticket_no,
-        'Customer': t.customers?.display_name,
         'Subject': t.subject,
-        'Priority': t.priority,
-        'Status': t.status,
-        'Assignee': t.profiles?.full_name,
-        'Created At': new Date(t.created_at).toLocaleString()
+        'Status': t.status
      }));
      exportToExcel(data, `Tickets_Report_${new Date().toISOString()}`);
-  };
-
-  const handleExportPDF = () => {
-     const data = tickets.map(t => ({
-        'ID': t.ticket_no,
-        'Customer': t.customers?.display_name,
-        'Subject': t.subject,
-        'Priority': t.priority,
-        'Status': t.status,
-        'Assignee': t.profiles?.full_name
-     }));
-     exportToPDF(data, `Tickets_Report_${new Date().toISOString()}`, 'Support Tickets Report');
   };
 
   const handleDrop = async (e: React.DragEvent, newStatus: string) => {
@@ -139,43 +136,30 @@ export default function TicketsPage() {
      const ticket = tickets.find(t => t.id === ticketId);
      if (!ticket || ticket.status === newStatus) return;
 
-     // Optimistic update
      setTickets(prev => prev.map(t => t.id === ticketId ? { ...t, status: newStatus } : t));
 
      try {
-        const { data: currentAgent } = await supabase.auth.getUser();
-        const { data: agentProfile } = await supabase.from('profiles').select('full_name').eq('id', currentAgent.user?.id).single();
-
         await supabase.from('tickets').update({ status: newStatus, updated_at: new Date().toISOString() }).eq('id', ticketId);
         
-        await supabase.from('ticket_logs').insert([{
-           ticket_id: ticketId,
-           action_type: 'status_change',
-           from_status: ticket.status,
-           to_status: newStatus,
-           performer_id: currentAgent.user?.id,
-           note: `Agent moved ticket via Kanban Board`
-        }]);
-
-        // Send Group Notification
         const { sendLineGroupNotification } = await import('@/lib/utils/lineNotifications');
-        await sendLineGroupNotification(`🔄 [เปลี่ยนสถานะ] แอดมิน ${agentProfile?.full_name || 'Anonymous'} ได้ย้ายตั๋วงาน #${ticket.ticket_no} ไปยังช่อง [${newStatus}]`);
-
+        await sendLineGroupNotification(`🔄 [${newStatus}] ตั๋วงาน #${ticket.ticket_no} ถูกย้ายสถานะแล้ว`);
      } catch(err) {
         console.error(err);
      }
   };
 
+  const normalizedSearch = searchTerm.toLowerCase();
   const filteredTickets = tickets.filter(t => {
-     const idMatch = t.ticket_no?.toString().toLowerCase().includes(searchTerm.toLowerCase());
-     const subjectMatch = t.subject?.toLowerCase().includes(searchTerm.toLowerCase());
-     return idMatch || subjectMatch;
+     if (!searchTerm) return true;
+     const tNo = String(t.ticket_no || '').toLowerCase();
+     const tSub = String(t.subject || '').toLowerCase();
+     return tNo.includes(normalizedSearch) || tSub.includes(normalizedSearch);
   });
 
   if (loading) return (
      <div className="flex-center" style={{ height: '70vh', flexDirection: 'column', gap: '16px' }}>
        <Loader2 className="animate-spin" size={32} color="var(--primary)" />
-       <p style={{ color: 'var(--text-muted)' }}>Loading Workspace...</p>
+       <p style={{ color: 'var(--text-muted)' }}>Synchronizing Database...</p>
      </div>
   );
 
@@ -183,39 +167,30 @@ export default function TicketsPage() {
     <div style={{ animation: 'fadeIn 0.5s ease-out', height: '100%', display: 'flex', flexDirection: 'column' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '32px' }}>
         <div>
-          <h1 style={{ fontSize: '28px', fontWeight: '800', marginBottom: '4px' }}>Ticket Workspace</h1>
-          <p style={{ color: 'var(--text-muted)' }}>Drag and drop to manage ticket lifecycle.</p>
+          <h1 style={{ fontSize: '28px', fontWeight: '800', marginBottom: '4px' }}>
+            Ticket Workspace ({tickets.length})
+          </h1>
+          <p style={{ color: 'var(--text-muted)' }}>Manage your support lifecycle efficiently.</p>
+          {debugError && (
+             <div style={{ marginTop: '12px', padding: '10px 16px', background: 'rgba(234, 84, 85, 0.1)', border: '1px solid #ea5455', color: '#ea5455', borderRadius: '12px', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <AlertCircle size={18} /> 
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                   <span style={{ fontWeight: '800' }}>Access Denied or Database Error</span>
+                   <span style={{ fontSize: '11px', opacity: 0.8 }}>{debugError}</span>
+                </div>
+             </div>
+          )}
         </div>
         
         <div style={{ display: 'flex', gap: '12px' }}>
            <div style={{ display: 'flex', background: 'rgba(255,255,255,0.05)', borderRadius: '8px', padding: '4px' }}>
-              <button 
-                onClick={() => setViewMode('table')}
-                style={{ padding: '8px 12px', borderRadius: '6px', border: 'none', background: viewMode === 'table' ? 'var(--primary)' : 'transparent', color: viewMode === 'table' ? 'black' : 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: '700' }}>
-                 <List size={16} /> List
-              </button>
-              <button 
-                onClick={() => setViewMode('board')}
-                style={{ padding: '8px 12px', borderRadius: '6px', border: 'none', background: viewMode === 'board' ? 'var(--primary)' : 'transparent', color: viewMode === 'board' ? 'black' : 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: '700' }}>
-                 <LayoutGrid size={16} /> Board
-              </button>
+              <button onClick={() => setViewMode('table')} style={{ padding: '8px 12px', borderRadius: '6px', border: 'none', background: viewMode === 'table' ? 'var(--primary)' : 'transparent', color: viewMode === 'table' ? 'black' : 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: '700' }}><List size={16} /> List</button>
+              <button onClick={() => setViewMode('board')} style={{ padding: '8px 12px', borderRadius: '6px', border: 'none', background: viewMode === 'board' ? 'var(--primary)' : 'transparent', color: viewMode === 'board' ? 'black' : 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: '700' }}><LayoutGrid size={16} /> Board</button>
            </div>
-
-           <button onClick={handleExportExcel} className="glass-interactive flex-center" style={{ padding: '0 16px', borderRadius: '8px', border: '1px solid var(--border)', color: 'var(--success)', gap: '8px', fontSize: '13px', fontWeight: 'bold' }}>
-              <FileSpreadsheet size={18} /> Excel
-           </button>
            
            <div style={{ position: 'relative' }}>
               <Search style={{ position: 'absolute', left: '12px', top: '10px', color: 'var(--text-muted)' }} size={16} />
-              <input type="text" placeholder="Search ID or subject..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} style={{
-                 background: 'rgba(255, 255, 255, 0.05)',
-                 border: '1px solid var(--border)',
-                 borderRadius: '8px',
-                 padding: '10px 10px 10px 36px',
-                 color: 'white',
-                 fontSize: '14px',
-                 width: '240px'
-              }} />
+              <input type="text" placeholder="ค้นหาใบงาน..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} style={{ background: 'rgba(255, 255, 255, 0.05)', border: '1px solid var(--border)', borderRadius: '8px', padding: '10px 10px 10px 36px', color: 'white', fontSize: '14px', width: '240px', outline: 'none' }} />
            </div>
         </div>
       </div>
@@ -223,58 +198,35 @@ export default function TicketsPage() {
       {viewMode === 'board' ? (
          <div className="no-scrollbar" style={{ display: 'flex', gap: '20px', overflowX: 'auto', paddingBottom: '20px', flex: 1 }}>
             {WORKFLOW.map(col => {
-               const columnTickets = filteredTickets.filter(t => t.status === col.id);
+               const columnTickets = filteredTickets.filter(t => {
+                  const s = String(t.status || '').toLowerCase();
+                  return s === col.id.toLowerCase();
+               });
                return (
-                 <div 
-                   key={col.id} 
-                   onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }}
-                   onDrop={(e) => handleDrop(e, col.id)}
-                   style={{ 
-                      minWidth: '320px', flex: '0 0 auto', 
-                      background: 'rgba(255,255,255,0.02)', 
-                      borderRadius: '16px', padding: '16px', 
-                      border: '1px dashed var(--border)',
-                      display: 'flex', flexDirection: 'column'
-                   }}>
+                 <div key={col.id} onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }} onDrop={(e) => handleDrop(e, col.id)}
+                   style={{ minWidth: '320px', flex: '0 0 auto', background: 'rgba(255,255,255,0.02)', borderRadius: '16px', padding: '16px', border: '1px dashed var(--border)', display: 'flex', flexDirection: 'column' }}>
                      <h3 style={{ fontSize: '14px', fontWeight: '800', marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <div style={{ display: 'flex', flexDirection: 'column' }}>
                            <span>{col.thai}</span>
-                           <span style={{ fontSize: '9px', color: 'var(--text-muted)', fontWeight: 'normal' }}>{col.eng}</span>
+                           <span style={{ fontSize: '9px', color: 'var(--text-muted)', fontWeight: 'normal', textTransform: 'uppercase' }}>{col.eng}</span>
                         </div>
-                        <span style={{ fontSize: '11px', padding: '2px 8px', background: 'rgba(255,255,255,0.1)', borderRadius: '12px', color: 'var(--text-muted)' }}>
-                           {columnTickets.length}
-                        </span>
+                        <span style={{ fontSize: '11px', padding: '2px 8px', background: 'rgba(255,255,255,0.1)', borderRadius: '12px', color: 'var(--text-muted)' }}>{columnTickets.length}</span>
                      </h3>
-                     
                      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', flex: 1 }}>
                         {columnTickets.map(ticket => (
-                            <div 
-                              key={ticket.id}
-                              draggable
-                              onDragStart={(e) => { e.dataTransfer.setData('ticketId', ticket.id); e.currentTarget.style.opacity = '0.5'; }}
-                              onDragEnd={(e) => { e.currentTarget.style.opacity = '1'; }}
-                              className="glass"
+                            <div key={ticket.id} draggable onDragStart={(e) => { e.dataTransfer.setData('ticketId', ticket.id); e.currentTarget.style.opacity = '0.5'; }} onDragEnd={(e) => { e.currentTarget.style.opacity = '1'; }} className="glass"
                               style={{ padding: '16px', borderRadius: '12px', cursor: 'grab', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)' }}>
-                               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', alignItems: 'flex-start' }}>
-                                  <Link href={`/tickets/${ticket.id}`} style={{ fontSize: '14px', fontWeight: '800', color: 'var(--primary)', textDecoration: 'none' }}>
-                                     #{ticket.ticket_no}
-                                  </Link>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', alignItems: 'flex-start' }}>
+                                  <Link href={`/tickets/${ticket.id}`} style={{ fontSize: '14px', fontWeight: '800', color: 'var(--primary)', textDecoration: 'none' }}>#{ticket.ticket_no}</Link>
                                   <PriorityIndicator priority={ticket.priority} />
                                 </div>
                                <p style={{ fontSize: '13px', fontWeight: '600', marginBottom: '12px', lineHeight: '1.4' }}>{ticket.subject}</p>
                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '12px' }}>
-                                  <p style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{ticket.customers?.display_name || 'Customer'}</p>
-                                  <p style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
-                                     {new Date(ticket.created_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', hour12: false })}
-                                  </p>
+                                  <p style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{ticket.customers?.display_name || 'Anonymous'}</p>
+                                  <p style={{ fontSize: '10px', color: 'var(--text-muted)' }}>{new Date(ticket.created_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', hour12: false })}</p>
                                </div>
                             </div>
                         ))}
-                        {columnTickets.length === 0 && (
-                           <div style={{ textAlign: 'center', padding: '20px', color: 'var(--text-muted)', fontSize: '12px', border: '1px dashed rgba(255,255,255,0.1)', borderRadius: '12px', marginTop: 'auto', marginBottom: 'auto' }}>
-                              Drop tickets here
-                           </div>
-                        )}
                      </div>
                  </div>
                );
@@ -286,50 +238,19 @@ export default function TicketsPage() {
               <thead style={{ background: 'rgba(255, 255, 255, 0.03)', borderBottom: '1px solid var(--border)' }}>
                   <tr>
                     <th style={{ padding: '16px 20px', fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Ticket ID</th>
-                    <th style={{ padding: '16px 20px', fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase' }}>โรงพยาบาล (Hospital)</th>
-                    <th style={{ padding: '16px 20px', fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase' }}>หัวข้อ (Subject)</th>
-                    <th style={{ padding: '16px 20px', fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase' }}>ผู้แจ้ง (Requester)</th>
-                    <th style={{ padding: '16px 20px', fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase' }}>สถานะ (Status)</th>
-                    <th style={{ padding: '16px 20px', fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase' }}>ความสำคัญ (Priority)</th>
-                    <th style={{ padding: '16px 20px', fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase' }}>แอดมิน (Agent)</th>
+                    <th style={{ padding: '16px 20px', fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Subject</th>
+                    <th style={{ padding: '16px 20px', fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Status</th>
                     <th style={{ padding: '16px 20px', fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Actions</th>
                   </tr>
               </thead>
               <tbody>
-                 {filteredTickets.length === 0 && (
-                    <tr>
-                       <td colSpan={8} style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)' }}>No tickets found</td>
-                    </tr>
-                 )}
                  {filteredTickets.map((ticket, idx) => (
-                    <tr key={idx} style={{ 
-                       borderBottom: '1px solid var(--border)',
-                       background: idx % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.01)',
-                    }} className="glass-interactive">
-                       <td style={{ padding: '16px 20px' }}>
-                         <Link href={`/tickets/${ticket.id}`} style={{ fontWeight: '800', fontSize: '14px', color: 'var(--primary)', textDecoration: 'none' }}>
-                           {ticket.ticket_no}
-                         </Link>
-                       </td>
-                       <td style={{ padding: '16px 20px' }}>
-                          <p style={{ fontWeight: '600', fontSize: '14px' }}>{ticket.customers?.company_name || 'N/A'}</p>
-                       </td>
-                       <td style={{ padding: '16px 20px', fontSize: '13px', fontWeight: '500' }}>{ticket.subject || 'No Subject'}</td>
-                       <td style={{ padding: '16px 20px', fontSize: '13px' }}>{ticket.customers?.display_name || '-'}</td>
+                    <tr key={idx} style={{ borderBottom: '1px solid var(--border)' }}>
+                       <td style={{ padding: '16px 20px' }}>#{ticket.ticket_no}</td>
+                       <td style={{ padding: '16px 20px' }}>{ticket.subject}</td>
                        <td style={{ padding: '16px 20px' }}><StatusBadge status={ticket.status} /></td>
-                       <td style={{ padding: '16px 20px' }}><PriorityIndicator priority={ticket.priority} /></td>
                        <td style={{ padding: '16px 20px' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                             <div style={{ width: '24px', height: '24px', borderRadius: '50%', background: 'rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px' }}>
-                                {ticket.profiles?.full_name?.charAt(0) || '?'}
-                             </div>
-                             <span style={{ fontSize: '13px' }}>{ticket.profiles?.full_name || 'Unassigned'}</span>
-                          </div>
-                        </td>
-                       <td style={{ padding: '16px 20px' }}>
-                          <Link href={`/tickets/${ticket.id}`} className="glass-interactive flex-center" style={{ width: '32px', height: '32px', borderRadius: '8px', border: 'none', color: 'var(--text-muted)', display: 'flex' }}>
-                             <ExternalLink size={16} />
-                          </Link>
+                          <Link href={`/tickets/${ticket.id}`} className="glass-interactive flex-center" style={{ width: '32px', height: '32px', borderRadius: '8px', color: 'var(--text-muted)' }}><ExternalLink size={16} /></Link>
                        </td>
                     </tr>
                  ))}

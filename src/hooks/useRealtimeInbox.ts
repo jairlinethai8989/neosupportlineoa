@@ -21,7 +21,18 @@ export function useRealtimeInbox() {
         `)
         .order('last_message_at', { ascending: false });
 
-      if (data) {
+      if (error) {
+        console.error('Fetch Inbox Error:', error);
+        // Fallback: fetch without nested customers to see if RLS is the issue
+        const { data: fallbackData } = await supabase
+          .from('conversations')
+          .select('id, status, last_message_at, customer_id')
+          .order('last_message_at', { ascending: false });
+        
+        if (fallbackData) {
+          setConversations(fallbackData);
+        }
+      } else if (data) {
         setConversations(data);
       }
       setLoading(false);
