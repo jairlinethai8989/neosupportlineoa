@@ -92,6 +92,7 @@ const Sidebar = ({ onClickLink }: SidebarProps) => {
 
   const menuItems = [
     { name: 'Dashboard', thai: 'หน้าหลัก', icon: BarChart2, path: '/' },
+    { name: 'Analytics', thai: 'สถิติ', icon: BarChart2, path: '/analytics' },
     { name: 'Inbox', thai: 'กล่องข้อความ', icon: Inbox, path: '/inbox', count: inboxCount },
     { name: 'Tickets', thai: 'รายการใบงาน', icon: Ticket, path: '/tickets', count: ticketCount },
     { name: 'Customers', thai: 'รายชื่อลูกค้า', icon: Users, path: '/customers' },
