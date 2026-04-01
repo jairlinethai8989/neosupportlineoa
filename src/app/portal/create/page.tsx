@@ -39,7 +39,6 @@ export default function CreateTicketPage() {
         .maybeSingle();
 
       if (!data) {
-         // Must register first
          router.push('/portal');
       } else {
          setCustomerData(data);
@@ -54,238 +53,193 @@ export default function CreateTicketPage() {
   }
 
   if (!customerData) {
-     return null; // redirecting
+     return null; 
   }
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-     if (e.target.files && e.target.files.length > 0) {
-        setFile(e.target.files[0]);
-     }
+    if (e.target.files && e.target.files[0]) {
+      setFile(e.target.files[0]);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
-     e.preventDefault();
-     if (!subject.trim()) {
-        setError('กรุณาระบุหัวข้อปัญหา (Topic)');
-        return;
-     }
-     
-     setSubmitting(true);
-     setError('');
+      e.preventDefault();
+      if (!subject.trim()) {
+         setError('กรุณาระบุหัวข้อปัญหา');
+         return;
+      }
+      
+      setSubmitting(true);
+      setError('');
 
-     try {
-        // 1. Generate Ticket Number (e.g. TIC-12345)
-        const ticketNo = `TIC-${Math.floor(10000 + Math.random() * 90000)}`;
+      try {
+         // 1. Generate Ticket Number
+         const ticketNo = `TIC-${Math.floor(10000 + Math.random() * 90000)}`;
 
-        // 2. Insert Ticket
-        const { data: newTicket, error: ticketError } = await supabase.from('tickets').insert([{
-           ticket_no: ticketNo,
-           customer_id: customerData.id,
-           subject: subject,
-           description: description || subject,
-           status: 'New',
-           priority: 'Medium',
-           created_at: new Date().toISOString()
-        }]).select().single();
+         // 2. Insert Ticket
+         const { data: newTicket, error: ticketError } = await supabase.from('tickets').insert([{
+            ticket_no: ticketNo,
+            customer_id: customerData.id,
+            subject: subject,
+            description: description || subject,
+            status: 'New',
+            priority: 'Medium',
+            created_at: new Date().toISOString()
+         }]).select().single();
 
-        if (ticketError) throw ticketError;
+         if (ticketError) throw new Error(`Ticket Creation Failed: ${ticketError.message}`);
 
-        // 3. Insert initial log
-        await supabase.from('ticket_logs').insert([{
-           ticket_id: newTicket.id,
-           action_type: 'creation',
-           note: 'Ticket created via Customer Portal (LIFF)',
-           to_status: 'New'
-        }]);
+         // 3. Upsert Conversation for Inbox (Robust way)
+         const { data: existingConv } = await supabase
+            .from('conversations')
+            .select('id')
+            .eq('customer_id', customerData.id)
+            .maybeSingle();
 
-        // 4. Upsert Conversation for Inbox
-        const { data: convs } = await supabase.from('conversations').select('id').eq('customer_id', customerData.id).single();
-        let conversationId = convs?.id;
-        
-        if (!conversationId) {
-            const { data: newConv } = await supabase.from('conversations').insert([{
+         let conversationId;
+         if (existingConv) {
+            conversationId = existingConv.id;
+            const { error: updateError } = await supabase.from('conversations').update({
+                status: 'active',
+                current_ticket_id: newTicket.id,
+                last_message_at: new Date().toISOString()
+            }).eq('id', conversationId);
+            
+            if (updateError) console.error('Conv Update Error:', updateError);
+         } else {
+            const { data: newConv, error: createError } = await supabase.from('conversations').insert([{
                 customer_id: customerData.id,
                 status: 'active',
                 current_ticket_id: newTicket.id,
                 last_message_at: new Date().toISOString()
             }]).select().single();
-            conversationId = newConv?.id;
-        } else {
-            // Update existing conversation to link to this new ticket and bump timestamp
-            await supabase.from('conversations').update({
-                status: 'active',
-                current_ticket_id: newTicket.id,
-                last_message_at: new Date().toISOString()
-            }).eq('id', conversationId);
-        }
+            
+            if (createError) {
+               console.error('Conv Create Error:', createError);
+               // If creation failed, we proceed but UI might be empty. 
+               // We don't block the whole flow because the ticket IS created.
+            } else {
+               conversationId = newConv.id;
+            }
+         }
 
-        // 5. Handle Attachment if exists
-        if (file) {
-           const fileExt = file.name.split('.').pop() || 'jpg';
-           const fileName = `${newTicket.id}_${Date.now()}.${fileExt}`;
-           const { error: uploadError } = await supabase.storage.from('chat_media').upload(fileName, file);
-           
-           if (!uploadError) {
-              const { data: { publicUrl } } = supabase.storage.from('chat_media').getPublicUrl(fileName);
-              const messageType = file.type.startsWith('image/') ? 'image' : 'file';
-              
-              await supabase.from('messages').insert([{
-                 ticket_id: newTicket.id,
-                 conversation_id: conversationId,
-                 sender_type: 'customer',
-                 message_type: messageType,
-                 content: publicUrl,
-                 created_at: new Date().toISOString()
-              }]);
-           }
-        }
+         // 4. Initial Message (If conversationId exists)
+         if (conversationId) {
+            if (file) {
+               const fileExt = file.name.split('.').pop() || 'jpg';
+               const fileName = `${newTicket.id}_${Date.now()}.${fileExt}`;
+               const { error: uploadError } = await supabase.storage.from('chat_media').upload(fileName, file);
+               if (!uploadError) {
+                  const { data: { publicUrl } } = supabase.storage.from('chat_media').getPublicUrl(fileName);
+                  await supabase.from('messages').insert([{
+                     ticket_id: newTicket.id,
+                     conversation_id: conversationId,
+                     sender_type: 'customer',
+                     message_type: 'image',
+                     content: publicUrl
+                  }]);
+               }
+            } else if (description) {
+               await supabase.from('messages').insert([{
+                  ticket_id: newTicket.id,
+                  conversation_id: conversationId,
+                  sender_type: 'customer',
+                  message_type: 'text',
+                  content: description
+               }]);
+            }
+         }
 
-        // 6. Send text description as first message if no file but description exists
-        if (!file && description) {
-           await supabase.from('messages').insert([{
-              ticket_id: newTicket.id,
-              conversation_id: conversationId,
-              sender_type: 'customer',
-              message_type: 'text',
-              content: description,
-              created_at: new Date().toISOString()
-           }]);
-        }
+         // 5. Notify Group
+         try {
+            const { sendLineGroupNotification } = await import('@/lib/utils/lineNotifications');
+            await sendLineGroupNotification(`🆕 ตั๋วใหม่จาก Portal: ${subject}\nลูกค้า: ${customerData.display_name}`);
+         } catch(e) {}
 
-        // 7. Notify Group about New Support Request (From Portal)
-        try {
-           const { sendLineGroupNotification } = await import('@/lib/utils/lineNotifications');
-           await sendLineGroupNotification(`🆕 [ตั๋วใหม่จาก Portal] คุณ ${customerData.display_name || 'ลูกค้า'} แจ้งปัญหาเข้ามาครับ\nหัวข้อ: ${subject}\n👉 ตรวจสอบที่หน้าจัดการ: ${process.env.NEXT_PUBLIC_BASE_URL || 'NeoSupport Dashboard'}`);
-        } catch (notifErr) {
-           console.error('Failed to send group notification from portal:', notifErr);
-        }
+         router.push('/portal');
 
-        // P2: Redirect to Ticket Detail
-        router.push(`/portal/tickets/${newTicket.id}`);
-
-     } catch (err: any) {
-        setError(err.message || 'เกิดข้อผิดพลาดในการสร้างตั๋วงาน');
-        setSubmitting(false);
-     }
+      } catch (err: any) {
+         setError(err.message);
+         setSubmitting(false);
+      }
   };
 
   return (
-    <div style={{ animation: 'fadeIn 0.5s ease-out', padding: '16px' }}>
-       {/* Navbar */}
-       <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '32px' }}>
-          <button onClick={() => router.push('/portal')} className="glass-interactive flex-center" style={{ width: '40px', height: '40px', borderRadius: '12px', border: '1px solid var(--border)', background: 'transparent', color: 'white' }}>
-             <ArrowLeft size={20} />
-          </button>
-          <div>
-            <h2 style={{ fontSize: '20px', fontWeight: '800' }}>แจ้งปัญหาใหม่</h2>
-            <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Create New Support Ticket</p>
-          </div>
-       </div>
+    <div className="portal-container">
+      <div className="portal-header">
+         <button onClick={() => router.back()} className="back-btn"><ArrowLeft size={20} /></button>
+         <h1 className="portal-title">แจ้งเรื่องใหม่</h1>
+         <div style={{ width: '20px' }} />
+      </div>
 
-       {error && (
-          <div style={{ padding: '16px', borderRadius: '12px', background: 'rgba(255, 71, 87, 0.1)', border: '1px solid var(--danger)', color: 'var(--danger)', display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '24px' }}>
-             <AlertCircle size={20} />
-             <span style={{ fontSize: '13px', fontWeight: '600' }}>{error}</span>
-          </div>
-       )}
+      <div className="portal-content">
+         <div className="glass portal-card" style={{ padding: '24px' }}>
+            <form onSubmit={handleSubmit}>
+               {error && (
+                  <div className="error-alert" style={{ marginBottom: '20px', display: 'flex', gap: '8px', alignItems: 'center', background: 'rgba(234, 84, 85, 0.1)', color: '#ea5455', padding: '12px', borderRadius: '12px', fontSize: '14px' }}>
+                     <AlertCircle size={18} /> {error}
+                  </div>
+               )}
 
-       <form onSubmit={handleSubmit} className="glass" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          
-          <div>
-             <label style={{ display: 'block', fontSize: '13px', fontWeight: '800', marginBottom: '8px', color: 'var(--text-main)' }}>หัวข้อปัญหา (Topic) <span style={{ color: 'var(--danger)' }}>*</span></label>
-             <input 
-                type="text" 
-                value={subject}
-                onChange={e => setSubject(e.target.value)}
-                placeholder="เช่น ไม่สามารถเข้าระบบได้, ต้องการแก้ไขข้อมูล..."
-                className="glass-input"
-                disabled={submitting}
-                style={{ width: '100%', padding: '16px', borderRadius: '12px', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border)', color: 'white', fontSize: '14px' }}
-             />
-          </div>
+               <div className="input-group" style={{ marginBottom: '20px' }}>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: 'var(--text-muted)', marginBottom: '8px' }}>หัวข้อที่ต้องการแจ้ง</label>
+                  <input 
+                    type="text" 
+                    value={subject}
+                    onChange={e => setSubject(e.target.value)}
+                    placeholder="เช่น เข้าใช้งานไม่ได้, ปัญหาการเงิน..."
+                    className="portal-input"
+                  />
+               </div>
 
-          <div>
-             <label style={{ display: 'block', fontSize: '13px', fontWeight: '800', marginBottom: '8px', color: 'var(--text-main)' }}>รายละเอียดเพิ่มเติม (Description)</label>
-             <textarea 
-                value={description}
-                onChange={e => setDescription(e.target.value)}
-                placeholder="ระบุรายละเอียดอาการหรือข้อมูลเพิ่มเติมที่นี่..."
-                className="glass-input"
-                disabled={submitting}
-                rows={4}
-                style={{ width: '100%', padding: '16px', borderRadius: '12px', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border)', color: 'white', fontSize: '14px', resize: 'none' }}
-             />
-          </div>
+               <div className="input-group" style={{ marginBottom: '20px' }}>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: 'var(--text-muted)', marginBottom: '8px' }}>รายละเอียดเพิ่มเติม</label>
+                  <textarea 
+                    value={description}
+                    onChange={e => setDescription(e.target.value)}
+                    placeholder="เล่ารายละเอียดของปัญหาให้เราฟัง..."
+                    className="portal-input"
+                    style={{ height: '120px', resize: 'none', padding: '12px' }}
+                  />
+               </div>
 
-          <div>
-             <label style={{ display: 'block', fontSize: '13px', fontWeight: '800', marginBottom: '8px', color: 'var(--text-main)' }}>ภาพประกอบ/ไฟล์แนบ (Attachment)</label>
-             
-             <input 
-                type="file" 
-                ref={fileInputRef} 
-                onChange={handleFileChange} 
-                style={{ display: 'none' }} 
-                disabled={submitting}
-                id="file-upload"
-             />
-             <label 
-                htmlFor="file-upload"
-                className="glass-interactive"
-                style={{ 
-                   display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
-                   padding: '20px', borderRadius: '12px', border: '2px dashed var(--border)', 
-                   background: file ? 'rgba(0, 242, 254, 0.05)' : 'rgba(255,255,255,0.02)', 
-                   color: file ? 'var(--primary)' : 'var(--text-muted)',
-                   cursor: 'pointer',
-                   fontWeight: '700', fontSize: '13px',
-                   transition: 'all 0.2s ease'
-                }}
-             >
-                {file ? (
-                   <>
-                      <ImageIcon size={20} />
-                      {file.name} ({(file.size / 1024 / 1024).toFixed(2)} MB)
-                   </>
-                ) : (
-                   <>
-                      <Paperclip size={20} />
-                      คลิกเพื่อแนบไฟล์ (ขนาดไม่เกิน 10MB)
-                   </>
-                )}
-             </label>
-             {file && (
-                <p 
-                   onClick={(e) => { e.preventDefault(); setFile(null); if(fileInputRef.current) fileInputRef.current.value = ''; }}
-                   style={{ textAlign: 'center', color: 'var(--danger)', fontSize: '12px', marginTop: '12px', cursor: 'pointer', fontWeight: 'bold' }}>
-                   ลบไฟล์แนบ
-                </p>
-             )}
-          </div>
+               <div className="attachment-zone" style={{ marginBottom: '32px' }}>
+                  <input 
+                    type="file" 
+                    ref={fileInputRef} 
+                    onChange={handleFileChange} 
+                    style={{ display: 'none' }}
+                    accept="image/*,.pdf,.doc,.docx"
+                  />
+                  {!file ? (
+                    <button type="button" onClick={() => fileInputRef.current?.click()} className="glass-interactive flex-center" style={{ width: '100%', gap: '12px', border: '2px dashed var(--border)', borderRadius: '16px', padding: '16px', color: 'var(--text-muted)' }}>
+                       <ImageIcon size={20} />
+                       <span style={{ fontSize: '14px', fontWeight: '600' }}>แนบรูปภาพหรือไฟล์</span>
+                    </button>
+                  ) : (
+                    <div className="flex-between glass" style={{ padding: '12px 16px', borderRadius: '16px', border: '1px solid var(--primary)' }}>
+                       <div className="flex-center" style={{ gap: '12px' }}>
+                          <Paperclip size={18} color="var(--primary)" />
+                          <span style={{ fontSize: '14px', fontWeight: '600' }}>{file.name}</span>
+                       </div>
+                       <button type="button" onClick={() => setFile(null)} style={{ color: '#ea5455', border: 'none', background: 'none', fontSize: '13px', fontWeight: '600' }}>ลบออก</button>
+                    </div>
+                  )}
+               </div>
 
-          <div style={{ marginTop: '12px' }}>
-             <button 
-                type="submit"
-                disabled={submitting || !subject.trim()}
-                className="glass-interactive flex-center"
-                style={{
-                   width: '100%', padding: '16px', borderRadius: '12px', border: 'none',
-                   background: (!submitting && subject.trim()) ? 'var(--primary)' : 'rgba(255,255,255,0.05)',
-                   color: (!submitting && subject.trim()) ? 'black' : 'var(--text-muted)',
-                   fontWeight: '900', fontSize: '15px', gap: '8px',
-                   transition: 'all 0.3s ease'
-                }}
-             >
-                {submitting ? (
-                   <><Loader2 size={20} className="animate-spin" /> กำลังส่งข้อมูล...</>
-                ) : (
-                   <><SendHorizontal size={20} /> ส่งตั๋วแจ้งปัญหา</>
-                )}
-             </button>
-             <p style={{ textAlign: 'center', fontSize: '11px', color: 'var(--text-muted)', marginTop: '16px' }}>
-                เมื่อกดส่งแล้ว ทีมงานจะได้รับเรื่องทันทีและจะแสดงในหน้า My Tickets
-             </p>
-          </div>
-       </form>
+               <button type="submit" disabled={submitting} className="portal-btn-primary" style={{ width: '100%', gap: '12px' }}>
+                  {submitting ? (
+                    <Loader2 className="animate-spin" size={20} />
+                  ) : (
+                    <>
+                       <SendHorizontal size={20} />
+                       <span style={{ fontSize: '16px', fontWeight: '800' }}>ส่งแจ้งเรื่อง</span>
+                    </>
+                  )}
+               </button>
+            </form>
+         </div>
+      </div>
     </div>
   );
 }

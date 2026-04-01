@@ -10,6 +10,7 @@ export function useRealtimeInbox() {
 
   useEffect(() => {
     async function fetchInitial() {
+      // Fetch all conversations to see if status filtering was the issue
       const { data, error } = await supabase
         .from('conversations')
         .select(`
@@ -23,10 +24,10 @@ export function useRealtimeInbox() {
 
       if (error) {
         console.error('Fetch Inbox Error:', error);
-        // Fallback: fetch without nested customers to see if RLS is the issue
+        // Pure fallback: no joins, just data
         const { data: fallbackData } = await supabase
           .from('conversations')
-          .select('id, status, last_message_at, customer_id')
+          .select('*')
           .order('last_message_at', { ascending: false });
         
         if (fallbackData) {
@@ -42,13 +43,12 @@ export function useRealtimeInbox() {
 
     // Set up real-time subscription
     const channel = supabase
-      .channel('public:conversations')
+      .channel('public:conversations:v2')
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'conversations' },
         (payload) => {
-          console.log('Conversation update received:', payload);
-          fetchInitial(); // Re-fetch to get nested objects (customers) for simplicity
+          fetchInitial();
         }
       )
       .subscribe();
