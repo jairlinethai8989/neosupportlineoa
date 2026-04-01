@@ -84,7 +84,7 @@ export default function ProfileRegistrationModal({ isOpen, profile, existingCust
            .from('customers')
            .insert([{
               line_user_id: profile.userId,
-              name: profile.displayName || 'LINE User',
+              display_name: profile.displayName || 'LINE User',
               email: `${profile.userId}@line.me`, // placeholder
               phone: '-',
               hospital_id: selectedHospital,

@@ -78,13 +78,16 @@ export default function TicketsPage() {
         .from('tickets')
         .select(`
            *,
-           customers (
-             display_name,
-             company_name
-           ),
-           profiles!assigned_agent_id (full_name)
+           customers (display_name, company_name),
+           profiles:assigned_agent_id (full_name)
         `)
         .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Fetch Tickets Error:', error);
+        setLoading(false);
+        return;
+      }
 
       if (data) setTickets(data);
       setLoading(false);
@@ -163,10 +166,11 @@ export default function TicketsPage() {
      }
   };
 
-  const filteredTickets = tickets.filter(t => 
-     t.ticket_no.toLowerCase().includes(searchTerm.toLowerCase()) || 
-     (t.subject && t.subject.toLowerCase().includes(searchTerm.toLowerCase()))
-  );
+  const filteredTickets = tickets.filter(t => {
+     const idMatch = t.ticket_no?.toString().toLowerCase().includes(searchTerm.toLowerCase());
+     const subjectMatch = t.subject?.toLowerCase().includes(searchTerm.toLowerCase());
+     return idMatch || subjectMatch;
+  });
 
   if (loading) return (
      <div className="flex-center" style={{ height: '70vh', flexDirection: 'column', gap: '16px' }}>
@@ -256,7 +260,7 @@ export default function TicketsPage() {
                                      #{ticket.ticket_no}
                                   </Link>
                                   <PriorityIndicator priority={ticket.priority} />
-                               </div>
+                                </div>
                                <p style={{ fontSize: '13px', fontWeight: '600', marginBottom: '12px', lineHeight: '1.4' }}>{ticket.subject}</p>
                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '12px' }}>
                                   <p style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{ticket.customers?.display_name || 'Customer'}</p>
@@ -321,7 +325,7 @@ export default function TicketsPage() {
                              </div>
                              <span style={{ fontSize: '13px' }}>{ticket.profiles?.full_name || 'Unassigned'}</span>
                           </div>
-                       </td>
+                        </td>
                        <td style={{ padding: '16px 20px' }}>
                           <Link href={`/tickets/${ticket.id}`} className="glass-interactive flex-center" style={{ width: '32px', height: '32px', borderRadius: '8px', border: 'none', color: 'var(--text-muted)', display: 'flex' }}>
                              <ExternalLink size={16} />
