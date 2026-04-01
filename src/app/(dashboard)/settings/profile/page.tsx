@@ -17,26 +17,24 @@ import {
 import Link from 'next/link';
 
 const AVATAR_OPTIONS = [
-  'https://api.dicebear.com/7.x/notionists/svg?seed=Programmer1&backgroundColor=f1f5f9',
-  'https://api.dicebear.com/7.x/notionists/svg?seed=Coder2&backgroundColor=f1f5f9',
-  'https://api.dicebear.com/7.x/notionists/svg?seed=Dev3&backgroundColor=f1f5f9',
-  'https://api.dicebear.com/7.x/notionists/svg?seed=Techie4&backgroundColor=f1f5f9',
-  'https://api.dicebear.com/7.x/notionists/svg?seed=Hacker5&backgroundColor=f1f5f9',
-  'https://api.dicebear.com/7.x/notionists/svg?seed=Engineer6&backgroundColor=f1f5f9',
-  'https://api.dicebear.com/7.x/notionists/svg?seed=Ninja7&backgroundColor=f1f5f9',
-  'https://api.dicebear.com/7.x/notionists/svg?seed=Geek8&backgroundColor=f1f5f9',
-  'https://api.dicebear.com/7.x/notionists/svg?seed=Nerd9&backgroundColor=f1f5f9',
-  'https://api.dicebear.com/7.x/notionists/svg?seed=Builder10&backgroundColor=f1f5f9',
-  'https://api.dicebear.com/7.x/avataaars/svg?seed=DevGirl1&clothing=blazerAndShirt&accessories=prescription02&backgroundColor=f8fafc',
-  'https://api.dicebear.com/7.x/avataaars/svg?seed=DevGuy2&clothing=hoodie&accessories=round&backgroundColor=f8fafc',
-  'https://api.dicebear.com/7.x/avataaars/svg?seed=DevGirl3&clothing=overall&hair=longButNotTooLong&backgroundColor=f8fafc',
-  'https://api.dicebear.com/7.x/avataaars/svg?seed=DevGuy4&clothing=blazerAndSweater&facialHair=beardLight&backgroundColor=f8fafc',
-  'https://api.dicebear.com/7.x/avataaars/svg?seed=DevGirl5&clothing=shirtScoopNeck&accessories=kurt&backgroundColor=f8fafc',
-  'https://api.dicebear.com/7.x/avataaars/svg?seed=DevGuy6&clothing=shirtVNeck&facialHair=moustacheMagnum&backgroundColor=f8fafc',
-  'https://api.dicebear.com/7.x/avataaars/svg?seed=DevGirl7&clothing=shirtCrewNeck&hair=dreads&backgroundColor=f8fafc',
-  'https://api.dicebear.com/7.x/avataaars/svg?seed=DevGuy8&clothing=collarSweater&accessories=sunglasses&backgroundColor=f8fafc',
-  'https://api.dicebear.com/7.x/avataaars/svg?seed=DevGirl9&clothing=blazerAndShirt&hair=shortCurly&backgroundColor=f8fafc',
-  'https://api.dicebear.com/7.x/avataaars/svg?seed=DevGuy10&clothing=hoodie&accessories=prescription01&backgroundColor=f8fafc',
+  // Office Men
+  'https://api.dicebear.com/7.x/notionists/svg?seed=OfficeMan1&backgroundColor=f1f5f9',
+  'https://api.dicebear.com/7.x/notionists/svg?seed=OfficeMan2&backgroundColor=f1f5f9',
+  'https://api.dicebear.com/7.x/notionists/svg?seed=OfficeMan3&backgroundColor=f1f5f9',
+  'https://api.dicebear.com/7.x/notionists/svg?seed=OfficeMan4&backgroundColor=f1f5f9',
+  'https://api.dicebear.com/7.x/notionists/svg?seed=OfficeMan5&backgroundColor=f1f5f9',
+  'https://api.dicebear.com/7.x/notionists/svg?seed=OfficeMan6&backgroundColor=f1f5f9',
+  'https://api.dicebear.com/7.x/notionists/svg?seed=OfficeMan7&backgroundColor=f1f5f9',
+  'https://api.dicebear.com/7.x/notionists/svg?seed=OfficeMan8&backgroundColor=f1f5f9',
+  // Office Women
+  'https://api.dicebear.com/7.x/notionists/svg?seed=OfficeWoman1&backgroundColor=f8fafc',
+  'https://api.dicebear.com/7.x/notionists/svg?seed=OfficeWoman2&backgroundColor=f8fafc',
+  'https://api.dicebear.com/7.x/notionists/svg?seed=OfficeWoman3&backgroundColor=f8fafc',
+  'https://api.dicebear.com/7.x/notionists/svg?seed=OfficeWoman4&backgroundColor=f8fafc',
+  'https://api.dicebear.com/7.x/notionists/svg?seed=OfficeWoman5&backgroundColor=f8fafc',
+  'https://api.dicebear.com/7.x/notionists/svg?seed=OfficeWoman6&backgroundColor=f8fafc',
+  'https://api.dicebear.com/7.x/notionists/svg?seed=OfficeWoman7&backgroundColor=f8fafc',
+  'https://api.dicebear.com/7.x/notionists/svg?seed=OfficeWoman8&backgroundColor=f8fafc',
 ];
 
 const DEPARTMENTS = [
@@ -80,12 +78,12 @@ export default function ProfileSettingsPage() {
         const filePath = `${target}/${fileName}`;
 
         const { error: uploadError, data } = await supabase.storage
-           .from('public') // Assuming 'public' bucket exists
+           .from('chat_media') 
            .upload(filePath, file);
 
         if (uploadError) throw uploadError;
 
-        const { data: { publicUrl } } = supabase.storage.from('public').getPublicUrl(filePath);
+        const { data: { publicUrl } } = supabase.storage.from('chat_media').getPublicUrl(filePath);
 
         if (target === 'profile') {
            setProfile({ ...profile, avatar_url: publicUrl });
@@ -97,7 +95,8 @@ export default function ProfileSettingsPage() {
         setShowToast(true);
         setTimeout(() => setShowToast(false), 3000);
      } catch (err: any) {
-        alert('File upload failed: ' + err.message);
+        console.error('Upload error:', err);
+        alert('อัปโหลดล้มเหลว: ' + (err.message || 'Error uploading file'));
      } finally {
         setUploading(false);
      }
