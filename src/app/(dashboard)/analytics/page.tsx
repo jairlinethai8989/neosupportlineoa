@@ -1,190 +1,344 @@
 'use client';
 /* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unused-vars */
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
-  BarChart, 
-  Clock, 
-  CheckCircle, 
-  AlertTriangle,
-  Users,
-  TrendingDown,
-  TrendingUp,
-  Settings,
-  MoreVertical,
-  Calendar,
+  BarChart as BarChartIcon, 
+  PieChart as PieChartIcon, 
+  LineChart as LineChartIcon,
   Filter,
-  FileDown,
-  FileSpreadsheet
+  Calendar,
+  Download,
+  FileSpreadsheet,
+  File as FileIcon,
+  Maximize2,
+  RefreshCw,
+  LayoutGrid,
+  Settings
 } from 'lucide-react';
-import Link from 'next/link';
-import { analyticsService } from '@/lib/services/analyticsService';
+import { 
+  ResponsiveContainer, 
+  BarChart, Bar, 
+  LineChart, Line, 
+  PieChart, Pie, Cell,
+  XAxis, YAxis, CartesianGrid, Tooltip, Legend,
+  AreaChart, Area,
+  ComposedChart,
+  RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar,
+  ScatterChart, Scatter,
+  Treemap
+} from 'recharts';
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
+import { arrayMove, SortableContext, sortableKeyboardCoordinates, rectSortingStrategy, useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import { DateTime } from 'luxon';
+import { supabase } from '@/lib/supabase';
 import { exportToExcel, exportToPDF } from '@/lib/utils/exportUtils';
 
-const StatCard = ({ title, value, icon: Icon, color, trend }: any) => (
-  <div className="glass-interactive" style={{ padding: '24px', flex: 1, minWidth: '240px' }}>
-    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px' }}>
-      <div style={{ 
-        background: `${color}15`, 
-        color: color, 
-        padding: '12px', 
-        borderRadius: '12px',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center'
-      }}>
-        <Icon size={24} />
+/**
+ * 1. Define Chart Types & Mock Logic for 16 variations
+ */
+const CHART_TYPES = [
+  { id: 'bar-status', name: 'งานแยกตามสถานะ (Status Bar)', icon: BarChartIcon, type: 'bar' },
+  { id: 'pie-priority', name: 'สัดส่วนความสำคัญ (Priority Pie)', icon: PieChartIcon, type: 'pie' },
+  { id: 'line-trend', name: 'แนวโน้มใบงาน (Ticket Trend)', icon: LineChartIcon, type: 'line' },
+  { id: 'area-volume', name: 'ปริมาณภาระงาน (Volume Area)', icon: LineChartIcon, type: 'area' },
+  { id: 'radar-agent', name: 'สมรรถนะแอดมิน (Agent Radar)', icon: Settings, type: 'radar' },
+  { id: 'scatter-response', name: 'เวลาตอบกลับ (Response Scatter)', icon: LayoutGrid, type: 'scatter' },
+  { id: 'bar-category', name: 'หมวดหมู่ปัญหา (Category Bar)', icon: BarChartIcon, type: 'bar' },
+  { id: 'pie-sla', name: 'สถานะ SLA (SLA Compliance)', icon: PieChartIcon, type: 'pie' },
+  { id: 'composed-mix', name: 'ภาพรวมผสม (Mixed Overview)', icon: LayoutGrid, type: 'composed' },
+  { id: 'tree-tags', name: 'แท็กยอดนิยม (Tag Treemap)', icon: FileIcon, type: 'treemap' },
+  { id: 'line-csat', name: 'ความพึงพอใจ (CSAT Trend)', icon: LineChartIcon, type: 'line' },
+  { id: 'bar-resolution', name: 'เวลาปิดงาน (Resolution Bar)', icon: BarChartIcon, type: 'bar' },
+  { id: 'pie-channel', name: 'ช่องทางแจ้งเรื่อง (Channel Pie)', icon: PieChartIcon, type: 'pie' },
+  { id: 'area-peak', name: 'ช่วงเวลาที่งานเยอะ (Peak Hours)', icon: LineChartIcon, type: 'area' },
+  { id: 'radar-skill', name: 'ทักษะทีมงาน (Team Skills)', icon: Settings, type: 'radar' },
+  { id: 'scatter-load', name: 'ภาระงานรายวัน (Daily Load)', icon: LayoutGrid, type: 'scatter' }
+];
+
+const COLORS = ['#00f2fe', '#4facfe', '#7367f0', '#28c76f', '#ff9f43', '#ea5455', '#9f44d3', '#f1f5f9'];
+
+/**
+ * 2. Sortable Widget Component
+ */
+const SortableWidget = ({ id, chart, data, onRemove }: any) => {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
+  
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    zIndex: isDragging ? 10 : 1,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  const renderChart = () => {
+    const common = { width: '100%', height: 240 };
+    switch (chart.type) {
+      case 'bar':
+        return (
+          <ResponsiveContainer {...common}>
+            <BarChart data={data}>
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+              <XAxis dataKey="name" stroke="var(--text-muted)" fontSize={10} />
+              <YAxis stroke="var(--text-muted)" fontSize={10} />
+              <Tooltip contentStyle={{ background: '#0a0e14', border: '1px solid var(--border)' }} />
+              <Bar dataKey="value" fill="var(--primary)" radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        );
+      case 'pie':
+        return (
+          <ResponsiveContainer {...common}>
+            <PieChart>
+              <Pie data={data} innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value">
+                {data.map((entry: any, index: number) => (
+                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                ))}
+              </Pie>
+              <Tooltip />
+              <Legend wrapperStyle={{ fontSize: '10px' }} />
+            </PieChart>
+          </ResponsiveContainer>
+        );
+      case 'line':
+        return (
+          <ResponsiveContainer {...common}>
+            <LineChart data={data}>
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+              <XAxis dataKey="name" stroke="var(--text-muted)" fontSize={10} />
+              <YAxis stroke="var(--text-muted)" fontSize={10} />
+              <Tooltip />
+              <Line type="monotone" dataKey="value" stroke="var(--primary)" strokeWidth={3} dot={{ r: 4 }} />
+            </LineChart>
+          </ResponsiveContainer>
+        );
+      case 'area':
+        return (
+          <ResponsiveContainer {...common}>
+            <AreaChart data={data}>
+              <defs>
+                <linearGradient id={`colorValue-${id}`} x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="var(--primary)" stopOpacity={0.3}/>
+                  <stop offset="95%" stopColor="var(--primary)" stopOpacity={0}/>
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+              <XAxis dataKey="name" stroke="var(--text-muted)" fontSize={10} />
+              <YAxis stroke="var(--text-muted)" fontSize={10} />
+              <Tooltip />
+              <Area type="monotone" dataKey="value" stroke="var(--primary)" fillOpacity={1} fill={`url(#colorValue-${id})`} />
+            </AreaChart>
+          </ResponsiveContainer>
+        );
+      case 'radar':
+        return (
+          <ResponsiveContainer {...common}>
+            <RadarChart cx="50%" cy="50%" outerRadius="80%" data={data}>
+              <PolarGrid stroke="rgba(255,255,255,0.1)" />
+              <PolarAngleAxis dataKey="name" stroke="var(--text-muted)" fontSize={10} />
+              <Radar name="Performance" dataKey="value" stroke="var(--primary)" fill="var(--primary)" fillOpacity={0.5} />
+              <Tooltip />
+            </RadarChart>
+          </ResponsiveContainer>
+        );
+      case 'scatter':
+        return (
+          <ResponsiveContainer {...common}>
+            <ScatterChart>
+              <CartesianGrid stroke="rgba(255,255,255,0.05)" />
+              <XAxis type="number" dataKey="x" name="time" stroke="var(--text-muted)" fontSize={10} />
+              <YAxis type="number" dataKey="y" name="value" stroke="var(--text-muted)" fontSize={10} />
+              <Tooltip cursor={{ strokeDasharray: '3 3' }} />
+              <Scatter name="Points" data={data} fill="var(--secondary)" />
+            </ScatterChart>
+          </ResponsiveContainer>
+        );
+      default:
+        return <div className="flex-center" style={{ height: '240px', color: 'var(--text-muted)' }}>Chart Type: {chart.type}</div>;
+    }
+  };
+
+  return (
+    <div ref={setNodeRef} style={style} className="glass">
+      <div style={{ padding: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border)' }}>
+        <div {...attributes} {...listeners} style={{ cursor: 'grab', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <chart.icon size={16} color="var(--primary)" />
+          <h3 style={{ fontSize: '12px', fontWeight: '800' }}>{chart.name}</h3>
+        </div>
+        <button onClick={() => onRemove(id)} style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', fontSize: '10px', fontWeight: 'bold' }}>REMOVE</button>
       </div>
-      {trend && (
-        <span style={{ 
-          fontSize: '12px', 
-          color: trend.startsWith('+') ? 'var(--success)' : 'var(--danger)',
-          fontWeight: '600',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '4px'
-        }}>
-          {trend.startsWith('+') ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
-          {trend}
-        </span>
-      )}
+      <div style={{ padding: '20px' }}>
+        {renderChart()}
+      </div>
     </div>
-    <h3 style={{ fontSize: '14px', color: 'var(--text-muted)', marginBottom: '4px' }}>{title}</h3>
-    <p style={{ fontSize: '28px', fontWeight: '800' }}>{value}</p>
-  </div>
-);
+  );
+};
 
-export default function AnalyticsPage() {
-  const [stats, setStats] = useState<any>({ activeTickets: 0, resolvedToday: 0, slaBreached: 0, avgResponseTime: '0m' });
-  const [loading, setLoading] = useState(true);
+/**
+ * 3. Main Analytics Page
+ */
+export default function AdvancedAnalyticsPage() {
+  const [activeWidgets, setActiveWidgets] = useState<string[]>(CHART_TYPES.slice(0, 6).map(c => c.id));
+  const [dateRange, setDateRange] = useState({
+    start: DateTime.now().minus({ months: 1 }).toISODate(),
+    end: DateTime.now().toISODate()
+  });
+  const [loading, setLoading] = useState(false);
+  const [tickets, setTickets] = useState<any[]>([]);
 
-  const loadStats = async () => {
+  // Draggable sensors
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+
+  const fetchData = async () => {
     setLoading(true);
-    const data = await analyticsService.getOverviewStats();
-    setStats(data);
+    const { data } = await supabase
+      .from('tickets')
+      .select('*')
+      .gte('created_at', dateRange.start)
+      .lte('created_at', dateRange.end);
+    setTickets(data || []);
     setLoading(false);
   };
 
   useEffect(() => {
-    loadStats();
-    // Intentionally omitted real-time Supabase subscriptions here 
-    // to conserve DB read quotas. Uses On-Load + Manual Refresh.
-  }, []);
+    fetchData();
+  }, [dateRange]);
 
-  const handleExportSummary = () => {
-     const data = [{
-        'Total Workload': stats.activeTickets,
-        'Resolved Today': stats.resolvedToday,
-        'SLA Breached': stats.slaBreached,
-        'Avg Response Time': stats.avgResponseTime,
-        'Report Date': new Date().toLocaleString()
-     }];
-     exportToExcel(data, `Executive_Summary_${new Date().toISOString()}`);
+  // Transform raw data for charts
+  const chartDataMap = useMemo(() => {
+    if (!tickets.length) return {};
+    
+    const statusCounts = tickets.reduce((acc: any, t) => { acc[t.status] = (acc[t.status] || 0) + 1; return acc; }, {});
+    const priorityCounts = tickets.reduce((acc: any, t) => { acc[t.priority] = (acc[t.priority] || 0) + 1; return acc; }, {});
+    
+    return {
+      'bar-status': Object.entries(statusCounts).map(([name, value]) => ({ name, value })),
+      'pie-priority': Object.entries(priorityCounts).map(([name, value]) => ({ name, value })),
+      'line-trend': tickets.slice(0, 7).map((t, i) => ({ name: `Day ${i+1}`, value: Math.floor(Math.random() * 20) })),
+      'area-volume': tickets.slice(0, 10).map((t, i) => ({ name: `T-${i}`, value: Math.floor(Math.random() * 50) })),
+      'radar-agent': [
+        { name: 'Speed', value: 80 }, { name: 'CSAT', value: 95 }, { name: 'Volume', value: 70 }, 
+        { name: 'FCR', value: 60 }, { name: 'Tech', value: 85 }
+      ],
+      'scatter-response': Array.from({ length: 20 }, (_, i) => ({ x: i, y: Math.random() * 100 })),
+      // Add more as needed...
+    };
+  }, [tickets]);
+
+  const handleDragEnd = (event: any) => {
+    const { active, over } = event;
+    if (active.id !== over.id) {
+      setActiveWidgets((items) => {
+        const oldIndex = items.indexOf(active.id);
+        const newIndex = items.indexOf(over.id);
+        return arrayMove(items, oldIndex, newIndex);
+      });
+    }
+  };
+
+  const handleExport = (format: 'excel' | 'pdf') => {
+    const dataToExport = tickets.map(t => ({
+      'ID': t.ticket_no,
+      'Subject': t.subject,
+      'Status': t.status,
+      'Priority': t.priority,
+      'Created At': DateTime.fromISO(t.created_at).toFormat('dd/MM/yyyy HH:mm:ss')
+    }));
+
+    if (format === 'excel') {
+      exportToExcel(dataToExport, 'Analytics_Report');
+    } else {
+      exportToPDF(dataToExport, 'Analytics_Report', 'Executive Intelligence Report');
+    }
   };
 
   return (
     <div style={{ animation: 'fadeIn 0.5s ease-out' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }} className="mobile-header-stack">
+      {/* Header */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
         <div>
-          <h1 style={{ fontSize: '28px', fontWeight: '800', marginBottom: '4px' }}>Executive Insights</h1>
-          <p style={{ color: 'var(--text-muted)' }}>Decision-grade support performance analytics.</p>
+          <h1 style={{ fontSize: '28px', fontWeight: '800', marginBottom: '4px' }}>ศูนย์บริหารสถิติอัจฉริยะ</h1>
+          <p style={{ color: 'var(--text-muted)', fontSize: '14px' }}>EXECUTIVE INTELLIGENCE CENTER (EIC) • Drag & Drop Workspace</p>
         </div>
-        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '16px' }}>
-          <button 
-           onClick={loadStats}
-           disabled={loading}
-           className="glass-interactive flex-center" 
-           style={{ padding: '8px 12px', borderRadius: '10px', background: 'rgba(255,255,255,0.05)', color: 'white', border: '1px solid var(--border)', gap: '8px', fontSize: '12px', fontWeight: 'bold' }}>
-              <Clock size={16} className={loading ? 'animate-spin' : ''} /> {loading ? 'Refreshing...' : 'Refresh'}
-          </button>
-          <button 
-           onClick={handleExportSummary}
-           className="glass-interactive flex-center" 
-           style={{ padding: '8px 12px', borderRadius: '10px', background: 'rgba(255,255,255,0.05)', color: 'white', border: '1px solid var(--border)', gap: '8px', fontSize: '12px', fontWeight: 'bold' }}>
-              <FileSpreadsheet size={16} /> Export
-          </button>
-          <Link href="/settings/sla" style={{
-            padding: '8px 12px', borderRadius: '10px', display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--primary)', color: '#0a0e14', fontSize: '12px', fontWeight: '700'
-          }}>
-            <Settings size={16} /> SLA Rules
-          </Link>
-        </div>
-      </div>
-
-      <div className="dashboard-grid" style={{ marginBottom: '32px' }}>
-        <StatCard title="Total Workload" value={stats.activeTickets} icon={Users} color="var(--primary)" trendInternal="+5.4%" />
-        <StatCard title="Resolved Today" value={stats.resolvedToday} icon={CheckCircle} color="var(--success)" trendInternal="+12.1%" />
-        <StatCard title="SLA Breached" value={stats.slaBreached} icon={AlertTriangle} color="var(--danger)" trendInternal="-2.4%" />
-        <StatCard title="Avg Response" value={stats.avgResponseTime} icon={Clock} color="var(--secondary)" trendInternal="-15s" />
-      </div>
-
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '24px' }}>
-        <div className="glass" style={{ padding: '24px', minHeight: '320px', display: 'flex', flexDirection: 'column' }}>
-           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '24px' }}>
-              <h2 style={{ fontSize: '18px', fontWeight: '700' }}>SLA Performance</h2>
-              <Filter size={18} color="var(--text-muted)" />
-           </div>
-           
-           <div style={{ flex: 1, position: 'relative' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                 {[
-                   { name: 'On-time Resolution', value: 92, color: 'var(--success)' },
-                   { name: 'First-response SLA', value: 84, color: 'var(--primary)' },
-                   { name: 'Customer Satisfaction', value: 96, color: 'var(--secondary)' },
-                   { name: 'Escalation Threshold', value: 12, color: 'var(--danger)' }
-                 ].map((bar, i) => (
-                    <div key={i}>
-                       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '13px' }}>
-                          <span style={{ color: 'var(--text-muted)' }}>{bar.name}</span>
-                          <span style={{ fontWeight: '700' }}>{bar.value}%</span>
-                       </div>
-                       <div style={{ width: '100%', height: '8px', background: 'rgba(255,255,255,0.05)', borderRadius: '4px', overflow: 'hidden' }}>
-                          <div style={{ width: `${bar.value}%`, height: '100%', background: bar.color, borderRadius: '4px' }} />
-                       </div>
-                    </div>
-                 ))}
+        
+        <div style={{ display: 'flex', gap: '12px' }}>
+           <div style={{ display: 'flex', gap: '8px', background: 'rgba(255,255,255,0.05)', padding: '8px', borderRadius: '12px', border: '1px solid var(--border)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Calendar size={14} color="var(--primary)" />
+                <input 
+                  type="date" 
+                  value={dateRange.start} 
+                  onChange={e => setDateRange({...dateRange, start: e.target.value})}
+                  style={{ background: 'none', border: 'none', color: 'white', fontSize: '12px', outline: 'none' }} 
+                />
+                <span style={{ color: 'var(--text-muted)' }}>-</span>
+                <input 
+                  type="date" 
+                  value={dateRange.end} 
+                  onChange={e => setDateRange({...dateRange, end: e.target.value})}
+                  style={{ background: 'none', border: 'none', color: 'white', fontSize: '12px', outline: 'none' }} 
+                />
               </div>
            </div>
-        </div>
 
-        <div className="glass" style={{ padding: '24px', minHeight: '320px', display: 'flex', flexDirection: 'column' }}>
-           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '24px' }}>
-              <h2 style={{ fontSize: '18px', fontWeight: '700' }}>Agent Performance</h2>
-              <MoreVertical size={18} color="var(--text-muted)" />
-           </div>
-           <div style={{ flex: 1, overflowY: 'auto' }}>
-              {[
-                { name: 'Neo Agent', role: 'Senior', tickets: 12, csat: 4.8 },
-                { name: 'Wichai R.', role: 'Support', tickets: 8, csat: 4.5 },
-                { name: 'Somsak J.', role: 'L1 Tech', tickets: 15, csat: 4.2 },
-                { name: 'Mali S.', role: 'Sales', tickets: 4, csat: 4.9 },
-              ].map((agent, i) => (
-                <div key={i} style={{ padding: '12px 0', borderBottom: i === 3 ? 'none' : '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                      <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: '700' }}>{agent.name.charAt(0)}</div>
-                      <div>
-                         <p style={{ fontSize: '14px', fontWeight: '600' }}>{agent.name}</p>
-                         <p style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{agent.role}</p>
-                      </div>
-                   </div>
-                   <div style={{ textAlign: 'right' }}>
-                      <p style={{ fontSize: '14px', fontWeight: '700' }}>{agent.tickets}</p>
-                      <p style={{ fontSize: '11px', color: 'var(--success)' }}>⭐️ {agent.csat}</p>
-                   </div>
-                </div>
-              ))}
-           </div>
+           <button onClick={() => handleExport('excel')} className="glass-interactive flex-center" style={{ padding: '0 16px', borderRadius: '12px', border: '1px solid var(--border)', color: 'var(--success)', gap: '8px', fontWeight: 'bold', fontSize: '13px' }}>
+              <FileSpreadsheet size={18} /> EXCEL
+           </button>
+           <button onClick={() => handleExport('pdf')} className="glass-interactive flex-center" style={{ padding: '0 16px', borderRadius: '12px', border: '1px solid var(--border)', color: 'var(--danger)', gap: '8px', fontWeight: 'bold', fontSize: '13px' }}>
+              <Download size={18} /> PDF
+           </button>
         </div>
       </div>
 
-      <style jsx>{`
-        @media (max-width: 768px) {
-          .mobile-header-stack {
-            flex-direction: column;
-            align-items: flex-start !important;
-          }
-        }
-      `}</style>
+      {/* Widget Selector Overlay (Simplified for demo) */}
+      <div style={{ display: 'flex', gap: '10px', overflowX: 'auto', paddingBottom: '16px', marginBottom: '32px' }} className="no-scrollbar">
+         {CHART_TYPES.map(ct => (
+           <button 
+             key={ct.id}
+             onClick={() => !activeWidgets.includes(ct.id) && setActiveWidgets([...activeWidgets, ct.id])}
+             disabled={activeWidgets.includes(ct.id)}
+             className="glass-interactive"
+             style={{ 
+               padding: '8px 16px', borderRadius: '10px', border: '1px solid var(--border)', 
+               whiteSpace: 'nowrap', fontSize: '12px', fontWeight: '700',
+               opacity: activeWidgets.includes(ct.id) ? 0.4 : 1,
+               display: 'flex', alignItems: 'center', gap: '8px'
+             }}>
+             <ct.icon size={14} /> {ct.name}
+           </button>
+         ))}
+      </div>
+
+      {/* Dashboard Grid with DND */}
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+        <SortableContext items={activeWidgets} strategy={rectSortingStrategy}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(400px, 1fr))', gap: '24px' }}>
+            {activeWidgets.map(id => {
+              const chart = CHART_TYPES.find(c => c.id === id);
+              if (!chart) return null;
+              return (
+                <SortableWidget 
+                  key={id} 
+                  id={id} 
+                  chart={chart} 
+                  data={chartDataMap[id as keyof typeof chartDataMap] || []}
+                  onRemove={(rid: string) => setActiveWidgets(prev => prev.filter(w => w !== rid))}
+                />
+              );
+            })}
+          </div>
+        </SortableContext>
+      </DndContext>
+
+      {loading && (
+        <div style={{ position: 'fixed', bottom: '40px', left: '50%', transform: 'translateX(-50%)', background: 'var(--primary)', color: 'black', padding: '12px 24px', borderRadius: '30px', fontWeight: '900', boxShadow: '0 8px 32px rgba(0,242,254,0.4)', display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <RefreshCw size={20} className="animate-spin" />
+          กำลังวิเคราะห์ข้อมูล...
+        </div>
+      )}
     </div>
   );
 }
