@@ -1,4 +1,5 @@
 'use client';
+import { useSearchParams } from 'next/navigation';
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @next/next/no-img-element */
@@ -36,7 +37,9 @@ export default function InboxPage() {
   const [sending, setSending] = useState(false);
   const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
   const [isAttachModalOpen, setIsAttachModalOpen] = useState(false);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const searchParams = useSearchParams();
+  const cid = searchParams.get('cid');
+  const [currentTicket, setCurrentTicket] = useState<any>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -45,6 +48,17 @@ export default function InboxPage() {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  // 0. Initial URL-based selection
+  useEffect(() => {
+    if (cid && conversations.length > 0) {
+      const target = conversations.find((c: any) => c.id === cid);
+      if (target) {
+        setSelectedChat(target);
+        if (window.innerWidth <= 1024) setViewMode('chat');
+      }
+    }
+  }, [cid, conversations]);
 
   // 1. Fetch current agent profile
   useEffect(() => {
@@ -73,6 +87,13 @@ export default function InboxPage() {
         .eq('conversation_id', selectedChat.id)
         .order('created_at', { ascending: true });
       if (data) setMessages(data);
+
+      if (selectedChat.current_ticket_id) {
+        const { data: ticket } = await supabase.from('tickets').select('*').eq('id', selectedChat.current_ticket_id).single();
+        setCurrentTicket(ticket);
+      } else {
+        setCurrentTicket(null);
+      }
     }
 
     fetchMessages();
@@ -427,29 +448,35 @@ export default function InboxPage() {
             </div>
             
             <div className="glass" style={{ padding: '20px', background: 'rgba(255,255,255,0.02)', borderRadius: '16px' }}>
-               <p style={{ color: 'var(--text-muted)', fontSize: '11px', marginBottom: '8px', fontWeight: '700' }}>เลขที่ใบงาน (PRIMARY TICKET)</p>
-               <p style={{ fontWeight: '800', fontSize: '16px', marginBottom: '20px', color: 'var(--primary)' }}>
-                  {selectedChat.current_ticket_id ? `#${selectedChat.current_ticket_id.substring(0, 8).toUpperCase()}` : 'ไม่มีเคสที่เปิดอยู่'}
-               </p>
-               
-               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                 <div>
-                   <p style={{ color: 'var(--text-muted)', fontSize: '11px', marginBottom: '4px', fontWeight: '700' }}>SLA สถานะ</p>
-                   <span style={{ 
-                     padding: '4px 10px', 
-                     borderRadius: '6px', 
-                     background: 'rgba(40, 199, 111, 0.1)', 
-                     color: '#28c76f', 
-                     fontSize: '11px', 
-                     fontWeight: '800',
-                     border: '1px solid rgba(40, 199, 111, 0.2)' 
-                   }}>HEALTHY</span>
-                 </div>
-                 <div style={{ textAlign: 'right' }}>
-                   <p style={{ color: 'var(--text-muted)', fontSize: '11px', marginBottom: '4px', fontWeight: '700' }}>จัดเป็นหมวดหมู่</p>
-                   <p style={{ fontSize: '13px', fontWeight: '700' }}>SUPPORT</p>
-                 </div>
-               </div>
+               {currentTicket ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                     <div>
+                        <p style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: '800', marginBottom: '4px' }}>TICKET ID</p>
+                        <p style={{ fontSize: '15px', fontWeight: '800', color: 'var(--primary)' }}>#{currentTicket.ticket_no}</p>
+                     </div>
+                     <div>
+                        <p style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: '800', marginBottom: '4px' }}>SUBJECT</p>
+                        <p style={{ fontSize: '14px', fontWeight: '600', lineHeight: '1.4' }}>{currentTicket.subject}</p>
+                     </div>
+                     <div>
+                        <p style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: '800', marginBottom: '4px' }}>STATUS</p>
+                        <div style={{ display: 'flex' }}>
+                           <span style={{ 
+                             fontSize: '11px', 
+                             padding: '4px 12px', 
+                             borderRadius: '30px', 
+                             background: 'rgba(255,255,255,0.1)',
+                             border: '1px solid var(--border)',
+                             fontWeight: '800'
+                           }}>{currentTicket.status}</span>
+                        </div>
+                     </div>
+                  </div>
+               ) : (
+                  <div style={{ textAlign: 'center', padding: '20px' }}>
+                     <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>No ticket linked to this chat.</p>
+                  </div>
+               )}
             </div>
 
             <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '12px' }}>

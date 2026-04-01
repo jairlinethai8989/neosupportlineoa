@@ -4,18 +4,16 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Search, 
-  Filter, 
   MessageSquare,
   ExternalLink,
   Loader2,
-  FileDown,
-  FileSpreadsheet,
   LayoutGrid,
   List,
-  AlertCircle
+  AlertCircle,
+  MessageCircle
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
-import { exportToExcel, exportToPDF } from '@/lib/utils/exportUtils';
+import { exportToExcel } from '@/lib/utils/exportUtils';
 import Link from 'next/link';
 
 const WORKFLOW = [
@@ -69,64 +67,46 @@ const PriorityIndicator = ({ priority }: { priority: string }) => {
 
 export default function TicketsPage() {
   const [tickets, setTickets] = useState<any[]>([]);
+  const [conversations, setConversations] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<'board' | 'table'>('board');
   const [searchTerm, setSearchTerm] = useState('');
   const [debugError, setDebugError] = useState<string | null>(null);
 
-  async function fetchTickets() {
+  async function fetchData() {
     setDebugError(null);
     try {
-      // Step 1: Same query as Sidebar but selecting '*'
-      const { data, error } = await supabase
+      // 1. Fetch tickets with customers
+      const { data: tData, error: tErr } = await supabase
         .from('tickets')
-        .select('*')
+        .select('*, customers(id, display_name)')
         .order('created_at', { ascending: false });
 
-      if (error) {
-        setDebugError(`RLS/DB Error: ${error.message}`);
-      } else if (data) {
-        // Success fetching raw data
-        console.log('Tickets Load Success:', data.length);
-        
-        // Attempt to join customer info if available
-        const { data: enriched } = await supabase
-          .from('tickets')
-          .select('*, customers(display_name)')
-          .order('created_at', { ascending: false });
-        
-        setTickets(enriched || data);
-      }
+      if (tErr) throw tErr;
+
+      // 2. Fetch conversations to link Chat button
+      const { data: cData } = await supabase.from('conversations').select('id, customer_id');
+      
+      setTickets(tData || []);
+      setConversations(cData || []);
     } catch (err: any) {
-      setDebugError(`App Panic: ${err.message}`);
+      setDebugError(err.message);
     } finally {
       setLoading(false);
     }
   }
 
   useEffect(() => {
-    fetchTickets();
+    fetchData();
 
     const channel = supabase
-      .channel('tickets-ws-final')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'tickets' }, () => {
-        fetchTickets();
-      })
+      .channel('workspace-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'tickets' }, () => fetchData())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'conversations' }, () => fetchData())
       .subscribe();
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    return () => { supabase.removeChannel(channel); };
   }, []);
-
-  const handleExportExcel = () => {
-     const data = tickets.map(t => ({
-        'Ticket ID': t.ticket_no,
-        'Subject': t.subject,
-        'Status': t.status
-     }));
-     exportToExcel(data, `Tickets_Report_${new Date().toISOString()}`);
-  };
 
   const handleDrop = async (e: React.DragEvent, newStatus: string) => {
      e.preventDefault();
@@ -140,26 +120,26 @@ export default function TicketsPage() {
 
      try {
         await supabase.from('tickets').update({ status: newStatus, updated_at: new Date().toISOString() }).eq('id', ticketId);
-        
         const { sendLineGroupNotification } = await import('@/lib/utils/lineNotifications');
-        await sendLineGroupNotification(`🔄 [${newStatus}] ตั๋วงาน #${ticket.ticket_no} ถูกย้ายสถานะแล้ว`);
-     } catch(err) {
-        console.error(err);
-     }
+        await sendLineGroupNotification(`🔄 [#${ticket.ticket_no}] ถูกย้ายไป [${newStatus}]`);
+     } catch(err) { console.error(err); }
   };
 
-  const normalizedSearch = searchTerm.toLowerCase();
+  const getConvId = (customerId: string) => {
+     return conversations.find(c => c.customer_id === customerId)?.id;
+  };
+
   const filteredTickets = tickets.filter(t => {
      if (!searchTerm) return true;
      const tNo = String(t.ticket_no || '').toLowerCase();
      const tSub = String(t.subject || '').toLowerCase();
-     return tNo.includes(normalizedSearch) || tSub.includes(normalizedSearch);
+     return tNo.includes(searchTerm.toLowerCase()) || tSub.includes(searchTerm.toLowerCase());
   });
 
   if (loading) return (
      <div className="flex-center" style={{ height: '70vh', flexDirection: 'column', gap: '16px' }}>
        <Loader2 className="animate-spin" size={32} color="var(--primary)" />
-       <p style={{ color: 'var(--text-muted)' }}>Synchronizing Database...</p>
+       <p style={{ color: 'var(--text-muted)' }}>Refreshing Workspace...</p>
      </div>
   );
 
@@ -170,16 +150,8 @@ export default function TicketsPage() {
           <h1 style={{ fontSize: '28px', fontWeight: '800', marginBottom: '4px' }}>
             Ticket Workspace ({tickets.length})
           </h1>
-          <p style={{ color: 'var(--text-muted)' }}>Manage your support lifecycle efficiently.</p>
-          {debugError && (
-             <div style={{ marginTop: '12px', padding: '10px 16px', background: 'rgba(234, 84, 85, 0.1)', border: '1px solid #ea5455', color: '#ea5455', borderRadius: '12px', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <AlertCircle size={18} /> 
-                <div style={{ display: 'flex', flexDirection: 'column' }}>
-                   <span style={{ fontWeight: '800' }}>Access Denied or Database Error</span>
-                   <span style={{ fontSize: '11px', opacity: 0.8 }}>{debugError}</span>
-                </div>
-             </div>
-          )}
+          <p style={{ color: 'var(--text-muted)' }}>Unified view of all customer support requests.</p>
+          {debugError && <div style={{ color: '#ea5455', fontSize: '12px', marginTop: '8px' }}>⚠️ {debugError}</div>}
         </div>
         
         <div style={{ display: 'flex', gap: '12px' }}>
@@ -190,7 +162,7 @@ export default function TicketsPage() {
            
            <div style={{ position: 'relative' }}>
               <Search style={{ position: 'absolute', left: '12px', top: '10px', color: 'var(--text-muted)' }} size={16} />
-              <input type="text" placeholder="ค้นหาใบงาน..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} style={{ background: 'rgba(255, 255, 255, 0.05)', border: '1px solid var(--border)', borderRadius: '8px', padding: '10px 10px 10px 36px', color: 'white', fontSize: '14px', width: '240px', outline: 'none' }} />
+              <input type="text" placeholder="Search ticket..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} style={{ background: 'rgba(255, 255, 255, 0.05)', border: '1px solid var(--border)', borderRadius: '8px', padding: '10px 10px 10px 36px', color: 'white', fontSize: '14px', width: '240px', outline: 'none' }} />
            </div>
         </div>
       </div>
@@ -198,35 +170,41 @@ export default function TicketsPage() {
       {viewMode === 'board' ? (
          <div className="no-scrollbar" style={{ display: 'flex', gap: '20px', overflowX: 'auto', paddingBottom: '20px', flex: 1 }}>
             {WORKFLOW.map(col => {
-               const columnTickets = filteredTickets.filter(t => {
-                  const s = String(t.status || '').toLowerCase();
-                  return s === col.id.toLowerCase();
-               });
+               const columnTickets = filteredTickets.filter(t => (t.status || '').toLowerCase() === col.id.toLowerCase());
                return (
                  <div key={col.id} onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }} onDrop={(e) => handleDrop(e, col.id)}
                    style={{ minWidth: '320px', flex: '0 0 auto', background: 'rgba(255,255,255,0.02)', borderRadius: '16px', padding: '16px', border: '1px dashed var(--border)', display: 'flex', flexDirection: 'column' }}>
                      <h3 style={{ fontSize: '14px', fontWeight: '800', marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <div style={{ display: 'flex', flexDirection: 'column' }}>
-                           <span>{col.thai}</span>
-                           <span style={{ fontSize: '9px', color: 'var(--text-muted)', fontWeight: 'normal', textTransform: 'uppercase' }}>{col.eng}</span>
-                        </div>
-                        <span style={{ fontSize: '11px', padding: '2px 8px', background: 'rgba(255,255,255,0.1)', borderRadius: '12px', color: 'var(--text-muted)' }}>{columnTickets.length}</span>
+                        <span>{col.thai} <small style={{ fontWeight: '400', opacity: 0.5 }}>{col.eng}</small></span>
+                        <span style={{ fontSize: '11px', padding: '2px 8px', background: 'rgba(255,255,255,0.1)', borderRadius: '12px' }}>{columnTickets.length}</span>
                      </h3>
                      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', flex: 1 }}>
-                        {columnTickets.map(ticket => (
-                            <div key={ticket.id} draggable onDragStart={(e) => { e.dataTransfer.setData('ticketId', ticket.id); e.currentTarget.style.opacity = '0.5'; }} onDragEnd={(e) => { e.currentTarget.style.opacity = '1'; }} className="glass"
-                              style={{ padding: '16px', borderRadius: '12px', cursor: 'grab', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)' }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', alignItems: 'flex-start' }}>
-                                  <Link href={`/tickets/${ticket.id}`} style={{ fontSize: '14px', fontWeight: '800', color: 'var(--primary)', textDecoration: 'none' }}>#{ticket.ticket_no}</Link>
-                                  <PriorityIndicator priority={ticket.priority} />
+                        {columnTickets.map(ticket => {
+                            const convId = getConvId(ticket.customer_id);
+                            return (
+                                <div key={ticket.id} draggable onDragStart={(e) => { e.dataTransfer.setData('ticketId', ticket.id); e.currentTarget.style.opacity = '0.5'; }} onDragEnd={(e) => { e.currentTarget.style.opacity = '1'; }} className="glass"
+                                  style={{ padding: '16px', borderRadius: '12px', cursor: 'grab', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)' }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', alignItems: 'flex-start' }}>
+                                      <Link href={`/tickets/${ticket.id}`} style={{ fontSize: '14px', fontWeight: '800', color: 'var(--primary)', textDecoration: 'none' }}>#{ticket.ticket_no}</Link>
+                                      <PriorityIndicator priority={ticket.priority} />
+                                    </div>
+                                   <p style={{ fontSize: '13px', fontWeight: '600', marginBottom: '12px', lineHeight: '1.4' }}>{ticket.subject}</p>
+                                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '12px' }}>
+                                      <p style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: '700' }}>{ticket.customers?.display_name || 'Customer'}</p>
+                                      <div style={{ display: 'flex', gap: '8px' }}>
+                                         {convId && (
+                                            <Link href={`/inbox?cid=${convId}`} className="glass-interactive flex-center" style={{ width: '28px', height: '28px', borderRadius: '8px', color: 'var(--primary)', background: 'rgba(115, 103, 240, 0.1)' }}>
+                                               <MessageCircle size={16} />
+                                            </Link>
+                                         )}
+                                         <Link href={`/tickets/${ticket.id}`} className="glass-interactive flex-center" style={{ width: '28px', height: '28px', borderRadius: '8px', color: 'var(--text-muted)' }}>
+                                            <ExternalLink size={16} />
+                                         </Link>
+                                      </div>
+                                   </div>
                                 </div>
-                               <p style={{ fontSize: '13px', fontWeight: '600', marginBottom: '12px', lineHeight: '1.4' }}>{ticket.subject}</p>
-                               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '12px' }}>
-                                  <p style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{ticket.customers?.display_name || 'Anonymous'}</p>
-                                  <p style={{ fontSize: '10px', color: 'var(--text-muted)' }}>{new Date(ticket.created_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', hour12: false })}</p>
-                               </div>
-                            </div>
-                        ))}
+                            );
+                        })}
                      </div>
                  </div>
                );
@@ -239,21 +217,33 @@ export default function TicketsPage() {
                   <tr>
                     <th style={{ padding: '16px 20px', fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Ticket ID</th>
                     <th style={{ padding: '16px 20px', fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Subject</th>
+                    <th style={{ padding: '16px 20px', fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Customer</th>
                     <th style={{ padding: '16px 20px', fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Status</th>
-                    <th style={{ padding: '16px 20px', fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Actions</th>
+                    <th style={{ padding: '16px 20px', fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Chat</th>
                   </tr>
               </thead>
               <tbody>
-                 {filteredTickets.map((ticket, idx) => (
-                    <tr key={idx} style={{ borderBottom: '1px solid var(--border)' }}>
-                       <td style={{ padding: '16px 20px' }}>#{ticket.ticket_no}</td>
-                       <td style={{ padding: '16px 20px' }}>{ticket.subject}</td>
-                       <td style={{ padding: '16px 20px' }}><StatusBadge status={ticket.status} /></td>
-                       <td style={{ padding: '16px 20px' }}>
-                          <Link href={`/tickets/${ticket.id}`} className="glass-interactive flex-center" style={{ width: '32px', height: '32px', borderRadius: '8px', color: 'var(--text-muted)' }}><ExternalLink size={16} /></Link>
-                       </td>
-                    </tr>
-                 ))}
+                 {filteredTickets.map((ticket, idx) => {
+                    const convId = getConvId(ticket.customer_id);
+                    return (
+                        <tr key={idx} style={{ borderBottom: '1px solid var(--border)' }}>
+                           <td style={{ padding: '16px 20px' }}><Link href={`/tickets/${ticket.id}`} style={{ fontWeight: '800', color: 'var(--primary)', textDecoration: 'none' }}>#{ticket.ticket_no}</Link></td>
+                           <td style={{ padding: '16px 20px' }}>{ticket.subject}</td>
+                           <td style={{ padding: '16px 20px' }}>{ticket.customers?.display_name || '-'}</td>
+                           <td style={{ padding: '16px 20px' }}><StatusBadge status={ticket.status} /></td>
+                           <td style={{ padding: '16px 20px' }}>
+                              <div style={{ display: 'flex', gap: '8px' }}>
+                                 {convId && (
+                                    <Link href={`/inbox?cid=${convId}`} className="glass-interactive flex-center" style={{ width: '32px', height: '32px', borderRadius: '8px', color: 'var(--primary)', background: 'rgba(115, 103, 240, 0.1)' }}>
+                                       <MessageCircle size={16} />
+                                    </Link>
+                                 )}
+                                 <Link href={`/tickets/${ticket.id}`} className="glass-interactive flex-center" style={{ width: '32px', height: '32px', borderRadius: '8px', color: 'var(--text-muted)' }}><ExternalLink size={16} /></Link>
+                              </div>
+                           </td>
+                        </tr>
+                    );
+                 })}
               </tbody>
            </table>
          </div>
