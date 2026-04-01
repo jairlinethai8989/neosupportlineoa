@@ -54,7 +54,13 @@ export default function PortalPage() {
   };
 
   useEffect(() => {
-    fetchTickets();
+    let isMounted = true;
+    if (profile) {
+      setTimeout(() => {
+        if (isMounted) fetchTickets();
+      }, 0);
+    }
+    return () => { isMounted = false; };
   }, [profile]);
 
   if (!isReady || (profile && fetching && !needsRegistration)) {

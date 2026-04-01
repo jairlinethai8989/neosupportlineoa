@@ -78,8 +78,11 @@ export default function TicketsPage() {
         .from('tickets')
         .select(`
            *,
-           customers (display_name),
-           profiles (full_name)
+           customers (
+             display_name,
+             company_name
+           ),
+           profiles!assigned_agent_id (full_name)
         `)
         .order('created_at', { ascending: false });
 
@@ -277,19 +280,21 @@ export default function TicketsPage() {
          <div className="glass" style={{ overflow: 'hidden' }}>
            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
               <thead style={{ background: 'rgba(255, 255, 255, 0.03)', borderBottom: '1px solid var(--border)' }}>
-                 <tr>
-                    <th style={{ padding: '16px 20px', fontSize: '12px', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Ticket ID</th>
-                    <th style={{ padding: '16px 20px', fontSize: '12px', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Customer</th>
-                    <th style={{ padding: '16px 20px', fontSize: '12px', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Subject</th>
-                    <th style={{ padding: '16px 20px', fontSize: '12px', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Priority</th>
-                    <th style={{ padding: '16px 20px', fontSize: '12px', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Status</th>
-                    <th style={{ padding: '16px 20px', fontSize: '12px', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Actions</th>
-                 </tr>
+                  <tr>
+                    <th style={{ padding: '16px 20px', fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Ticket ID</th>
+                    <th style={{ padding: '16px 20px', fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase' }}>โรงพยาบาล (Hospital)</th>
+                    <th style={{ padding: '16px 20px', fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase' }}>หัวข้อ (Subject)</th>
+                    <th style={{ padding: '16px 20px', fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase' }}>ผู้แจ้ง (Requester)</th>
+                    <th style={{ padding: '16px 20px', fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase' }}>สถานะ (Status)</th>
+                    <th style={{ padding: '16px 20px', fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase' }}>ความสำคัญ (Priority)</th>
+                    <th style={{ padding: '16px 20px', fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase' }}>แอดมิน (Agent)</th>
+                    <th style={{ padding: '16px 20px', fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Actions</th>
+                  </tr>
               </thead>
               <tbody>
                  {filteredTickets.length === 0 && (
                     <tr>
-                       <td colSpan={6} style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)' }}>No tickets found</td>
+                       <td colSpan={8} style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)' }}>No tickets found</td>
                     </tr>
                  )}
                  {filteredTickets.map((ticket, idx) => (
@@ -297,19 +302,28 @@ export default function TicketsPage() {
                        borderBottom: '1px solid var(--border)',
                        background: idx % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.01)',
                     }} className="glass-interactive">
-                       <td style={{ padding: '16px 20px', fontWeight: '700', fontSize: '14px', color: 'var(--primary)' }}>
-                         <Link href={`/tickets/${ticket.id}`} style={{ color: 'inherit', textDecoration: 'none' }}>
+                       <td style={{ padding: '16px 20px' }}>
+                         <Link href={`/tickets/${ticket.id}`} style={{ fontWeight: '800', fontSize: '14px', color: 'var(--primary)', textDecoration: 'none' }}>
                            {ticket.ticket_no}
                          </Link>
                        </td>
                        <td style={{ padding: '16px 20px' }}>
-                          <p style={{ fontWeight: '600', fontSize: '14px' }}>{ticket.customers?.display_name || 'Anonymous'}</p>
+                          <p style={{ fontWeight: '600', fontSize: '14px' }}>{ticket.customers?.company_name || 'N/A'}</p>
                        </td>
-                       <td style={{ padding: '16px 20px', fontSize: '14px' }}>{ticket.subject || 'No Subject'}</td>
-                       <td style={{ padding: '16px 20px' }}><PriorityIndicator priority={ticket.priority} /></td>
+                       <td style={{ padding: '16px 20px', fontSize: '13px', fontWeight: '500' }}>{ticket.subject || 'No Subject'}</td>
+                       <td style={{ padding: '16px 20px', fontSize: '13px' }}>{ticket.customers?.display_name || '-'}</td>
                        <td style={{ padding: '16px 20px' }}><StatusBadge status={ticket.status} /></td>
+                       <td style={{ padding: '16px 20px' }}><PriorityIndicator priority={ticket.priority} /></td>
                        <td style={{ padding: '16px 20px' }}>
-                          <Link href={`/tickets/${ticket.id}`} className="glass-interactive flex-center" style={{ width: '32px', height: '32px', borderRadius: '6px', border: 'none', color: 'var(--text-muted)', display: 'flex' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                             <div style={{ width: '24px', height: '24px', borderRadius: '50%', background: 'rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px' }}>
+                                {ticket.profiles?.full_name?.charAt(0) || '?'}
+                             </div>
+                             <span style={{ fontSize: '13px' }}>{ticket.profiles?.full_name || 'Unassigned'}</span>
+                          </div>
+                       </td>
+                       <td style={{ padding: '16px 20px' }}>
+                          <Link href={`/tickets/${ticket.id}`} className="glass-interactive flex-center" style={{ width: '32px', height: '32px', borderRadius: '8px', border: 'none', color: 'var(--text-muted)', display: 'flex' }}>
                              <ExternalLink size={16} />
                           </Link>
                        </td>

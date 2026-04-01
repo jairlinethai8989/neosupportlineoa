@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase';
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { DateTime } from 'luxon';
 
 export const analyticsService = {

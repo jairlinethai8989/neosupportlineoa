@@ -1,7 +1,6 @@
 'use client';
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable react-hooks/set-state-in-effect */
 /* eslint-disable @next/next/no-img-element */
 /* eslint-disable jsx-a11y/alt-text */
 import React, { useState, useEffect } from 'react';
@@ -43,7 +42,15 @@ export default function StaffManagementPage() {
   };
 
   useEffect(() => {
-    fetchStaff();
+    let isMounted = true;
+    const fetchStaffAsync = async () => {
+      if (!isMounted) return;
+      setTimeout(async () => {
+         if (isMounted) await fetchStaff();
+      }, 0);
+    };
+    fetchStaffAsync();
+    return () => { isMounted = false; };
   }, []);
 
   const handleDeleteStaff = async (id: string, name: string) => {

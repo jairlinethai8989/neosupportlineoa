@@ -23,12 +23,20 @@ export default function SLASettingsPage() {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
+    let isMounted = true;
     async function fetchRules() {
       const { data } = await supabase.from('sla_rules').select('*').order('priority', { ascending: true });
-      if (data) setRules(data);
-      setLoading(false);
+      if (isMounted) {
+         setTimeout(() => {
+            if (isMounted) {
+               setRules(data || []);
+               setLoading(false);
+            }
+         }, 0);
+      }
     }
     fetchRules();
+    return () => { isMounted = false; };
   }, []);
 
   const addRule = () => {

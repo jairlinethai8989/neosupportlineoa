@@ -1,7 +1,6 @@
 'use client';
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable react-hooks/set-state-in-effect */
 /* eslint-disable @next/next/no-img-element */
 /* eslint-disable jsx-a11y/alt-text */
 import React, { useState, useEffect } from 'react';
@@ -34,15 +33,25 @@ const Sidebar = ({ onClickLink, isCollapsed = false }: SidebarProps) => {
   const [theme, setTheme] = useState('dark');
 
   useEffect(() => {
+    let isMounted = true;
+    
     async function fetchBranding() {
        const { data } = await supabase.from('company_settings').select('*').limit(1).single();
-       if (data) setCompany(data);
+       if (data && isMounted) setCompany(data);
     }
     fetchBranding();
 
     const savedTheme = localStorage.getItem('theme') || 'dark';
-    setTheme(savedTheme);
-    document.documentElement.setAttribute('data-theme', savedTheme);
+    if (isMounted) {
+      setTimeout(() => {
+        if (isMounted) {
+          setTheme(savedTheme);
+          document.documentElement.setAttribute('data-theme', savedTheme);
+        }
+      }, 0);
+    }
+    
+    return () => { isMounted = false; };
   }, []);
 
   const toggleTheme = () => {
@@ -63,14 +72,27 @@ const Sidebar = ({ onClickLink, isCollapsed = false }: SidebarProps) => {
   const [ticketCount, setTicketCount] = useState(0);
 
   useEffect(() => {
+    let isMounted = true;
     async function fetchCounts() {
       // Tickets (Only New)
       const { count: tCount } = await supabase.from('tickets').select('*', { count: 'exact', head: true }).eq('status', 'New');
-      setTicketCount(tCount || 0);
+      if (isMounted) {
+        setTimeout(() => {
+          if (isMounted) {
+            setTicketCount(tCount || 0);
+          }
+        }, 0);
+      }
 
       // Inbox (Active conversations)
       const { count: iCount } = await supabase.from('conversations').select('*', { count: 'exact', head: true }).eq('status', 'active');
-      setInboxCount(iCount || 0);
+      if (isMounted) {
+        setTimeout(() => {
+          if (isMounted) {
+            setInboxCount(iCount || 0);
+          }
+        }, 0);
+      }
     }
     
     fetchCounts();
@@ -86,6 +108,7 @@ const Sidebar = ({ onClickLink, isCollapsed = false }: SidebarProps) => {
       .subscribe();
 
     return () => {
+      isMounted = false;
       supabase.removeChannel(channel);
     };
   }, []);

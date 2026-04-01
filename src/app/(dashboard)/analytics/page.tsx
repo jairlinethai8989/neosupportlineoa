@@ -67,7 +67,9 @@ const SortableWidget = ({ id, chart, data, onRemove }: any) => {
 
   useEffect(() => {
     if (data.length > 0 && selectedItems.length === 0) {
-      setSelectedItems(data.map((d: any) => d.name));
+      setTimeout(() => {
+        setSelectedItems(data.map((d: any) => d.name));
+      }, 0);
     }
   }, [data]);
 
@@ -234,7 +236,11 @@ export default function AdvancedAnalyticsPage() {
   };
 
   useEffect(() => {
-    fetchData();
+    let isMounted = true;
+    setTimeout(() => {
+      if (isMounted) fetchData();
+    }, 0);
+    return () => { isMounted = false; };
   }, [dateRange]);
 
   const chartDataMap = useMemo(() => {
@@ -246,13 +252,13 @@ export default function AdvancedAnalyticsPage() {
     return {
       'bar-status': Object.entries(statusCounts).map(([name, value]) => ({ name, value })),
       'pie-priority': Object.entries(priorityCounts).map(([name, value]) => ({ name, value })),
-      'line-trend': tickets.slice(0, 7).map((t, i) => ({ name: `Day ${i+1}`, value: Math.floor(Math.random() * 20) })),
-      'area-volume': tickets.slice(0, 10).map((t, i) => ({ name: `T-${i}`, value: Math.floor(Math.random() * 50) })),
+      'line-trend': tickets.slice(0, 7).map((t, i) => ({ name: `Day ${i+1}`, value: (i * 5 + 10) % 25 })),
+      'area-volume': tickets.slice(0, 10).map((t, i) => ({ name: `T-${i}`, value: (i * 8 + 15) % 45 })),
       'radar-agent': [
         { name: 'Speed', value: 80 }, { name: 'CSAT', value: 95 }, { name: 'Volume', value: 70 }, 
         { name: 'FCR', value: 60 }, { name: 'Tech', value: 85 }
       ],
-      'scatter-response': Array.from({ length: 20 }, (_, i) => ({ x: i, y: Math.random() * 100 })),
+      'scatter-response': Array.from({ length: 20 }, (_, i) => ({ x: i, y: (i * 13 + 20) % 100 })),
     };
   }, [tickets]);
 
