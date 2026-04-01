@@ -1,9 +1,9 @@
 'use client';
+import React, { useState, useEffect, useRef, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @next/next/no-img-element */
-import React, { useState, useEffect, useRef } from 'react';
 import { 
   Search, 
   MoreVertical, 
@@ -27,7 +27,7 @@ import { ticketService } from '@/lib/services/ticketService';
 import TransferModal from '@/components/modals/TransferModal';
 import ChatAttachmentModal from '@/components/chat/ChatAttachmentModal';
 
-export default function InboxPage() {
+function InboxContent() {
   const { conversations, loading: inboxLoading } = useRealtimeInbox();
   const [selectedChat, setSelectedChat] = useState<any>(null);
   const [viewMode, setViewMode] = useState<'list' | 'chat' | 'details'>('list');
@@ -540,5 +540,18 @@ export default function InboxPage() {
         }
       `}</style>
     </div>
+  );
+}
+
+export default function InboxPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex-center" style={{ height: '70vh', flexDirection: 'column', gap: '16px' }}>
+        <Loader2 className="animate-spin" size={32} color="var(--primary)" />
+        <p style={{ color: 'var(--text-muted)' }}>Loading Inbox...</p>
+      </div>
+    }>
+      <InboxContent />
+    </Suspense>
   );
 }
