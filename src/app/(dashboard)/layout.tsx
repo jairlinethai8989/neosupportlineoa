@@ -54,7 +54,7 @@ export default function DashboardLayout({
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <button 
               onClick={() => {
-                if (window.innerWidth > 1024) {
+                if (typeof window !== 'undefined' && window.innerWidth > 1024) {
                   setIsSidebarCollapsed(!isSidebarCollapsed);
                 } else {
                   setIsSidebarOpen(!isSidebarOpen);
@@ -63,7 +63,7 @@ export default function DashboardLayout({
               className="glass-interactive flex-center"
               style={{ padding: '8px', borderRadius: '8px', border: '1px solid var(--border)', display: 'flex', color: 'white', marginRight: '8px' }}
             >
-              {(window.innerWidth > 1024 ? isSidebarCollapsed : isSidebarOpen) ? <Menu size={20} /> : <X size={20} />}
+              <Menu size={20} />
             </button>
             <div className="show-desktop">
                <h2 style={{ fontSize: '18px', fontWeight: '800', display: 'flex', flexDirection: 'column', lineHeight: '1.2' }}>
