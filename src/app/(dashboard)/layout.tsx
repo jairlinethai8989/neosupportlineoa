@@ -17,6 +17,7 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }>) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [agent, setAgent] = useState<any>(null);
 
   useEffect(() => {
@@ -38,19 +39,31 @@ export default function DashboardLayout({
       )}
 
       {/* Persistent Sidebar */}
-      <div className={`sidebar ${isSidebarOpen ? 'open' : ''}`}>
-         <Sidebar onClickLink={() => setIsSidebarOpen(false)} />
+      <div 
+        className={`sidebar ${isSidebarOpen ? 'open' : ''} ${isSidebarCollapsed ? 'collapsed' : ''}`}
+        style={{ 
+          width: isSidebarCollapsed ? '80px' : '280px',
+          transition: 'width 0.3s cubic-bezier(0.4, 0, 0.2, 1), transform 0.3s ease'
+        }}
+      >
+         <Sidebar isCollapsed={isSidebarCollapsed} onClickLink={() => setIsSidebarOpen(false)} />
       </div>
 
       <main className="content-area">
         <header className="top-bar">
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <button 
-              onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+              onClick={() => {
+                if (window.innerWidth > 1024) {
+                  setIsSidebarCollapsed(!isSidebarCollapsed);
+                } else {
+                  setIsSidebarOpen(!isSidebarOpen);
+                }
+              }}
               className="glass-interactive flex-center"
               style={{ padding: '8px', borderRadius: '8px', border: '1px solid var(--border)', display: 'flex', color: 'white', marginRight: '8px' }}
             >
-              {isSidebarOpen ? <X size={20} /> : <Menu size={20} />}
+              {(window.innerWidth > 1024 ? isSidebarCollapsed : isSidebarOpen) ? <Menu size={20} /> : <X size={20} />}
             </button>
             <div className="show-desktop">
                <h2 style={{ fontSize: '18px', fontWeight: '800', display: 'flex', flexDirection: 'column', lineHeight: '1.2' }}>
@@ -95,13 +108,14 @@ export default function DashboardLayout({
         </div>
       </main>
 
-      <style jsx global>{`
+      <style dangerouslySetInnerHTML={{ __html: `
         @media (min-width: 1025px) {
-          .top-bar button:first-child {
-            display: none !important;
-          }
+          /* No hide toggle on desktop anymore as we use it for collapse */
         }
-      `}</style>
+        .sidebar.collapsed {
+          width: 80px !important;
+        }
+      `}} />
     </div>
   );
 }

@@ -22,9 +22,10 @@ import {
 
 interface SidebarProps {
   onClickLink?: () => void;
+  isCollapsed?: boolean;
 }
 
-const Sidebar = ({ onClickLink }: SidebarProps) => {
+const Sidebar = ({ onClickLink, isCollapsed = false }: SidebarProps) => {
   const pathname = usePathname();
   const router = useRouter();
   const [company, setCompany] = useState<any>(null);
@@ -114,7 +115,7 @@ const Sidebar = ({ onClickLink }: SidebarProps) => {
 
   return (
     <aside style={{ display: 'flex', flexDirection: 'column', height: '100%', background: 'var(--bg-sidebar)' }}>
-      <div style={{ padding: '24px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+      <div style={{ padding: isCollapsed ? '24px 12px' : '24px', display: 'flex', alignItems: 'center', gap: '12px', justifyContent: isCollapsed ? 'center' : 'flex-start' }}>
         {company?.logo_url ? (
           <img src={company.logo_url} style={{ width: '36px', height: '36px', borderRadius: '8px', objectFit: 'contain' }} />
         ) : (
@@ -126,14 +127,17 @@ const Sidebar = ({ onClickLink }: SidebarProps) => {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            boxShadow: '0 0 15px rgba(0, 242, 254, 0.4)'
+            boxShadow: '0 0 15px rgba(0, 242, 254, 0.4)',
+            flexShrink: 0
           }}>
             <ShieldCheck color="#0a0e14" size={20} />
           </div>
         )}
-        <h1 style={{ fontSize: '18px', fontWeight: '800', color: 'var(--text-main)', textTransform: 'uppercase' }}>
-           {company?.company_name || 'NEO SUPPORT'}
-        </h1>
+        {!isCollapsed && (
+          <h1 style={{ fontSize: '18px', fontWeight: '800', color: 'var(--text-main)', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>
+             {company?.company_name || 'NEO SUPPORT'}
+          </h1>
+        )}
       </div>
 
       <nav style={{ padding: '12px', flex: 1 }}>
@@ -141,34 +145,40 @@ const Sidebar = ({ onClickLink }: SidebarProps) => {
           if (item.children) {
             const isOpen = openMenus.includes(item.name);
             return (
-              <div key={item.name} style={{ marginBottom: '6px' }}>
+              <div key={item.name} style={{ marginBottom: '6px', position: 'relative' }} className="menu-item-container">
                 <button 
-                  onClick={() => toggleMenu(item.name)}
-                  className="glass-interactive"
+                  onClick={() => !isCollapsed && toggleMenu(item.name)}
+                  className="glass-interactive sidebar-btn"
+                  title={isCollapsed ? item.thai : ''}
                   style={{
                     width: '100%',
                     display: 'flex',
                     alignItems: 'center',
-                    gap: '12px',
-                    padding: '10px 16px',
+                    gap: isCollapsed ? '0' : '12px',
+                    padding: isCollapsed ? '12px' : '10px 16px',
                     borderRadius: '10px',
                     color: 'var(--text-muted)',
                     background: 'transparent',
                     border: '1px solid transparent',
-                    cursor: 'pointer'
+                    cursor: 'pointer',
+                    justifyContent: isCollapsed ? 'center' : 'flex-start'
                   }}
                 >
-                  <item.icon size={18} />
-                  <div style={{ display: 'flex', flexDirection: 'column', lineHeight: '1.2', alignItems: 'flex-start' }}>
-                    <span style={{ fontWeight: '600', fontSize: '14px' }}>{item.thai}</span>
-                    <span style={{ fontSize: '10px', textTransform: 'uppercase', opacity: 0.7 }}>{item.name}</span>
-                  </div>
-                  <div style={{ marginLeft: 'auto', opacity: 0.5 }}>
-                    {isOpen ? '−' : '+'}
-                  </div>
+                  <item.icon size={18} style={{ flexShrink: 0 }} />
+                  {!isCollapsed && (
+                    <>
+                      <div style={{ display: 'flex', flexDirection: 'column', lineHeight: '1.2', alignItems: 'flex-start' }}>
+                        <span style={{ fontWeight: '600', fontSize: '14px' }}>{item.thai}</span>
+                        <span style={{ fontSize: '10px', textTransform: 'uppercase', opacity: 0.7 }}>{item.name}</span>
+                      </div>
+                      <div style={{ marginLeft: 'auto', opacity: 0.5 }}>
+                        {isOpen ? '−' : '+'}
+                      </div>
+                    </>
+                  )}
                 </button>
                 
-                {isOpen && (
+                {isOpen && !isCollapsed && (
                   <div style={{ paddingLeft: '24px', marginTop: '4px', borderLeft: '1px solid var(--border)', marginLeft: '24px' }}>
                     {item.children.map((child) => {
                       const isActive = pathname === child.path;
@@ -208,26 +218,30 @@ const Sidebar = ({ onClickLink }: SidebarProps) => {
               key={item.path} 
               href={item.path || '#'}
               onClick={onClickLink}
-              className={`glass-interactive`}
+              title={isCollapsed ? item.thai : ''}
+              className={`glass-interactive sidebar-btn ${isActive ? 'active' : ''}`}
               style={{
                 display: 'flex',
                 alignItems: 'center',
-                gap: '12px',
-                padding: '10px 16px',
+                gap: isCollapsed ? '0' : '12px',
+                padding: isCollapsed ? '12px' : '10px 16px',
                 borderRadius: '10px',
                 marginBottom: '6px',
+                justifyContent: isCollapsed ? 'center' : 'flex-start',
                 color: isActive ? 'var(--primary)' : 'var(--text-muted)',
                 background: isActive ? 'rgba(0, 242, 254, 0.1)' : 'transparent',
                 border: isActive ? '1px solid rgba(0, 242, 254, 0.2)' : '1px solid transparent',
               }}
             >
-              <item.icon size={18} />
-              <div style={{ display: 'flex', flexDirection: 'column', lineHeight: '1.2' }}>
-                <span style={{ fontWeight: isActive ? '700' : '600', fontSize: '14px' }}>{item.thai}</span>
-                <span style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase', opacity: 0.7 }}>{item.name}</span>
-              </div>
+              <item.icon size={18} style={{ flexShrink: 0 }} />
+              {!isCollapsed && (
+                <div style={{ display: 'flex', flexDirection: 'column', lineHeight: '1.2' }}>
+                  <span style={{ fontWeight: isActive ? '700' : '600', fontSize: '14px' }}>{item.thai}</span>
+                  <span style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase', opacity: 0.7 }}>{item.name}</span>
+                </div>
+              )}
               
-              {item.count && item.count > 0 && (
+              {!isCollapsed && item.count && item.count > 0 && (
                 <div style={{
                   marginLeft: 'auto',
                   background: 'var(--accent)',
@@ -285,30 +299,67 @@ const Sidebar = ({ onClickLink }: SidebarProps) => {
         <button 
           onClick={handleLogout}
           className="glass-interactive"
+          title={isCollapsed ? 'ออกจากระบบ' : ''}
           style={{
             width: '100%',
             display: 'flex',
             alignItems: 'center',
-            gap: '12px',
-            padding: '10px',
+            gap: isCollapsed ? '0' : '12px',
+            padding: isCollapsed ? '12px' : '10px',
             borderRadius: '10px',
             color: 'var(--danger)',
             border: 'none',
             cursor: 'pointer',
-            fontSize: '14px'
+            fontSize: '14px',
+            justifyContent: isCollapsed ? 'center' : 'flex-start'
           }}
         >
-          <LogOut size={18} />
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
-            <span style={{ fontWeight: '600' }}>ออกจากระบบ</span>
-            <span style={{ fontSize: '9px', opacity: 0.6 }}>LOGOUT</span>
-          </div>
+          <LogOut size={18} style={{ flexShrink: 0 }} />
+          {!isCollapsed && (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+              <span style={{ fontWeight: '600' }}>ออกจากระบบ</span>
+              <span style={{ fontSize: '9px', opacity: 0.6 }}>LOGOUT</span>
+            </div>
+          )}
         </button>
         
-        <div style={{ textAlign: 'center', marginTop: '12px', opacity: 0.5 }}>
-           <span style={{ fontSize: '10px', fontWeight: '700', letterSpacing: '1px' }}>VERSION 1.1.1 (HOTFIX)</span>
-        </div>
+        {!isCollapsed && (
+          <div style={{ textAlign: 'center', marginTop: '12px', opacity: 0.5 }}>
+             <span style={{ fontSize: '10px', fontWeight: '700', letterSpacing: '1px' }}>VERSION 1.1.2 (EXPANDABLE)</span>
+          </div>
+        )}
       </div>
+      
+      <style dangerouslySetInnerHTML={{ __html: `
+        .sidebar-btn {
+          position: relative;
+        }
+        @media (min-width: 1025px) {
+          .sidebar-btn:hover::after {
+            content: attr(title);
+            position: absolute;
+            left: 100%;
+            margin-left: 12px;
+            padding: 8px 14px;
+            background: #1e293b;
+            color: white;
+            font-size: 12px;
+            font-weight: 700;
+            border-radius: 8px;
+            white-space: nowrap;
+            z-index: 1000;
+            pointer-events: none;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+            border: 1px solid rgba(255,255,255,0.15);
+            display: ${isCollapsed ? 'block' : 'none'};
+            animation: tooltipIn 0.2s ease-out;
+          }
+          @keyframes tooltipIn {
+            from { opacity: 0; transform: translateX(-10px); }
+            to { opacity: 1; transform: translateX(0); }
+          }
+        }
+      `}} />
     </aside>
   );
 };
