@@ -258,58 +258,63 @@ export default function AdvancedAnalyticsPage() {
   return (
     <div style={{ animation: 'fadeIn 0.5s ease-out' }}>
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
-        <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '24px', marginBottom: '32px' }}>
+        <div style={{ flex: '1', minWidth: '300px' }}>
           <h1 style={{ fontSize: '28px', fontWeight: '800', marginBottom: '4px' }}>ศูนย์บริหารสถิติอัจฉริยะ</h1>
           <p style={{ color: 'var(--text-muted)', fontSize: '14px' }}>EXECUTIVE INTELLIGENCE CENTER (EIC) • Drag & Drop Workspace</p>
         </div>
         
-        <div style={{ display: 'flex', gap: '12px' }}>
-           <div style={{ display: 'flex', gap: '8px', background: 'rgba(255,255,255,0.05)', padding: '8px', borderRadius: '12px', border: '1px solid var(--border)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Calendar size={14} color="var(--primary)" />
-                <input 
-                  type="date" 
-                  value={dateRange.start} 
-                  onChange={e => setDateRange({...dateRange, start: e.target.value})}
-                  style={{ background: 'none', border: 'none', color: 'white', fontSize: '12px', outline: 'none' }} 
-                />
-                <span style={{ color: 'var(--text-muted)' }}>-</span>
-                <input 
-                  type="date" 
-                  value={dateRange.end} 
-                  onChange={e => setDateRange({...dateRange, end: e.target.value})}
-                  style={{ background: 'none', border: 'none', color: 'white', fontSize: '12px', outline: 'none' }} 
-                />
-              </div>
+        <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
+           <div style={{ display: 'flex', gap: '8px', background: 'rgba(255,255,255,0.05)', padding: '8px 16px', borderRadius: '12px', border: '1px solid var(--border)', alignItems: 'center' }}>
+              <Calendar size={14} color="var(--primary)" />
+              <input 
+                type="date" 
+                value={dateRange.start} 
+                onChange={e => setDateRange({...dateRange, start: e.target.value})}
+                style={{ background: 'none', border: 'none', color: 'white', fontSize: '12px', outline: 'none', width: '110px' }} 
+              />
+              <span style={{ color: 'var(--text-muted)' }}>-</span>
+              <input 
+                type="date" 
+                value={dateRange.end} 
+                onChange={e => setDateRange({...dateRange, end: e.target.value})}
+                style={{ background: 'none', border: 'none', color: 'white', fontSize: '12px', outline: 'none', width: '110px' }} 
+              />
            </div>
 
-           <button onClick={() => handleExport('excel')} className="glass-interactive flex-center" style={{ padding: '0 16px', borderRadius: '12px', border: '1px solid var(--border)', color: 'var(--success)', gap: '8px', fontWeight: 'bold', fontSize: '13px' }}>
-              <FileSpreadsheet size={18} /> EXCEL
-           </button>
-           <button onClick={() => handleExport('pdf')} className="glass-interactive flex-center" style={{ padding: '0 16px', borderRadius: '12px', border: '1px solid var(--border)', color: 'var(--danger)', gap: '8px', fontWeight: 'bold', fontSize: '13px' }}>
-              <Download size={18} /> PDF
-           </button>
+           <div style={{ display: 'flex', gap: '8px' }}>
+              <button onClick={() => handleExport('excel')} className="glass-interactive flex-center" style={{ height: '42px', padding: '0 16px', borderRadius: '12px', border: '1px solid var(--border)', color: 'var(--success)', gap: '8px', fontWeight: 'bold', fontSize: '13px' }}>
+                 <FileSpreadsheet size={18} /> EXCEL
+              </button>
+              <button onClick={() => handleExport('pdf')} className="glass-interactive flex-center" style={{ height: '42px', padding: '0 16px', borderRadius: '12px', border: '1px solid var(--border)', color: 'var(--danger)', gap: '8px', fontWeight: 'bold', fontSize: '13px' }}>
+                 <Download size={18} /> PDF
+              </button>
+           </div>
         </div>
       </div>
 
-      {/* Widget Selector Overlay (Simplified for demo) */}
-      <div style={{ display: 'flex', gap: '10px', overflowX: 'auto', paddingBottom: '16px', marginBottom: '32px' }} className="no-scrollbar">
-         {CHART_TYPES.map(ct => (
-           <button 
-             key={ct.id}
-             onClick={() => !activeWidgets.includes(ct.id) && setActiveWidgets([...activeWidgets, ct.id])}
-             disabled={activeWidgets.includes(ct.id)}
-             className="glass-interactive"
-             style={{ 
-               padding: '8px 16px', borderRadius: '10px', border: '1px solid var(--border)', 
-               whiteSpace: 'nowrap', fontSize: '12px', fontWeight: '700',
-               opacity: activeWidgets.includes(ct.id) ? 0.4 : 1,
-               display: 'flex', alignItems: 'center', gap: '8px'
-             }}>
-             <ct.icon size={14} /> {ct.name}
-           </button>
-         ))}
+      {/* Widget Selector Overlay */}
+      <div style={{ borderBottom: '1px solid var(--border)', paddingBottom: '20px', marginBottom: '32px' }}>
+         <p style={{ fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', marginBottom: '12px', textTransform: 'uppercase', letterSpacing: '1px' }}>เพิ่มวิดเจ็ตสถิติ (Add Statistics Widget)</p>
+         <div style={{ display: 'flex', gap: '10px', overflowX: 'auto', paddingBottom: '10px' }} className="no-scrollbar">
+            {CHART_TYPES.map(ct => (
+              <button 
+                key={ct.id}
+                onClick={() => !activeWidgets.includes(ct.id) && setActiveWidgets([...activeWidgets, ct.id])}
+                disabled={activeWidgets.includes(ct.id)}
+                className="glass-interactive"
+                style={{ 
+                  padding: '10px 16px', borderRadius: '12px', border: '1px solid var(--border)', 
+                  whiteSpace: 'nowrap', fontSize: '12px', fontWeight: '700',
+                  opacity: activeWidgets.includes(ct.id) ? 0.4 : 1,
+                  display: 'flex', alignItems: 'center', gap: '10px',
+                  background: activeWidgets.includes(ct.id) ? 'rgba(255,255,255,0.02)' : 'rgba(255,255,255,0.05)'
+                }}>
+                <ct.icon size={14} color={activeWidgets.includes(ct.id) ? 'var(--text-muted)' : 'var(--primary)'} /> 
+                {ct.name}
+              </button>
+            ))}
+         </div>
       </div>
 
       {/* Dashboard Grid with DND */}
