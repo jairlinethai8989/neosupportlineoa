@@ -35,6 +35,7 @@ export default function ChatAttachmentModal({ isOpen, onClose, onConfirm }: Chat
 
   // Load image to canvas when entering edit mode
   useEffect(() => {
+    if (typeof window === 'undefined') return;
     if (mode === 'edit' && imageSrc && canvasRef.current) {
       const canvas = canvasRef.current;
       const ctx = canvas.getContext('2d');
