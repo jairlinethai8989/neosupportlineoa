@@ -35,6 +35,8 @@ export default function StaffTicketDetailPage() {
   const [priority, setPriority] = useState('');
   const [showToast, setShowToast] = useState(false);
   const [toastMsg, setToastMsg] = useState('');
+  const [selectedDept, setSelectedDept] = useState('');
+  const [availableDepts, setAvailableDepts] = useState<string[]>([]);
 
   const [chatLoading, setChatLoading] = useState(true);
   const [messages, setMessages] = useState<any[]>([]);
@@ -63,10 +65,15 @@ export default function StaffTicketDetailPage() {
         .eq('id', id)
         .single();
 
-      if (ticketData) {
+       if (ticketData) {
         setTicket(ticketData);
         setStatus(ticketData.status);
         setPriority(ticketData.priority);
+        setSelectedDept(ticketData.department || '');
+
+        // Fetch dynamic departments
+        const { data: company } = await supabase.from('company_settings').select('departments').limit(1).single();
+        if (company?.departments) setAvailableDepts(company.departments);
 
         // Fetch Logs
         const { data: logData } = await supabase
@@ -229,6 +236,7 @@ export default function StaffTicketDetailPage() {
         .update({ 
           status, 
           priority,
+          department: selectedDept,
           updated_at: new Date().toISOString()
         })
         .eq('id', id);
@@ -245,8 +253,20 @@ export default function StaffTicketDetailPage() {
           note: `Agent updated status to ${status}`
         }]);
       }
+      
+      // Notify if department changed
+      if (selectedDept && selectedDept !== ticket.department) {
+         const { sendLineGroupNotification } = await import('@/lib/utils/lineNotifications');
+         await sendLineGroupNotification(`🔔 [ส่งต่อแผนก] ใบงาน #${ticket.ticket_no} ถูกส่งต่อไปยัง [${selectedDept}] เรียบร้อยแล้วครับ`);
+         
+         await supabase.from('ticket_logs').insert([{
+           ticket_id: id,
+           action_type: 'transfer',
+           note: `Ticket moved to department: ${selectedDept}`
+         }]);
+      }
 
-      setTicket({ ...ticket, status, priority });
+      setTicket({ ...ticket, status, priority, department: selectedDept });
       
       // Refresh logs
       const { data: newLogs } = await supabase
@@ -461,18 +481,31 @@ export default function StaffTicketDetailPage() {
                       <option value="Resolved">Resolved</option>
                     </select>
                  </div>
-                 <div>
-                    <label style={{ fontSize: '9px', fontWeight: '800', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>Priority</label>
-                    <select 
-                      value={priority} 
-                      onChange={(e) => setPriority(e.target.value)}
-                      style={{ width: '100%', padding: '8px', borderRadius: '8px', fontSize: '12px', background: 'var(--secondary)', border: '1px solid var(--border)', color: 'var(--text)', fontWeight: '700' }}
-                    >
-                      <option value="Low">Low</option>
-                      <option value="Medium">Medium</option>
-                      <option value="High">High</option>
-                    </select>
-                 </div>
+                  <div>
+                     <label style={{ fontSize: '9px', fontWeight: '800', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>Priority</label>
+                     <select 
+                       value={priority} 
+                       onChange={(e) => setPriority(e.target.value)}
+                       style={{ width: '100%', padding: '8px', borderRadius: '8px', fontSize: '12px', background: 'var(--secondary)', border: '1px solid var(--border)', color: 'var(--text)', fontWeight: '700' }}
+                     >
+                       <option value="Low">Low</option>
+                       <option value="Medium">Medium</option>
+                       <option value="High">High</option>
+                     </select>
+                  </div>
+                  <div>
+                     <label style={{ fontSize: '9px', fontWeight: '800', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>Assign to Dept</label>
+                     <select 
+                       value={selectedDept} 
+                       onChange={(e) => setSelectedDept(e.target.value)}
+                       style={{ width: '100%', padding: '8px', borderRadius: '8px', fontSize: '12px', background: 'rgba(0,242,254,0.05)', border: '1px solid rgba(0,242,254,0.2)', color: 'var(--primary)', fontWeight: '800' }}
+                     >
+                       <option value="">-- ไม่ระบุแผนก --</option>
+                       {availableDepts.map((d, i) => (
+                          <option key={i} value={d}>{d}</option>
+                       ))}
+                     </select>
+                  </div>
               </div>
            </div>
 

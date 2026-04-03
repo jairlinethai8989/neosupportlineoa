@@ -173,16 +173,7 @@ export default function PortalPage() {
          </Link>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '40px' }}>
-         <div className="glass-interactive flex-center" style={{ height: '100px', flexDirection: 'column', gap: '10px' }}>
-            <MessageSquare size={24} color="var(--primary)" />
-            <p style={{ fontSize: '12px', fontWeight: '700' }}>FAQ Center</p>
-         </div>
-         <div className="glass-interactive flex-center" style={{ height: '100px', flexDirection: 'column', gap: '10px' }}>
-            <CheckCircle size={24} color="var(--success)" />
-            <p style={{ fontSize: '12px', fontWeight: '700' }}>Tutorials</p>
-         </div>
-      </div>
+
 
       {/* 4. History (Optional) */}
       {pastTickets.length > 0 && (

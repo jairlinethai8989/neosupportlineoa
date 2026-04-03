@@ -29,6 +29,7 @@ export default function TicketDetailPage() {
   const [newMessage, setNewMessage] = useState('');
   const [sending, setSending] = useState(false);
   const [isAttachModalOpen, setIsAttachModalOpen] = useState(false);
+  const [conversationId, setConversationId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!id) return;
@@ -61,9 +62,17 @@ export default function TicketDetailPage() {
           const { data: msgData } = await supabase
             .from('messages')
             .select('*')
-            .eq('ticket_id', id)
+            .or(`ticket_id.eq.${id},conversation_id.eq.${conversationId || 'none'}`)
             .order('created_at', { ascending: true });
           if (msgData) setMessages(msgData);
+
+          // Fetch linked conversation
+          const { data: convData } = await supabase
+            .from('conversations')
+            .select('id')
+            .eq('current_ticket_id', id)
+            .single();
+          if (convData) setConversationId(convData.id);
         }
       } catch (err: any) {
         console.error('Error fetching ticket:', err);
@@ -81,6 +90,14 @@ export default function TicketDetailPage() {
         schema: 'public', 
         table: 'messages',
         filter: `ticket_id=eq.${id}`
+      }, () => {
+        fetchTicketData();
+      })
+      .on('postgres_changes', { 
+        event: 'INSERT', 
+        schema: 'public', 
+        table: 'messages',
+        filter: `conversation_id=eq.${conversationId || 'none'}`
       }, () => {
         fetchTicketData();
       })
@@ -109,6 +126,7 @@ export default function TicketDetailPage() {
     try {
       const { error } = await supabase.from('messages').insert([{
         ticket_id: id,
+        conversation_id: conversationId,
         sender_type: 'customer',
         content: messageToSend
       }]);
@@ -134,6 +152,7 @@ export default function TicketDetailPage() {
       const dbType = type === 'image' ? 'image' : 'file';
       const { error: dbError } = await supabase.from('messages').insert([{
         ticket_id: id,
+        conversation_id: conversationId,
         sender_type: 'customer',
         content: publicUrl,
         message_type: dbType
@@ -198,46 +217,7 @@ export default function TicketDetailPage() {
           <h2 style={{ fontSize: '20px', fontWeight: '800' }}>#{ticket.ticket_no} Details</h2>
        </div>
 
-       {/* 2. Status Tracker */}
-       <section className="glass" style={{ padding: '24px', marginBottom: '32px', position: 'relative' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
-             <h3 style={{ fontSize: '14px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Current Status</h3>
-             <span style={{ fontSize: '14px', fontWeight: '900', color: ticket.status === 'Resolved' ? 'var(--success)' : 'var(--primary)' }}>
-                {ticket.status}
-             </span>
-          </div>
-
-          {/* Progress Bar */}
-          <div style={{ height: '8px', background: 'rgba(255,255,255,0.05)', borderRadius: '4px', overflow: 'hidden', display: 'flex', gap: '4px', marginBottom: '24px' }}>
-             {[1, 2, 3, 4].map(step => (
-                <div key={step} style={{ 
-                   flex: 1, 
-                   background: step <= currentLevel ? (ticket.status === 'Resolved' ? 'var(--success)' : 'var(--primary)') : 'transparent',
-                   transition: 'background 0.3s ease'
-                }} />
-             ))}
-          </div>
-
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: '700' }}>
-             <span>Pending</span>
-             <span>In Progress</span>
-             <span>Escalated</span>
-             <span>Resolved</span>
-          </div>
-       </section>
-
-       {/* 3. Ticket Info Grid */}
-       <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '16px', marginBottom: '32px' }}>
-          <div className="glass" style={{ padding: '20px', background: 'rgba(255,255,255,0.02)' }}>
-             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
-                <FileText size={18} color="var(--primary)" />
-                <p style={{ fontSize: '13px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Work Subject</p>
-             </div>
-             <p style={{ fontSize: '18px', fontWeight: '700' }}>{ticket.subject || 'Standard Request'}</p>
-          </div>
-       </div>
-
-       {/* 4. Private Chat Workspace */}
+       {/* 2. Private Chat Workspace (MOVED TO TOP) */}
        <section className="glass" style={{ padding: '24px', marginBottom: '32px', display: 'flex', flexDirection: 'column', minHeight: '350px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
              <MessageCircle size={18} color="var(--primary)" />
@@ -304,6 +284,45 @@ export default function TicketDetailPage() {
             </div>
           )}
        </section>
+
+       {/* 3. Status Tracker */}
+       <section className="glass" style={{ padding: '24px', marginBottom: '32px', position: 'relative' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
+             <h3 style={{ fontSize: '14px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Current Status</h3>
+             <span style={{ fontSize: '14px', fontWeight: '900', color: ticket.status === 'Resolved' ? 'var(--success)' : 'var(--primary)' }}>
+                {ticket.status}
+             </span>
+          </div>
+
+          {/* Progress Bar */}
+          <div style={{ height: '8px', background: 'rgba(255,255,255,0.05)', borderRadius: '4px', overflow: 'hidden', display: 'flex', gap: '4px', marginBottom: '24px' }}>
+             {[1, 2, 3, 4].map(step => (
+                <div key={step} style={{ 
+                   flex: 1, 
+                   background: step <= currentLevel ? (ticket.status === 'Resolved' ? 'var(--success)' : 'var(--primary)') : 'transparent',
+                   transition: 'background 0.3s ease'
+                }} />
+             ))}
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: '700' }}>
+             <span>Pending</span>
+             <span>In Progress</span>
+             <span>Escalated</span>
+             <span>Resolved</span>
+          </div>
+       </section>
+
+       {/* 4. Ticket Info Grid */}
+       <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '16px', marginBottom: '32px' }}>
+          <div className="glass" style={{ padding: '20px', background: 'rgba(255,255,255,0.02)' }}>
+             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+                <FileText size={18} color="var(--primary)" />
+                <p style={{ fontSize: '13px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Work Subject</p>
+             </div>
+             <p style={{ fontSize: '18px', fontWeight: '700' }}>{ticket.subject || 'Standard Request'}</p>
+          </div>
+       </div>
 
        {/* 5. Timeline / Logs */}
        <section className="glass" style={{ padding: '24px' }}>

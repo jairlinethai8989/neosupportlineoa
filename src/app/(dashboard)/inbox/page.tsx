@@ -19,13 +19,15 @@ import {
   Mail,
   History,
   Clock,
-  Layout
+  Layout,
+  Pencil
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useRealtimeInbox } from '@/hooks/useRealtimeInbox';
 import { ticketService } from '@/lib/services/ticketService';
 import TransferModal from '@/components/modals/TransferModal';
 import ChatAttachmentModal from '@/components/chat/ChatAttachmentModal';
+import ImageEditorModal from '@/components/modals/ImageEditorModal';
 
 function InboxContent() {
   const { conversations, loading: inboxLoading } = useRealtimeInbox();
@@ -37,9 +39,11 @@ function InboxContent() {
   const [sending, setSending] = useState(false);
   const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
   const [isAttachModalOpen, setIsAttachModalOpen] = useState(false);
+  const [editingImageUrl, setEditingImageUrl] = useState<string | null>(null);
   const searchParams = useSearchParams();
   const cid = searchParams.get('cid');
   const [currentTicket, setCurrentTicket] = useState<any>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -106,7 +110,11 @@ function InboxContent() {
         schema: 'public', 
         table: 'messages'
       }, (payload) => {
-        if (payload.new.conversation_id === selectedChat.id) {
+        // Show if matches conversation OR active ticket
+        const matchConv = payload.new.conversation_id === selectedChat.id;
+        const matchTicket = selectedChat.current_ticket_id && payload.new.ticket_id === selectedChat.current_ticket_id;
+        
+        if (matchConv || matchTicket) {
           setMessages(prev => [...prev, payload.new]);
         }
       })
@@ -128,6 +136,7 @@ function InboxContent() {
     try {
       const { error: dbError } = await supabase.from('messages').insert([{
         conversation_id: selectedChat.id,
+        ticket_id: selectedChat.current_ticket_id || null,
         sender_type: 'agent',
         sender_id: agent.id,
         content: currentMsg,
@@ -150,6 +159,44 @@ function InboxContent() {
     }
   };
 
+  const handleSaveEditedImage = async (blob: Blob) => {
+    if (!selectedChat || !agent) return;
+    
+    try {
+      // 1. Upload to Supabase Storage
+      const fileName = `edited_${Date.now()}.jpg`;
+      const filePath = `chat/${selectedChat.id}/${fileName}`;
+      
+      const { error: uploadError } = await supabase.storage
+        .from('chat_media')
+        .upload(filePath, blob, { contentType: 'image/jpeg' });
+        
+      if (uploadError) throw uploadError;
+      
+      const { data: { publicUrl } } = supabase.storage.from('chat_media').getPublicUrl(filePath);
+      
+      // 2. Send Message
+      const { error: msgError } = await supabase.from('messages').insert([{
+        conversation_id: selectedChat.id,
+        ticket_id: selectedChat.current_ticket_id || null,
+        sender_type: 'agent',
+        sender_id: agent.id,
+        content: publicUrl,
+        message_type: 'image'
+      }]);
+      
+      if (msgError) throw msgError;
+
+      // Update timestamp
+      await supabase.from('conversations').update({ last_message_at: new Date().toISOString() }).eq('id', selectedChat.id);
+      
+      setEditingImageUrl(null);
+    } catch (err: any) {
+      console.error('Save edited image error:', err);
+      alert('ไม่สามารถส่งรูปภาพที่แก้ไขได้: ' + err.message);
+    }
+  };
+
   const handleConfirmAttachment = async (file: File, type: 'image' | 'video' | 'file') => {
     if (!selectedChat || !agent) return;
     setSending(true);
@@ -164,6 +211,7 @@ function InboxContent() {
       const dbType = type === 'image' ? 'image' : 'file';
       const { error: dbError } = await supabase.from('messages').insert([{
         conversation_id: selectedChat.id,
+        ticket_id: selectedChat.current_ticket_id || null,
         sender_type: 'agent',
         sender_id: agent.id,
         content: publicUrl,
@@ -223,79 +271,55 @@ function InboxContent() {
 
   const copySurveyLink = () => {
      if (!selectedChat?.current_ticket_id) return;
-     const link = `${window.location.origin}/portal/survey/${selectedChat.current_ticket_id}`;
-     navigator.clipboard.writeText(link);
+     const surveyLink = `${window.location.origin}/portal/survey/${selectedChat.current_ticket_id}`;
+     navigator.clipboard.writeText(surveyLink);
      alert('คัดลอกลิงก์แบบประเมินแล้ว');
   };
 
-  if (inboxLoading) return (
-    <div className="flex-center" style={{ height: '70vh', flexDirection: 'column', gap: '16px' }}>
-      <Loader2 className="animate-spin" size={32} color="var(--primary)" />
-      <p style={{ color: 'var(--text-muted)' }}>กำลังโหลดกล่องข้อความ...</p>
-    </div>
-  );
+  if (inboxLoading) return <div className="flex-center" style={{ height: '70vh' }}><Loader2 className="animate-spin" color="var(--primary)" /></div>;
 
   return (
-    <div className="inbox-layout" style={{ display: 'flex', height: 'calc(100vh - 120px)', gap: '24px', animation: 'fadeIn 0.5s ease-out' }}>
-      {/* 1. Left Panel: Conversation List */}
-      <div className={`glass inbox-list-panel ${viewMode !== 'list' ? 'hidden-mobile' : ''}`} style={{ width: '360px', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+    <div className="inbox-container" style={{ display: 'flex', height: 'calc(100vh - 100px)', gap: '24px', animation: 'fadeIn 0.5s ease-out' }}>
+      
+      {/* 1. Left Panel: Conversations List */}
+      <div className={`glass inbox-list-panel ${viewMode !== 'list' ? 'hidden-mobile' : ''}`} style={{ width: '380px', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         <div style={{ padding: '24px', borderBottom: '1px solid var(--border)' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-            <h2 style={{ fontSize: '20px', fontWeight: '800' }}>แชททั้งหมด</h2>
-            <div style={{ background: 'var(--primary)', color: 'black', padding: '2px 8px', borderRadius: '12px', fontSize: '11px', fontWeight: '800' }}>
-               {conversations.length} รายการ
-            </div>
-          </div>
-          <div style={{ position: 'relative' }}>
-            <Search style={{ position: 'absolute', left: '12px', top: '12px', color: 'var(--text-muted)' }} size={16} />
-            <input 
-              type="text" 
-              placeholder="ค้นหาชื่อลูกค้าหรือตั๋ว..." 
-              style={{
-                width: '100%',
-                background: 'var(--bg-input)',
-                border: '1px solid var(--border)',
-                borderRadius: '10px',
-                padding: '12px 12px 12px 40px',
-                color: 'white',
-                fontSize: '14px',
-                outline: 'none'
-              }}
-            />
+          <h2 style={{ fontSize: '20px', fontWeight: '800', marginBottom: '16px' }}>Inbox</h2>
+          <div className="glass" style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 16px', background: 'var(--bg-input)', borderRadius: '12px', border: '1px solid var(--border)' }}>
+            <Search size={18} color="var(--text-muted)" />
+            <input type="text" placeholder="ค้นหาการสนทนา..." style={{ background: 'none', border: 'none', outline: 'none', color: 'white', flex: 1, fontSize: '14px' }} />
           </div>
         </div>
-
-        <div style={{ flex: 1, overflowY: 'auto' }} className="no-scrollbar">
-          {conversations.length === 0 ? (
-             <div style={{ padding: '60px 20px', textAlign: 'center', color: 'var(--text-muted)' }}>
-                <Mail size={40} style={{ marginBottom: '16px', opacity: 0.2 }} />
-                <p style={{ fontSize: '14px' }}>ยังไม่มีข้อความส่งเข้ามา</p>
-             </div>
-          ) : conversations.map((chat) => (
+        
+        <div className="no-scrollbar" style={{ flex: 1, overflowY: 'auto' }}>
+          {conversations.map((chat: any) => (
             <div 
               key={chat.id} 
               onClick={() => selectChat(chat)}
               className="glass-interactive"
               style={{ 
-                padding: '18px 24px', 
-                borderBottom: '1px solid var(--border)',
+                padding: '16px 24px', 
+                borderBottom: '1px solid var(--border)', 
                 cursor: 'pointer',
-                background: selectedChat?.id === chat.id ? 'rgba(0, 242, 254, 0.08)' : 'transparent',
+                background: selectedChat?.id === chat.id ? 'rgba(0, 242, 254, 0.05)' : 'none',
                 borderLeft: selectedChat?.id === chat.id ? '4px solid var(--primary)' : '4px solid transparent',
-                transition: 'all 0.2s ease'
+                transition: 'all 0.2s'
               }}
             >
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
-                <p style={{ fontWeight: '700', fontSize: '15px' }}>{chat.customers?.display_name || 'LINE User'}</p>
-                <p style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                   {chat.last_message_at ? new Date(chat.last_message_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', hour12: false }) : '-'}
-                </p>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <p className="truncate" style={{ fontSize: '12px', color: 'var(--text-muted)', maxWidth: '200px' }}>
-                  สถานะ: <span style={{ color: chat.status === 'active' ? 'var(--primary)' : 'inherit' }}>{chat.status.toUpperCase()}</span>
-                </p>
-                {chat.status === 'active' && <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--primary)', boxShadow: '0 0 10px var(--primary)' }} />}
+              <div style={{ display: 'flex', gap: '14px', alignItems: 'center' }}>
+                <div style={{ position: 'relative' }}>
+                   <div style={{ width: '48px', height: '48px', borderRadius: '16px', background: 'var(--secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid rgba(255,255,255,0.1)' }}>
+                      <User size={24} color="var(--primary)" />
+                   </div>
+                   {chat.unread_count > 0 && <div style={{ position: 'absolute', top: '-4px', right: '-4px', width: '18px', height: '18px', background: 'var(--danger)', borderRadius: '50%', fontSize: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '800', border: '2px solid #0a0e14' }}>{chat.unread_count}</div>}
+                </div>
+                <div style={{ flex: 1, overflow: 'hidden' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                    <p style={{ fontWeight: '700', fontSize: '15px' }}>{chat.customers?.display_name || 'LINE User'}</p>
+                    <p style={{ fontSize: '10px', color: 'var(--text-muted)' }}>{new Date(chat.last_message_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}</p>
+                  </div>
+                  <p className="truncate" style={{ fontSize: '13px', color: 'var(--text-muted)' }}>{chat.last_message || 'เริ่มการสนทนาใหม่'}</p>
+                </div>
               </div>
             </div>
           ))}
@@ -303,43 +327,37 @@ function InboxContent() {
       </div>
 
       {/* 2. Middle Panel: Chat Window */}
-      <div className={`glass inbox-chat-panel ${viewMode !== 'chat' ? 'hidden-mobile' : ''}`} style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+      <div className={`glass inbox-chat-panel ${viewMode !== 'chat' ? 'hidden-mobile' : ''}`} style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: 'rgba(10, 14, 20, 0.4)' }}>
         {selectedChat ? (
            <>
-            <div style={{ padding: '16px 24px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.02)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                 <button 
-                  onClick={() => setViewMode('list')}
-                  className="show-mobile glass-interactive flex-center" style={{ width: '36px', height: '36px', borderRadius: '8px', border: '1px solid var(--border)', marginRight: '8px' }}>
-                    <ArrowLeft size={18} />
-                 </button>
-                 <div style={{ width: '42px', height: '42px', borderRadius: '12px', background: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '800', color: '#0a0e14', boxShadow: '0 4px 12px rgba(0,242,254,0.2)' }}>
-                    {selectedChat.customers?.display_name?.charAt(0) || 'L'}
-                 </div>
-                 <div>
-                    <p style={{ fontWeight: '800', fontSize: '16px' }}>{selectedChat.customers?.display_name || 'LINE User'}</p>
+            <div style={{ padding: '16px 24px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(10, 14, 20, 0.6)' }}>
+               <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <button onClick={() => setViewMode('list')} className="show-mobile glass-interactive flex-center" style={{ padding: '8px', borderRadius: '8px', border: 'none' }}>
+                     <ArrowLeft size={18} />
+                  </button>
+                  <div style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                     <User size={20} color="#0a0e14" />
+                  </div>
+                  <div>
+                    <p style={{ fontWeight: '800', fontSize: '15px' }}>{selectedChat.customers?.display_name || 'LINE User'}</p>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--success)' }} />
-                      <span style={{ fontSize: '11px', color: 'var(--success)', fontWeight: '700', textTransform: 'uppercase' }}>Active Session</span>
+                       <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#28c76f' }} />
+                       <p style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px' }}>Real-time Connected</p>
                     </div>
-                 </div>
-              </div>
-              <div style={{ display: 'flex', gap: '10px' }}>
-                 <button 
-                  onClick={() => setViewMode('details')}
-                  className="show-mobile glass-interactive flex-center" style={{ width: '38px', height: '38px', borderRadius: '10px', border: '1px solid var(--border)', color: 'var(--text-muted)' }}>
-                    <Info size={18} />
-                 </button>
-              </div>
+                  </div>
+               </div>
+               <div style={{ display: 'flex', gap: '8px' }}>
+                  <button onClick={() => setViewMode('details')} className="show-mobile glass-interactive flex-center" style={{ padding: '8px', borderRadius: '8px', border: 'none' }}>
+                     <Info size={18} />
+                  </button>
+                  <button className="glass-interactive flex-center" style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'none', border: 'none', color: 'var(--text-muted)' }}>
+                    <MoreVertical size={20} />
+                  </button>
+               </div>
             </div>
 
-            <div style={{ flex: 1, padding: '24px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '16px' }} className="no-scrollbar">
-              {messages.length === 0 && (
-                <div style={{ margin: 'auto', textAlign: 'center', color: 'var(--text-muted)' }}>
-                  <p style={{ fontSize: '14px' }}>กำลังรอข้อความใหม่...</p>
-                </div>
-              )}
-              {messages.map((msg) => (
+            <div className="no-scrollbar" style={{ flex: 1, overflowY: 'auto', padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              {messages.map((msg: any) => (
                  <div key={msg.id} style={{ alignSelf: msg.sender_type === 'agent' ? 'flex-end' : 'flex-start', maxWidth: '80%' }}>
                     <div style={{ 
                        padding: '12px 18px', 
@@ -351,15 +369,30 @@ function InboxContent() {
                        boxShadow: msg.sender_type === 'agent' ? '0 4px 15px rgba(115, 103, 240, 0.2)' : 'none',
                        color: msg.sender_type === 'system' ? 'var(--primary)' : 'white'
                     }}>
-                       {msg.message_type === 'image' || (msg.content.startsWith('http') && msg.content.match(/\.(jpeg|jpg|gif|png)$/)) ? (
-                          <img src={msg.content} style={{ maxWidth: '100%', borderRadius: '10px', display: 'block' }} alt="Attachment" />
-                       ) : msg.message_type === 'file' || (msg.content.startsWith('http') && msg.message_type !== 'text' && !msg.content.includes('/portal/')) ? (
-                          <a href={msg.content} target="_blank" rel="noreferrer" style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--primary)', textDecoration: 'none', fontWeight: 'bold' }}>
-                             <Clock size={16} /> ดูไฟล์แนบ
-                          </a>
-                       ) : (
-                          msg.content
-                       )}
+                        {msg.message_type === 'image' || (msg.content.startsWith('http') && msg.content.match(/\.(jpeg|jpg|gif|png|webp|svg)$/i)) ? (
+                           <div style={{ position: 'relative', borderRadius: '10px', overflow: 'hidden' }} className="image-msg-container">
+                             <img src={msg.content} style={{ maxWidth: '100%', borderRadius: '10px', display: 'block' }} alt="Attachment" />
+                             <button 
+                               onClick={() => setEditingImageUrl(msg.content)}
+                               className="edit-img-btn"
+                               style={{
+                                 position: 'absolute', top: '8px', right: '8px',
+                                 background: 'rgba(0,0,0,0.6)', border: 'none', color: 'white',
+                                 padding: '8px', borderRadius: '8px', cursor: 'pointer',
+                                 display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: '700',
+                                 backdropFilter: 'blur(4px)', animation: 'fadeIn 0.2s'
+                               }}
+                             >
+                                <Pencil size={14} /> แก้ไขภาพ
+                             </button>
+                           </div>
+                        ) : msg.message_type === 'file' || (msg.content.startsWith('http') && msg.message_type !== 'text' && !msg.content.includes('/portal/')) ? (
+                           <a href={msg.content} target="_blank" rel="noreferrer" style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--primary)', textDecoration: 'none', fontWeight: 'bold' }}>
+                              <Clock size={16} /> ดูไฟล์แนบ
+                           </a>
+                        ) : (
+                           msg.content
+                        )}
                     </div>
                     <p style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '6px', textAlign: msg.sender_type === 'agent' ? 'right' : 'left', opacity: 0.7 }}>
                        {new Date(msg.created_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', hour12: false })}
@@ -512,13 +545,32 @@ function InboxContent() {
         onSuccess={() => { alert('โอนสายเรียบร้อยแล้ว'); setViewMode('list'); }}
       />
       
-      <ChatAttachmentModal 
-        isOpen={isAttachModalOpen}
-        onClose={() => setIsAttachModalOpen(false)}
-        onConfirm={handleConfirmAttachment}
-      />
+      {isAttachModalOpen && (
+          <ChatAttachmentModal 
+             isOpen={isAttachModalOpen}
+             onClose={() => setIsAttachModalOpen(false)} 
+             onConfirm={handleConfirmAttachment}
+          />
+       )}
 
-      <style jsx global>{`
+       {editingImageUrl && (
+          <ImageEditorModal 
+             imageUrl={editingImageUrl}
+             onClose={() => setEditingImageUrl(null)}
+             onSave={handleSaveEditedImage}
+          />
+       )}
+
+       <style dangerouslySetInnerHTML={{ __html: `
+         .image-msg-container:hover .edit-img-btn {
+           opacity: 1;
+           visibility: visible;
+         }
+         .edit-img-btn {
+           opacity: 0;
+           visibility: hidden;
+           transition: all 0.2s;
+         }
         @media (max-width: 1024px) {
           .hidden-mobile { display: none !important; }
           .show-mobile { display: flex !important; }
@@ -538,7 +590,7 @@ function InboxContent() {
           -ms-overflow-style: none;
           scrollbar-width: none;
         }
-      `}</style>
+       `}} />
     </div>
   );
 }

@@ -24,6 +24,16 @@ export default function StaffManagementPage() {
   const [staff, setStaff] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [form, setForm] = useState({
+    username: '',
+    password: '',
+    full_name: '',
+    role: 'Agent',
+    department: 'ฝ่ายสนับสนุนลูกค้า (Customer Support)'
+  });
+  const [submitting, setSubmitting] = useState(false);
+  const [departments, setDepartments] = useState<string[]>([]);
 
   const fetchStaff = async () => {
     setLoading(true);
@@ -45,9 +55,14 @@ export default function StaffManagementPage() {
     let isMounted = true;
     const fetchStaffAsync = async () => {
       if (!isMounted) return;
-      setTimeout(async () => {
-         if (isMounted) await fetchStaff();
-      }, 0);
+      await fetchStaff();
+      
+      // Fetch dynamic departments
+      const { data: company } = await supabase.from('company_settings').select('departments').limit(1).single();
+      if (company?.departments) {
+        setDepartments(company.departments);
+        setForm(prev => ({ ...prev, department: company.departments[0] || '' }));
+      }
     };
     fetchStaffAsync();
     return () => { isMounted = false; };
@@ -61,6 +76,29 @@ export default function StaffManagementPage() {
       alert('ลบข้อมูลไม่สำเร็จ: ' + error.message);
     } else {
       setStaff(prev => prev.filter(s => s.id !== id));
+    }
+  };
+
+  const handleAddStaff = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSubmitting(true);
+    try {
+      const res = await fetch('/api/admin/staff', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form)
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to create staff');
+      
+      alert('เพิ่มพนักงานสำเร็จ! 🎉');
+      setIsModalOpen(false);
+      setForm({ username: '', password: '', full_name: '', role: 'Agent', department: 'ฝ่ายสนับสนุนลูกค้า (Customer Support)' });
+      fetchStaff();
+    } catch (err: any) {
+      alert('เกิดข้อผิดพลาด: ' + err.message);
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -83,18 +121,22 @@ export default function StaffManagementPage() {
            </div>
         </div>
         
-        <button className="glass-interactive" style={{ 
-          padding: '12px 24px', 
-          background: 'var(--primary)', 
-          color: '#0a0e14', 
-          border: 'none', 
-          fontWeight: '800', 
-          borderRadius: '12px',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '10px',
-          boxShadow: '0 4px 15px rgba(0, 242, 254, 0.3)'
-        }}>
+        <button 
+          onClick={() => setIsModalOpen(true)}
+          className="glass-interactive" 
+          style={{ 
+            padding: '12px 24px', 
+            background: 'var(--primary)', 
+            color: '#0a0e14', 
+            border: 'none', 
+            fontWeight: '800', 
+            borderRadius: '12px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px',
+            boxShadow: '0 4px 15px rgba(0, 242, 254, 0.3)'
+          }}
+        >
           <UserPlus size={20} />
           <span>เพิ่มพนักงานใหม่</span>
         </button>
@@ -212,11 +254,107 @@ export default function StaffManagementPage() {
         )}
       </div>
 
-      <style jsx>{`
+      {/* Add Staff Modal */}
+      {isModalOpen && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, backdropFilter: 'blur(8px)' }}>
+          <div className="glass" style={{ width: '100%', maxWidth: '500px', padding: '32px', position: 'relative', animation: 'slideUp 0.3s ease-out' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div style={{ background: 'var(--primary)', padding: '8px', borderRadius: '10px' }}>
+                   <UserPlus size={20} color="#0a0e14" />
+                </div>
+                <h3 style={{ fontSize: '20px', fontWeight: '800' }}>เพิ่มพนักงานใหม่</h3>
+              </div>
+              <button onClick={() => setIsModalOpen(false)} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
+                <XCircle size={24} />
+              </button>
+            </div>
+
+            <form onSubmit={handleAddStaff} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '6px' }}>Username (ใช้สำหรับ Login)</label>
+                <input 
+                  type="text" 
+                  required
+                  placeholder="เช่น somchai_neo"
+                  value={form.username}
+                  onChange={e => setForm({...form, username: e.target.value})}
+                  style={{ width: '100%', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '10px', padding: '12px', color: 'white' }}
+                />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '6px' }}>ชื่อ-นามสกุล</label>
+                <input 
+                  type="text" 
+                  required
+                  placeholder="ส้มชาย รักดี"
+                  value={form.full_name}
+                  onChange={e => setForm({...form, full_name: e.target.value})}
+                  style={{ width: '100%', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '10px', padding: '12px', color: 'white' }}
+                />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '6px' }}>รหัสผ่านเริ่มต้น</label>
+                <input 
+                  type="password" 
+                  required
+                  placeholder="รหัสผ่านสำหรับพนักงาน..."
+                  value={form.password}
+                  onChange={e => setForm({...form, password: e.target.value})}
+                  style={{ width: '100%', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '10px', padding: '12px', color: 'white' }}
+                />
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '6px' }}>บทบาท (Role)</label>
+                  <select 
+                    value={form.role}
+                    onChange={e => setForm({...form, role: e.target.value})}
+                    style={{ width: '100%', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '10px', padding: '12px', color: 'white' }}
+                  >
+                    <option value="Agent">พนักงาน (Agent)</option>
+                    <option value="Administrator">ผู้ดูแลระบบ (Admin)</option>
+                  </select>
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '6px' }}>แผนก (Dept)</label>
+                  <select 
+                    value={form.department}
+                    onChange={e => setForm({...form, department: e.target.value})}
+                    style={{ width: '100%', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '10px', padding: '12px', color: 'white' }}
+                  >
+                    {departments.map((dept, idx) => (
+                      <option key={idx} value={dept}>{dept}</option>
+                    ))}
+                    {departments.length === 0 && <option value="">ยังไม่มีแผนก</option>}
+                  </select>
+                </div>
+              </div>
+
+              <div style={{ marginTop: '12px', display: 'flex', gap: '12px' }}>
+                <button type="button" onClick={() => setIsModalOpen(false)} style={{ flex: 1, padding: '14px', borderRadius: '10px', background: 'transparent', border: '1px solid var(--border)', color: 'white', cursor: 'pointer' }}>ยกเลิก</button>
+                <button 
+                  type="submit" 
+                  disabled={submitting}
+                  style={{ flex: 1, padding: '14px', borderRadius: '10px', background: 'var(--primary)', border: 'none', color: '#0a0e14', fontWeight: '800', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+                >
+                  {submitting ? <Loader2 size={18} className="animate-spin" /> : <><CheckCircle size={18} /> ยืนยันเพิ่มพนักงาน</>}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      <style dangerouslySetInnerHTML={{ __html: `
         .hover-row:hover {
           background: rgba(255,255,255,0.03);
         }
-      `}</style>
+        @keyframes slideUp {
+          from { opacity: 0; transform: translateY(20px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+      `}} />
     </div>
   );
 }

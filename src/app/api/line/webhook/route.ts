@@ -12,7 +12,7 @@ const config = {
 
 const client = new line.Client(config);
 
-export async function POST(req: NextRequest) {
+export async function POST(req: Request) {
   let body: any;
   try {
      body = await req.json();
@@ -70,7 +70,7 @@ export async function POST(req: NextRequest) {
         // 3. Map/Create Conversation
         let { data: conversation } = await supabase
           .from('conversations')
-          .select('id')
+          .select('id, current_ticket_id')
           .eq('customer_id', customer.id)
           .eq('status', 'active')
           .maybeSingle();
@@ -94,6 +94,7 @@ export async function POST(req: NextRequest) {
           // 4. Save Message
           await supabase.from('messages').insert([{
             conversation_id: conversation.id,
+            ticket_id: conversation.current_ticket_id,
             sender_type: 'customer',
             message_type: event.message.type,
             content: messageText,

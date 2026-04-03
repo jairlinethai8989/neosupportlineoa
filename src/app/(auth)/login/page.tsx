@@ -27,15 +27,23 @@ export default function LoginPage() {
     setError(null);
 
     try {
+      let finalEmail = email;
+      // If it's a username (no @), map to internal domain
+      if (!email.includes('@')) {
+        finalEmail = `${email}@neo.local`;
+      }
+
       const { data, error: signInError } = await supabase.auth.signInWithPassword({
-        email,
+        email: finalEmail,
         password,
       });
 
       if (signInError) throw signInError;
       
-      // Successfully logged in
-      router.push('/');
+      // Redirect ไปหน้าเดิมที่ต้องการ หรือ Dashboard
+      const params = new URLSearchParams(window.location.search);
+      const redirectTo = params.get('redirectTo') || '/';
+      router.push(redirectTo);
       router.refresh();
     } catch (err: any) {
       setError(err.message || 'Failed to sign in');
@@ -81,7 +89,7 @@ export default function LoginPage() {
             <ShieldCheck color="#0a0e14" size={28} />
           </div>
           <h1 style={{ fontSize: '24px', fontWeight: '800', marginBottom: '8px' }}>Welcome Back</h1>
-          <p style={{ color: 'var(--text-muted)', fontSize: '14px' }}>Sign in to continue to Agent Portal</p>
+          <p style={{ color: 'var(--text-muted)', fontSize: '14px' }}>Sign in to continue to Agent Dashboard</p>
         </div>
 
         {error && (
@@ -102,7 +110,7 @@ export default function LoginPage() {
 
         <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           <div>
-            <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '8px', letterSpacing: '0.05em' }}>Email Address</label>
+            <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '8px', letterSpacing: '0.05em' }}>Username (ชื่อพนักงาน)</label>
             <div style={{ position: 'relative' }}>
               <Mail style={{ position: 'absolute', left: '16px', top: '14px', color: 'var(--text-muted)' }} size={18} />
               <input 
@@ -110,7 +118,7 @@ export default function LoginPage() {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="agent@neosupport.com"
+                placeholder="เช่น somchai_neo"
                 style={{
                   width: '100%',
                   background: 'var(--bg-input)',
@@ -186,7 +194,7 @@ export default function LoginPage() {
         </p>
       </div>
 
-      <style jsx global>{`
+      <style dangerouslySetInnerHTML={{ __html: `
         @keyframes animate-spin {
           from { transform: rotate(0deg); }
           to { transform: rotate(360deg); }
@@ -194,7 +202,7 @@ export default function LoginPage() {
         .animate-spin {
           animation: animate-spin 1s linear infinite;
         }
-      `}</style>
+      `}} />
     </div>
   );
 }

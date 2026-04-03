@@ -12,7 +12,8 @@ import {
   Loader2, 
   ChevronLeft,
   ShieldCheck,
-  Building
+  Building,
+  Lock
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -37,12 +38,7 @@ const AVATAR_OPTIONS = [
   'https://api.dicebear.com/7.x/notionists/svg?seed=OfficeWoman8&backgroundColor=f8fafc',
 ];
 
-const DEPARTMENTS = [
-  'ฝ่ายสนับสนุนลูกค้า (Customer Support)',
-  'ฝ่ายเทคนิค (Technical Support)',
-  'ฝ่ายขายและการเงิน (Sales & Billing)',
-  'ฝ่ายบริหาร (Management)'
-];
+// Dynamic Departments are now handled from company_settings table
 
 export default function ProfileSettingsPage() {
   const [profile, setProfile] = useState<any>(null);
@@ -52,6 +48,10 @@ export default function ProfileSettingsPage() {
   const [uploading, setUploading] = useState(false);
   const [showToast, setShowToast] = useState(false);
   const [toastMsg, setToastMsg] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [updatingPassword, setUpdatingPassword] = useState(false);
+  const [newDeptName, setNewDeptName] = useState('');
 
   useEffect(() => {
     async function fetchData() {
@@ -129,12 +129,14 @@ export default function ProfileSettingsPage() {
          await supabase.from('company_settings').update({
            company_name: company.company_name,
            logo_url: company.logo_url,
+           departments: company.departments || [],
            updated_at: new Date().toISOString()
          }).eq('id', company.id);
       } else {
          await supabase.from('company_settings').insert([{
            company_name: company.company_name,
-           logo_url: company.logo_url
+           logo_url: company.logo_url,
+           departments: company.departments || []
          }]);
       }
       setToastMsg('บันทึกข้อมูลองค์กรสำเร็จ! ✅');
@@ -144,6 +146,69 @@ export default function ProfileSettingsPage() {
       alert('Update failed');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleAddDepartment = async () => {
+    if (!newDeptName.trim()) return;
+    const updatedDepts = [...(company.departments || []), newDeptName.trim()];
+    setCompany({ ...company, departments: updatedDepts });
+    setNewDeptName('');
+    
+    // Save to DB
+    try {
+      await supabase.from('company_settings').update({ 
+        departments: updatedDepts,
+        updated_at: new Date().toISOString() 
+      }).eq('id', company.id);
+      
+      setToastMsg('เพิ่มแผนกเรียบร้อย! ✨');
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 3000);
+    } catch (err) { alert('Failed to add department'); }
+  };
+
+  const handleDeleteDepartment = async (name: string) => {
+    if (!confirm(`ยืนยันการลบแผนก "${name}"?`)) return;
+    const updatedDepts = (company.departments || []).filter((d: string) => d !== name);
+    setCompany({ ...company, departments: updatedDepts });
+
+    try {
+      await supabase.from('company_settings').update({ 
+        departments: updatedDepts,
+        updated_at: new Date().toISOString() 
+      }).eq('id', company.id);
+      
+      setToastMsg('ลบแผนกเรียบร้อย! 🗑️');
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 3000);
+    } catch (err) { alert('Failed to delete department'); }
+  };
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newPassword !== confirmPassword) {
+      alert('รหัสผ่านไม่ตรงกัน!');
+      return;
+    }
+    if (newPassword.length < 6) {
+      alert('รหัสผ่านต้องมีความยาวอย่างน้อย 6 ตัวอักษร');
+      return;
+    }
+
+    setUpdatingPassword(true);
+    try {
+      const { error } = await supabase.auth.updateUser({ password: newPassword });
+      if (error) throw error;
+      
+      setToastMsg('เปลี่ยนรหัสผ่านสำเร็จ! 🔐');
+      setShowToast(true);
+      setNewPassword('');
+      setConfirmPassword('');
+      setTimeout(() => setShowToast(false), 3000);
+    } catch (err: any) {
+      alert('เปลี่ยนรหัสผ่านไม่สำเร็จ: ' + err.message);
+    } finally {
+      setUpdatingPassword(false);
     }
   };
 
@@ -226,7 +291,7 @@ export default function ProfileSettingsPage() {
                     style={{ width: '100%', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '10px', padding: '14px', color: 'var(--text)', outline: 'none', appearance: 'none' }}
                   >
                     <option value="">เลือกแผนก...</option>
-                    {DEPARTMENTS.map((dept, idx) => (
+                    {(company?.departments || []).map((dept: string, idx: number) => (
                       <option key={idx} value={dept}>{dept}</option>
                     ))}
                   </select>
@@ -303,8 +368,102 @@ export default function ProfileSettingsPage() {
                   </p>
                </div>
             </div>
-         </div>
-      </div>
+          </div>
+
+          {/* 3. Department Management (NEW) */}
+          <div className="glass" style={{ padding: '32px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '32px' }}>
+               <div style={{ background: 'rgba(0, 242, 254, 0.1)', padding: '10px', borderRadius: '12px' }}>
+                  <Building size={24} color="var(--primary)" />
+               </div>
+               <div>
+                 <h2 style={{ fontSize: '20px', fontWeight: '700', lineHeight: '1.2' }}>จัดการแผนก</h2>
+                 <p style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Department Management</p>
+               </div>
+            </div>
+
+            <div style={{ marginBottom: '24px' }}>
+               <label style={{ display: 'block', fontSize: '10px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '12px' }}>เพิ่มแผนกใหม่ (ADD NEW DEPARTMENT)</label>
+               <div style={{ display: 'flex', gap: '8px' }}>
+                  <input 
+                    type="text" 
+                    placeholder="เช่น ฝ่ายเทคนิค, ฝ่ายการเงิน..." 
+                    value={newDeptName}
+                    onChange={e => setNewDeptName(e.target.value)}
+                    style={{ flex: 1, background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '10px', padding: '12px', color: 'white', outline: 'none' }}
+                  />
+                  <button 
+                    onClick={handleAddDepartment}
+                    className="glass-interactive flex-center"
+                    style={{ width: '48px', height: '48px', borderRadius: '12px', background: 'var(--primary)', color: 'black', border: 'none' }}>
+                    +
+                  </button>
+               </div>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '300px', overflowY: 'auto', paddingRight: '8px' }}>
+               <label style={{ fontSize: '10px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '4px' }}>รายชื่อแผนกปัจจุบัน ({company?.departments?.length || 0})</label>
+               {company?.departments?.map((dept: string, idx: number) => (
+                  <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', background: 'rgba(255,255,255,0.03)', borderRadius: '10px', border: '1px solid var(--border)' }}>
+                     <span style={{ fontSize: '14px', fontWeight: '600' }}>{dept}</span>
+                     <button 
+                       onClick={() => handleDeleteDepartment(dept)}
+                       style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', fontSize: '11px', fontWeight: '700' }}>
+                       ลบ (REMOVE)
+                     </button>
+                  </div>
+               ))}
+               {(company?.departments?.length === 0 || !company?.departments) && (
+                  <p style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '12px', padding: '20px' }}>ยังไม่มีข้อมูลแผนก</p>
+               )}
+            </div>
+          </div>
+
+          {/* 4. Password Management */}
+          <div className="glass" style={{ padding: '32px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '32px' }}>
+               <div style={{ background: 'rgba(234, 84, 85, 0.1)', padding: '10px', borderRadius: '12px' }}>
+                  <Lock size={24} color="var(--danger)" />
+               </div>
+               <div>
+                 <h2 style={{ fontSize: '20px', fontWeight: '700', lineHeight: '1.2' }}>ความปลอดภัย</h2>
+                 <p style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Password & Security</p>
+               </div>
+            </div>
+
+            <form onSubmit={handleChangePassword} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+               <div>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '8px' }}>รหัสผ่านใหม่ (NEW PASSWORD)</label>
+                  <input 
+                    type="password" 
+                    required
+                    value={newPassword}
+                    onChange={e => setNewPassword(e.target.value)}
+                    placeholder="••••••••"
+                    style={{ width: '100%', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '10px', padding: '14px', color: 'white', outline: 'none' }}
+                  />
+               </div>
+               <div>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '8px' }}>ยืนยันรหัสผ่านใหม่ (CONFIRM PASSWORD)</label>
+                  <input 
+                    type="password" 
+                    required
+                    value={confirmPassword}
+                    onChange={e => setConfirmPassword(e.target.value)}
+                    placeholder="••••••••"
+                    style={{ width: '100%', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '10px', padding: '14px', color: 'white', outline: 'none' }}
+                  />
+               </div>
+               <button 
+                type="submit"
+                disabled={updatingPassword}
+                className="glass-interactive" 
+                style={{ width: '100%', padding: '16px', borderRadius: '12px', background: 'rgba(234, 84, 85, 0.1)', border: '1px solid rgba(234, 84, 85, 0.2)', color: 'var(--danger)', fontWeight: '800', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }}>
+                  {updatingPassword ? <Loader2 className="animate-spin" /> : <><ShieldCheck size={20} /> อัปเดตรหัสผ่าน (UPDATE PASSWORD)</>}
+               </button>
+            </form>
+          </div>
+       </div>
 
       {/* Success Toast */}
       {showToast && (

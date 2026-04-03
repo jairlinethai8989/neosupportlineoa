@@ -108,23 +108,6 @@ export default function TicketsPage() {
     return () => { supabase.removeChannel(channel); };
   }, []);
 
-  const handleDrop = async (e: React.DragEvent, newStatus: string) => {
-     e.preventDefault();
-     const ticketId = e.dataTransfer.getData('ticketId');
-     if (!ticketId) return;
-
-     const ticket = tickets.find(t => t.id === ticketId);
-     if (!ticket || ticket.status === newStatus) return;
-
-     setTickets(prev => prev.map(t => t.id === ticketId ? { ...t, status: newStatus } : t));
-
-     try {
-        await supabase.from('tickets').update({ status: newStatus, updated_at: new Date().toISOString() }).eq('id', ticketId);
-        const { sendLineGroupNotification } = await import('@/lib/utils/lineNotifications');
-        await sendLineGroupNotification(`🔄 [#${ticket.ticket_no}] ถูกย้ายไป [${newStatus}]`);
-     } catch(err) { console.error(err); }
-  };
-
   const getConvId = (customerId: string) => {
      return conversations.find(c => c.customer_id === customerId)?.id;
   };
@@ -172,8 +155,8 @@ export default function TicketsPage() {
             {WORKFLOW.map(col => {
                const columnTickets = filteredTickets.filter(t => (t.status || '').toLowerCase() === col.id.toLowerCase());
                return (
-                 <div key={col.id} onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }} onDrop={(e) => handleDrop(e, col.id)}
-                   style={{ minWidth: '320px', flex: '0 0 auto', background: 'rgba(255,255,255,0.02)', borderRadius: '16px', padding: '16px', border: '1px dashed var(--border)', display: 'flex', flexDirection: 'column' }}>
+                 <div key={col.id} 
+                   style={{ minWidth: '320px', flex: '0 0 auto', background: 'rgba(255,255,255,0.02)', borderRadius: '16px', padding: '16px', border: '1px solid var(--border)', display: 'flex', flexDirection: 'column' }}>
                      <h3 style={{ fontSize: '14px', fontWeight: '800', marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <span>{col.thai} <small style={{ fontWeight: '400', opacity: 0.5 }}>{col.eng}</small></span>
                         <span style={{ fontSize: '11px', padding: '2px 8px', background: 'rgba(255,255,255,0.1)', borderRadius: '12px' }}>{columnTickets.length}</span>
@@ -182,8 +165,8 @@ export default function TicketsPage() {
                         {columnTickets.map(ticket => {
                             const convId = getConvId(ticket.customer_id);
                             return (
-                                <div key={ticket.id} draggable onDragStart={(e) => { e.dataTransfer.setData('ticketId', ticket.id); e.currentTarget.style.opacity = '0.5'; }} onDragEnd={(e) => { e.currentTarget.style.opacity = '1'; }} className="glass"
-                                  style={{ padding: '16px', borderRadius: '12px', cursor: 'grab', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)' }}>
+                                <div key={ticket.id} className="glass"
+                                  style={{ padding: '16px', borderRadius: '12px', cursor: 'pointer', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)' }}>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', alignItems: 'flex-start' }}>
                                       <Link href={`/tickets/${ticket.id}`} style={{ fontSize: '14px', fontWeight: '800', color: 'var(--primary)', textDecoration: 'none' }}>#{ticket.ticket_no}</Link>
                                       <PriorityIndicator priority={ticket.priority} />

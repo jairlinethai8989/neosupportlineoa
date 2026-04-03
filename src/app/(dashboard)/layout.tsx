@@ -3,36 +3,91 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable jsx-a11y/alt-text */
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Noto_Sans_Thai } from "next/font/google";
 import Sidebar from "@/components/layout/Sidebar";
-import { Menu, X, Bell, User as UserIcon } from 'lucide-react';
+import { Menu, Bell, AlertTriangle, Ticket, MessageSquare, CheckCheck } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { NotificationProvider, useNotificationContext } from '@/contexts/NotificationContext';
+import ToastContainer from '@/components/notifications/ToastContainer';
+import type { AppNotification } from '@/hooks/useNotifications';
 
 const notoThai = Noto_Sans_Thai({ subsets: ["latin", "thai"], weight: ['300', '400', '500', '600', '700', '800'] });
 
-export default function DashboardLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+type NotifTab = 'all' | 'unread' | 'sla';
+
+const NOTIF_ICON: Record<string, any> = {
+  sla: AlertTriangle,
+  ticket: Ticket,
+  message: MessageSquare,
+};
+const NOTIF_COLOR: Record<string, string> = {
+  sla: '#ff9f43',
+  ticket: '#00f2fe',
+  message: '#28c76f',
+};
+
+function timeAgo(dateStr: string): string {
+  const now = new Date();
+  const d = new Date(dateStr);
+  const diffMs = now.getTime() - d.getTime();
+  const mins = Math.floor(diffMs / 60000);
+  if (mins < 1) return 'เมื่อสักครู่';
+  if (mins < 60) return `${mins} นาทีที่แล้ว`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs} ชั่วโมงที่แล้ว`;
+  const days = Math.floor(hrs / 24);
+  return `${days} วันที่แล้ว`;
+}
+
+// Inner layout that can consume NotificationContext
+function DashboardInner({ children }: { children: React.ReactNode }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [agent, setAgent] = useState<any>(null);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [activeTab, setActiveTab] = useState<NotifTab>('all');
+  const notifRef = useRef<HTMLDivElement>(null);
+
+  const { notifications, unreadCount, markAllRead } = useNotificationContext();
 
   useEffect(() => {
-    async function fetchProfile() {
-       const { data: { user } } = await supabase.auth.getUser();
-       if (user) {
-          const { data: p } = await supabase.from('profiles').select('*').eq('id', user.id).single();
-          setAgent(p || user);
-       }
-    }
-    fetchProfile();
+    supabase.auth.getUser().then(async ({ data }) => {
+      if (data.user) {
+        const { data: p } = await supabase.from('profiles').select('*').eq('id', data.user.id).single();
+        setAgent(p || data.user);
+      }
+    });
   }, []);
+
+  // Click outside to close
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (notifRef.current && !notifRef.current.contains(e.target as Node)) {
+        setShowNotifications(false);
+      }
+    }
+    if (showNotifications) document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [showNotifications]);
+
+  const handleBellClick = () => {
+    const opening = !showNotifications;
+    setShowNotifications(opening);
+    if (opening) markAllRead();
+  };
+
+  // Filtered notifications by tab
+  const filteredNotifs: AppNotification[] = notifications.filter((n) => {
+    if (activeTab === 'unread') return !n.isRead;
+    if (activeTab === 'sla') return n.type === 'sla';
+    return true;
+  });
 
   return (
     <div className={`main-layout ${notoThai.className}`}>
+      {/* Global Toast Portal */}
+      <ToastContainer />
       {/* Sidebar Mobile Toggle Overlay */}
       {isSidebarOpen && (
         <div className="sidebar-overlay" onClick={() => setIsSidebarOpen(false)} />
@@ -74,10 +129,137 @@ export default function DashboardLayout({
           </div>
           
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-             <button className="glass-interactive" style={{ padding: '8px', borderRadius: '8px', border: 'none', position: 'relative' }}>
-                <Bell size={18} color="var(--text-muted)" />
-                <span style={{ position: 'absolute', top: '8px', right: '8px', width: '6px', height: '6px', background: 'var(--accent)', borderRadius: '50%' }} />
-             </button>
+             {/* Notification Bell */}
+             <div ref={notifRef} style={{ position: 'relative' }}>
+               <button 
+                 onClick={handleBellClick}
+                 className="glass-interactive" 
+                 style={{ padding: '8px', borderRadius: '8px', border: 'none', position: 'relative', cursor: 'pointer' }}
+               >
+                  <Bell size={18} color={showNotifications ? 'var(--primary)' : 'var(--text-muted)'} />
+                  {unreadCount > 0 && (
+                    <span style={{ 
+                      position: 'absolute', 
+                      top: '4px', 
+                      right: '4px', 
+                      minWidth: '16px',
+                      height: '16px',
+                      background: 'var(--danger, #ea5455)', 
+                      borderRadius: '10px',
+                      fontSize: '9px',
+                      fontWeight: '900',
+                      color: 'white',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      padding: '0 4px',
+                      animation: 'pulse 2s infinite'
+                    }}>
+                      {unreadCount > 9 ? '9+' : unreadCount}
+                    </span>
+                  )}
+               </button>
+
+               {/* Notification Dropdown */}
+               {showNotifications && (
+                 <div style={{
+                   position: 'absolute',
+                   top: 'calc(100% + 8px)',
+                   right: 0,
+                   width: '380px',
+                   background: 'rgba(10, 14, 20, 0.97)',
+                   border: '1px solid var(--border)',
+                   borderRadius: '16px',
+                   backdropFilter: 'blur(20px)',
+                   boxShadow: '0 16px 48px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255,255,255,0.05)',
+                   zIndex: 100,
+                   overflow: 'hidden',
+                   animation: 'fadeIn 0.2s ease-out',
+                 }}>
+
+                   {/* Header */}
+                   <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--border)' }}>
+                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                       <div>
+                         <h3 style={{ fontSize: '14px', fontWeight: '800' }}>การแจ้งเตือน</h3>
+                         <p style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '1px' }}>เฉพาะงานของคุณ</p>
+                       </div>
+                       {unreadCount > 0 && (
+                         <button
+                           onClick={markAllRead}
+                           style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: 'var(--primary)', fontWeight: '700', background: 'none', border: 'none', cursor: 'pointer', opacity: 0.8 }}
+                         >
+                           <CheckCheck size={12} />
+                           อ่านทั้งหมด
+                         </button>
+                       )}
+                     </div>
+                     {/* Tabs */}
+                     <div style={{ display: 'flex', gap: '4px', background: 'rgba(255,255,255,0.03)', borderRadius: '24px', padding: '3px' }}>
+                       {(['all', 'unread', 'sla'] as NotifTab[]).map((tab) => (
+                         <button
+                           key={tab}
+                           className={`notif-tab${activeTab === tab ? ' active' : ''}`}
+                           onClick={() => setActiveTab(tab)}
+                         >
+                           {tab === 'all' ? 'ทั้งหมด' : tab === 'unread' ? `ยังไม่อ่าน${unreadCount > 0 ? ` (${unreadCount})` : ''}` : '⚠️ SLA ด่วน'}
+                         </button>
+                       ))}
+                     </div>
+                   </div>
+
+                   {/* Notification List */}
+                   <div style={{ maxHeight: '360px', overflowY: 'auto' }}>
+                     {filteredNotifs.length === 0 ? (
+                       <div style={{ padding: '40px 20px', textAlign: 'center' }}>
+                         <Bell size={28} color="var(--text-muted)" style={{ marginBottom: '10px', opacity: 0.3 }} />
+                         <p style={{ color: 'var(--text-muted)', fontSize: '13px' }}>ไม่มีการแจ้งเตือน</p>
+                       </div>
+                     ) : (
+                       filteredNotifs.map((notif) => {
+                         const IconComponent = NOTIF_ICON[notif.type] || Ticket;
+                         const iconColor = NOTIF_COLOR[notif.type] || '#00f2fe';
+                         return (
+                           <div
+                             key={notif.id}
+                             style={{
+                               padding: '12px 16px',
+                               borderBottom: '1px solid rgba(255,255,255,0.04)',
+                               display: 'flex',
+                               gap: '12px',
+                               alignItems: 'flex-start',
+                               background: !notif.isRead ? `${iconColor}08` : 'transparent',
+                               cursor: 'pointer',
+                               transition: 'background 0.15s ease',
+                             }}
+                             onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.03)')}
+                             onMouseLeave={(e) => (e.currentTarget.style.background = !notif.isRead ? `${iconColor}08` : 'transparent')}
+                           >
+                             <div style={{ width: '32px', height: '32px', borderRadius: '10px', background: `${iconColor}18`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                               <IconComponent size={14} color={iconColor} />
+                             </div>
+                             <div style={{ flex: 1, minWidth: 0 }}>
+                               <div style={{ display: 'flex', justifyContent: 'space-between', gap: '6px' }}>
+                                 <p style={{ fontSize: '12px', fontWeight: !notif.isRead ? '800' : '600', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                   {notif.title}
+                                 </p>
+                                 {!notif.isRead && <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: iconColor, flexShrink: 0, marginTop: '4px' }} />}
+                               </div>
+                               <p style={{ fontSize: '11px', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: '2px' }}>
+                                 {notif.body}
+                               </p>
+                               <p style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '4px', opacity: 0.6 }}>
+                                 {timeAgo(notif.createdAt)}
+                               </p>
+                             </div>
+                           </div>
+                         );
+                       })
+                     )}
+                   </div>
+                 </div>
+               )}
+             </div>
              
              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginLeft: '8px', padding: '4px 12px 4px 4px', borderRadius: '30px', border: '1px solid var(--border)' }} className="glass-interactive">
                 {agent?.avatar_url ? (
@@ -109,13 +291,22 @@ export default function DashboardLayout({
       </main>
 
       <style dangerouslySetInnerHTML={{ __html: `
-        @media (min-width: 1025px) {
-          /* No hide toggle on desktop anymore as we use it for collapse */
+        @keyframes pulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.4; }
         }
         .sidebar.collapsed {
           width: 80px !important;
         }
       `}} />
     </div>
+  );
+}
+
+export default function DashboardLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+  return (
+    <NotificationProvider>
+      <DashboardInner>{children}</DashboardInner>
+    </NotificationProvider>
   );
 }
