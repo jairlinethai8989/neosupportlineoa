@@ -3,10 +3,17 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable jsx-a11y/alt-text */
+<<<<<<< HEAD
 import React, { useState, useEffect, useRef } from 'react';
 import { Noto_Sans_Thai } from "next/font/google";
 import Sidebar from "@/components/layout/Sidebar";
 import { Menu, Bell, AlertTriangle, Ticket, MessageSquare, CheckCheck } from 'lucide-react';
+=======
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { Noto_Sans_Thai } from "next/font/google";
+import Sidebar from "@/components/layout/Sidebar";
+import { Menu, X, Bell, User as UserIcon, Zap, CheckCheck, Ticket, ArrowRight, MessageSquare } from 'lucide-react';
+>>>>>>> 98085ef (feat: Modernize Ticket Dashboard (Status-based Colorbands, Memory Optimization, List View Hospital Column))
 import { supabase } from '@/lib/supabase';
 import { NotificationProvider, useNotificationContext } from '@/contexts/NotificationContext';
 import ToastContainer from '@/components/notifications/ToastContainer';
@@ -14,6 +21,7 @@ import type { AppNotification } from '@/hooks/useNotifications';
 
 const notoThai = Noto_Sans_Thai({ subsets: ["latin", "thai"], weight: ['300', '400', '500', '600', '700', '800'] });
 
+<<<<<<< HEAD
 type NotifTab = 'all' | 'unread' | 'sla';
 
 const NOTIF_ICON: Record<string, any> = {
@@ -25,6 +33,22 @@ const NOTIF_COLOR: Record<string, string> = {
   sla: '#ff9f43',
   ticket: '#00f2fe',
   message: '#28c76f',
+=======
+const ACTION_ICONS: Record<string, any> = {
+  'Created': Ticket,
+  'Claimed': Zap,
+  'Transferred': ArrowRight,
+  'Resolved': CheckCheck,
+  'Message': MessageSquare,
+};
+
+const ACTION_COLORS: Record<string, string> = {
+  'Created': '#00f2fe',
+  'Claimed': '#ff9f43',
+  'Transferred': '#7367f0',
+  'Resolved': '#28c76f',
+  'Message': '#4facfe',
+>>>>>>> 98085ef (feat: Modernize Ticket Dashboard (Status-based Colorbands, Memory Optimization, List View Hospital Column))
 };
 
 function timeAgo(dateStr: string): string {
@@ -40,6 +64,7 @@ function timeAgo(dateStr: string): string {
   return `${days} วันที่แล้ว`;
 }
 
+<<<<<<< HEAD
 // Inner layout that can consume NotificationContext
 function DashboardInner({ children }: { children: React.ReactNode }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -50,6 +75,23 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
   const notifRef = useRef<HTMLDivElement>(null);
 
   const { notifications, unreadCount, markAllRead } = useNotificationContext();
+=======
+export default function DashboardLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [agent, setAgent] = useState<any>(null);
+  
+  // Notification state
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [lastSeenAt, setLastSeenAt] = useState<string | null>(null);
+  const notifRef = useRef<HTMLDivElement>(null);
+>>>>>>> 98085ef (feat: Modernize Ticket Dashboard (Status-based Colorbands, Memory Optimization, List View Hospital Column))
 
   useEffect(() => {
     supabase.auth.getUser().then(async ({ data }) => {
@@ -60,6 +102,40 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
+<<<<<<< HEAD
+=======
+  // Fetch notifications
+  const fetchNotifications = useCallback(async () => {
+    const { data } = await supabase
+      .from('ticket_logs')
+      .select('*, tickets(ticket_no, subject)')
+      .order('created_at', { ascending: false })
+      .limit(15);
+    if (data) {
+      setNotifications(data);
+      const saved = typeof window !== 'undefined' ? localStorage.getItem('neo_notif_seen') : null;
+      setLastSeenAt(saved);
+      if (saved) {
+        setUnreadCount(data.filter(n => new Date(n.created_at) > new Date(saved)).length);
+      } else {
+        setUnreadCount(data.length);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchNotifications();
+
+    const channel = supabase.channel('layout-notif')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'ticket_logs' }, () => {
+        fetchNotifications();
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [fetchNotifications]);
+
+>>>>>>> 98085ef (feat: Modernize Ticket Dashboard (Status-based Colorbands, Memory Optimization, List View Hospital Column))
   // Click outside to close
   useEffect(() => {
     function handleClick(e: MouseEvent) {
@@ -67,11 +143,18 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
         setShowNotifications(false);
       }
     }
+<<<<<<< HEAD
     if (showNotifications) document.addEventListener('mousedown', handleClick);
+=======
+    if (showNotifications) {
+      document.addEventListener('mousedown', handleClick);
+    }
+>>>>>>> 98085ef (feat: Modernize Ticket Dashboard (Status-based Colorbands, Memory Optimization, List View Hospital Column))
     return () => document.removeEventListener('mousedown', handleClick);
   }, [showNotifications]);
 
   const handleBellClick = () => {
+<<<<<<< HEAD
     const opening = !showNotifications;
     setShowNotifications(opening);
     if (opening) markAllRead();
@@ -84,6 +167,20 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
     return true;
   });
 
+=======
+    setShowNotifications(!showNotifications);
+    if (!showNotifications) {
+      // Mark all as read
+      const now = new Date().toISOString();
+      setLastSeenAt(now);
+      setUnreadCount(0);
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('neo_notif_seen', now);
+      }
+    }
+  };
+
+>>>>>>> 98085ef (feat: Modernize Ticket Dashboard (Status-based Colorbands, Memory Optimization, List View Hospital Column))
   return (
     <div className={`main-layout ${notoThai.className}`}>
       {/* Global Toast Portal */}
@@ -167,6 +264,10 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
                    top: 'calc(100% + 8px)',
                    right: 0,
                    width: '380px',
+<<<<<<< HEAD
+=======
+                   maxHeight: '480px',
+>>>>>>> 98085ef (feat: Modernize Ticket Dashboard (Status-based Colorbands, Memory Optimization, List View Hospital Column))
                    background: 'rgba(10, 14, 20, 0.97)',
                    border: '1px solid var(--border)',
                    borderRadius: '16px',
@@ -176,6 +277,7 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
                    overflow: 'hidden',
                    animation: 'fadeIn 0.2s ease-out',
                  }}>
+<<<<<<< HEAD
 
                    {/* Header */}
                    <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--border)' }}>
@@ -224,10 +326,58 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
                              key={notif.id}
                              style={{
                                padding: '12px 16px',
+=======
+                   {/* Header */}
+                   <div style={{ 
+                     padding: '16px 20px', 
+                     borderBottom: '1px solid var(--border)',
+                     display: 'flex',
+                     justifyContent: 'space-between',
+                     alignItems: 'center'
+                   }}>
+                     <div>
+                       <h3 style={{ fontSize: '15px', fontWeight: '800' }}>การแจ้งเตือน</h3>
+                       <p style={{ fontSize: '11px', color: 'var(--text-muted)' }}>NOTIFICATIONS</p>
+                     </div>
+                     {notifications.length > 0 && (
+                       <span style={{ 
+                         fontSize: '11px', 
+                         color: 'var(--primary)', 
+                         fontWeight: '700',
+                         background: 'rgba(0, 242, 254, 0.1)',
+                         padding: '4px 10px',
+                         borderRadius: '20px'
+                       }}>
+                         {notifications.length} รายการ
+                       </span>
+                     )}
+                   </div>
+
+                   {/* Notification List */}
+                   <div style={{ maxHeight: '380px', overflowY: 'auto' }}>
+                     {notifications.length === 0 ? (
+                       <div style={{ padding: '40px 20px', textAlign: 'center' }}>
+                         <Bell size={32} color="var(--text-muted)" style={{ marginBottom: '12px', opacity: 0.3 }} />
+                         <p style={{ color: 'var(--text-muted)', fontSize: '13px' }}>ยังไม่มีการแจ้งเตือน</p>
+                       </div>
+                     ) : (
+                       notifications.map((notif, idx) => {
+                         const isUnread = lastSeenAt ? new Date(notif.created_at) > new Date(lastSeenAt) : true;
+                         const actionType = notif.action_type || 'Created';
+                         const IconComponent = ACTION_ICONS[actionType] || Zap;
+                         const iconColor = ACTION_COLORS[actionType] || '#00f2fe';
+
+                         return (
+                           <div 
+                             key={notif.id || idx} 
+                             style={{ 
+                               padding: '14px 20px',
+>>>>>>> 98085ef (feat: Modernize Ticket Dashboard (Status-based Colorbands, Memory Optimization, List View Hospital Column))
                                borderBottom: '1px solid rgba(255,255,255,0.04)',
                                display: 'flex',
                                gap: '12px',
                                alignItems: 'flex-start',
+<<<<<<< HEAD
                                background: !notif.isRead ? `${iconColor}08` : 'transparent',
                                cursor: 'pointer',
                                transition: 'background 0.15s ease',
@@ -250,6 +400,54 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
                                </p>
                                <p style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '4px', opacity: 0.6 }}>
                                  {timeAgo(notif.createdAt)}
+=======
+                               background: isUnread ? 'rgba(0, 242, 254, 0.03)' : 'transparent',
+                               transition: 'background 0.15s ease',
+                               cursor: 'pointer',
+                             }}
+                             onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.03)')}
+                             onMouseLeave={(e) => (e.currentTarget.style.background = isUnread ? 'rgba(0, 242, 254, 0.03)' : 'transparent')}
+                           >
+                             <div style={{ 
+                               width: '32px', 
+                               height: '32px', 
+                               borderRadius: '10px', 
+                               background: `${iconColor}15`,
+                               display: 'flex', 
+                               alignItems: 'center', 
+                               justifyContent: 'center',
+                               flexShrink: 0
+                             }}>
+                               <IconComponent size={14} color={iconColor} />
+                             </div>
+                             <div style={{ flex: 1, minWidth: 0 }}>
+                               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
+                                 <p style={{ 
+                                   fontSize: '13px', 
+                                   fontWeight: isUnread ? '800' : '600',
+                                   whiteSpace: 'nowrap',
+                                   overflow: 'hidden',
+                                   textOverflow: 'ellipsis',
+                                 }}>
+                                   #{notif.tickets?.ticket_no || '—'} {actionType}
+                                 </p>
+                                 {isUnread && (
+                                   <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--primary)', flexShrink: 0 }} />
+                                 )}
+                               </div>
+                               <p style={{ 
+                                 fontSize: '12px', 
+                                 color: 'var(--text-muted)', 
+                                 whiteSpace: 'nowrap', 
+                                 overflow: 'hidden', 
+                                 textOverflow: 'ellipsis',
+                                 marginTop: '2px'
+                               }}>
+                                 {notif.tickets?.subject || notif.note || 'อัปเดตสถานะใบงาน'}
+                               </p>
+                               <p style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '4px', opacity: 0.7 }}>
+                                 {timeAgo(notif.created_at)}
+>>>>>>> 98085ef (feat: Modernize Ticket Dashboard (Status-based Colorbands, Memory Optimization, List View Hospital Column))
                                </p>
                              </div>
                            </div>
@@ -303,6 +501,7 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
   );
 }
 
+<<<<<<< HEAD
 export default function DashboardLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <NotificationProvider>
@@ -310,3 +509,5 @@ export default function DashboardLayout({ children }: Readonly<{ children: React
     </NotificationProvider>
   );
 }
+=======
+>>>>>>> 98085ef (feat: Modernize Ticket Dashboard (Status-based Colorbands, Memory Optimization, List View Hospital Column))

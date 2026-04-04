@@ -19,7 +19,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="th">
+    <html lang="th" data-theme="dark">
       <body className={notoThai.className}>
         {children}
       </body>

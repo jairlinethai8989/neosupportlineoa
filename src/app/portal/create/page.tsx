@@ -35,7 +35,7 @@ export default function CreateTicketPage() {
       const { data } = await supabase
         .from('customers')
         .select('*')
-        .eq('line_user_id', profile.userId)
+        .eq('line_user_id', profile?.userId)
         .maybeSingle();
 
       if (!data) {
@@ -154,7 +154,7 @@ export default function CreateTicketPage() {
          try {
             const { sendLineGroupNotification } = await import('@/lib/utils/lineNotifications');
             await sendLineGroupNotification(`🆕 ตั๋วใหม่จาก Portal: ${subject}\nลูกค้า: ${customerData.display_name}`);
-         } catch(e) {}
+         } catch { }
 
          router.push('/portal');
 
@@ -182,22 +182,27 @@ export default function CreateTicketPage() {
                )}
 
                <div className="input-group" style={{ marginBottom: '20px' }}>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: 'var(--text-muted)', marginBottom: '8px' }}>หัวข้อที่ต้องการแจ้ง</label>
+                  <label htmlFor="ticket-subject" style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: 'var(--text-muted)', marginBottom: '8px' }}>หัวข้อที่ต้องการแจ้ง</label>
                   <input 
+                    id="ticket-subject"
+                    name="subject"
                     type="text" 
                     value={subject}
                     onChange={e => setSubject(e.target.value)}
-                    placeholder="เช่น เข้าใช้งานไม่ได้, ปัญหาการเงิน..."
+                    placeholder="เช่น เข้าใช้งานไม่ได้, ปัญหาการเงิน…"
                     className="portal-input"
+                    autoComplete="off"
                   />
                </div>
 
                <div className="input-group" style={{ marginBottom: '20px' }}>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: 'var(--text-muted)', marginBottom: '8px' }}>รายละเอียดเพิ่มเติม</label>
+                  <label htmlFor="ticket-description" style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: 'var(--text-muted)', marginBottom: '8px' }}>รายละเอียดเพิ่มเติม</label>
                   <textarea 
+                    id="ticket-description"
+                    name="description"
                     value={description}
                     onChange={e => setDescription(e.target.value)}
-                    placeholder="เล่ารายละเอียดของปัญหาให้เราฟัง..."
+                    placeholder="เล่ารายละเอียดของปัญหาให้เราฟัง…"
                     className="portal-input"
                     style={{ height: '120px', resize: 'none', padding: '12px' }}
                   />
@@ -206,6 +211,7 @@ export default function CreateTicketPage() {
                <div className="attachment-zone" style={{ marginBottom: '32px' }}>
                   <input 
                     type="file" 
+                    id="ticket-file"
                     ref={fileInputRef} 
                     onChange={handleFileChange} 
                     style={{ display: 'none' }}
@@ -213,13 +219,13 @@ export default function CreateTicketPage() {
                   />
                   {!file ? (
                     <button type="button" onClick={() => fileInputRef.current?.click()} className="glass-interactive flex-center" style={{ width: '100%', gap: '12px', border: '2px dashed var(--border)', borderRadius: '16px', padding: '16px', color: 'var(--text-muted)' }}>
-                       <ImageIcon size={20} />
+                       <ImageIcon size={20} aria-hidden="true" />
                        <span style={{ fontSize: '14px', fontWeight: '600' }}>แนบรูปภาพหรือไฟล์</span>
                     </button>
                   ) : (
                     <div className="flex-between glass" style={{ padding: '12px 16px', borderRadius: '16px', border: '1px solid var(--primary)' }}>
                        <div className="flex-center" style={{ gap: '12px' }}>
-                          <Paperclip size={18} color="var(--primary)" />
+                          <Paperclip size={18} color="var(--primary)" aria-hidden="true" />
                           <span style={{ fontSize: '14px', fontWeight: '600' }}>{file.name}</span>
                        </div>
                        <button type="button" onClick={() => setFile(null)} style={{ color: '#ea5455', border: 'none', background: 'none', fontSize: '13px', fontWeight: '600' }}>ลบออก</button>
@@ -229,10 +235,10 @@ export default function CreateTicketPage() {
 
                <button type="submit" disabled={submitting} className="portal-btn-primary" style={{ width: '100%', gap: '12px' }}>
                   {submitting ? (
-                    <Loader2 className="animate-spin" size={20} />
+                    <Loader2 className="animate-spin" size={20} aria-hidden="true" />
                   ) : (
                     <>
-                       <SendHorizontal size={20} />
+                       <SendHorizontal size={20} aria-hidden="true" />
                        <span style={{ fontSize: '16px', fontWeight: '800' }}>ส่งแจ้งเรื่อง</span>
                     </>
                   )}

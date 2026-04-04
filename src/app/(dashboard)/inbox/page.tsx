@@ -276,7 +276,16 @@ function InboxContent() {
      alert('คัดลอกลิงก์แบบประเมินแล้ว');
   };
 
+<<<<<<< HEAD
   if (inboxLoading) return <div className="flex-center" style={{ height: '70vh' }}><Loader2 className="animate-spin" color="var(--primary)" /></div>;
+=======
+  if (inboxLoading) return (
+    <div className="flex-center" style={{ height: '70vh', flexDirection: 'column', gap: '16px' }}>
+      <Loader2 className="animate-spin" size={32} color="var(--primary)" aria-hidden="true" />
+      <p style={{ color: 'var(--text-muted)' }}>กำลังโหลดกล่องข้อความ…</p>
+    </div>
+  );
+>>>>>>> 98085ef (feat: Modernize Ticket Dashboard (Status-based Colorbands, Memory Optimization, List View Hospital Column))
 
   return (
     <div className="inbox-container" style={{ display: 'flex', height: 'calc(100vh - 100px)', gap: '24px', animation: 'fadeIn 0.5s ease-out' }}>
@@ -284,10 +293,36 @@ function InboxContent() {
       {/* 1. Left Panel: Conversations List */}
       <div className={`glass inbox-list-panel ${viewMode !== 'list' ? 'hidden-mobile' : ''}`} style={{ width: '380px', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         <div style={{ padding: '24px', borderBottom: '1px solid var(--border)' }}>
+<<<<<<< HEAD
           <h2 style={{ fontSize: '20px', fontWeight: '800', marginBottom: '16px' }}>Inbox</h2>
           <div className="glass" style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 16px', background: 'var(--bg-input)', borderRadius: '12px', border: '1px solid var(--border)' }}>
             <Search size={18} color="var(--text-muted)" />
             <input type="text" placeholder="ค้นหาการสนทนา..." style={{ background: 'none', border: 'none', outline: 'none', color: 'white', flex: 1, fontSize: '14px' }} />
+=======
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+            <h2 style={{ fontSize: '20px', fontWeight: '800' }}>แชททั้งหมด</h2>
+            <div style={{ background: 'var(--primary)', color: 'black', padding: '2px 8px', borderRadius: '12px', fontSize: '11px', fontWeight: '800' }}>
+               {conversations.length} รายการ
+            </div>
+          </div>
+          <div style={{ position: 'relative' }}>
+            <Search style={{ position: 'absolute', left: '12px', top: '12px', color: 'var(--text-muted)' }} size={16} aria-hidden="true" />
+            <input 
+              type="text" 
+              placeholder="ค้นหาชื่อลูกค้าหรือตั๋ว…" 
+              aria-label="ค้นหาชื่อลูกค้าหรือตั๋ว"
+              style={{
+                width: '100%',
+                background: 'var(--bg-input)',
+                border: '1px solid var(--border)',
+                borderRadius: '10px',
+                padding: '12px 12px 12px 40px',
+                color: 'white',
+                fontSize: '14px',
+                outline: 'none'
+              }}
+            />
+>>>>>>> 98085ef (feat: Modernize Ticket Dashboard (Status-based Colorbands, Memory Optimization, List View Hospital Column))
           </div>
         </div>
         
@@ -330,6 +365,7 @@ function InboxContent() {
       <div className={`glass inbox-chat-panel ${viewMode !== 'chat' ? 'hidden-mobile' : ''}`} style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: 'rgba(10, 14, 20, 0.4)' }}>
         {selectedChat ? (
            <>
+<<<<<<< HEAD
             <div style={{ padding: '16px 24px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(10, 14, 20, 0.6)' }}>
                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                   <button onClick={() => setViewMode('list')} className="show-mobile glass-interactive flex-center" style={{ padding: '8px', borderRadius: '8px', border: 'none' }}>
@@ -340,10 +376,26 @@ function InboxContent() {
                   </div>
                   <div>
                     <p style={{ fontWeight: '800', fontSize: '15px' }}>{selectedChat.customers?.display_name || 'LINE User'}</p>
+=======
+            <div style={{ padding: '16px 24px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.02)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                 <button 
+                  onClick={() => setViewMode('list')}
+                  aria-label="Back to conversations"
+                  className="show-mobile glass-interactive flex-center" style={{ width: '36px', height: '36px', borderRadius: '8px', border: '1px solid var(--border)', marginRight: '8px' }}>
+                    <ArrowLeft size={18} aria-hidden="true" />
+                 </button>
+                 <div style={{ width: '42px', height: '42px', borderRadius: '12px', background: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '800', color: '#0a0e14', boxShadow: '0 4px 12px rgba(0,242,254,0.2)' }}>
+                    {selectedChat.customers?.display_name?.charAt(0) || 'L'}
+                 </div>
+                 <div>
+                    <p style={{ fontWeight: '800', fontSize: '16px' }}>{selectedChat.customers?.display_name || 'LINE User'}</p>
+>>>>>>> 98085ef (feat: Modernize Ticket Dashboard (Status-based Colorbands, Memory Optimization, List View Hospital Column))
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                        <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#28c76f' }} />
                        <p style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px' }}>Real-time Connected</p>
                     </div>
+<<<<<<< HEAD
                   </div>
                </div>
                <div style={{ display: 'flex', gap: '8px' }}>
@@ -358,6 +410,26 @@ function InboxContent() {
 
             <div className="no-scrollbar" style={{ flex: 1, overflowY: 'auto', padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
               {messages.map((msg: any) => (
+=======
+                 </div>
+              </div>
+              <div style={{ display: 'flex', gap: '10px' }}>
+                 <button 
+                  onClick={() => setViewMode('details')}
+                  className="show-mobile glass-interactive flex-center" style={{ width: '38px', height: '38px', borderRadius: '10px', border: '1px solid var(--border)', color: 'var(--text-muted)' }}>
+                    <Info size={18} aria-hidden="true" />
+                 </button>
+              </div>
+            </div>
+
+            <div style={{ flex: 1, padding: '24px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '16px' }} className="no-scrollbar">
+              {messages.length === 0 && (
+                <div style={{ margin: 'auto', textAlign: 'center', color: 'var(--text-muted)' }}>
+                  <p style={{ fontSize: '14px' }}>กำลังรอข้อความใหม่…</p>
+                </div>
+              )}
+              {messages.map((msg) => (
+>>>>>>> 98085ef (feat: Modernize Ticket Dashboard (Status-based Colorbands, Memory Optimization, List View Hospital Column))
                  <div key={msg.id} style={{ alignSelf: msg.sender_type === 'agent' ? 'flex-end' : 'flex-start', maxWidth: '80%' }}>
                     <div style={{ 
                        padding: '12px 18px', 
@@ -369,6 +441,7 @@ function InboxContent() {
                        boxShadow: msg.sender_type === 'agent' ? '0 4px 15px rgba(115, 103, 240, 0.2)' : 'none',
                        color: msg.sender_type === 'system' ? 'var(--primary)' : 'white'
                     }}>
+<<<<<<< HEAD
                         {msg.message_type === 'image' || (msg.content.startsWith('http') && msg.content.match(/\.(jpeg|jpg|gif|png|webp|svg)$/i)) ? (
                            <div style={{ position: 'relative', borderRadius: '10px', overflow: 'hidden' }} className="image-msg-container">
                              <img src={msg.content} style={{ maxWidth: '100%', borderRadius: '10px', display: 'block' }} alt="Attachment" />
@@ -393,6 +466,17 @@ function InboxContent() {
                         ) : (
                            msg.content
                         )}
+=======
+                       {msg.message_type === 'image' || (msg.content.startsWith('http') && msg.content.match(/\.(jpeg|jpg|gif|png)$/)) ? (
+                          <img src={msg.content} style={{ maxWidth: '100%', borderRadius: '10px', display: 'block' }} alt="Chat attachment" />
+                       ) : msg.message_type === 'file' || (msg.content.startsWith('http') && msg.message_type !== 'text' && !msg.content.includes('/portal/')) ? (
+                          <a href={msg.content} target="_blank" rel="noreferrer" style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--primary)', textDecoration: 'none', fontWeight: 'bold' }}>
+                             <Clock size={16} /> ดูไฟล์แนบ
+                          </a>
+                       ) : (
+                          msg.content
+                       )}
+>>>>>>> 98085ef (feat: Modernize Ticket Dashboard (Status-based Colorbands, Memory Optimization, List View Hospital Column))
                     </div>
                     <p style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '6px', textAlign: msg.sender_type === 'agent' ? 'right' : 'left', opacity: 0.7 }}>
                        {new Date(msg.created_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', hour12: false })}
@@ -404,7 +488,7 @@ function InboxContent() {
 
             <form onSubmit={handleSendMessage} style={{ padding: '20px 24px', borderTop: '1px solid var(--border)', background: 'rgba(10, 14, 20, 0.6)' }}>
               <div className="glass" style={{ padding: '6px 14px', display: 'flex', alignItems: 'center', gap: '12px', background: 'var(--bg-input)', borderRadius: '14px', border: '1px solid var(--border)' }}>
-                 <button type="button" onClick={() => setIsAttachModalOpen(true)} className="glass-interactive flex-center" style={{ width: '36px', height: '36px', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}><Paperclip size={20} /></button>
+                 <button type="button" onClick={() => setIsAttachModalOpen(true)} aria-label="Attach file" className="glass-interactive flex-center" style={{ width: '36px', height: '36px', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}><Paperclip size={20} aria-hidden="true" /></button>
                  <input 
                     type="text" 
                     value={newMessage}
@@ -429,7 +513,7 @@ function InboxContent() {
                     transition: 'all 0.2s',
                     opacity: (sending || !newMessage.trim()) ? 0.4 : 1 
                   }}>
-                    {sending ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
+                    {sending ? <Loader2 size={18} className="animate-spin" aria-hidden="true" /> : <Send size={18} aria-hidden="true" />}
                  </button>
               </div>
             </form>
@@ -531,8 +615,8 @@ function InboxContent() {
           </>
         ) : (
           <div style={{ textAlign: 'center', color: 'var(--text-muted)', marginTop: '60px' }}>
-            <Mail size={32} style={{ opacity: 0.1, marginBottom: '12px' }} />
-            <p style={{ fontSize: '13px' }}>โปรดเลือกการสนทนาเพื่อนดูรายละเอียดข้อมูล</p>
+            <Mail size={32} style={{ opacity: 0.1, marginBottom: '12px' }} aria-hidden="true" />
+            <p style={{ fontSize: '13px' }}>โปรดเลือกการสนทนาเพื่อดูรายละเอียดข้อมูล</p>
           </div>
         )}
       </div>
@@ -553,6 +637,7 @@ function InboxContent() {
           />
        )}
 
+<<<<<<< HEAD
        {editingImageUrl && (
           <ImageEditorModal 
              imageUrl={editingImageUrl}
@@ -591,6 +676,8 @@ function InboxContent() {
           scrollbar-width: none;
         }
        `}} />
+=======
+>>>>>>> 98085ef (feat: Modernize Ticket Dashboard (Status-based Colorbands, Memory Optimization, List View Hospital Column))
     </div>
   );
 }
@@ -599,8 +686,8 @@ export default function InboxPage() {
   return (
     <Suspense fallback={
       <div className="flex-center" style={{ height: '70vh', flexDirection: 'column', gap: '16px' }}>
-        <Loader2 className="animate-spin" size={32} color="var(--primary)" />
-        <p style={{ color: 'var(--text-muted)' }}>Loading Inbox...</p>
+        <Loader2 className="animate-spin" size={32} color="var(--primary)" aria-hidden="true" />
+        <p style={{ color: 'var(--text-muted)' }}>Loading Inbox…</p>
       </div>
     }>
       <InboxContent />

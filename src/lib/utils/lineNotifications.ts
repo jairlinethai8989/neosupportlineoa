@@ -12,19 +12,14 @@ const client = new line.Client(config);
  * Send a notification message to the internal LINE group
  */
 export async function sendLineGroupNotification(message: string) {
-  const groupId = process.env.LINE_GROUP_ID; // We'll need to set this after joining the bot to the group
-  if (!groupId || !config.channelAccessToken) {
-    console.warn('LINE_GROUP_ID or ACCESS_TOKEN not set. Notification skipped.');
-    return;
-  }
+  const groupId = process.env.LINE_GROUP_ID;
+  if (!groupId || !config.channelAccessToken) return;
 
-  console.log('Sending LINE group notification to:', groupId);
   try {
-    const result = await client.pushMessage(groupId, {
+    await client.pushMessage(groupId, {
       type: 'text',
       text: message,
     });
-    console.log('LINE notification sent successfully:', result);
   } catch (error: any) {
     console.error('Error sending LINE group notification:', error.message || error);
     if (error.originalError && error.originalError.response) {

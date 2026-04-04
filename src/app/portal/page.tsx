@@ -32,7 +32,7 @@ export default function PortalPage() {
     // Find customer by line_user_id
     const { data: customer } = await supabase
       .from('customers')
-      .select('id, hospital_id, department_id')
+      .select('id, hospital_id, department_id, position_id')
       .eq('line_user_id', profile.userId)
       .maybeSingle(); // Use maybeSingle to avoid 406 Error if none exists
 

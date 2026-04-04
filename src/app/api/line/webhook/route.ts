@@ -1,10 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable prefer-const */
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
-import * as line from '@line/bot-sdk';
 
+<<<<<<< HEAD
 const config = {
   channelAccessToken: process.env.LINE_CHANNEL_ACCESS_TOKEN || 'unset',
   channelSecret: process.env.LINE_CHANNEL_SECRET || 'unset',
@@ -12,31 +10,21 @@ const config = {
 
 const client = new line.Client(config);
 
+=======
+>>>>>>> 98085ef (feat: Modernize Ticket Dashboard (Status-based Colorbands, Memory Optimization, List View Hospital Column))
 export async function POST(req: Request) {
   let body: any;
   try {
      body = await req.json();
-  } catch (err) {
+  } catch {
      console.error('Webhook: Non-JSON body received');
      return NextResponse.json({ error: 'Body required' }, { status: 400 });
   }
 
   const events: any[] = body.events || [];
   
-  // LINE Verification sends empty events array sometimes
   if (events.length === 0) {
-    console.log('Webhook: Received empty events (Verification?)');
     return NextResponse.json({ status: 'ok' });
-  }
-
-  // Log the source of events to help user find the Group ID
-  for (const event of events) {
-    if (event.source && (event.source.groupId || event.source.roomId)) {
-      console.log('--- LINE GROUP/ROOM EVENT DETECTED ---');
-      console.log('ID:', event.source.groupId || event.source.roomId);
-      console.log('Type:', event.source.type);
-      console.log('---------------------------------------');
-    }
   }
 
   for (const event of events) {

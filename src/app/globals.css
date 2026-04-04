@@ -1,23 +1,23 @@
 :root {
-  --primary: #00f2fe;
-  --primary-glow: #4facfe;
-  --secondary: #7367f0;
-  --accent: #f82b60;
-  --success: #28c76f;
-  --warning: #ff9f43;
-  --danger: #ea5455;
-  --info: #00cfe8;
+  --primary: oklch(0.82 0.17 210);
+  --primary-glow: oklch(0.7 0.14 210 / 0.4);
+  --secondary: oklch(0.65 0.2 275);
+  --accent: oklch(0.7 0.25 10);
+  --success: oklch(0.75 0.15 150);
+  --warning: oklch(0.8 0.15 70);
+  --danger: oklch(0.6 0.2 25);
+  --info: oklch(0.75 0.14 200);
   
-  --bg-main: #0a0e14;
-  --bg-card: rgba(23, 29, 39, 0.7);
-  --bg-topbar: rgba(10, 14, 20, 0.8);
-  --bg-sidebar: #10161e;
-  --bg-input: rgba(255, 255, 255, 0.05);
+  --bg-main: oklch(0.12 0.015 260);
+  --bg-card: oklch(0.2 0.02 260 / 0.65);
+  --bg-topbar: oklch(0.12 0.015 260 / 0.85);
+  --bg-sidebar: oklch(0.14 0.02 260);
+  --bg-input: oklch(1 0 0 / 0.06);
   
-  --text-main: #e2e8f0;
-  --text-muted: #94a3b8;
-  --border: rgba(255, 255, 255, 0.08);
-  --glass: blur(12px);
+  --text-main: oklch(0.95 0 0);
+  --text-muted: oklch(0.7 0.02 260);
+  --border: oklch(1 0 0 / 0.1);
+  --glass: blur(16px) saturate(180%);
   
   --sidebar-width: 280px;
   --top-nav-height: 70px;
@@ -132,7 +132,7 @@ body {
   background: var(--bg-card);
   backdrop-filter: var(--glass);
   border: 1px solid var(--border);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.3s ease, border-color 0.3s ease;
 }
 
 .glass-interactive:hover {
@@ -258,6 +258,7 @@ body {
   animation: fadeIn 0.4s ease-out forwards;
 }
 
+<<<<<<< HEAD
 /* ===================== Notification Center ===================== */
 @keyframes toastSlideIn {
   from { transform: translateX(120%); opacity: 0; }
@@ -294,3 +295,21 @@ body {
   color: var(--primary);
 }
 /* ============================================================= */
+=======
+/* Mobile inbox helper */
+@media (max-width: 1024px) {
+  .hidden-mobile { display: none !important; }
+  .show-mobile { display: flex !important; }
+}
+@media (min-width: 1025px) {
+  .show-mobile { display: none !important; }
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+>>>>>>> 98085ef (feat: Modernize Ticket Dashboard (Status-based Colorbands, Memory Optimization, List View Hospital Column))
