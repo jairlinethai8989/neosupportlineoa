@@ -115,8 +115,6 @@ export default function TicketsPage() {
     return () => { supabase.removeChannel(channel); };
   }, []);
 
-<<<<<<< HEAD
-=======
   const handleDrop = async (e: React.DragEvent, newStatus: string) => {
      e.preventDefault();
      const ticketId = e.dataTransfer.getData('ticketId');
@@ -129,7 +127,6 @@ export default function TicketsPage() {
      } catch(err) { console.error(err); }
   };
 
->>>>>>> 98085ef (feat: Modernize Ticket Dashboard (Status-based Colorbands, Memory Optimization, List View Hospital Column))
   const getConvId = (customerId: string) => {
      return conversations.find(c => c.customer_id === customerId)?.id;
   };
@@ -202,15 +199,6 @@ export default function TicketsPage() {
                const config = statusConfig[col.id] || { color: 'var(--text-muted)', glow: 'rgba(0,0,0,0.1)' };
                
                return (
-<<<<<<< HEAD
-                 <div key={col.id} 
-                   style={{ minWidth: '320px', flex: '0 0 auto', background: 'rgba(255,255,255,0.02)', borderRadius: '16px', padding: '16px', border: '1px solid var(--border)', display: 'flex', flexDirection: 'column' }}>
-                     <h3 style={{ fontSize: '14px', fontWeight: '800', marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span>{col.thai} <small style={{ fontWeight: '400', opacity: 0.5 }}>{col.eng}</small></span>
-                        <span style={{ fontSize: '11px', padding: '2px 8px', background: 'rgba(255,255,255,0.1)', borderRadius: '12px' }}>{columnTickets.length}</span>
-                     </h3>
-                     <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', flex: 1 }}>
-=======
                  <div key={col.id} onDragOver={(e) => e.preventDefault()} onDrop={(e) => handleDrop(e, col.id)} style={{ minWidth: '340px', maxWidth: '340px', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '20px', background: 'var(--bg-input)', borderRadius: '24px', padding: '12px' }}>
                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', background: `${config.color}15`, borderRadius: '18px', borderBottom: `3px solid ${config.color}`, boxShadow: `0 4px 12px ${config.color}10` }}>
                         <h3 style={{ fontSize: '15px', fontWeight: '900', display: 'flex', alignItems: 'center', gap: '12px', color: 'var(--text-main)' }}>
@@ -221,22 +209,14 @@ export default function TicketsPage() {
                      </div>
                      
                      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
->>>>>>> 98085ef (feat: Modernize Ticket Dashboard (Status-based Colorbands, Memory Optimization, List View Hospital Column))
                         {columnTickets.map(ticket => {
                             const convId = getConvId(ticket.customer_id);
                             const isNew = ticket.status === 'New';
                             const hospitalName = ticket.customers?.hospitals?.name || 'ไม่ระบุโรงพยาบาล';
                             return (
-<<<<<<< HEAD
-                                <div key={ticket.id} className="glass"
-                                  style={{ padding: '16px', borderRadius: '12px', cursor: 'pointer', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)' }}>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', alignItems: 'flex-start' }}>
-                                      <Link href={`/tickets/${ticket.id}`} style={{ fontSize: '14px', fontWeight: '800', color: 'var(--primary)', textDecoration: 'none' }}>#{ticket.ticket_no}</Link>
-=======
                                 <div key={ticket.id} draggable onDragStart={(e) => e.dataTransfer.setData('ticketId', ticket.id)} className="glass-interactive" style={{ padding: '24px', borderRadius: '24px', background: 'var(--bg-card)', border: '1px solid var(--border)', borderLeft: `6px solid ${config.color}`, display: 'flex', flexDirection: 'column', gap: '18px', boxShadow: '0 8px 24px rgba(0,0,0,0.08)' }}>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                                       <Link href={`/tickets/${ticket.id}`} style={{ fontSize: '15px', fontWeight: '900', color: 'var(--primary)', textDecoration: 'none' }}>#{ticket.ticket_no}</Link>
->>>>>>> 98085ef (feat: Modernize Ticket Dashboard (Status-based Colorbands, Memory Optimization, List View Hospital Column))
                                       <PriorityIndicator priority={ticket.priority} />
                                     </div>
                                     <div>

@@ -1,8 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
+import * as line from '@line/bot-sdk';
 
-<<<<<<< HEAD
 const config = {
   channelAccessToken: process.env.LINE_CHANNEL_ACCESS_TOKEN || 'unset',
   channelSecret: process.env.LINE_CHANNEL_SECRET || 'unset',
@@ -10,8 +10,6 @@ const config = {
 
 const client = new line.Client(config);
 
-=======
->>>>>>> 98085ef (feat: Modernize Ticket Dashboard (Status-based Colorbands, Memory Optimization, List View Hospital Column))
 export async function POST(req: Request) {
   let body: any;
   try {
