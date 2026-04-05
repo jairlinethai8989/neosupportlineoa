@@ -44,17 +44,27 @@ export default function ProfileRegistrationModal({ isOpen, profile, existingCust
     
     async function loadMasterData() {
       setLoadingOpts(true);
+      setError('');
       try {
+        console.log('Loading master data...');
         const [hRes, dRes, pRes] = await Promise.all([
-          supabase.from('hospitals').select('*').eq('is_active', true).order('name'),
-          supabase.from('departments').select('*').eq('is_active', true).order('name'),
-          supabase.from('positions').select('*').eq('is_active', true).order('name')
+          supabase.from('hospitals').select('*').order('name'),
+          supabase.from('departments').select('*').order('name'),
+          supabase.from('positions').select('*').order('name')
         ]);
         
+        if (hRes.error) console.error('H-Err:', hRes.error);
+        if (dRes.error) console.error('D-Err:', dRes.error);
+        if (pRes.error) console.error('P-Err:', pRes.error);
+
         if (hRes.data) setHospitals(hRes.data);
         if (dRes.data) setDepartments(dRes.data);
         if (pRes.data) setPositions(pRes.data);
         
+        if (hRes.data?.length === 0) {
+           console.warn('Hospitals table is empty for public/anon user.');
+        }
+
         if (existingCustomer) {
           setDisplayName(existingCustomer.display_name || '');
           setSelectedHospital(existingCustomer.hospital_id || '');
