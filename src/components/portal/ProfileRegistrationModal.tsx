@@ -124,17 +124,17 @@ export default function ProfileRegistrationModal({ isOpen, profile, existingCust
   };
 
   return (
-    <div className="fixed inset-0 bg-black/85 backdrop-blur-md flex items-center justify-center z-[9999] p-6 animate-fade-in">
-      <div className="glass w-full max-w-md p-8 relative flex flex-col gap-6 shadow-2xl transition-all">
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(16px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '24px' }}>
+      <div className="glass" style={{ width: '100%', maxWidth: '420px', padding: '32px', borderRadius: '32px', display: 'flex', flexDirection: 'column', gap: '32px', boxShadow: '0 20px 50px rgba(0,0,0,0.5)' }}>
         {/* Header */}
-        <div className="text-center">
-           <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-6 border border-primary/20 shadow-inner">
-              {isEditing ? <UserCheck className="w-10 h-10 text-primary" /> : <Building2 className="w-10 h-10 text-primary" />}
+        <div style={{ textAlign: 'center' }}>
+           <div style={{ width: '80px', height: '80px', borderRadius: '50%', background: 'rgba(0, 242, 254, 0.1)', border: '1px solid var(--border-active)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px' }}>
+              {isEditing ? <UserCheck size={32} color="var(--primary)" /> : <Building2 size={32} color="var(--primary)" />}
            </div>
-           <h2 className="text-2xl font-black mb-3 text-main">
+           <h2 style={{ fontSize: '24px', fontWeight: '900', color: 'var(--text-main)', marginBottom: '12px' }}>
               {isEditing ? 'การตั้งค่าโปรไฟล์' : 'บันทึกข้อมูลเริ่มต้น'}
            </h2>
-           <p className="text-muted text-sm px-4 leading-relaxed">
+           <p style={{ fontSize: '14px', color: 'var(--text-muted)', lineHeight: '1.6', padding: '0 10px' }}>
               {isEditing 
                 ? 'อัปเดตข้อมูลเพื่อให้เจ้าหน้าที่ระบุตัวตนของคุณได้ง่ายขึ้น' 
                 : 'ยินดีต้อนรับสู่ระบบ Neo Support คลิกปุ่มด้านล่างเพื่อเริ่มสร้างใบงานแจ้งซ่อม/แจ้งปัญหากับเรา'}
@@ -142,26 +142,39 @@ export default function ProfileRegistrationModal({ isOpen, profile, existingCust
         </div>
 
         {error && (
-           <div className="p-3 rounded-xl bg-danger/10 border border-danger/20 text-danger text-xs text-center">
+           <div style={{ padding: '12px', borderRadius: '12px', background: 'rgba(234, 84, 85, 0.1)', border: '1px solid var(--danger)', color: 'var(--danger)', fontSize: '12px', textAlign: 'center' }}>
               {error}
            </div>
         )}
 
-        <form onSubmit={handleSubmit} className="mt-4">
-           {/* Primary Call to Action */}
-           <div className="flex flex-col gap-4">
+        <form onSubmit={handleSubmit}>
+           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <button 
                  type="submit" 
                  disabled={submitting || loadingOpts}
-                 className="w-full py-4.5 rounded-2xl bg-primary text-black font-black text-lg flex items-center justify-center gap-3 shadow-xl shadow-primary/25 hover:shadow-primary/40 active:scale-[0.97] transition-all"
+                 className="flex-center"
+                 style={{ 
+                    width: '100%',
+                    padding: '18px',
+                    borderRadius: '20px',
+                    background: 'var(--primary)',
+                    color: '#000',
+                    border: 'none',
+                    fontSize: '16px',
+                    fontWeight: '900',
+                    gap: '12px',
+                    cursor: 'pointer',
+                    boxShadow: '0 8px 25px rgba(0, 242, 254, 0.2)',
+                    opacity: (submitting || loadingOpts) ? 0.6 : 1
+                 }}
               >
                  {submitting ? (
-                   <Loader2 className="w-6 h-6 animate-spin" />
+                   <Loader2 size={20} className="animate-spin" />
                  ) : (
                    isEditing ? (
-                     <><Save className="w-5 h-5"/> บันทึกการเปลี่ยนแปลง</>
+                     <><Save size={20}/> บันทึกการเปลี่ยนแปลง</>
                    ) : (
-                     <>เริ่มต้นใช้งานระบบ <ArrowRight className="w-5 h-5"/></>
+                     <>เริ่มต้นใช้งานระบบ <ArrowRight size={20}/></>
                    )
                  )}
               </button>
@@ -171,7 +184,16 @@ export default function ProfileRegistrationModal({ isOpen, profile, existingCust
                    type="button"
                    onClick={onClose}
                    disabled={submitting}
-                   className="w-full py-4 rounded-xl text-muted font-bold text-sm tracking-wide hover:text-main transition-colors"
+                   style={{ 
+                      width: '100%',
+                      padding: '14px',
+                      background: 'none',
+                      border: 'none',
+                      color: 'var(--text-muted)',
+                      fontSize: '14px',
+                      fontWeight: '700',
+                      cursor: 'pointer'
+                   }}
                  >
                     ย้อนกลับ
                  </button>

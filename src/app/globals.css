@@ -11,13 +11,14 @@
   
   /* Background Layers - Glass Dynamics */
   --bg-deep: #0a0e14;
+  --bg-sidebar: rgba(10, 14, 20, 0.98);
   --bg-card: rgba(255, 255, 255, 0.03);
   --bg-input: rgba(0, 0, 0, 0.25);
   --bg-topbar: rgba(10, 14, 20, 0.85);
   
   /* Borders & Dividers */
   --border: rgba(255, 255, 255, 0.08);
-  --border-active: rgba(0, 242, 254, 0.4);
+  --border-active: rgba(0, 242, 254, 0.5);
   
   /* Text System */
   --text-main: #ffffff;
@@ -31,15 +32,18 @@
 }
 
 [data-theme='light'] {
-  --bg-deep: #f8f9fc;
+  --bg-deep: #f0f2f5;
+  --bg-sidebar: #ffffff;
   --bg-card: #ffffff;
   --bg-input: #f1f3f9;
   --bg-topbar: rgba(255, 255, 255, 0.9);
-  --border: rgba(0, 0, 0, 0.06);
+  --border: rgba(0, 0, 0, 0.08);
+  --border-active: rgba(0, 150, 200, 0.3);
   --text-main: #1a202c;
-  --text-muted: #64748b;
-  --text-dim: #94a3b8;
-  --primary: oklch(75% 0.15 190);
+  --text-muted: #475569;
+  --text-dim: #64748b;
+  --primary: oklch(65% 0.15 190);
+  --bg-card-hover: rgba(0, 0, 0, 0.02);
 }
 
 * {
@@ -87,9 +91,9 @@ body {
   height: 100vh;
   position: sticky;
   top: 0;
-  background: rgba(10, 14, 20, 0.95);
+  background: var(--bg-sidebar);
   border-right: 1px solid var(--border);
-  transition: all 0.3s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   z-index: 100;
 }
 

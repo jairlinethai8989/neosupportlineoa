@@ -293,28 +293,30 @@ const Sidebar = ({ onClickLink, isCollapsed = false }: SidebarProps) => {
             display: 'flex',
             alignItems: 'center',
             gap: '12px',
-            padding: '10px',
-            borderRadius: '10px',
+            padding: '12px',
+            borderRadius: '12px',
             color: 'var(--text-main)',
-            border: 'none',
+            background: 'rgba(255,255,255,0.03)',
+            border: '1px solid var(--border)',
             cursor: 'pointer',
-            fontSize: '14px'
+            fontSize: '14px',
+            transition: 'all 0.2s ease'
           }}
         >
           {theme === 'dark' ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <div style={{ width: '18px', height: '18px', borderRadius: '50%', background: '#ffcd3c' }}></div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', width: '100%' }}>
+              <div style={{ width: '20px', height: '20px', borderRadius: '50%', background: '#ffcd3c', boxShadow: '0 0 10px rgba(255, 205, 60, 0.4)' }}></div>
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
-                <span style={{ fontWeight: '600' }}>ธีมสว่าง</span>
-                <span style={{ fontSize: '9px', opacity: 0.6 }}>LIGHT MODE</span>
+                <span style={{ fontWeight: '700', fontSize: '13px' }}>ธีมสว่าง</span>
+                <span style={{ fontSize: '9px', opacity: 0.6, fontWeight: '800' }}>LIGHT MODE</span>
               </div>
             </div>
           ) : (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <div style={{ width: '18px', height: '18px', borderRadius: '50%', background: '#7367f0' }}></div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', width: '100%' }}>
+              <div style={{ width: '20px', height: '20px', borderRadius: '50%', background: '#7367f0', boxShadow: '0 0 10px rgba(115, 103, 240, 0.4)' }}></div>
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
-                <span style={{ fontWeight: '600' }}>ธีมเข้ม</span>
-                <span style={{ fontSize: '9px', opacity: 0.6 }}>DARK MODE</span>
+                <span style={{ fontWeight: '700', fontSize: '13px' }}>ธีมเข้ม</span>
+                <span style={{ fontSize: '9px', opacity: 0.6, fontWeight: '800' }}>DARK MODE</span>
               </div>
             </div>
           )}
@@ -329,27 +331,29 @@ const Sidebar = ({ onClickLink, isCollapsed = false }: SidebarProps) => {
             display: 'flex',
             alignItems: 'center',
             gap: isCollapsed ? '0' : '12px',
-            padding: isCollapsed ? '12px' : '10px',
-            borderRadius: '10px',
+            padding: isCollapsed ? '12px' : '12px',
+            borderRadius: '12px',
             color: 'var(--danger)',
-            border: 'none',
+            background: 'rgba(234, 84, 85, 0.05)',
+            border: '1px solid rgba(234, 84, 85, 0.1)',
             cursor: 'pointer',
             fontSize: '14px',
-            justifyContent: isCollapsed ? 'center' : 'flex-start'
+            justifyContent: isCollapsed ? 'center' : 'flex-start',
+            transition: 'all 0.2s ease'
           }}
         >
           <LogOut size={18} style={{ flexShrink: 0 }} />
           {!isCollapsed && (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
-              <span style={{ fontWeight: '600' }}>ออกจากระบบ</span>
-              <span style={{ fontSize: '9px', opacity: 0.6 }}>LOGOUT</span>
+              <span style={{ fontWeight: '700', fontSize: '13px' }}>ออกจากระบบ</span>
+              <span style={{ fontSize: '9px', opacity: 0.6, fontWeight: '800' }}>LOGOUT</span>
             </div>
           )}
         </button>
         
         {!isCollapsed && (
-          <div style={{ textAlign: 'center', marginTop: '12px', opacity: 0.5 }}>
-             <span style={{ fontSize: '10px', fontWeight: '700', letterSpacing: '1px' }}>VERSION 1.1.2 (EXPANDABLE)</span>
+          <div style={{ textAlign: 'center', marginTop: '12px', opacity: 0.3 }}>
+             <span style={{ fontSize: '10px', fontWeight: '700', letterSpacing: '1px' }}>VERSION 1.2.0 (THEME STABLE)</span>
           </div>
         )}
       </div>
