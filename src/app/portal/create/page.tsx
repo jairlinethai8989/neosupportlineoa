@@ -165,50 +165,123 @@ export default function CreateTicketPage() {
   };
 
   return (
-    <div className="portal-container">
-      <div className="portal-header">
-         <button onClick={() => router.back()} className="back-btn"><ArrowLeft size={20} /></button>
-         <h1 className="portal-title">แจ้งเรื่องใหม่</h1>
-         <div style={{ width: '20px' }} />
+    <div className="portal-container" style={{ 
+      minHeight: '100vh', 
+      background: 'radial-gradient(circle at top right, #1a2332, #0a0e14)',
+      paddingBottom: '40px' 
+    }}>
+      {/* Premium Header */}
+      <div className="portal-header" style={{ 
+        padding: '24px 20px', 
+        display: 'flex', 
+        alignItems: 'center', 
+        justifyContent: 'space-between',
+        background: 'rgba(10, 14, 20, 0.6)',
+        backdropFilter: 'blur(12px)',
+        borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
+        position: 'sticky',
+        top: 0,
+        zIndex: 100
+      }}>
+         <button 
+           onClick={() => router.back()} 
+           className="glass-interactive flex-center" 
+           style={{ width: '40px', height: '40px', borderRadius: '12px', color: 'var(--text-main)', border: '1px solid rgba(255,255,255,0.1)' }}
+         >
+           <ArrowLeft size={18} />
+         </button>
+         
+         <div style={{ textAlign: 'center' }}>
+            <h1 style={{ fontSize: '18px', fontWeight: '900', color: 'var(--text-main)', letterSpacing: '0.02em' }}>แจ้งเรื่องใหม่</h1>
+            <p style={{ fontSize: '11px', color: 'var(--primary)', fontWeight: '700', textTransform: 'uppercase' }}>New Support Ticket</p>
+         </div>
+
+         <div style={{ width: '40px' }} />
       </div>
 
-      <div className="portal-content">
-         <div className="glass portal-card" style={{ padding: '24px' }}>
+      <div className="portal-content" style={{ padding: '24px 20px' }}>
+         <div className="glass" style={{ 
+            padding: '28px 24px', 
+            borderRadius: '28px', 
+            border: '1px solid rgba(255, 255, 255, 0.08)',
+            background: 'rgba(255, 255, 255, 0.03)',
+            boxShadow: '0 20px 40px rgba(0,0,0,0.4)',
+            animation: 'fadeInUp 0.6s ease-out'
+         }}>
             <form onSubmit={handleSubmit}>
                {error && (
-                  <div className="error-alert" style={{ marginBottom: '20px', display: 'flex', gap: '8px', alignItems: 'center', background: 'rgba(234, 84, 85, 0.1)', color: '#ea5455', padding: '12px', borderRadius: '12px', fontSize: '14px' }}>
-                     <AlertCircle size={18} /> {error}
+                  <div style={{ 
+                    marginBottom: '24px', 
+                    padding: '16px', 
+                    borderRadius: '16px', 
+                    background: 'rgba(234, 84, 85, 0.1)', 
+                    color: '#ea5455', 
+                    fontSize: '13px', 
+                    lineHeight: '1.6', 
+                    border: '1px solid rgba(234, 84, 85, 0.2)',
+                    display: 'flex',
+                    gap: '12px'
+                  }}>
+                     <AlertCircle size={18} style={{ flexShrink: 0 }} /> 
+                     <div>
+                        <strong>Ticket Creation Error:</strong><br/>
+                        {error.includes('customer_id') 
+                          ? 'ฐานข้อมูลตาราง Tickets ยังไม่มีฟิลด์ลูกค้า (customer_id) หรือต้องรีเฟรช Schema Cache' 
+                          : error}
+                     </div>
                   </div>
                )}
 
-               <div className="input-group" style={{ marginBottom: '20px' }}>
-                  <label htmlFor="ticket-subject" style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: 'var(--text-muted)', marginBottom: '8px' }}>หัวข้อที่ต้องการแจ้ง</label>
+               <div style={{ marginBottom: '24px' }}>
+                  <label htmlFor="ticket-subject" style={{ display: 'block', fontSize: '12px', fontWeight: '800', color: 'var(--primary)', textTransform: 'uppercase', marginBottom: '10px', letterSpacing: '0.05em' }}>หัวข้อที่ต้องการแจ้ง</label>
                   <input 
                     id="ticket-subject"
                     name="subject"
                     type="text" 
                     value={subject}
                     onChange={e => setSubject(e.target.value)}
-                    placeholder="เช่น เข้าใช้งานไม่ได้, ปัญหาการเงิน…"
+                    placeholder="เช่น เข้าใช้งานไม่ได้, ปัญหาอุปกรณ์…"
                     className="portal-input"
+                    style={{ 
+                      background: 'rgba(255, 255, 255, 0.05)', 
+                      border: '1px solid rgba(255, 255, 255, 0.1)',
+                      borderRadius: '14px',
+                      padding: '16px 18px',
+                      color: 'var(--text-main)',
+                      fontSize: '15px',
+                      width: '100%',
+                      outline: 'none',
+                      transition: 'all 0.3s'
+                    }}
                     autoComplete="off"
                   />
                </div>
 
-               <div className="input-group" style={{ marginBottom: '20px' }}>
-                  <label htmlFor="ticket-description" style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: 'var(--text-muted)', marginBottom: '8px' }}>รายละเอียดเพิ่มเติม</label>
+               <div style={{ marginBottom: '24px' }}>
+                  <label htmlFor="ticket-description" style={{ display: 'block', fontSize: '12px', fontWeight: '800', color: 'var(--primary)', textTransform: 'uppercase', marginBottom: '10px', letterSpacing: '0.05em' }}>รายละเอียดเพิ่มเติม</label>
                   <textarea 
                     id="ticket-description"
                     name="description"
                     value={description}
                     onChange={e => setDescription(e.target.value)}
                     placeholder="เล่ารายละเอียดของปัญหาให้เราฟัง…"
-                    className="portal-input"
-                    style={{ height: '120px', resize: 'none', padding: '12px' }}
+                    style={{ 
+                      height: '140px', 
+                      resize: 'none', 
+                      padding: '16px 18px',
+                      background: 'rgba(255, 255, 255, 0.05)', 
+                      border: '1px solid rgba(255, 255, 255, 0.1)',
+                      borderRadius: '14px',
+                      color: 'var(--text-main)',
+                      fontSize: '15px',
+                      width: '100%',
+                      outline: 'none',
+                      lineHeight: '1.6'
+                    }}
                   />
                </div>
 
-               <div className="attachment-zone" style={{ marginBottom: '32px' }}>
+               <div style={{ marginBottom: '32px' }}>
                   <input 
                     type="file" 
                     id="ticket-file"
@@ -218,32 +291,67 @@ export default function CreateTicketPage() {
                     accept="image/*,.pdf,.doc,.docx"
                   />
                   {!file ? (
-                    <button type="button" onClick={() => fileInputRef.current?.click()} className="glass-interactive flex-center" style={{ width: '100%', gap: '12px', border: '2px dashed var(--border)', borderRadius: '16px', padding: '16px', color: 'var(--text-muted)' }}>
-                       <ImageIcon size={20} aria-hidden="true" />
-                       <span style={{ fontSize: '14px', fontWeight: '600' }}>แนบรูปภาพหรือไฟล์</span>
+                    <button 
+                      type="button" 
+                      onClick={() => fileInputRef.current?.click()} 
+                      className="glass-interactive flex-center" 
+                      style={{ 
+                        width: '100%', 
+                        gap: '12px', 
+                        border: '2px dashed rgba(255,255,255,0.1)', 
+                        borderRadius: '16px', 
+                        padding: '20px', 
+                        color: 'rgba(255,255,255,0.5)',
+                        transition: 'all 0.3s'
+                      }}
+                    >
+                       <ImageIcon size={20} />
+                       <span style={{ fontSize: '14px', fontWeight: '700' }}>เพิ่มรูปภาพหรือไฟล์ประกอบ</span>
                     </button>
                   ) : (
-                    <div className="flex-between glass" style={{ padding: '12px 16px', borderRadius: '16px', border: '1px solid var(--primary)' }}>
-                       <div className="flex-center" style={{ gap: '12px' }}>
-                          <Paperclip size={18} color="var(--primary)" aria-hidden="true" />
-                          <span style={{ fontSize: '14px', fontWeight: '600' }}>{file.name}</span>
+                    <div className="flex-between glass" style={{ 
+                      padding: '14px 18px', 
+                      borderRadius: '16px', 
+                      border: '1px solid var(--primary)',
+                      background: 'rgba(0, 242, 254, 0.05)' 
+                    }}>
+                       <div className="flex-center" style={{ gap: '12px', overflow: 'hidden' }}>
+                          <Paperclip size={18} color="var(--primary)" />
+                          <span style={{ fontSize: '13px', fontWeight: '800', color: 'var(--text-main)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{file.name}</span>
                        </div>
-                       <button type="button" onClick={() => setFile(null)} style={{ color: '#ea5455', border: 'none', background: 'none', fontSize: '13px', fontWeight: '600' }}>ลบออก</button>
+                       <button type="button" onClick={() => setFile(null)} style={{ color: '#ea5455', border: 'none', background: 'none', fontSize: '12px', fontWeight: '900', marginLeft: '12px', flexShrink: 0 }}>ลบออก</button>
                     </div>
                   )}
                </div>
 
-               <button type="submit" disabled={submitting} className="portal-btn-primary" style={{ width: '100%', gap: '12px' }}>
+               <button 
+                 type="submit" 
+                 disabled={submitting} 
+                 className="portal-btn-primary" 
+                 style={{ 
+                   width: '100%', 
+                   padding: '18px',
+                   borderRadius: '18px',
+                   gap: '12px',
+                   boxShadow: '0 10px 30px rgba(0, 242, 254, 0.2)',
+                   background: 'linear-gradient(135deg, var(--primary), #4facfe)',
+                   opacity: submitting ? 0.7 : 1
+                 }}
+               >
                   {submitting ? (
-                    <Loader2 className="animate-spin" size={20} aria-hidden="true" />
+                    <Loader2 className="animate-spin" size={22} />
                   ) : (
                     <>
-                       <SendHorizontal size={20} aria-hidden="true" />
-                       <span style={{ fontSize: '16px', fontWeight: '800' }}>ส่งแจ้งเรื่อง</span>
+                       <SendHorizontal size={20} />
+                       <span style={{ fontSize: '17px', fontWeight: '900', letterSpacing: '0.02em' }}>ส่งใบแจ้งงาน</span>
                     </>
                   )}
                </button>
             </form>
+         </div>
+
+         <div style={{ marginTop: '24px', textAlign: 'center', opacity: 0.6 }}>
+            <p style={{ fontSize: '11px', color: 'var(--text-muted)' }}>&copy; 2026 NEO Support. Powered by Omni AI.</p>
          </div>
       </div>
     </div>
