@@ -14,8 +14,7 @@ import {
   User,
   Zap
 } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
-import { exportToExcel } from '@/lib/utils/exportUtils';
+import { ticketService } from '@/lib/services/ticketService';
 import Link from 'next/link';
 
 const WORKFLOW = [
@@ -74,6 +73,7 @@ export default function TicketsPage() {
   const [viewMode, setViewMode] = useState<'board' | 'table'>('board');
   const [searchTerm, setSearchTerm] = useState('');
   const [debugError, setDebugError] = useState<string | null>(null);
+  const [claimingId, setClaimingId] = useState<string | null>(null);
 
   async function fetchData() {
     setDebugError(null);
@@ -132,12 +132,22 @@ export default function TicketsPage() {
   };
 
   const handleClaim = async (ticketId: string) => {
+    setClaimingId(ticketId);
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      const { ticketService } = await import('@/lib/services/ticketService');
+      if (!user) {
+        alert('Please login to claim tickets');
+        return;
+      }
       await ticketService.claimTicket(ticketId, user.id);
-    } catch (err: any) { console.error('Claim Error:', err); }
+      await fetchData(); // Refresh
+      alert('รับงานเรียบร้อยแล้ว!');
+    } catch (err: any) { 
+      console.error('Claim Error:', err);
+      alert('Failed to claim: ' + err.message);
+    } finally {
+      setClaimingId(null);
+    }
   };
 
   const filteredTickets = tickets.filter(t => {
@@ -166,13 +176,13 @@ export default function TicketsPage() {
       <div className="workspace-header" style={{ 
         display: 'flex', 
         justifyContent: 'space-between', 
-        alignItems: 'flex-start', 
+        alignItems: 'center', 
         marginBottom: '40px', 
         paddingRight: '20px',
-        flexWrap: 'wrap',
-        gap: '20px'
+        width: '100%',
+        zIndex: 10
       }}>
-        <div style={{ flex: '1', minWidth: '300px' }}>
+        <div style={{ flex: 1 }}>
           <h1 style={{ fontSize: '36px', fontWeight: '900', marginBottom: '10px', letterSpacing: '-1.5px', color: 'var(--text-main)' }}>
             Ticket Workspace <span style={{ color: 'var(--primary)', opacity: 0.8 }}>({tickets.length})</span>
           </h1>
@@ -180,20 +190,19 @@ export default function TicketsPage() {
           {debugError && <div style={{ color: '#ea5455', fontSize: '12px', marginTop: '8px' }}>⚠️ {debugError}</div>}
         </div>
         
-        <div style={{ display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap' }}>
-           <div className="glass" style={{ display: 'flex', padding: '4px', background: 'var(--bg-input, rgba(0,0,0,0.2))', borderRadius: '14px', border: '1px solid var(--border)' }}>
+        <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+           <div className="glass" style={{ display: 'flex', padding: '4px', background: 'rgba(255,255,255,0.02)', borderRadius: '14px', border: '1px solid var(--border)', boxShadow: '0 8px 32px rgba(0,0,0,0.2)' }}>
               <button 
                 onClick={() => setViewMode('table')} 
-                className="view-mode-btn"
                 style={{ 
-                  padding: '10px 20px', 
+                  padding: '10px 24px', 
                   borderRadius: '10px', 
                   border: 'none', 
                   cursor: 'pointer', 
                   background: viewMode === 'table' ? 'var(--primary)' : 'transparent', 
-                  color: viewMode === 'table' ? 'black' : 'var(--text-muted)', 
+                  color: viewMode === 'table' ? '#0a0e14' : 'var(--text-muted)', 
                   fontSize: '12px', 
-                  fontWeight: '900', 
+                  fontWeight: '850', 
                   display: 'flex', 
                   alignItems: 'center', 
                   gap: '8px',
@@ -204,16 +213,15 @@ export default function TicketsPage() {
               </button>
               <button 
                 onClick={() => setViewMode('board')} 
-                className="view-mode-btn"
                 style={{ 
-                  padding: '10px 20px', 
+                  padding: '10px 24px', 
                   borderRadius: '10px', 
                   border: 'none', 
                   cursor: 'pointer', 
                   background: viewMode === 'board' ? 'var(--primary)' : 'transparent', 
-                  color: viewMode === 'board' ? 'black' : 'var(--text-muted)', 
+                  color: viewMode === 'board' ? '#0a0e14' : 'var(--text-muted)', 
                   fontSize: '12px', 
-                  fontWeight: '900', 
+                  fontWeight: '850', 
                   display: 'flex', 
                   alignItems: 'center', 
                   gap: '8px',
@@ -232,7 +240,7 @@ export default function TicketsPage() {
                 value={searchTerm} 
                 onChange={e => setSearchTerm(e.target.value)} 
                 style={{ 
-                  background: 'var(--bg-input, rgba(0,0,0,0.2))', 
+                  background: 'rgba(255,255,255,0.02)', 
                   border: '1px solid var(--border)', 
                   borderRadius: '14px', 
                   padding: '14px 18px 14px 48px', 
@@ -240,7 +248,7 @@ export default function TicketsPage() {
                   fontSize: '14px', 
                   width: '240px', 
                   outline: 'none',
-                  boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+                  boxShadow: '0 8px 32px rgba(0,0,0,0.1)'
                 }} 
               />
            </div>
@@ -312,7 +320,31 @@ export default function TicketsPage() {
                                        </div>
                                     </div>
                                     {isNew && (
-                                       <button onClick={() => handleClaim(ticket.id)} style={{ width: '100%', padding: '14px', borderRadius: '14px', background: 'var(--primary)', color: 'black', border: 'none', fontSize: '12px', fontWeight: '900', letterSpacing: '1px', boxShadow: '0 6px 20px rgba(0, 242, 254, 0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}><Zap size={14} /> รับงาน</button>
+                                       <button 
+                                        disabled={claimingId === ticket.id}
+                                        onClick={() => handleClaim(ticket.id)} 
+                                        style={{ 
+                                          width: '100%', 
+                                          padding: '14px', 
+                                          borderRadius: '14px', 
+                                          background: claimingId === ticket.id ? 'var(--border)' : 'var(--primary)', 
+                                          color: claimingId === ticket.id ? 'var(--text-muted)' : 'black', 
+                                          border: 'none', 
+                                          fontSize: '13px', 
+                                          fontWeight: '850', 
+                                          letterSpacing: '0.5px', 
+                                          boxShadow: claimingId === ticket.id ? 'none' : '0 6px 20px rgba(0, 242, 254, 0.2)', 
+                                          display: 'flex', 
+                                          alignItems: 'center', 
+                                          justifyContent: 'center', 
+                                          gap: '8px',
+                                          cursor: claimingId === ticket.id ? 'not-allowed' : 'pointer',
+                                          transition: 'all 0.2s'
+                                        }}
+                                      >
+                                        {claimingId === ticket.id ? <Loader2 size={14} className="animate-spin" /> : <Zap size={14} />} 
+                                        {claimingId === ticket.id ? 'กำลังเข้ารับงาน...' : 'รับงาน (Claim)'}
+                                      </button>
                                     )}
                                 </div>
                             );
