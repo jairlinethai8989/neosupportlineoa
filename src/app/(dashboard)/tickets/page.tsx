@@ -189,14 +189,14 @@ export default function TicketsPage() {
       </div>
 
       {viewMode === 'board' ? (
-         <div className="no-scrollbar" style={{ display: 'flex', gap: '28px', overflowX: 'auto', paddingBottom: '40px', flex: 1, alignItems: 'flex-start', width: '100%' }}>
+         <div style={{ display: 'flex', gap: '28px', overflowX: 'auto', paddingBottom: '20px', flex: 1, alignItems: 'flex-start', width: '100%', minHeight: 0, minWidth: 0 }}>
             {WORKFLOW.map(col => {
                const columnTickets = filteredTickets.filter(t => (t.status || '').toLowerCase() === col.id.toLowerCase());
                const statusConfig: Record<string, { color: string, glow: string }> = {
                  'New': { color: 'var(--primary)', glow: 'rgba(0, 242, 254, 0.4)' },
                  'In Progress': { color: 'var(--warning, #ff9f43)', glow: 'rgba(255, 159, 67, 0.4)' },
                  'Resolved': { color: 'var(--success, #28c76f)', glow: 'rgba(40, 199, 111, 0.4)' },
-                 'Escalated': { color: 'var(--secondary, #7367f0)', glow: 'rgba(115, 103, 240, 0.4)' },
+                 'Escalated': { color: '#7367f0', glow: 'rgba(115, 103, 240, 0.4)' },
                  'Pending': { color: 'var(--danger, #ea5455)', glow: 'rgba(234, 84, 85, 0.4)' }
                };
                const config = statusConfig[col.id] || { color: 'var(--text-muted)', glow: 'rgba(0,0,0,0.1)' };
@@ -243,7 +243,7 @@ export default function TicketsPage() {
                                       <h4 style={{ fontSize: '14px', fontWeight: '700', lineHeight: '1.5', color: 'var(--text-main)', marginBottom: '8px' }}>{ticket.subject}</h4>
                                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 14px', background: `${config.color}10`, borderRadius: '12px', width: 'fit-content', border: `1px solid ${config.color}20` }}>
                                         <AlertCircle size={12} color={config.color} />
-                                        <p style={{ fontSize: '11px', fontWeight: '800', color: config.color, letterSpacing: '0.5px' }}>{hospitalName}</p>
+                                        <p style={{ fontSize: '14px', fontWeight: '800', color: config.color, letterSpacing: '0.05em' }}>{hospitalName}</p>
                                       </div>
                                     </div>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '16px', borderTop: '1px solid var(--border)' }}>

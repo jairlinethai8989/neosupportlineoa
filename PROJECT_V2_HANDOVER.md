@@ -1,4 +1,4 @@
-**Date:** 2026-03-30 | **Status:** ✅ Active Development - Outbound Messaging Live
+**Date:** 2026-04-04 | **Status:** ✅ Stable Development - Ticket Workspace Live
 
 ## 📂 Project Summary
 Omnichannel Support Platform for LINE OA, integrated with Supabase (Auth, DB, Realtime) and Next.js 14+ (App Router). Built with a premium **Glassmorphism Design System**.
@@ -25,32 +25,37 @@ Omnichannel Support Platform for LINE OA, integrated with Supabase (Auth, DB, Re
 - [x] **SLA Rules Engine:** Dynamic matrix rules based on Priority (Critical, High, Medium, Low).
 - [x] **Reporting:** Export any data table to **Excel (.xlsx)** or **PDF (.pdf)**.
 - [x] **CSAT Survey:** Automated feedback loop. Customers get a mobile-first survey link upon resolution (via Push API).
-- [x] **LINE Push Integration:** Connected Messaging API to send real outbound messages and notifications.
 
-### 4. Branding & Mobile UI (Phase 4 - Initial)
+### 4. Branding & Mobile UI (Phase 4)
 - [x] **Corporate Branding:** Admins can upload Company Logo & Name.
 - [x] **Agent Identity:** Employee avatars and full names displayed in chat bubbles and top-bar.
-- [x] **Mobile Optimization:** 
-    - Sliding sidebar (Hamburger menu).
-    - Tabbed view for Inbox (List -> Chat -> Info).
-    - Stacking grids for Analytics cards.
+- [x] **Mobile Optimization:** Sliding sidebar, tabbed views, and stacking grids for Analytics.
+
+### 5. Ticket Workspace & LIFF Portal (Phase 5 - Stable)
+- [x] **Ticket Dashboard:** 
+    - **Board View:** High-performance glassmorphism board with horizontal scrolling support.
+    - **Status Bands:** Automated color-coded status bands (New=Cyan, In Progress=Orange, Resolved=Green, etc.).
+    - **Enriched Cards:** Integrated Hospital Name, Priority Indicators, and streamlined actions.
+    - **Thai Localization:** Translated key actions like "รับงาน" (Claim) and Status names.
+- [x] **LIFF Portal Registration:** 
+    - Full customer registration flow with **Hospital**, **Department**, and **Position** fields.
+    - Integrated with Supabase and LINE Profile API.
 
 ---
 
 ## 🏗️ Technical Notes
-- **Services:** All business logic is centralized in `src/lib/services/` (ticketService, analyticsService).
-- **Hooks:** Real-time data fetching in `src/hooks/useRealtimeInbox`.
-- **Modals:** Custom accessible modals in `src/components/modals` (TransferModal).
-- **Exports:** Native Excel/PDF generation in `src/lib/utils/exportUtils`.
+- **Performance:** Increased Node heap memory to **4GB** (`--max-old-space-size=4096`) to support heavy Turbopack builds.
+- **Styling:** Shifted from unstable CSS to **Stable Inline Styles** for critical dashboard grids.
+- **Security:** RLS policies enforced for `customers` and `tickets` tables.
 
 ---
 
-## 📌 Next Steps for Tomorrow (Phase 4.5 & Phase 5)
-1. **Auto-Reply Setup:** Preliminary bot logic for common customer keywords.
-2. **Audit Log Dashboard:** A view for all system activities and administrative changes.
-3. **Notification Center:** In-app toaster & Browser push for critical SLA breaches of agents.
+## 📌 Next Steps for Tomorrow (Phase 6)
+1. **Audit Log Dashboard:** A view for all system activities and administrative changes.
+2. **Notification Center:** In-app toaster & Browser push for critical SLA breaches.
+3. **End-to-End Testing:** Final QA of the LIFF -> Ticket Workflow.
 
 ---
-**Handover Status:** ✅ ALL FILES UPDATED AND SAVED.
+**Handover Status:** ✅ ALL FILES COMMITTED TO GIT & DOCUMENTED.
 **Current Directory:** `d:\Project APP\AntiGravity\neo_line_oa`
-**Agent:** Antigravity AI
+**Agent:** Antigravity AI (Frontend Specialist)

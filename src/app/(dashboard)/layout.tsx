@@ -483,7 +483,7 @@ export default function DashboardLayout({
           </div>
         </header>
 
-        <div style={{ flex: 1, padding: '24px', overflowY: 'auto', position: 'relative' }}>
+        <div style={{ flex: 1, padding: '24px', overflow: 'auto', position: 'relative' }}>
           {children}
         </div>
       </main>
