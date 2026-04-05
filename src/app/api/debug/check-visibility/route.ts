@@ -17,6 +17,11 @@ export async function GET() {
     const { data: tCols } = await supabase.from('tickets').select('*').limit(1);
     const { data: cCols } = await supabase.from('customers').select('*').limit(1);
 
+    // Try finding the real "conversations" table name
+    const { data: convTry } = await supabase.from('conversations').select('*').limit(1);
+    const { data: chatTry } = await supabase.from('chats').select('*').limit(1);
+    const { data: sessTry } = await supabase.from('chat_sessions').select('*').limit(1);
+
     return NextResponse.json({ 
       success: true, 
       counts: {
@@ -24,16 +29,16 @@ export async function GET() {
         departments: depts?.length || 0,
         positions: positions?.length || 0
       },
+      table_check: {
+        has_conversations: !!convTry,
+        has_chats: !!chatTry,
+        has_chat_sessions: !!sessTry
+      },
       columns: {
         hospitals: hCols?.[0] ? Object.keys(hCols[0]) : [],
         departments: dCols?.[0] ? Object.keys(dCols[0]) : [],
         tickets: tCols?.[0] ? Object.keys(tCols[0]) : [],
         customers: cCols?.[0] ? Object.keys(cCols[0]) : []
-      },
-      errors: {
-        h: hErr?.message,
-        d: dErr?.message,
-        p: pErr?.message
       }
     });
   } catch (err: any) {

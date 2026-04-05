@@ -199,7 +199,7 @@ export function useNotifications(agentId: string | null) {
         async (payload) => {
           const row = payload.new as any;
           // Only inbound messages (from customer)
-          if (row.direction !== 'inbound') return;
+          if (row.sender_type !== 'customer') return;
           if (isFirstLoad.current) return;
 
           addToast({
