@@ -14,6 +14,7 @@ import {
   User,
   Zap
 } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
 import { ticketService } from '@/lib/services/ticketService';
 import Link from 'next/link';
 
@@ -115,17 +116,6 @@ export default function TicketsPage() {
     return () => { supabase.removeChannel(channel); };
   }, []);
 
-  const handleDrop = async (e: React.DragEvent, newStatus: string) => {
-     e.preventDefault();
-     const ticketId = e.dataTransfer.getData('ticketId');
-     if (!ticketId) return;
-     const ticket = tickets.find(t => t.id === ticketId);
-     if (!ticket || ticket.status === newStatus) return;
-     setTickets(prev => prev.map(t => t.id === ticketId ? { ...t, status: newStatus } : t));
-     try {
-        await supabase.from('tickets').update({ status: newStatus, updated_at: new Date().toISOString() }).eq('id', ticketId);
-     } catch(err) { console.error(err); }
-  };
 
   const getConvId = (customerId: string) => {
      return conversations.find(c => c.customer_id === customerId)?.id;
@@ -265,8 +255,7 @@ export default function TicketsPage() {
            alignItems: 'flex-start', 
            width: '100%', 
            minHeight: 0, 
-           minWidth: 0,
-           cursor: 'grab' 
+           minWidth: 0
          }}>
             {WORKFLOW.map(col => {
                const columnTickets = filteredTickets.filter(t => (t.status || '').toLowerCase() === col.id.toLowerCase());
@@ -280,7 +269,7 @@ export default function TicketsPage() {
                const config = statusConfig[col.id] || { color: 'var(--text-muted)', glow: 'rgba(0,0,0,0.1)' };
                
                return (
-                 <div key={col.id} onDragOver={(e) => e.preventDefault()} onDrop={(e) => handleDrop(e, col.id)} style={{ minWidth: '340px', maxWidth: '340px', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '20px', background: 'var(--bg-input)', borderRadius: '24px', padding: '12px' }}>
+                 <div key={col.id} style={{ minWidth: '340px', maxWidth: '340px', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '20px', background: 'var(--bg-input)', borderRadius: '24px', padding: '12px' }}>
                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', background: `${config.color}15`, borderRadius: '18px', borderBottom: `3px solid ${config.color}`, boxShadow: `0 4px 12px ${config.color}10` }}>
                         <h3 style={{ fontSize: '15px', fontWeight: '900', display: 'flex', alignItems: 'center', gap: '12px', color: 'var(--text-main)' }}>
                            <span style={{ width: '12px', height: '12px', borderRadius: '50%', background: config.color }}></span>
@@ -295,7 +284,7 @@ export default function TicketsPage() {
                             const isNew = ticket.status === 'New';
                             const hospitalName = ticket.customers?.hospitals?.name || 'ไม่ระบุโรงพยาบาล';
                             return (
-                                <div key={ticket.id} draggable onDragStart={(e) => e.dataTransfer.setData('ticketId', ticket.id)} className="glass-interactive" style={{ padding: '24px', borderRadius: '24px', background: 'var(--bg-card)', border: '1px solid var(--border)', borderLeft: `6px solid ${config.color}`, display: 'flex', flexDirection: 'column', gap: '18px', boxShadow: '0 8px 24px rgba(0,0,0,0.08)' }}>
+                                <div key={ticket.id} className="glass-interactive" style={{ padding: '24px', borderRadius: '24px', background: 'var(--bg-card)', border: '1px solid var(--border)', borderLeft: `6px solid ${config.color}`, display: 'flex', flexDirection: 'column', gap: '18px', boxShadow: '0 8px 24px rgba(0,0,0,0.08)' }}>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                                       <Link href={`/tickets/${ticket.id}`} style={{ fontSize: '15px', fontWeight: '900', color: 'var(--primary)', textDecoration: 'none' }}>#{ticket.ticket_no}</Link>
                                       <PriorityIndicator priority={ticket.priority} />
