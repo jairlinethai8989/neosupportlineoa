@@ -10,7 +10,8 @@ export const ticketService = {
       .from('tickets')
       .update({ 
         assigned_agent_id: agentId, 
-        status: 'Assigned',
+        status: 'In Progress',
+        assigned_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       })
       .eq('id', ticketId)
@@ -19,11 +20,16 @@ export const ticketService = {
 
     if (ticketError) throw ticketError;
 
+    // Link to Conversation for Inbox/Resolve functionality
+    if (ticket?.customer_id) {
+       await supabase.from('conversations').update({ current_ticket_id: ticketId }).eq('customer_id', ticket.customer_id);
+    }
+
     // Log the action
     await supabase.from('ticket_logs').insert([{
       ticket_id: ticketId,
       action_type: 'claim',
-      to_status: 'Assigned',
+      to_status: 'In Progress',
       performer_id: agentId,
       note: 'Agent claimed the ticket'
     }]);

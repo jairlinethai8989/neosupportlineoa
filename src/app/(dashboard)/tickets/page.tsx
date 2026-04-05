@@ -27,28 +27,28 @@ const WORKFLOW = [
 ];
 
 const StatusBadge = ({ status }: { status: string }) => {
-  const colors: Record<string, string> = {
-    'New': '#4facfe',
-    'Pending': '#ea5455',
-    'Assigned': '#7367f0',
-    'In Progress': '#ff9f43',
-    'Resolved': '#28c76f',
-    'Closed': '#94a3b8',
-    'Escalated': '#7367f0'
+  const s = String(status || 'New').toLowerCase();
+  const configs: Record<string, { color: string, label: string }> = {
+    'new': { color: '#4facfe', label: 'งานใหม่' },
+    'pending': { color: '#ea5455', label: 'งานติดปัญหา' },
+    'assigned': { color: '#7367f0', label: 'รับงานแล้ว' },
+    'in progress': { color: '#ff9f43', label: 'กำลังดำเนินการ' },
+    'resolved': { color: '#28c76f', label: 'งานเสร็จแล้ว' },
+    'closed': { color: '#94a3b8', label: 'ปิดงานแล้ว' },
+    'escalated': { color: '#7367f0', label: 'งานส่งต่อ' }
   };
-  const color = colors[status] || 'gray';
-  const label = WORKFLOW.find(w => w.id === status)?.thai || status;
+  const config = configs[s] || { color: 'gray', label: status };
   return (
     <span style={{ 
-      padding: '4px 8px', 
-      borderRadius: '6px', 
+      padding: '4px 10px', 
+      borderRadius: '8px', 
       fontSize: '11px', 
-      fontWeight: '600', 
+      fontWeight: '850', 
       textTransform: 'uppercase',
-      background: `${color}15`, 
-      color: color,
-      border: `1px solid ${color}30`
-    }}>{label}</span>
+      background: `${config.color}15`, 
+      color: config.color,
+      border: `1px solid ${config.color}30`
+    }}>{config.label}</span>
   );
 };
 
@@ -281,7 +281,7 @@ export default function TicketsPage() {
                      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                         {columnTickets.map(ticket => {
                             const convId = getConvId(ticket.customer_id);
-                            const isNew = ticket.status === 'New';
+                            const isNew = String(ticket.status || '').toLowerCase() === 'new';
                             const hospitalName = ticket.customers?.hospitals?.name || 'ไม่ระบุโรงพยาบาล';
                             return (
                                 <div key={ticket.id} className="glass-interactive" style={{ padding: '24px', borderRadius: '24px', background: 'var(--bg-card)', border: '1px solid var(--border)', borderLeft: `6px solid ${config.color}`, display: 'flex', flexDirection: 'column', gap: '18px', boxShadow: '0 8px 24px rgba(0,0,0,0.08)' }}>
