@@ -7,6 +7,7 @@ const PUBLIC_ROUTES = [
   '/portal',
   '/survey',
   '/api/line',
+  '/api/debug',
 ];
 
 function isPublicRoute(pathname: string): boolean {

@@ -3,7 +3,17 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
-import { Building2, Building, Loader2, ArrowRight, Save, UserCheck } from 'lucide-react';
+import { 
+  Building2, 
+  Loader2, 
+  ArrowRight, 
+  Save, 
+  User, 
+  UserCheck, 
+  Briefcase, 
+  ChevronDown,
+  Info
+} from 'lucide-react';
 import { LiffProfile } from '@/hooks/useLiff';
 
 interface ProfileRegistrationModalProps {
@@ -20,6 +30,7 @@ export default function ProfileRegistrationModal({ isOpen, profile, existingCust
   const [positions, setPositions] = useState<any[]>([]);
   const [loadingOpts, setLoadingOpts] = useState(true);
   
+  const [displayName, setDisplayName] = useState('');
   const [selectedHospital, setSelectedHospital] = useState('');
   const [selectedDept, setSelectedDept] = useState('');
   const [selectedPosition, setSelectedPosition] = useState('');
@@ -45,9 +56,12 @@ export default function ProfileRegistrationModal({ isOpen, profile, existingCust
         if (pRes.data) setPositions(pRes.data);
         
         if (existingCustomer) {
+          setDisplayName(existingCustomer.display_name || '');
           setSelectedHospital(existingCustomer.hospital_id || '');
           setSelectedDept(existingCustomer.department_id || '');
           setSelectedPosition(existingCustomer.position_id || '');
+        } else if (profile?.displayName) {
+          setDisplayName(profile.displayName);
         }
       } catch (err: any) {
         console.error('Failed to load master data:', err);
@@ -56,7 +70,7 @@ export default function ProfileRegistrationModal({ isOpen, profile, existingCust
       }
     }
     loadMasterData();
-  }, [isOpen, existingCustomer]);
+  }, [isOpen, existingCustomer, profile]);
 
   if (!isOpen) return null;
 
@@ -68,17 +82,9 @@ export default function ProfileRegistrationModal({ isOpen, profile, existingCust
        setError('ไม่พบข้อมูลโปรไฟล์ LINE กรุณาเข้าสู่ระบบใหม่อีกครั้ง');
        return;
     }
-    // Auto-select first available if empty (Minimal Requirement)
-    let finalHospital = selectedHospital;
-    let finalDept = selectedDept;
-    let finalPos = selectedPosition;
 
-    if (!finalHospital && hospitals.length > 0) finalHospital = hospitals[0].id;
-    if (!finalDept && departments.length > 0) finalDept = departments[0].id;
-    if (!finalPos && positions.length > 0) finalPos = positions[0].id;
-
-    if (!finalHospital || !finalDept || !finalPos) {
-       setError('ระบบกำลังโหลดข้อมูลพื้นฐาน กรุณารอสักครู่แล้วลองใหม่อีกครั้ง');
+    if (!displayName.trim() || !selectedHospital || !selectedDept || !selectedPosition) {
+       setError('กรุณาระบุข้อมูลส่วนตัวให้ครบถ้วนก่อนเริ่มต้นใช้งาน');
        return;
     }
 
@@ -91,9 +97,10 @@ export default function ProfileRegistrationModal({ isOpen, profile, existingCust
          const { error: updErr } = await supabase
            .from('customers')
            .update({ 
-               hospital_id: finalHospital, 
-               department_id: finalDept,
-               position_id: finalPos,
+               display_name: displayName,
+               hospital_id: selectedHospital, 
+               department_id: selectedDept,
+               position_id: selectedPosition,
                updated_at: new Date().toISOString()
            })
            .eq('id', existingCustomer.id);
@@ -105,12 +112,12 @@ export default function ProfileRegistrationModal({ isOpen, profile, existingCust
            .from('customers')
            .insert([{
               line_user_id: profile.userId,
-              display_name: profile.displayName || 'LINE User',
+              display_name: displayName,
               email: `${profile.userId}@line.me`, // placeholder
               phone: '-',
-              hospital_id: finalHospital,
-              department_id: finalDept,
-              position_id: finalPos
+              hospital_id: selectedHospital,
+              department_id: selectedDept,
+              position_id: selectedPosition
            }]);
            
          if (insErr) throw insErr;
@@ -123,59 +130,139 @@ export default function ProfileRegistrationModal({ isOpen, profile, existingCust
     }
   };
 
+  const labelStyle = { fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', marginBottom: '6px', textTransform: 'uppercase' as any, letterSpacing: '0.05em' };
+  const inputStyle = { 
+    width: '100%', 
+    padding: '14px 16px', 
+    background: 'rgba(255,255,255,0.05)', 
+    border: '1px solid var(--border)', 
+    borderRadius: '14px', 
+    color: 'var(--text-main)', 
+    fontSize: '14px',
+    outline: 'none',
+    transition: 'all 0.2s ease',
+    WebkitAppearance: 'none' as any
+  };
+
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(16px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '24px' }}>
-      <div className="glass" style={{ width: '100%', maxWidth: '420px', padding: '32px', borderRadius: '32px', display: 'flex', flexDirection: 'column', gap: '32px', boxShadow: '0 20px 50px rgba(0,0,0,0.5)' }}>
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(20px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '20px' }}>
+      <div className="glass" style={{ width: '100%', maxWidth: '440px', padding: '32px', borderRadius: '32px', display: 'flex', flexDirection: 'column', gap: '24px', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 30px 60px rgba(0,0,0,0.6)' }}>
+        
         {/* Header */}
         <div style={{ textAlign: 'center' }}>
-           <div style={{ width: '80px', height: '80px', borderRadius: '50%', background: 'rgba(0, 242, 254, 0.1)', border: '1px solid var(--border-active)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px' }}>
-              {isEditing ? <UserCheck size={32} color="var(--primary)" /> : <Building2 size={32} color="var(--primary)" />}
+           <div style={{ width: '70px', height: '70px', borderRadius: '24px', background: 'rgba(0, 242, 254, 0.1)', border: '1px solid var(--border-active)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px', transform: 'rotate(10deg)' }}>
+              {isEditing ? <UserCheck size={32} color="var(--primary)" /> : <User size={32} color="var(--primary)" />}
            </div>
-           <h2 style={{ fontSize: '24px', fontWeight: '900', color: 'var(--text-main)', marginBottom: '12px' }}>
-              {isEditing ? 'การตั้งค่าโปรไฟล์' : 'บันทึกข้อมูลเริ่มต้น'}
+           <h2 style={{ fontSize: '22px', fontWeight: '900', color: 'var(--text-main)', marginBottom: '8px' }}>
+              {isEditing ? 'แก้ไขข้อมูลส่วนตัว' : 'ลงทะเบียนผู้ใช้งานใหม่'}
            </h2>
-           <p style={{ fontSize: '14px', color: 'var(--text-muted)', lineHeight: '1.6', padding: '0 10px' }}>
-              {isEditing 
-                ? 'อัปเดตข้อมูลเพื่อให้เจ้าหน้าที่ระบุตัวตนของคุณได้ง่ายขึ้น' 
-                : 'ยินดีต้อนรับสู่ระบบ Neo Support คลิกปุ่มด้านล่างเพื่อเริ่มสร้างใบงานแจ้งซ่อม/แจ้งปัญหากับเรา'}
+           <p style={{ fontSize: '13px', color: 'var(--text-muted)', lineHeight: '1.5' }}>
+              กรุณาระบุข้อมูลของคุณเพื่อเริ่มต้นแจ้งปัญหาการใช้งาน
            </p>
         </div>
 
         {error && (
-           <div style={{ padding: '12px', borderRadius: '12px', background: 'rgba(234, 84, 85, 0.1)', border: '1px solid var(--danger)', color: 'var(--danger)', fontSize: '12px', textAlign: 'center' }}>
-              {error}
+           <div style={{ padding: '12px', borderRadius: '12px', background: 'rgba(234, 84, 85, 0.1)', border: '1px solid var(--danger)', color: 'var(--danger)', fontSize: '12px', textAlign: 'center', display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}>
+              <Info size={14} /> {error}
            </div>
         )}
 
-        <form onSubmit={handleSubmit}>
-           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+           
+           {/* Full Name */}
+           <div>
+              <label style={labelStyle}>ชื่อ-นามสกุล</label>
+              <input 
+                type="text"
+                placeholder="ระบุชื่อจริง-นามสกุล..."
+                value={displayName}
+                onChange={e => setDisplayName(e.target.value)}
+                style={inputStyle}
+                required
+              />
+           </div>
+
+           {/* Hospital Select */}
+           <div style={{ position: 'relative' }}>
+              <label style={labelStyle}>โรงพยาบาล / หน่วยงาน</label>
+              <select 
+                 value={selectedHospital}
+                 onChange={e => setSelectedHospital(e.target.value)}
+                 disabled={loadingOpts || submitting}
+                 style={inputStyle}
+                 required
+              >
+                  <option value="" disabled style={{ background: '#1a1d23' }}>เลือกโรงพยาบาล...</option>
+                  {hospitals.map(h => (
+                    <option key={h.id} value={h.id} style={{ background: '#1a1d23' }}>{h.name}</option>
+                  ))}
+              </select>
+              <ChevronDown size={16} style={{ position: 'absolute', right: '16px', top: '38px', opacity: 0.5, pointerEvents: 'none' }} />
+           </div>
+
+           {/* Department Select */}
+           <div style={{ position: 'relative' }}>
+              <label style={labelStyle}>แผนก / ฝ่าย</label>
+              <select 
+                 value={selectedDept}
+                 onChange={e => setSelectedDept(e.target.value)}
+                 disabled={loadingOpts || submitting}
+                 style={inputStyle}
+                 required
+              >
+                  <option value="" disabled style={{ background: '#1a1d23' }}>เลือกแผนก...</option>
+                  {departments.map(d => (
+                    <option key={d.id} value={d.id} style={{ background: '#1a1d23' }}>{d.name}</option>
+                  ))}
+              </select>
+              <ChevronDown size={16} style={{ position: 'absolute', right: '16px', top: '38px', opacity: 0.5, pointerEvents: 'none' }} />
+           </div>
+
+           {/* Position Select */}
+           <div style={{ position: 'relative' }}>
+              <label style={labelStyle}>ตำแหน่งงาน</label>
+              <select 
+                 value={selectedPosition}
+                 onChange={e => setSelectedPosition(e.target.value)}
+                 disabled={loadingOpts || submitting}
+                 style={inputStyle}
+                 required
+              >
+                  <option value="" disabled style={{ background: '#1a1d23' }}>เลือกตำแหน่ง...</option>
+                  {positions.map(p => (
+                    <option key={p.id} value={p.id} style={{ background: '#1a1d23' }}>{p.name}</option>
+                  ))}
+              </select>
+              <ChevronDown size={16} style={{ position: 'absolute', right: '16px', top: '38px', opacity: 0.5, pointerEvents: 'none' }} />
+           </div>
+
+           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '12px' }}>
               <button 
                  type="submit" 
                  disabled={submitting || loadingOpts}
-                 className="flex-center"
                  style={{ 
                     width: '100%',
-                    padding: '18px',
-                    borderRadius: '20px',
+                    padding: '16px',
+                    borderRadius: '16px',
                     background: 'var(--primary)',
                     color: '#000',
                     border: 'none',
                     fontSize: '16px',
                     fontWeight: '900',
-                    gap: '12px',
-                    cursor: 'pointer',
-                    boxShadow: '0 8px 25px rgba(0, 242, 254, 0.2)',
-                    opacity: (submitting || loadingOpts) ? 0.6 : 1
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '10px',
+                    cursor: (submitting || loadingOpts) ? 'not-allowed' : 'pointer',
+                    boxShadow: '0 10px 30px rgba(0, 242, 254, 0.3)',
+                    opacity: (submitting || loadingOpts) ? 0.6 : 1,
+                    transition: 'all 0.2s ease'
                  }}
               >
                  {submitting ? (
                    <Loader2 size={20} className="animate-spin" />
                  ) : (
-                   isEditing ? (
-                     <><Save size={20}/> บันทึกการเปลี่ยนแปลง</>
-                   ) : (
-                     <>เริ่มต้นใช้งานระบบ <ArrowRight size={20}/></>
-                   )
+                   isEditing ? <>ตกลง</> : <>เริ่มต้นใช้งานระบบ <ArrowRight size={20}/></>
                  )}
               </button>
               
@@ -184,18 +271,9 @@ export default function ProfileRegistrationModal({ isOpen, profile, existingCust
                    type="button"
                    onClick={onClose}
                    disabled={submitting}
-                   style={{ 
-                      width: '100%',
-                      padding: '14px',
-                      background: 'none',
-                      border: 'none',
-                      color: 'var(--text-muted)',
-                      fontSize: '14px',
-                      fontWeight: '700',
-                      cursor: 'pointer'
-                   }}
+                   style={{ background: 'none', border: 'none', color: 'var(--text-dim)', fontSize: '12px', fontWeight: '700', cursor: 'pointer', padding: '10px' }}
                  >
-                    ย้อนกลับ
+                    ยกเลิก
                  </button>
               )}
            </div>
