@@ -28,10 +28,14 @@ export const ticketService = {
       note: 'Agent claimed the ticket'
     }]);
 
-    // Send Group Notification
-    const { sendLineGroupNotification } = await import('@/lib/utils/lineNotifications');
-    const { data: agent } = await supabase.from('profiles').select('full_name').eq('id', agentId).single();
-    await sendLineGroupNotification(`👷‍♂️ [รับงานแล้ว] แอดมิน ${agent?.full_name || 'Anonymous'} ได้รับตั๋วงาน #${ticket.ticket_no} เรียบร้อยแล้วครับ`);
+    // Send Group Notification (Non-blocking)
+    try {
+      const { sendLineGroupNotification } = await import('@/lib/utils/lineNotifications');
+      const { data: agent } = await supabase.from('profiles').select('full_name').eq('id', agentId).single();
+      await sendLineGroupNotification(`👷‍♂️ [รับงานแล้ว] แอดมิน ${agent?.full_name || 'Anonymous'} ได้รับตั๋วงาน #${ticket.ticket_no} เรียบร้อยแล้วครับ`);
+    } catch (notifyError) {
+      console.warn('Line Notification Failed:', notifyError);
+    }
 
     return ticket;
   },
@@ -102,15 +106,19 @@ export const ticketService = {
        note: reason || 'Ticket transferred'
      }]);
 
-     // Send Group Notification
-     const { sendLineGroupNotification } = await import('@/lib/utils/lineNotifications');
-     const { data: agent } = await supabase.from('profiles').select('full_name').eq('id', fromAgentId).single();
-     let transferTarget = 'Team/Agent';
-     if (toAgentId) {
-        const { data: ta } = await supabase.from('profiles').select('full_name').eq('id', toAgentId).single();
-        transferTarget = ta?.full_name || transferTarget;
+     // Send Group Notification (Non-blocking)
+     try {
+       const { sendLineGroupNotification } = await import('@/lib/utils/lineNotifications');
+       const { data: agent } = await supabase.from('profiles').select('full_name').eq('id', fromAgentId).single();
+       let transferTarget = 'Team/Agent';
+       if (toAgentId) {
+          const { data: ta } = await supabase.from('profiles').select('full_name').eq('id', toAgentId).single();
+          transferTarget = ta?.full_name || transferTarget;
+       }
+       await sendLineGroupNotification(`🔄 [โอนงาน] แอดมิน ${agent?.full_name || 'Anonymous'} ได้โอนตั๋วงาน #${ticket.ticket_no} ให้กับ ${transferTarget} เรียบร้อยแล้ว\nหมายเหตุ: ${reason || '-'}`);
+     } catch (notifyErr) {
+       console.warn('Transfer Notification Failed:', notifyErr);
      }
-     await sendLineGroupNotification(`🔄 [โอนงาน] แอดมิน ${agent?.full_name || 'Anonymous'} ได้โอนตั๋วงาน #${ticket.ticket_no} ให้กับ ${transferTarget} เรียบร้อยแล้ว\nหมายเหตุ: ${reason || '-'}`);
 
      return ticket;
   },
