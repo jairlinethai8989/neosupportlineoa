@@ -492,9 +492,10 @@ function InboxContent() {
                  </button>
               </div>
             </form>
-           </>
-        ) : (
-           <div className="flex-center" style={{ height: '100%', flexDirection: 'column', gap: '20px' }}>
+          </div>
+        </>
+      ) : (
+        <div className="flex-center" style={{ height: '100%', flexDirection: 'column', gap: '20px' }}>
               <div className="glass" style={{ width: '120px', height: '120px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px dashed var(--border)' }}>
                  <Mail size={48} color="var(--border)" style={{ opacity: 0.3 }} />
               </div>
