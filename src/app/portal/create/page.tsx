@@ -77,17 +77,28 @@ export default function CreateTicketPage() {
          const ticketNo = `TIC-${Math.floor(10000 + Math.random() * 90000)}`;
 
          // 2. Insert Ticket
-         const { data: newTicket, error: ticketError } = await supabase.from('tickets').insert([{
+         const ticketPayload: any = {
             ticket_no: ticketNo,
             customer_id: customerData.id,
+            reporter_id: customerData.id, // Fallback since it appeared in diagnostic
+            hospital_id: customerData.hospital_id, // Match customer hospital
             subject: subject,
             description: description || subject,
             status: 'New',
             priority: 'Medium',
             created_at: new Date().toISOString()
-         }]).select().single();
+         };
 
-         if (ticketError) throw new Error(`Ticket Creation Failed: ${ticketError.message}`);
+         console.log('Sending payload:', ticketPayload);
+         const { data: newTicket, error: ticketError } = await supabase.from('tickets').insert([ticketPayload]).select();
+
+         if (ticketError) {
+            console.error('Insert Error Detail:', ticketError);
+            throw new Error(`Ticket Creation Failed: ${ticketError.message}`);
+         }
+         
+         const createdTicket = newTicket?.[0];
+         if (!createdTicket) throw new Error('Ticket was not created (No returned data)');
 
          // 3. Upsert Conversation for Inbox (Robust way)
          const { data: existingConv } = await supabase
@@ -101,7 +112,7 @@ export default function CreateTicketPage() {
             conversationId = existingConv.id;
             const { error: updateError } = await supabase.from('conversations').update({
                 status: 'active',
-                current_ticket_id: newTicket.id,
+                current_ticket_id: createdTicket.id,
                 last_message_at: new Date().toISOString()
             }).eq('id', conversationId);
             
@@ -110,14 +121,12 @@ export default function CreateTicketPage() {
             const { data: newConv, error: createError } = await supabase.from('conversations').insert([{
                 customer_id: customerData.id,
                 status: 'active',
-                current_ticket_id: newTicket.id,
+                current_ticket_id: createdTicket.id,
                 last_message_at: new Date().toISOString()
             }]).select().single();
             
             if (createError) {
                console.error('Conv Create Error:', createError);
-               // If creation failed, we proceed but UI might be empty. 
-               // We don't block the whole flow because the ticket IS created.
             } else {
                conversationId = newConv.id;
             }
@@ -127,12 +136,12 @@ export default function CreateTicketPage() {
          if (conversationId) {
             if (file) {
                const fileExt = file.name.split('.').pop() || 'jpg';
-               const fileName = `${newTicket.id}_${Date.now()}.${fileExt}`;
+               const fileName = `${createdTicket.id}_${Date.now()}.${fileExt}`;
                const { error: uploadError } = await supabase.storage.from('chat_media').upload(fileName, file);
                if (!uploadError) {
                   const { data: { publicUrl } } = supabase.storage.from('chat_media').getPublicUrl(fileName);
                   await supabase.from('messages').insert([{
-                     ticket_id: newTicket.id,
+                     ticket_id: createdTicket.id,
                      conversation_id: conversationId,
                      sender_type: 'customer',
                      message_type: 'image',
@@ -141,7 +150,7 @@ export default function CreateTicketPage() {
                }
             } else if (description) {
                await supabase.from('messages').insert([{
-                  ticket_id: newTicket.id,
+                  ticket_id: createdTicket.id,
                   conversation_id: conversationId,
                   sender_type: 'customer',
                   message_type: 'text',
