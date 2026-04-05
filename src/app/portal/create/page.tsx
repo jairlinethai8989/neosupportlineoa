@@ -84,7 +84,7 @@ export default function CreateTicketPage() {
             hospital_id: customerData.hospital_id, // Match customer hospital
             subject: subject,
             description: description || subject,
-            status: 'New',
+            status: 'new', // Using lowercase to match common Postgres ENUM patterns
             priority: 'Medium',
             created_at: new Date().toISOString()
          };
