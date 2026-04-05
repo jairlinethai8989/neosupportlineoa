@@ -76,15 +76,13 @@ export default function CreateTicketPage() {
          // 1. Generate Ticket Number
          const ticketNo = `TIC-${Math.floor(10000 + Math.random() * 90000)}`;
 
-         // 2. Insert Ticket
+         // 2. Insert Ticket (Simplified to respect DB triggers)
          const ticketPayload: any = {
-            ticket_no: ticketNo,
             customer_id: customerData.id,
-            reporter_id: customerData.id, // Fallback since it appeared in diagnostic
-            hospital_id: customerData.hospital_id, // Match customer hospital
+            hospital_id: customerData.hospital_id,
             subject: subject,
             description: description || subject,
-            status: 'new', // Using lowercase to match common Postgres ENUM patterns
+            status: 'new', // Using lowercase as fixed previously
             priority: 'Medium',
             created_at: new Date().toISOString()
          };
