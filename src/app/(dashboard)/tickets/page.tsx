@@ -163,8 +163,16 @@ export default function TicketsPage() {
       maxWidth: '100%',
       overflow: 'hidden'
     }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '40px', paddingRight: '20px' }}>
-        <div>
+      <div className="workspace-header" style={{ 
+        display: 'flex', 
+        justifyContent: 'space-between', 
+        alignItems: 'flex-start', 
+        marginBottom: '40px', 
+        paddingRight: '20px',
+        flexWrap: 'wrap',
+        gap: '20px'
+      }}>
+        <div style={{ flex: '1', minWidth: '300px' }}>
           <h1 style={{ fontSize: '36px', fontWeight: '900', marginBottom: '10px', letterSpacing: '-1.5px', color: 'var(--text-main)' }}>
             Ticket Workspace <span style={{ color: 'var(--primary)', opacity: 0.8 }}>({tickets.length})</span>
           </h1>
@@ -172,21 +180,86 @@ export default function TicketsPage() {
           {debugError && <div style={{ color: '#ea5455', fontSize: '12px', marginTop: '8px' }}>⚠️ {debugError}</div>}
         </div>
         
-        <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
-           <div className="glass" style={{ display: 'flex', padding: '4px', background: 'var(--bg-input)', borderRadius: '14px', border: '1px solid var(--border)' }}>
-              <button onClick={() => setViewMode('table')} style={{ padding: '10px 20px', borderRadius: '10px', border: 'none', cursor: 'pointer', background: viewMode === 'table' ? 'var(--primary)' : 'transparent', color: viewMode === 'table' ? 'black' : 'var(--text-muted)', fontSize: '12px', fontWeight: '900', display: 'flex', alignItems: 'center', gap: '8px' }}><List size={16} /> LIST</button>
-              <button onClick={() => setViewMode('board')} style={{ padding: '10px 20px', borderRadius: '10px', border: 'none', cursor: 'pointer', background: viewMode === 'board' ? 'var(--primary)' : 'transparent', color: viewMode === 'board' ? 'black' : 'var(--text-muted)', fontSize: '12px', fontWeight: '900', display: 'flex', alignItems: 'center', gap: '8px' }}><LayoutGrid size={16} /> BOARD</button>
+        <div style={{ display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap' }}>
+           <div className="glass" style={{ display: 'flex', padding: '4px', background: 'var(--bg-input, rgba(0,0,0,0.2))', borderRadius: '14px', border: '1px solid var(--border)' }}>
+              <button 
+                onClick={() => setViewMode('table')} 
+                className="view-mode-btn"
+                style={{ 
+                  padding: '10px 20px', 
+                  borderRadius: '10px', 
+                  border: 'none', 
+                  cursor: 'pointer', 
+                  background: viewMode === 'table' ? 'var(--primary)' : 'transparent', 
+                  color: viewMode === 'table' ? 'black' : 'var(--text-muted)', 
+                  fontSize: '12px', 
+                  fontWeight: '900', 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '8px',
+                  transition: 'all 0.3s'
+                }}
+              >
+                <List size={16} /> LIST
+              </button>
+              <button 
+                onClick={() => setViewMode('board')} 
+                className="view-mode-btn"
+                style={{ 
+                  padding: '10px 20px', 
+                  borderRadius: '10px', 
+                  border: 'none', 
+                  cursor: 'pointer', 
+                  background: viewMode === 'board' ? 'var(--primary)' : 'transparent', 
+                  color: viewMode === 'board' ? 'black' : 'var(--text-muted)', 
+                  fontSize: '12px', 
+                  fontWeight: '900', 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '8px',
+                  transition: 'all 0.3s'
+                }}
+              >
+                <LayoutGrid size={16} /> BOARD
+              </button>
            </div>
            
            <div style={{ position: 'relative' }}>
               <Search style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} size={16} />
-              <input type="text" placeholder="ค้นหาใบงาน..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '14px', padding: '14px 18px 14px 48px', color: 'var(--text-main)', fontSize: '14px', width: '240px', outline: 'none' }} />
+              <input 
+                type="text" 
+                placeholder="ค้นหาใบงาน..." 
+                value={searchTerm} 
+                onChange={e => setSearchTerm(e.target.value)} 
+                style={{ 
+                  background: 'var(--bg-input, rgba(0,0,0,0.2))', 
+                  border: '1px solid var(--border)', 
+                  borderRadius: '14px', 
+                  padding: '14px 18px 14px 48px', 
+                  color: 'var(--text-main)', 
+                  fontSize: '14px', 
+                  width: '240px', 
+                  outline: 'none',
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+                }} 
+              />
            </div>
         </div>
       </div>
 
       {viewMode === 'board' ? (
-         <div style={{ display: 'flex', gap: '28px', overflowX: 'auto', paddingBottom: '20px', flex: 1, alignItems: 'flex-start', width: '100%', minHeight: 0, minWidth: 0 }}>
+         <div className="board-scroll-container" style={{ 
+           display: 'flex', 
+           gap: '28px', 
+           overflowX: 'auto', 
+           paddingBottom: '30px', 
+           flex: 1, 
+           alignItems: 'flex-start', 
+           width: '100%', 
+           minHeight: 0, 
+           minWidth: 0,
+           cursor: 'grab' 
+         }}>
             {WORKFLOW.map(col => {
                const columnTickets = filteredTickets.filter(t => (t.status || '').toLowerCase() === col.id.toLowerCase());
                const statusConfig: Record<string, { color: string, glow: string }> = {
@@ -291,8 +364,29 @@ export default function TicketsPage() {
                  })}
               </tbody>
            </table>
-         </div>
-      )}
+          </div>
+       )}
+       <style dangerouslySetInnerHTML={{ __html: `
+         .board-scroll-container::-webkit-scrollbar {
+           height: 8px;
+         }
+         .board-scroll-container::-webkit-scrollbar-track {
+           background: rgba(255, 255, 255, 0.03);
+           border-radius: 10px;
+         }
+         .board-scroll-container::-webkit-scrollbar-thumb {
+           background: var(--border);
+           border-radius: 10px;
+         }
+         .board-scroll-container::-webkit-scrollbar-thumb:hover {
+           background: var(--primary);
+         }
+         @keyframes fadeIn {
+           from { opacity: 0; transform: translateY(10px); }
+           to { opacity: 1; transform: translateY(0); }
+         }
+         .workspace-header { width: 100%; }
+       `}} />
     </div>
   );
 }
