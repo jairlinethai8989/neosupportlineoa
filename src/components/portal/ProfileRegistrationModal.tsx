@@ -3,7 +3,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
-import { Building2, Building, Loader2, ArrowRight, Save, User, UserCheck, Briefcase } from 'lucide-react';
+import { Building2, Building, Loader2, ArrowRight, Save, UserCheck } from 'lucide-react';
 import { LiffProfile } from '@/hooks/useLiff';
 
 interface ProfileRegistrationModalProps {
@@ -68,8 +68,17 @@ export default function ProfileRegistrationModal({ isOpen, profile, existingCust
        setError('ไม่พบข้อมูลโปรไฟล์ LINE กรุณาเข้าสู่ระบบใหม่อีกครั้ง');
        return;
     }
-    if (!selectedHospital || !selectedDept || !selectedPosition) {
-       setError('กรุณาระบุข้อมูลส่วนตัวให้ครบถ้วน');
+    // Auto-select first available if empty (Minimal Requirement)
+    let finalHospital = selectedHospital;
+    let finalDept = selectedDept;
+    let finalPos = selectedPosition;
+
+    if (!finalHospital && hospitals.length > 0) finalHospital = hospitals[0].id;
+    if (!finalDept && departments.length > 0) finalDept = departments[0].id;
+    if (!finalPos && positions.length > 0) finalPos = positions[0].id;
+
+    if (!finalHospital || !finalDept || !finalPos) {
+       setError('ระบบกำลังโหลดข้อมูลพื้นฐาน กรุณารอสักครู่แล้วลองใหม่อีกครั้ง');
        return;
     }
 
@@ -82,9 +91,9 @@ export default function ProfileRegistrationModal({ isOpen, profile, existingCust
          const { error: updErr } = await supabase
            .from('customers')
            .update({ 
-               hospital_id: selectedHospital, 
-               department_id: selectedDept,
-               position_id: selectedPosition,
+               hospital_id: finalHospital, 
+               department_id: finalDept,
+               position_id: finalPos,
                updated_at: new Date().toISOString()
            })
            .eq('id', existingCustomer.id);
@@ -99,9 +108,9 @@ export default function ProfileRegistrationModal({ isOpen, profile, existingCust
               display_name: profile.displayName || 'LINE User',
               email: `${profile.userId}@line.me`, // placeholder
               phone: '-',
-              hospital_id: selectedHospital,
-              department_id: selectedDept,
-              position_id: selectedPosition
+              hospital_id: finalHospital,
+              department_id: finalDept,
+              position_id: finalPos
            }]);
            
          if (insErr) throw insErr;
@@ -119,125 +128,57 @@ export default function ProfileRegistrationModal({ isOpen, profile, existingCust
       <div className="glass w-full max-w-md p-8 relative flex flex-col gap-6 shadow-2xl transition-all">
         {/* Header */}
         <div className="text-center">
-           <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4 border border-primary/30">
-              {isEditing ? <UserCheck className="w-8 h-8 text-primary" /> : <Building2 className="w-8 h-8 text-primary" />}
+           <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-6 border border-primary/20 shadow-inner">
+              {isEditing ? <UserCheck className="w-10 h-10 text-primary" /> : <Building2 className="w-10 h-10 text-primary" />}
            </div>
-           <h2 className="text-2xl font-extrabold mb-2 text-main">
-              {isEditing ? 'แก้ไขข้อมูลส่วนตัว' : 'ยินดีต้อนรับสู่ระบบช่วยเหลือ'}
+           <h2 className="text-2xl font-black mb-3 text-main">
+              {isEditing ? 'การตั้งค่าโปรไฟล์' : 'บันทึกข้อมูลเริ่มต้น'}
            </h2>
-           <p className="text-muted text-sm leading-relaxed">
+           <p className="text-muted text-sm px-4 leading-relaxed">
               {isEditing 
-                ? 'กรุณาอัปเดตข้อมูลโรงพยาบาล แผนก และตำแหน่งของคุณ' 
-                : 'กรุณาระบุข้อมูลโรงพยาบาล แผนก และตำแหน่ง เพื่อเริ่มต้นใช้งานระบบ'}
+                ? 'อัปเดตข้อมูลเพื่อให้เจ้าหน้าที่ระบุตัวตนของคุณได้ง่ายขึ้น' 
+                : 'ยินดีต้อนรับสู่ระบบ Neo Support คลิกปุ่มด้านล่างเพื่อเริ่มสร้างใบงานแจ้งซ่อม/แจ้งปัญหากับเรา'}
            </p>
         </div>
 
         {error && (
-           <div className="p-3 rounded-lg bg-danger/10 border border-danger/30 text-danger text-xs text-center animate-shake">
+           <div className="p-3 rounded-xl bg-danger/10 border border-danger/20 text-danger text-xs text-center">
               {error}
            </div>
         )}
 
-        <form onSubmit={handleSubmit} className="flex flex-col gap-5">
-           {/* Hospital Select */}
-           <div className="flex flex-col gap-2">
-              <label className="flex items-center gap-2 text-[11px] font-bold text-muted uppercase tracking-wider">
-                 <Building className="w-3.5 h-3.5" /> โรงพยาบาล / หน่วยงาน
-              </label>
-              <div className="relative group">
-                <select 
-                   value={selectedHospital}
-                   onChange={e => setSelectedHospital(e.target.value)}
-                   disabled={loadingOpts || submitting}
-                   className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3.5 text-main appearance-none cursor-pointer focus:border-primary/50 focus:ring-1 focus:ring-primary/20 transition-all outline-none"
-                >
-                   <option value="" disabled className="bg-[#1a1d23]">เลือกโรงพยาบาลของคุณ</option>
-                   {hospitals.map(h => (
-                      <option key={h.id} value={h.id} className="bg-[#1a1d23]">{h.name}</option>
-                   ))}
-                </select>
-                <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none opacity-50">
-                  <ArrowRight className="w-4 h-4 rotate-90" />
-                </div>
-              </div>
-           </div>
-
-           {/* Department Select */}
-           <div className="flex flex-col gap-2">
-              <label className="flex items-center gap-2 text-[11px] font-bold text-muted uppercase tracking-wider">
-                 <User className="w-3.5 h-3.5" /> แผนก / ฝ่าย
-              </label>
-              <div className="relative group">
-                <select 
-                   value={selectedDept}
-                   onChange={e => setSelectedDept(e.target.value)}
-                   disabled={loadingOpts || submitting}
-                   className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3.5 text-main appearance-none cursor-pointer focus:border-primary/50 focus:ring-1 focus:ring-primary/20 transition-all outline-none"
-                >
-                   <option value="" disabled className="bg-[#1a1d23]">เลือกแผนกของคุณ</option>
-                   {departments.map(d => (
-                      <option key={d.id} value={d.id} className="bg-[#1a1d23]">{d.name}</option>
-                   ))}
-                </select>
-                <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none opacity-50">
-                   <ArrowRight className="w-4 h-4 rotate-90" />
-                </div>
-              </div>
-           </div>
-
-           {/* Position Select */}
-           <div className="flex flex-col gap-2">
-              <label className="flex items-center gap-2 text-[11px] font-bold text-muted uppercase tracking-wider">
-                 <Briefcase className="w-3.5 h-3.5" /> ตำแหน่งงาน
-              </label>
-              <div className="relative group">
-                <select 
-                   value={selectedPosition}
-                   onChange={e => setSelectedPosition(e.target.value)}
-                   disabled={loadingOpts || submitting}
-                   className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3.5 text-main appearance-none cursor-pointer focus:border-primary/50 focus:ring-1 focus:ring-primary/20 transition-all outline-none"
-                >
-                   <option value="" disabled className="bg-[#1a1d23]">เลือกตำแหน่งของคุณ</option>
-                   {positions.map(p => (
-                      <option key={p.id} value={p.id} className="bg-[#1a1d23]">{p.name}</option>
-                   ))}
-                </select>
-                <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none opacity-50">
-                   <ArrowRight className="w-4 h-4 rotate-90" />
-                </div>
-              </div>
-           </div>
-
-           <div className="flex gap-4 mt-4">
+        <form onSubmit={handleSubmit} className="mt-4">
+           {/* Primary Call to Action */}
+           <div className="flex flex-col gap-4">
+              <button 
+                 type="submit" 
+                 disabled={submitting || loadingOpts}
+                 className="w-full py-4.5 rounded-2xl bg-primary text-black font-black text-lg flex items-center justify-center gap-3 shadow-xl shadow-primary/25 hover:shadow-primary/40 active:scale-[0.97] transition-all"
+              >
+                 {submitting ? (
+                   <Loader2 className="w-6 h-6 animate-spin" />
+                 ) : (
+                   isEditing ? (
+                     <><Save className="w-5 h-5"/> บันทึกการเปลี่ยนแปลง</>
+                   ) : (
+                     <>เริ่มต้นใช้งานระบบ <ArrowRight className="w-5 h-5"/></>
+                   )
+                 )}
+              </button>
+              
               {isEditing && onClose && (
                  <button 
                    type="button"
                    onClick={onClose}
                    disabled={submitting}
-                   className="flex-1 glass-interactive py-3.5 rounded-xl text-main font-bold text-sm tracking-wide transition-all"
+                   className="w-full py-4 rounded-xl text-muted font-bold text-sm tracking-wide hover:text-main transition-colors"
                  >
-                    ยกเลิก
+                    ย้อนกลับ
                  </button>
               )}
-              <button 
-                 type="submit" 
-                 disabled={submitting || loadingOpts || !selectedHospital || !selectedDept || !selectedPosition}
-                 className="flex-[2] py-4 rounded-xl bg-primary text-black font-black flex items-center justify-center gap-2 shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:hover:scale-100 transition-all"
-              >
-                 {submitting ? (
-                   <Loader2 className="w-5 h-5 animate-spin" />
-                 ) : (
-                   isEditing ? (
-                     <><Save className="w-5 h-5"/> บันทึกข้อมูล</>
-                   ) : (
-                     <>เริ่มต้นใช้งาน <ArrowRight className="w-5 h-5 text-black/70"/></>
-                   )
-                 )}
-              </button>
            </div>
         </form>
       </div>
     </div>
   );
 }
-

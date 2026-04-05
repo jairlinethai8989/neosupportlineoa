@@ -111,47 +111,64 @@ export default function PortalPage() {
          </button>
       </div>
 
-      {/* 2. Active Tickets */}
+      {/* 2. Primary Action: Open New Ticket (Prominent & Minimal) */}
+      <section style={{ marginBottom: '32px' }}>
+         <Link href="/portal/create" style={{ textDecoration: 'none' }}>
+            <div className="glass-interactive" style={{ 
+               padding: '24px', 
+               background: 'var(--primary)', 
+               color: 'black', 
+               borderRadius: '24px',
+               display: 'flex',
+               alignItems: 'center',
+               justifyContent: 'center',
+               gap: '16px',
+               boxShadow: '0 12px 30px rgba(0, 242, 254, 0.2)'
+            }}>
+               <MessageSquare size={24} />
+               <p style={{ fontSize: '17px', fontWeight: '900' }}>แจ้งปัญหาการใช้งานใหม่</p>
+            </div>
+         </Link>
+      </section>
+
+      {/* 3. Active Tickets (Minimal List) */}
       <section style={{ marginBottom: '40px' }}>
          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
-            <h3 style={{ fontSize: '16px', fontWeight: '800' }}>Active Support Tasks</h3>
-            <span style={{ fontSize: '12px', color: 'var(--text-muted)', background: 'rgba(255,255,255,0.05)', padding: '4px 8px', borderRadius: '6px' }}>
-              {activeTickets.length} ongoing
-            </span>
+            <h3 style={{ fontSize: '14px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+               ใบงานที่กำลังดำเนินการ
+            </h3>
+            {activeTickets.length > 0 && (
+              <span style={{ fontSize: '11px', fontWeight: '700', color: 'var(--primary)', opacity: 0.8 }}>
+                {activeTickets.length} รายการ
+              </span>
+            )}
          </div>
 
          {activeTickets.length === 0 ? (
-            <div className="glass" style={{ padding: '40px 20px', textAlign: 'center', color: 'var(--text-muted)', borderStyle: 'dashed' }}>
-               <Inbox size={48} style={{ marginBottom: '16px', opacity: 0.2 }} />
-               <p>No active tickets found.</p>
-               <p style={{ fontSize: '12px' }}>If you need help, message us on LINE OA!</p>
+            <div className="glass" style={{ padding: '32px 20px', textAlign: 'center', color: 'var(--text-muted)', borderStyle: 'dashed', borderRadius: '24px' }}>
+               <Inbox size={32} style={{ marginBottom: '12px', opacity: 0.2 }} />
+               <p style={{ fontSize: '13px' }}>ขณะนี้คุณไม่มีใบงานที่ค้างอยู่</p>
             </div>
          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                {activeTickets.map(ticket => (
                   <Link href={`/portal/tickets/${ticket.id}`} key={ticket.id} style={{ textDecoration: 'none', color: 'inherit' }}>
-                    <div className="glass-interactive" style={{ padding: '20px', border: '1px solid var(--border)' }}>
-                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
-                          <div>
-                             <p style={{ fontWeight: '800', fontSize: '16px', marginBottom: '4px' }}>Ticket #{ticket.ticket_no}</p>
-                             <p className="truncate" style={{ fontSize: '13px', color: 'var(--text-muted)', maxWidth: '200px' }}>{ticket.subject || 'Technical Support Request'}</p>
+                    <div className="glass-interactive" style={{ padding: '18px 20px', border: '1px solid var(--border)', borderRadius: '20px' }}>
+                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                             <p style={{ fontWeight: '800', fontSize: '14px', marginBottom: '2px' }}>#{ticket.ticket_no}</p>
+                             <p className="truncate" style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{ticket.subject || 'แจ้งปัญหาทั่วไป'}</p>
                           </div>
-                          <span className="badge" style={{ 
-                             background: ticket.status === 'Assigned' ? 'rgba(0, 242, 254, 0.1)' : 'rgba(255, 171, 0, 0.1)',
-                             color: ticket.status === 'Assigned' ? 'var(--primary)' : 'var(--warning)',
-                             padding: '6px 10px',
-                             fontSize: '11px',
-                             fontWeight: '800'
-                          }}>{ticket.status}</span>
-                       </div>
-
-                       <div style={{ display: 'flex', alignItems: 'center', gap: '12px', paddingTop: '12px', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
-                          <Clock size={16} color="var(--text-muted)" />
-                          <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                            Updated: {new Date(ticket.updated_at).toLocaleDateString()}
-                          </p>
-                          <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--primary)', fontSize: '12px', fontWeight: '700' }}>
-                            View <ExternalLink size={14} />
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                             <span className="badge" style={{ 
+                                background: ticket.status === 'Assigned' ? 'rgba(0, 242, 254, 0.1)' : 'rgba(255, 171, 0, 0.1)',
+                                color: ticket.status === 'Assigned' ? 'var(--primary)' : 'var(--warning)',
+                                padding: '4px 10px',
+                                fontSize: '10px',
+                                fontWeight: '900',
+                                borderRadius: '20px'
+                             }}>{ticket.status}</span>
+                             <ArrowRight size={14} color="var(--text-muted)" />
                           </div>
                        </div>
                     </div>
@@ -160,18 +177,6 @@ export default function PortalPage() {
             </div>
          )}
       </section>
-
-      {/* 3. Quick Actions */}
-      <h3 style={{ fontSize: '16px', fontWeight: '800', marginBottom: '16px' }}>Quick Support</h3>
-      
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '16px', marginBottom: '16px' }}>
-         <Link href="/portal/create" style={{ textDecoration: 'none' }}>
-            <div className="glass-interactive flex-center" style={{ padding: '20px', flexDirection: 'row', gap: '16px', background: 'var(--primary)', color: 'black', borderRadius: '16px' }}>
-               <MessageSquare size={24} />
-               <p style={{ fontSize: '15px', fontWeight: '900' }}>แจ้งปัญหาใหม่ (Open New Ticket)</p>
-            </div>
-         </Link>
-      </div>
 
 
 
