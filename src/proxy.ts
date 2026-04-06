@@ -1,95 +1,92 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
-import { createServerClient, type CookieOptions } from '@supabase/ssr'
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
+/**
+ * Next.js 16.2.1 Unified Request Proxy/Middleware
+ * Based on the latest Turbopack recommendations.
+ */
 export async function proxy(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+
+  // 1. Skip static assets and internal paths
+  if (
+    pathname.startsWith('/_next') ||
+    pathname.startsWith('/favicon.ico') ||
+    pathname.includes('.')
+  ) {
+    return NextResponse.next();
+  }
+
+  // 2. Define Public Routes
+  const PUBLIC_ROUTES = [
+    '/login',
+    '/portal',
+    '/survey',
+    '/api/line',
+    '/api/debug',
+  ];
+  const isPublicRoute = PUBLIC_ROUTES.some(route => pathname.startsWith(route));
+
+  // 3. Setup Supabase Server Client
   let response = NextResponse.next({
-    request: {
-      headers: request.headers,
-    },
-  })
+    request: { headers: request.headers },
+  });
 
   const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://dummy-project.supabase.co',
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'dummy-anon-key',
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
-        get(name: string) {
-          return request.cookies.get(name)?.value
+        getAll() {
+          return request.cookies.getAll();
         },
-        set(name: string, value: string, options: CookieOptions) {
-          request.cookies.set({
-            name,
-            value,
-            ...options,
-          })
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value, options }) => {
+            request.cookies.set({ name, value, ...options });
+          });
           response = NextResponse.next({
-            request: {
-              headers: request.headers,
-            },
-          })
-          response.cookies.set({
-            name,
-            value,
-            ...options,
-          })
-        },
-        remove(name: string, options: CookieOptions) {
-          request.cookies.set({
-            name,
-            value: '',
-            ...options,
-          })
-          response = NextResponse.next({
-            request: {
-              headers: request.headers,
-            },
-          })
-          response.cookies.set({
-            name,
-            value: '',
-            ...options,
-          })
+            request: { headers: request.headers },
+          });
+          cookiesToSet.forEach(({ name, value, options }) => {
+            response.cookies.set({ name, value, ...options });
+          });
         },
       },
     }
-  )
+  );
 
-  // Mocked state for preview - bypassing getUser()
-  const user = { id: 'mock-user' };
-  // const { data: { user } } = await supabase.auth.getUser()
+  // 4. Authenticate User
+  const { data: { user } } = await supabase.auth.getUser();
 
-  // Protect dashboard routes
-  // If no user and not on login page, redirect to login
-  const publicPaths = ['/login', '/portal', '/survey', '/api/line'];
-  const isPublicPath = publicPaths.some(path => request.nextUrl.pathname.startsWith(path));
-
-  if (!user && !isPublicPath) {
-     // Allow access to public assets
-     if (request.nextUrl.pathname.startsWith('/_next') || 
-         request.nextUrl.pathname === '/favicon.ico') {
-       return response;
-     }
-     return NextResponse.redirect(new URL('/login', request.url))
+  // 5. Public route handling
+  if (isPublicRoute) {
+    // If logged in and at /login, go home
+    if (user && pathname === '/login') {
+       return NextResponse.redirect(new URL('/', request.url));
+    }
+    return response;
   }
 
-  // If user is logged in and tries to access login page, redirect to home
-  if (user && request.nextUrl.pathname.startsWith('/login')) {
-     return NextResponse.redirect(new URL('/', request.url))
+  // 6. Protected route handling
+  if (!user) {
+    const loginUrl = new URL('/login', request.url);
+    loginUrl.searchParams.set('redirectTo', pathname);
+    return NextResponse.redirect(loginUrl);
   }
 
-  return response
+  return response;
 }
 
 export const config = {
   matcher: [
     /*
-     * Match all request paths except for the ones starting with:
+     * Match all routes except:
      * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     * Feel free to modify this pattern to include more paths.
+     * - _next/image (image optimization)
+     * - favicon.ico
+     * - public files (images, etc.)
      */
     '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
-}
+};
