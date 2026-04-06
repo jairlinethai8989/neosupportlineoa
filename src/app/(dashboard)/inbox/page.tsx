@@ -504,7 +504,7 @@ function InboxContent() {
                     value={newMessage}
                     onChange={(e) => setNewMessage(e.target.value)}
                     placeholder="พิมพ์ข้อความตอบกลับ..." 
-                    style={{ flex: 1, background: 'none', border: 'none', outline: 'none', color: 'white', padding: '12px 0', fontSize: '14px' }}
+                    style={{ flex: 1, background: 'none', border: 'none', outline: 'none', color: 'var(--text-main)', padding: '12px 0', fontSize: '14px' }}
                  />
                  <button 
                   type="submit"
