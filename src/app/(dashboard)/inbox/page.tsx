@@ -543,37 +543,85 @@ function InboxContent() {
             <div className="glass" style={{ padding: '20px', background: 'rgba(255,255,255,0.02)', borderRadius: '16px' }}>
                {currentTicket ? (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                     <div>
-                        <p style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: '800', marginBottom: '4px' }}>TICKET ID</p>
-                        <p style={{ fontSize: '15px', fontWeight: '800', color: 'var(--primary)' }}>#{currentTicket.ticket_no}</p>
+                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                        <div>
+                           <p style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: '800', marginBottom: '4px' }}>TICKET ID</p>
+                           <p style={{ fontSize: '15px', fontWeight: '800', color: 'var(--primary)' }}>#{currentTicket.ticket_no}</p>
+                        </div>
+                        <span style={{ 
+                           fontSize: '10px', 
+                           padding: '2px 8px', 
+                           borderRadius: '6px', 
+                           background: currentTicket.status === 'Resolved' ? 'var(--success)' : 'var(--primary)',
+                           color: 'black',
+                           fontWeight: '800'
+                        }}>{currentTicket.status}</span>
                      </div>
                      <div>
                         <p style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: '800', marginBottom: '4px' }}>SUBJECT</p>
                         <p style={{ fontSize: '14px', fontWeight: '600', lineHeight: '1.4' }}>{currentTicket.subject}</p>
                      </div>
-                     <div>
-                        <p style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: '800', marginBottom: '4px' }}>STATUS</p>
-                        <div style={{ display: 'flex' }}>
-                           <span style={{ 
-                             fontSize: '11px', 
-                             padding: '4px 12px', 
-                             borderRadius: '30px', 
-                             background: 'rgba(255,255,255,0.1)',
-                             border: '1px solid var(--border)',
-                             fontWeight: '800'
-                           }}>{currentTicket.status}</span>
-                        </div>
-                     </div>
                   </div>
                ) : (
                   <div style={{ textAlign: 'center', padding: '20px' }}>
-                     <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>No ticket linked to this chat.</p>
+                     <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '12px' }}>ยังไม่มีใบงานที่เชื่อมโยงกับแชทนี้</p>
+                     <button 
+                        onClick={() => window.location.href = '/'}
+                        className="glass-interactive" 
+                        style={{ padding: '8px 16px', borderRadius: '8px', border: '1px solid var(--primary)', color: 'var(--primary)', fontSize: '12px', fontWeight: '700' }}
+                     >
+                        🔗 จัดการใบงาน (Tickets)
+                     </button>
                   </div>
                )}
             </div>
 
+            <button 
+               onClick={async () => {
+                  if (!selectedChat?.customer_id) return;
+                  const { data, error } = await supabase
+                    .from('messages')
+                    .select('*, conversations(status)') // Get all messages for this customer across all conversations
+                    .in('conversation_id', (await supabase.from('conversations').select('id').eq('customer_id', selectedChat.customer_id)).data?.map(c => c.id) || [])
+                    .order('created_at', { ascending: true });
+                  
+                  if (data) {
+                    setMessages(data); // Temporarily override current view with full history
+                    alert('แสดงประวัติการสนทนาทั้งหมดของลูกค้ารายนี้แล้ว (รวมทุกใบงาน)');
+                  }
+               }}
+               style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '8px', 
+                  background: 'none', 
+                  border: 'none', 
+                  color: 'var(--text-muted)', 
+                  fontSize: '12px', 
+                  cursor: 'pointer',
+                  justifyContent: 'center'
+               }}
+            >
+               <History size={14} /> <u>ดูประวัติสนทนาเก่าทั้งหมด (Global Log)</u>
+            </button>
+
             <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-               <button onClick={handleResolve} className="glass-interactive flex-center" style={{ width: '100%', padding: '16px', borderRadius: '12px', background: 'var(--success)', color: 'white', border: 'none', fontWeight: '800', gap: '10px' }}>
+               <button 
+                onClick={handleResolve} 
+                disabled={!currentTicket || currentTicket.status === 'Resolved'}
+                className="glass-interactive flex-center" 
+                style={{ 
+                  width: '100%', 
+                  padding: '16px', 
+                  borderRadius: '12px', 
+                  background: (!currentTicket || currentTicket.status === 'Resolved') ? 'var(--bg-input)' : 'var(--success)', 
+                  color: 'white', 
+                  border: 'none', 
+                  fontWeight: '800', 
+                  gap: '10px',
+                  opacity: (!currentTicket || currentTicket.status === 'Resolved') ? 0.5 : 1
+                }}
+               >
                   <CheckCircle size={20} /> แก้ไขเสร็จสิ้น (RESOLVE)
                </button>
                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>

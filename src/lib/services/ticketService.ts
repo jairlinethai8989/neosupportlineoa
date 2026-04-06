@@ -20,9 +20,12 @@ export const ticketService = {
 
     if (ticketError) throw ticketError;
 
-    // Link to Conversation for Inbox/Resolve functionality
+    // Link to Active Conversation for Inbox/Resolve functionality
     if (ticket?.customer_id) {
-       await supabase.from('conversations').update({ current_ticket_id: ticketId }).eq('customer_id', ticket.customer_id);
+       await supabase.from('conversations')
+        .update({ current_ticket_id: ticketId })
+        .eq('customer_id', ticket.customer_id)
+        .eq('status', 'active');
     }
 
     // Log the action
@@ -166,6 +169,17 @@ export const ticketService = {
         ticket_id: ticketId,
         sent_at: new Date().toISOString()
      }]);
+
+     // Close the active conversation to ensure a new ticket starts a fresh session
+     if (ticket?.customer_id) {
+        await supabase.from('conversations')
+         .update({ 
+           status: 'closed',
+           current_ticket_id: null // Unlink for next active session
+         })
+         .eq('customer_id', ticket.customer_id)
+         .eq('status', 'active');
+     }
 
      return ticket;
   }
