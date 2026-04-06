@@ -35,6 +35,7 @@ export default function StaffTicketDetailPage() {
   const [priority, setPriority] = useState('');
   const [showToast, setShowToast] = useState(false);
   const [toastMsg, setToastMsg] = useState('');
+  const [debugError, setDebugError] = useState<string | null>(null);
   const [selectedDept, setSelectedDept] = useState('');
   const [availableDepts, setAvailableDepts] = useState<string[]>([]);
 
@@ -55,45 +56,69 @@ export default function StaffTicketDetailPage() {
     if (!id) return;
 
     async function fetchData() {
-      const { data: ticketData } = await supabase
-        .from('tickets')
-        .select(`
-          *,
-          customers (*),
-          profiles:assigned_agent_id(*)
-        `)
-        .eq('id', id)
-        .single();
+      if (!id) return;
+      setDebugError(null);
+      setLoading(true);
 
-       if (ticketData) {
-        setTicket(ticketData);
-        setStatus(ticketData.status);
-        setPriority(ticketData.priority);
-        setSelectedDept(ticketData.department || '');
-
-        // Fetch dynamic departments
-        const { data: company } = await supabase.from('company_settings').select('departments').limit(1).single();
-        if (company?.departments) setAvailableDepts(company.departments);
-
-        // Fetch Logs
-        const { data: logData } = await supabase
-          .from('ticket_logs')
+      try {
+        // Fetch base ticket first to ensure existence
+        const { data: tBase, error: e1 } = await supabase
+          .from('tickets')
           .select('*')
-          .eq('ticket_id', id)
-          .order('created_at', { ascending: false });
-        if (logData) setLogs(logData);
+          .eq('id', id)
+          .maybeSingle();
 
-        // Fetch Internal Messages for this ticket
-        const { data: messageData } = await supabase
-          .from('messages')
-          .select('*')
-          .eq('ticket_id', id)
-          .order('created_at', { ascending: true });
-        
-        if (messageData) setMessages(messageData);
+        if (e1) throw e1;
+        if (!tBase) {
+           console.warn('Ticket base not found for id:', id);
+           setLoading(false);
+           return;
+        }
+
+        // Now fetch with relations
+        const { data: ticketData, error: e2 } = await supabase
+          .from('tickets')
+          .select(`
+            *,
+            customers (*),
+            assigned_agent:profiles!assigned_agent_id(*)
+          `)
+          .eq('id', id)
+          .maybeSingle();
+
+        if (e2) {
+           console.error('Fetch relations error:', e2);
+           setTicket(tBase); // Fallback to base
+        } else {
+           setTicket(ticketData);
+        }
+
+        if (ticketData || tBase) {
+          const t = ticketData || tBase;
+          setStatus(t.status);
+          setPriority(t.priority);
+          setSelectedDept(t.department || '');
+
+          // Fetch dynamic departments
+          const { data: company } = await supabase.from('company_settings').select('departments').limit(1).single();
+          if (company?.departments) setAvailableDepts(company.departments);
+
+          // Fetch Logs & Messages
+          const [lRes, mRes] = await Promise.all([
+             supabase.from('ticket_logs').select('*').eq('ticket_id', id).order('created_at', { ascending: false }),
+             supabase.from('messages').select('*').eq('ticket_id', id).order('created_at', { ascending: true })
+          ]);
+          
+          if (lRes.data) setLogs(lRes.data);
+          if (mRes.data) setMessages(mRes.data);
+        }
+      } catch (err: any) {
+        console.error('Final fetch error:', err);
+        setDebugError(err.message);
+      } finally {
+        setLoading(false);
+        setChatLoading(false);
       }
-      setLoading(false);
-      setChatLoading(false);
     }
 
     fetchData();
@@ -185,15 +210,28 @@ export default function StaffTicketDetailPage() {
     try {
       const { error } = await supabase
         .from('tickets')
-        .update({ status: 'Resolved', updated_at: new Date().toISOString() })
+        .update({ 
+           status: 'Resolved', 
+           resolved_at: new Date().toISOString(),
+           resolution_summary: 'Automatically resolved via Detail Page action.',
+           updated_at: new Date().toISOString() 
+        })
         .eq('id', id);
 
       if (error) throw error;
 
+      // Close the active conversation if any
+      if (ticket?.customer_id) {
+         await supabase.from('conversations')
+          .update({ status: 'closed', current_ticket_id: null })
+          .eq('customer_id', ticket.customer_id)
+          .eq('status', 'active');
+      }
+
       // 1. Add Log
       await supabase.from('ticket_logs').insert([{
         ticket_id: id,
-        action_type: 'status_change',
+        action_type: 'resolve',
         from_status: ticket.status,
         to_status: 'Resolved',
         note: 'Agent formally resolved the ticket.'
