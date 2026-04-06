@@ -120,9 +120,9 @@ export default function TicketDetailPage() {
       .subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
+      if (channel) supabase.removeChannel(channel);
     };
-  }, [id]);
+  }, [id, conversationId]);
 
   const handleSendMessage = async () => {
     if (!newMessage.trim()) return;
