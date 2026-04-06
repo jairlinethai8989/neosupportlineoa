@@ -160,6 +160,7 @@ function InboxContent() {
     try {
       const { error: dbError } = await supabase.from('messages').insert([{
         conversation_id: selectedChat.id,
+        ticket_id: selectedChat.current_ticket_id || null,
         sender_type: 'agent',
         sender_id: agent.id,
         content: currentMsg,
@@ -196,6 +197,7 @@ function InboxContent() {
       const dbType = type === 'image' ? 'image' : 'file';
       const { error: dbError } = await supabase.from('messages').insert([{
         conversation_id: selectedChat.id,
+        ticket_id: selectedChat.current_ticket_id || null,
         sender_type: 'agent',
         sender_id: agent.id,
         content: publicUrl,

@@ -68,22 +68,27 @@ export default function TicketDetailPage() {
           setTicket(tBase);
         }
         
-        // Fetch Logs & Messages
-        const [lRes, mRes] = await Promise.all([
-           supabase.from('ticket_logs').select('*').eq('ticket_id', id).order('created_at', { ascending: false }),
-           supabase.from('messages').select('*').eq('ticket_id', id).order('created_at', { ascending: true })
-        ]);
-
-        if (lRes.data) setLogs(lRes.data);
-        if (mRes.data) setMessages(mRes.data);
-
-        // Fetch linked conversation (Using standard query)
+        // 1. Fetch linked conversation FIRST
         const { data: convData } = await supabase
           .from('conversations')
           .select('id')
           .eq('current_ticket_id', id)
           .maybeSingle();
-        if (convData) setConversationId(convData.id);
+
+        const cid = convData?.id || null;
+        if (cid) setConversationId(cid);
+
+        // 2. Fetch Logs & Messages
+        const [lRes, mRes] = await Promise.all([
+           supabase.from('ticket_logs').select('*').eq('ticket_id', id).order('created_at', { ascending: false }),
+           supabase.from('messages')
+             .select('*')
+             .or(`ticket_id.eq.${id}${cid ? `,conversation_id.eq.${cid}` : ''}`)
+             .order('created_at', { ascending: true })
+        ]);
+
+        if (lRes.data) setLogs(lRes.data);
+        if (mRes.data) setMessages(mRes.data);
 
       } catch (err: any) {
         console.error('Error fetching ticket:', err);
