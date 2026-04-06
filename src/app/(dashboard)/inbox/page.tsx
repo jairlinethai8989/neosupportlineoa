@@ -67,6 +67,16 @@ function InboxContent() {
     }
   }, [cid, conversations]);
 
+  // Sync selectedChat with updated real-time data from conversations array
+  useEffect(() => {
+    if (selectedChat && conversations.length > 0) {
+      const updated = conversations.find((c: any) => c.id === selectedChat.id);
+      if (updated && JSON.stringify(updated) !== JSON.stringify(selectedChat)) {
+        setSelectedChat(updated);
+      }
+    }
+  }, [conversations, selectedChat]);
+
   // 1. Fetch current agent profile
   useEffect(() => {
     async function getProfile() {
@@ -237,9 +247,32 @@ function InboxContent() {
       }]);
 
       alert('ปิดงานสำเร็จ! ส่งแบบประเมินไปยัง LIFF เรียบร้อย');
+      setSelectedChat(null); // Clear view on close
     } catch (err: any) {
       console.error('Resolve Error:', err);
       alert('Failed to resolve ticket: ' + (err.message || 'API Error'));
+    }
+  };
+
+  const handleCloseSession = async () => {
+    if (!selectedChat || !confirm('คุณต้องการจบการสนทนานี้โดยไม่เชื่อมโยงใบงานใช่หรือไม่?')) return;
+    
+    try {
+      await supabase.from('conversations')
+        .update({ status: 'closed' })
+        .eq('id', selectedChat.id);
+      
+      await supabase.from('messages').insert([{
+        conversation_id: selectedChat.id,
+        sender_type: 'system',
+        content: '[SYSTEM] จบการสนทนาโดยเจ้าหน้าที่',
+        message_type: 'text'
+      }]);
+      
+      alert('จบการสนทนาเรียบร้อยแล้ว');
+      setSelectedChat(null);
+    } catch (err: any) {
+      alert('Failed to close chat: ' + err.message);
     }
   };
 
@@ -606,24 +639,43 @@ function InboxContent() {
             </button>
 
             <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-               <button 
-                onClick={handleResolve} 
-                disabled={!currentTicket || currentTicket.status === 'Resolved'}
-                className="glass-interactive flex-center" 
-                style={{ 
-                  width: '100%', 
-                  padding: '16px', 
-                  borderRadius: '12px', 
-                  background: (!currentTicket || currentTicket.status === 'Resolved') ? 'var(--bg-input)' : 'var(--success)', 
-                  color: 'white', 
-                  border: 'none', 
-                  fontWeight: '800', 
-                  gap: '10px',
-                  opacity: (!currentTicket || currentTicket.status === 'Resolved') ? 0.5 : 1
-                }}
-               >
-                  <CheckCircle size={20} /> แก้ไขเสร็จสิ้น (RESOLVE)
-               </button>
+               {selectedChat.current_ticket_id ? (
+                 <button 
+                  onClick={handleResolve} 
+                  disabled={!currentTicket || currentTicket.status === 'Resolved'}
+                  className="glass-interactive flex-center" 
+                  style={{ 
+                    width: '100%', 
+                    padding: '16px', 
+                    borderRadius: '12px', 
+                    background: (!currentTicket || currentTicket.status === 'Resolved') ? 'var(--bg-input)' : 'var(--success)', 
+                    color: 'white', 
+                    border: 'none', 
+                    fontWeight: '800', 
+                    gap: '10px',
+                    opacity: (!currentTicket || currentTicket.status === 'Resolved') ? 0.5 : 1
+                  }}
+                 >
+                    <CheckCircle size={20} /> แก้ไขเสร็จสิ้น (RESOLVE)
+                 </button>
+               ) : (
+                 <button 
+                  onClick={handleCloseSession} 
+                  className="glass-interactive flex-center" 
+                  style={{ 
+                    width: '100%', 
+                    padding: '16px', 
+                    borderRadius: '12px', 
+                    background: 'var(--secondary)', 
+                    color: 'white', 
+                    border: 'none', 
+                    fontWeight: '800', 
+                    gap: '10px'
+                  }}
+                 >
+                    <CheckCircle size={20} /> จบการสนทนา (CLOSE CHAT)
+                 </button>
+               )}
                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                   <button onClick={() => setIsTransferModalOpen(true)} className="glass-interactive flex-center" style={{ padding: '12px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', color: 'var(--text-main)', border: '1px solid var(--border)', fontWeight: '700', fontSize: '12px', gap: '8px' }}>
                       <Share2 size={16} /> ส่งต่อ
