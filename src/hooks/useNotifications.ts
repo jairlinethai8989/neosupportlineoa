@@ -23,9 +23,11 @@ export interface ToastNotif {
   title: string;
   body: string;
   ticketNo?: string | number;
+  ticketId?: string;
+  conversationId?: string;
 }
 
-const STORAGE_KEY = 'neo_notif_seen_v2';
+const STORAGE_KEY = 'neo_notif_read_ids_v1';
 const MAX_TOASTS = 3;
 
 export function useNotifications(agentId: string | null) {
@@ -39,19 +41,60 @@ export function useNotifications(agentId: string | null) {
     setUnreadCount(notifs.filter((n) => !n.isRead).length);
   }, []);
 
-  // --- Load saved read timestamp ---
-  const getLastSeen = useCallback((): Date | null => {
-    if (typeof window === 'undefined') return null;
+  // --- Load saved read IDs ---
+  const getReadIds = useCallback((): string[] => {
+    if (typeof window === 'undefined') return [];
     const saved = localStorage.getItem(STORAGE_KEY);
-    return saved ? new Date(saved) : null;
+    try {
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
   }, []);
+
+  // --- Browser Push Notification ---
+  const showBrowserNotification = useCallback((title: string, body: string, data?: any) => {
+    if (typeof window === 'undefined' || !('Notification' in window)) return;
+    
+    if (Notification.permission === 'granted') {
+      new Notification(title, { body, icon: '/logo.png' });
+    } else if (Notification.permission !== 'denied') {
+      Notification.requestPermission().then(permission => {
+        if (permission === 'granted') {
+          new Notification(title, { body, icon: '/logo.png' });
+        }
+      });
+    }
+  }, []);
+
+  // --- Mark individual as read ---
+  const markAsRead = useCallback((id: string) => {
+    setNotifications(prev => {
+      const next = prev.map(n => n.id === id ? { ...n, isRead: true } : n);
+      recalcUnread(next);
+      
+      // Persist
+      if (typeof window !== 'undefined') {
+        const readIds = getReadIds();
+        if (!readIds.includes(id)) {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify([...readIds, id]));
+        }
+      }
+      return next;
+    });
+  }, [getReadIds, recalcUnread]);
 
   // --- Mark all read ---
   const markAllRead = useCallback(() => {
-    const now = new Date().toISOString();
-    if (typeof window !== 'undefined') localStorage.setItem(STORAGE_KEY, now);
-    setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
-    setUnreadCount(0);
+    setNotifications((prev) => {
+      const next = prev.map((n) => ({ ...n, isRead: true }));
+      const allIds = next.map(n => n.id);
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(allIds));
+      }
+      setUnreadCount(0);
+      return next;
+    });
   }, []);
 
   // --- Dismiss a toast ---
@@ -65,12 +108,13 @@ export function useNotifications(agentId: string | null) {
       const next = [toast, ...prev].slice(0, MAX_TOASTS);
       return next;
     });
-  }, []);
+    showBrowserNotification(toast.title, toast.body);
+  }, [showBrowserNotification]);
 
   // --- Fetch ticket_logs for this agent ---
   const fetchLogs = useCallback(async () => {
     if (!agentId) return;
-    const lastSeen = getLastSeen();
+    const readIds = getReadIds();
 
     const { data } = await supabase
       .from('ticket_logs')
@@ -82,7 +126,9 @@ export function useNotifications(agentId: string | null) {
     if (!data) return;
 
     const notifs: AppNotification[] = data.map((row) => {
-      const isRead = lastSeen ? new Date(row.created_at) <= lastSeen : false;
+      const id = row.id?.toString() ?? `${row.ticket_id}-${row.created_at}`;
+      const isRead = readIds.includes(id);
+      
       let title = 'อัปเดตใบงาน';
       let type: NotifType = 'ticket';
 
@@ -98,7 +144,7 @@ export function useNotifications(agentId: string | null) {
       }
 
       return {
-        id: row.id ?? `${row.ticket_id}-${row.created_at}`,
+        id,
         type,
         title,
         body: row.tickets?.subject ?? row.note ?? '-',
@@ -111,11 +157,12 @@ export function useNotifications(agentId: string | null) {
 
     setNotifications(notifs);
     recalcUnread(notifs);
-  }, [agentId, getLastSeen, recalcUnread]);
+  }, [agentId, getReadIds, recalcUnread]);
 
   // --- Fetch SLA breached tickets assigned to this agent ---
   const fetchSlaBreaches = useCallback(async () => {
     if (!agentId) return;
+    const readIds = getReadIds();
     const now = new Date().toISOString();
 
     const { data } = await supabase
@@ -138,7 +185,7 @@ export function useNotifications(agentId: string | null) {
       ticketNo: t.ticket_no,
       ticketId: t.id,
       createdAt: t.sla_due_at,
-      isRead: false,
+      isRead: readIds.includes(`sla-${t.id}`),
     }));
 
     if (slaNotifs.length > 0) {
@@ -150,7 +197,7 @@ export function useNotifications(agentId: string | null) {
         return merged;
       });
     }
-  }, [agentId, recalcUnread]);
+  }, [agentId, getReadIds, recalcUnread]);
 
   // --- Initial load + subscriptions ---
   useEffect(() => {
@@ -167,12 +214,10 @@ export function useNotifications(agentId: string | null) {
         { event: 'INSERT', schema: 'public', table: 'ticket_logs' },
         async (payload) => {
           const row = payload.new as any;
-          // Only care if this agent is the target or performer
           if (row.to_user_id !== agentId && row.performer_id !== agentId) return;
 
           await fetchLogs();
 
-          // Don't show toast on first load
           if (isFirstLoad.current) return;
 
           let title = 'ใบงานได้รับการอัปเดต';
@@ -185,6 +230,7 @@ export function useNotifications(agentId: string | null) {
             type: 'ticket',
             title,
             body: `ดูรายละเอียดในกล่องข้อความ`,
+            ticketId: row.ticket_id,
           });
         }
       )
@@ -198,7 +244,6 @@ export function useNotifications(agentId: string | null) {
         { event: 'INSERT', schema: 'public', table: 'messages' },
         async (payload) => {
           const row = payload.new as any;
-          // Only inbound messages (from customer)
           if (row.sender_type !== 'customer') return;
           if (isFirstLoad.current) return;
 
@@ -207,6 +252,7 @@ export function useNotifications(agentId: string | null) {
             type: 'message',
             title: 'ข้อความใหม่จากลูกค้า',
             body: (row.content as string)?.slice(0, 60) ?? 'มีข้อความใหม่',
+            conversationId: row.conversation_id,
           });
         }
       )
@@ -228,5 +274,5 @@ export function useNotifications(agentId: string | null) {
     };
   }, [agentId, fetchLogs, fetchSlaBreaches, addToast]);
 
-  return { notifications, toasts, unreadCount, markAllRead, dismissToast };
+  return { notifications, toasts, unreadCount, markAsRead, markAllRead, dismissToast };
 }

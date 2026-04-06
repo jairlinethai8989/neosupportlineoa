@@ -6,6 +6,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Noto_Sans_Thai } from "next/font/google";
 import Sidebar from "@/components/layout/Sidebar";
+import { useRouter } from 'next/navigation';
 import { 
   Menu, 
   X, 
@@ -16,7 +17,8 @@ import {
   Ticket, 
   ArrowRight, 
   MessageSquare,
-  AlertTriangle 
+  AlertTriangle,
+  CheckCircle2 
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { NotificationProvider, useNotificationContext } from '@/contexts/NotificationContext';
@@ -74,7 +76,8 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
   const [activeTab, setActiveTab] = useState<NotifTab>('all');
   const notifRef = useRef<HTMLDivElement>(null);
 
-  const { notifications, unreadCount, markAllRead } = useNotificationContext();
+  const router = useRouter();
+  const { notifications, unreadCount, markAllRead, markAsRead } = useNotificationContext();
 
   useEffect(() => {
     supabase.auth.getUser().then(async ({ data }) => {
@@ -97,9 +100,18 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
   }, [showNotifications]);
 
   const handleBellClick = () => {
-    const opening = !showNotifications;
-    setShowNotifications(opening);
-    if (opening) markAllRead();
+    setShowNotifications(!showNotifications);
+  };
+
+  const handleNotifClick = (notif: AppNotification) => {
+    setShowNotifications(false);
+    markAsRead(notif.id);
+    
+    if (notif.type === 'sla' || (notif.type === 'ticket' && notif.ticketId)) {
+      router.push(`/tickets/${notif.ticketId}`);
+    } else if (notif.type === 'message') {
+      router.push('/inbox');
+    }
   };
 
   // Filtered notifications by tab
@@ -246,21 +258,23 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
                          const IconComponent = ACTION_ICONS[notif.type] || Ticket;
                          const iconColor = ACTION_COLORS[notif.type] || '#00f2fe';
                          return (
-                           <div
-                             key={notif.id}
-                             style={{
-                               padding: '12px 16px',
-                               borderBottom: '1px solid rgba(255,255,255,0.04)',
-                               display: 'flex',
-                               gap: '12px',
-                               alignItems: 'flex-start',
-                               background: !notif.isRead ? `${iconColor}08` : 'transparent',
-                               cursor: 'pointer',
-                               transition: 'background 0.15s ease',
-                             }}
-                            //  onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.03)')}
-                            //  onMouseLeave={(e) => (e.currentTarget.style.background = !notif.isRead ? `${iconColor}08` : 'transparent')}
-                           >
+                            <div
+                              key={notif.id}
+                              onClick={() => handleNotifClick(notif)}
+                              style={{
+                                padding: '12px 16px',
+                                borderBottom: '1px solid rgba(255,255,255,0.04)',
+                                display: 'flex',
+                                gap: '12px',
+                                alignItems: 'flex-start',
+                                background: !notif.isRead ? `${iconColor}08` : 'transparent',
+                                cursor: 'pointer',
+                                transition: 'all 0.15s ease',
+                                position: 'relative'
+                              }}
+                              onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.04)')}
+                              onMouseLeave={(e) => (e.currentTarget.style.background = !notif.isRead ? `${iconColor}08` : 'transparent')}
+                            >
                              <div style={{ width: '32px', height: '32px', borderRadius: '10px', background: `${iconColor}18`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                                <IconComponent size={14} color={iconColor} />
                              </div>
@@ -269,7 +283,14 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
                                  <p style={{ fontSize: '12px', fontWeight: !notif.isRead ? '800' : '600', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                    {notif.title}
                                  </p>
-                                 {!notif.isRead && <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: iconColor, flexShrink: 0, marginTop: '4px' }} />}
+                                 {!notif.isRead && (
+                                    <button 
+                                      onClick={(e) => { e.stopPropagation(); markAsRead(notif.id); }}
+                                      style={{ width: '18px', height: '18px', borderRadius: '50%', background: 'rgba(255,255,255,0.1)', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: iconColor }}
+                                    >
+                                       <CheckCircle2 size={10} />
+                                    </button>
+                                 )}
                                </div>
                                <p style={{ fontSize: '11px', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: '2px' }}>
                                  {notif.body}

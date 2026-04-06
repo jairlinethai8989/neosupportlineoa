@@ -134,6 +134,7 @@ const Sidebar = ({ onClickLink, isCollapsed = false }: SidebarProps) => {
         { name: 'SLA Settings', thai: 'ตั้งค่า SLA', path: '/settings/sla' },
         { name: 'Identity & Branding', thai: 'ข้อมูลองค์กร', path: '/settings/profile' },
         { name: 'Master Data', thai: 'ตั้งค่าพื้นฐาน (รพ./แผนก)', path: '/settings/master' },
+        { name: 'Audit Logs', thai: 'บันทึกประวัติการทำงาน', path: '/settings/audit' },
       ]
     },
   ];
