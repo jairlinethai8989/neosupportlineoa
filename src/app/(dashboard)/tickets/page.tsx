@@ -9,6 +9,7 @@ import {
   Loader2,
   LayoutGrid,
   List,
+  CheckCircle,
   AlertCircle,
   MessageCircle,
   User,
@@ -333,6 +334,41 @@ export default function TicketsPage() {
                                       >
                                         {claimingId === ticket.id ? <Loader2 size={14} className="animate-spin" /> : <Zap size={14} />} 
                                         {claimingId === ticket.id ? 'กำลังเข้ารับงาน...' : 'รับงาน (Claim)'}
+                                      </button>
+                                    )}
+
+                                    {ticket.status === 'In Progress' && (
+                                       <button 
+                                        onClick={async () => {
+                                          const summary = prompt('กรอกสรุปการแก้ไขงาน (Resolution Summary):');
+                                          if (!summary) return;
+                                          try {
+                                            const { data: { user } } = await supabase.auth.getUser();
+                                            if (!user) return;
+                                            await ticketService.resolve(ticket.id, user.id, summary);
+                                            fetchData();
+                                            alert('ปิดงานสำเร็จ!');
+                                          } catch (err: any) {
+                                            alert('Failed: ' + err.message);
+                                          }
+                                        }}
+                                        style={{ 
+                                          width: '100%', 
+                                          padding: '14px', 
+                                          borderRadius: '14px', 
+                                          background: 'var(--success)', 
+                                          color: 'white', 
+                                          border: 'none', 
+                                          fontSize: '13px', 
+                                          fontWeight: '850', 
+                                          display: 'flex', 
+                                          alignItems: 'center', 
+                                          justifyContent: 'center', 
+                                          gap: '8px',
+                                          cursor: 'pointer'
+                                        }}
+                                      >
+                                        <CheckCircle size={14} /> แก้ไขเสร็จสิ้น (Resolve)
                                       </button>
                                     )}
                                 </div>

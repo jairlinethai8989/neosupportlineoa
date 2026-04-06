@@ -598,12 +598,32 @@ function InboxContent() {
                ) : (
                   <div style={{ textAlign: 'center', padding: '20px' }}>
                      <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '12px' }}>ยังไม่มีใบงานที่เชื่อมโยงกับแชทนี้</p>
+                     
+                     {/* Suggest linking to existing tickets for this customer */}
                      <button 
-                        onClick={() => window.location.href = '/'}
+                        onClick={async () => {
+                           if (!selectedChat?.customer_id) return;
+                           const { data: tickets } = await supabase
+                            .from('tickets')
+                            .select('*')
+                            .eq('customer_id', selectedChat.customer_id)
+                            .eq('status', 'In Progress');
+                           
+                           if (tickets && tickets.length > 0) {
+                              const t = tickets[0]; // Link to the first active one for now
+                              if (confirm(`คุณต้องการเชื่อมโยงแชทนี้เข้ากับใบงาน #${t.ticket_no} ใช่หรือไม่?`)) {
+                                 await supabase.from('conversations').update({ current_ticket_id: t.id }).eq('id', selectedChat.id);
+                                 alert('เชื่อมโยงใบงานเรียบร้อยแล้ว');
+                                 // selectedChat will sync via useEffect
+                              }
+                           } else {
+                              window.location.href = '/tickets';
+                           }
+                        }}
                         className="glass-interactive" 
-                        style={{ padding: '8px 16px', borderRadius: '8px', border: '1px solid var(--primary)', color: 'var(--primary)', fontSize: '12px', fontWeight: '700' }}
+                        style={{ padding: '8px 16px', borderRadius: '8px', border: '1px solid var(--primary)', color: 'var(--primary)', fontSize: '12px', fontWeight: '700', width: '100%' }}
                      >
-                        🔗 จัดการใบงาน (Tickets)
+                        🔗 เชื่อมแชทกับใบงานที่มีอยู่
                      </button>
                   </div>
                )}
