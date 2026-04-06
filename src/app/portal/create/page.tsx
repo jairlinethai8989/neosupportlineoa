@@ -163,7 +163,7 @@ export default function CreateTicketPage() {
             await sendLineGroupNotification(`🆕 ตั๋วใหม่จาก Portal: ${subject}\nลูกค้า: ${customerData.display_name}`);
          } catch { }
 
-         router.push('/portal');
+         router.push(`/portal/tickets/${createdTicket.id}`);
 
       } catch (err: any) {
          setError(err.message);

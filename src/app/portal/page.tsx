@@ -13,7 +13,8 @@ import {
   ExternalLink,
   ShieldAlert,
   Inbox,
-  Settings
+  Settings,
+  ArrowRight
 } from 'lucide-react';
 import Link from 'next/link';
 import ProfileRegistrationModal from '@/components/portal/ProfileRegistrationModal';
@@ -42,7 +43,7 @@ export default function PortalPage() {
       // Fetch all tickets for this customer
       const { data: ticketData } = await supabase
         .from('tickets')
-        .select('*, profiles!assigned_agent_id(*)')
+        .select('*')
         .eq('customer_id', customer.id)
         .order('created_at', { ascending: false });
 
@@ -90,8 +91,9 @@ export default function PortalPage() {
     );
   }
 
-  const activeTickets = tickets.filter(t => t.status !== 'Resolved');
-  const pastTickets = tickets.filter(t => t.status === 'Resolved');
+  const activeStatuses = ['new', 'assigned', 'in progress', 'escalated', 'pending'];
+  const activeTickets = tickets.filter(t => activeStatuses.includes(String(t.status || '').toLowerCase()));
+  const pastTickets = tickets.filter(t => !activeStatuses.includes(String(t.status || '').toLowerCase()));
 
   return (
     <div style={{ animation: 'fadeIn 0.5s ease-out' }}>
