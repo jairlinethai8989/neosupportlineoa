@@ -1,12 +1,10 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-import { createServerClient } from '@supabase/ssr'
-import { NextResponse, type NextRequest } from 'next/server'
+import { createServerClient } from '@supabase/ssr';
+import { NextResponse, type NextRequest } from 'next/server';
 
 /**
- * Next.js 16.2.1 Unified Request Proxy/Middleware
- * Based on the latest Turbopack recommendations.
+ * Standard Next.js 16 Middleware for Supabase Auth
  */
-export async function proxy(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // 1. Skip static assets and internal paths
@@ -24,11 +22,11 @@ export async function proxy(request: NextRequest) {
     '/portal',
     '/survey',
     '/api/line',
-    '/api/debug',
+    '/api/debug-auth',
   ];
   const isPublicRoute = PUBLIC_ROUTES.some(route => pathname.startsWith(route));
 
-  // 3. Setup Supabase Server Client
+  // 3. Setup Response & Supabase
   let response = NextResponse.next({
     request: { headers: request.headers },
   });
@@ -57,19 +55,17 @@ export async function proxy(request: NextRequest) {
   );
 
   // 4. Authenticate User
-  const { data: { user } } = await supabase.auth.getUser();
+  const { data: { user }, error } = await supabase.auth.getUser();
 
-  // 5. Public route handling
+  // 5. Logic
   if (isPublicRoute) {
-    // If logged in and at /login, go home
     if (user && pathname === '/login') {
        return NextResponse.redirect(new URL('/', request.url));
     }
     return response;
   }
 
-  // 6. Protected route handling
-  if (!user) {
+  if (!user || error) {
     const loginUrl = new URL('/login', request.url);
     loginUrl.searchParams.set('redirectTo', pathname);
     return NextResponse.redirect(loginUrl);
