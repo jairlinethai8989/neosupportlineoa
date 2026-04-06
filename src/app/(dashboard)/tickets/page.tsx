@@ -247,17 +247,17 @@ export default function TicketsPage() {
       </div>
 
       {viewMode === 'board' ? (
-         <div className="board-scroll-container" style={{ 
-           display: 'flex', 
-           gap: '28px', 
-           overflowX: 'auto', 
-           paddingBottom: '30px', 
-           flex: 1, 
-           alignItems: 'flex-start', 
-           width: '100%', 
-           minHeight: 0, 
-           minWidth: 0
-         }}>
+          <div className="board-scroll-container no-scrollbar-mobile" style={{ 
+            display: 'flex', 
+            gap: '28px', 
+            overflowX: 'auto', 
+            paddingBottom: '20px', 
+            flex: 1, 
+            alignItems: 'flex-start', 
+            width: '100%',
+            minWidth: 0,
+            WebkitOverflowScrolling: 'touch'
+          }}>
             {WORKFLOW.map(col => {
                const columnTickets = filteredTickets.filter(t => (t.status || '').toLowerCase() === col.id.toLowerCase());
                const statusConfig: Record<string, { color: string, glow: string }> = {
