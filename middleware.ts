@@ -23,6 +23,7 @@ export async function middleware(request: NextRequest) {
     '/survey',
     '/api/line',
     '/api/debug-auth',
+    '/api/setup-admin',
   ];
   const isPublicRoute = PUBLIC_ROUTES.some(route => pathname.startsWith(route));
 
