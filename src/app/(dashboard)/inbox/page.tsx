@@ -23,13 +23,15 @@ import {
   MessageSquare,
   Plus,
   Trash2,
-  Pencil
+  Pencil,
+  Monitor
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useRealtimeInbox } from '@/hooks/useRealtimeInbox';
 import { ticketService } from '@/lib/services/ticketService';
 import TransferModal from '@/components/modals/TransferModal';
 import ChatAttachmentModal from '@/components/chat/ChatAttachmentModal';
+import ImageEditorModal from '@/components/chat/ImageEditorModal';
 
 function InboxContent() {
   const { conversations, loading: inboxLoading } = useRealtimeInbox();
@@ -41,6 +43,8 @@ function InboxContent() {
   const [sending, setSending] = useState(false);
   const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
   const [isAttachModalOpen, setIsAttachModalOpen] = useState(false);
+  const [isEditorOpen, setIsEditorOpen] = useState(false);
+  const [editingImage, setEditingImage] = useState<string>('');
   const searchParams = useSearchParams();
   const cid = searchParams.get('cid');
   const [currentTicket, setCurrentTicket] = useState<any>(null);
@@ -252,6 +256,40 @@ function InboxContent() {
     } finally {
       setSending(false);
     }
+  };
+
+  const handleScreenCapture = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getDisplayMedia({
+        video: { cursor: "always" } as any,
+        audio: false
+      });
+      const video = document.createElement('video');
+      video.srcObject = stream;
+      video.play();
+      
+      video.onloadedmetadata = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        const ctx = canvas.getContext('2d');
+        
+        setTimeout(() => {
+          ctx?.drawImage(video, 0, 0);
+          const dataUrl = canvas.toDataURL('image/png');
+          setEditingImage(dataUrl);
+          setIsEditorOpen(true);
+          stream.getTracks().forEach(track => track.stop());
+        }, 500);
+      };
+    } catch (err) {
+      console.error("Capture failed", err);
+    }
+  };
+
+  const handleEditExistingImage = (url: string) => {
+    setEditingImage(url);
+    setIsEditorOpen(true);
   };
 
   const selectChat = (chat: any) => {
@@ -482,7 +520,22 @@ function InboxContent() {
                        color: msg.sender_type === 'system' ? 'var(--primary)' : 'white'
                     }}>
                        {msg.message_type === 'image' || (msg.content.startsWith('http') && msg.content.match(/\.(jpeg|jpg|gif|png)$/)) ? (
-                          <img src={msg.content} style={{ maxWidth: '100%', borderRadius: '10px', display: 'block' }} alt="Chat attachment" />
+                          <div style={{ position: 'relative' }}>
+                             <img 
+                                src={msg.content} 
+                                style={{ maxWidth: '100%', borderRadius: '10px', display: 'block', cursor: 'pointer' }} 
+                                onClick={() => handleEditExistingImage(msg.content)}
+                                alt="Chat attachment" 
+                             />
+                             <div style={{ 
+                               position: 'absolute', top: '10px', right: '10px', 
+                               background: 'rgba(0,242,254,0.8)', color: 'black', 
+                               padding: '4px 8px', borderRadius: '6px', fontSize: '10px', 
+                               fontWeight: '900', pointerEvents: 'none', opacity: 0.8
+                             }}>
+                                คลิกเพื่อแก้ไข (EDIT)
+                             </div>
+                          </div>
                        ) : msg.message_type === 'file' || (msg.content.startsWith('http') && msg.message_type !== 'text' && !msg.content.includes('/portal/')) ? (
                           <a href={msg.content} target="_blank" rel="noreferrer" style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--primary)', textDecoration: 'none', fontWeight: 'bold' }}>
                              <Clock size={16} /> ดูไฟล์แนบ
@@ -743,6 +796,16 @@ function InboxContent() {
         isOpen={isAttachModalOpen}
         onClose={() => setIsAttachModalOpen(false)}
         onConfirm={handleConfirmAttachment}
+      />
+
+      <ImageEditorModal 
+        isOpen={isEditorOpen}
+        imageSrc={editingImage}
+        onClose={() => setIsEditorOpen(false)}
+        onSave={(blob) => {
+          const file = new File([blob], "edited_image.png", { type: "image/png" });
+          handleConfirmAttachment(file, 'image');
+        }}
       />
 
     </div>
