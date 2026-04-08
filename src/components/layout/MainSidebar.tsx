@@ -98,15 +98,30 @@ const Sidebar = ({ onClickLink, isCollapsed = false }: SidebarProps) => {
     
     fetchCounts();
 
+    // 15-second polling fallback (Safe fallback if Realtime fails)
+    const pollInterval = setInterval(fetchCounts, 15000);
+    
     // Subscribe to listen to tickets/conversations changes
-    const channel = supabase.channel('sidebar-counts')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'tickets' }, () => { fetchCounts(); })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'conversations' }, () => { fetchCounts(); })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'customers' }, () => { fetchCounts(); })
-      .subscribe();
+    const channel = supabase.channel('sidebar-counts-v2')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'tickets' }, (payload) => {
+        console.log('Sidebar: Ticket Change Detected', payload);
+        fetchCounts(); 
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'conversations' }, (payload) => {
+        console.log('Sidebar: Conversation Change Detected', payload);
+        fetchCounts(); 
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'customers' }, (payload) => {
+        console.log('Sidebar: Customer Change Detected', payload);
+        fetchCounts(); 
+      })
+      .subscribe((status) => {
+        console.log('Sidebar Realtime Status:', status);
+      });
 
     return () => {
       isMounted = false;
+      clearInterval(pollInterval);
       supabase.removeChannel(channel);
     };
   }, []);
@@ -273,15 +288,16 @@ const Sidebar = ({ onClickLink, isCollapsed = false }: SidebarProps) => {
                   color: 'white',
                   fontSize: '10px',
                   fontWeight: '900',
-                  minWidth: '20px',
-                  height: '20px',
-                  borderRadius: '10px',
+                  minWidth: '22px',
+                  height: '22px',
+                  borderRadius: '11px',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   padding: '0 6px',
-                  boxShadow: '0 0 15px rgba(239, 68, 68, 0.4)',
-                  animation: 'notifPulse 2s infinite ease-in-out'
+                  boxShadow: '0 0 15px rgba(239, 68, 68, 0.6), 0 0 0 2px rgba(239, 68, 68, 0.2)',
+                  animation: 'notifPulse 1.5s infinite ease-in-out',
+                  zIndex: 10
                 }}>
                   {item.count > 99 ? '99+' : item.count}
                 </div>

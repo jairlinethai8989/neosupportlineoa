@@ -146,21 +146,37 @@ function InboxContent() {
 
     fetchMessages();
 
+    // 10-second polling for active chat messages (Safety fallback)
+    const pollInterval = setInterval(fetchMessages, 10000);
+
     // Subscribe to ALL new messages and filter in JS to avoid subscription limits
     const channel = supabase
-      .channel(`chat_realtime`)
+      .channel(`chat_realtime_${selectedChat.id}`)
       .on('postgres_changes', { 
-        event: 'INSERT', 
+        event: '*', // Listen for INSERT, UPDATE, DELETE
         schema: 'public', 
         table: 'messages'
       }, (payload) => {
-        if (payload.new.conversation_id === selectedChat.id) {
-          setMessages(prev => [...prev, payload.new]);
+        console.log('Chat: Message Change Detected', payload);
+        if (payload.new && (payload.new as any).conversation_id === selectedChat.id) {
+          if (payload.eventType === 'INSERT') {
+            setMessages(prev => {
+              // Avoid duplicates
+              if (prev.some(m => m.id === (payload.new as any).id)) return prev;
+              return [...prev, payload.new];
+            });
+          } else {
+            // For updates, just refetch for simplicity and accuracy
+            fetchMessages();
+          }
         }
       })
-      .subscribe();
+      .subscribe((status) => {
+         console.log('Chat Realtime Status:', status);
+      });
 
     return () => {
+      clearInterval(pollInterval);
       supabase.removeChannel(channel);
     };
   }, [selectedChat]);
