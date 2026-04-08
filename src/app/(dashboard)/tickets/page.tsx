@@ -173,14 +173,14 @@ function TicketsContent() {
   );
 
   return (
-    <div style={{ 
-      animation: 'fadeIn 0.5s ease-out', 
-      height: '100%', 
-      display: 'flex', 
-      flexDirection: 'column',
-      maxWidth: '100%',
-      overflow: 'hidden'
-    }}>
+      <div style={{ 
+        animation: 'fadeIn 0.5s ease-out', 
+        height: '100%', 
+        display: 'flex', 
+        flexDirection: 'column',
+        width: '100%',
+        position: 'relative'
+      }}>
       <div className="workspace-header" style={{ 
         display: 'flex', 
         justifyContent: 'space-between', 
@@ -266,7 +266,7 @@ function TicketsContent() {
       </div>
 
       {viewMode === 'board' ? (
-          <div className="board-scroll-container glass no-scrollbar-mobile" style={{ 
+          <div className="board-scroll-container glass" style={{ 
             display: 'flex', 
             gap: '28px', 
             overflowX: 'auto', 
@@ -278,7 +278,8 @@ function TicketsContent() {
             background: 'rgba(255,255,255,0.01)',
             borderRadius: '32px',
             border: '1px solid var(--border)',
-            WebkitOverflowScrolling: 'touch'
+            WebkitOverflowScrolling: 'touch',
+            touchAction: 'pan-x'
           }}>
             {WORKFLOW.map(col => {
                const columnTickets = filteredTickets.filter(t => (t.status || '').toLowerCase() === col.id.toLowerCase());

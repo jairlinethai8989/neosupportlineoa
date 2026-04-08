@@ -266,18 +266,24 @@ const Sidebar = ({ onClickLink, isCollapsed = false }: SidebarProps) => {
                 </div>
               )}
               
-              {!isCollapsed && item.count && item.count > 0 && (
+              {!isCollapsed && item.count !== undefined && item.count > 0 && (
                 <div style={{
                   marginLeft: 'auto',
-                  background: 'var(--accent)',
+                  background: '#ef4444',
                   color: 'white',
                   fontSize: '10px',
-                  fontWeight: '800',
-                  padding: '2px 8px',
-                  borderRadius: '20px',
-                  boxShadow: '0 0 10px rgba(248, 43, 96, 0.4)'
+                  fontWeight: '900',
+                  minWidth: '20px',
+                  height: '20px',
+                  borderRadius: '10px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: '0 6px',
+                  boxShadow: '0 0 15px rgba(239, 68, 68, 0.4)',
+                  animation: 'notifPulse 2s infinite ease-in-out'
                 }}>
-                  {item.count}
+                  {item.count > 99 ? '99+' : item.count}
                 </div>
               )}
             </Link>
@@ -382,6 +388,11 @@ const Sidebar = ({ onClickLink, isCollapsed = false }: SidebarProps) => {
           @keyframes tooltipIn {
             from { opacity: 0; transform: translateX(-10px); }
             to { opacity: 1; transform: translateX(0); }
+          }
+          @keyframes notifPulse {
+            0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.6); }
+            70% { transform: scale(1.05); box-shadow: 0 0 0 8px rgba(239, 68, 68, 0); }
+            100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
           }
         }
       `}} />
