@@ -3,7 +3,7 @@
   Focus: Next-Gen Aesthetics, OKLCH Dynamics, Glassmorphism
 */
 
-@import url('https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@300;400;500;600;700&display=swap');
 
 :root {
   /* Core Brand - High Energy OKLCH */
@@ -99,8 +99,12 @@
   box-sizing: border-box;
   margin: 0;
   padding: 0;
-  font-family: 'Prompt', var(--font-prompt), sans-serif !important;
+  font-family: 'IBM Plex Sans Thai', var(--font-ibm-plex), sans-serif !important;
   letter-spacing: -0.01em;
+}
+
+html, body, div, span, h1, h2, h3, h4, h5, h6, p, a, button, input, select, textarea {
+  font-family: 'IBM Plex Sans Thai', var(--font-ibm-plex), sans-serif !important;
 }
 
 body {

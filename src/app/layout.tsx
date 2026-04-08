@@ -1,11 +1,11 @@
-import type { Metadata } from "next";
-import { Prompt } from "next/font/google";
+import { IBM_Plex_Sans_Thai } from "next/font/google";
 import "./globals.css";
 
-const prompt = Prompt({ 
+const ibmPlex = IBM_Plex_Sans_Thai({ 
   subsets: ["latin", "thai"],
-  weight: ['300', '400', '500', '600', '700', '800'],
-  variable: '--font-prompt',
+  weight: ['300', '400', '500', '600', '700'],
+  display: 'swap',
+  variable: '--font-ibm-plex',
 });
 
 export const metadata: Metadata = {
@@ -20,7 +20,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="th" data-theme="dark">
-      <body className={prompt.className}>
+      <body className={ibmPlex.className}>
         {children}
       </body>
     </html>
