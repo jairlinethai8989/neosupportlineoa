@@ -133,7 +133,10 @@ function TicketsContent() {
         setUserProfile(p);
       }
 
-      const { data: cData } = await supabase.from('conversations').select('id, customer_id');
+      const { data: cData } = await supabase
+        .from('conversations')
+        .select('id, customer_id, current_ticket_id, status')
+        .order('last_message_at', { ascending: false });
 
       setTickets(tData || []);
       setConversations(cData || []);
@@ -155,8 +158,17 @@ function TicketsContent() {
   }, [timeRange, customStart, customEnd]);
 
 
-  const getConvId = (customerId: string) => {
-     return conversations.find(c => c.customer_id === customerId)?.id;
+  const getConvId = (ticket: any) => {
+     // 1. Try to find conversation specifically linked to this ticket
+     const linked = conversations.find(c => c.current_ticket_id === ticket.id);
+     if (linked) return linked.id;
+     
+     // 2. Fallback to most recent active conversation for this customer
+     const active = conversations.find(c => c.customer_id === ticket.customer_id && c.status === 'active');
+     if (active) return active.id;
+     
+     // 3. Absolute fallback to most recent one (last_message_at desc is already in cData fetch)
+     return conversations.find(c => c.customer_id === ticket.customer_id)?.id;
   };
 
   const handleClaim = async (ticketId: string) => {
@@ -391,7 +403,7 @@ function TicketsContent() {
                      
                      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                         {columnTickets.map(ticket => {
-                            const convId = getConvId(ticket.customer_id);
+                            const convId = getConvId(ticket);
                             const isNew = String(ticket.status || '').toLowerCase() === 'new';
                             const hospitalName = ticket.customers?.hospitals?.name || 'ไม่ระบุโรงพยาบาล';
                             return (
@@ -514,7 +526,7 @@ function TicketsContent() {
               </thead>
               <tbody>
                  {filteredTickets.map((ticket, idx) => {
-                    const convId = getConvId(ticket.customer_id);
+                    const convId = getConvId(ticket);
                     const hospitalName = ticket.customers?.hospitals?.name || '-';
                     return (
                         <tr key={idx} style={{ borderBottom: '1px solid var(--border)' }}>

@@ -32,6 +32,7 @@ import { ticketService } from '@/lib/services/ticketService';
 import TransferModal from '@/components/modals/TransferModal';
 import ChatAttachmentModal from '@/components/chat/ChatAttachmentModal';
 import ImageEditorModal from '@/components/chat/ImageEditorModal';
+import ImageViewerModal from '@/components/chat/ImageViewerModal';
 
 function InboxContent() {
   const { conversations, loading: inboxLoading } = useRealtimeInbox();
@@ -44,6 +45,8 @@ function InboxContent() {
   const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
   const [isAttachModalOpen, setIsAttachModalOpen] = useState(false);
   const [isEditorOpen, setIsEditorOpen] = useState(false);
+  const [isViewerOpen, setIsViewerOpen] = useState(false);
+  const [viewingImage, setViewingImage] = useState<string>('');
   const [editingImage, setEditingImage] = useState<string>('');
   const searchParams = useSearchParams();
   const cid = searchParams.get('cid');
@@ -190,6 +193,11 @@ function InboxContent() {
     e.preventDefault();
     if (!newMessage.trim() || !selectedChat || !agent) return;
     
+    // Check if locked
+    if (selectedChat.status === 'closed' || currentTicket?.status === 'Resolved') {
+      alert('บทสนทนานี้ถูกล็อกแล้ว (Closed/Resolved)');
+      return;
+    }
     // Check permission
     if (agent.role !== 'Administrator' && agent.permissions?.inbox === 'view') {
       alert('คุณไม่มีสิทธิ์ในการส่งข้อความ (View Only Access)');
@@ -290,6 +298,11 @@ function InboxContent() {
   const handleEditExistingImage = (url: string) => {
     setEditingImage(url);
     setIsEditorOpen(true);
+  };
+
+  const handleOpenViewer = (url: string) => {
+    setViewingImage(url);
+    setIsViewerOpen(true);
   };
 
   const selectChat = (chat: any) => {
@@ -520,20 +533,29 @@ function InboxContent() {
                        color: msg.sender_type === 'system' ? 'var(--primary)' : 'white'
                     }}>
                        {msg.message_type === 'image' || (msg.content.startsWith('http') && msg.content.match(/\.(jpeg|jpg|gif|png)$/)) ? (
-                          <div style={{ position: 'relative' }}>
+                          <div style={{ position: 'relative', overflow: 'hidden', borderRadius: '10px' }}>
                              <img 
                                 src={msg.content} 
                                 style={{ maxWidth: '100%', borderRadius: '10px', display: 'block', cursor: 'pointer' }} 
-                                onClick={() => handleEditExistingImage(msg.content)}
+                                onClick={() => handleOpenViewer(msg.content)}
                                 alt="Chat attachment" 
                              />
                              <div style={{ 
                                position: 'absolute', top: '10px', right: '10px', 
-                               background: 'rgba(0,242,254,0.8)', color: 'black', 
-                               padding: '4px 8px', borderRadius: '6px', fontSize: '10px', 
-                               fontWeight: '900', pointerEvents: 'none', opacity: 0.8
+                               display: 'flex', gap: '8px'
                              }}>
-                                คลิกเพื่อแก้ไข (EDIT)
+                                <button 
+                                  onClick={(e) => { e.stopPropagation(); handleEditExistingImage(msg.content); }}
+                                  style={{ background: 'rgba(0,242,254,0.9)', color: 'black', border: 'none', padding: '6px', borderRadius: '6px', cursor: 'pointer', display: 'flex' }}
+                                >
+                                  <Pencil size={14} />
+                                </button>
+                                <button 
+                                  onClick={(e) => { e.stopPropagation(); handleOpenViewer(msg.content); }}
+                                  style={{ background: 'rgba(255,255,255,0.9)', color: 'black', border: 'none', padding: '6px', borderRadius: '6px', cursor: 'pointer', display: 'flex' }}
+                                >
+                                  <Maximize size={14} />
+                                </button>
                              </div>
                           </div>
                        ) : msg.message_type === 'file' || (msg.content.startsWith('http') && msg.message_type !== 'text' && !msg.content.includes('/portal/')) ? (
@@ -594,13 +616,22 @@ function InboxContent() {
                     type="text" 
                     value={newMessage}
                     onChange={(e) => setNewMessage(e.target.value)}
-                    placeholder={agent?.role !== 'Administrator' && agent?.permissions?.inbox === 'view' ? "คุณมีสิทธิ์อ่านเท่านั้น (View Only)" : "พิมพ์ข้อความตอบกลับ..."} 
-                    disabled={agent?.role !== 'Administrator' && agent?.permissions?.inbox === 'view'}
-                    style={{ flex: 1, background: 'none', border: 'none', outline: 'none', color: 'var(--text-main)', padding: '12px 0', fontSize: '14px', opacity: (agent?.role !== 'Administrator' && agent?.permissions?.inbox === 'view') ? 0.5 : 1 }}
+                    placeholder={
+                      (selectedChat.status === 'closed' || currentTicket?.status === 'Resolved') 
+                        ? "บทสนทนาถูกปิดแล้ว (Read Only)" 
+                        : (agent?.role !== 'Administrator' && agent?.permissions?.inbox === 'view') 
+                          ? "คุณมีสิทธิ์อ่านเท่านั้น (View Only)" : "พิมพ์ข้อความตอบกลับ..."
+                    } 
+                    disabled={
+                      selectedChat.status === 'closed' || 
+                      currentTicket?.status === 'Resolved' || 
+                      (agent?.role !== 'Administrator' && agent?.permissions?.inbox === 'view')
+                    }
+                    style={{ flex: 1, background: 'none', border: 'none', outline: 'none', color: 'var(--text-main)', padding: '12px 0', fontSize: '14px', opacity: (selectedChat.status === 'closed' || currentTicket?.status === 'Resolved') ? 0.4 : 1 }}
                  />
                  <button 
                   type="submit"
-                  disabled={sending || !newMessage.trim()}
+                  disabled={sending || !newMessage.trim() || selectedChat.status === 'closed' || currentTicket?.status === 'Resolved'}
                   style={{ 
                     background: 'var(--primary)', 
                     border: 'none', 
@@ -613,7 +644,7 @@ function InboxContent() {
                     justifyContent: 'center', 
                     cursor: 'pointer',
                     transition: 'all 0.2s',
-                    opacity: (sending || !newMessage.trim()) ? 0.4 : 1 
+                    opacity: (sending || !newMessage.trim() || selectedChat.status === 'closed' || currentTicket?.status === 'Resolved') ? 0.4 : 1 
                   }}>
                     {sending ? <Loader2 size={18} className="animate-spin" aria-hidden="true" /> : <Send size={18} aria-hidden="true" />}
                  </button>
@@ -806,6 +837,12 @@ function InboxContent() {
           const file = new File([blob], "edited_image.png", { type: "image/png" });
           handleConfirmAttachment(file, 'image');
         }}
+      />
+
+      <ImageViewerModal 
+        isOpen={isViewerOpen}
+        imageSrc={viewingImage}
+        onClose={() => setIsViewerOpen(false)}
       />
 
     </div>
