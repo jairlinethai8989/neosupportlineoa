@@ -220,6 +220,7 @@ export default function AdvancedAnalyticsPage() {
   });
   const [loading, setLoading] = useState(false);
   const [tickets, setTickets] = useState<any[]>([]);
+  const [showWidgetSelector, setShowWidgetSelector] = useState(false);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -328,40 +329,69 @@ export default function AdvancedAnalyticsPage() {
         </div>
       </div>
 
-      {/* Widget Selector Wrapped */}
-      <div style={{ borderBottom: '1px solid var(--border)', paddingBottom: '20px', marginBottom: '32px' }}>
-         <p style={{ fontSize: '14px', fontWeight: '800', color: 'var(--primary)', marginBottom: '16px', textTransform: 'uppercase', letterSpacing: '1px' }}>เพิ่มวิดเจ็ตสถิติ (ADD STATISTICS WIDGET)</p>
-         <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-            {CHART_TYPES.map(ct => {
-              const isAdded = activeWidgets.includes(ct.id);
-              return (
-                <button 
-                  key={ct.id}
-                  onClick={() => !isAdded && setActiveWidgets([...activeWidgets, ct.id])}
-                  disabled={isAdded}
-                  className="glass-interactive"
-                  style={{ 
-                    padding: '12px 24px', 
-                    borderRadius: '12px', 
-                    border: '1px solid ' + (isAdded ? 'var(--success)' : 'var(--border)'), 
-                    fontSize: '16px', 
-                    fontWeight: '700',
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    gap: '12px',
-                    background: isAdded ? 'rgba(40, 199, 111, 0.05)' : 'rgba(255,255,255,0.03)',
-                    cursor: isAdded ? 'default' : 'pointer',
-                    color: '#acb6c2',
-                    boxShadow: 'none',
-                    transition: 'all 0.2s ease',
-                    minWidth: '220px',
-                    justifyContent: 'flex-start'
-                  }}>
-                  <ct.icon size={18} color={isAdded ? 'var(--success)' : 'var(--primary)'} /> 
-                  <span style={{ color: '#acb6c2' }}>{ct.name}</span>
-                </button>
-              );
-            })}
+      {/* Widget Selector Drawer */}
+      <div style={{ marginBottom: '32px' }}>
+         <button 
+           onClick={() => setShowWidgetSelector(!showWidgetSelector)}
+           className="glass-interactive"
+           style={{ 
+             padding: '8px 20px', 
+             borderRadius: '20px', 
+             border: '1px solid var(--primary)', 
+             background: 'rgba(54, 153, 255, 0.1)',
+             color: 'var(--primary)',
+             fontSize: '13px', 
+             fontWeight: '800', 
+             display: 'flex', 
+             alignItems: 'center', 
+             gap: '10px',
+             cursor: 'pointer',
+             marginBottom: showWidgetSelector ? '20px' : '0'
+           }}>
+           <LayoutGrid size={16} /> 
+           {showWidgetSelector ? 'ซ่อนเมนูเลือกวิดเจ็ต (Hide Drawer)' : 'เพิ่มวิดเจ็ต (Add Widgets)'}
+         </button>
+
+         <div style={{ 
+            maxHeight: showWidgetSelector ? '1000px' : '0',
+            overflow: 'hidden',
+            transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+            opacity: showWidgetSelector ? 1 : 0,
+            borderBottom: showWidgetSelector ? '1px solid var(--border)' : 'none',
+            paddingBottom: showWidgetSelector ? '24px' : '0'
+         }}>
+            <p style={{ fontSize: '11px', fontWeight: '800', color: 'var(--text-dim)', marginBottom: '16px', textTransform: 'uppercase', letterSpacing: '1px' }}>Available Statistics Widgets</p>
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+               {CHART_TYPES.map(ct => {
+                 const isAdded = activeWidgets.includes(ct.id);
+                 return (
+                   <button 
+                     key={ct.id}
+                     onClick={() => !isAdded && setActiveWidgets([...activeWidgets, ct.id])}
+                     disabled={isAdded}
+                     className="glass-interactive"
+                     style={{ 
+                       padding: '8px 14px', 
+                       borderRadius: '10px', 
+                       border: '1px solid ' + (isAdded ? 'var(--success)' : 'var(--border)'), 
+                       fontSize: '12.5px', 
+                       fontWeight: '700',
+                       display: 'flex', 
+                       alignItems: 'center', 
+                       gap: '8px',
+                       background: isAdded ? 'rgba(40, 199, 111, 0.05)' : 'rgba(255,255,255,0.03)',
+                       cursor: isAdded ? 'default' : 'pointer',
+                       color: isAdded ? 'var(--success)' : 'var(--text-muted)',
+                       transition: 'all 0.2s ease',
+                       minWidth: '180px',
+                       justifyContent: 'flex-start'
+                     }}>
+                     <ct.icon size={14} color={isAdded ? 'var(--success)' : 'var(--primary)'} /> 
+                     <span style={{ color: isAdded ? 'var(--success)' : 'inherit' }}>{ct.name}</span>
+                   </button>
+                 );
+               })}
+            </div>
          </div>
       </div>
 
