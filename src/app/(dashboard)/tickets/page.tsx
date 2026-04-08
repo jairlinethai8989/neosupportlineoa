@@ -82,10 +82,32 @@ function TicketsContent() {
   const [claimingId, setClaimingId] = useState<string | null>(null);
   const [userProfile, setUserProfile] = useState<any>(null);
 
+  // Date Filter State
+  const [timeRange, setTimeRange] = useState<'all' | 'today' | 'week' | 'month' | 'custom'>('all');
+  const [customStart, setCustomStart] = useState('');
+  const [customEnd, setCustomEnd] = useState('');
+
   async function fetchData() {
     setDebugError(null);
     try {
-      const { data: tData, error: tErr } = await supabase
+      let from: Date | null = null;
+      let to: Date = new Date();
+      to.setHours(23, 59, 59, 999);
+
+      if (timeRange === 'today') {
+        from = new Date(); from.setHours(0, 0, 0, 0);
+      } else if (timeRange === 'week') {
+        from = new Date(); from.setDate(from.getDate() - 7); from.setHours(0, 0, 0, 0);
+      } else if (timeRange === 'month') {
+        from = new Date(); from.setMonth(from.getMonth() - 31); from.setHours(0, 0, 0, 0);
+      } else if (timeRange === 'custom') {
+        from = customStart ? new Date(customStart) : new Date();
+        to = customEnd ? new Date(customEnd) : new Date();
+        from.setHours(0, 0, 0, 0);
+        to.setHours(23, 59, 59, 999);
+      }
+
+      let query = supabase
         .from('tickets')
         .select(`
           *,
@@ -97,8 +119,13 @@ function TicketsContent() {
               name
             )
           )
-        `)
-        .order('created_at', { ascending: false });
+        `);
+
+      if (from) {
+        query = query.gte('created_at', from.toISOString()).lte('created_at', to.toISOString());
+      }
+
+      const { data: tData, error: tErr } = await query.order('created_at', { ascending: false });
 
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
@@ -125,7 +152,7 @@ function TicketsContent() {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'conversations' }, () => fetchData())
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, []);
+  }, [timeRange, customStart, customEnd]);
 
 
   const getConvId = (customerId: string) => {
@@ -201,12 +228,62 @@ function TicketsContent() {
         zIndex: 10
       }}>
         <div style={{ flex: 1 }}>
-          <h1 style={{ fontSize: '36px', fontWeight: '900', marginBottom: '10px', letterSpacing: '-1.5px', color: 'var(--text-main)' }}>
-            {filterCustomerId ? 'Filtered Workspace' : 'Ticket Workspace'} <span style={{ color: 'var(--primary)', opacity: 0.8 }}>({filteredTickets.length})</span>
-          </h1>
-          <p style={{ color: 'var(--text-muted)', fontSize: '15px', fontWeight: '500' }}>
-            {filterCustomerId ? `Viewing tickets for specific customer` : 'บัตรงานสนับสนุนและติดตามสถานะแบบเรียลไทม์'}
-          </p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '8px' }}>
+            <h1 style={{ fontSize: '32px', fontWeight: '900', letterSpacing: '-1.5px', color: 'var(--text-main)', margin: 0 }}>
+              {filterCustomerId ? 'Filtered Workspace' : 'Ticket Workspace'} <span style={{ color: 'var(--primary)', opacity: 0.8 }}>({filteredTickets.length})</span>
+            </h1>
+            
+            <div style={{ display: 'flex', background: 'var(--bg-card)', padding: '4px', borderRadius: '10px', border: '1px solid var(--border)', marginLeft: '12px' }}>
+              {[
+                { id: 'all', thai: 'ทั้งหมด' },
+                { id: 'today', thai: 'วันนี้' },
+                { id: 'week', thai: 'สัปดาห์นี้' },
+                { id: 'month', thai: 'เดือนนี้' },
+                { id: 'custom', thai: 'ช่วงเวลา' }
+              ].map(opt => (
+                <button
+                  key={opt.id}
+                  onClick={() => setTimeRange(opt.id as any)}
+                  style={{
+                    padding: '4px 12px',
+                    borderRadius: '7px',
+                    fontSize: '11px',
+                    fontWeight: '800',
+                    border: 'none',
+                    cursor: 'pointer',
+                    background: timeRange === opt.id ? 'var(--primary)' : 'transparent',
+                    color: timeRange === opt.id ? '#0a0e14' : 'var(--text-muted)',
+                    transition: 'all 0.2s'
+                  }}
+                >
+                  {opt.thai}
+                </button>
+              ))}
+            </div>
+          </div>
+          
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <p style={{ color: 'var(--text-muted)', fontSize: '14px', fontWeight: '500', margin: 0 }}>
+              {filterCustomerId ? `Viewing tickets for specific customer` : 'บัตรงานสนับสนุนและติดตามสถานะแบบเรียลไทม์'}
+            </p>
+            {timeRange === 'custom' && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', animation: 'fadeIn 0.3s ease-out' }}>
+                <input 
+                  type="date" 
+                  value={customStart} 
+                  onChange={e => setCustomStart(e.target.value)}
+                  style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '8px', padding: '4px 8px', color: 'white', fontSize: '11px' }}
+                />
+                <span style={{ color: 'var(--text-muted)', fontSize: '11px' }}>—</span>
+                <input 
+                  type="date" 
+                  value={customEnd} 
+                  onChange={e => setCustomEnd(e.target.value)}
+                  style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '8px', padding: '4px 8px', color: 'white', fontSize: '11px' }}
+                />
+              </div>
+            )}
+          </div>
           {debugError && <div style={{ color: '#ea5455', fontSize: '12px', marginTop: '8px' }}>⚠️ {debugError}</div>}
         </div>
         
