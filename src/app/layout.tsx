@@ -1,14 +1,6 @@
-import { IBM_Plex_Sans_Thai } from "next/font/google";
 import "./globals.css";
 
-const ibmPlex = IBM_Plex_Sans_Thai({ 
-  subsets: ["latin", "thai"],
-  weight: ['300', '400', '500', '600', '700'],
-  display: 'swap',
-  variable: '--font-ibm-plex',
-});
-
-export const metadata: Metadata = {
+export const metadata = {
   title: "Neo Support | Customer Support Omnichannel",
   description: "Enterprise-grade customer support platform for LINE OA",
 };
@@ -20,7 +12,12 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="th" data-theme="dark">
-      <body className={ibmPlex.className}>
+      <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+      </head>
+      <body>
         {children}
       </body>
     </html>
