@@ -12,37 +12,21 @@ import {
   Loader2, 
   ChevronLeft,
   ShieldCheck,
-  Building,
-  Lock
+  Lock,
+  Mail
 } from 'lucide-react';
 import Link from 'next/link';
 
-const AVATAR_OPTIONS = [
-  // Office Men
-  'https://api.dicebear.com/7.x/notionists/svg?seed=OfficeMan1&backgroundColor=f1f5f9',
-  'https://api.dicebear.com/7.x/notionists/svg?seed=OfficeMan2&backgroundColor=f1f5f9',
-  'https://api.dicebear.com/7.x/notionists/svg?seed=OfficeMan3&backgroundColor=f1f5f9',
-  'https://api.dicebear.com/7.x/notionists/svg?seed=OfficeMan4&backgroundColor=f1f5f9',
-  'https://api.dicebear.com/7.x/notionists/svg?seed=OfficeMan5&backgroundColor=f1f5f9',
-  'https://api.dicebear.com/7.x/notionists/svg?seed=OfficeMan6&backgroundColor=f1f5f9',
-  'https://api.dicebear.com/7.x/notionists/svg?seed=OfficeMan7&backgroundColor=f1f5f9',
-  'https://api.dicebear.com/7.x/notionists/svg?seed=OfficeMan8&backgroundColor=f1f5f9',
-  // Office Women
-  'https://api.dicebear.com/7.x/notionists/svg?seed=OfficeWoman1&backgroundColor=f8fafc',
-  'https://api.dicebear.com/7.x/notionists/svg?seed=OfficeWoman2&backgroundColor=f8fafc',
-  'https://api.dicebear.com/7.x/notionists/svg?seed=OfficeWoman3&backgroundColor=f8fafc',
-  'https://api.dicebear.com/7.x/notionists/svg?seed=OfficeWoman4&backgroundColor=f8fafc',
-  'https://api.dicebear.com/7.x/notionists/svg?seed=OfficeWoman5&backgroundColor=f8fafc',
-  'https://api.dicebear.com/7.x/notionists/svg?seed=OfficeWoman6&backgroundColor=f8fafc',
-  'https://api.dicebear.com/7.x/notionists/svg?seed=OfficeWoman7&backgroundColor=f8fafc',
-  'https://api.dicebear.com/7.x/notionists/svg?seed=OfficeWoman8&backgroundColor=f8fafc',
+const AVATAR_SEEDS = [
+  'Molly', 'Felix', 'Casper', 'Snoop', 'Jack', 'Zoey', 'Buster', 'Luna',
+  'Oliver', 'Nala', 'Simba', 'Coco', 'Ruby', 'Jasper', 'Cleo', 'Milo'
 ];
 
-// Dynamic Departments are now handled from company_settings table
+const AVATAR_OPTIONS = AVATAR_SEEDS.map(seed => `https://api.multiavatar.com/${seed}.svg`);
 
 export default function ProfileSettingsPage() {
   const [profile, setProfile] = useState<any>(null);
-  const [company, setCompany] = useState<any>(null);
+  const [companyDepts, setCompanyDepts] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -51,23 +35,22 @@ export default function ProfileSettingsPage() {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [updatingPassword, setUpdatingPassword] = useState(false);
-  const [newDeptName, setNewDeptName] = useState('');
 
   useEffect(() => {
     async function fetchData() {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         const { data: p } = await supabase.from('profiles').select('*').eq('id', user.id).single();
-        const { data: c } = await supabase.from('company_settings').select('*').limit(1).single();
+        const { data: c } = await supabase.from('company_settings').select('departments').limit(1).single();
         setProfile(p);
-        setCompany(c);
+        if (c?.departments) setCompanyDepts(c.departments);
       }
       setLoading(false);
     }
     fetchData();
   }, []);
 
-  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>, target: 'profile' | 'company') => {
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
      const file = event.target.files?.[0];
      if (!file) return;
 
@@ -75,28 +58,22 @@ export default function ProfileSettingsPage() {
      try {
         const fileExt = file.name.split('.').pop();
         const fileName = `${Math.random()}.${fileExt}`;
-        const filePath = `${target}/${fileName}`;
+        const filePath = `profile/${fileName}`;
 
-        const { error: uploadError, data } = await supabase.storage
+        const { error: uploadError } = await supabase.storage
            .from('chat_media') 
            .upload(filePath, file);
 
         if (uploadError) throw uploadError;
 
         const { data: { publicUrl } } = supabase.storage.from('chat_media').getPublicUrl(filePath);
-
-        if (target === 'profile') {
-           setProfile({ ...profile, avatar_url: publicUrl });
-        } else {
-           setCompany({ ...company, logo_url: publicUrl });
-        }
+        setProfile({ ...profile, avatar_url: publicUrl });
         
-        setToastMsg('ไฟล์อัปโหลดสำเร็จ! 🎉');
+        setToastMsg('อัปโหลดรูปโปรไฟล์สำเร็จ! 🎉');
         setShowToast(true);
         setTimeout(() => setShowToast(false), 3000);
      } catch (err: any) {
-        console.error('Upload error:', err);
-        alert('อัปโหลดล้มเหลว: ' + (err.message || 'Error uploading file'));
+        alert('อัปโหลดล้มเหลว: ' + (err.message || 'Error'));
      } finally {
         setUploading(false);
      }
@@ -105,108 +82,41 @@ export default function ProfileSettingsPage() {
   const handleSaveProfile = async () => {
     setSaving(true);
     try {
-      await supabase.from('profiles').update({
+      const { error } = await supabase.from('profiles').update({
         full_name: profile.full_name,
         avatar_url: profile.avatar_url,
         department: profile.department,
         updated_at: new Date().toISOString()
       }).eq('id', profile.id);
       
-      setToastMsg('บันทึกข้อมูลส่วนตัวสำเร็จ! ✅');
+      if (error) throw error;
+      setToastMsg('บันทึกข้อมูลส่วนตัวเรียบร้อย! ✅');
       setShowToast(true);
       setTimeout(() => setShowToast(false), 3000);
     } catch (err) {
-      alert('Update failed');
+      alert('Save failed');
     } finally {
       setSaving(false);
     }
   };
 
-  const handleSaveCompany = async () => {
-    setSaving(true);
-    try {
-      if (company?.id) {
-         await supabase.from('company_settings').update({
-           company_name: company.company_name,
-           logo_url: company.logo_url,
-           departments: company.departments || [],
-           updated_at: new Date().toISOString()
-         }).eq('id', company.id);
-      } else {
-         await supabase.from('company_settings').insert([{
-           company_name: company.company_name,
-           logo_url: company.logo_url,
-           departments: company.departments || []
-         }]);
-      }
-      setToastMsg('บันทึกข้อมูลองค์กรสำเร็จ! ✅');
-      setShowToast(true);
-      setTimeout(() => setShowToast(false), 3000);
-    } catch (err) {
-      alert('Update failed');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleAddDepartment = async () => {
-    if (!newDeptName.trim()) return;
-    const updatedDepts = [...(company.departments || []), newDeptName.trim()];
-    setCompany({ ...company, departments: updatedDepts });
-    setNewDeptName('');
-    
-    // Save to DB
-    try {
-      await supabase.from('company_settings').update({ 
-        departments: updatedDepts,
-        updated_at: new Date().toISOString() 
-      }).eq('id', company.id);
-      
-      setToastMsg('เพิ่มแผนกเรียบร้อย! ✨');
-      setShowToast(true);
-      setTimeout(() => setShowToast(false), 3000);
-    } catch (err) { alert('Failed to add department'); }
-  };
-
-  const handleDeleteDepartment = async (name: string) => {
-    if (!confirm(`ยืนยันการลบแผนก "${name}"?`)) return;
-    const updatedDepts = (company.departments || []).filter((d: string) => d !== name);
-    setCompany({ ...company, departments: updatedDepts });
-
-    try {
-      await supabase.from('company_settings').update({ 
-        departments: updatedDepts,
-        updated_at: new Date().toISOString() 
-      }).eq('id', company.id);
-      
-      setToastMsg('ลบแผนกเรียบร้อย! 🗑️');
-      setShowToast(true);
-      setTimeout(() => setShowToast(false), 3000);
-    } catch (err) { alert('Failed to delete department'); }
-  };
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
     if (newPassword !== confirmPassword) {
       alert('รหัสผ่านไม่ตรงกัน!');
       return;
     }
-    if (newPassword.length < 6) {
-      alert('รหัสผ่านต้องมีความยาวอย่างน้อย 6 ตัวอักษร');
-      return;
-    }
-
     setUpdatingPassword(true);
     try {
       const { error } = await supabase.auth.updateUser({ password: newPassword });
       if (error) throw error;
-      
       setToastMsg('เปลี่ยนรหัสผ่านสำเร็จ! 🔐');
       setShowToast(true);
       setNewPassword('');
       setConfirmPassword('');
       setTimeout(() => setShowToast(false), 3000);
     } catch (err: any) {
-      alert('เปลี่ยนรหัสผ่านไม่สำเร็จ: ' + err.message);
+      alert('ล้มเหลว: ' + err.message);
     } finally {
       setUpdatingPassword(false);
     }
@@ -218,19 +128,19 @@ export default function ProfileSettingsPage() {
     <div style={{ animation: 'fadeIn 0.5s ease-out' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '32px' }}>
          <Link href="/" style={{ color: 'var(--text-muted)' }}><ChevronLeft size={24} /></Link>
-         <h1 style={{ fontSize: '28px', fontWeight: '800' }}>ข้อมูลส่วนตัวและองค์กร</h1>
+         <h1 style={{ fontSize: '28px', fontWeight: '800' }}>ข้อมูลส่วนตัวของฉัน</h1>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '32px' }}>
-         {/* 1. Personal Profile */}
+         {/* 1. Basic Info */}
          <div className="glass" style={{ padding: '32px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '32px' }}>
                <div style={{ background: 'var(--secondary)', padding: '10px', borderRadius: '12px' }}>
-                  <User size={24} color="var(--primary)" />
+                   <User size={24} color="var(--primary)" />
                </div>
                <div>
-                 <h2 style={{ fontSize: '20px', fontWeight: '700', lineHeight: '1.2' }}>ข้อมูลส่วนตัว</h2>
-                 <p style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Personal Profile Settings</p>
+                 <h2 style={{ fontSize: '20px', fontWeight: '700', lineHeight: '1.2' }}>ข้อมูลผู้ใช้งาน</h2>
+                 <p style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Your Personal Information</p>
                </div>
             </div>
 
@@ -238,34 +148,46 @@ export default function ProfileSettingsPage() {
                <div style={{ position: 'relative' }}>
                   <img 
                     src={profile?.avatar_url || 'https://ui-avatars.com/api/?name=' + profile?.full_name} 
-                    style={{ width: '120px', height: '120px', borderRadius: '30px', objectFit: 'cover', border: '4px solid var(--border)' }} 
+                    style={{ width: '130px', height: '130px', borderRadius: '50%', objectFit: 'cover', border: '5px solid var(--border)', boxShadow: '0 10px 40px rgba(0,0,0,0.1)' }} 
                   />
                   <label style={{ 
-                     position: 'absolute', bottom: '-10px', right: '-10px', 
-                     background: 'var(--primary)', padding: '8px', borderRadius: '12px', 
-                     cursor: 'pointer', boxShadow: '0 4px 15px rgba(0,242,254,0.4)',
-                     display: 'flex', alignItems: 'center', justifyContent: 'center'
+                     position: 'absolute', bottom: '0', right: '0', 
+                     background: 'var(--primary)', padding: '10px', borderRadius: '50%', 
+                     cursor: 'pointer', boxShadow: '0 8px 24px rgba(0,242,254,0.4)',
+                     display: 'flex', alignItems: 'center', justifyContent: 'center',
+                     border: '4px solid var(--bg-card)'
                   }}>
-                     {uploading ? <Loader2 size={20} className="animate-spin" /> : <Camera size={20} color="#0a0e14" />}
-                     <input type="file" hidden accept="image/*" onChange={(e) => handleFileUpload(e, 'profile')} disabled={uploading} />
+                     {uploading ? <Loader2 size={16} className="animate-spin" /> : <Camera size={16} color="#000" />}
+                     <input type="file" hidden accept="image/*" onChange={handleFileUpload} disabled={uploading} />
                   </label>
                </div>
-               <p style={{ marginTop: '16px', fontSize: '14px', color: 'var(--text-muted)' }}>เลือก Avatar หรืออัปโหลดรูปของคุณ</p>
+               <p style={{ marginTop: '20px', fontSize: '13px', fontWeight: '700', color: 'var(--text-muted)' }}>เลือก Avatar หรืออัปโหลดรูปของคุณ</p>
                
-               <div style={{ display: 'flex', gap: '8px', marginTop: '16px', flexWrap: 'wrap', justifyContent: 'center', maxHeight: '160px', overflowY: 'auto', padding: '8px' }}>
+               <div style={{ 
+                 display: 'grid', 
+                 gridTemplateColumns: 'repeat(8, 1fr)', 
+                 gap: '8px', 
+                 marginTop: '20px', 
+                 padding: '12px',
+                 background: 'rgba(255,255,255,0.01)',
+                 borderRadius: '20px',
+                 border: '1px solid var(--border)'
+               }}>
                  {AVATAR_OPTIONS.map((url, idx) => (
                     <button 
                      key={idx}
                      onClick={() => setProfile({...profile, avatar_url: url})}
                      style={{ 
-                       width: '40px', 
-                       height: '40px', 
+                       width: '36px', 
+                       height: '36px', 
                        borderRadius: '10px', 
                        overflow: 'hidden', 
-                       border: profile?.avatar_url === url ? '2px solid var(--primary)' : '1px solid var(--border)',
+                       border: profile?.avatar_url === url ? '3px solid var(--primary)' : '1px solid transparent',
                        padding: 0,
                        cursor: 'pointer',
-                       background: 'none'
+                       background: 'var(--bg-deep)',
+                       transition: 'all 0.2s',
+                       transform: profile?.avatar_url === url ? 'scale(1.1)' : 'scale(1)'
                      }}>
                       <img src={url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                     </button>
@@ -275,23 +197,23 @@ export default function ProfileSettingsPage() {
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                <div>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '8px' }}>ชื่อ-นามสกุล (FULL NAME)</label>
+                  <label style={{ display: 'block', fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '8px' }}>ชื่อ-นามสกุล (FULL NAME)</label>
                   <input 
                     type="text" 
                     value={profile?.full_name || ''} 
                     onChange={e => setProfile({...profile, full_name: e.target.value})}
-                    style={{ width: '100%', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '10px', padding: '14px', color: 'var(--text)', outline: 'none' }}
+                    style={{ width: '100%', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '12px', padding: '14px', color: 'var(--text-main)', outline: 'none', fontWeight: '700' }}
                   />
                </div>
                <div>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '8px' }}>แผนก (DEPARTMENT)</label>
+                  <label style={{ display: 'block', fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '8px' }}>แผนกประจำการ (DEPARTMENT)</label>
                   <select 
                     value={profile?.department || ''} 
                     onChange={e => setProfile({...profile, department: e.target.value})}
-                    style={{ width: '100%', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '10px', padding: '14px', color: 'var(--text)', outline: 'none', appearance: 'none' }}
+                    style={{ width: '100%', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '12px', padding: '14px', color: 'var(--text-main)', outline: 'none', appearance: 'none', fontWeight: '700' }}
                   >
-                    <option value="">เลือกแผนก...</option>
-                    {(company?.departments || []).map((dept: string, idx: number) => (
+                    <option value="">เลือกแผนกหลัก...</option>
+                    {companyDepts.map((dept: string, idx: number) => (
                       <option key={idx} value={dept}>{dept}</option>
                     ))}
                   </select>
@@ -300,188 +222,68 @@ export default function ProfileSettingsPage() {
                 onClick={handleSaveProfile}
                 disabled={saving || uploading}
                 className="glass-interactive" 
-                style={{ width: '100%', padding: '16px', borderRadius: '12px', background: 'var(--primary)', border: 'none', color: '#0a0e14', fontWeight: '800', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', marginTop: '12px' }}>
-                  {saving ? <Loader2 className="animate-spin" /> : <><Save size={20} /> บันทึกข้อมูลส่วนตัว (SAVE PROFILE)</>}
+                style={{ width: '100%', padding: '16px', borderRadius: '15px', background: 'var(--primary)', border: 'none', color: '#000', fontWeight: '900', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', marginTop: '12px' }}>
+                  {saving ? <Loader2 className="animate-spin" /> : <><Save size={20} /> บันทึกข้อมูล (SAVE PROFILE)</>}
                </button>
             </div>
          </div>
 
-         {/* 2. Company Branding */}
+         {/* 2. Security */}
          <div className="glass" style={{ padding: '32px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '32px' }}>
-               <div style={{ background: 'var(--primary)', padding: '10px', borderRadius: '12px' }}>
-                  <Building size={24} color="#0a0e14" />
-               </div>
-               <div>
-                 <h2 style={{ fontSize: '20px', fontWeight: '700', lineHeight: '1.2' }}>ข้อมูลองค์กร</h2>
-                 <p style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Company Branding Settings</p>
-               </div>
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: '32px' }}>
-               <div className="glass" style={{ position: 'relative', width: '100%', height: '160px', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', padding: '24px', background: 'rgba(0,0,0,0.02)' }}>
-                  {company?.logo_url ? (
-                    <img src={company.logo_url} style={{ maxHeight: '100%', maxWidth: '100%', objectFit: 'contain' }} />
-                  ) : (
-                    <div style={{ textAlign: 'center' }}>
-                       <Building size={48} color="var(--border)" />
-                       <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '8px' }}>โลโก้องค์กร (No Logo)</p>
-                    </div>
-                  )}
-                  <label style={{ 
-                     position: 'absolute', bottom: '12px', right: '12px', 
-                     background: 'var(--primary)', padding: '8px 12px', borderRadius: '8px', 
-                     cursor: 'pointer', boxShadow: '0 4px 15px rgba(0,0,0,0.2)',
-                     display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', fontWeight: '800'
-                  }}>
-                     {uploading ? <Loader2 size={14} className="animate-spin" /> : <Camera size={14} color="#0a0e14" />}
-                     <span>{uploading ? 'UPLOADING...' : 'อัปโหลดรูป (UPLOAD)'}</span>
-                     <input type="file" hidden accept="image/*" onChange={(e) => handleFileUpload(e, 'company')} disabled={uploading} />
-                  </label>
-               </div>
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-               <div>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '8px' }}>ชื่อบริษัท/องค์กร (COMPANY NAME)</label>
-                  <input 
-                    type="text" 
-                    value={company?.company_name || ''} 
-                    onChange={e => setCompany({...company, company_name: e.target.value})}
-                    style={{ width: '100%', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '10px', padding: '14px', color: 'var(--text)', outline: 'none' }}
-                  />
-               </div>
-               <button 
-                onClick={handleSaveCompany}
-                disabled={saving || uploading}
-                className="glass-interactive" 
-                style={{ width: '100%', padding: '16px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', color: 'var(--text)', fontWeight: '800', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', marginTop: '12px' }}>
-                  {saving ? <Loader2 className="animate-spin" /> : <><Save size={20} /> บันทึกข้อมูลองค์กร (UPDATE BRANDING)</>}
-               </button>
-            </div>
-
-            <div className="glass" style={{ padding: '16px', marginTop: '32px', border: '1px solid rgba(0, 242, 254, 0.2)' }}>
-               <div style={{ display: 'flex', gap: '12px' }}>
-                  <ShieldCheck size={18} color="var(--primary)" />
-                  <p style={{ fontSize: '13px', color: 'var(--text-muted)', lineHeight: '1.5' }}>
-                     โลโก้นี้จะปรากฏบน **แถบด้านข้าง (Sidebar)** และ **รายงานสรุปผล (Reports)** ของระบบโดยอัตโนมัติ
-                  </p>
-               </div>
-            </div>
-          </div>
-
-          {/* 3. Department Management (NEW) */}
-          <div className="glass" style={{ padding: '32px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '32px' }}>
-               <div style={{ background: 'rgba(0, 242, 254, 0.1)', padding: '10px', borderRadius: '12px' }}>
-                  <Building size={24} color="var(--primary)" />
-               </div>
-               <div>
-                 <h2 style={{ fontSize: '20px', fontWeight: '700', lineHeight: '1.2' }}>จัดการแผนก</h2>
-                 <p style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Department Management</p>
-               </div>
-            </div>
-
-            <div style={{ marginBottom: '24px' }}>
-               <label style={{ display: 'block', fontSize: '10px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '12px' }}>เพิ่มแผนกใหม่ (ADD NEW DEPARTMENT)</label>
-               <div style={{ display: 'flex', gap: '8px' }}>
-                  <input 
-                    type="text" 
-                    placeholder="เช่น ฝ่ายเทคนิค, ฝ่ายการเงิน..." 
-                    value={newDeptName}
-                    onChange={e => setNewDeptName(e.target.value)}
-                    style={{ flex: 1, background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '10px', padding: '12px', color: 'white', outline: 'none' }}
-                  />
-                  <button 
-                    onClick={handleAddDepartment}
-                    className="glass-interactive flex-center"
-                    style={{ width: '48px', height: '48px', borderRadius: '12px', background: 'var(--primary)', color: 'black', border: 'none' }}>
-                    +
-                  </button>
-               </div>
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '300px', overflowY: 'auto', paddingRight: '8px' }}>
-               <label style={{ fontSize: '10px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '4px' }}>รายชื่อแผนกปัจจุบัน ({company?.departments?.length || 0})</label>
-               {company?.departments?.map((dept: string, idx: number) => (
-                  <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', background: 'rgba(255,255,255,0.03)', borderRadius: '10px', border: '1px solid var(--border)' }}>
-                     <span style={{ fontSize: '14px', fontWeight: '600' }}>{dept}</span>
-                     <button 
-                       onClick={() => handleDeleteDepartment(dept)}
-                       style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', fontSize: '11px', fontWeight: '700' }}>
-                       ลบ (REMOVE)
-                     </button>
-                  </div>
-               ))}
-               {(company?.departments?.length === 0 || !company?.departments) && (
-                  <p style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '12px', padding: '20px' }}>ยังไม่มีข้อมูลแผนก</p>
-               )}
-            </div>
-          </div>
-
-          {/* 4. Password Management */}
-          <div className="glass" style={{ padding: '32px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '32px' }}>
                <div style={{ background: 'rgba(234, 84, 85, 0.1)', padding: '10px', borderRadius: '12px' }}>
                   <Lock size={24} color="var(--danger)" />
                </div>
                <div>
-                 <h2 style={{ fontSize: '20px', fontWeight: '700', lineHeight: '1.2' }}>ความปลอดภัย</h2>
-                 <p style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Password & Security</p>
+                 <h2 style={{ fontSize: '20px', fontWeight: '700', lineHeight: '1.2' }}>รหัสผ่านและระบบป้องกัน</h2>
+                 <p style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Security & Authentication</p>
                </div>
             </div>
 
             <form onSubmit={handleChangePassword} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                <div>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '8px' }}>รหัสผ่านใหม่ (NEW PASSWORD)</label>
+                  <label style={{ display: 'block', fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '8px' }}>อีเมลเข้าใช้งาน (EMAIL)</label>
+                  <div style={{ width: '100%', background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border)', borderRadius: '12px', padding: '14px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                     <Mail size={16} />
+                     <span style={{ fontWeight: '700' }}>{profile?.email || 'Authenticated User'}</span>
+                  </div>
+               </div>
+               <div style={{ borderTop: '1px solid var(--border)', paddingTop: '20px', marginTop: '10px' }}>
+                  <label style={{ display: 'block', fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '8px' }}>รหัสผ่านใหม่ (NEW PASSWORD)</label>
                   <input 
                     type="password" 
                     required
                     value={newPassword}
                     onChange={e => setNewPassword(e.target.value)}
                     placeholder="••••••••"
-                    style={{ width: '100%', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '10px', padding: '14px', color: 'white', outline: 'none' }}
+                    style={{ width: '100%', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '12px', padding: '14px', color: 'var(--text-main)', outline: 'none', fontWeight: '700' }}
                   />
                </div>
                <div>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '8px' }}>ยืนยันรหัสผ่านใหม่ (CONFIRM PASSWORD)</label>
+                  <label style={{ display: 'block', fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '8px' }}>ยืนยันรหัสผ่านใหม่ (CONFIRM)</label>
                   <input 
                     type="password" 
                     required
                     value={confirmPassword}
                     onChange={e => setConfirmPassword(e.target.value)}
                     placeholder="••••••••"
-                    style={{ width: '100%', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '10px', padding: '14px', color: 'white', outline: 'none' }}
+                    style={{ width: '100%', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '12px', padding: '14px', color: 'var(--text-main)', outline: 'none', fontWeight: '700' }}
                   />
                </div>
                <button 
                 type="submit"
                 disabled={updatingPassword}
                 className="glass-interactive" 
-                style={{ width: '100%', padding: '16px', borderRadius: '12px', background: 'rgba(234, 84, 85, 0.1)', border: '1px solid rgba(234, 84, 85, 0.2)', color: 'var(--danger)', fontWeight: '800', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }}>
-                  {updatingPassword ? <Loader2 className="animate-spin" /> : <><ShieldCheck size={20} /> อัปเดตรหัสผ่าน (UPDATE PASSWORD)</>}
+                style={{ width: '100%', padding: '16px', borderRadius: '15px', background: 'rgba(234, 84, 85, 0.1)', border: '1px solid rgba(234, 84, 85, 0.2)', color: 'var(--danger)', fontWeight: '900', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }}>
+                  {updatingPassword ? <Loader2 className="animate-spin" /> : <><ShieldCheck size={20} /> ยืนยันการเปลี่ยนรหัสผ่าน</>}
                </button>
             </form>
-          </div>
-       </div>
+         </div>
+      </div>
 
-      {/* Success Toast */}
-      {showToast && (
+       {showToast && (
         <div style={{
-          position: 'fixed',
-          bottom: '24px',
-          right: '24px',
-          background: 'var(--primary)',
-          color: 'black',
-          padding: '16px 24px',
-          borderRadius: '12px',
-          fontWeight: '800',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '12px',
-          boxShadow: '0 8px 32px rgba(0, 242, 254, 0.3)',
-          zIndex: 9999,
-          animation: 'slideInRight 0.3s ease-out'
+          position: 'fixed', bottom: '32px', right: '32px', background: 'var(--primary)', color: 'black', padding: '16px 28px', borderRadius: '14px', fontWeight: '900', display: 'flex', alignItems: 'center', gap: '12px', boxShadow: '0 10px 40px rgba(0, 242, 254, 0.3)', zIndex: 9999, animation: 'slideInRight 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
         }}>
           <ShieldCheck size={20} />
           {toastMsg}

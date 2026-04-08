@@ -138,7 +138,8 @@ const Sidebar = ({ onClickLink, isCollapsed = false }: SidebarProps) => {
         children: [
           { name: 'Staff', thai: 'จัดการทีมงาน', path: '/settings/staff' },
           { name: 'SLA', thai: 'ตั้งค่า SLA', path: '/settings/sla' },
-          { name: 'Branding', thai: 'โปรไฟล์บริษัท', path: '/settings/profile' },
+          { name: 'Branding', thai: 'ข้อมูลองค์กร', path: '/settings/branding' },
+          { name: 'Profile', thai: 'ข้อมูลส่วนตัว', path: '/settings/profile' },
           { name: 'Master', thai: 'ข้อมูลพื้นฐาน', path: '/settings/master' },
           { name: 'Security', thai: 'Audit Logs', path: '/settings/audit' },
         ]
