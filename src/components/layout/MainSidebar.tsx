@@ -98,8 +98,8 @@ const Sidebar = ({ onClickLink, isCollapsed = false }: SidebarProps) => {
     
     fetchCounts();
 
-    // 15-second polling fallback (Safe fallback if Realtime fails)
-    const pollInterval = setInterval(fetchCounts, 15000);
+    // 5-second polling fallback (Ultra-fast fallback if Realtime fails)
+    const pollInterval = setInterval(fetchCounts, 5000);
     
     // Subscribe to listen to tickets/conversations changes
     const channel = supabase.channel('sidebar-counts-v2')
