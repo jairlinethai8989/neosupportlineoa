@@ -24,7 +24,8 @@ import {
   Plus,
   Trash2,
   Pencil,
-  Monitor
+  Monitor,
+  Maximize
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useRealtimeInbox } from '@/hooks/useRealtimeInbox';
@@ -532,7 +533,7 @@ function InboxContent() {
                        boxShadow: msg.sender_type === 'agent' ? '0 4px 15px rgba(115, 103, 240, 0.2)' : 'none',
                        color: msg.sender_type === 'system' ? 'var(--primary)' : 'white'
                     }}>
-                       {msg.message_type === 'image' || (msg.content.startsWith('http') && msg.content.match(/\.(jpeg|jpg|gif|png)$/)) ? (
+                       {msg.content && (msg.message_type === 'image' || (String(msg.content).startsWith('http') && String(msg.content).match(/\.(jpeg|jpg|gif|png|webp|JPG|PNG)$/i))) ? (
                           <div style={{ position: 'relative', overflow: 'hidden', borderRadius: '10px' }}>
                              <img 
                                 src={msg.content} 
