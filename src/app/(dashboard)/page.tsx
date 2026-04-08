@@ -142,6 +142,11 @@ export default function Home() {
   const [recentLogs, setRecentLogs] = useState<any[]>([]);
   const [showExportMenu, setShowExportMenu] = useState(false);
   const exportRef = React.useRef<HTMLDivElement>(null);
+  
+  // Date Filter State
+  const [timeRange, setTimeRange] = useState<'today' | 'week' | 'month' | 'custom'>('week');
+  const [customStart, setCustomStart] = useState('');
+  const [customEnd, setCustomEnd] = useState('');
 
   // Click outside to close export menu
   useEffect(() => {
@@ -156,14 +161,37 @@ export default function Home() {
 
   useEffect(() => {
     async function fetchDashboard() {
-      const { data: allTickets } = await supabase.from('tickets').select('*');
+      let from: Date, to: Date = new Date();
+      to.setHours(23, 59, 59, 999);
+
+      if (timeRange === 'today') {
+        from = new Date(); from.setHours(0, 0, 0, 0);
+      } else if (timeRange === 'week') {
+        from = new Date(); from.setDate(from.getDate() - 7); from.setHours(0, 0, 0, 0);
+      } else if (timeRange === 'month') {
+        from = new Date(); from.setMonth(from.getMonth() - 1); from.setHours(0, 0, 0, 0);
+      } else {
+        from = customStart ? new Date(customStart) : new Date();
+        to = customEnd ? new Date(customEnd) : new Date();
+        from.setHours(0, 0, 0, 0);
+        to.setHours(23, 59, 59, 999);
+      }
+
+      const { data: allTickets } = await supabase
+        .from('tickets')
+        .select('*')
+        .gte('created_at', from.toISOString())
+        .lte('created_at', to.toISOString());
+      
       if (allTickets) setTickets(allTickets);
 
       const { data: logs } = await supabase
         .from('ticket_logs')
         .select(`*, tickets(ticket_no)`)
+        .gte('created_at', from.toISOString())
+        .lte('created_at', to.toISOString())
         .order('created_at', { ascending: false })
-        .limit(8);
+        .limit(10);
       if (logs) setRecentLogs(logs);
     }
     fetchDashboard();
@@ -174,7 +202,7 @@ export default function Home() {
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
-  }, []);
+  }, [timeRange, customStart, customEnd]);
 
   // KPI calculations
   const stats = useMemo(() => {
@@ -266,9 +294,54 @@ export default function Home() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px', flexWrap: 'wrap', gap: '16px' }}>
         <div>
           <h1 style={{ fontSize: '28px', fontWeight: '800', marginBottom: '4px' }}>สรุปผลบริหารจัดการ</h1>
-          <p style={{ color: 'var(--text-muted)', fontSize: '14px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-            EXECUTIVE SUMMARY • Real-time overview
-          </p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <p style={{ color: 'var(--text-muted)', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              EXECUTIVE SUMMARY • DASHBOARD
+            </p>
+            <div style={{ display: 'flex', background: 'var(--bg-card)', padding: '4px', borderRadius: '10px', border: '1px solid var(--border)' }}>
+              {[
+                { id: 'today', thai: 'วันนี้' },
+                { id: 'week', thai: 'สัปดาห์นี้' },
+                { id: 'month', thai: 'เดือนนี้' },
+                { id: 'custom', thai: 'เลือกช่วงเวลา' }
+              ].map(opt => (
+                <button
+                  key={opt.id}
+                  onClick={() => setTimeRange(opt.id as any)}
+                  style={{
+                    padding: '4px 12px',
+                    borderRadius: '7px',
+                    fontSize: '11px',
+                    fontWeight: '800',
+                    border: 'none',
+                    cursor: 'pointer',
+                    background: timeRange === opt.id ? 'var(--primary)' : 'transparent',
+                    color: timeRange === opt.id ? '#0a0e14' : 'var(--text-muted)',
+                    transition: 'all 0.2s'
+                  }}
+                >
+                  {opt.thai}
+                </button>
+              ))}
+            </div>
+            {timeRange === 'custom' && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', animation: 'fadeIn 0.3s ease-out' }}>
+                <input 
+                  type="date" 
+                  value={customStart} 
+                  onChange={e => setCustomStart(e.target.value)}
+                  style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '8px', padding: '4px 8px', color: 'white', fontSize: '11px' }}
+                />
+                <span style={{ color: 'var(--text-muted)', fontSize: '11px' }}>—</span>
+                <input 
+                  type="date" 
+                  value={customEnd} 
+                  onChange={e => setCustomEnd(e.target.value)}
+                  style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '8px', padding: '4px 8px', color: 'white', fontSize: '11px' }}
+                />
+              </div>
+            )}
+          </div>
         </div>
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 16px', borderRadius: '12px', border: '1px solid var(--border)', background: 'rgba(0, 242, 254, 0.05)' }}>
