@@ -18,11 +18,24 @@ import {
 import Link from 'next/link';
 
 const AVATAR_SEEDS = [
-  'Molly', 'Felix', 'Casper', 'Snoop', 'Jack', 'Zoey', 'Buster', 'Luna',
-  'Oliver', 'Nala', 'Simba', 'Coco', 'Ruby', 'Jasper', 'Cleo', 'Milo'
+  'Ariel', 'Willow', 'Casper', 'Sasha', 'Jasper', 'Zoey', 'Felix', 'Luna',
+  'Simba', 'Nala', 'Coco', 'Ruby', 'Milo', 'Cleo', 'Jack', 'Oliver'
 ];
 
-const AVATAR_OPTIONS = AVATAR_SEEDS.map(seed => `https://api.multiavatar.com/${seed}.svg`);
+const AVATAR_OPTIONS = AVATAR_SEEDS.map(seed => `https://api.dicebear.com/7.x/adventurer/svg?seed=${seed}`);
+
+const DEPT_BADGES: Record<string, string> = {
+  'IT Support': '💻',
+  'Customer Service': '🎧',
+  'Billing': '💵',
+  'Accounting': '📊',
+  'Management': '🛡️',
+  'Sales': '🚀',
+  'Marketing': '📢',
+  'Operations': '⚙️',
+  'Human Resources': '👥',
+  'Administration': '🏢'
+};
 
 export default function ProfileSettingsPage() {
   const [profile, setProfile] = useState<any>(null);
@@ -145,22 +158,38 @@ export default function ProfileSettingsPage() {
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: '32px' }}>
-               <div style={{ position: 'relative' }}>
-                  <img 
-                    src={profile?.avatar_url || 'https://ui-avatars.com/api/?name=' + profile?.full_name} 
-                    style={{ width: '130px', height: '130px', borderRadius: '50%', objectFit: 'cover', border: '5px solid var(--border)', boxShadow: '0 10px 40px rgba(0,0,0,0.1)' }} 
-                  />
-                  <label style={{ 
-                     position: 'absolute', bottom: '0', right: '0', 
-                     background: 'var(--primary)', padding: '10px', borderRadius: '50%', 
-                     cursor: 'pointer', boxShadow: '0 8px 24px rgba(0,242,254,0.4)',
-                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                     border: '4px solid var(--bg-card)'
-                  }}>
-                     {uploading ? <Loader2 size={16} className="animate-spin" /> : <Camera size={16} color="#000" />}
-                     <input type="file" hidden accept="image/*" onChange={handleFileUpload} disabled={uploading} />
-                  </label>
-               </div>
+                <div style={{ position: 'relative' }}>
+                   <div style={{ position: 'relative' }}>
+                      <img 
+                        src={profile?.avatar_url || 'https://ui-avatars.com/api/?name=' + profile?.full_name} 
+                        style={{ width: '130px', height: '130px', borderRadius: '50%', objectFit: 'cover', border: '5px solid var(--border)', boxShadow: '0 10px 40px rgba(0,0,0,0.1)', background: 'var(--bg-deep)' }} 
+                      />
+                      {profile?.department && (
+                        <div style={{ 
+                          position: 'absolute', top: '5px', right: '5px', 
+                          width: '32px', height: '32px', borderRadius: '50%', 
+                          background: 'rgba(10,14,20,0.85)', 
+                          backdropFilter: 'blur(8px)',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          fontSize: '18px', border: '2px solid rgba(255,255,255,0.1)',
+                          boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+                          zIndex: 5
+                        }}>
+                          {DEPT_BADGES[profile.department] || '💼'}
+                        </div>
+                      )}
+                   </div>
+                   <label style={{ 
+                      position: 'absolute', bottom: '0', right: '0', 
+                      background: 'var(--primary)', padding: '10px', borderRadius: '50%', 
+                      cursor: 'pointer', boxShadow: '0 8px 24px rgba(0,242,254,0.4)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      border: '4px solid var(--bg-card)', zIndex: 6
+                   }}>
+                      {uploading ? <Loader2 size={16} className="animate-spin" /> : <Camera size={16} color="#000" />}
+                      <input type="file" hidden accept="image/*" onChange={handleFileUpload} disabled={uploading} />
+                   </label>
+                </div>
                <p style={{ marginTop: '20px', fontSize: '13px', fontWeight: '700', color: 'var(--text-muted)' }}>เลือก Avatar หรืออัปโหลดรูปของคุณ</p>
                
                <div style={{ 

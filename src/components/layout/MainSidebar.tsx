@@ -17,8 +17,22 @@ import {
   ShieldCheck,
   Building,
   User,
-  LayoutDashboard
+  LayoutDashboard,
+  Settings2
 } from 'lucide-react';
+
+const DEPT_BADGES: Record<string, string> = {
+  'IT Support': '💻',
+  'Customer Service': '🎧',
+  'Billing': '💵',
+  'Accounting': '📊',
+  'Management': '🛡️',
+  'Sales': '🚀',
+  'Marketing': '📢',
+  'Operations': '⚙️',
+  'Human Resources': '👥',
+  'Administration': '🏢'
+};
 
 interface SidebarProps {
   onClickLink?: () => void;
@@ -33,6 +47,7 @@ const Sidebar = ({ onClickLink, isCollapsed = false }: SidebarProps) => {
   const [theme, setTheme] = useState('dark');
   const [permissions, setPermissions] = useState<any>(null);
   const [userRole, setUserRole] = useState<string>('');
+  const [profile, setProfile] = useState<any>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -40,8 +55,9 @@ const Sidebar = ({ onClickLink, isCollapsed = false }: SidebarProps) => {
     async function fetchUserData() {
        const { data: { user } } = await supabase.auth.getUser();
        if (user && isMounted) {
-          const { data: p } = await supabase.from('profiles').select('role, permissions').eq('id', user.id).single();
+          const { data: p } = await supabase.from('profiles').select('*').eq('id', user.id).single();
           if (p && isMounted) {
+             setProfile(p);
              setUserRole(p.role);
              setPermissions(p.permissions);
           }
@@ -316,6 +332,29 @@ const Sidebar = ({ onClickLink, isCollapsed = false }: SidebarProps) => {
       </nav>
 
       <div style={{ padding: '16px', borderTop: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        {/* User Profile Section at bottom */}
+        <div style={{ padding: isCollapsed ? '8px 0' : '12px', background: 'rgba(255,255,255,0.02)', borderRadius: '16px', marginBottom: '8px', border: '1px solid var(--border)' }}>
+             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', justifyContent: isCollapsed ? 'center' : 'flex-start' }}>
+                <div style={{ position: 'relative', width: '38px', height: '38px', flexShrink: 0 }}>
+                   <img 
+                      src={profile?.avatar_url || 'https://ui-avatars.com/api/?name=' + profile?.full_name} 
+                      style={{ width: '38px', height: '38px', borderRadius: '12px', objectFit: 'cover', border: '1px solid var(--border)' }} 
+                   />
+                   {profile?.department && (
+                      <div style={{ position: 'absolute', top: '-5px', right: '-5px', fontSize: '10px', background: 'var(--bg-sidebar)', width: '16px', height: '16px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid var(--border)', boxShadow: '0 2px 5px rgba(0,0,0,0.5)' }}>
+                         {DEPT_BADGES[profile.department] || '💼'}
+                      </div>
+                   )}
+                </div>
+                {!isCollapsed && (
+                  <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+                     <span style={{ fontSize: '13px', fontWeight: '800', color: 'var(--text-main)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{profile?.full_name || 'Staff User'}</span>
+                     <span style={{ fontSize: '10px', color: 'var(--primary)', fontWeight: '700', textTransform: 'uppercase' }}>{userRole || 'Agent'}</span>
+                  </div>
+                )}
+             </div>
+        </div>
+
         {!isCollapsed && (
            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
              <span style={{ fontSize: '10px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px' }}>สลับธีมพรีเมียม</span>
