@@ -35,18 +35,18 @@
 }
 
 [data-theme='light'] {
-  --bg-deep: #f8fafc;
+  --bg-deep: #f5f8fa; /* Metronic soft gray bg */
   --bg-sidebar: #ffffff;
   --bg-card: #ffffff;
-  --bg-card-hover: #f1f5f9;
-  --bg-input: #f1f5f9;
-  --bg-topbar: rgba(255, 255, 255, 0.9);
-  --border: rgba(226, 232, 240, 1);
-  --border-active: rgba(0, 150, 200, 0.4);
-  --text-main: #0f172a;
-  --text-muted: #475569;
-  --text-dim: #64748b;
-  --primary: oklch(60% 0.15 190);
+  --bg-card-hover: #ffffff;
+  --bg-input: #f3f6f9;
+  --bg-topbar: #ffffff;
+  --border: #eff2f5;
+  --border-active: #3699ff;
+  --text-main: #181c32; /* Deep corporate blue/black */
+  --text-muted: #a1a5b7;
+  --text-dim: #b5b5c3;
+  --primary: #3699ff; /* Classic Metronic Blue */
 }
 
 [data-theme='blue'] {
@@ -118,26 +118,31 @@ input, button, select, textarea, optgroup, option {
   font-family: var(--font-prompt), 'Prompt', sans-serif !important;
 }
 
-/* Glassmorphism Classes */
+/* Glassmorphism & Card Elevation Dynamics */
 .glass {
   background: var(--bg-card);
-  backdrop-filter: blur(16px) saturate(180%);
+  backdrop-filter: blur(16px);
   border: 1px solid var(--border);
-  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+  box-shadow: 0 0.5rem 1.5rem 0.5rem rgba(0, 0, 0, 0.05);
+  border-radius: 12px;
+}
+
+[data-theme='light'] .glass {
+  box-shadow: 0 0 20px 0 rgba(76, 87, 125, 0.02);
 }
 
 .glass-interactive {
   background: var(--bg-card);
-  backdrop-filter: blur(16px);
   border: 1px solid var(--border);
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.2s ease-in-out;
+  border-radius: 12px;
 }
 
 .glass-interactive:hover {
-  background: rgba(255, 255, 255, 0.08);
-  border-color: var(--border-active);
-  transform: translateY(-2px);
-  box-shadow: 0 12px 40px rgba(0, 242, 254, 0.15);
+  background: var(--bg-card);
+  border-color: var(--primary);
+  transform: translateY(-3px);
+  box-shadow: 0 10px 30px rgba(54, 153, 255, 0.1);
 }
 
 .portal-container {

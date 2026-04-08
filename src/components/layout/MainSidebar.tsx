@@ -121,23 +121,29 @@ const Sidebar = ({ onClickLink, isCollapsed = false }: SidebarProps) => {
   };
 
   const menuItems = [
-    { name: 'Dashboard', thai: 'หน้าหลัก', icon: LayoutDashboard, path: '/' },
-    { name: 'Tickets', thai: 'รายการใบงาน', icon: Ticket, path: '/tickets', count: ticketCount },
-    { name: 'Inbox', thai: 'กล่องข้อความ', icon: Inbox, path: '/inbox', count: inboxCount },
-    { name: 'Analytics', thai: 'สถิติ', icon: BarChart2, path: '/analytics' },
-    { name: 'Customers', thai: 'รายชื่อลูกค้า', icon: Users, path: '/customers', count: customerCount },
-    { 
-      name: 'System Settings', 
-      thai: 'ตั้งค่าระบบ •', 
-      icon: Settings, 
-      children: [
-        { name: 'Staff Management', thai: 'จัดการพนักงาน', path: '/settings/staff' },
-        { name: 'SLA Settings', thai: 'ตั้งค่า SLA', path: '/settings/sla' },
-        { name: 'Identity & Branding', thai: 'ข้อมูลองค์กร', path: '/settings/profile' },
-        { name: 'Master Data', thai: 'ตั้งค่าพื้นฐาน (รพ./แผนก)', path: '/settings/master' },
-        { name: 'Audit Logs', thai: 'บันทึกประวัติการทำงาน', path: '/settings/audit' },
-      ]
-    },
+    { section: 'Dashboard', thai: 'หน้าหลัก', items: [
+      { name: 'Analytics', thai: 'ภาพรวมระบบ', icon: LayoutDashboard, path: '/' },
+      { name: 'Performance', thai: 'สถิติการทำงาน', icon: BarChart2, path: '/analytics' },
+    ]},
+    { section: 'Workspace', thai: 'พื้นที่ทำงาน', items: [
+      { name: 'Inbox', thai: 'แชทลูกค้า', icon: Inbox, path: '/inbox', count: inboxCount },
+      { name: 'Tickets', thai: 'จัดการตั๋วงาน', icon: Ticket, path: '/tickets', count: ticketCount },
+      { name: 'Customers', thai: 'ฐานข้อมูลลูกค้า', icon: Users, path: '/customers', count: customerCount },
+    ]},
+    { section: 'Admin', thai: 'หลังบ้าน', items: [
+      { 
+        name: 'Settings', 
+        thai: 'ตั้งค่าองค์กร', 
+        icon: Settings, 
+        children: [
+          { name: 'Staff', thai: 'จัดการทีมงาน', path: '/settings/staff' },
+          { name: 'SLA', thai: 'ตั้งค่า SLA', path: '/settings/sla' },
+          { name: 'Branding', thai: 'โปรไฟล์บริษัท', path: '/settings/profile' },
+          { name: 'Master', thai: 'ข้อมูลพื้นฐาน', path: '/settings/master' },
+          { name: 'Security', thai: 'Audit Logs', path: '/settings/audit' },
+        ]
+      },
+    ]},
   ];
 
   return (
@@ -167,134 +173,111 @@ const Sidebar = ({ onClickLink, isCollapsed = false }: SidebarProps) => {
         )}
       </div>
 
-      <nav style={{ padding: '12px', flex: 1 }}>
-        {menuItems.map((item) => {
-          if (item.children) {
-            const isOpen = openMenus.includes(item.name);
-            return (
-              <div key={item.name} style={{ marginBottom: '6px', position: 'relative' }} className="menu-item-container">
-                <button 
-                  onClick={() => !isCollapsed && toggleMenu(item.name)}
-                  className="glass-interactive sidebar-btn"
-                  title={isCollapsed ? item.thai : ''}
+      <nav style={{ padding: '0 12px', flex: 1, overflowY: 'auto' }} className="no-scrollbar">
+        {menuItems.map((section, sIdx) => (
+          <div key={sIdx} style={{ marginBottom: '24px' }}>
+            {!isCollapsed && (
+              <label style={{ 
+                fontSize: '10px', 
+                fontWeight: '800', 
+                color: 'var(--text-dim)', 
+                textTransform: 'uppercase', 
+                letterSpacing: '0.8px',
+                padding: '0 16px',
+                marginBottom: '10px',
+                display: 'block'
+              }}>{section.section}</label>
+            )}
+            {section.items.map((item) => {
+              if (item.children) {
+                const isOpen = openMenus.includes(item.name);
+                return (
+                  <div key={item.name} style={{ marginBottom: '4px' }}>
+                    <button 
+                      onClick={() => !isCollapsed && toggleMenu(item.name)}
+                      className="sidebar-btn-premium"
+                      style={{
+                        width: '100%',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: isCollapsed ? '0' : '10px',
+                        padding: '10px 16px',
+                        borderRadius: '10px',
+                        color: isOpen ? 'var(--primary)' : 'var(--text-muted)',
+                        background: 'transparent',
+                        border: 'none',
+                        cursor: 'pointer',
+                        justifyContent: isCollapsed ? 'center' : 'flex-start',
+                      }}
+                    >
+                      <item.icon size={18} />
+                      {!isCollapsed && (
+                        <>
+                          <span style={{ fontWeight: '600', fontSize: '13px', flex: 1, textAlign: 'left' }}>{item.thai}</span>
+                          <div style={{ opacity: 0.5, fontSize: '10px' }}>{isOpen ? '▼' : '▶'}</div>
+                        </>
+                      )}
+                    </button>
+                    {isOpen && !isCollapsed && (
+                      <div style={{ marginLeft: '28px', borderLeft: '1px solid var(--border)', paddingLeft: '8px', marginTop: '4px' }}>
+                        {item.children.map((child) => {
+                          const isChildActive = pathname === child.path;
+                          return (
+                            <Link key={child.path} href={child.path} onClick={onClickLink} 
+                              style={{
+                                display: 'block',
+                                padding: '8px 16px',
+                                fontSize: '12px',
+                                color: isChildActive ? 'var(--primary)' : 'var(--text-muted)',
+                                fontWeight: isChildActive ? '700' : '500',
+                                textDecoration: 'none',
+                                borderRadius: '8px',
+                                background: isChildActive ? 'rgba(54, 153, 255, 0.08)' : 'transparent'
+                              }}>
+                              {child.thai}
+                            </Link>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                );
+              }
+
+              const isActive = pathname === item.path;
+              return (
+                <Link key={item.path} href={item.path} onClick={onClickLink} className={`sidebar-btn-premium ${isActive ? 'active' : ''}`}
                   style={{
-                    width: '100%',
                     display: 'flex',
                     alignItems: 'center',
-                    gap: isCollapsed ? '0' : '12px',
-                    padding: isCollapsed ? '12px' : '10px 16px',
+                    gap: isCollapsed ? '0' : '10px',
+                    padding: '10px 16px',
                     borderRadius: '10px',
-                    color: 'var(--text-muted)',
-                    background: 'transparent',
-                    border: '1px solid transparent',
-                    cursor: 'pointer',
-                    justifyContent: isCollapsed ? 'center' : 'flex-start',
-                    fontFamily: 'inherit'
-                  }}
-                >
-                  <item.icon size={18} style={{ flexShrink: 0 }} />
+                    marginBottom: '4px',
+                    color: isActive ? 'var(--primary)' : 'var(--text-muted)',
+                    background: isActive ? 'rgba(54, 153, 255, 0.08)' : 'transparent',
+                    textDecoration: 'none',
+                    fontWeight: isActive ? '700' : '500',
+                  }}>
+                  <item.icon size={18} />
                   {!isCollapsed && (
-                    <>
-                      <div style={{ display: 'flex', flexDirection: 'column', lineHeight: '1.2', alignItems: 'flex-start' }}>
-                        <span style={{ fontWeight: '700', fontSize: '14px', fontFamily: 'inherit' }}>{item.thai}</span>
-                        <span style={{ fontSize: '10px', textTransform: 'uppercase', opacity: 0.7 }}>{item.name}</span>
-                      </div>
-                      <div style={{ marginLeft: 'auto', opacity: 0.5 }}>
-                        {isOpen ? '−' : '+'}
-                      </div>
-                    </>
+                    <span style={{ fontSize: '13px', flex: 1 }}>{item.thai}</span>
                   )}
-                </button>
-                
-                {isOpen && !isCollapsed && (
-                  <div style={{ paddingLeft: '24px', marginTop: '4px', borderLeft: '1px solid var(--border)', marginLeft: '24px' }}>
-                    {item.children.map((child) => {
-                      const isActive = pathname === child.path;
-                      return (
-                        <Link 
-                          key={child.path} 
-                          href={child.path}
-                          onClick={onClickLink}
-                          prefetch={false} // Optimize: don't prefetch settings subpages
-                          className="glass-interactive"
-                          style={{
-                            display: 'flex',
-                            flexDirection: 'column',
-                            gap: '0px',
-                            padding: '8px 16px',
-                            borderRadius: '8px',
-                            marginBottom: '4px',
-                            color: isActive ? 'var(--primary)' : 'var(--text-muted)',
-                            background: isActive ? 'rgba(0, 242, 254, 0.1)' : 'transparent',
-                            border: isActive ? '1px solid rgba(0, 242, 254, 0.2)' : '1px solid transparent',
-                            lineHeight: '1.2'
-                          }}
-                        >
-                          <span style={{ fontWeight: isActive ? '700' : '500', fontSize: '13px' }}>{child.thai}</span>
-                          <span style={{ fontSize: '9px', opacity: 0.6 }}>{child.name.toUpperCase()}</span>
-                        </Link>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            );
-          }
-
-          const isActive = pathname === item.path;
-          return (
-            <Link 
-              key={item.path} 
-              href={item.path || '#'}
-              onClick={onClickLink}
-              prefetch={item.path === '/inbox' || item.path === '/tickets'} // Only prefetch critical paths
-              title={isCollapsed ? item.thai : ''}
-              className={`glass-interactive sidebar-btn ${isActive ? 'active' : ''}`}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: isCollapsed ? '0' : '12px',
-                padding: isCollapsed ? '12px' : '10px 16px',
-                borderRadius: '10px',
-                marginBottom: '6px',
-                justifyContent: isCollapsed ? 'center' : 'flex-start',
-                color: isActive ? 'var(--primary)' : 'var(--text-muted)',
-                background: isActive ? 'rgba(0, 242, 254, 0.1)' : 'transparent',
-                border: isActive ? '1px solid rgba(0, 242, 254, 0.2)' : '1px solid transparent',
-              }}
-            >
-              <item.icon size={18} style={{ flexShrink: 0 }} />
-              {!isCollapsed && (
-                <div style={{ display: 'flex', flexDirection: 'column', lineHeight: '1.2' }}>
-                  <span style={{ fontWeight: '700', fontSize: '14px' }}>{item.thai}</span>
-                  <span style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase', opacity: 0.7 }}>{item.name}</span>
-                </div>
-              )}
-              
-              {!isCollapsed && item.count !== undefined && item.count > 0 && (
-                <div style={{
-                  marginLeft: 'auto',
-                  background: '#ef4444',
-                  color: 'white',
-                  fontSize: '10px',
-                  fontWeight: '900',
-                  minWidth: '22px',
-                  height: '22px',
-                  borderRadius: '11px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  padding: '0 6px',
-                  boxShadow: '0 0 15px rgba(239, 68, 68, 0.6), 0 0 0 2px rgba(239, 68, 68, 0.2)',
-                  animation: 'notifPulse 1.5s infinite ease-in-out',
-                  zIndex: 10
-                }}>
-                  {item.count > 99 ? '99+' : item.count}
-                </div>
-              )}
-            </Link>
-          );
-        })}
+                  {!isCollapsed && item.count !== undefined && item.count > 0 && (
+                    <span style={{ 
+                      fontSize: '10px', 
+                      background: 'var(--danger)', 
+                      color: 'white', 
+                      padding: '2px 8px', 
+                      borderRadius: '10px',
+                      fontWeight: '800'
+                    }}>{item.count}</span>
+                  )}
+                </Link>
+              );
+            })}
+          </div>
+        ))}
       </nav>
 
       <div style={{ padding: '16px', borderTop: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: '16px' }}>
