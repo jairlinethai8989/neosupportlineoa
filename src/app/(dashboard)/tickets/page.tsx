@@ -1,7 +1,8 @@
 'use client';
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-unused-vars */
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { 
   Search, 
   MessageSquare,
@@ -68,7 +69,10 @@ const PriorityIndicator = ({ priority }: { priority: string }) => {
   );
 };
 
-export default function TicketsPage() {
+function TicketsContent() {
+  const searchParams = useSearchParams();
+  const filterCustomerId = searchParams.get('customerId');
+  
   const [tickets, setTickets] = useState<any[]>([]);
   const [conversations, setConversations] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -141,12 +145,25 @@ export default function TicketsPage() {
     }
   };
 
-  const filteredTickets = tickets.filter(t => {
-     if (!searchTerm) return true;
-     const tNo = String(t.ticket_no || '').toLowerCase();
-     const tSub = String(t.subject || '').toLowerCase();
-     return tNo.includes(searchTerm.toLowerCase()) || tSub.includes(searchTerm.toLowerCase());
-  });
+  const filteredTickets = useMemo(() => {
+    let result = tickets;
+
+    if (filterCustomerId) {
+      result = result.filter(t => t.customer_id === filterCustomerId);
+    }
+
+    if (searchTerm) {
+      const query = searchTerm.toLowerCase();
+      result = result.filter(t => {
+        const tNo = String(t.ticket_no || '').toLowerCase();
+        const tSub = String(t.subject || '').toLowerCase();
+        const tCust = String(t.customers?.display_name || '').toLowerCase();
+        return tNo.includes(query) || tSub.includes(query) || tCust.includes(query);
+      });
+    }
+
+    return result;
+  }, [tickets, filterCustomerId, searchTerm]);
 
   if (loading) return (
      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '70vh', flexDirection: 'column', gap: '16px' }}>
@@ -175,9 +192,11 @@ export default function TicketsPage() {
       }}>
         <div style={{ flex: 1 }}>
           <h1 style={{ fontSize: '36px', fontWeight: '900', marginBottom: '10px', letterSpacing: '-1.5px', color: 'var(--text-main)' }}>
-            Ticket Workspace <span style={{ color: 'var(--primary)', opacity: 0.8 }}>({tickets.length})</span>
+            {filterCustomerId ? 'Filtered Workspace' : 'Ticket Workspace'} <span style={{ color: 'var(--primary)', opacity: 0.8 }}>({filteredTickets.length})</span>
           </h1>
-          <p style={{ color: 'var(--text-muted)', fontSize: '15px', fontWeight: '500' }}>บัตรงานสนับสนุนและติดตามสถานะแบบเรียลไทม์</p>
+          <p style={{ color: 'var(--text-muted)', fontSize: '15px', fontWeight: '500' }}>
+            {filterCustomerId ? `Viewing tickets for specific customer` : 'บัตรงานสนับสนุนและติดตามสถานะแบบเรียลไทม์'}
+          </p>
           {debugError && <div style={{ color: '#ea5455', fontSize: '12px', marginTop: '8px' }}>⚠️ {debugError}</div>}
         </div>
         
@@ -247,15 +266,18 @@ export default function TicketsPage() {
       </div>
 
       {viewMode === 'board' ? (
-          <div className="board-scroll-container no-scrollbar-mobile" style={{ 
+          <div className="board-scroll-container glass no-scrollbar-mobile" style={{ 
             display: 'flex', 
             gap: '28px', 
             overflowX: 'auto', 
-            paddingBottom: '20px', 
+            padding: '24px', 
             flex: 1, 
             alignItems: 'flex-start', 
             width: '100%',
-            minWidth: 0,
+            minHeight: '600px',
+            background: 'rgba(255,255,255,0.01)',
+            borderRadius: '32px',
+            border: '1px solid var(--border)',
             WebkitOverflowScrolling: 'touch'
           }}>
             {WORKFLOW.map(col => {
@@ -385,7 +407,7 @@ export default function TicketsPage() {
             })}
          </div>
       ) : (
-         <div className="glass" style={{ overflow: 'hidden' }}>
+          <div className="glass board-scroll-container" style={{ overflowX: 'auto', padding: '1px' }}>
            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
               <thead style={{ background: 'rgba(255, 255, 255, 0.03)', borderBottom: '1px solid var(--border)' }}>
                   <tr>
@@ -425,18 +447,25 @@ export default function TicketsPage() {
        )}
        <style dangerouslySetInnerHTML={{ __html: `
          .board-scroll-container::-webkit-scrollbar {
-           height: 8px;
+           height: 10px;
          }
          .board-scroll-container::-webkit-scrollbar-track {
-           background: rgba(255, 255, 255, 0.03);
-           border-radius: 10px;
+           background: rgba(255, 255, 255, 0.02);
+           border-radius: 20px;
+           margin: 0 20px;
          }
          .board-scroll-container::-webkit-scrollbar-thumb {
-           background: var(--border);
-           border-radius: 10px;
+           background: linear-gradient(to right, var(--primary), #7367f0);
+           border-radius: 20px;
+           border: 3px solid rgba(10, 14, 20, 0.9);
          }
          .board-scroll-container::-webkit-scrollbar-thumb:hover {
            background: var(--primary);
+           box-shadow: 0 0 15px var(--primary);
+         }
+         .board-scroll-container {
+           scroll-behavior: smooth;
+           padding-bottom: 30px !important;
          }
          @keyframes fadeIn {
            from { opacity: 0; transform: translateY(10px); }
@@ -445,5 +474,17 @@ export default function TicketsPage() {
          .workspace-header { width: 100%; }
        `}} />
     </div>
+  );
+}
+
+export default function TicketsPage() {
+  return (
+    <Suspense fallback={
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '70vh' }}>
+        <Loader2 className="animate-spin" size={32} color="var(--primary)" />
+      </div>
+    }>
+      <TicketsContent />
+    </Suspense>
   );
 }

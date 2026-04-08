@@ -53,8 +53,8 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   if (!active || !payload?.length) return null;
   return (
     <div style={{
-      background: 'rgba(10, 14, 20, 0.95)',
-      border: '1px solid rgba(255,255,255,0.1)',
+      background: 'var(--bg-sidebar)',
+      border: '1px solid var(--border)',
       borderRadius: '12px',
       padding: '12px 16px',
       backdropFilter: 'blur(12px)',
@@ -75,8 +75,8 @@ const PieTooltip = ({ active, payload }: any) => {
   const d = payload[0];
   return (
     <div style={{
-      background: 'rgba(10, 14, 20, 0.95)',
-      border: '1px solid rgba(255,255,255,0.1)',
+      background: 'var(--bg-sidebar)',
+      border: '1px solid var(--border)',
       borderRadius: '12px',
       padding: '12px 16px',
       backdropFilter: 'blur(12px)',

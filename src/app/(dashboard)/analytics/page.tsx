@@ -13,7 +13,9 @@ import {
   Settings,
   LayoutGrid,
   FileText as FileIcon,
-  RefreshCw
+  RefreshCw,
+  CheckCircle,
+  Zap
 } from 'lucide-react';
 import { 
   ResponsiveContainer, 
@@ -91,15 +93,15 @@ const SortableWidget = ({ id, chart, data, onRemove }: any) => {
   };
 
   const renderChart = () => {
-    const common = { width: '100%', height: 240 };
+    const common = { width: "100%", height: 240 } as any;
     switch (chart.type) {
       case 'bar':
         return (
           <ResponsiveContainer {...common}>
             <BarChart data={filteredData}>
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(128,128,128,0.2)" />
-              <XAxis dataKey="name" stroke="var(--text-muted)" fontSize={10} />
-              <YAxis stroke="var(--text-muted)" fontSize={10} />
+              <XAxis dataKey="name" stroke="#acb6c2" fontSize={14} tick={{ fill: '#acb6c2' }} />
+              <YAxis stroke="#acb6c2" fontSize={14} tick={{ fill: '#acb6c2' }} />
               <Tooltip contentStyle={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '8px' }} />
               <Bar dataKey="value" fill="var(--primary)" radius={[4, 4, 0, 0]} />
             </BarChart>
@@ -124,8 +126,8 @@ const SortableWidget = ({ id, chart, data, onRemove }: any) => {
           <ResponsiveContainer {...common}>
             <LineChart data={filteredData}>
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(128,128,128,0.2)" />
-              <XAxis dataKey="name" stroke="var(--text-muted)" fontSize={10} />
-              <YAxis stroke="var(--text-muted)" fontSize={10} />
+              <XAxis dataKey="name" stroke="#acb6c2" fontSize={14} tick={{ fill: '#acb6c2' }} />
+              <YAxis stroke="#acb6c2" fontSize={14} tick={{ fill: '#acb6c2' }} />
               <Tooltip />
               <Line type="monotone" dataKey="value" stroke="var(--primary)" strokeWidth={3} dot={{ r: 4 }} />
             </LineChart>
@@ -142,8 +144,8 @@ const SortableWidget = ({ id, chart, data, onRemove }: any) => {
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(128,128,128,0.2)" />
-              <XAxis dataKey="name" stroke="var(--text-muted)" fontSize={10} />
-              <YAxis stroke="var(--text-muted)" fontSize={10} />
+              <XAxis dataKey="name" stroke="#acb6c2" fontSize={14} tick={{ fill: '#acb6c2' }} />
+              <YAxis stroke="#acb6c2" fontSize={14} tick={{ fill: '#acb6c2' }} />
               <Tooltip cursor={{ stroke: 'var(--primary)', strokeWidth: 2 }} />
               <Area type="monotone" dataKey="value" stroke="var(--primary)" fillOpacity={1} fill={`url(#colorValue-${id})`} />
             </AreaChart>
@@ -154,7 +156,7 @@ const SortableWidget = ({ id, chart, data, onRemove }: any) => {
           <ResponsiveContainer {...common}>
             <RadarChart cx="50%" cy="50%" outerRadius="80%" data={filteredData}>
               <PolarGrid stroke="rgba(128,128,128,0.2)" />
-              <PolarAngleAxis dataKey="name" stroke="var(--text-muted)" fontSize={10} />
+              <PolarAngleAxis dataKey="name" stroke="#acb6c2" fontSize={14} tick={{ fill: '#acb6c2' }} />
               <Radar name="Performance" dataKey="value" stroke="var(--primary)" fill="var(--primary)" fillOpacity={0.5} />
               <Tooltip />
             </RadarChart>
@@ -165,8 +167,8 @@ const SortableWidget = ({ id, chart, data, onRemove }: any) => {
           <ResponsiveContainer {...common}>
             <ScatterChart>
               <CartesianGrid stroke="rgba(128,128,128,0.2)" />
-              <XAxis type="number" dataKey="x" name="time" stroke="var(--text-muted)" fontSize={10} />
-              <YAxis type="number" dataKey="y" name="value" stroke="var(--text-muted)" fontSize={10} />
+              <XAxis type="number" dataKey="x" name="time" stroke="#acb6c2" fontSize={14} tick={{ fill: '#acb6c2' }} />
+              <YAxis type="number" dataKey="y" name="value" stroke="#acb6c2" fontSize={14} tick={{ fill: '#acb6c2' }} />
               <Tooltip cursor={{ strokeDasharray: '3 3' }} />
               <Scatter name="Points" data={filteredData} fill="var(--primary)" />
             </ScatterChart>
@@ -181,24 +183,24 @@ const SortableWidget = ({ id, chart, data, onRemove }: any) => {
     <div ref={setNodeRef} style={style} className="glass">
       <div style={{ padding: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border)' }}>
         <div {...attributes} {...listeners} style={{ cursor: 'grab', display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <chart.icon size={16} color="var(--primary)" />
-          <h3 style={{ fontSize: '13px', fontWeight: '800' }}>{chart.name}</h3>
+          <chart.icon size={18} color="var(--primary)" />
+          <h3 style={{ fontSize: '16px', fontWeight: '800', color: '#ffffff' }}>{chart.name}</h3>
         </div>
-        <button onClick={() => onRemove(id)} style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', fontSize: '11px', fontWeight: '800' }}>ลบออก</button>
+        <button onClick={() => onRemove(id)} style={{ background: 'rgba(234, 84, 85, 0.1)', border: '1px solid var(--danger)', borderRadius: '8px', padding: '4px 10px', color: 'var(--danger)', cursor: 'pointer', fontSize: '12px', fontWeight: '800' }}>ลบออก</button>
       </div>
       <div style={{ padding: '20px' }}>
         {renderChart()}
         
         <div style={{ marginTop: '16px', borderTop: '1px solid var(--border)', paddingTop: '12px', display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
            {data.map((d: any) => (
-             <label key={d.name} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', cursor: 'pointer', opacity: selectedItems.includes(d.name) ? 1 : 0.4 }}>
+             <label key={d.name} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '14px', cursor: 'pointer', opacity: selectedItems.includes(d.name) ? 1 : 0.7 }}>
                 <input 
                   type="checkbox" 
                   checked={selectedItems.includes(d.name)} 
                   onChange={() => toggleItem(d.name)}
                   style={{ accentColor: 'var(--primary)' }}
                 />
-                {d.name}
+                <span style={{ color: selectedItems.includes(d.name) ? 'var(--text-main)' : 'var(--text-dim)' }}>{d.name}</span>
              </label>
            ))}
         </div>
@@ -293,7 +295,7 @@ export default function AdvancedAnalyticsPage() {
     <div style={{ animation: 'fadeIn 0.5s ease-out' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '24px', marginBottom: '32px' }}>
         <div style={{ flex: '1', minWidth: '300px' }}>
-          <h1 style={{ fontSize: '28px', fontWeight: '800', marginBottom: '4px' }}>ศูนย์บริหารสถิติอัจฉริยะ</h1>
+          <h1 style={{ fontSize: '32px', fontWeight: '800', marginBottom: '4px' }}>ศูนย์บริหารสถิติอัจฉริยะ</h1>
           <p style={{ color: 'var(--text-muted)', fontSize: '14px' }}>EXECUTIVE INTELLIGENCE CENTER (EIC) • Drag & Drop Workspace</p>
         </div>
         
@@ -304,14 +306,14 @@ export default function AdvancedAnalyticsPage() {
                 type="date" 
                 value={dateRange.start} 
                 onChange={e => setDateRange({...dateRange, start: e.target.value})}
-                style={{ background: 'none', border: 'none', color: 'var(--text-main)', fontSize: '12px', outline: 'none', width: '110px' }} 
+                style={{ background: 'none', border: 'none', color: 'var(--text-main)', fontSize: '14px', fontWeight: '600', outline: 'none', width: '130px' }} 
               />
               <span style={{ color: 'var(--text-muted)' }}>-</span>
               <input 
                 type="date" 
                 value={dateRange.end} 
                 onChange={e => setDateRange({...dateRange, end: e.target.value})}
-                style={{ background: 'none', border: 'none', color: 'white', fontSize: '12px', outline: 'none', width: '110px' }} 
+                style={{ background: 'none', border: 'none', color: 'var(--text-main)', fontSize: '14px', fontWeight: '600', outline: 'none', width: '130px' }} 
               />
            </div>
 
@@ -328,26 +330,38 @@ export default function AdvancedAnalyticsPage() {
 
       {/* Widget Selector Wrapped */}
       <div style={{ borderBottom: '1px solid var(--border)', paddingBottom: '20px', marginBottom: '32px' }}>
-         <p style={{ fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', marginBottom: '12px', textTransform: 'uppercase', letterSpacing: '1px' }}>เพิ่มวิดเจ็ตสถิติ (Add Statistics Widget)</p>
+         <p style={{ fontSize: '14px', fontWeight: '800', color: 'var(--primary)', marginBottom: '16px', textTransform: 'uppercase', letterSpacing: '1px' }}>เพิ่มวิดเจ็ตสถิติ (ADD STATISTICS WIDGET)</p>
          <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-            {CHART_TYPES.map(ct => (
-              <button 
-                key={ct.id}
-                onClick={() => !activeWidgets.includes(ct.id) && setActiveWidgets([...activeWidgets, ct.id])}
-                disabled={activeWidgets.includes(ct.id)}
-                className="glass-interactive"
-                style={{ 
-                  padding: '8px 14px', borderRadius: '10px', border: '1px solid var(--border)', 
-                  fontSize: '12px', fontWeight: '700',
-                  opacity: activeWidgets.includes(ct.id) ? 0.3 : 1,
-                  display: 'flex', alignItems: 'center', gap: '8px',
-                  background: activeWidgets.includes(ct.id) ? 'rgba(255,255,255,0.02)' : 'rgba(255,255,255,0.05)',
-                  cursor: activeWidgets.includes(ct.id) ? 'default' : 'pointer'
-                }}>
-                <ct.icon size={14} color={activeWidgets.includes(ct.id) ? 'var(--text-muted)' : 'var(--primary)'} /> 
-                {ct.name}
-              </button>
-            ))}
+            {CHART_TYPES.map(ct => {
+              const isAdded = activeWidgets.includes(ct.id);
+              return (
+                <button 
+                  key={ct.id}
+                  onClick={() => !isAdded && setActiveWidgets([...activeWidgets, ct.id])}
+                  disabled={isAdded}
+                  className="glass-interactive"
+                  style={{ 
+                    padding: '12px 24px', 
+                    borderRadius: '12px', 
+                    border: '1px solid ' + (isAdded ? 'var(--success)' : 'var(--border)'), 
+                    fontSize: '16px', 
+                    fontWeight: '700',
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: '12px',
+                    background: isAdded ? 'rgba(40, 199, 111, 0.05)' : 'rgba(255,255,255,0.03)',
+                    cursor: isAdded ? 'default' : 'pointer',
+                    color: '#acb6c2',
+                    boxShadow: 'none',
+                    transition: 'all 0.2s ease',
+                    minWidth: '220px',
+                    justifyContent: 'flex-start'
+                  }}>
+                  <ct.icon size={18} color={isAdded ? 'var(--success)' : 'var(--primary)'} /> 
+                  <span style={{ color: '#acb6c2' }}>{ct.name}</span>
+                </button>
+              );
+            })}
          </div>
       </div>
 

@@ -182,34 +182,33 @@ export default function TicketDetailPage() {
   };
 
   if (!isReady || loading) return (
-     <div className="flex-center" style={{ height: '100vh', background: '#0a0e14' }}>
-        <Loader2 className="animate-spin" size={32} color="var(--primary)" />
+     <div className="flex-center" style={{ height: '100vh', background: '#fbfcfd' }}>
+        <Loader2 className="animate-spin" size={32} color="var(--portal-primary)" />
      </div>
   );
 
   if (liffError || !profile) {
     return (
-      <div className="flex-center glass" style={{ height: '70vh', margin: '20px', padding: '32px', textAlign: 'center', flexDirection: 'column', gap: '20px', border: '1px solid var(--danger)' }}>
-        <AlertCircle size={48} color="var(--danger)" />
-        <h2 style={{ fontSize: '20px', fontWeight: '800' }}>Access Restricted</h2>
-        <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '14px' }}>Please log in via LINE application.</p>
+      <div className="flex-center portal-glass" style={{ height: '70vh', margin: '20px', padding: '32px', textAlign: 'center', flexDirection: 'column', gap: '20px', border: '1px solid #fee2e2', background: 'white' }}>
+        <AlertCircle size={48} color="#ef4444" />
+        <h2 style={{ fontSize: '18px', fontWeight: '800', color: '#1e293b' }}>ไม่สามารถเข้าถึงได้</h2>
+        <p style={{ color: '#64748b', fontSize: '14px' }}>กรุณาเข้าใช้งานผ่านแอปพลิเคชัน LINE</p>
         <button 
            onClick={() => setMockLogin('U_MOCK_ADMIN', 'Guest Admin')}
-           className="glass-interactive" 
-           style={{ padding: '12px 24px', borderRadius: '12px', border: '1px dotted var(--primary)', color: 'var(--primary)', fontWeight: '800', marginTop: '16px' }}
+           style={{ padding: '12px 24px', borderRadius: '12px', border: '1px solid #e2e8f0', background: 'white', color: '#1e293b', fontWeight: '700', marginTop: '16px', cursor: 'pointer' }}
         >
-           Mock Login (For Testing)
+           ทดสอบระบบ (Mock Login)
         </button>
       </div>
     );
   }
 
   if (!ticket) return (
-     <div className="flex-center" style={{ height: '100vh', background: '#0a0e14', color: 'white', flexDirection: 'column', gap: '16px' }}>
-        <AlertCircle size={48} color="var(--danger)" />
-        <h2 style={{ fontSize: '20px', fontWeight: '800' }}>Ticket Not Found</h2>
-        <button onClick={() => router.push('/portal')} className="glass-interactive" style={{ padding: '10px 20px', borderRadius: '8px', border: '1px solid var(--border)', color: 'white' }}>
-           Back to Portal
+     <div className="flex-center" style={{ height: '100vh', background: '#fbfcfd', color: '#1e293b', flexDirection: 'column', gap: '16px' }}>
+        <AlertCircle size={48} color="#ef4444" />
+        <h2 style={{ fontSize: '18px', fontWeight: '800' }}>ไม่พบข้อมูลใบงาน</h2>
+        <button onClick={() => router.push('/portal')} style={{ padding: '10px 20px', borderRadius: '8px', border: '1px solid #e2e8f0', background: 'white', color: '#1e293b', cursor: 'pointer' }}>
+           กลับสู่หน้าหลัก
         </button>
      </div>
   );
@@ -219,82 +218,90 @@ export default function TicketDetailPage() {
     'Pending': 1,
     'Assigned': 2,
     'Escalated': 3,
-    'Resolved': 4
+    'Resolved': 4,
+    'New': 1,
+    'In Progress': 2
   };
   const currentLevel = statusLevels[ticket.status] || 1;
 
   return (
-    <div style={{ animation: 'fadeIn 0.5s ease-out' }}>
+    <div className="portal-container" style={{ animation: 'fadeIn 0.5s ease-out' }}>
        {/* 1. Navbar */}
-       <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '32px' }}>
-          <button onClick={() => router.push('/portal')} className="glass-interactive" style={{ padding: '8px', borderRadius: '8px', border: 'none', background: 'transparent', color: 'white' }}>
-             <ArrowLeft size={24} />
+       <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px', padding: '0 4px' }}>
+          <button onClick={() => router.push('/portal')} style={{ padding: '8px', borderRadius: '12px', border: '1px solid var(--portal-border)', background: 'white', color: '#1e293b', cursor: 'pointer' }}>
+             <ArrowLeft size={18} />
           </button>
-          <h2 style={{ fontSize: '20px', fontWeight: '800' }}>#{ticket.ticket_no} Details</h2>
+          <h2 style={{ fontSize: '18px', fontWeight: '900', color: '#1e293b' }}>ตั๋วเลขที่ #{ticket.ticket_no}</h2>
        </div>
 
-       {/* 2. Private Chat Workspace (MOVED TO TOP) */}
-       <section className="glass" style={{ padding: '24px', marginBottom: '32px', display: 'flex', flexDirection: 'column', minHeight: '350px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
-             <MessageCircle size={18} color="var(--primary)" />
-             <h3 style={{ fontSize: '16px', fontWeight: '800' }}>Private Chat (Internal)</h3>
+       {/* 2. Private Chat Workspace */}
+       <section className="portal-glass" style={{ padding: '20px', marginBottom: '24px', display: 'flex', flexDirection: 'column', height: '450px', background: 'white' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px', borderBottom: '1px solid var(--portal-border)', paddingBottom: '12px' }}>
+             <MessageCircle size={16} color="var(--portal-primary)" />
+             <h3 style={{ fontSize: '13px', fontWeight: '800', color: '#1e293b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>สนทนากับเจ้าหน้าที่</h3>
           </div>
 
           {/* Chat Messages */}
-          <div style={{ flex: 1, overflowY: 'auto', marginBottom: '20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <div style={{ flex: 1, overflowY: 'auto', marginBottom: '20px', display: 'flex', flexDirection: 'column', gap: '14px', padding: '0 4px' }} className="no-scrollbar">
              {messages.map((msg, idx) => (
                 <div key={idx} style={{ 
                    alignSelf: msg.sender_type === 'customer' ? 'flex-end' : 'flex-start',
-                   maxWidth: '85%',
-                   padding: '10px 14px',
-                   borderRadius: '12px',
-                   background: msg.sender_type === 'customer' ? 'var(--primary)' : 'rgba(255,255,255,0.05)',
-                   color: msg.sender_type === 'customer' ? 'black' : 'white',
+                   maxWidth: '80%',
+                   padding: '12px 16px',
+                   borderRadius: msg.sender_type === 'customer' ? '20px 20px 4px 20px' : '20px 20px 20px 4px',
+                   background: msg.sender_type === 'customer' ? '#1e293b' : '#f1f5f9',
+                   color: msg.sender_type === 'customer' ? 'white' : '#334155',
+                   boxShadow: '0 2px 8px rgba(0,0,0,0.02)'
                 }}>
-                   <p style={{ fontSize: '14px', fontWeight: '500' }}>
+                   <div style={{ fontSize: '14px', fontWeight: '500', lineHeight: '1.5' }}>
                        {msg.message_type === 'image' || (msg.content?.startsWith('http') && msg.content?.match(/\.(jpeg|jpg|gif|png)$/i)) ? (
-                          <img src={msg.content} style={{ maxWidth: '100%', borderRadius: '8px' }} alt="Attachment" />
+                          <img src={msg.content} style={{ maxWidth: '100%', borderRadius: '12px' }} alt="Attachment" />
                        ) : msg.message_type === 'file' || (msg.content?.startsWith('http') && msg.message_type !== 'text') ? (
-                          <a href={msg.content} target="_blank" rel="noreferrer" style={{ textDecoration: 'underline', color: 'inherit', fontWeight: 'bold' }}>
-                             📎 Download Attachment
+                          <a href={msg.content} target="_blank" rel="noreferrer" style={{ textDecoration: 'none', color: 'inherit', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                             <Paperclip size={14} /> ดูไฟล์แนบ
                           </a>
                        ) : (
                           msg.content
                        )}
-                   </p>
-                   <p style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '6px', fontWeight: '500' }}>
+                   </div>
+                   <p style={{ fontSize: '10px', color: msg.sender_type === 'customer' ? 'rgba(255,255,255,0.6)' : '#94a3b8', marginTop: '6px', fontWeight: '600', textAlign: 'right' }}>
                       {new Date(msg.created_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', hour12: false })}
                    </p>
                 </div>
              ))}
-             {messages.length === 0 && <p style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '12px', marginTop: '40px' }}>No messages yet. Say hi to the agent!</p>}
+             {messages.length === 0 && <p style={{ textAlign: 'center', color: 'var(--portal-text-muted)', fontSize: '13px', marginTop: '40px' }}>ยังไม่มีข้อความ เริ่มคุยกับเราได้เลยครับ</p>}
           </div>
 
           {/* Chat Input */}
           {ticket.status !== 'Resolved' && ticket.status !== 'Closed' ? (
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <button onClick={() => setIsAttachModalOpen(true)} className="glass-interactive flex-center" style={{ width: '48px', height: '44px', borderRadius: '10px', border: 'none', background: 'rgba(255,255,255,0.05)', color: 'var(--text-main)' }}>
-                 <Paperclip size={20} />
+            <div style={{ display: 'flex', gap: '10px', alignItems: 'center', background: '#f8fafc', padding: '8px', borderRadius: '16px' }}>
+              <button 
+                onClick={() => setIsAttachModalOpen(true)} 
+                style={{ width: '40px', height: '40px', borderRadius: '12px', border: 'none', background: 'white', color: '#64748b', cursor: 'pointer', boxShadow: '0 2px 5px rgba(0,0,0,0.05)' }} 
+                className="flex-center"
+              >
+                 <Paperclip size={18} />
               </button>
               <input 
                 type="text" 
-                placeholder="Message your agent..." 
+                placeholder="เขียนข้อความถึงเจ้าหน้าที่..." 
                 value={newMessage}
                 onChange={(e) => setNewMessage(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
-                style={{ flex: 1, background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', borderRadius: '10px', padding: '12px 16px', color: 'var(--text-main)' }}
+                style={{ flex: 1, background: 'transparent', border: 'none', borderRadius: '10px', padding: '10px', color: '#1e293b', outline: 'none', fontSize: '14px' }}
               />
               <button 
                 onClick={handleSendMessage}
                 disabled={sending}
-                className="glass-interactive flex-center" 
-                style={{ width: '48px', height: '44px', borderRadius: '10px', border: 'none', background: 'var(--primary)', color: 'black' }}>
-                  {sending ? <Loader2 size={18} className="animate-spin" /> : <SendHorizontal size={20} />}
+                style={{ width: '40px', height: '40px', borderRadius: '12px', border: 'none', background: '#1e293b', color: 'white', cursor: 'pointer' }}
+                className="flex-center"
+              >
+                  {sending ? <Loader2 size={18} className="animate-spin" /> : <SendHorizontal size={18} />}
               </button>
             </div>
           ) : (
-            <div style={{ padding: '16px', borderRadius: '10px', background: 'rgba(0, 255, 127, 0.05)', border: '1px dotted var(--success)', textAlign: 'center' }}>
-               <p style={{ fontSize: '12px', color: 'var(--success)', fontWeight: '700' }}>
+            <div style={{ padding: '16px', borderRadius: '16px', background: '#f0fdf4', border: '1px solid #dcfce7', textAlign: 'center' }}>
+               <p style={{ fontSize: '13px', color: '#166534', fontWeight: '700' }}>
                   ใบงานนี้เสร็จสมบูรณ์แล้ว ระบบปิดการสนทนาขอบคุณที่ใช้บริการครับ
                </p>
             </div>
@@ -302,71 +309,72 @@ export default function TicketDetailPage() {
        </section>
 
        {/* 3. Status Tracker */}
-       <section className="glass" style={{ padding: '24px', marginBottom: '32px', position: 'relative' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
-             <h3 style={{ fontSize: '14px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Current Status</h3>
-             <span style={{ fontSize: '14px', fontWeight: '900', color: ticket.status === 'Resolved' ? 'var(--success)' : 'var(--primary)' }}>
+       <section className="portal-glass" style={{ padding: '24px', marginBottom: '24px', background: 'white', border: '1px solid var(--portal-border)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px', alignItems: 'center' }}>
+             <h3 style={{ fontSize: '12px', fontWeight: '800', color: 'var(--portal-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>สถานะปัจจุบัน</h3>
+             <span style={{ fontSize: '14px', fontWeight: '900', color: ticket.status === 'Resolved' ? '#166534' : 'var(--portal-primary)' }}>
                 {ticket.status}
              </span>
           </div>
 
           {/* Progress Bar */}
-          <div style={{ height: '8px', background: 'rgba(255,255,255,0.05)', borderRadius: '4px', overflow: 'hidden', display: 'flex', gap: '4px', marginBottom: '24px' }}>
+          <div style={{ height: '6px', background: '#f1f5f9', borderRadius: '10px', overflow: 'hidden', display: 'flex', gap: '4px', marginBottom: '20px' }}>
              {[1, 2, 3, 4].map(step => (
                 <div key={step} style={{ 
                    flex: 1, 
-                   background: step <= currentLevel ? (ticket.status === 'Resolved' ? 'var(--success)' : 'var(--primary)') : 'transparent',
-                   transition: 'background 0.3s ease'
+                   background: step <= currentLevel ? (ticket.status === 'Resolved' ? '#22c55e' : 'var(--portal-primary)') : 'transparent',
+                   transition: 'background 0.4s ease'
                 }} />
              ))}
           </div>
 
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: '700' }}>
-             <span>Pending</span>
-             <span>In Progress</span>
-             <span>Escalated</span>
-             <span>Resolved</span>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9px', color: 'var(--portal-text-muted)', textTransform: 'uppercase', fontWeight: '800' }}>
+             <span>รอดำเนินการ</span>
+             <span>รับงานแล้ว</span>
+             <span>ส่งต่อแก้ปัญหา</span>
+             <span>ปิดงานแล้ว</span>
           </div>
        </section>
 
-       {/* 4. Ticket Info Grid */}
-       <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '16px', marginBottom: '32px' }}>
-          <div className="glass" style={{ padding: '20px', background: 'rgba(255,255,255,0.02)' }}>
-             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
-                <FileText size={18} color="var(--primary)" />
-                <p style={{ fontSize: '13px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Work Subject</p>
-             </div>
-             <p style={{ fontSize: '18px', fontWeight: '700' }}>{ticket.subject || 'Standard Request'}</p>
+       {/* 4. Ticket Info */}
+       <div className="portal-glass" style={{ padding: '20px', marginBottom: '24px', background: 'white' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
+             <FileText size={16} color="var(--portal-primary)" />
+             <p style={{ fontSize: '12px', fontWeight: '800', color: 'var(--portal-text-muted)', textTransform: 'uppercase' }}>หัวข้อที่แจ้ง</p>
           </div>
+          <p style={{ fontSize: '17px', fontWeight: '800', color: '#1e293b' }}>{ticket.subject || 'แจ้งปัญหาทั่วไป'}</p>
+          {ticket.description && <p style={{ fontSize: '14px', color: '#64748b', marginTop: '8px', lineHeight: '1.6' }}>{ticket.description}</p>}
        </div>
 
-       {/* 5. Timeline / Logs */}
-       <section className="glass" style={{ padding: '24px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
-             <Clock size={16} color="var(--primary)" />
-             <h3 style={{ fontSize: '16px', fontWeight: '800' }}>Progress Timeline</h3>
+       {/* 5. Timeline */}
+       <section className="portal-glass" style={{ padding: '24px', background: 'white' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px' }}>
+             <Clock size={16} color="var(--portal-primary)" />
+             <h3 style={{ fontSize: '13px', fontWeight: '800', color: '#1e293b', textTransform: 'uppercase' }}>ประวัติการดำเนินการ</h3>
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0', borderLeft: '2px solid var(--border)', marginLeft: '12px', paddingLeft: '24px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0', borderLeft: '1px solid #e2e8f0', marginLeft: '8px', paddingLeft: '20px' }}>
              {logs.map((log, index) => (
-                <div key={log.id} style={{ position: 'relative', marginBottom: '24px' }}>
+                <div key={log.id} style={{ position: 'relative', marginBottom: '20px' }}>
                    <div style={{ 
                       position: 'absolute', 
-                      left: '-31px', 
-                      top: '0', 
-                      width: '10px', 
-                      height: '10px', 
+                      left: '-24.5px', 
+                      top: '4px', 
+                      width: '8px', 
+                      height: '8px', 
                       borderRadius: '50%', 
-                      background: index === 0 ? 'var(--primary)' : 'var(--border)',
+                      background: index === 0 ? 'var(--portal-primary)' : '#cbd5e1',
+                      border: '2px solid white'
                    }} />
-                   <p style={{ fontSize: '10px', color: 'var(--text-muted)', marginBottom: '4px' }}>
-                      {new Date(log.created_at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}
+                   <p style={{ fontSize: '10px', color: 'var(--portal-text-muted)', marginBottom: '4px', fontWeight: '600' }}>
+                      {new Date(log.created_at).toLocaleString('th-TH', { dateStyle: 'medium', timeStyle: 'short' })}
                    </p>
-                   <p style={{ fontSize: '13px', fontWeight: '700' }}>
-                      {log.action_type === 'status_change' ? `Moved to ${log.to_status}` : 'Task Update'}
+                   <p style={{ fontSize: '13px', fontWeight: '700', color: '#334155' }}>
+                      {log.action_type === 'status_change' ? `เปลี่ยนสถานะเป็น ${log.to_status}` : 'เริ่มดำเนินการ'}
                    </p>
                 </div>
               ))}
+              {logs.length === 0 && <p style={{ fontSize: '12px', color: 'var(--portal-text-muted)' }}>กำลังรอเจ้าหน้าที่รับเรื่อง...</p>}
            </div>
         </section>
 

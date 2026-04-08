@@ -49,7 +49,7 @@ export default function CreateTicketPage() {
   }, [profile, router]);
 
   if (!isReady || checking) {
-     return <div className="flex-center" style={{ height: '100vh', background: '#0a0e14' }}><Loader2 className="animate-spin" color="var(--primary)" size={32} /></div>;
+     return <div className="flex-center" style={{ height: '100vh', background: '#fbfcfd' }}><Loader2 className="animate-spin" color="var(--portal-primary)" size={32} /></div>;
   }
 
   if (!customerData) {
@@ -78,11 +78,12 @@ export default function CreateTicketPage() {
 
          // 2. Insert Ticket (Simplified to respect DB triggers)
          const ticketPayload: any = {
+            ticket_no: ticketNo,
             customer_id: customerData.id,
             hospital_id: customerData.hospital_id,
             subject: subject,
             description: description || subject,
-            status: 'new', // Using lowercase as fixed previously
+            status: 'New', // Standardized Case for counters
             priority: 'Medium',
             created_at: new Date().toISOString()
          };
@@ -98,36 +99,27 @@ export default function CreateTicketPage() {
          const createdTicket = newTicket?.[0];
          if (!createdTicket) throw new Error('Ticket was not created (No returned data)');
 
-         // 3. Upsert Conversation for Inbox (Robust way)
-         const { data: existingConv } = await supabase
-            .from('conversations')
-            .select('id')
-            .eq('customer_id', customerData.id)
-            .maybeSingle();
+         // 3. Create Fresh Conversation for THIS Ticket (Don't combine with old ones)
+         // First, close any "active" ones for this customer to avoid multiple active chats for the same person
+         await supabase.from('conversations')
+           .update({ status: 'closed' })
+           .eq('customer_id', customerData.id)
+           .eq('status', 'active');
 
+         // Create new one specifically for this ticket
+         const { data: newConv, error: createError } = await supabase.from('conversations').insert([{
+             customer_id: customerData.id,
+             status: 'active',
+             current_ticket_id: createdTicket.id,
+             last_message_at: new Date().toISOString()
+         }]).select().single();
+         
          let conversationId;
-         if (existingConv) {
-            conversationId = existingConv.id;
-            const { error: updateError } = await supabase.from('conversations').update({
-                status: 'active',
-                current_ticket_id: createdTicket.id,
-                last_message_at: new Date().toISOString()
-            }).eq('id', conversationId);
-            
-            if (updateError) console.error('Conv Update Error:', updateError);
+         if (createError) {
+            console.error('Conv Create Error:', createError);
+            // Fallback: If we can't create, we can't link messages correctly, but ticket is already saved.
          } else {
-            const { data: newConv, error: createError } = await supabase.from('conversations').insert([{
-                customer_id: customerData.id,
-                status: 'active',
-                current_ticket_id: createdTicket.id,
-                last_message_at: new Date().toISOString()
-            }]).select().single();
-            
-            if (createError) {
-               console.error('Conv Create Error:', createError);
-            } else {
-               conversationId = newConv.id;
-            }
+            conversationId = newConv?.id;
          }
 
          // 4. Initial Message (If conversationId exists)
@@ -172,75 +164,40 @@ export default function CreateTicketPage() {
   };
 
   return (
-    <div className="portal-container" style={{ 
-      minHeight: '100vh', 
-      background: 'radial-gradient(circle at top right, #1a2332, #0a0e14)',
-      paddingBottom: '40px' 
-    }}>
-      {/* Premium Header */}
-      <div className="portal-header" style={{ 
-        padding: '24px 20px', 
-        display: 'flex', 
-        alignItems: 'center', 
-        justifyContent: 'space-between',
-        background: 'rgba(10, 14, 20, 0.6)',
-        backdropFilter: 'blur(12px)',
-        borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
-        position: 'sticky',
-        top: 0,
-        zIndex: 100
-      }}>
-         <button 
-           onClick={() => router.back()} 
-           className="glass-interactive flex-center" 
-           style={{ width: '40px', height: '40px', borderRadius: '12px', color: 'var(--text-main)', border: '1px solid rgba(255,255,255,0.1)' }}
-         >
-           <ArrowLeft size={18} />
-         </button>
-         
-         <div style={{ textAlign: 'center' }}>
-            <h1 style={{ fontSize: '18px', fontWeight: '900', color: 'var(--text-main)', letterSpacing: '0.02em' }}>แจ้งเรื่องใหม่</h1>
-            <p style={{ fontSize: '11px', color: 'var(--primary)', fontWeight: '700', textTransform: 'uppercase' }}>New Support Ticket</p>
-         </div>
-
-         <div style={{ width: '40px' }} />
+    <div className="portal-container" style={{ animation: 'fadeIn 0.5s ease-out' }}>
+      {/* minimal header handled by layout, but we need the sub-header for this page */}
+      <div style={{ padding: '0 20px 24px', textAlign: 'center' }}>
+         <h1 style={{ fontSize: '22px', fontWeight: '900', color: '#1e293b', marginBottom: '4px' }}>แจ้งเรื่องใหม่</h1>
+         <p style={{ fontSize: '12px', color: 'var(--portal-text-muted)', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.05em' }}>New Support Ticket</p>
       </div>
 
-      <div className="portal-content" style={{ padding: '24px 20px' }}>
-         <div className="glass" style={{ 
-            padding: '28px 24px', 
-            borderRadius: '28px', 
-            border: '1px solid rgba(255, 255, 255, 0.08)',
-            background: 'rgba(255, 255, 255, 0.03)',
-            boxShadow: '0 20px 40px rgba(0,0,0,0.4)',
-            animation: 'fadeInUp 0.6s ease-out'
+      <div className="portal-content" style={{ padding: '0 20px' }}>
+         <div className="portal-glass" style={{ 
+            padding: '24px', 
+            background: 'white',
+            boxShadow: '0 10px 30px rgba(0,0,0,0.02)',
+            border: '1px solid var(--portal-border)'
          }}>
-            <form onSubmit={handleSubmit}>
+            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                {error && (
                   <div style={{ 
-                    marginBottom: '24px', 
                     padding: '16px', 
                     borderRadius: '16px', 
-                    background: 'rgba(234, 84, 85, 0.1)', 
-                    color: '#ea5455', 
+                    background: '#fef2f2', 
+                    color: '#ef4444', 
                     fontSize: '13px', 
                     lineHeight: '1.6', 
-                    border: '1px solid rgba(234, 84, 85, 0.2)',
+                    border: '1px solid #fee2e2',
                     display: 'flex',
                     gap: '12px'
                   }}>
                      <AlertCircle size={18} style={{ flexShrink: 0 }} /> 
-                     <div>
-                        <strong>Ticket Creation Error:</strong><br/>
-                        {error.includes('customer_id') 
-                          ? 'ฐานข้อมูลตาราง Tickets ยังไม่มีฟิลด์ลูกค้า (customer_id) หรือต้องรีเฟรช Schema Cache' 
-                          : error}
-                     </div>
+                     <div>{error}</div>
                   </div>
                )}
 
-               <div style={{ marginBottom: '24px' }}>
-                  <label htmlFor="ticket-subject" style={{ display: 'block', fontSize: '12px', fontWeight: '800', color: 'var(--primary)', textTransform: 'uppercase', marginBottom: '10px', letterSpacing: '0.05em' }}>หัวข้อที่ต้องการแจ้ง</label>
+               <div>
+                  <label htmlFor="ticket-subject" style={{ display: 'block', fontSize: '11px', fontWeight: '800', color: 'var(--portal-text-muted)', textTransform: 'uppercase', marginBottom: '8px', letterSpacing: '0.08em' }}>หัวข้อที่ต้องการแจ้ง</label>
                   <input 
                     id="ticket-subject"
                     name="subject"
@@ -248,24 +205,23 @@ export default function CreateTicketPage() {
                     value={subject}
                     onChange={e => setSubject(e.target.value)}
                     placeholder="เช่น เข้าใช้งานไม่ได้, ปัญหาอุปกรณ์…"
-                    className="portal-input"
                     style={{ 
-                      background: 'rgba(255, 255, 255, 0.05)', 
-                      border: '1px solid rgba(255, 255, 255, 0.1)',
-                      borderRadius: '14px',
-                      padding: '16px 18px',
-                      color: 'var(--text-main)',
+                      background: '#f8fafc', 
+                      border: '1px solid var(--portal-border)',
+                      borderRadius: '12px',
+                      padding: '14px 16px',
+                      color: '#1e293b',
                       fontSize: '15px',
                       width: '100%',
                       outline: 'none',
-                      transition: 'all 0.3s'
+                      transition: 'all 0.2s'
                     }}
                     autoComplete="off"
                   />
                </div>
 
-               <div style={{ marginBottom: '24px' }}>
-                  <label htmlFor="ticket-description" style={{ display: 'block', fontSize: '12px', fontWeight: '800', color: 'var(--primary)', textTransform: 'uppercase', marginBottom: '10px', letterSpacing: '0.05em' }}>รายละเอียดเพิ่มเติม</label>
+               <div>
+                  <label htmlFor="ticket-description" style={{ display: 'block', fontSize: '11px', fontWeight: '800', color: 'var(--portal-text-muted)', textTransform: 'uppercase', marginBottom: '8px', letterSpacing: '0.08em' }}>รายละเอียดเพิ่มเติม</label>
                   <textarea 
                     id="ticket-description"
                     name="description"
@@ -275,11 +231,11 @@ export default function CreateTicketPage() {
                     style={{ 
                       height: '140px', 
                       resize: 'none', 
-                      padding: '16px 18px',
-                      background: 'rgba(255, 255, 255, 0.05)', 
-                      border: '1px solid rgba(255, 255, 255, 0.1)',
-                      borderRadius: '14px',
-                      color: 'var(--text-main)',
+                      padding: '14px 16px',
+                      background: '#f8fafc', 
+                      border: '1px solid var(--portal-border)',
+                      borderRadius: '12px',
+                      color: '#1e293b',
                       fontSize: '15px',
                       width: '100%',
                       outline: 'none',
@@ -288,7 +244,7 @@ export default function CreateTicketPage() {
                   />
                </div>
 
-               <div style={{ marginBottom: '32px' }}>
+               <div>
                   <input 
                     type="file" 
                     id="ticket-file"
@@ -301,14 +257,15 @@ export default function CreateTicketPage() {
                     <button 
                       type="button" 
                       onClick={() => fileInputRef.current?.click()} 
-                      className="glass-interactive flex-center" 
+                      className="flex-center" 
                       style={{ 
                         width: '100%', 
                         gap: '12px', 
-                        border: '2px dashed rgba(255,255,255,0.1)', 
+                        border: '2px dashed #e2e8f0', 
                         borderRadius: '16px', 
-                        padding: '20px', 
-                        color: 'rgba(255,255,255,0.5)',
+                        padding: '16px', 
+                        color: '#94a3b8',
+                        background: 'transparent',
                         transition: 'all 0.3s'
                       }}
                     >
@@ -316,17 +273,16 @@ export default function CreateTicketPage() {
                        <span style={{ fontSize: '14px', fontWeight: '700' }}>เพิ่มรูปภาพหรือไฟล์ประกอบ</span>
                     </button>
                   ) : (
-                    <div className="flex-between glass" style={{ 
-                      padding: '14px 18px', 
-                      borderRadius: '16px', 
-                      border: '1px solid var(--primary)',
-                      background: 'rgba(0, 242, 254, 0.05)' 
+                    <div className="flex-between portal-glass" style={{ 
+                      padding: '12px 16px', 
+                      background: '#f0f9ff',
+                      border: '1px solid #bae6fd' 
                     }}>
-                       <div className="flex-center" style={{ gap: '12px', overflow: 'hidden' }}>
-                          <Paperclip size={18} color="var(--primary)" />
-                          <span style={{ fontSize: '13px', fontWeight: '800', color: 'var(--text-main)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{file.name}</span>
+                       <div className="flex-center" style={{ gap: '10px', overflow: 'hidden' }}>
+                          <Paperclip size={18} color="#0284c7" />
+                          <span style={{ fontSize: '13px', fontWeight: '800', color: '#0369a1', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{file.name}</span>
                        </div>
-                       <button type="button" onClick={() => setFile(null)} style={{ color: '#ea5455', border: 'none', background: 'none', fontSize: '12px', fontWeight: '900', marginLeft: '12px', flexShrink: 0 }}>ลบออก</button>
+                       <button type="button" onClick={() => setFile(null)} style={{ color: '#ef4444', border: 'none', background: 'none', fontSize: '12px', fontWeight: '900', marginLeft: '12px', cursor: 'pointer' }}>ลบออก</button>
                     </div>
                   )}
                </div>
@@ -337,11 +293,9 @@ export default function CreateTicketPage() {
                  className="portal-btn-primary" 
                  style={{ 
                    width: '100%', 
-                   padding: '18px',
-                   borderRadius: '18px',
+                   padding: '16px',
+                   borderRadius: '16px',
                    gap: '12px',
-                   boxShadow: '0 10px 30px rgba(0, 242, 254, 0.2)',
-                   background: 'linear-gradient(135deg, var(--primary), #4facfe)',
                    opacity: submitting ? 0.7 : 1
                  }}
                >
@@ -350,15 +304,11 @@ export default function CreateTicketPage() {
                   ) : (
                     <>
                        <SendHorizontal size={20} />
-                       <span style={{ fontSize: '17px', fontWeight: '900', letterSpacing: '0.02em' }}>ส่งใบแจ้งงาน</span>
+                       <span style={{ fontSize: '17px', fontWeight: '800' }}>ส่งใบแจ้งงาน</span>
                     </>
                   )}
                </button>
             </form>
-         </div>
-
-         <div style={{ marginTop: '24px', textAlign: 'center', opacity: 0.6 }}>
-            <p style={{ fontSize: '11px', color: 'var(--text-muted)' }}>&copy; 2026 NEO Support. Powered by Omni AI.</p>
          </div>
       </div>
     </div>

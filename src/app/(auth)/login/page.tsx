@@ -59,8 +59,7 @@ export default function LoginPage() {
       alignItems: 'center', 
       justifyContent: 'center',
       background: '#f6f9fc',
-      padding: '20px',
-      fontFamily: '"Inter", "Noto Sans Thai", sans-serif'
+      padding: '20px'
     }}>
       <div style={{ 
         width: '100%', 

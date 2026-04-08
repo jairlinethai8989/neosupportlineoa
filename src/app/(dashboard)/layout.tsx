@@ -4,8 +4,7 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable jsx-a11y/alt-text */
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Noto_Sans_Thai } from "next/font/google";
-import Sidebar from "@/components/layout/Sidebar";
+import MainSidebar from "@/components/layout/MainSidebar";
 import { useRouter } from 'next/navigation';
 import {
   Menu,
@@ -25,10 +24,7 @@ import { NotificationProvider, useNotificationContext } from '@/contexts/Notific
 import ToastContainer from '@/components/notifications/ToastContainer';
 import type { AppNotification } from '@/hooks/useNotifications';
 
-const notoThai = Noto_Sans_Thai({
-  subsets: ["latin", "thai"],
-  weight: ['300', '400', '500', '600', '700', '800']
-});
+// Font Noto Sans Thai is handled by root layout
 
 type NotifTab = 'all' | 'unread' | 'sla';
 
@@ -122,7 +118,7 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
   });
 
   return (
-    <div className={`main-layout ${notoThai.className}`}>
+    <div className="main-layout">
       {/* Global Toast Portal */}
       <ToastContainer />
       {/* Sidebar Mobile Toggle Overlay */}
@@ -138,7 +134,7 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
           transition: 'width 0.3s cubic-bezier(0.4, 0, 0.2, 1), transform 0.3s ease'
         }}
       >
-        <Sidebar isCollapsed={isSidebarCollapsed} onClickLink={() => setIsSidebarOpen(false)} />
+        <MainSidebar isCollapsed={isSidebarCollapsed} onClickLink={() => setIsSidebarOpen(false)} />
       </div>
 
       <main className="content-area">

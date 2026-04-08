@@ -124,7 +124,23 @@ function InboxContent() {
         const { data: ticket } = await supabase.from('tickets').select('*').eq('id', selectedChat.current_ticket_id).single();
         setCurrentTicket(ticket);
       } else {
-        setCurrentTicket(null);
+        // AUTO-LINK: Find the most recent OPEN ticket for this customer
+        const { data: recentTicket } = await supabase
+          .from('tickets')
+          .select('*')
+          .eq('customer_id', selectedChat.customer_id)
+          .not('status', 'in', '("Resolved","Closed")') // Only open
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        
+        if (recentTicket) {
+           // Silent background update
+           await supabase.from('conversations').update({ current_ticket_id: recentTicket.id }).eq('id', selectedChat.id);
+           setCurrentTicket(recentTicket);
+        } else {
+           setCurrentTicket(null);
+        }
       }
     }
 
@@ -598,37 +614,13 @@ function InboxContent() {
                      </div>
                   </div>
                ) : (
-                  <div style={{ textAlign: 'center', padding: '20px' }}>
-                     <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '12px' }}>ยังไม่มีใบงานที่เชื่อมโยงกับแชทนี้</p>
-                     
-                     {/* Suggest linking to existing tickets for this customer */}
-                     <button 
-                        onClick={async () => {
-                           if (!selectedChat?.customer_id) return;
-                           const { data: tickets } = await supabase
-                            .from('tickets')
-                            .select('*')
-                            .eq('customer_id', selectedChat.customer_id)
-                            .eq('status', 'In Progress');
-                           
-                           if (tickets && tickets.length > 0) {
-                              const t = tickets[0]; // Link to the first active one for now
-                              if (confirm(`คุณต้องการเชื่อมโยงแชทนี้เข้ากับใบงาน #${t.ticket_no} ใช่หรือไม่?`)) {
-                                 await supabase.from('conversations').update({ current_ticket_id: t.id }).eq('id', selectedChat.id);
-                                 alert('เชื่อมโยงใบงานเรียบร้อยแล้ว');
-                                 // selectedChat will sync via useEffect
-                              }
-                           } else {
-                              window.location.href = '/tickets';
-                           }
-                        }}
-                        className="glass-interactive" 
-                        style={{ padding: '8px 16px', borderRadius: '8px', border: '1px solid var(--primary)', color: 'var(--primary)', fontSize: '12px', fontWeight: '700', width: '100%' }}
-                     >
-                        🔗 เชื่อมแชทกับใบงานที่มีอยู่
-                     </button>
-                  </div>
-               )}
+                  <div style={{ textAlign: 'center', padding: '30px 20px', background: 'rgba(255,255,255,0.02)', borderRadius: '16px' }}>
+                      <p style={{ fontSize: '13px', color: 'var(--text-muted)', fontWeight: '600' }}>⚠️ การสนทนาทั่วไป (No Ticket)</p>
+                      <p style={{ fontSize: '11px', color: 'var(--text-muted)', opacity: 0.6, marginTop: '8px' }}>
+                         ลูกค้ายังไม่ได้เปิดใบงาน (Ticket) หรือระบบกำลังประมวลผล...
+                      </p>
+                   </div>
+                )}
             </div>
 
             <button 

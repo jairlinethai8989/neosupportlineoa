@@ -8,56 +8,44 @@ export default function PortalLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="portal-container" style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
-      <header className="glass" style={{
+    <div className="portal-container">
+      <header className="portal-glass" style={{
         padding: '16px 24px',
-        borderBottom: '1px solid var(--border)',
+        borderBottom: '1px solid var(--portal-border)',
         position: 'sticky',
         top: 0,
         zIndex: 10,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        background: 'rgba(10, 14, 20, 0.8)'
+        background: 'rgba(255, 255, 255, 0.8)'
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <div style={{ 
-            background: 'var(--primary)', 
-            padding: '8px', 
-            borderRadius: '10px', 
-            boxShadow: '0 0 15px rgba(0, 242, 254, 0.3)' 
+            background: '#1e293b', 
+            padding: '8px 12px', 
+            borderRadius: '12px', 
+            boxShadow: '0 4px 10px rgba(0, 0, 0, 0.1)' 
           }}>
-            <span style={{ fontWeight: '900', color: '#0a0e14', fontSize: '18px' }}>NEO</span>
+            <span style={{ fontWeight: '900', color: 'white', fontSize: '16px' }}>NEO</span>
           </div>
-          <h1 style={{ fontSize: '16px', fontWeight: '800', letterSpacing: '0.5px' }}>Support Center</h1>
+          <h1 style={{ fontSize: '15px', fontWeight: '800', letterSpacing: '0.2px', color: '#1e293b' }}>Support Center</h1>
         </div>
         <div id="portal-header-action"></div>
       </header>
 
-      <main style={{ flex: 1, padding: '20px' }}>
+      <main style={{ flex: 1, padding: '24px 20px' }}>
         {children}
       </main>
 
       <footer style={{ 
-        padding: '24px', 
+        padding: '32px 24px', 
         textAlign: 'center', 
-        borderTop: '1px solid var(--border)',
+        borderTop: '1px solid var(--portal-border)',
         marginTop: 'auto'
       }}>
-        <p style={{ color: 'var(--text-muted)', fontSize: '12px' }}>© 2026 NEO Support. Powered by Omni AI.</p>
+        <p style={{ color: 'var(--portal-text-muted)', fontSize: '11px', fontWeight: '600' }}>© 2026 NEO Support. Powered by Omni AI.</p>
       </footer>
-
-      <style jsx global>{`
-        .portal-container {
-          background: #0a0e14;
-          color: white;
-          font-family: var(--font-prompt), 'Inter', sans-serif;
-        }
-        @keyframes fadeIn {
-          from { opacity: 0; transform: translateY(10px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-      `}</style>
     </div>
   );
 }

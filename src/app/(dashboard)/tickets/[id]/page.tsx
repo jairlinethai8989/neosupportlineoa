@@ -19,8 +19,12 @@ import {
   Trash2,
   MoreVertical,
   SendHorizontal,
-  Paperclip
+  Paperclip,
+  FileDown,
+  Monitor
 } from 'lucide-react';
+import { exportToPDF } from '@/lib/utils/exportUtils';
+import ImageEditorModal from '@/components/modals/ImageEditorModal';
 
 export default function StaffTicketDetailPage() {
   const { id } = useParams();
@@ -44,6 +48,14 @@ export default function StaffTicketDetailPage() {
   const [newMessage, setNewMessage] = useState('');
   const [sending, setSending] = useState(false);
   const adminFileRef = React.useRef<HTMLInputElement>(null);
+  
+  // Resolution Modal States
+  const [showResolveModal, setShowResolveModal] = useState(false);
+  const [resSummary, setResSummary] = useState('');
+  
+  // Image Editor States
+  const [editingImage, setEditingImage] = useState<string | null>(null);
+  const [showEditor, setShowEditor] = useState(false);
 
   const quickReplies = [
     "สวัสดีครับ แอดมินรับเรื่องแล้ว กำลังเร่งตรวจสอบให้นะครับ ⏳",
@@ -141,6 +153,22 @@ export default function StaffTicketDetailPage() {
     };
   }, [id]);
 
+  const handleExportPDF = () => {
+    if (!ticket) return;
+    const summaryData = [{
+      'Ticket No': ticket.ticket_no,
+      'Subject': ticket.subject,
+      'Customer': ticket.customers?.display_name || 'N/A',
+      'Status': ticket.status,
+      'Priority': ticket.priority,
+      'Department': ticket.department || 'N/A',
+      'Created At': new Date(ticket.created_at).toLocaleString('th-TH'),
+      'Resolved At': ticket.resolved_at ? new Date(ticket.resolved_at).toLocaleString('th-TH') : '-',
+      'Resolution summary': ticket.resolution_summary || '-'
+    }];
+    exportToPDF(summaryData, `Ticket_${ticket.ticket_no}`, `NeoSupport Summary: Ticket #${ticket.ticket_no}`);
+  };
+
   const handleSendMessage = async () => {
     if (!newMessage.trim()) return;
     
@@ -205,7 +233,77 @@ export default function StaffTicketDetailPage() {
      }
   };
 
+  const handleEditorSave = async (blob: Blob) => {
+    const fileName = `edited_${id}_${Date.now()}.jpg`;
+    setSending(true);
+    try {
+      const { error: uploadError } = await supabase.storage.from('chat_media').upload(fileName, blob, {
+        contentType: 'image/jpeg'
+      });
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage.from('chat_media').getPublicUrl(fileName);
+      
+      const { error } = await supabase.from('messages').insert([{
+        ticket_id: id,
+        sender_type: 'agent',
+        message_type: 'image',
+        content: publicUrl,
+      }]);
+
+      if (error) throw error;
+      setShowEditor(false);
+      setEditingImage(null);
+    } catch (err: any) {
+      alert('Failed to send edited image: ' + err.message);
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const handleScreenCapture = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getDisplayMedia({ 
+        video: { cursor: 'always' } as any
+      });
+      
+      const video = document.createElement('video');
+      video.srcObject = stream;
+      
+      await new Promise((resolve) => {
+        video.onloadedmetadata = () => {
+          video.play();
+          resolve(true);
+        };
+      });
+
+      // Give it a tiny bit of time to render
+      await new Promise(r => setTimeout(r, 100));
+
+      const canvas = document.createElement('canvas');
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext('2d');
+      ctx?.drawImage(video, 0, 0);
+      
+      stream.getTracks().forEach(track => track.stop());
+      
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
+      setEditingImage(dataUrl);
+      setShowEditor(true);
+    } catch (err: any) {
+      if (err.name !== 'NotAllowedError') {
+        alert('Screen Capture Failed: ' + err.message);
+      }
+    }
+  };
+
   const handleResolve = async () => {
+    if (!resSummary.trim()) {
+       alert('กรุณากรอกสรุปการแก้ไขงานก่อนปิดตั๋วครับ');
+       return;
+    }
+
     setUpdating(true);
     try {
       const { error } = await supabase
@@ -213,7 +311,7 @@ export default function StaffTicketDetailPage() {
         .update({ 
            status: 'Resolved', 
            resolved_at: new Date().toISOString(),
-           resolution_summary: 'Automatically resolved via Detail Page action.',
+           resolution_summary: resSummary,
            updated_at: new Date().toISOString() 
         })
         .eq('id', id);
@@ -234,18 +332,25 @@ export default function StaffTicketDetailPage() {
         action_type: 'resolve',
         from_status: ticket.status,
         to_status: 'Resolved',
-        note: 'Agent formally resolved the ticket.'
+        note: resSummary
       }]);
 
-      // 2. Send automated closing message to private chat
+      // 2. Trigger CSAT survey
+      await supabase.from('csat_surveys').insert([{
+         ticket_id: id,
+         sent_at: new Date().toISOString()
+      }]);
+
+      // 3. Send automated closing message to private chat
       await supabase.from('messages').insert([{
         ticket_id: id,
         sender_type: 'agent',
-        content: '[System: ใบงานนี้ได้รับการแก้ไขเรียบร้อยแล้ว และระบบสิ้นสุดการสนทนาขอบคุณที่ใช้บริการครับ 🙏]'
+        content: `[System: ใบงาน #${ticket.ticket_no} ได้รับการแก้ไขเรียบร้อยแล้ว: ${resSummary}\nขอบคุณที่ใช้บริการครับ 🙏]`
       }]);
 
       setStatus('Resolved');
       setTicket({ ...ticket, status: 'Resolved' });
+      setShowResolveModal(false);
       
       // Refresh logs & messages
       const { data: newLogs } = await supabase.from('ticket_logs').select('*').eq('ticket_id', id).order('created_at', { ascending: false });
@@ -361,13 +466,18 @@ export default function StaffTicketDetailPage() {
           </div>
         </div>
         <div style={{ display: 'flex', gap: '12px' }}>
-          {status !== 'Resolved' && status !== 'Closed' && (
+          <button 
+            onClick={handleExportPDF}
+            className="glass-interactive flex-center" 
+            style={{ padding: '0 20px', height: '44px', borderRadius: '12px', border: '1px solid var(--border)', background: 'rgba(255, 255, 255, 0.05)', color: 'var(--text-main)', fontWeight: '800', gap: '8px' }}>
+            <FileDown size={18} /> สรุปใบงาน (Summary)
+          </button>
+          {status !== 'Resolved' && status !== 'Closed' && status !== 'New' && (
             <button 
-              onClick={handleResolve}
-              disabled={updating}
+              onClick={() => setShowResolveModal(true)}
               className="glass-interactive flex-center" 
               style={{ padding: '0 20px', height: '44px', borderRadius: '12px', border: '1px solid var(--success)', background: 'rgba(0, 255, 127, 0.1)', color: 'var(--success)', fontWeight: '800', gap: '8px' }}>
-              {updating ? <Loader2 size={18} className="animate-spin" /> : <CheckCircle size={18} />} End Conversation
+              <CheckCircle size={18} /> End Conversation
             </button>
           )}
           <button 
@@ -415,8 +525,16 @@ export default function StaffTicketDetailPage() {
                              <img 
                                 src={msg.content} 
                                 alt="attachment" 
-                                onClick={() => window.open(msg.content, '_blank')}
-                                style={{ maxWidth: '280px', borderRadius: '8px', cursor: 'zoom-in', objectFit: 'cover' }} 
+                                onClick={() => {
+                                   if (ticket?.status === 'Resolved' || ticket?.status === 'Closed') {
+                                      window.open(msg.content, '_blank');
+                                   } else {
+                                      setEditingImage(msg.content);
+                                      setShowEditor(true);
+                                   }
+                                }}
+                                title="คลิกเพื่อแก้ไขและวาดรูป"
+                                style={{ maxWidth: '280px', borderRadius: '8px', cursor: 'pointer', objectFit: 'cover' }} 
                              />
                           ) : (
                              <p style={{ fontSize: '14px', fontWeight: msg.sender_type === 'agent' ? '700' : '500', lineHeight: '1.5', whiteSpace: 'pre-wrap' }}>{msg.content}</p>
@@ -438,45 +556,70 @@ export default function StaffTicketDetailPage() {
               </div>
 
               {/* Input Area */}
-              <div>
+              <div style={{ marginTop: 'auto' }}>
                  {/* Quick Replies */}
-                 <div className="no-scrollbar" style={{ display: 'flex', gap: '8px', overflowX: 'auto', marginBottom: '12px', paddingBottom: '4px' }}>
-                    {quickReplies.map((qr, idx) => (
-                       <button 
-                         key={idx}
-                         onClick={() => setNewMessage((prev) => prev ? prev + ' ' + qr : qr)}
-                         className="glass-interactive"
-                         style={{ whiteSpace: 'nowrap', padding: '6px 14px', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border)', borderRadius: '20px', fontSize: '11px', color: 'var(--text-muted)', cursor: 'pointer', transition: 'all 0.2s' }}>
-                         {qr.substring(0, 30)}...
-                       </button>
-                    ))}
-                 </div>
+                 {ticket.status !== 'New' && ticket.status !== 'Resolved' && ticket.status !== 'Closed' && (
+                  <div className="no-scrollbar" style={{ display: 'flex', gap: '8px', overflowX: 'auto', marginBottom: '12px', paddingBottom: '4px' }}>
+                      {quickReplies.map((qr, idx) => (
+                        <button 
+                          key={idx}
+                          onClick={() => setNewMessage((prev) => prev ? prev + ' ' + qr : qr)}
+                          className="glass-interactive"
+                          style={{ whiteSpace: 'nowrap', padding: '6px 14px', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border)', borderRadius: '20px', fontSize: '11px', color: 'var(--text-muted)', cursor: 'pointer', transition: 'all 0.2s' }}>
+                          {qr.substring(0, 30)}...
+                        </button>
+                      ))}
+                  </div>
+                 )}
                  
-                 <div style={{ display: 'flex', gap: '12px', background: 'rgba(0,0,0,0.03)', padding: '12px', borderRadius: '16px', border: '1px solid var(--border)', alignItems: 'center' }}>
-                    <input type="file" ref={adminFileRef} onChange={handleAdminFile} style={{ display: 'none' }} />
-                    <button 
-                       onClick={() => adminFileRef.current?.click()}
-                       disabled={sending}
-                       className="glass-interactive flex-center" 
-                       style={{ width: '40px', height: '40px', borderRadius: '50%', border: 'none', background: 'transparent', color: 'var(--text-muted)' }}>
-                       <Paperclip size={20} />
-                    </button>
-                    <input 
-                       type="text" 
-                       placeholder="Type your response or select a template..." 
-                       value={newMessage}
-                       onChange={(e) => setNewMessage(e.target.value)}
-                       onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
-                       style={{ flex: 1, background: 'transparent', border: 'none', padding: '12px', color: 'var(--text)', fontSize: '14px', fontWeight: '500', outline: 'none' }}
-                    />
-                    <button 
-                     onClick={handleSendMessage}
-                     disabled={sending || !newMessage.trim()}
-                     className="glass-interactive flex-center" 
-                     style={{ width: '48px', height: '48px', borderRadius: '12px', border: 'none', background: (!newMessage.trim() && !sending) ? 'rgba(255,255,255,0.05)' : 'var(--primary)', color: (!newMessage.trim() && !sending) ? 'var(--text-muted)' : 'black', transition: 'all 0.3s' }}>
-                       {sending ? <Loader2 size={18} className="animate-spin" /> : <SendHorizontal size={20} />}
-                    </button>
-                 </div>
+                 {ticket.status === 'New' ? (
+                    <div style={{ padding: '16px', borderRadius: '10px', background: 'rgba(255, 171, 0, 0.05)', border: '1px dotted var(--warning)', textAlign: 'center' }}>
+                      <p style={{ fontSize: '13px', color: 'var(--warning)', fontWeight: '800' }}>
+                         ⚠️ กรุณากด "รับงาน (Claim)" เพื่อเริ่มต้นการพูดคุยกับลูกค้า
+                      </p>
+                    </div>
+                  ) : ticket.status === 'Resolved' || ticket.status === 'Closed' ? (
+                    <div style={{ padding: '16px', borderRadius: '10px', background: 'rgba(0, 255, 127, 0.05)', border: '1px dotted var(--success)', textAlign: 'center' }}>
+                       <p style={{ fontSize: '13px', color: 'var(--success)', fontWeight: '800' }}>
+                          ✅ ใบงานนี้เสร็จสมบูรณ์แล้ว ระบบปิดการสนทนาขอบคุณที่ใช้บริการครับ
+                       </p>
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', gap: '12px', background: 'rgba(0,0,0,0.03)', padding: '12px', borderRadius: '16px', border: '1px solid var(--border)', alignItems: 'center' }}>
+                       <input type="file" ref={adminFileRef} onChange={handleAdminFile} style={{ display: 'none' }} />
+                       <button 
+                          onClick={() => adminFileRef.current?.click()}
+                          disabled={sending}
+                          className="glass-interactive flex-center" 
+                          title="แนบไฟล์รูปภาพ"
+                          style={{ width: '36px', height: '36px', borderRadius: '50%', border: 'none', background: 'transparent', color: 'var(--text-muted)' }}>
+                          <Paperclip size={18} />
+                       </button>
+                       <button 
+                          onClick={handleScreenCapture}
+                          disabled={sending}
+                          className="glass-interactive flex-center" 
+                          title="จับภาพหน้าจอ (Capture Screen)"
+                          style={{ width: '36px', height: '36px', borderRadius: '50%', border: 'none', background: 'transparent', color: 'var(--text-muted)' }}>
+                          <Monitor size={18} />
+                       </button>
+                       <input 
+                          type="text" 
+                          placeholder="Type your response or select a template..." 
+                          value={newMessage}
+                          onChange={(e) => setNewMessage(e.target.value)}
+                          onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+                          style={{ flex: 1, background: 'transparent', border: 'none', padding: '12px', color: 'var(--text)', fontSize: '14px', fontWeight: '500', outline: 'none' }}
+                       />
+                       <button 
+                        onClick={handleSendMessage}
+                        disabled={sending || !newMessage.trim()}
+                        className="glass-interactive flex-center" 
+                        style={{ width: '48px', height: '48px', borderRadius: '12px', border: 'none', background: (!newMessage.trim() && !sending) ? 'rgba(255,255,255,0.05)' : 'var(--primary)', color: (!newMessage.trim() && !sending) ? 'var(--text-muted)' : 'black', transition: 'all 0.3s' }}>
+                          {sending ? <Loader2 size={18} className="animate-spin" /> : <SendHorizontal size={20} />}
+                       </button>
+                    </div>
+                  )}
               </div>
            </div>
         </div>
@@ -587,6 +730,119 @@ export default function StaffTicketDetailPage() {
            {toastMsg}
          </div>
        )}
+
+       {/* Resolution Modal */}
+       {showResolveModal && (
+         <div style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 10000,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: 'rgba(5, 8, 12, 0.85)',
+            backdropFilter: 'blur(20px)',
+            padding: '20px'
+         }}>
+            <div className="glass" style={{
+               width: '100%',
+               maxWidth: '480px',
+               padding: '40px',
+               borderRadius: '32px',
+               border: '1px solid rgba(255, 255, 255, 0.1)',
+               boxShadow: '0 40px 100px rgba(0,0,0,0.6)',
+               animation: 'scaleIn 0.4s cubic-bezier(0.16, 1, 0.3, 1)'
+            }}>
+               <div style={{ textAlign: 'center', marginBottom: '32px' }}>
+                  <div style={{ 
+                    width: '64px', 
+                    height: '64px', 
+                    borderRadius: '20px', 
+                    background: 'rgba(0, 255, 127, 0.1)', 
+                    color: 'var(--success)', 
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    marginBottom: '20px'
+                  }}>
+                     <CheckCircle size={32} />
+                  </div>
+                  <h3 style={{ fontSize: '24px', fontWeight: '900', color: '#fff', marginBottom: '8px' }}>ปิดงานการสนทนา</h3>
+                  <p style={{ fontSize: '14px', color: 'rgba(255,255,255,0.5)', lineHeight: '1.6' }}>กรุณาสรุปผลการแก้ไขปัญหา เพื่อบันทึกเป็นประวัติและส่งการยืนยันให้ลูกค้าทราบครับ</p>
+               </div>
+
+               <div style={{ marginBottom: '32px' }}>
+                  <label style={{ display: 'block', fontSize: '11px', fontWeight: '800', color: 'var(--primary)', textTransform: 'uppercase', marginBottom: '12px', letterSpacing: '1px' }}>สรุปผลการแก้ไขงาน (Resolution Summary)</label>
+                  <textarea 
+                    value={resSummary}
+                    onChange={(e) => setResSummary(e.target.value)}
+                    placeholder="ระบุสิ่งที่แอดมินดำเนินการแก้ไข เช่น 'แก้ไขรหัสผ่านให้แล้ว', 'แจ้งยอดโอนสำเร็จ'..."
+                    style={{
+                       width: '100%',
+                       height: '120px',
+                       background: 'rgba(255,255,255,0.03)',
+                       border: '1px solid rgba(255,255,255,0.1)',
+                       borderRadius: '16px',
+                       padding: '16px',
+                       color: '#fff',
+                       fontSize: '14px',
+                       resize: 'none',
+                       outline: 'none',
+                       transition: 'all 0.3s'
+                    }}
+                    onFocus={(e) => e.target.style.borderColor = 'var(--primary)'}
+                    onBlur={(e) => e.target.style.borderColor = 'rgba(255,255,255,0.1)'}
+                  />
+               </div>
+
+               <div style={{ display: 'flex', gap: '16px' }}>
+                  <button 
+                    onClick={() => setShowResolveModal(false)}
+                    style={{ flex: 1, padding: '16px', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.1)', background: 'transparent', color: 'rgba(255,255,255,0.5)', fontWeight: '800', cursor: 'pointer' }}
+                  >
+                     ยกเลิก
+                  </button>
+                  <button 
+                    onClick={handleResolve}
+                    disabled={updating || !resSummary.trim()}
+                    style={{ 
+                      flex: 1.5, 
+                      padding: '16px', 
+                      borderRadius: '14px', 
+                      border: 'none', 
+                      background: updating || !resSummary.trim() ? 'rgba(255,255,255,0.05)' : 'var(--success)', 
+                      color: updating || !resSummary.trim() ? 'rgba(255,255,255,0.2)' : 'black', 
+                      fontWeight: '900', 
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '10px',
+                      transition: 'all 0.3s'
+                    }}
+                  >
+                     {updating ? <Loader2 size={18} className="animate-spin" /> : <><CheckCircle size={18} /> ยืนยันปิดงาน</>}
+                  </button>
+               </div>
+            </div>
+         </div>
+       )}
+
+        {/* Image Editor Modal */}
+        {showEditor && editingImage && (
+           <ImageEditorModal 
+             imageUrl={editingImage}
+             onClose={() => { setShowEditor(false); setEditingImage(null); }}
+             onSave={handleEditorSave}
+           />
+        )}
+
+       <style dangerouslySetInnerHTML={{ __html: `
+         @keyframes scaleIn {
+            from { opacity: 0; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1); }
+         }
+       `}} />
     </div>
   );
 }

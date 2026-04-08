@@ -54,11 +54,18 @@ const Sidebar = ({ onClickLink, isCollapsed = false }: SidebarProps) => {
     return () => { isMounted = false; };
   }, []);
 
-  const toggleTheme = () => {
-    const nextTheme = theme === 'dark' ? 'light' : 'dark';
-    setTheme(nextTheme);
-    localStorage.setItem('theme', nextTheme);
-    document.documentElement.setAttribute('data-theme', nextTheme);
+  const THEMES = [
+    { id: 'dark', name: 'Dark', thai: 'ธีมเข้ม', color: '#0a0e14', iconColor: '#7367f0' },
+    { id: 'light', name: 'Light', thai: 'ธีมสว่าง', color: '#ffffff', iconColor: '#ffcd3c' },
+    { id: 'blue', name: 'Blue', thai: 'ธีมฟ้า', color: '#0f172a', iconColor: '#38bdf8' },
+    { id: 'purple', name: 'Purple', thai: 'ธีมม่วง', color: '#1e1b4b', iconColor: '#a78bfa' },
+    { id: 'gray', name: 'Gray', thai: 'ธีมเทา', color: '#111827', iconColor: '#f3f4f6' },
+  ];
+
+  const changeTheme = (newTheme: string) => {
+    setTheme(newTheme);
+    localStorage.setItem('theme', newTheme);
+    document.documentElement.setAttribute('data-theme', newTheme);
   };
 
   const handleLogout = async () => {
@@ -67,44 +74,35 @@ const Sidebar = ({ onClickLink, isCollapsed = false }: SidebarProps) => {
     router.refresh();
   };
 
-  const [openMenus, setOpenMenus] = useState<string[]>(['Settings']);
+  const [openMenus, setOpenMenus] = useState<string[]>(['System Settings']);
+
   const [inboxCount, setInboxCount] = useState(0);
   const [ticketCount, setTicketCount] = useState(0);
+  const [customerCount, setCustomerCount] = useState(0);
 
   useEffect(() => {
     let isMounted = true;
     async function fetchCounts() {
       // Tickets (Only New)
       const { count: tCount } = await supabase.from('tickets').select('*', { count: 'exact', head: true }).eq('status', 'New');
-      if (isMounted) {
-        setTimeout(() => {
-          if (isMounted) {
-            setTicketCount(tCount || 0);
-          }
-        }, 0);
-      }
+      if (isMounted) setTicketCount(tCount || 0);
 
       // Inbox (Active conversations)
       const { count: iCount } = await supabase.from('conversations').select('*', { count: 'exact', head: true }).eq('status', 'active');
-      if (isMounted) {
-        setTimeout(() => {
-          if (isMounted) {
-            setInboxCount(iCount || 0);
-          }
-        }, 0);
-      }
+      if (isMounted) setInboxCount(iCount || 0);
+
+      // Customers (Total)
+      const { count: cCount } = await supabase.from('customers').select('*', { count: 'exact', head: true });
+      if (isMounted) setCustomerCount(cCount || 0);
     }
     
     fetchCounts();
 
     // Subscribe to listen to tickets/conversations changes
     const channel = supabase.channel('sidebar-counts')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'tickets' }, () => {
-        fetchCounts();
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'conversations' }, () => {
-        fetchCounts();
-      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'tickets' }, () => { fetchCounts(); })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'conversations' }, () => { fetchCounts(); })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'customers' }, () => { fetchCounts(); })
       .subscribe();
 
     return () => {
@@ -124,10 +122,10 @@ const Sidebar = ({ onClickLink, isCollapsed = false }: SidebarProps) => {
     { name: 'Tickets', thai: 'รายการใบงาน', icon: Ticket, path: '/tickets', count: ticketCount },
     { name: 'Inbox', thai: 'กล่องข้อความ', icon: Inbox, path: '/inbox', count: inboxCount },
     { name: 'Analytics', thai: 'สถิติ', icon: BarChart2, path: '/analytics' },
-    { name: 'Customers', thai: 'รายชื่อลูกค้า', icon: Users, path: '/customers' },
+    { name: 'Customers', thai: 'รายชื่อลูกค้า', icon: Users, path: '/customers', count: customerCount },
     { 
       name: 'System Settings', 
-      thai: 'ตั้งค่าระบบ', 
+      thai: 'ตั้งค่าระบบ •', 
       icon: Settings, 
       children: [
         { name: 'Staff Management', thai: 'จัดการพนักงาน', path: '/settings/staff' },
@@ -187,14 +185,15 @@ const Sidebar = ({ onClickLink, isCollapsed = false }: SidebarProps) => {
                     background: 'transparent',
                     border: '1px solid transparent',
                     cursor: 'pointer',
-                    justifyContent: isCollapsed ? 'center' : 'flex-start'
+                    justifyContent: isCollapsed ? 'center' : 'flex-start',
+                    fontFamily: 'inherit'
                   }}
                 >
                   <item.icon size={18} style={{ flexShrink: 0 }} />
                   {!isCollapsed && (
                     <>
                       <div style={{ display: 'flex', flexDirection: 'column', lineHeight: '1.2', alignItems: 'flex-start' }}>
-                        <span style={{ fontWeight: '600', fontSize: '14px' }}>{item.thai}</span>
+                        <span style={{ fontWeight: '700', fontSize: '14px', fontFamily: 'inherit' }}>{item.thai}</span>
                         <span style={{ fontSize: '10px', textTransform: 'uppercase', opacity: 0.7 }}>{item.name}</span>
                       </div>
                       <div style={{ marginLeft: 'auto', opacity: 0.5 }}>
@@ -262,7 +261,7 @@ const Sidebar = ({ onClickLink, isCollapsed = false }: SidebarProps) => {
               <item.icon size={18} style={{ flexShrink: 0 }} />
               {!isCollapsed && (
                 <div style={{ display: 'flex', flexDirection: 'column', lineHeight: '1.2' }}>
-                  <span style={{ fontWeight: isActive ? '700' : '600', fontSize: '14px' }}>{item.thai}</span>
+                  <span style={{ fontWeight: '700', fontSize: '14px' }}>{item.thai}</span>
                   <span style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase', opacity: 0.7 }}>{item.name}</span>
                 </div>
               )}
@@ -286,43 +285,38 @@ const Sidebar = ({ onClickLink, isCollapsed = false }: SidebarProps) => {
         })}
       </nav>
 
-      <div style={{ padding: '16px', borderTop: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-        <button 
-          onClick={toggleTheme}
-          className="glass-interactive"
-          style={{
-            width: '100%',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '12px',
-            padding: '12px',
-            borderRadius: '12px',
-            color: 'var(--text-main)',
-            background: 'rgba(255,255,255,0.03)',
-            border: '1px solid var(--border)',
-            cursor: 'pointer',
-            fontSize: '14px',
-            transition: 'all 0.2s ease'
-          }}
-        >
-          {theme === 'dark' ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', width: '100%' }}>
-              <div style={{ width: '20px', height: '20px', borderRadius: '50%', background: '#ffcd3c', boxShadow: '0 0 10px rgba(255, 205, 60, 0.4)' }}></div>
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
-                <span style={{ fontWeight: '700', fontSize: '13px' }}>ธีมสว่าง</span>
-                <span style={{ fontSize: '9px', opacity: 0.6, fontWeight: '800' }}>LIGHT MODE</span>
-              </div>
-            </div>
-          ) : (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', width: '100%' }}>
-              <div style={{ width: '20px', height: '20px', borderRadius: '50%', background: '#7367f0', boxShadow: '0 0 10px rgba(115, 103, 240, 0.4)' }}></div>
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
-                <span style={{ fontWeight: '700', fontSize: '13px' }}>ธีมเข้ม</span>
-                <span style={{ fontSize: '9px', opacity: 0.6, fontWeight: '800' }}>DARK MODE</span>
-              </div>
-            </div>
-          )}
-        </button>
+      <div style={{ padding: '16px', borderTop: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        {!isCollapsed && (
+           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+             <span style={{ fontSize: '10px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px' }}>สลับธีมพรีเมียม</span>
+             <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                {THEMES.map(t => (
+                  <button 
+                    key={t.id}
+                    onClick={() => changeTheme(t.id)}
+                    title={t.thai}
+                    className="glass-interactive"
+                    style={{ 
+                      width: '32px', 
+                      height: '32px', 
+                      borderRadius: '50%', 
+                      background: t.color, 
+                      border: theme === t.id ? `2px solid ${t.iconColor}` : '1px solid var(--border)',
+                      cursor: 'pointer',
+                      padding: 0,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      boxShadow: theme === t.id ? `0 0 10px ${t.iconColor}40` : 'none',
+                      transition: 'all 0.2s'
+                    }}
+                  >
+                    <div style={{ width: '12px', height: '12px', borderRadius: '50%', background: t.iconColor }} />
+                  </button>
+                ))}
+             </div>
+           </div>
+        )}
 
         <button 
           onClick={handleLogout}
@@ -341,6 +335,7 @@ const Sidebar = ({ onClickLink, isCollapsed = false }: SidebarProps) => {
             cursor: 'pointer',
             fontSize: '14px',
             justifyContent: isCollapsed ? 'center' : 'flex-start',
+            fontFamily: 'inherit',
             transition: 'all 0.2s ease'
           }}
         >

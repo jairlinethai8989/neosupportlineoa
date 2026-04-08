@@ -67,25 +67,23 @@ export default function PortalPage() {
   if (!isReady || (profile && fetching && !needsRegistration)) {
     return (
       <div className="flex-center" style={{ height: '70vh', flexDirection: 'column', gap: '16px' }}>
-        <Loader2 className="animate-spin" size={32} color="var(--primary)" />
-        <p style={{ color: 'var(--text-muted)' }}>Initializing Support Portal...</p>
+        <Loader2 className="animate-spin" size={32} color="var(--portal-primary)" />
+        <p style={{ color: 'var(--portal-text-muted)', fontSize: '14px', fontWeight: '600' }}>กำลังเตรียมข้อมูลศูนย์ช่วยเหลือ...</p>
       </div>
     );
   }
 
   if (liffError || !profile) {
     return (
-      <div className="flex-center glass" style={{ height: '70vh', margin: '20px', padding: '32px', textAlign: 'center', flexDirection: 'column', gap: '20px', border: '1px solid var(--danger)' }}>
-        <ShieldAlert size={48} color="var(--danger)" />
-        <h2 style={{ fontSize: '20px', fontWeight: '800' }}>Access Restricted</h2>
-        <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '14px' }}>{liffError || 'Please log in via LINE application.'}</p>
-        <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: '12px' }}>This portal is designed exclusively for LINE OA.</p>
+      <div className="flex-center portal-glass" style={{ height: '70vh', margin: '20px', padding: '32px', textAlign: 'center', flexDirection: 'column', gap: '20px', border: '1px solid #fee2e2', background: 'white' }}>
+        <ShieldAlert size={48} color="#ef4444" />
+        <h2 style={{ fontSize: '18px', fontWeight: '800', color: '#1e293b' }}>ไม่สามารถเข้าถึงได้</h2>
+        <p style={{ color: '#64748b', fontSize: '14px' }}>กรุณาเข้าใช้งานผ่านแอปพลิเคชัน LINE เพื่อการบริการที่สมบูรณ์</p>
         <button 
            onClick={() => setMockLogin()}
-           className="glass-interactive" 
-           style={{ padding: '12px 24px', borderRadius: '12px', border: '1px dotted var(--primary)', color: 'var(--primary)', fontWeight: '800', marginTop: '16px' }}
+           style={{ padding: '12px 24px', borderRadius: '12px', border: '1px solid #e2e8f0', background: 'white', color: '#1e293b', fontWeight: '700', marginTop: '16px', cursor: 'pointer' }}
         >
-           Mock Admin Login (For Testing)
+           จำลองสถานะการทำงาน (Mock Login)
         </button>
       </div>
     );
@@ -97,80 +95,71 @@ export default function PortalPage() {
 
   return (
     <div style={{ animation: 'fadeIn 0.5s ease-out' }}>
-      {/* 1. Header Hero */}
-      <div style={{ marginBottom: '32px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+      <div style={{ marginBottom: '32px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
          <div>
-            <p style={{ color: 'var(--primary)', fontWeight: '800', letterSpacing: '1px', textTransform: 'uppercase', fontSize: '11px', marginBottom: '8px' }}>Welcome Back</p>
-            <h2 style={{ fontSize: '28px', fontWeight: '900', display: 'flex', alignItems: 'center', gap: '12px' }}>
-               {profile?.displayName || 'Support Guest'}
-               {profile?.pictureUrl ? (
-                  <img src={profile.pictureUrl} alt="profile" style={{ width: '36px', height: '36px', borderRadius: '50%', border: '2px solid var(--primary)' }} />
-               ) : <User size={32} />}
-            </h2>
+            <p style={{ color: 'var(--portal-primary)', fontWeight: '800', letterSpacing: '1px', textTransform: 'uppercase', fontSize: '10px', marginBottom: '6px' }}>Dashboard</p>
+            <h2 style={{ fontSize: '24px', fontWeight: '900', color: '#1e293b' }}>สวัสดี, {profile?.displayName?.split(' ')[0] || 'คุณลูกค้า'}</h2>
          </div>
-         <button onClick={() => setIsEditModalOpen(true)} className="glass-interactive flex-center" style={{ width: '40px', height: '40px', borderRadius: '50%', border: '1px solid var(--border)', background: 'transparent', color: 'var(--text-muted)' }} aria-label="Edit Profile">
+         <button onClick={() => setIsEditModalOpen(true)} className="portal-glass flex-center" style={{ width: '44px', height: '44px', border: '1px solid var(--portal-border)', background: 'white', color: '#64748b', boxShadow: '0 4px 12px rgba(0,0,0,0.03)' }} aria-label="Edit Profile">
             <Settings size={20} />
          </button>
       </div>
 
-      {/* 2. Primary Action: Open New Ticket (Prominent & Minimal) */}
-      <section style={{ marginBottom: '32px' }}>
+      <section style={{ marginBottom: '40px' }}>
          <Link href="/portal/create" style={{ textDecoration: 'none' }}>
-            <div className="glass-interactive" style={{ 
+            <div className="portal-btn-primary" style={{ 
                padding: '24px', 
-               background: 'var(--primary)', 
-               color: 'black', 
                borderRadius: '24px',
                display: 'flex',
                alignItems: 'center',
                justifyContent: 'center',
-               gap: '16px',
-               boxShadow: '0 12px 30px rgba(0, 242, 254, 0.2)'
+               gap: '16px'
             }}>
-               <MessageSquare size={24} />
-               <p style={{ fontSize: '17px', fontWeight: '900' }}>แจ้งปัญหาการใช้งานใหม่</p>
+               <div style={{ background: 'rgba(255,255,255,0.15)', padding: '10px', borderRadius: '14px' }}>
+                  <MessageSquare size={24} />
+               </div>
+               <p style={{ fontSize: '18px', fontWeight: '800' }}>แจ้งปัญหาการใช้งานใหม่</p>
             </div>
          </Link>
       </section>
 
-      {/* 3. Active Tickets (Minimal List) */}
-      <section style={{ marginBottom: '40px' }}>
-         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
-            <h3 style={{ fontSize: '14px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+      <section style={{ marginBottom: '48px' }}>
+         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
+            <h3 style={{ fontSize: '13px', fontWeight: '800', color: 'var(--portal-text-muted)', textTransform: 'uppercase', letterSpacing: '0.8px' }}>
                ใบงานที่กำลังดำเนินการ
             </h3>
             {activeTickets.length > 0 && (
-              <span style={{ fontSize: '11px', fontWeight: '700', color: 'var(--primary)', opacity: 0.8 }}>
-                {activeTickets.length} รายการ
+              <span style={{ fontSize: '12px', fontWeight: '700', color: '#1e293b' }}>
+                {activeTickets.length} กรายการ
               </span>
             )}
          </div>
 
          {activeTickets.length === 0 ? (
-            <div className="glass" style={{ padding: '32px 20px', textAlign: 'center', color: 'var(--text-muted)', borderStyle: 'dashed', borderRadius: '24px' }}>
-               <Inbox size={32} style={{ marginBottom: '12px', opacity: 0.2 }} />
-               <p style={{ fontSize: '13px' }}>ขณะนี้คุณไม่มีใบงานที่ค้างอยู่</p>
+            <div className="portal-glass" style={{ padding: '48px 24px', textAlign: 'center', color: 'var(--portal-text-muted)', borderStyle: 'dashed', borderRadius: '28px', background: 'transparent' }}>
+               <Inbox size={40} style={{ marginBottom: '16px', opacity: 0.15 }} />
+               <p style={{ fontSize: '14px', fontWeight: '500' }}>ขณะนี้คุณไม่มีใบงานที่ค้างอยู่</p>
             </div>
          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                {activeTickets.map(ticket => (
                   <Link href={`/portal/tickets/${ticket.id}`} key={ticket.id} style={{ textDecoration: 'none', color: 'inherit' }}>
-                    <div className="glass-interactive" style={{ padding: '18px 20px', border: '1px solid var(--border)', borderRadius: '20px' }}>
+                    <div className="portal-glass" style={{ padding: '20px', background: 'white', border: '1px solid rgba(0,0,0,0.03)', boxShadow: '0 4px 15px rgba(0,0,0,0.02)' }}>
                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                           <div style={{ flex: 1, minWidth: 0 }}>
-                             <p style={{ fontWeight: '800', fontSize: '14px', marginBottom: '2px' }}>#{ticket.ticket_no}</p>
-                             <p className="truncate" style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{ticket.subject || 'แจ้งปัญหาทั่วไป'}</p>
+                             <p style={{ fontWeight: '800', fontSize: '15px', marginBottom: '4px', color: '#1e293b' }}>#{ticket.ticket_no}</p>
+                             <p className="truncate" style={{ fontSize: '13px', color: 'var(--portal-text-muted)' }}>{ticket.subject || 'แจ้งปัญหาทั่วไป'}</p>
                           </div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                             <span className="badge" style={{ 
-                                background: ticket.status === 'Assigned' ? 'rgba(0, 242, 254, 0.1)' : 'rgba(255, 171, 0, 0.1)',
-                                color: ticket.status === 'Assigned' ? 'var(--primary)' : 'var(--warning)',
-                                padding: '4px 10px',
-                                fontSize: '10px',
-                                fontWeight: '900',
-                                borderRadius: '20px'
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                             <span style={{ 
+                                background: ticket.status === 'Assigned' ? '#f0f9ff' : '#fefce8',
+                                color: ticket.status === 'Assigned' ? '#0369a1' : '#a16207',
+                                padding: '6px 14px',
+                                fontSize: '11px',
+                                fontWeight: '800',
+                                borderRadius: '30px'
                              }}>{ticket.status}</span>
-                             <ArrowRight size={14} color="var(--text-muted)" />
+                             <ArrowRight size={16} color="#cbd5e1" />
                           </div>
                        </div>
                     </div>
