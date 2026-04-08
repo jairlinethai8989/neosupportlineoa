@@ -80,6 +80,7 @@ function TicketsContent() {
   const [searchTerm, setSearchTerm] = useState('');
   const [debugError, setDebugError] = useState<string | null>(null);
   const [claimingId, setClaimingId] = useState<string | null>(null);
+  const [userProfile, setUserProfile] = useState<any>(null);
 
   async function fetchData() {
     setDebugError(null);
@@ -99,9 +100,14 @@ function TicketsContent() {
         `)
         .order('created_at', { ascending: false });
 
-      if (tErr) throw tErr;
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: p } = await supabase.from('profiles').select('role, permissions').eq('id', user.id).single();
+        setUserProfile(p);
+      }
+
       const { data: cData } = await supabase.from('conversations').select('id, customer_id');
-      
+
       setTickets(tData || []);
       setConversations(cData || []);
     } catch (err: any) {
@@ -127,6 +133,10 @@ function TicketsContent() {
   };
 
   const handleClaim = async (ticketId: string) => {
+    if (userProfile?.role !== 'Administrator' && userProfile?.permissions?.tickets === 'view') {
+      alert('คุณไม่มีสิทธิ์ในการรับงาน (View Only Access)');
+      return;
+    }
     setClaimingId(ticketId);
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -334,35 +344,38 @@ function TicketsContent() {
                                     </div>
                                     {isNew && (
                                        <button 
-                                        disabled={claimingId === ticket.id}
+                                        disabled={claimingId === ticket.id || (userProfile?.role !== 'Administrator' && userProfile?.permissions?.tickets === 'view')}
                                         onClick={() => handleClaim(ticket.id)} 
                                         style={{ 
                                           width: '100%', 
                                           padding: '14px', 
                                           borderRadius: '14px', 
-                                          background: claimingId === ticket.id ? 'var(--border)' : 'var(--primary)', 
-                                          color: claimingId === ticket.id ? 'var(--text-muted)' : 'black', 
+                                          background: (claimingId === ticket.id || (userProfile?.role !== 'Administrator' && userProfile?.permissions?.tickets === 'view')) ? 'var(--border)' : 'var(--primary)', 
+                                          color: (claimingId === ticket.id || (userProfile?.role !== 'Administrator' && userProfile?.permissions?.tickets === 'view')) ? 'var(--text-muted)' : 'black', 
                                           border: 'none', 
                                           fontSize: '13px', 
                                           fontWeight: '850', 
                                           letterSpacing: '0.5px', 
-                                          boxShadow: claimingId === ticket.id ? 'none' : '0 6px 20px rgba(0, 242, 254, 0.2)', 
+                                          boxShadow: (claimingId === ticket.id || (userProfile?.role !== 'Administrator' && userProfile?.permissions?.tickets === 'view')) ? 'none' : '0 6px 20px rgba(0, 242, 254, 0.2)', 
                                           display: 'flex', 
                                           alignItems: 'center', 
                                           justifyContent: 'center', 
                                           gap: '8px',
-                                          cursor: claimingId === ticket.id ? 'not-allowed' : 'pointer',
-                                          transition: 'all 0.2s'
+                                          cursor: (claimingId === ticket.id || (userProfile?.role !== 'Administrator' && userProfile?.permissions?.tickets === 'view')) ? 'not-allowed' : 'pointer',
+                                          transition: 'all 0.2s',
+                                          opacity: (userProfile?.role !== 'Administrator' && userProfile?.permissions?.tickets === 'view') ? 0.5 : 1
                                         }}
                                       >
                                         {claimingId === ticket.id ? <Loader2 size={14} className="animate-spin" /> : <Zap size={14} />} 
-                                        {claimingId === ticket.id ? 'กำลังเข้ารับงาน...' : 'รับงาน (Claim)'}
+                                        {userProfile?.role !== 'Administrator' && userProfile?.permissions?.tickets === 'view' ? 'อ่านอย่างเดียว' : (claimingId === ticket.id ? 'กำลังเข้ารับงาน...' : 'รับงาน (Claim)')}
                                       </button>
                                     )}
 
                                     {ticket.status === 'In Progress' && (
                                        <button 
+                                        disabled={userProfile?.role !== 'Administrator' && userProfile?.permissions?.tickets === 'view'}
                                         onClick={async () => {
+                                          if (userProfile?.role !== 'Administrator' && userProfile?.permissions?.tickets === 'view') return;
                                           const summary = prompt('กรอกสรุปการแก้ไขงาน (Resolution Summary):');
                                           if (!summary) return;
                                           try {
@@ -379,7 +392,7 @@ function TicketsContent() {
                                           width: '100%', 
                                           padding: '14px', 
                                           borderRadius: '14px', 
-                                          background: 'var(--success)', 
+                                          background: (userProfile?.role !== 'Administrator' && userProfile?.permissions?.tickets === 'view') ? 'var(--bg-input)' : 'var(--success)', 
                                           color: 'white', 
                                           border: 'none', 
                                           fontSize: '13px', 
@@ -388,10 +401,11 @@ function TicketsContent() {
                                           alignItems: 'center', 
                                           justifyContent: 'center', 
                                           gap: '8px',
-                                          cursor: 'pointer'
+                                          cursor: (userProfile?.role !== 'Administrator' && userProfile?.permissions?.tickets === 'view') ? 'not-allowed' : 'pointer',
+                                          opacity: (userProfile?.role !== 'Administrator' && userProfile?.permissions?.tickets === 'view') ? 0.5 : 1
                                         }}
                                       >
-                                        <CheckCircle size={14} /> แก้ไขเสร็จสิ้น (Resolve)
+                                        <CheckCircle size={14} /> {userProfile?.role !== 'Administrator' && userProfile?.permissions?.tickets === 'view' ? 'อ่านอย่างเดียว' : 'แก้ไขเสร็จสิ้น (Resolve)'}
                                       </button>
                                     )}
                                 </div>

@@ -34,6 +34,15 @@ export default function StaffManagementPage() {
   });
   const [submitting, setSubmitting] = useState(false);
   const [departments, setDepartments] = useState<string[]>([]);
+  const [permissionModalOpen, setPermissionModalOpen] = useState(false);
+  const [selectedStaff, setSelectedStaff] = useState<any>(null);
+  const [permissions, setPermissions] = useState<any>({
+    analytics: 'edit',
+    inbox: 'edit',
+    tickets: 'edit',
+    customers: 'edit',
+    settings: 'view'
+  });
 
   const fetchStaff = async () => {
     setLoading(true);
@@ -97,6 +106,38 @@ export default function StaffManagementPage() {
       fetchStaff();
     } catch (err: any) {
       alert('เกิดข้อผิดพลาด: ' + err.message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleOpenPermissions = (staffMember: any) => {
+    setSelectedStaff(staffMember);
+    setPermissions(staffMember.permissions || {
+      analytics: 'view',
+      inbox: 'edit',
+      tickets: 'edit',
+      customers: 'view',
+      settings: 'none'
+    });
+    setPermissionModalOpen(true);
+  };
+
+  const handleSavePermissions = async () => {
+    setSubmitting(true);
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ permissions })
+        .eq('id', selectedStaff.id);
+      
+      if (error) throw error;
+      
+      alert('อัปเดตสิทธิ์การใช้งานสำเร็จ! 🛡️');
+      setPermissionModalOpen(false);
+      fetchStaff();
+    } catch (err: any) {
+      alert('ล้มเหลว: ' + err.message);
     } finally {
       setSubmitting(false);
     }
@@ -233,6 +274,13 @@ export default function StaffManagementPage() {
                 </td>
                 <td style={{ padding: '16px 24px', textAlign: 'right' }}>
                   <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+                     <button 
+                       onClick={() => handleOpenPermissions(member)}
+                       title="จัดการสิทธิ์"
+                       style={{ padding: '8px', borderRadius: '8px', background: 'rgba(54, 153, 255, 0.1)', border: 'none', color: 'var(--primary)', cursor: 'pointer' }}
+                     >
+                       <Shield size={16} />
+                     </button>
                      <button style={{ padding: '8px', borderRadius: '8px', background: 'rgba(255,255,255,0.05)', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}><Mail size={16} /></button>
                      <button 
                        onClick={() => handleDeleteStaff(member.id, member.full_name)}
@@ -342,6 +390,84 @@ export default function StaffManagementPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Permissions Modal */}
+      {permissionModalOpen && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1100, backdropFilter: 'blur(10px)' }}>
+          <div className="glass" style={{ width: '100%', maxWidth: '600px', padding: '32px', position: 'relative', animation: 'scaleUp 0.3s cubic-bezier(0.16, 1, 0.3, 1)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div style={{ background: 'rgba(54, 153, 255, 0.1)', padding: '10px', borderRadius: '12px' }}>
+                   <Shield size={24} color="var(--primary)" />
+                </div>
+                <div>
+                  <h3 style={{ fontSize: '20px', fontWeight: '800' }}>กำหนดสิทธิ์การเข้าถึง</h3>
+                  <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>{selectedStaff?.full_name} ({selectedStaff?.role})</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setPermissionModalOpen(false)} 
+                style={{ background: 'rgba(255,255,255,0.05)', border: 'none', color: 'white', cursor: 'pointer', width: '36px', height: '36px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              >
+                <XCircle size={20} />
+              </button>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '32px' }}>
+              {[
+                { key: 'analytics', label: 'ภาพรวม & สถิติ (Analytics)', icon: CheckCircle },
+                { key: 'inbox', label: 'ระบบแชท (Inbox)', icon: Mail },
+                { key: 'tickets', label: 'จัดการตั๋ว (Tickets)', icon: Shield },
+                { key: 'customers', label: 'ฐานข้อมูลลูกค้า (Customers)', icon: Users },
+                { key: 'settings', label: 'ตั้งค่าระบบ (Settings)', icon: Shield },
+              ].map((module) => (
+                <div key={module.key} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', background: 'rgba(255,255,255,0.03)', borderRadius: '14px', border: '1px solid var(--border)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <module.icon size={18} color="var(--text-muted)" />
+                    <span style={{ fontSize: '14px', fontWeight: '700' }}>{module.label}</span>
+                  </div>
+                  <div style={{ display: 'flex', gap: '4px', background: 'rgba(0,0,0,0.2)', padding: '4px', borderRadius: '10px' }}>
+                    {['none', 'view', 'edit'].map((level) => (
+                      <button
+                        key={level}
+                        onClick={() => setPermissions({ ...permissions, [module.key]: level })}
+                        style={{
+                          padding: '6px 14px',
+                          borderRadius: '8px',
+                          fontSize: '11px',
+                          fontWeight: '800',
+                          border: 'none',
+                          cursor: 'pointer',
+                          textTransform: 'uppercase',
+                          background: permissions[module.key] === level 
+                            ? (level === 'edit' ? 'var(--primary)' : level === 'view' ? 'var(--secondary)' : 'var(--danger)') 
+                            : 'transparent',
+                          color: permissions[module.key] === level ? '#0a0e14' : 'var(--text-dim)',
+                          transition: 'all 0.2s'
+                        }}
+                      >
+                        {level === 'none' ? 'OFF' : level === 'view' ? 'VIEW' : 'EDIT'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button onClick={() => setPermissionModalOpen(false)} style={{ flex: 1, padding: '16px', borderRadius: '14px', background: 'transparent', border: '1px solid var(--border)', color: 'white', fontWeight: '700', cursor: 'pointer' }}>ยกเลิก</button>
+              <button 
+                onClick={handleSavePermissions}
+                disabled={submitting}
+                className="glass-interactive"
+                style={{ flex: 1, padding: '16px', borderRadius: '14px', background: 'var(--primary)', border: 'none', color: '#0a0e14', fontWeight: '900', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+              >
+                {submitting ? <Loader2 size={20} className="animate-spin" /> : 'บันทึกสิทธิ์พนักงาน'}
+              </button>
+            </div>
           </div>
         </div>
       )}

@@ -185,6 +185,12 @@ function InboxContent() {
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newMessage.trim() || !selectedChat || !agent) return;
+    
+    // Check permission
+    if (agent.role !== 'Administrator' && agent.permissions?.inbox === 'view') {
+      alert('คุณไม่มีสิทธิ์ในการส่งข้อความ (View Only Access)');
+      return;
+    }
 
     const currentMsg = newMessage;
     setNewMessage('');
@@ -535,8 +541,9 @@ function InboxContent() {
                     type="text" 
                     value={newMessage}
                     onChange={(e) => setNewMessage(e.target.value)}
-                    placeholder="พิมพ์ข้อความตอบกลับ..." 
-                    style={{ flex: 1, background: 'none', border: 'none', outline: 'none', color: 'var(--text-main)', padding: '12px 0', fontSize: '14px' }}
+                    placeholder={agent?.role !== 'Administrator' && agent?.permissions?.inbox === 'view' ? "คุณมีสิทธิ์อ่านเท่านั้น (View Only)" : "พิมพ์ข้อความตอบกลับ..."} 
+                    disabled={agent?.role !== 'Administrator' && agent?.permissions?.inbox === 'view'}
+                    style={{ flex: 1, background: 'none', border: 'none', outline: 'none', color: 'var(--text-main)', padding: '12px 0', fontSize: '14px', opacity: (agent?.role !== 'Administrator' && agent?.permissions?.inbox === 'view') ? 0.5 : 1 }}
                  />
                  <button 
                   type="submit"

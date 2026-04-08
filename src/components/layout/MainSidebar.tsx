@@ -31,15 +31,23 @@ const Sidebar = ({ onClickLink, isCollapsed = false }: SidebarProps) => {
   const [company, setCompany] = useState<any>(null);
 
   const [theme, setTheme] = useState('dark');
+  const [permissions, setPermissions] = useState<any>(null);
+  const [userRole, setUserRole] = useState<string>('');
 
   useEffect(() => {
     let isMounted = true;
     
-    async function fetchBranding() {
-       const { data } = await supabase.from('company_settings').select('*').limit(1).single();
-       if (data && isMounted) setCompany(data);
+    async function fetchUserData() {
+       const { data: { user } } = await supabase.auth.getUser();
+       if (user && isMounted) {
+          const { data: p } = await supabase.from('profiles').select('role, permissions').eq('id', user.id).single();
+          if (p && isMounted) {
+             setUserRole(p.role);
+             setPermissions(p.permissions);
+          }
+       }
     }
-    fetchBranding();
+    fetchUserData();
 
     const savedTheme = localStorage.getItem('theme') || 'dark';
     if (isMounted) {
@@ -51,6 +59,12 @@ const Sidebar = ({ onClickLink, isCollapsed = false }: SidebarProps) => {
       }, 0);
     }
     
+    async function fetchBranding() {
+       const { data } = await supabase.from('company_settings').select('*').limit(1).single();
+       if (data && isMounted) setCompany(data);
+    }
+    fetchBranding();
+
     return () => { isMounted = false; };
   }, []);
 
@@ -147,6 +161,26 @@ const Sidebar = ({ onClickLink, isCollapsed = false }: SidebarProps) => {
     ]},
   ];
 
+  // Helper to check permission
+  const hasAccess = (name: string) => {
+    if (userRole === 'Administrator') return true;
+    if (!permissions) return true; // Default to show if not loaded yet
+    
+    const key = name.toLowerCase();
+    if (key.includes('analytics') || key.includes('performance')) return permissions.analytics !== 'none';
+    if (key.includes('inbox')) return permissions.inbox !== 'none';
+    if (key.includes('ticket')) return permissions.tickets !== 'none';
+    if (key.includes('customer')) return permissions.customers !== 'none';
+    if (key.includes('settings')) return permissions.settings !== 'none';
+    
+    return true;
+  };
+
+  const filteredMenuItems = menuItems.map((section: any) => ({
+    ...section,
+    items: section.items.filter((item: any) => hasAccess(item.name))
+  })).filter((section: any) => section.items.length > 0);
+
   return (
     <aside style={{ display: 'flex', flexDirection: 'column', height: '100%', background: 'var(--bg-sidebar)' }}>
       <div style={{ padding: isCollapsed ? '24px 12px' : '24px', display: 'flex', alignItems: 'center', gap: '12px', justifyContent: isCollapsed ? 'center' : 'flex-start' }}>
@@ -175,7 +209,7 @@ const Sidebar = ({ onClickLink, isCollapsed = false }: SidebarProps) => {
       </div>
 
       <nav style={{ padding: '0 12px', flex: 1, overflowY: 'auto' }} className="no-scrollbar">
-        {menuItems.map((section, sIdx) => (
+        {filteredMenuItems.map((section, sIdx) => (
           <div key={sIdx} style={{ marginBottom: '24px' }}>
             {!isCollapsed && (
               <label style={{ 
@@ -189,7 +223,7 @@ const Sidebar = ({ onClickLink, isCollapsed = false }: SidebarProps) => {
                 display: 'block'
               }}>{section.section}</label>
             )}
-            {section.items.map((item) => {
+            {section.items.map((item: any) => {
               if (item.children) {
                 const isOpen = openMenus.includes(item.name);
                 return (
