@@ -3,6 +3,8 @@
   Focus: Next-Gen Aesthetics, OKLCH Dynamics, Glassmorphism
 */
 
+@import url('https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700;800&display=swap');
+
 :root {
   /* Core Brand - High Energy OKLCH */
   --primary: oklch(80% 0.18 190);   /* Electric Cyan */
@@ -97,7 +99,7 @@
   box-sizing: border-box;
   margin: 0;
   padding: 0;
-  font-family: var(--font-prompt), 'Prompt', sans-serif !important;
+  font-family: 'Prompt', var(--font-prompt), sans-serif !important;
   letter-spacing: -0.01em;
 }
 

@@ -330,7 +330,15 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
           </div>
         </header>
 
-        <div style={{ flex: 1, padding: '24px', overflow: 'auto', position: 'relative' }}>
+        <div style={{ 
+          flex: 1, 
+          padding: '24px', 
+          overflowX: 'hidden', 
+          overflowY: 'auto', 
+          position: 'relative',
+          display: 'flex',
+          flexDirection: 'column'
+        }}>
           {children}
         </div>
       </main>

@@ -272,15 +272,16 @@ function TicketsContent() {
             padding: '24px', 
             flex: 1, 
             width: '100%',
+            maxWidth: '100%',
             minHeight: '600px',
-            background: 'rgba(255,255,255,0.01)',
+            background: 'var(--bg-card)',
             borderRadius: '32px',
             border: '1px solid var(--border)',
             WebkitOverflowScrolling: 'touch',
             touchAction: 'pan-x'
           }}>
-            <div style={{ display: 'flex', gap: '28px', minWidth: 'max-content', alignItems: 'flex-start' }}>
-              {WORKFLOW.map(col => {
+            <div style={{ display: 'flex', gap: '28px', width: 'max-content', alignItems: 'flex-start' }}>
+                  {WORKFLOW.map(col => {
                  const columnTickets = filteredTickets.filter(t => (t.status || '').toLowerCase() === col.id.toLowerCase());
                  const statusConfig: Record<string, { color: string, glow: string }> = {
                    'New': { color: 'var(--primary)', glow: 'rgba(0, 242, 254, 0.4)' },
