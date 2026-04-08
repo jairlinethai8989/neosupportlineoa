@@ -98,26 +98,14 @@ const Sidebar = ({ onClickLink, isCollapsed = false }: SidebarProps) => {
     
     fetchCounts();
 
-    // 5-second polling fallback (Ultra-fast fallback if Realtime fails)
-    const pollInterval = setInterval(fetchCounts, 5000);
+    // 10-second polling fallback (Balanced for performance)
+    const pollInterval = setInterval(fetchCounts, 10000);
     
-    // Subscribe to listen to tickets/conversations changes
-    const channel = supabase.channel('sidebar-counts-v2')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'tickets' }, (payload) => {
-        console.log('Sidebar: Ticket Change Detected', payload);
-        fetchCounts(); 
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'conversations' }, (payload) => {
-        console.log('Sidebar: Conversation Change Detected', payload);
-        fetchCounts(); 
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'customers' }, (payload) => {
-        console.log('Sidebar: Customer Change Detected', payload);
-        fetchCounts(); 
-      })
-      .subscribe((status) => {
-        console.log('Sidebar Realtime Status:', status);
-      });
+    const channel = supabase.channel('sidebar-counts-v3')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'tickets' }, () => { fetchCounts(); })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'conversations' }, () => { fetchCounts(); })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'customers' }, () => { fetchCounts(); })
+      .subscribe();
 
     return () => {
       isMounted = false;
@@ -227,6 +215,7 @@ const Sidebar = ({ onClickLink, isCollapsed = false }: SidebarProps) => {
                           key={child.path} 
                           href={child.path}
                           onClick={onClickLink}
+                          prefetch={false} // Optimize: don't prefetch settings subpages
                           className="glass-interactive"
                           style={{
                             display: 'flex',
@@ -258,6 +247,7 @@ const Sidebar = ({ onClickLink, isCollapsed = false }: SidebarProps) => {
               key={item.path} 
               href={item.path || '#'}
               onClick={onClickLink}
+              prefetch={item.path === '/inbox' || item.path === '/tickets'} // Only prefetch critical paths
               title={isCollapsed ? item.thai : ''}
               className={`glass-interactive sidebar-btn ${isActive ? 'active' : ''}`}
               style={{

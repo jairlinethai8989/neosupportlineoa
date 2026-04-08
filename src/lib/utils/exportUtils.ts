@@ -1,6 +1,5 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import * as XLSX from 'xlsx';
-import jsPDF from 'jspdf';
+import { jsPDF } from 'jspdf';
 import 'jspdf-autotable';
 
 /**
@@ -21,34 +20,42 @@ export const exportToExcel = (data: any[], fileName: string) => {
  * Universal PDF Export with Thai Font Support (Placeholder for now)
  */
 export const exportToPDF = (data: any[], fileName: string, title: string) => {
-  if (!data || data.length === 0) {
-    alert('ไม่มีข้อมูลสำหรับส่งออก (No data to export)');
-    return;
+  console.log('Exporting PDF...', { data, fileName, title });
+  try {
+    if (!data || data.length === 0) {
+      alert('ไม่มีข้อมูลสำหรับส่งออก (No data to export)');
+      return;
+    }
+    const doc = new jsPDF() as any;
+    
+    // Header
+    doc.setFontSize(18);
+    doc.text(title, 14, 22);
+    doc.setFontSize(11);
+    doc.setTextColor(100);
+    doc.text(`Generated at: ${new Date().toLocaleString('th-TH')}`, 14, 30);
+    doc.text(`Note: PDF might not display Thai correctly. Please use Excel for full Thai support.`, 14, 36);
+
+    // Table
+    const headers = Object.keys(data[0]);
+    const body = data.map(item => Object.values(item).map(v => String(v)));
+
+    doc.autoTable({
+      head: [headers],
+      body: body,
+      startY: 42,
+      theme: 'grid',
+      headStyles: { fillColor: [0, 242, 254], textColor: [0, 0, 0], fontStyle: 'bold' },
+      margin: { top: 40 },
+      alternateRowStyles: { fillColor: [245, 245, 245] }
+    });
+
+    doc.save(`${fileName}_${new Date().getTime()}.pdf`);
+    console.log('PDF Export successful');
+  } catch (err) {
+    console.error('PDF Export Error:', err);
+    alert('PDF Export failed. Please try Excel instead.');
   }
-  const doc = new jsPDF() as any;
-  
-  // Header
-  doc.setFontSize(18);
-  doc.text(title, 14, 22);
-  doc.setFontSize(11);
-  doc.setTextColor(100);
-  doc.text(`Generated at: ${new Date().toLocaleString('th-TH')}`, 14, 30);
-
-  // Table
-  const headers = Object.keys(data[0]);
-  const body = data.map(item => Object.values(item).map(v => String(v)));
-
-  doc.autoTable({
-    head: [headers],
-    body: body,
-    startY: 40,
-    theme: 'grid',
-    headStyles: { fillColor: [0, 242, 254], textColor: [0, 0, 0], fontStyle: 'bold' },
-    margin: { top: 40 },
-    alternateRowStyles: { fillColor: [245, 245, 245] }
-  });
-
-  doc.save(`${fileName}_${new Date().getTime()}.pdf`);
 };
 
 /**

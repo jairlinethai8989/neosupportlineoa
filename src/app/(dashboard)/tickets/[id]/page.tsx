@@ -23,7 +23,7 @@ import {
   FileDown,
   Monitor
 } from 'lucide-react';
-import { exportToPDF } from '@/lib/utils/exportUtils';
+import { exportToPDF, exportToExcel } from '@/lib/utils/exportUtils';
 import ImageEditorModal from '@/components/modals/ImageEditorModal';
 
 export default function StaffTicketDetailPage() {
@@ -153,20 +153,28 @@ export default function StaffTicketDetailPage() {
     };
   }, [id]);
 
-  const handleExportPDF = () => {
+  const handleExportSummary = () => {
     if (!ticket) return;
-    const summaryData = [{
-      'Ticket No': ticket.ticket_no,
-      'Subject': ticket.subject,
-      'Customer': ticket.customers?.display_name || 'N/A',
-      'Status': ticket.status,
-      'Priority': ticket.priority,
-      'Department': ticket.department || 'N/A',
-      'Created At': new Date(ticket.created_at).toLocaleString('th-TH'),
-      'Resolved At': ticket.resolved_at ? new Date(ticket.resolved_at).toLocaleString('th-TH') : '-',
-      'Resolution summary': ticket.resolution_summary || '-'
-    }];
-    exportToPDF(summaryData, `Ticket_${ticket.ticket_no}`, `NeoSupport Summary: Ticket #${ticket.ticket_no}`);
+    console.log('Generating Summary Export...', ticket.ticket_no);
+    try {
+      const summaryData = [{
+        'Ticket No': ticket.ticket_no,
+        'Subject': ticket.subject,
+        'Customer': ticket.customers?.display_name || 'N/A',
+        'Status': ticket.status,
+        'Priority': ticket.priority,
+        'Department': ticket.department || 'N/A',
+        'Created At': new Date(ticket.created_at).toLocaleString('th-TH'),
+        'Resolved At': ticket.resolved_at ? new Date(ticket.resolved_at).toLocaleString('th-TH') : '-',
+        'Resolution summary': ticket.resolution_summary || '-'
+      }];
+      
+      exportToExcel(summaryData, `Summary_Ticket_${ticket.ticket_no}`);
+      console.log('Summary Export Generated');
+    } catch (err) {
+      console.error('Export Error:', err);
+      alert('Export failed. Please check console for details.');
+    }
   };
 
   const handleSendMessage = async () => {
@@ -467,7 +475,7 @@ export default function StaffTicketDetailPage() {
         </div>
         <div style={{ display: 'flex', gap: '12px' }}>
           <button 
-            onClick={handleExportPDF}
+            onClick={handleExportSummary}
             className="glass-interactive flex-center" 
             style={{ padding: '0 20px', height: '44px', borderRadius: '12px', border: '1px solid var(--border)', background: 'rgba(255, 255, 255, 0.05)', color: 'var(--text-main)', fontWeight: '800', gap: '8px' }}>
             <FileDown size={18} /> สรุปใบงาน (Summary)

@@ -146,8 +146,8 @@ function InboxContent() {
 
     fetchMessages();
 
-    // 5-second polling for active chat messages (Ultra-fast fallback)
-    const pollInterval = setInterval(fetchMessages, 5000);
+    // 10-second polling for active chat messages (Performance balanced)
+    const pollInterval = setInterval(fetchMessages, 10000);
 
     // Subscribe to ALL new messages and filter in JS to avoid subscription limits
     const channel = supabase
