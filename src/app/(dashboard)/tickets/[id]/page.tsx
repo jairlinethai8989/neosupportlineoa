@@ -153,9 +153,9 @@ export default function StaffTicketDetailPage() {
     };
   }, [id]);
 
-  const handleExportSummary = () => {
+  const handleExportSummary = (format: 'pdf' | 'xlsx') => {
     if (!ticket) return;
-    console.log('Generating Summary Export...', ticket.ticket_no);
+    console.log(`Generating Summary Export (${format})...`, ticket.ticket_no);
     try {
       const summaryData = [{
         'Ticket No': ticket.ticket_no,
@@ -169,7 +169,11 @@ export default function StaffTicketDetailPage() {
         'Resolution summary': ticket.resolution_summary || '-'
       }];
       
-      exportToExcel(summaryData, `Summary_Ticket_${ticket.ticket_no}`);
+      if (format === 'xlsx') {
+        exportToExcel(summaryData, `Summary_Ticket_${ticket.ticket_no}`);
+      } else {
+        exportToPDF(summaryData, `Summary_Ticket_${ticket.ticket_no}`, `NeoSupport Summary: Ticket #${ticket.ticket_no}`);
+      }
       console.log('Summary Export Generated');
     } catch (err) {
       console.error('Export Error:', err);
@@ -473,13 +477,18 @@ export default function StaffTicketDetailPage() {
             <p style={{ color: 'var(--text-muted)', fontSize: '14px' }}>Ticket Details & Management</p>
           </div>
         </div>
-        <div style={{ display: 'flex', gap: '12px' }}>
-          <button 
-            onClick={handleExportSummary}
-            className="glass-interactive flex-center" 
-            style={{ padding: '0 20px', height: '44px', borderRadius: '12px', border: '1px solid var(--border)', background: 'rgba(255, 255, 255, 0.05)', color: 'var(--text-main)', fontWeight: '800', gap: '8px' }}>
-            <FileDown size={18} /> สรุปใบงาน (Summary)
-          </button>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <div style={{ position: 'relative' }}>
+            <button 
+              onClick={() => {
+                 const fmt = confirm('คุณต้องการสรุปใบงานในรูปแบบ PDF ใช่หรือไม่? (ตกลง = PDF, ยกเลิก = Excel)') ? 'pdf' : 'xlsx';
+                 handleExportSummary(fmt);
+              }}
+              className="glass-interactive flex-center" 
+              style={{ padding: '0 20px', height: '44px', borderRadius: '12px', border: '1px solid var(--border)', background: 'rgba(255, 255, 255, 0.05)', color: 'var(--text-main)', fontWeight: '800', gap: '8px' }}>
+              <FileDown size={18} /> สรุปใบงาน (Summary)
+            </button>
+          </div>
           {status !== 'Resolved' && status !== 'Closed' && status !== 'New' && (
             <button 
               onClick={() => setShowResolveModal(true)}
