@@ -268,11 +268,9 @@ function TicketsContent() {
       {viewMode === 'board' ? (
           <div className="board-scroll-container glass" style={{ 
             display: 'flex', 
-            gap: '28px', 
             overflowX: 'auto', 
             padding: '24px', 
             flex: 1, 
-            alignItems: 'flex-start', 
             width: '100%',
             minHeight: '600px',
             background: 'rgba(255,255,255,0.01)',
@@ -281,19 +279,20 @@ function TicketsContent() {
             WebkitOverflowScrolling: 'touch',
             touchAction: 'pan-x'
           }}>
-            {WORKFLOW.map(col => {
-               const columnTickets = filteredTickets.filter(t => (t.status || '').toLowerCase() === col.id.toLowerCase());
-               const statusConfig: Record<string, { color: string, glow: string }> = {
-                 'New': { color: 'var(--primary)', glow: 'rgba(0, 242, 254, 0.4)' },
-                 'In Progress': { color: 'var(--warning, #ff9f43)', glow: 'rgba(255, 159, 67, 0.4)' },
-                 'Resolved': { color: 'var(--success, #28c76f)', glow: 'rgba(40, 199, 111, 0.4)' },
-                 'Escalated': { color: '#7367f0', glow: 'rgba(115, 103, 240, 0.4)' },
-                 'Pending': { color: 'var(--danger, #ea5455)', glow: 'rgba(234, 84, 85, 0.4)' }
-               };
-               const config = statusConfig[col.id] || { color: 'var(--text-muted)', glow: 'rgba(0,0,0,0.1)' };
-               
-               return (
-                 <div key={col.id} style={{ minWidth: '340px', maxWidth: '340px', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '20px', background: 'var(--bg-input)', borderRadius: '24px', padding: '12px' }}>
+            <div style={{ display: 'flex', gap: '28px', minWidth: 'max-content', alignItems: 'flex-start' }}>
+              {WORKFLOW.map(col => {
+                 const columnTickets = filteredTickets.filter(t => (t.status || '').toLowerCase() === col.id.toLowerCase());
+                 const statusConfig: Record<string, { color: string, glow: string }> = {
+                   'New': { color: 'var(--primary)', glow: 'rgba(0, 242, 254, 0.4)' },
+                   'In Progress': { color: 'var(--warning, #ff9f43)', glow: 'rgba(255, 159, 67, 0.4)' },
+                   'Resolved': { color: 'var(--success, #28c76f)', glow: 'rgba(40, 199, 111, 0.4)' },
+                   'Escalated': { color: '#7367f0', glow: 'rgba(115, 103, 240, 0.4)' },
+                   'Pending': { color: 'var(--danger, #ea5455)', glow: 'rgba(234, 84, 85, 0.4)' }
+                 };
+                 const config = statusConfig[col.id] || { color: 'var(--text-muted)', glow: 'rgba(0,0,0,0.1)' };
+                 
+                 return (
+                   <div key={col.id} style={{ minWidth: '340px', maxWidth: '340px', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '20px', background: 'var(--bg-input)', borderRadius: '24px', padding: '12px' }}>
                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', background: `${config.color}15`, borderRadius: '18px', borderBottom: `3px solid ${config.color}`, boxShadow: `0 4px 12px ${config.color}10` }}>
                         <h3 style={{ fontSize: '15px', fontWeight: '900', display: 'flex', alignItems: 'center', gap: '12px', color: 'var(--text-main)' }}>
                            <span style={{ width: '12px', height: '12px', borderRadius: '50%', background: config.color }}></span>
@@ -406,7 +405,8 @@ function TicketsContent() {
                  </div>
                );
             })}
-         </div>
+            </div>
+          </div>
       ) : (
           <div className="glass board-scroll-container" style={{ overflowX: 'auto', padding: '1px' }}>
            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
