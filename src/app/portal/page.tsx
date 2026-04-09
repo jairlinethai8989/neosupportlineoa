@@ -174,16 +174,24 @@ export default function PortalPage() {
       {/* 4. History (Optional) */}
       {pastTickets.length > 0 && (
         <section>
-          <h3 style={{ fontSize: '16px', fontWeight: '800', marginBottom: '16px' }}>Resolved History</h3>
-          <div style={{ opacity: 0.6 }}>
-             {pastTickets.slice(0, 3).map(ticket => (
-                <div key={ticket.id} style={{ padding: '12px 16px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                   <div>
-                      <p style={{ fontSize: '13px', fontWeight: '700' }}>Ticket #{ticket.ticket_no}</p>
-                      <p style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{new Date(ticket.resolved_at).toLocaleDateString()}</p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
+             <Clock size={16} color="var(--portal-text-muted)" />
+             <h3 style={{ fontSize: '13px', fontWeight: '800', color: 'var(--portal-text-muted)', textTransform: 'uppercase', letterSpacing: '0.8px' }}>ประวัติการแจ้งงาน</h3>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+             {pastTickets.slice(0, 5).map(ticket => (
+                <Link href={`/portal/tickets/${ticket.id}`} key={ticket.id} style={{ textDecoration: 'none', color: 'inherit' }}>
+                   <div className="portal-glass" style={{ padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'white', border: '1px solid rgba(0,0,0,0.02)' }}>
+                      <div>
+                         <p style={{ fontSize: '14px', fontWeight: '800', color: '#1e293b' }}>#{ticket.ticket_no}</p>
+                         <p style={{ fontSize: '11px', color: 'var(--portal-text-muted)', marginTop: '2px' }}>{new Date(ticket.resolved_at || ticket.created_at).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: '2-digit' })} • {ticket.status}</p>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                         <CheckCircle size={16} color="#22c55e" />
+                         <ArrowRight size={14} color="#cbd5e1" />
+                      </div>
                    </div>
-                   <CheckCircle size={16} color="var(--success)" />
-                </div>
+                </Link>
              ))}
           </div>
         </section>

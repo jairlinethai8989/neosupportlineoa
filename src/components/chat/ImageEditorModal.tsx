@@ -6,11 +6,11 @@ import {
   Circle, 
   Type, 
   Pencil, 
-  Eraser, 
   RotateCcw, 
-  Download,
   Check,
-  MousePointer2
+  ZoomIn,
+  ZoomOut,
+  Maximize
 } from 'lucide-react';
 
 interface ImageEditorModalProps {
@@ -20,7 +20,7 @@ interface ImageEditorModalProps {
   onSave: (blob: Blob) => void;
 }
 
-type Tool = 'pencil' | 'rect' | 'circle' | 'text' | 'select';
+type Tool = 'pencil' | 'rect' | 'circle' | 'text';
 
 export default function ImageEditorModal({ isOpen, onClose, imageSrc, onSave }: ImageEditorModalProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -31,6 +31,7 @@ export default function ImageEditorModal({ isOpen, onClose, imageSrc, onSave }: 
   const [startPos, setStartPos] = useState({ x: 0, y: 0 });
   const [history, setHistory] = useState<string[]>([]);
   const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 });
+  const [zoom, setZoom] = useState(1);
 
   useEffect(() => {
     if (isOpen && imageSrc) {
@@ -67,6 +68,7 @@ export default function ImageEditorModal({ isOpen, onClose, imageSrc, onSave }: 
       canvas.height = height;
       ctx.drawImage(img, 0, 0, width, height);
       saveToHistory();
+      setZoom(1); // Reset zoom on new image
     };
   };
 
@@ -100,9 +102,14 @@ export default function ImageEditorModal({ isOpen, onClose, imageSrc, onSave }: 
     const rect = canvas.getBoundingClientRect();
     const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
     const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
+    
+    // Scale coordinates based on current visual size vs internal size
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+
     return {
-      x: clientX - rect.left,
-      y: clientY - rect.top
+      x: (clientX - rect.left) * scaleX,
+      y: (clientY - rect.top) * scaleY
     };
   };
 
@@ -133,7 +140,6 @@ export default function ImageEditorModal({ isOpen, onClose, imageSrc, onSave }: 
       ctx.lineTo(pos.x, pos.y);
       ctx.stroke();
     } else if (tool === 'rect' || tool === 'circle') {
-      // Preview logic: need to redraw from last history state then draw shape
       const img = new Image();
       img.src = history[history.length - 1];
       ctx.clearRect(0, 0, canvasSize.width, canvasSize.height);
@@ -183,8 +189,8 @@ export default function ImageEditorModal({ isOpen, onClose, imageSrc, onSave }: 
 
   return (
     <div style={{
-      position: 'fixed', inset: 0, zIndex: 1000,
-      background: 'rgba(0,0,0,0.9)', backdropFilter: 'blur(10px)',
+      position: 'fixed', inset: 0, zIndex: 1200,
+      background: 'rgba(0,0,0,0.9)', backdropFilter: 'blur(20px)',
       display: 'flex', flexDirection: 'column',
        animation: 'fadeIn 0.3s ease-out'
     }}>
@@ -194,20 +200,22 @@ export default function ImageEditorModal({ isOpen, onClose, imageSrc, onSave }: 
         padding: '0 24px', borderBottom: '1px solid rgba(255,255,255,0.1)', background: '#0a0e14'
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-          <button onClick={onClose} style={{ color: 'white', background: 'none', border: 'none', cursor: 'pointer' }}><X size={24} /></button>
-          <span style={{ fontWeight: '800', fontSize: '18px', color: 'var(--primary)' }}>Advanced Image Editor</span>
+          <button onClick={onClose} style={{ color: 'white', background: 'none', border: 'none', cursor: 'pointer', display: 'flex' }}><X size={24} /></button>
+          <span style={{ fontWeight: '800', fontSize: '18px', color: 'var(--primary)', letterSpacing: '0.5px' }}>IMAGE EDITOR</span>
         </div>
         
+        {/* Drawing Tools */}
         <div style={{ display: 'flex', gap: '8px', background: 'rgba(255,255,255,0.05)', padding: '6px', borderRadius: '12px' }}>
           {[
-            { id: 'pencil', icon: Pencil },
-            { id: 'rect', icon: Square },
-            { id: 'circle', icon: Circle },
-            { id: 'text', icon: Type },
+            { id: 'pencil', icon: Pencil, label: 'วาดเขียน' },
+            { id: 'rect', icon: Square, label: 'สี่เหลี่ยม' },
+            { id: 'circle', icon: Circle, label: 'วงกลม' },
+            { id: 'text', icon: Type, label: 'ข้อความ' },
           ].map(t => (
             <button
                key={t.id}
                onClick={() => setTool(t.id as Tool)}
+               title={t.label}
                style={{
                  width: '40px', height: '40px', borderRadius: '8px', border: 'none',
                  background: tool === t.id ? 'var(--primary)' : 'transparent',
@@ -221,6 +229,15 @@ export default function ImageEditorModal({ isOpen, onClose, imageSrc, onSave }: 
           ))}
         </div>
 
+        {/* Zoom Controls */}
+        <div style={{ display: 'flex', gap: '8px', background: 'rgba(255,255,255,0.05)', padding: '6px', borderRadius: '12px', alignItems: 'center' }}>
+          <button onClick={() => setZoom(prev => Math.max(0.5, prev - 0.2))} style={{ color: 'white', background: 'none', border: 'none', cursor: 'pointer', width: '32px' }} title="Zoom Out"><ZoomOut size={18} /></button>
+          <button onClick={() => setZoom(1)} style={{ color: 'white', background: 'none', border: 'none', cursor: 'pointer', fontSize: '12px', fontWeight: '800', minWidth: '40px' }}>{Math.round(zoom * 100)}%</button>
+          <button onClick={() => setZoom(prev => Math.min(3, prev + 0.2))} style={{ color: 'white', background: 'none', border: 'none', cursor: 'pointer', width: '32px' }} title="Zoom In"><ZoomIn size={18} /></button>
+          <button onClick={() => setZoom(1.5)} style={{ color: 'var(--primary)', background: 'none', border: 'none', cursor: 'pointer', marginLeft: '4px' }} title="Expand"><Maximize size={18} /></button>
+        </div>
+
+        {/* Actions */}
         <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
           <div style={{ display: 'flex', gap: '6px' }}>
             {['#ff4d4f', '#28c76f', '#00f2fe', '#ff9f43', '#ffffff'].map(c => (
@@ -235,7 +252,7 @@ export default function ImageEditorModal({ isOpen, onClose, imageSrc, onSave }: 
             ))}
           </div>
           <div style={{ width: '1px', height: '24px', background: 'rgba(255,255,255,0.1)' }} />
-          <button onClick={undo} style={{ color: 'white', background: 'none', border: 'none', cursor: 'pointer' }} title="Undo"><RotateCcw size={20} /></button>
+          <button onClick={undo} style={{ color: 'white', background: 'none', border: 'none', cursor: 'pointer' }} title="เลิกทำ (Undo)"><RotateCcw size={20} /></button>
           <button 
             onClick={handleSave}
             style={{ 
@@ -244,7 +261,7 @@ export default function ImageEditorModal({ isOpen, onClose, imageSrc, onSave }: 
               display: 'flex', gap: '8px', alignItems: 'center', cursor: 'pointer'
             }}
           >
-            <Check size={20} /> ส่งรูปที่แก้ไข
+            <Check size={20} /> บันทึกและส่ง
           </button>
         </div>
       </div>
@@ -252,9 +269,16 @@ export default function ImageEditorModal({ isOpen, onClose, imageSrc, onSave }: 
       {/* Editor Area */}
       <div 
         ref={containerRef}
-        style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', padding: '40px' }}
+        style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'auto', padding: '40px' }}
       >
-        <div style={{ position: 'relative', boxShadow: '0 20px 60px rgba(0,0,0,0.8)', borderRadius: '4px', overflow: 'hidden' }}>
+        <div style={{ 
+          position: 'relative', 
+          boxShadow: '0 20px 60px rgba(0,0,0,0.8)', 
+          borderRadius: '4px', 
+          transform: `scale(${zoom})`,
+          transition: 'transform 0.2s',
+          transformOrigin: 'center center'
+        }}>
           <canvas
             ref={canvasRef}
             onMouseDown={startDrawing}

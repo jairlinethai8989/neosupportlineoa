@@ -541,23 +541,6 @@ function InboxContent() {
                                 onClick={() => handleOpenViewer(msg.content)}
                                 alt="Chat attachment" 
                              />
-                             <div style={{ 
-                               position: 'absolute', top: '10px', right: '10px', 
-                               display: 'flex', gap: '8px'
-                             }}>
-                                <button 
-                                  onClick={(e) => { e.stopPropagation(); handleEditExistingImage(msg.content); }}
-                                  style={{ background: 'rgba(0,242,254,0.9)', color: 'black', border: 'none', padding: '6px', borderRadius: '6px', cursor: 'pointer', display: 'flex' }}
-                                >
-                                  <Pencil size={14} />
-                                </button>
-                                <button 
-                                  onClick={(e) => { e.stopPropagation(); handleOpenViewer(msg.content); }}
-                                  style={{ background: 'rgba(255,255,255,0.9)', color: 'black', border: 'none', padding: '6px', borderRadius: '6px', cursor: 'pointer', display: 'flex' }}
-                                >
-                                  <Maximize size={14} />
-                                </button>
-                             </div>
                           </div>
                        ) : msg.message_type === 'file' || (msg.content.startsWith('http') && msg.message_type !== 'text' && !msg.content.includes('/portal/')) ? (
                           <a href={msg.content} target="_blank" rel="noreferrer" style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--primary)', textDecoration: 'none', fontWeight: 'bold' }}>
@@ -844,6 +827,11 @@ function InboxContent() {
         isOpen={isViewerOpen}
         imageSrc={viewingImage}
         onClose={() => setIsViewerOpen(false)}
+        onEdit={(src) => {
+          setIsViewerOpen(false);
+          setEditingImage(src);
+          setIsEditorOpen(true);
+        }}
       />
 
     </div>

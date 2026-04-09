@@ -1,6 +1,6 @@
 import * as XLSX from 'xlsx';
 import { jsPDF } from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 
 /**
  * Universal Excel Export
@@ -10,14 +10,19 @@ export const exportToExcel = (data: any[], fileName: string) => {
     alert('ไม่มีข้อมูลสำหรับส่งออก (No data to export)');
     return;
   }
-  const worksheet = XLSX.utils.json_to_sheet(data);
-  const workbook = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(workbook, worksheet, 'Report');
-  XLSX.writeFile(workbook, `${fileName}_${new Date().getTime()}.xlsx`);
+  try {
+    const worksheet = XLSX.utils.json_to_sheet(data);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Report');
+    XLSX.writeFile(workbook, `${fileName}_${new Date().getTime()}.xlsx`);
+  } catch (err) {
+    console.error('Excel Export Error:', err);
+    alert('Excel Export failed. Please check browser permissions.');
+  }
 };
 
 /**
- * Universal PDF Export with Thai Font Support (Placeholder for now)
+ * Universal PDF Export with Thai Font Support (Note: Thai chars need embedded font for full rendering)
  */
 export const exportToPDF = (data: any[], fileName: string, title: string) => {
   console.log('Exporting PDF...', { data, fileName, title });
@@ -26,35 +31,58 @@ export const exportToPDF = (data: any[], fileName: string, title: string) => {
       alert('ไม่มีข้อมูลสำหรับส่งออก (No data to export)');
       return;
     }
-    const doc = new jsPDF() as any;
+    const doc = new jsPDF('p', 'mm', 'a4');
     
-    // Header
-    doc.setFontSize(18);
-    doc.text(title, 14, 22);
-    doc.setFontSize(11);
-    doc.setTextColor(100);
-    doc.text(`Generated at: ${new Date().toLocaleString('th-TH')}`, 14, 30);
-    doc.text(`Note: PDF might not display Thai correctly. Please use Excel for full Thai support.`, 14, 36);
+    // Header Section
+    doc.setFontSize(22);
+    doc.setTextColor(11, 22, 33);
+    doc.text(title, 14, 25);
+    
+    doc.setFontSize(10);
+    doc.setTextColor(150);
+    doc.text(`Generated at: ${new Date().toLocaleString('th-TH')}`, 14, 32);
+    doc.text(`* PDF Format may have limited support for non-Latin characters. For full Thai support, please export as Excel.`, 14, 38);
 
-    // Table
+    // Prepare Table Data
     const headers = Object.keys(data[0]);
-    const body = data.map(item => Object.values(item).map(v => String(v)));
+    const body = data.map(item => Object.values(item).map(v => String(v || '-')));
 
-    doc.autoTable({
+    autoTable(doc, {
       head: [headers],
       body: body,
-      startY: 42,
+      startY: 45,
       theme: 'grid',
-      headStyles: { fillColor: [0, 242, 254], textColor: [0, 0, 0], fontStyle: 'bold' },
-      margin: { top: 40 },
-      alternateRowStyles: { fillColor: [245, 245, 245] }
+      headStyles: { 
+        fillColor: [54, 153, 255], 
+        textColor: [255, 255, 255], 
+        fontSize: 10,
+        fontStyle: 'bold',
+        halign: 'center'
+      },
+      styles: { 
+        fontSize: 9, 
+        cellPadding: 4,
+        overflow: 'linebreak'
+      },
+      columnStyles: {
+        0: { cellWidth: 25 },
+        1: { cellWidth: 'auto' }
+      },
+      margin: { top: 45 },
+      alternateRowStyles: { fillColor: [250, 251, 254] },
+      didDrawPage: (dataArg) => {
+        // Footer
+        doc.setFontSize(8);
+        doc.setTextColor(150);
+        doc.text(`Page ${dataArg.pageNumber}`, doc.internal.pageSize.width - 20, doc.internal.pageSize.height - 10);
+      }
     });
 
     doc.save(`${fileName}_${new Date().getTime()}.pdf`);
     console.log('PDF Export successful');
-  } catch (err) {
+  } catch (err: any) {
     console.error('PDF Export Error:', err);
-    alert('PDF Export failed. Please try Excel instead.');
+    alert('PDF Export failed: ' + (err.message || 'Unknown Error'));
   }
 };
 

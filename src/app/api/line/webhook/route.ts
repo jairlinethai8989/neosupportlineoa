@@ -95,13 +95,50 @@ export async function POST(req: Request) {
         }
 
         if (conversation) {
-          // 4. Save Message
+          let finalContent = messageText;
+
+          // 4. Handle Media Contents (Images, Video, Files)
+          if (['image', 'video', 'file'].includes(event.message.type)) {
+            try {
+              // Fetch Original Content from LINE
+              const stream = await client.getMessageContent(event.message.id);
+              const chunks: any[] = [];
+              for await (const chunk of stream) {
+                chunks.push(chunk);
+              }
+              const buffer = Buffer.concat(chunks);
+
+              // Upload to Supabase Storage
+              const fileExt = event.message.type === 'image' ? 'jpg' : (event.message.type === 'video' ? 'mp4' : 'bin');
+              const fileName = `customer/${customer.id}/${event.message.id}_${Date.now()}.${fileExt}`;
+              
+              const { error: uploadError } = await supabase.storage
+                .from('chat_media')
+                .upload(fileName, buffer, {
+                  contentType: event.message.type === 'image' ? 'image/jpeg' : (event.message.type === 'video' ? 'video/mp4' : 'application/octet-stream'),
+                  upsert: true
+                });
+
+              if (!uploadError) {
+                const { data: { publicUrl } } = supabase.storage
+                  .from('chat_media')
+                  .getPublicUrl(fileName);
+                finalContent = publicUrl;
+              } else {
+                console.error('Upload Error:', uploadError);
+              }
+            } catch (err) {
+              console.error('LINE Content Fetch Error:', err);
+            }
+          }
+
+          // 5. Save Message
           await supabase.from('messages').insert([{
             conversation_id: conversation.id,
             ticket_id: conversation.current_ticket_id,
             sender_type: 'customer',
             message_type: event.message.type,
-            content: messageText,
+            content: finalContent,
             line_message_id: event.message.id,
             media_metadata: event.message
           }]);

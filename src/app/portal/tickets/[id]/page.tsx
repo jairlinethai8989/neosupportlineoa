@@ -98,24 +98,30 @@ export default function TicketDetailPage() {
     }
     fetchTicketData();
 
-    // Real-time subscription for private chat
+    // Real-time subscription for chat and ticket updates
     const channel = supabase
-      .channel(`customer-chat-${id}`)
+      .channel(`customer-ticket-realtime-${id}`)
+      // 1. Listen for new messages
       .on('postgres_changes', { 
         event: 'INSERT', 
         schema: 'public', 
         table: 'messages',
-        filter: `ticket_id=eq.${id}`
+        filter: conversationId ? `conversation_id=eq.${conversationId}` : `ticket_id=eq.${id}`
       }, () => {
         fetchTicketData();
       })
-      .on('postgres_changes', { 
-        event: 'INSERT', 
-        schema: 'public', 
-        table: 'messages',
-        filter: `conversation_id=eq.${conversationId || 'none'}`
-      }, () => {
-        fetchTicketData();
+      // 2. Listen for ticket status changes
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'tickets',
+        filter: `id=eq.${id}`
+      }, (payload) => {
+        console.log('Ticket updated:', payload.new);
+        setTicket(prev => ({ ...prev, ...payload.new }));
+        // Also fetch logs to update timeline
+        supabase.from('ticket_logs').select('*').eq('ticket_id', id).order('created_at', { ascending: false })
+          .then(({ data }) => { if (data) setLogs(data); });
       })
       .subscribe();
 
@@ -214,15 +220,16 @@ export default function TicketDetailPage() {
   );
 
   // Status mapping for visual tracker
-  const statusLevels: any = {
-    'Pending': 1,
-    'Assigned': 2,
-    'Escalated': 3,
-    'Resolved': 4,
-    'New': 1,
-    'In Progress': 2
+  const statusLevels: Record<string, number> = {
+    'new': 1,
+    'pending': 1,
+    'assigned': 2,
+    'in progress': 2,
+    'escalated': 3,
+    'resolved': 4,
+    'closed': 4
   };
-  const currentLevel = statusLevels[ticket.status] || 1;
+  const currentLevel = statusLevels[String(ticket.status).toLowerCase()] || 1;
 
   return (
     <div className="portal-container" style={{ animation: 'fadeIn 0.5s ease-out' }}>
@@ -322,7 +329,7 @@ export default function TicketDetailPage() {
              {[1, 2, 3, 4].map(step => (
                 <div key={step} style={{ 
                    flex: 1, 
-                   background: step <= currentLevel ? (ticket.status === 'Resolved' ? '#22c55e' : 'var(--portal-primary)') : 'transparent',
+                   background: step <= currentLevel ? (['resolved', 'closed'].includes(String(ticket.status).toLowerCase()) ? '#22c55e' : 'var(--portal-primary)') : 'transparent',
                    transition: 'background 0.4s ease'
                 }} />
              ))}

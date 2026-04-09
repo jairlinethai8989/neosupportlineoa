@@ -14,7 +14,10 @@ import {
   AlertCircle,
   MessageCircle,
   User,
-  Zap
+  Zap,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { ticketService } from '@/lib/services/ticketService';
@@ -86,6 +89,9 @@ function TicketsContent() {
   const [timeRange, setTimeRange] = useState<'all' | 'today' | 'week' | 'month' | 'custom'>('all');
   const [customStart, setCustomStart] = useState('');
   const [customEnd, setCustomEnd] = useState('');
+  
+  // Sorting State
+  const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' }>({ key: 'created_at', direction: 'desc' });
 
   async function fetchData() {
     setDebugError(null);
@@ -193,9 +199,16 @@ function TicketsContent() {
       setClaimingId(null);
     }
   };
+  const handleSort = (key: string) => {
+    let direction: 'asc' | 'desc' = 'asc';
+    if (sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setSortConfig({ key, direction });
+  };
 
   const filteredTickets = useMemo(() => {
-    let result = tickets;
+    let result = [...tickets];
 
     if (filterCustomerId) {
       result = result.filter(t => t.customer_id === filterCustomerId);
@@ -211,8 +224,50 @@ function TicketsContent() {
       });
     }
 
+    // Apply sorting
+    if (sortConfig.key) {
+      result.sort((a, b) => {
+        let aValue: any = '';
+        let bValue: any = '';
+
+        switch (sortConfig.key) {
+          case 'ticket_no':
+            aValue = a.ticket_no;
+            bValue = b.ticket_no;
+            break;
+          case 'subject':
+            aValue = a.subject;
+            bValue = b.subject;
+            break;
+          case 'hospital':
+            aValue = a.customers?.hospitals?.name || '';
+            bValue = b.customers?.hospitals?.name || '';
+            break;
+          case 'customer':
+            aValue = a.customers?.display_name || '';
+            bValue = b.customers?.display_name || '';
+            break;
+          case 'status':
+            aValue = a.status;
+            bValue = b.status;
+            break;
+          case 'created_at':
+            aValue = new Date(a.created_at).getTime();
+            bValue = new Date(b.created_at).getTime();
+            break;
+          default:
+            aValue = a[sortConfig.key];
+            bValue = b[sortConfig.key];
+        }
+
+        if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
+        if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
+        return 0;
+      });
+    }
+
     return result;
-  }, [tickets, filterCustomerId, searchTerm]);
+  }, [tickets, filterCustomerId, searchTerm, sortConfig]);
 
   if (loading) return (
      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '70vh', flexDirection: 'column', gap: '16px' }}>
@@ -516,12 +571,41 @@ function TicketsContent() {
            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
               <thead style={{ background: 'rgba(255, 255, 255, 0.03)', borderBottom: '1px solid var(--border)' }}>
                   <tr>
-                    <th style={{ padding: '16px 20px', fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Ticket ID</th>
-                    <th style={{ padding: '16px 20px', fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase' }}>หัวข้อ</th>
-                    <th style={{ padding: '16px 20px', fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase' }}>โรงพยาบาล</th>
-                    <th style={{ padding: '16px 20px', fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase' }}>ลูกค้า</th>
-                    <th style={{ padding: '16px 20px', fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase' }}>สถานะ</th>
-                    <th style={{ padding: '16px 20px', fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase' }}>จัดการ</th>
+                    {[
+                      { key: 'ticket_no', label: 'Ticket ID' },
+                      { key: 'subject', label: 'หัวข้อ' },
+                      { key: 'hospital', label: 'โรงพยาบาล' },
+                      { key: 'customer', label: 'ลูกค้า' },
+                      { key: 'status', label: 'สถานะ' },
+                      { key: 'actions', label: 'จัดการ', noSort: true }
+                    ].map((col) => (
+                      <th 
+                        key={col.key} 
+                        onClick={() => !col.noSort && handleSort(col.key)}
+                        style={{ 
+                          padding: '16px 20px', 
+                          fontSize: '11px', 
+                          fontWeight: '800', 
+                          color: 'var(--text-muted)', 
+                          textTransform: 'uppercase',
+                          cursor: col.noSort ? 'default' : 'pointer',
+                          userSelect: 'none'
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          {col.label}
+                          {!col.noSort && (
+                            <span style={{ display: 'flex', alignItems: 'center' }}>
+                              {sortConfig.key === col.key ? (
+                                sortConfig.direction === 'asc' ? <ArrowUp size={12} /> : <ArrowDown size={12} />
+                              ) : (
+                                <ArrowUpDown size={12} style={{ opacity: 0.3 }} />
+                              )}
+                            </span>
+                          )}
+                        </div>
+                      </th>
+                    ))}
                   </tr>
               </thead>
               <tbody>

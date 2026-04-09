@@ -3,7 +3,7 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @next/next/no-img-element */
 /* eslint-disable jsx-a11y/alt-text */
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/lib/supabase';
 import { 
   Users, 
@@ -16,7 +16,10 @@ import {
   ChevronLeft,
   CheckCircle,
   XCircle,
-  Search
+  Search,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -43,6 +46,7 @@ export default function StaffManagementPage() {
     customers: 'edit',
     settings: 'view'
   });
+  const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' }>({ key: 'full_name', direction: 'asc' });
 
   const fetchStaff = async () => {
     setLoading(true);
@@ -143,10 +147,55 @@ export default function StaffManagementPage() {
     }
   };
 
-  const filteredStaff = staff.filter(s => 
-    s.full_name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    s.email.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const handleSort = (key: string) => {
+    let direction: 'asc' | 'desc' = 'asc';
+    if (sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setSortConfig({ key, direction });
+  };
+
+  const filteredStaff = useMemo(() => {
+    let result = staff.filter(s => 
+      s.full_name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+      (s.email && s.email.toLowerCase().includes(searchTerm.toLowerCase()))
+    );
+
+    if (sortConfig.key) {
+      result.sort((a, b) => {
+        let aValue: any = '';
+        let bValue: any = '';
+
+        switch (sortConfig.key) {
+          case 'full_name':
+            aValue = a.full_name;
+            bValue = b.full_name;
+            break;
+          case 'department':
+            aValue = a.department || '';
+            bValue = b.department || '';
+            break;
+          case 'role':
+            aValue = a.role;
+            bValue = b.role;
+            break;
+          case 'status':
+            aValue = a.status || '';
+            bValue = b.status || '';
+            break;
+          default:
+            aValue = a[sortConfig.key];
+            bValue = b[sortConfig.key];
+        }
+
+        if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
+        if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
+        return 0;
+      });
+    }
+
+    return result;
+  }, [staff, searchTerm, sortConfig]);
 
   if (loading) return <div className="flex-center" style={{ height: '70vh' }}><Loader2 className="animate-spin" color="var(--primary)" /></div>;
 
@@ -233,11 +282,41 @@ export default function StaffManagementPage() {
         <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
           <thead>
             <tr style={{ borderBottom: '1px solid var(--border)', background: 'rgba(255,255,255,0.02)' }}>
-              <th style={{ padding: '16px 24px', fontSize: '12px', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase' }}>พนักงาน (Staff)</th>
-              <th style={{ padding: '16px 24px', fontSize: '12px', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase' }}>แผนก (Dept)</th>
-              <th style={{ padding: '16px 24px', fontSize: '12px', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase' }}>บทบาท (Role)</th>
-              <th style={{ padding: '16px 24px', fontSize: '12px', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase' }}>สถานะ (Status)</th>
-              <th style={{ padding: '16px 24px', fontSize: '12px', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase', textAlign: 'right' }}>จัดการ</th>
+              {[
+                { key: 'full_name', label: 'พนักงาน (Staff)' },
+                { key: 'department', label: 'แผนก (Dept)' },
+                { key: 'role', label: 'บทบาท (Role)' },
+                { key: 'status', label: 'สถานะ (Status)' },
+                { key: 'actions', label: 'จัดการ', noSort: true, textAlign: 'right' }
+              ].map(col => (
+                <th 
+                  key={col.key}
+                  onClick={() => !col.noSort && handleSort(col.key)}
+                  style={{ 
+                    padding: '16px 24px', 
+                    fontSize: '12px', 
+                    fontWeight: '700', 
+                    color: 'var(--text-muted)', 
+                    textTransform: 'uppercase',
+                    cursor: col.noSort ? 'default' : 'pointer',
+                    textAlign: (col as any).textAlign || 'left',
+                    userSelect: 'none'
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: (col as any).textAlign === 'right' ? 'flex-end' : 'flex-start', gap: '8px' }}>
+                    {col.label}
+                    {!col.noSort && (
+                      <span style={{ display: 'flex', alignItems: 'center' }}>
+                        {sortConfig.key === col.key ? (
+                          sortConfig.direction === 'asc' ? <ArrowUp size={12} /> : <ArrowDown size={12} />
+                        ) : (
+                          <ArrowUpDown size={12} style={{ opacity: 0.3 }} />
+                        )}
+                      </span>
+                    )}
+                  </div>
+                </th>
+              ))}
             </tr>
           </thead>
           <tbody>

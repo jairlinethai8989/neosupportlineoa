@@ -1,14 +1,14 @@
-'use client';
 import React, { useState } from 'react';
-import { X, ZoomIn, ZoomOut, Maximize, RotateCcw } from 'lucide-react';
+import { X, ZoomIn, ZoomOut, Maximize, RotateCcw, Pencil } from 'lucide-react';
 
 interface ImageViewerModalProps {
   isOpen: boolean;
   onClose: () => void;
   imageSrc: string;
+  onEdit?: (src: string) => void;
 }
 
-export default function ImageViewerModal({ isOpen, onClose, imageSrc }: ImageViewerModalProps) {
+export default function ImageViewerModal({ isOpen, onClose, imageSrc, onEdit }: ImageViewerModalProps) {
   const [zoom, setZoom] = useState(1);
   const [rotate, setRotate] = useState(0);
 
@@ -25,16 +25,45 @@ export default function ImageViewerModal({ isOpen, onClose, imageSrc }: ImageVie
         padding: '0 24px', borderBottom: '1px solid rgba(255,255,255,0.1)'
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <button onClick={onClose} style={{ color: 'white', background: 'none', border: 'none', cursor: 'pointer' }}><X size={24} /></button>
-          <span style={{ color: 'white', fontWeight: '800', fontSize: '14px' }}>IMAGE VIEWER</span>
+          <button onClick={onClose} style={{ color: 'white', background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center' }} title="Close"><X size={24} /></button>
+          <span style={{ color: 'white', fontWeight: '800', fontSize: '14px', letterSpacing: '1px' }}>IMAGE VIEWER</span>
         </div>
+        
         <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
-          <button onClick={() => setZoom(prev => Math.max(0.2, prev - 0.2))} style={{ color: 'white', background: 'none', border: 'none', cursor: 'pointer' }}><ZoomOut size={20} /></button>
-          <button onClick={() => setZoom(1)} style={{ color: 'white', background: 'none', border: 'none', cursor: 'pointer', fontSize: '12px', fontWeight: '800' }}>{Math.round(zoom * 100)}%</button>
-          <button onClick={() => setZoom(prev => Math.min(5, prev + 0.2))} style={{ color: 'white', background: 'none', border: 'none', cursor: 'pointer' }}><ZoomIn size={20} /></button>
+          <div style={{ display: 'flex', background: 'rgba(255,255,255,0.05)', padding: '4px', borderRadius: '10px', alignItems: 'center', gap: '8px' }}>
+            <button onClick={() => setZoom(prev => Math.max(0.2, prev - 0.2))} style={{ color: 'white', background: 'none', border: 'none', cursor: 'pointer' }} title="Zoom Out"><ZoomOut size={18} /></button>
+            <button onClick={() => setZoom(1)} style={{ color: 'white', background: 'none', border: 'none', cursor: 'pointer', fontSize: '11px', fontWeight: '800', minWidth: '40px' }}>{Math.round(zoom * 100)}%</button>
+            <button onClick={() => setZoom(prev => Math.min(5, prev + 0.2))} style={{ color: 'white', background: 'none', border: 'none', cursor: 'pointer' }} title="Zoom In"><ZoomIn size={18} /></button>
+          </div>
+
           <div style={{ width: '1px', height: '20px', background: 'rgba(255,255,255,0.1)' }} />
-          <button onClick={() => setRotate(prev => prev + 90)} style={{ color: 'white', background: 'none', border: 'none', cursor: 'pointer' }}><RotateCcw size={20} /></button>
-          <button onClick={() => setZoom(1.5)} style={{ color: 'var(--primary)', background: 'none', border: 'none', cursor: 'pointer' }}><Maximize size={20} /></button>
+          
+          <button onClick={() => setRotate(prev => prev + 90)} style={{ color: 'white', background: 'none', border: 'none', cursor: 'pointer' }} title="Rotate"><RotateCcw size={18} /></button>
+          <button onClick={() => setZoom(1.5)} style={{ color: 'white', background: 'none', border: 'none', cursor: 'pointer' }} title="Expand"><Maximize size={18} /></button>
+          
+          {onEdit && (
+            <>
+              <div style={{ width: '1px', height: '20px', background: 'rgba(255,255,255,0.1)' }} />
+              <button 
+                onClick={() => onEdit(imageSrc)} 
+                style={{ 
+                  color: '#00f2fe', 
+                  background: 'rgba(0,242,254,0.1)', 
+                  border: '1px solid rgba(0,242,254,0.3)', 
+                  borderRadius: '8px',
+                  padding: '6px 12px',
+                  cursor: 'pointer', 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '6px',
+                  fontSize: '12px',
+                  fontWeight: '800'
+                }}
+              >
+                <Pencil size={14} /> แก้ไขภาพ
+              </button>
+            </>
+          )}
         </div>
       </div>
 

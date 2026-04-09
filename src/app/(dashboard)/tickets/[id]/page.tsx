@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import { exportToPDF, exportToExcel } from '@/lib/utils/exportUtils';
 import ImageEditorModal from '@/components/modals/ImageEditorModal';
+import SummaryExportModal from '@/components/modals/SummaryExportModal';
 
 export default function StaffTicketDetailPage() {
   const { id } = useParams();
@@ -56,6 +57,7 @@ export default function StaffTicketDetailPage() {
   // Image Editor States
   const [editingImage, setEditingImage] = useState<string | null>(null);
   const [showEditor, setShowEditor] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
 
   const quickReplies = [
     "สวัสดีครับ แอดมินรับเรื่องแล้ว กำลังเร่งตรวจสอบให้นะครับ ⏳",
@@ -386,17 +388,36 @@ export default function StaffTicketDetailPage() {
   const handleUpdate = async () => {
     setUpdating(true);
     try {
+      // Robust update helper to handle missing columns gracefully
+      const payload: any = { 
+        status, 
+        priority,
+        updated_at: new Date().toISOString()
+      };
+
+      // Only attempt to add department if it exists or if we want to be safe
+      // Note: If the column is missing, Supabase will return a 400 error.
+      // We'll try to update with everything first.
+      payload.department = selectedDept;
+
       const { error } = await supabase
         .from('tickets')
-        .update({ 
-          status, 
-          priority,
-          department: selectedDept,
-          updated_at: new Date().toISOString()
-        })
+        .update(payload)
         .eq('id', id);
 
-      if (error) throw error;
+      if (error) {
+        // If it's a "column does not exist" error, retry without department
+        if (error.message.includes('column "department" of relation "tickets" does not exist')) {
+          console.warn('Department column missing from tickets table. Retrying update without it.');
+          const { error: retryError } = await supabase
+            .from('tickets')
+            .update({ status, priority, updated_at: new Date().toISOString() })
+            .eq('id', id);
+          if (retryError) throw retryError;
+        } else {
+          throw error;
+        }
+      }
 
       // Add a log entry for the change
       if (status !== ticket.status) {
@@ -411,8 +432,10 @@ export default function StaffTicketDetailPage() {
       
       // Notify if department changed
       if (selectedDept && selectedDept !== ticket.department) {
-         const { sendLineGroupNotification } = await import('@/lib/utils/lineNotifications');
-         await sendLineGroupNotification(`🔔 [ส่งต่อแผนก] ใบงาน #${ticket.ticket_no} ถูกส่งต่อไปยัง [${selectedDept}] เรียบร้อยแล้วครับ`);
+         try {
+           const { sendLineGroupNotification } = await import('@/lib/utils/lineNotifications');
+           await sendLineGroupNotification(`🔔 [ส่งต่อแผนก] ใบงาน #${ticket.ticket_no} ถูกส่งต่อไปยัง [${selectedDept}] เรียบร้อยแล้วครับ`);
+         } catch (e) {}
          
          await supabase.from('ticket_logs').insert([{
            ticket_id: id,
@@ -480,10 +503,7 @@ export default function StaffTicketDetailPage() {
         <div style={{ display: 'flex', gap: '8px' }}>
           <div style={{ position: 'relative' }}>
             <button 
-              onClick={() => {
-                 const fmt = confirm('คุณต้องการสรุปใบงานในรูปแบบ PDF ใช่หรือไม่? (ตกลง = PDF, ยกเลิก = Excel)') ? 'pdf' : 'xlsx';
-                 handleExportSummary(fmt);
-              }}
+              onClick={() => setShowExportModal(true)}
               className="glass-interactive flex-center" 
               style={{ padding: '0 20px', height: '44px', borderRadius: '12px', border: '1px solid var(--border)', background: 'rgba(255, 255, 255, 0.05)', color: 'var(--text-main)', fontWeight: '800', gap: '8px' }}>
               <FileDown size={18} /> สรุปใบงาน (Summary)
@@ -860,6 +880,12 @@ export default function StaffTicketDetailPage() {
             to { opacity: 1; transform: scale(1); }
          }
        `}} />
+      <SummaryExportModal 
+        isOpen={showExportModal} 
+        onClose={() => setShowExportModal(false)} 
+        onExport={handleExportSummary} 
+        ticketNo={ticket?.ticket_no || ''} 
+      />
     </div>
   );
 }

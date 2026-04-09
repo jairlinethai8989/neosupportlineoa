@@ -1,7 +1,7 @@
 'use client';
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @next/next/no-img-element */
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/lib/supabase';
 import { 
   Users, 
@@ -14,7 +14,10 @@ import {
   User as UserIcon,
   RefreshCcw,
   Plus,
-  AlertCircle
+  AlertCircle,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -24,6 +27,7 @@ export default function CustomersPage() {
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' }>({ key: 'created_at', direction: 'desc' });
 
   const fetchCustomers = async () => {
     setLoading(true);
@@ -71,11 +75,52 @@ export default function CustomersPage() {
     fetchCustomers();
   };
 
-  const filteredCustomers = customers.filter(c => {
-     const name = String(c.display_name || '').toLowerCase();
-     const query = searchTerm.toLowerCase();
-     return name.includes(query);
-  });
+  const handleSort = (key: string) => {
+    let direction: 'asc' | 'desc' = 'asc';
+    if (sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setSortConfig({ key, direction });
+  };
+
+  const filteredCustomers = useMemo(() => {
+    let result = customers.filter(c => {
+      const name = String(c.display_name || '').toLowerCase();
+      const query = searchTerm.toLowerCase();
+      return name.includes(query);
+    });
+
+    if (sortConfig.key) {
+      result.sort((a, b) => {
+        let aValue: any = '';
+        let bValue: any = '';
+
+        switch (sortConfig.key) {
+          case 'display_name':
+            aValue = a.display_name;
+            bValue = b.display_name;
+            break;
+          case 'organization':
+            aValue = a.hospitals?.name || '';
+            bValue = b.hospitals?.name || '';
+            break;
+          case 'created_at':
+            aValue = new Date(a.created_at).getTime();
+            bValue = new Date(b.created_at).getTime();
+            break;
+          default:
+            aValue = a[sortConfig.key];
+            bValue = b[sortConfig.key];
+        }
+
+        if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
+        if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
+        return 0;
+      });
+    }
+
+    return result;
+  }, [customers, searchTerm, sortConfig]);
 
   if (loading && !isRefreshing) {
     return (
@@ -172,11 +217,41 @@ export default function CustomersPage() {
             <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: '0 12px' }}>
                <thead>
                   <tr style={{ textAlign: 'left' }}>
-                     <th style={{ padding: '0 20px', fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Customer Profile</th>
-                     <th style={{ padding: '0 20px', fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Organization / Dept</th>
-                     <th style={{ padding: '0 20px', fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Contact Status</th>
-                     <th style={{ padding: '0 20px', fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Created Date</th>
-                     <th style={{ padding: '0 20px', fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', textAlign: 'right' }}>Actions</th>
+                    {[
+                      { key: 'display_name', label: 'Customer Profile' },
+                      { key: 'organization', label: 'Organization / Dept' },
+                      { key: 'status', label: 'Contact Status', noSort: true },
+                      { key: 'created_at', label: 'Created Date' },
+                      { key: 'actions', label: 'Actions', noSort: true, textAlign: 'right' }
+                    ].map(col => (
+                      <th 
+                        key={col.key}
+                        onClick={() => !col.noSort && handleSort(col.key)}
+                        style={{ 
+                          padding: '0 20px', 
+                          fontSize: '11px', 
+                          fontWeight: '800', 
+                          color: 'var(--text-muted)', 
+                          textTransform: 'uppercase',
+                          cursor: col.noSort ? 'default' : 'pointer',
+                          textAlign: (col as any).textAlign || 'left',
+                          userSelect: 'none'
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: (col as any).textAlign === 'right' ? 'flex-end' : 'flex-start', gap: '8px' }}>
+                          {col.label}
+                          {!col.noSort && (
+                            <span style={{ display: 'flex', alignItems: 'center' }}>
+                              {sortConfig.key === col.key ? (
+                                sortConfig.direction === 'asc' ? <ArrowUp size={12} /> : <ArrowDown size={12} />
+                              ) : (
+                                <ArrowUpDown size={12} style={{ opacity: 0.3 }} />
+                              )}
+                            </span>
+                          )}
+                        </div>
+                      </th>
+                    ))}
                   </tr>
                </thead>
                <tbody>
