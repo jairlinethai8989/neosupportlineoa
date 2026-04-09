@@ -150,6 +150,7 @@ export default function TicketDetailPage() {
         ticket_id: id,
         conversation_id: conversationId,
         sender_type: 'customer',
+        customer_id: ticket.customer_id, // NEW STRONG RELATION
         content: messageToSend
       }]);
       if (error) throw error;
@@ -176,6 +177,7 @@ export default function TicketDetailPage() {
         ticket_id: id,
         conversation_id: conversationId,
         sender_type: 'customer',
+        customer_id: ticket.customer_id, // NEW STRONG RELATION
         content: publicUrl,
         message_type: dbType
       }]);

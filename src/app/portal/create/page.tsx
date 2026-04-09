@@ -134,6 +134,8 @@ export default function CreateTicketPage() {
                      ticket_id: createdTicket.id,
                      conversation_id: conversationId,
                      sender_type: 'customer',
+                   customer_id: customerData.id, // NEW STRONG RELATION
+                     customer_id: customerData.id, // NEW STRONG RELATION
                      message_type: 'image',
                      content: publicUrl
                   }]);

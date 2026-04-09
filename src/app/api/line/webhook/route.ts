@@ -176,14 +176,17 @@ export async function POST(req: Request) {
 
 
           // 5. Save Message
+          console.log(`Webhook: Saving message for ticket ${conversation.current_ticket_id}`);
           await supabase.from('messages').insert([{
             conversation_id: conversation.id,
             ticket_id: conversation.current_ticket_id,
             sender_type: 'customer',
-            message_type: event.message.type,
+            customer_id: customer.id, // NEW STRONG RELATION
             content: finalContent,
             line_message_id: event.message.id,
-            media_metadata: event.message
+            line_uid: event.source.userId,
+            message_type: event.message.type === 'text' ? 'text' : 
+                         (['image', 'video', 'file', 'audio'].includes(event.message.type) ? event.message.type : 'text')
           }]);
 
           // Update conversation timestamp

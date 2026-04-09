@@ -31,6 +31,7 @@ export default function StaffTicketDetailPage() {
   const { id } = useParams();
   const router = useRouter();
   const [ticket, setTicket] = useState<any>(null);
+  const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
   const [logs, setLogs] = useState<any[]>([]);
@@ -126,6 +127,9 @@ export default function StaffTicketDetailPage() {
           if (lRes.data) setLogs(lRes.data);
           if (mRes.data) setMessages(mRes.data);
         }
+        // Fetch current user
+        const { data: { user: authUser } } = await supabase.auth.getUser();
+        setUser(authUser);
       } catch (err: any) {
         console.error('Final fetch error:', err);
         setDebugError(err.message);
@@ -204,6 +208,7 @@ export default function StaffTicketDetailPage() {
       const { error } = await supabase.from('messages').insert([{
         ticket_id: id,
         sender_type: 'agent',
+        staff_id: user?.id, // NEW STRONG RELATION
         message_type: 'text',
         content: messageToSend
       }]);
@@ -235,6 +240,7 @@ export default function StaffTicketDetailPage() {
            await supabase.from('messages').insert([{
               ticket_id: id,
               sender_type: 'agent',
+        staff_id: user?.id, // NEW STRONG RELATION
               message_type: messageType,
               content: publicUrl,
            }]);
@@ -261,6 +267,7 @@ export default function StaffTicketDetailPage() {
       const { error } = await supabase.from('messages').insert([{
         ticket_id: id,
         sender_type: 'agent',
+        staff_id: user?.id, // NEW STRONG RELATION
         message_type: 'image',
         content: publicUrl,
       }]);
