@@ -1,20 +1,10 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
-import { createServerClient } from '@supabase/ssr';
-import { cookies } from 'next/headers';
+import { createSupabaseServerClient } from '@/lib/supabase-server';
 
 export async function POST(req: Request) {
   try {
-    const cookieStore = cookies();
-    const supabaseClient = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          getAll() { return cookieStore.getAll(); },
-        },
-      }
-    );
+    const supabaseClient = await createSupabaseServerClient();
 
     // 1. Verify requester is Admin
     const { data: { user } } = await supabaseClient.auth.getUser();
