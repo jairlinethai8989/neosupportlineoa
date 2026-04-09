@@ -98,24 +98,66 @@ export async function POST(req: Request) {
           let finalContent = messageText;
 
           // 4. Handle Media Contents (Images, Video, Files)
-          if (['image', 'video', 'file'].includes(event.message.type)) {
+          if (['image', 'video', 'file', 'audio'].includes(event.message.type)) {
             try {
-              // Fetch Original Content from LINE
-              const stream = await client.getMessageContent(event.message.id);
-              const chunks: any[] = [];
-              for await (const chunk of stream) {
-                chunks.push(chunk);
+              console.log(`Webhook: Processing ${event.message.type} from ${event.message.contentProvider?.type || 'line'} provider`);
+              
+              let buffer: Buffer;
+              
+              if (event.message.contentProvider?.type === 'external') {
+                // Fetch from external URL
+                const externalUrl = event.message.originalContentUrl;
+                console.log(`Webhook: Downloading external content from ${externalUrl}`);
+                const res = await fetch(externalUrl);
+                const arrayBuffer = await res.arrayBuffer();
+                buffer = Buffer.from(arrayBuffer);
+              } else {
+                // Fetch Content from LINE using ID
+                const responseStream: any = await client.getMessageContent(event.message.id);
+                buffer = await new Promise<Buffer>((resolve, reject) => {
+                  const _chunks: Buffer[] = [];
+                  responseStream.on('data', (chunk: Buffer) => _chunks.push(chunk));
+                  responseStream.on('end', () => resolve(Buffer.concat(_chunks)));
+                  responseStream.on('error', (err: any) => reject(err));
+                });
               }
-              const buffer = Buffer.concat(chunks);
+
+              console.log(`Webhook: Downloaded ${event.message.type}. Size: ${buffer.length} bytes. Signature: ${buffer.slice(0, 4).toString('hex')}`);
 
               // Upload to Supabase Storage
-              const fileExt = event.message.type === 'image' ? 'jpg' : (event.message.type === 'video' ? 'mp4' : 'bin');
+              let fileExt = 'bin';
+              let contentType = 'application/octet-stream';
+
+              if (event.message.type === 'image') {
+                const sig = buffer.slice(0, 4).toString('hex');
+                if (sig === '89504e47') {
+                  fileExt = 'png';
+                  contentType = 'image/png';
+                } else if (sig.startsWith('ffd8ff')) {
+                  fileExt = 'jpg';
+                  contentType = 'image/jpeg';
+                } else if (buffer.slice(0, 4).toString('ascii') === 'RIFF') {
+                  fileExt = 'webp';
+                  contentType = 'image/webp';
+                } else {
+                  fileExt = 'jpg';
+                  contentType = 'image/jpeg';
+                }
+              } else if (event.message.type === 'video') {
+                fileExt = 'mp4';
+                contentType = 'video/mp4';
+              } else if (event.message.type === 'audio') {
+                fileExt = 'm4a';
+                contentType = 'audio/x-m4a';
+              }
+
               const fileName = `customer/${customer.id}/${event.message.id}_${Date.now()}.${fileExt}`;
               
               const { error: uploadError } = await supabase.storage
                 .from('chat_media')
                 .upload(fileName, buffer, {
-                  contentType: event.message.type === 'image' ? 'image/jpeg' : (event.message.type === 'video' ? 'video/mp4' : 'application/octet-stream'),
+                  contentType: contentType,
+                  cacheControl: '3600',
                   upsert: true
                 });
 
@@ -125,12 +167,13 @@ export async function POST(req: Request) {
                   .getPublicUrl(fileName);
                 finalContent = publicUrl;
               } else {
-                console.error('Upload Error:', uploadError);
+                console.error('Webhook: Upload Error:', uploadError);
               }
             } catch (err) {
-              console.error('LINE Content Fetch Error:', err);
+              console.error('Webhook: Media Fetch Error:', err);
             }
           }
+
 
           // 5. Save Message
           await supabase.from('messages').insert([{

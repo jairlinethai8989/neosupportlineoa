@@ -41,20 +41,9 @@ export default function ChatAttachmentModal({ isOpen, onClose, onConfirm }: Chat
       const ctx = canvas.getContext('2d');
       const img = new Image();
       img.onload = () => {
-        // Calculate dimensions to fit screen while maintaining aspect ratio
-        const maxWidth = Math.min(window.innerWidth * 0.8, 800);
-        const maxHeight = Math.min(window.innerHeight * 0.6, 600);
-        let width = img.width;
-        let height = img.height;
-
-        if (width > maxWidth) {
-          height = (maxWidth / width) * height;
-          width = maxWidth;
-        }
-        if (height > maxHeight) {
-          width = (maxHeight / height) * width;
-          height = maxHeight;
-        }
+        // Use original image dimensions for full resolution
+        const width = img.width;
+        const height = img.height;
 
         canvas.width = width;
         canvas.height = height;
@@ -91,7 +80,7 @@ export default function ChatAttachmentModal({ isOpen, onClose, onConfirm }: Chat
       canvas.height = videoRef.current.videoHeight;
       const ctx = canvas.getContext('2d');
       ctx?.drawImage(videoRef.current, 0, 0);
-      setImageSrc(canvas.toDataURL('image/jpeg', 0.8));
+      setImageSrc(canvas.toDataURL('image/jpeg', 0.95));
       stopCamera();
       setMode('edit');
     }
@@ -183,7 +172,7 @@ export default function ChatAttachmentModal({ isOpen, onClose, onConfirm }: Chat
           onConfirm(file, 'image');
           onClose();
         }
-      }, 'image/jpeg', 0.8);
+      }, 'image/jpeg', 0.95);
     }
   };
 

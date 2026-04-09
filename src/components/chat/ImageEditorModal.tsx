@@ -49,26 +49,15 @@ export default function ImageEditorModal({ isOpen, onClose, imageSrc, onSave }: 
       const ctx = canvas.getContext('2d');
       if (!ctx) return;
 
-      // Calculate sizes to fit container while maintaining aspect ratio
-      const maxWidth = window.innerWidth * 0.8;
-      const maxHeight = window.innerHeight * 0.7;
-      let { width, height } = img;
-
-      if (width > maxWidth) {
-        height *= maxWidth / width;
-        width = maxWidth;
-      }
-      if (height > maxHeight) {
-        width *= maxHeight / height;
-        height = maxHeight;
-      }
-
+      // Maintain full resolution by using original image dimensions for the canvas
+      const { width, height } = img;
+      
       setCanvasSize({ width, height });
       canvas.width = width;
       canvas.height = height;
       ctx.drawImage(img, 0, 0, width, height);
       saveToHistory();
-      setZoom(1); // Reset zoom on new image
+      setZoom(1); 
     };
   };
 
