@@ -551,8 +551,9 @@ function InboxContent() {
                              <img 
                                 src={msg.content} 
                                 style={{ maxWidth: '100%', borderRadius: '10px', display: 'block', cursor: 'pointer' }} 
-                                onClick={() => handleOpenViewer(msg.content)}
+                                onClick={() => handleEditExistingImage(msg.content)}
                                 alt="Chat attachment" 
+                                title="คลิกเพื่อทำการแก้ไขภาพ (Edit/Draw)"
                              />
                           </div>
                        ) : msg.message_type === 'file' || (msg.content.startsWith('http') && msg.message_type !== 'text' && !msg.content.includes('/portal/')) ? (

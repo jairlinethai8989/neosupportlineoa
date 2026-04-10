@@ -84,6 +84,9 @@ function TicketsContent() {
   const [debugError, setDebugError] = useState<string | null>(null);
   const [claimingId, setClaimingId] = useState<string | null>(null);
   const [userProfile, setUserProfile] = useState<any>(null);
+  const [showResolveModal, setShowResolveModal] = useState(false);
+  const [resolvingTicket, setResolvingTicket] = useState<any>(null);
+  const [resSummary, setResSummary] = useState('');
 
   // Date Filter State
   const [timeRange, setTimeRange] = useState<'all' | 'today' | 'week' | 'month' | 'custom'>('all');
@@ -118,7 +121,6 @@ function TicketsContent() {
         .select('id, customer_id, current_ticket_id, status')
         .order('last_message_at', { ascending: false });
 
-      // Try basic fetch first to avoid join errors
       const { data: tData, error: tErr } = await supabase
         .from('tickets')
         .select(`
@@ -156,6 +158,26 @@ function TicketsContent() {
     }
   }
 
+  const handleExecuteResolve = async () => {
+    if (!resolvingTicket || !resSummary.trim()) return;
+    try {
+      setLoading(true);
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      
+      await ticketService.resolve(resolvingTicket.id, user.id, resSummary);
+      setShowResolveModal(false);
+      setResolvingTicket(null);
+      setResSummary('');
+      fetchData();
+      alert('ปิดงานสำเร็จ! 🎉');
+    } catch (err: any) {
+      alert('Failed: ' + err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     async function fetchUser() {
       const { data: { user } } = await supabase.auth.getUser();
@@ -177,15 +199,10 @@ function TicketsContent() {
 
 
   const getConvId = (ticket: any) => {
-     // 1. Try to find conversation specifically linked to this ticket
      const linked = conversations.find(c => c.current_ticket_id === ticket.id);
      if (linked) return linked.id;
-     
-     // 2. Fallback to most recent active conversation for this customer
      const active = conversations.find(c => c.customer_id === ticket.customer_id && c.status === 'active');
      if (active) return active.id;
-     
-     // 3. Absolute fallback to most recent one (last_message_at desc is already in cData fetch)
      return conversations.find(c => c.customer_id === ticket.customer_id)?.id;
   };
 
@@ -202,7 +219,7 @@ function TicketsContent() {
         return;
       }
       await ticketService.claimTicket(ticketId, user.id);
-      await fetchData(); // Refresh
+      await fetchData();
       alert('รับงานเรียบร้อยแล้ว!');
     } catch (err: any) { 
       console.error('Claim Error:', err);
@@ -236,7 +253,6 @@ function TicketsContent() {
       });
     }
 
-    // Apply sorting
     if (sortConfig.key) {
       result.sort((a, b) => {
         let aValue: any = '';
@@ -533,19 +549,11 @@ function TicketsContent() {
                                     {ticket.status === 'In Progress' && (
                                        <button 
                                         disabled={userProfile?.role !== 'Administrator' && userProfile?.permissions?.tickets === 'view'}
-                                        onClick={async () => {
+                                        onClick={() => {
                                           if (userProfile?.role !== 'Administrator' && userProfile?.permissions?.tickets === 'view') return;
-                                          const summary = prompt('กรอกสรุปการแก้ไขงาน (Resolution Summary):');
-                                          if (!summary) return;
-                                          try {
-                                            const { data: { user } } = await supabase.auth.getUser();
-                                            if (!user) return;
-                                            await ticketService.resolve(ticket.id, user.id, summary);
-                                            fetchData();
-                                            alert('ปิดงานสำเร็จ!');
-                                          } catch (err: any) {
-                                            alert('Failed: ' + err.message);
-                                          }
+                                          setResolvingTicket(ticket);
+                                          setResSummary('');
+                                          setShowResolveModal(true);
                                         }}
                                         style={{ 
                                           width: '100%', 
@@ -676,6 +684,106 @@ function TicketsContent() {
            to { opacity: 1; transform: translateY(0); }
          }
          .workspace-header { width: 100%; }
+       `}} />
+      {/* Resolution Modal */}
+      {showResolveModal && (
+          <div style={{
+             position: 'fixed',
+             inset: 0,
+             zIndex: 10000,
+             display: 'flex',
+             alignItems: 'center',
+             justifyContent: 'center',
+             background: 'rgba(5, 8, 12, 0.85)',
+             backdropFilter: 'blur(20px)',
+             padding: '20px'
+          }}>
+             <div className="glass" style={{
+                width: '100%',
+                maxWidth: '480px',
+                padding: '40px',
+                borderRadius: '32px',
+                border: '1px solid rgba(255, 255, 255, 0.1)',
+                boxShadow: '0 40px 100px rgba(0,0,0,0.6)',
+                animation: 'scaleIn 0.4s cubic-bezier(0.16, 1, 0.3, 1)'
+             }}>
+                <div style={{ textAlign: 'center', marginBottom: '32px' }}>
+                   <div style={{ 
+                     width: '64px', 
+                     height: '64px', 
+                     borderRadius: '20px', 
+                     background: 'rgba(0, 255, 127, 0.1)', 
+                     color: 'var(--success)', 
+                     display: 'inline-flex',
+                     alignItems: 'center',
+                     justifyContent: 'center',
+                     marginBottom: '20px'
+                   }}>
+                      <CheckCircle size={32} />
+                   </div>
+                   <h3 style={{ fontSize: '24px', fontWeight: '900', color: '#fff', marginBottom: '8px' }}>ปิดงานใบงาน #{resolvingTicket?.ticket_no}</h3>
+                   <p style={{ fontSize: '14px', color: 'rgba(255,255,255,0.5)', lineHeight: '1.6' }}>กรุณาสรุปผลการแก้ไขปัญหา เพื่อบันทึกเป็นประวัติและแจ้งลูกค้าครับ</p>
+                </div>
+
+                <div style={{ marginBottom: '32px' }}>
+                   <label style={{ display: 'block', fontSize: '11px', fontWeight: '800', color: 'var(--primary)', textTransform: 'uppercase', marginBottom: '12px', letterSpacing: '1px' }}>สรุปผลการแก้ไขงาน (Resolution Summary)</label>
+                   <textarea 
+                     value={resSummary}
+                     onChange={(e) => setResSummary(e.target.value)}
+                     placeholder="ระบุรายละเอียดการแก้ไข เช่น 'แก้ไขส่วนลดให้แล้ว', 'อัปเดตสถานะการจัดส่งสำเร็จ'..."
+                     style={{
+                        width: '100%',
+                        height: '140px',
+                        background: 'rgba(255,255,255,0.03)',
+                        border: '1px solid rgba(255,255,255,0.1)',
+                        borderRadius: '16px',
+                        padding: '16px',
+                        color: '#fff',
+                        fontSize: '14px',
+                        resize: 'none',
+                        outline: 'none',
+                        transition: 'all 0.3s'
+                     }}
+                   />
+                </div>
+
+                <div style={{ display: 'flex', gap: '16px' }}>
+                   <button 
+                     onClick={() => setShowResolveModal(false)}
+                     style={{ flex: 1, padding: '16px', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.1)', background: 'transparent', color: 'rgba(255,255,255,0.5)', fontWeight: '800', cursor: 'pointer' }}
+                   >
+                      ยกเลิก
+                   </button>
+                   <button 
+                     onClick={handleExecuteResolve}
+                     disabled={loading || !resSummary.trim()}
+                     style={{ 
+                       flex: 1.5, 
+                       padding: '16px', 
+                       borderRadius: '14px', 
+                       border: 'none', 
+                       background: (loading || !resSummary.trim()) ? 'rgba(255,255,255,0.05)' : 'var(--success)', 
+                       color: (loading || !resSummary.trim()) ? 'rgba(255,255,255,0.2)' : 'black', 
+                       fontWeight: '900', 
+                       cursor: 'pointer',
+                       display: 'flex',
+                       alignItems: 'center',
+                       justifyContent: 'center',
+                       gap: '10px'
+                     }}
+                   >
+                      {loading ? <Loader2 size={18} className="animate-spin" /> : <><CheckCircle size={18} /> ยืนยันสมบูรณ์</>}
+                   </button>
+                </div>
+             </div>
+          </div>
+       )}
+
+       <style dangerouslySetInnerHTML={{ __html: `
+         @keyframes scaleIn {
+            from { opacity: 0; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1); }
+         }
        `}} />
     </div>
   );

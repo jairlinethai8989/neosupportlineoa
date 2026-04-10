@@ -245,6 +245,7 @@ export function useNotifications(agentId: string | null) {
         async (payload) => {
           const row = payload.new as any;
           if (row.sender_type !== 'customer') return;
+          if (row.message_type === 'system') return;
           if (isFirstLoad.current) return;
 
           addToast({
@@ -253,6 +254,29 @@ export function useNotifications(agentId: string | null) {
             title: 'ข้อความใหม่จากลูกค้า',
             body: (row.content as string)?.slice(0, 60) ?? 'มีข้อความใหม่',
             conversationId: row.conversation_id,
+          });
+        }
+      )
+      .subscribe();
+
+    // Subscribe: new tickets (GLOBAL for all agents to see New incoming jobs)
+    const ticketChannel = supabase
+      .channel('notif-all-tickets')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'tickets' },
+        async (payload) => {
+          const row = payload.new as any;
+          if (row.status !== 'New') return;
+          if (isFirstLoad.current) return;
+
+          addToast({
+            id: `toast-ticket-${Date.now()}`,
+            type: 'ticket',
+            title: '🆕 มีใบงานใหม่เข้าสู่ระบบ',
+            body: row.subject || `ใบงาน #${row.ticket_no} กำลังรอกราฟรับงาน`,
+            ticketId: row.id,
+            ticketNo: row.ticket_no
           });
         }
       )
@@ -269,6 +293,7 @@ export function useNotifications(agentId: string | null) {
     return () => {
       supabase.removeChannel(logChannel);
       supabase.removeChannel(msgChannel);
+      supabase.removeChannel(ticketChannel);
       clearInterval(slaInterval);
       clearTimeout(firstLoadTimer);
     };
