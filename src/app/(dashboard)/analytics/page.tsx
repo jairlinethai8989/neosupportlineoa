@@ -188,6 +188,9 @@ const SortableWidget = ({ id, chart, data, onRemove }: any) => {
         <div {...attributes} {...listeners} style={{ cursor: 'grab', display: 'flex', alignItems: 'center', gap: '8px' }}>
           <chart.icon size={18} color="var(--primary)" />
           <h3 style={{ fontSize: '15px', fontWeight: '800', color: 'var(--text-main)' }}>{chart.name}</h3>
+          {(['radar-agent', 'radar-skill', 'scatter-response', 'scatter-load', 'composed-mix', 'tree-tags'].includes(id)) && (
+             <span style={{ fontSize: '9px', padding: '2px 6px', background: 'rgba(255, 171, 0, 0.1)', color: 'var(--warning)', borderRadius: '4px', fontWeight: '800' }}>MOCK DATA</span>
+          )}
         </div>
         <button onClick={() => onRemove(id)} style={{ background: 'rgba(234, 84, 85, 0.1)', border: '1px solid var(--danger)', borderRadius: '8px', padding: '4px 10px', color: 'var(--danger)', cursor: 'pointer', fontSize: '12px', fontWeight: '800' }}>ลบออก</button>
       </div>
@@ -232,13 +235,29 @@ export default function AdvancedAnalyticsPage() {
 
   const fetchData = async () => {
     setLoading(true);
-    const { data } = await supabase
-      .from('tickets')
-      .select('*')
-      .gte('created_at', dateRange.start)
-      .lte('created_at', dateRange.end);
-    setTickets(data || []);
-    setLoading(false);
+    try {
+      const [ticketsRes, csatRes] = await Promise.all([
+        supabase
+          .from('tickets')
+          .select('*')
+          .gte('created_at', dateRange.start)
+          .lte('created_at', dateRange.end),
+        supabase
+          .from('csat_surveys')
+          .select('*')
+          .not('rating', 'is', null)
+          .gte('created_at', dateRange.start)
+          .lte('created_at', dateRange.end)
+      ]);
+
+      setTickets(ticketsRes.data || []);
+      // Pre-calculate CSAT to state or helper
+      (window as any)._csat_data = csatRes.data || [];
+    } catch (err) {
+      console.error('Fetch analytics failed:', err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -252,14 +271,66 @@ export default function AdvancedAnalyticsPage() {
   const chartDataMap = useMemo(() => {
     if (!tickets.length) return {};
     
+    // 1. Status & Priority
     const statusCounts = tickets.reduce((acc: any, t) => { acc[t.status] = (acc[t.status] || 0) + 1; return acc; }, {});
     const priorityCounts = tickets.reduce((acc: any, t) => { acc[t.priority] = (acc[t.priority] || 0) + 1; return acc; }, {});
-    
+    const categoryCounts = tickets.reduce((acc: any, t) => { 
+      const cat = t.department || 'Unassigned';
+      acc[cat] = (acc[cat] || 0) + 1; 
+      return acc; 
+    }, {});
+
+    // 2. Trend (Date Grouping)
+    const dailyCounts = tickets.reduce((acc: any, t) => {
+      const date = DateTime.fromISO(t.created_at).toFormat('dd MMM');
+      acc[date] = (acc[date] || 0) + 1;
+      return acc;
+    }, {});
+    const trendData = Object.entries(dailyCounts).map(([name, value]) => ({ name, value })).sort((a,b) => a.name.localeCompare(b.name));
+
+    // 3. Peak Hours
+    const hourlyCounts = tickets.reduce((acc: any, t) => {
+      const hour = DateTime.fromISO(t.created_at).hour;
+      acc[hour] = (acc[hour] || 0) + 1;
+      return acc;
+    }, {});
+    const peakData = Array.from({ length: 24 }, (_, i) => ({ name: `${i}:00`, value: hourlyCounts[i] || 0 }));
+
+    // 4. Resolution Time (Hours)
+    const resolutionData = tickets
+      .filter(t => t.resolved_at)
+      .map(t => {
+        const diff = DateTime.fromISO(t.resolved_at).diff(DateTime.fromISO(t.created_at), 'hours').hours;
+        return { name: t.ticket_no, value: parseFloat(diff.toFixed(1)) };
+      }).slice(0, 10);
+
+    // 5. CSAT
+    const csatRaw = (window as any)._csat_data || [];
+    const csatData = csatRaw.reduce((acc: any, c: any) => {
+      const score = c.rating || 0;
+      acc[score] = (acc[score] || 0) + 1;
+      return acc;
+    }, {});
+
     return {
       'bar-status': Object.entries(statusCounts).map(([name, value]) => ({ name, value })),
       'pie-priority': Object.entries(priorityCounts).map(([name, value]) => ({ name, value })),
-      'line-trend': tickets.slice(0, 7).map((t, i) => ({ name: `Day ${i+1}`, value: (i * 5 + 10) % 25 })),
-      'area-volume': tickets.slice(0, 10).map((t, i) => ({ name: `T-${i}`, value: (i * 8 + 15) % 45 })),
+      'line-trend': trendData,
+      'area-volume': trendData, // Reuse trend for volume
+      'bar-category': Object.entries(categoryCounts).map(([name, value]) => ({ name, value })),
+      'area-peak': peakData,
+      'bar-resolution': resolutionData,
+      'line-csat': Object.entries(csatData).map(([name, value]) => ({ name: `Score ${name}`, value })),
+      'pie-sla': [
+        { name: 'Compliant', value: tickets.filter(t => !t.resolved_at || DateTime.fromISO(t.resolved_at).diff(DateTime.fromISO(t.created_at), 'hours').hours < 24).length },
+        { name: 'Breached', value: tickets.filter(t => t.resolved_at && DateTime.fromISO(t.resolved_at).diff(DateTime.fromISO(t.created_at), 'hours').hours >= 24).length },
+      ],
+      'pie-channel': [
+        { name: 'LINE OA', value: tickets.length },
+        { name: 'Web Portal', value: 0 },
+        { name: 'API', value: 0 }
+      ],
+      // Remaining are Mock
       'radar-agent': [
         { name: 'Speed', value: 80 }, { name: 'CSAT', value: 95 }, { name: 'Volume', value: 70 }, 
         { name: 'FCR', value: 60 }, { name: 'Tech', value: 85 }

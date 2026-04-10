@@ -195,10 +195,13 @@ function InboxContent() {
     if (!newMessage.trim() || !selectedChat || !agent) return;
     
     // Check if locked
-    if (selectedChat.status === 'closed' || currentTicket?.status === 'Resolved') {
-      alert('บทสนทนานี้ถูกล็อกแล้ว (Closed/Resolved)');
+    const isResolved = currentTicket?.status === 'Resolved' || currentTicket?.status === 'Closed';
+    if (isResolved) {
+      alert('ใบงานนี้ถูกปิดแล้ว (Resolved/Closed) ไม่สามารถส่งข้อความได้');
       return;
     }
+
+    // Check permission
     // Check permission
     if (agent.role !== 'Administrator' && agent.permissions?.inbox === 'view') {
       alert('คุณไม่มีสิทธิ์ในการส่งข้อความ (View Only Access)');
@@ -322,6 +325,16 @@ function InboxContent() {
 
   const handleResolve = async () => {
     if (!selectedChat?.current_ticket_id || !agent) return;
+
+    // Check Ownership/Admin
+    const isOwner = currentTicket?.assigned_agent_id === agent.id;
+    const isAdmin = agent.role === 'Administrator';
+    
+    if (!isOwner && !isAdmin) {
+      alert('คุณไม่มีสิทธิ์ปิดใบงานนี้ (เฉพาะเจ้าหน้าที่ที่รับงานหรือ Manager เท่านั้น)');
+      return;
+    }
+
     const summary = prompt('กรอกสรุปการแก้ไขงาน (Resolution Summary):');
     if (!summary) return;
 
@@ -601,21 +614,21 @@ function InboxContent() {
                     value={newMessage}
                     onChange={(e) => setNewMessage(e.target.value)}
                     placeholder={
-                      (selectedChat.status === 'closed' || currentTicket?.status === 'Resolved') 
-                        ? "บทสนทนาถูกปิดแล้ว (Read Only)" 
+                      (currentTicket?.status === 'Resolved' || currentTicket?.status === 'Closed') 
+                        ? "ใบงานถูกปิดแล้ว (Read Only)" 
                         : (agent?.role !== 'Administrator' && agent?.permissions?.inbox === 'view') 
                           ? "คุณมีสิทธิ์อ่านเท่านั้น (View Only)" : "พิมพ์ข้อความตอบกลับ..."
                     } 
                     disabled={
-                      selectedChat.status === 'closed' || 
                       currentTicket?.status === 'Resolved' || 
+                      currentTicket?.status === 'Closed' ||
                       (agent?.role !== 'Administrator' && agent?.permissions?.inbox === 'view')
                     }
-                    style={{ flex: 1, background: 'none', border: 'none', outline: 'none', color: 'var(--text-main)', padding: '12px 0', fontSize: '14px', opacity: (selectedChat.status === 'closed' || currentTicket?.status === 'Resolved') ? 0.4 : 1 }}
+                    style={{ flex: 1, background: 'none', border: 'none', outline: 'none', color: 'var(--text-main)', padding: '12px 0', fontSize: '14px', opacity: (currentTicket?.status === 'Resolved' || currentTicket?.status === 'Closed') ? 0.4 : 1 }}
                  />
                  <button 
                   type="submit"
-                  disabled={sending || !newMessage.trim() || selectedChat.status === 'closed' || currentTicket?.status === 'Resolved'}
+                  disabled={sending || !newMessage.trim() || currentTicket?.status === 'Resolved' || currentTicket?.status === 'Closed'}
                   style={{ 
                     background: 'var(--primary)', 
                     border: 'none', 
@@ -628,7 +641,7 @@ function InboxContent() {
                     justifyContent: 'center', 
                     cursor: 'pointer',
                     transition: 'all 0.2s',
-                    opacity: (sending || !newMessage.trim() || selectedChat.status === 'closed' || currentTicket?.status === 'Resolved') ? 0.4 : 1 
+                    opacity: (sending || !newMessage.trim() || currentTicket?.status === 'Resolved' || currentTicket?.status === 'Closed') ? 0.4 : 1 
                   }}>
                     {sending ? <Loader2 size={18} className="animate-spin" aria-hidden="true" /> : <Send size={18} aria-hidden="true" />}
                  </button>
@@ -745,24 +758,24 @@ function InboxContent() {
 
             <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '12px' }}>
                {selectedChat.current_ticket_id ? (
-                 <button 
-                  onClick={handleResolve} 
-                  disabled={!currentTicket || currentTicket.status === 'Resolved'}
-                  className="glass-interactive flex-center" 
-                  style={{ 
-                    width: '100%', 
-                    padding: '16px', 
-                    borderRadius: '12px', 
-                    background: (!currentTicket || currentTicket.status === 'Resolved') ? 'var(--bg-input)' : 'var(--success)', 
-                    color: 'white', 
-                    border: 'none', 
-                    fontWeight: '800', 
-                    gap: '10px',
-                    opacity: (!currentTicket || currentTicket.status === 'Resolved') ? 0.5 : 1
-                  }}
-                 >
-                    <CheckCircle size={20} /> แก้ไขเสร็จสิ้น (RESOLVE)
-                 </button>
+                   <button 
+                    onClick={handleResolve} 
+                    disabled={!currentTicket || currentTicket.status === 'Resolved' || (currentTicket.assigned_agent_id !== agent.id && agent.role !== 'Administrator')}
+                    className="glass-interactive flex-center" 
+                    style={{ 
+                      width: '100%', 
+                      padding: '16px', 
+                      borderRadius: '12px', 
+                      background: (!currentTicket || currentTicket.status === 'Resolved' || (currentTicket.assigned_agent_id !== agent.id && agent.role !== 'Administrator')) ? 'var(--bg-input)' : 'var(--success)', 
+                      color: 'white', 
+                      border: 'none', 
+                      fontWeight: '800', 
+                      gap: '10px',
+                      opacity: (!currentTicket || currentTicket.status === 'Resolved' || (currentTicket.assigned_agent_id !== agent.id && agent.role !== 'Administrator')) ? 0.5 : 1
+                    }}
+                   >
+                      <CheckCircle size={20} /> แก้ไขเสร็จสิ้น (RESOLVE)
+                   </button>
                ) : (
                  <button 
                   onClick={handleCloseSession} 

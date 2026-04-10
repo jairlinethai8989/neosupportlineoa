@@ -128,8 +128,12 @@ export default function StaffTicketDetailPage() {
           if (mRes.data) setMessages(mRes.data);
         }
         // Fetch current user
+        // Fetch current user and their profile for role checking
         const { data: { user: authUser } } = await supabase.auth.getUser();
-        setUser(authUser);
+        if (authUser) {
+           const { data: profile } = await supabase.from('profiles').select('*').eq('id', authUser.id).single();
+           setUser({ ...authUser, ...profile });
+        }
       } catch (err: any) {
         console.error('Final fetch error:', err);
         setDebugError(err.message);
@@ -516,7 +520,7 @@ export default function StaffTicketDetailPage() {
               <FileDown size={18} /> สรุปใบงาน (Summary)
             </button>
           </div>
-          {status !== 'Resolved' && status !== 'Closed' && status !== 'New' && (
+          {status !== 'Resolved' && status !== 'Closed' && status !== 'New' && (ticket?.assigned_agent_id === user?.id || user?.role === 'Administrator') && (
             <button 
               onClick={() => setShowResolveModal(true)}
               className="glass-interactive flex-center" 
@@ -622,7 +626,7 @@ export default function StaffTicketDetailPage() {
                          ⚠️ กรุณากด "รับงาน (Claim)" เพื่อเริ่มต้นการพูดคุยกับลูกค้า
                       </p>
                     </div>
-                  ) : ticket.status === 'Resolved' || ticket.status === 'Closed' ? (
+                  ) : (ticket.status === 'Resolved' || ticket.status === 'Closed') && user?.role !== 'Administrator' ? (
                     <div style={{ padding: '16px', borderRadius: '10px', background: 'rgba(0, 255, 127, 0.05)', border: '1px dotted var(--success)', textAlign: 'center' }}>
                        <p style={{ fontSize: '13px', color: 'var(--success)', fontWeight: '800' }}>
                           ✅ ใบงานนี้เสร็จสมบูรณ์แล้ว ระบบปิดการสนทนาขอบคุณที่ใช้บริการครับ
@@ -649,7 +653,7 @@ export default function StaffTicketDetailPage() {
                        </button>
                        <input 
                           type="text" 
-                          placeholder="Type your response or select a template..." 
+                          placeholder={(ticket.status === 'Resolved' || ticket.status === 'Closed') ? "ใบงานปิดแล้ว (Admin Re-open Mode)" : "Type your response or select a template..."} 
                           value={newMessage}
                           onChange={(e) => setNewMessage(e.target.value)}
                           onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
@@ -697,7 +701,8 @@ export default function StaffTicketDetailPage() {
                     <select 
                       value={status} 
                       onChange={(e) => setStatus(e.target.value)}
-                      style={{ width: '100%', padding: '8px', borderRadius: '8px', fontSize: '12px', background: 'var(--secondary)', border: '1px solid var(--border)', color: 'var(--text)', fontWeight: '700' }}
+                      disabled={(ticket.status === 'Resolved' || ticket.status === 'Closed') && user?.role !== 'Administrator'}
+                      style={{ width: '100%', padding: '8px', borderRadius: '8px', fontSize: '12px', background: 'var(--secondary)', border: '1px solid var(--border)', color: 'var(--text)', fontWeight: '700', opacity: ((ticket.status === 'Resolved' || ticket.status === 'Closed') && user?.role !== 'Administrator') ? 0.5 : 1 }}
                     >
                       <option value="New">Pending</option>
                       <option value="Assigned">Assigned</option>

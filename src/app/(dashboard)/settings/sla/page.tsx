@@ -71,6 +71,18 @@ export default function SLASettingsPage() {
             await supabase.from('sla_rules').insert([rule]);
          }
       }
+      }
+      
+      // Log the activity
+      const { auditService } = await import('@/lib/services/auditService');
+      await auditService.log({
+        performer_id: (await supabase.auth.getUser()).data.user?.id,
+        action_type: 'SLA_UPDATE',
+        entity_type: 'SLA',
+        new_data: { rules },
+        note: `Updated system SLA priority matrix (${rules.length} rules)`
+      });
+
       alert('SLA Rules saved successfully');
     } catch (err) {
       alert('Failed to save rules');

@@ -156,8 +156,8 @@ const Sidebar = ({ onClickLink, isCollapsed = false }: SidebarProps) => {
       { name: 'Performance', thai: 'สถิติการทำงาน', icon: BarChart2, path: '/analytics' },
     ]},
     { section: 'Workspace', thai: 'พื้นที่ทำงาน', items: [
-      { name: 'Inbox', thai: 'แชทลูกค้า', icon: Inbox, path: '/inbox', count: inboxCount },
-      { name: 'Tickets', thai: 'จัดการตั๋วงาน', icon: Ticket, path: '/tickets', count: ticketCount },
+      { name: 'Tickets', thai: 'จัดการใบงาน', icon: Ticket, path: '/tickets', count: ticketCount },
+      { name: 'Inbox', thai: 'ห้องแชทลูกค้า', icon: Inbox, path: '/inbox', count: inboxCount },
       { name: 'Customers', thai: 'ฐานข้อมูลลูกค้า', icon: Users, path: '/customers', count: customerCount },
     ]},
     { section: 'Admin', thai: 'หลังบ้าน', items: [

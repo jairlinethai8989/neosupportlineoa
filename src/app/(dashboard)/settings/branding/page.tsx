@@ -82,6 +82,20 @@ export default function BrandingSettingsPage() {
          }]);
          if (error) throw error;
       }
+      // Log the update
+      const { auditService } = await import('@/lib/services/auditService');
+      await auditService.log({
+        performer_id: (await supabase.auth.getUser()).data.user?.id,
+        action_type: 'BRANDING_UPDATE',
+        entity_type: 'COMPANY',
+        entity_id: company.id,
+        new_data: { 
+          company_name: company.company_name, 
+          logo_url: company.logo_url 
+        },
+        note: `Updated corporate branding and logo`
+      });
+
       setToastMsg('บันทึกข้อมูลองค์กรเรียบร้อย! ✅');
       setShowToast(true);
       setTimeout(() => setShowToast(false), 3000);
@@ -104,6 +118,16 @@ export default function BrandingSettingsPage() {
         updated_at: new Date().toISOString() 
       }).eq('id', company.id);
       
+      // Log the addition
+      const { auditService } = await import('@/lib/services/auditService');
+      await auditService.log({
+        performer_id: (await supabase.auth.getUser()).data.user?.id,
+        action_type: 'DEPT_CREATE',
+        entity_type: 'DEPARTMENT',
+        new_data: { department: newDeptName.trim() },
+        note: `Added new department: ${newDeptName.trim()}`
+      });
+
       setToastMsg('เพิ่มแผนกเรียบร้อย! ✨');
       setShowToast(true);
       setTimeout(() => setShowToast(false), 3000);

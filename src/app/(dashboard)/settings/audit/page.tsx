@@ -6,7 +6,6 @@ import {
   History, 
   Search, 
   Filter, 
-  Calendar, 
   ArrowRight, 
   Zap, 
   CheckCheck, 
@@ -14,13 +13,24 @@ import {
   User,
   Shield,
   Download,
-  Info
+  Info,
+  Clock,
+  Activity,
+  FileSpreadsheet,
+  FileText,
+  ChevronRight
 } from 'lucide-react';
-import { formatSlaStatus } from '@/lib/utils/slaUtils';
 import { useRouter } from 'next/navigation';
+import { auditService } from '@/lib/services/auditService';
+
+// Export utils
+import * as XLSX from 'xlsx';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
 
 export default function AuditLogPage() {
   const router = useRouter();
+  const [activeTab, setActiveTab] = useState<'ticket' | 'system'>('ticket');
   const [logs, setLogs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [agents, setAgents] = useState<any[]>([]);
@@ -34,33 +44,39 @@ export default function AuditLogPage() {
   const fetchLogs = useCallback(async () => {
     setLoading(true);
     try {
-      let query = supabase
-        .from('ticket_logs')
-        .select(`
-          *,
-          performer:profiles!performer_id(full_name, avatar_url),
-          target_user:profiles!to_user_id(full_name),
-          tickets(ticket_no, subject)
-        `)
-        .order('created_at', { ascending: false })
-        .limit(limit);
+      if (activeTab === 'ticket') {
+        let query = supabase
+          .from('ticket_logs')
+          .select(`
+            *,
+            performer:profiles!performer_id(full_name, avatar_url),
+            target_user:profiles!to_user_id(full_name),
+            tickets(ticket_no, subject)
+          `)
+          .order('created_at', { ascending: false })
+          .limit(limit);
 
-      if (selectedAgent !== 'all') {
-        query = query.eq('performer_id', selectedAgent);
-      }
-      if (selectedAction !== 'all') {
-        query = query.eq('action_type', selectedAction);
-      }
+        if (selectedAgent !== 'all') query = query.eq('performer_id', selectedAgent);
+        if (selectedAction !== 'all') query = query.eq('action_type', selectedAction);
 
-      const { data, error } = await query;
-      if (error) throw error;
-      setLogs(data || []);
+        const { data, error } = await query;
+        if (error) throw error;
+        setLogs(data || []);
+      } else {
+        const { data, error } = await auditService.getSystemLogs({
+          agentId: selectedAgent,
+          actionType: selectedAction,
+          limit: limit
+        });
+        if (error) throw error;
+        setLogs(data || []);
+      }
     } catch (err) {
       console.error('Error fetching logs:', err);
     } finally {
       setLoading(false);
     }
-  }, [selectedAgent, selectedAction, limit]);
+  }, [activeTab, selectedAgent, selectedAction, limit]);
 
   const fetchAgents = async () => {
     const { data } = await supabase.from('profiles').select('id, full_name');
@@ -72,33 +88,51 @@ export default function AuditLogPage() {
     fetchLogs();
   }, [fetchLogs]);
 
+  // Reset filters when switching tabs
+  useEffect(() => {
+    setSelectedAction('all');
+    setSearchTerm('');
+  }, [activeTab]);
+
   const getActionIcon = (type: string) => {
-    switch (type) {
+    switch (type.toLowerCase()) {
       case 'claim': return <Zap size={14} color="#ff9f43" />;
       case 'transfer': return <ArrowRight size={14} color="#7367f0" />;
       case 'resolve': return <CheckCheck size={14} color="#28c76f" />;
       case 'status_change': return <History size={14} color="#00f2fe" />;
+      case 'staff_create': return <User size={14} color="#7367f0" />;
+      case 'branding_update': return <Activity size={14} color="#ffcd3c" />;
+      case 'dept_create': return <Shield size={14} color="#00f2fe" />;
       default: return <Info size={14} color="#b4b7bd" />;
     }
   };
 
   const getActionLabel = (type: string) => {
-    switch (type) {
+    switch (type.toLowerCase()) {
       case 'claim': return 'รับงาน (Claim)';
       case 'transfer': return 'โอนงาน (Transfer)';
       case 'resolve': return 'ปิดงาน (Resolve)';
       case 'status_change': return 'เปลี่ยนสถานะ';
+      case 'staff_create': return 'สร้างพนักงาน';
+      case 'branding_update': return 'แก้ไของค์กร';
+      case 'dept_create': return 'เพิ่มแผนก';
       default: return type;
     }
   };
 
-  // Filter logic for search bar
   const filteredLogs = logs.filter(log => {
-    const ticketNo = log.tickets?.ticket_no?.toLowerCase() || '';
-    const subject = log.tickets?.subject?.toLowerCase() || '';
-    const performer = log.performer?.full_name?.toLowerCase() || '';
     const s = searchTerm.toLowerCase();
-    return ticketNo.includes(s) || subject.includes(s) || performer.includes(s);
+    if (activeTab === 'ticket') {
+      const ticketNo = log.tickets?.ticket_no?.toLowerCase() || '';
+      const subject = log.tickets?.subject?.toLowerCase() || '';
+      const performer = log.performer?.full_name?.toLowerCase() || '';
+      return ticketNo.includes(s) || subject.includes(s) || performer.includes(s);
+    } else {
+      const action = log.action_type?.toLowerCase() || '';
+      const note = log.note?.toLowerCase() || '';
+      const performer = log.performer?.full_name?.toLowerCase() || '';
+      return action.includes(s) || note.includes(s) || performer.includes(s);
+    }
   });
 
   const formatDate = (dateStr: string) => {
@@ -111,192 +145,234 @@ export default function AuditLogPage() {
     });
   };
 
-  return (
-    <div className="audit-container" style={{ animation: 'fadeIn 0.4s ease-out' }}>
-      <header style={{ marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px' }}>
-            <div style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'rgba(115, 103, 240, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Shield color="#7367f0" size={20} />
-            </div>
-            <h1 style={{ fontSize: '24px', fontWeight: '800' }}>บันทึกประวัติการทำงาน (Audit Logs)</h1>
-          </div>
-          <p style={{ color: 'var(--text-muted)', fontSize: '14px', marginLeft: '50px' }}>ตรวจสอบและติดตามกิจกรรมทั้งหมดที่เกิดขึ้นในระบบ</p>
-        </div>
-        
-        <div style={{ display: 'flex', gap: '10px' }}>
-             <button className="glass-interactive" style={{ padding: '10px 16px', borderRadius: '10px', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--primary)', border: '1px solid rgba(0, 242, 254, 0.3)', background: 'rgba(0, 242, 254, 0.05)', cursor: 'pointer', fontWeight: '700', fontSize: '14px' }}>
-               <Download size={16} />
-               ส่งออกรายงาน
-             </button>
-        </div>
-      </header>
+  const handleExportExcel = () => {
+    const dataToExport = filteredLogs.map(log => ({
+      'วันเวลา': formatDate(log.created_at),
+      'ผู้ดำเนินการ': log.performer?.full_name || 'System',
+      'ประเภท': getActionLabel(log.action_type),
+       ...(activeTab === 'ticket' ? {
+         'เลขใบงาน': log.tickets?.ticket_no || 'N/A',
+         'หัวข้อ': log.tickets?.subject || ''
+       } : {}),
+      'รายละเอียด': log.note || ''
+    }));
 
-      {/* Filters Section */}
-      <div className="glass-card" style={{ padding: '20px', borderRadius: '16px', marginBottom: '24px', display: 'flex', flexWrap: 'wrap', gap: '16px', alignItems: 'center' }}>
-         <div style={{ position: 'relative', flex: 1, minWidth: '240px' }}>
-            <Search size={18} style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', opacity: 0.3 }} />
+    const ws = XLSX.utils.json_to_sheet(dataToExport);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Audit Logs');
+    XLSX.writeFile(wb, `NeoSupport_Audit_${activeTab}_${new Date().getTime()}.xlsx`);
+  };
+
+  const handleExportPDF = () => {
+    const doc = new jsPDF() as any;
+    const title = activeTab === 'ticket' ? 'Ticket Activity Audit Log' : 'System Activity Audit Log';
+    doc.text(title, 14, 15);
+    
+    const tableData = filteredLogs.map(log => [
+      formatDate(log.created_at),
+      log.performer?.full_name || 'System',
+      getActionLabel(log.action_type),
+      activeTab === 'ticket' ? (log.tickets?.ticket_no || 'N/A') : log.note || ''
+    ]);
+
+    doc.autoTable({
+      head: [['DateTime', 'Actor', 'Action', activeTab === 'ticket' ? 'Ticket #' : 'Detail']],
+      body: tableData,
+      startY: 20,
+    });
+    
+    doc.save(`NeoSupport_Audit_${activeTab}.pdf`);
+  };
+
+  return (
+    <div className="audit-page" style={{ animation: 'fadeIn 0.5s ease-out' }}>
+      {/* Header Section */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '32px' }}>
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '8px' }}>
+             <div className="glass" style={{ padding: '12px', borderRadius: '14px', background: 'var(--primary-glow)' }}>
+                <Shield color="var(--primary)" size={24} />
+             </div>
+             <div>
+                <h1 style={{ fontSize: '28px', fontWeight: '900', letterSpacing: '-0.5px' }}>Audit Log Dashboard</h1>
+                <p style={{ color: 'var(--text-muted)', fontSize: '13px', fontWeight: '500' }}>ตรวจสอบความโปร่งใสและกิจกรรมทั้งหมดภายในระบบ</p>
+             </div>
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', gap: '12px' }}>
+           <button onClick={handleExportExcel} className="glass-interactive" style={{ padding: '12px 20px', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '10px', background: 'rgba(40, 199, 111, 0.1)', color: '#28c76f', border: '1px solid rgba(40, 199, 111, 0.2)', cursor: 'pointer', fontWeight: '800', fontSize: '13px' }}>
+             <FileSpreadsheet size={18} />
+             Excel
+           </button>
+           <button onClick={handleExportPDF} className="glass-interactive" style={{ padding: '12px 20px', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '10px', background: 'rgba(234, 84, 85, 0.1)', color: '#ea5455', border: '1px solid rgba(234, 84, 85, 0.2)', cursor: 'pointer', fontWeight: '800', fontSize: '13px' }}>
+             <FileText size={18} />
+             PDF
+           </button>
+        </div>
+      </div>
+
+      {/* Custom Tab Navigation */}
+      <div style={{ display: 'flex', gap: '4px', background: 'rgba(255,255,255,0.02)', padding: '6px', borderRadius: '14px', border: '1px solid var(--border)', marginBottom: '24px', width: 'fit-content' }}>
+         <button 
+           onClick={() => setActiveTab('ticket')}
+           style={{ 
+             padding: '10px 24px', borderRadius: '10px', border: 'none', 
+             background: activeTab === 'ticket' ? 'var(--primary)' : 'transparent',
+             color: activeTab === 'ticket' ? '#0a0e14' : 'var(--text-muted)',
+             fontWeight: '800', fontSize: '14px', cursor: 'pointer', transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+             display: 'flex', alignItems: 'center', gap: '8px'
+           }}>
+           <Ticket size={16} />
+           กิจกรรม Ticket
+         </button>
+         <button 
+           onClick={() => setActiveTab('system')}
+           style={{ 
+             padding: '10px 24px', borderRadius: '10px', border: 'none', 
+             background: activeTab === 'system' ? 'var(--primary)' : 'transparent',
+             color: activeTab === 'system' ? '#0a0e14' : 'var(--text-muted)',
+             fontWeight: '800', fontSize: '14px', cursor: 'pointer', transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+             display: 'flex', alignItems: 'center', gap: '8px'
+           }}>
+           <Activity size={16} />
+           กิจกรรมระบบ
+         </button>
+      </div>
+
+      {/* Filter Grid */}
+      <div className="glass" style={{ padding: '24px', borderRadius: '20px', marginBottom: '24px', display: 'grid', gridTemplateColumns: '1fr auto', gap: '20px', alignItems: 'center' }}>
+         <div style={{ position: 'relative' }}>
+            <Search size={20} style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', opacity: 0.3 }} />
             <input 
               type="text" 
-              placeholder="ค้นหา Ticket #, ชื่อพนักงาน หรือเหตุการณ์..." 
+              placeholder={activeTab === 'ticket' ? "ค้นหาเลขตั๋ว, ชื่อเจ้าหน้าที่ หรือหัวข้อ..." : "ค้นหาชื่อเจ้าหน้าที่ หรือชื่อเหตุการณ์..."}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              style={{ width: '100%', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border)', borderRadius: '12px', padding: '12px 16px 12px 48px', color: 'white', fontSize: '14px' }}
+              style={{ width: '100%', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border)', borderRadius: '14px', padding: '14px 16px 14px 52px', color: 'white', fontSize: '15px' }}
             />
          </div>
 
-         <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-               <User size={16} color="var(--text-muted)" />
+         <div style={{ display: 'flex', gap: '12px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', background: 'rgba(255,255,255,0.02)', padding: '4px 12px', borderRadius: '12px', border: '1px solid var(--border)' }}>
+               <User size={16} color="var(--primary)" opacity={0.6} />
                <select 
                  value={selectedAgent}
                  onChange={(e) => setSelectedAgent(e.target.value)}
-                 style={{ background: 'rgba(10, 14, 20, 0.8)', border: '1px solid var(--border)', borderRadius: '8px', padding: '8px 12px', color: 'white', fontSize: '13px' }}
+                 style={{ background: 'none', border: 'none', color: 'white', fontSize: '14px', padding: '8px 0', outline: 'none', cursor: 'pointer', fontWeight: '600' }}
                >
-                 <option value="all">พนักงานทั้งหมด</option>
-                 {agents.map(a => <option key={a.id} value={a.id}>{a.full_name}</option>)}
+                 <option value="all" style={{ background: '#1a1d23' }}>พนักงานทุกคน</option>
+                 {agents.map(a => <option key={a.id} value={a.id} style={{ background: '#1a1d23' }}>{a.full_name}</option>)}
                </select>
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-               <Filter size={16} color="var(--text-muted)" />
-               <select 
-                 value={selectedAction}
-                 onChange={(e) => setSelectedAction(e.target.value)}
-                 style={{ background: 'rgba(10, 14, 20, 0.8)', border: '1px solid var(--border)', borderRadius: '8px', padding: '8px 12px', color: 'white', fontSize: '13px' }}
-               >
-                 <option value="all">ทุกกิจกรรม</option>
-                 <option value="claim">รับงาน (Claim)</option>
-                 <option value="status_change">เปลี่ยนสถานะ</option>
-                 <option value="transfer">โอนงาน (Transfer)</option>
-                 <option value="resolve">ปิดงาน (Resolve)</option>
-               </select>
-            </div>
-
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-               <History size={16} color="var(--text-muted)" />
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', background: 'rgba(255,255,255,0.02)', padding: '4px 12px', borderRadius: '12px', border: '1px solid var(--border)' }}>
+               <Clock size={16} color="var(--primary)" opacity={0.6} />
                <select 
                  value={limit}
                  onChange={(e) => setLimit(Number(e.target.value))}
-                 style={{ background: 'rgba(10, 14, 20, 0.8)', border: '1px solid var(--border)', borderRadius: '8px', padding: '8px 12px', color: 'white', fontSize: '13px' }}
+                 style={{ background: 'none', border: 'none', color: 'white', fontSize: '14px', padding: '8px 0', outline: 'none', cursor: 'pointer', fontWeight: '600' }}
                >
-                 <option value={50}>50 รายการล่าสุด</option>
-                 <option value={100}>100 รายการล่าสุด</option>
-                 <option value={200}>200 รายการล่าสุด</option>
+                 <option value={50} style={{ background: '#1a1d23' }}>50 ล่าสุด</option>
+                 <option value={100} style={{ background: '#1a1d23' }}>100 ล่าสุด</option>
+                 <option value={250} style={{ background: '#1a1d23' }}>250 ล่าสุด</option>
                </select>
             </div>
          </div>
       </div>
 
-      {/* Audit Table */}
-      <div className="glass-card" style={{ borderRadius: '20px', overflow: 'hidden', border: '1px solid var(--border)' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-          <thead>
-            <tr style={{ background: 'rgba(255,255,255,0.03)', borderBottom: '1px solid var(--border)' }}>
-              <th style={{ padding: '16px 20px', fontSize: '12px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase' }}>วันเวลา</th>
-              <th style={{ padding: '16px 20px', fontSize: '12px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase' }}>พนักงาน (Performer)</th>
-              <th style={{ padding: '16px 20px', fontSize: '12px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase' }}>เลขใบงาน</th>
-              <th style={{ padding: '16px 20px', fontSize: '12px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase' }}>การกระทำ</th>
-              <th style={{ padding: '16px 20px', fontSize: '12px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase' }}>รายละเอียด / หมายเหตุ</th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
-              <tr>
-                <td colSpan={5} style={{ padding: '60px', textAlign: 'center' }}>
-                  <div className="loader" style={{ margin: '0 auto 16px' }}></div>
-                  <p style={{ color: 'var(--text-muted)', fontSize: '14px' }}>กำลังดึงข้อมูลประวัติ...</p>
-                </td>
-              </tr>
-            ) : filteredLogs.length === 0 ? (
-              <tr>
-                <td colSpan={5} style={{ padding: '60px', textAlign: 'center' }}>
-                  <History size={40} style={{ margin: '0 auto 16px', opacity: 0.1 }} />
-                  <p style={{ color: 'var(--text-muted)', fontSize: '14px' }}>ไม่พบข้อมูลประวัติในหมวดหมู่ที่เลือก</p>
-                </td>
-              </tr>
-            ) : (
-              filteredLogs.map((log) => (
-                <tr 
-                  key={log.id} 
-                  className="table-row-hover"
-                  onClick={() => router.push(`/tickets/${log.ticket_id}`)}
-                  style={{ borderBottom: '1px solid rgba(255,255,255,0.02)', cursor: 'pointer', transition: 'background 0.2s' }}
-                >
-                  <td style={{ padding: '16px 20px' }}>
-                    <div style={{ display: 'flex', flexDirection: 'column' }}>
-                      <span style={{ fontSize: '13px', fontWeight: '700' }}>{formatDate(log.created_at)}</span>
-                      <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>ID: {log.id.slice(0, 8)}</span>
-                    </div>
-                  </td>
-                  <td style={{ padding: '16px 20px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      {log.performer?.avatar_url ? (
-                        <img src={log.performer.avatar_url} style={{ width: '28px', height: '28px', borderRadius: '50%' }} />
-                      ) : (
-                        <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: 'var(--secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', fontWeight: '800' }}>
-                          {log.performer?.full_name?.charAt(0) || 'A'}
-                        </div>
-                      )}
-                      <span style={{ fontSize: '13px', fontWeight: '600' }}>{log.performer?.full_name || 'System'}</span>
-                    </div>
-                  </td>
-                  <td style={{ padding: '16px 20px' }}>
-                    <div style={{ display: 'flex', flexDirection: 'column' }}>
-                      <span style={{ fontSize: '13px', fontWeight: '800', color: 'var(--primary)' }}>#{log.tickets?.ticket_no || 'N/A'}</span>
-                      <span style={{ fontSize: '11px', color: 'var(--text-muted)', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {log.tickets?.subject}
-                      </span>
-                    </div>
-                  </td>
-                  <td style={{ padding: '16px 20px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '4px 10px', background: 'rgba(255,255,255,0.03)', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.05)', width: 'fit-content' }}>
-                      {getActionIcon(log.action_type)}
-                      <span style={{ fontSize: '12px', fontWeight: '700' }}>{getActionLabel(log.action_type)}</span>
-                    </div>
-                  </td>
-                  <td style={{ padding: '16px 20px' }}>
-                    <div style={{ fontSize: '13px', color: 'var(--text-main)', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                      {log.action_type === 'status_change' && (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px' }}>
-                          <span style={{ padding: '2px 6px', background: 'rgba(255,255,255,0.05)', borderRadius: '4px', opacity: 0.6 }}>{log.from_status}</span>
-                          <ArrowRight size={10} opacity={0.5} />
-                          <span style={{ padding: '2px 6px', background: 'var(--primary-glow)', color: 'var(--primary)', borderRadius: '4px', fontWeight: '800' }}>{log.to_status}</span>
-                        </div>
-                      )}
-                      {log.action_type === 'transfer' && log.target_user && (
-                        <span style={{ fontSize: '12px', fontWeight: '600', color: 'var(--accent)' }}>โอนให้: {log.target_user.full_name}</span>
-                      )}
-                      <span style={{ fontStyle: 'italic', opacity: 0.8 }}>{log.note || '-'}</span>
-                    </div>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+      {/* Main Table */}
+      <div className="glass" style={{ borderRadius: '24px', overflow: 'hidden', border: '1px solid var(--border)', background: 'rgba(255,255,255,0.01)' }}>
+         <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+            <thead>
+               <tr style={{ background: 'rgba(255,255,255,0.02)', borderBottom: '1px solid var(--border)' }}>
+                  <th style={{ padding: '20px 24px', fontSize: '11px', fontWeight: '900', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px' }}>Time & ID</th>
+                  <th style={{ padding: '20px 24px', fontSize: '11px', fontWeight: '900', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px' }}>Actor</th>
+                  {activeTab === 'ticket' && <th style={{ padding: '20px 24px', fontSize: '11px', fontWeight: '900', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px' }}>Ticket #</th>}
+                  <th style={{ padding: '20px 24px', fontSize: '11px', fontWeight: '900', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px' }}>Action</th>
+                  <th style={{ padding: '20px 24px', fontSize: '11px', fontWeight: '900', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px' }}>Key Details</th>
+               </tr>
+            </thead>
+            <tbody>
+               {loading ? (
+                  <tr>
+                    <td colSpan={5} style={{ padding: '100px', textAlign: 'center' }}>
+                       <div className="premium-loader"></div>
+                       <p style={{ marginTop: '20px', color: 'var(--text-muted)', fontWeight: '700' }}>กำลังวิเคราะห์ข้อมูลประวัติ...</p>
+                    </td>
+                  </tr>
+               ) : filteredLogs.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} style={{ padding: '100px', textAlign: 'center' }}>
+                       <History size={48} style={{ opacity: 0.1, marginBottom: '16px' }} />
+                       <p style={{ color: 'var(--text-muted)', fontWeight: '600' }}>ไม่พบบันทึกที่ตรงตามเงื่อนไข</p>
+                    </td>
+                  </tr>
+               ) : (
+                  filteredLogs.map((log) => (
+                    <tr 
+                      key={log.id} 
+                      className="audit-row"
+                      onClick={() => activeTab === 'ticket' && router.push(`/tickets/${log.ticket_id}`)}
+                      style={{ borderBottom: '1px solid rgba(255,255,255,0.02)', transition: 'all 0.2s', cursor: activeTab === 'ticket' ? 'pointer' : 'default' }}
+                    >
+                       <td style={{ padding: '20px 24px' }}>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                             <span style={{ fontSize: '13px', fontWeight: '800', color: 'var(--text-main)' }}>{formatDate(log.created_at)}</span>
+                             <span style={{ fontSize: '9px', color: 'var(--text-muted)', fontFamily: 'monospace' }}>UUID: {log.id.slice(0, 13)}...</span>
+                          </div>
+                       </td>
+                       <td style={{ padding: '20px 24px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                             <div style={{ width: '30px', height: '30px', borderRadius: '10px', background: 'var(--border)', overflow: 'hidden' }}>
+                                <img src={log.performer?.avatar_url || `https://ui-avatars.com/api/?name=${log.performer?.full_name || 'System'}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                             </div>
+                             <span style={{ fontSize: '13px', fontWeight: '700' }}>{log.performer?.full_name || 'System'}</span>
+                          </div>
+                       </td>
+                       {activeTab === 'ticket' && (
+                         <td style={{ padding: '20px 24px' }}>
+                            <div style={{ display: 'flex', flexDirection: 'column' }}>
+                               <span style={{ fontSize: '13px', fontWeight: '900', color: 'var(--primary)' }}>#{log.tickets?.ticket_no || 'N/A'}</span>
+                               <span style={{ fontSize: '10px', color: 'var(--text-muted)', maxWidth: '180px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{log.tickets?.subject}</span>
+                            </div>
+                         </td>
+                       )}
+                       <td style={{ padding: '20px 24px' }}>
+                          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '6px 12px', background: 'rgba(255,255,255,0.03)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                             {getActionIcon(log.action_type)}
+                             <span style={{ fontSize: '11px', fontWeight: '800', textTransform: 'uppercase' }}>{getActionLabel(log.action_type)}</span>
+                          </div>
+                       </td>
+                       <td style={{ padding: '20px 24px' }}>
+                          <div style={{ fontSize: '13px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                             {log.action_type === 'status_change' && (
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                   <span className="status-tag-dim">{log.from_status}</span>
+                                   <ChevronRight size={12} opacity={0.3} />
+                                   <span className="status-tag-bright">{log.to_status}</span>
+                                </div>
+                             )}
+                             {log.action_type === 'transfer' && log.target_user && (
+                                <span style={{ color: 'var(--primary)', fontWeight: '700' }}>🎯 To: {log.target_user.full_name}</span>
+                             )}
+                             <span style={{ opacity: 0.7, fontStyle: 'italic', maxWidth: '300px' }}>{log.note || '-'}</span>
+                          </div>
+                       </td>
+                    </tr>
+                  ))
+               )}
+            </tbody>
+         </table>
       </div>
 
       <style dangerouslySetInnerHTML={{ __html: `
-        .table-row-hover:hover {
-          background: rgba(255, 255, 255, 0.03) !important;
-        }
-        @keyframes fadeIn {
-          from { opacity: 0; transform: translateY(10px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        .loader {
-          width: 24px;
-          height: 24px;
-          border: 3px solid rgba(0, 242, 254, 0.1);
-          border-top: 3px solid var(--primary);
-          border-radius: 50%;
-          animation: spin 1s linear infinite;
-        }
-        @keyframes spin {
-          0% { transform: rotate(0deg); }
-          100% { transform: rotate(360deg); }
-        }
+        .audit-row:hover { background: rgba(255,255,255,0.03) !important; transform: scale(1.001); }
+        .status-tag-dim { font-size: 10px; font-weight: 800; padding: 2px 8px; background: rgba(255,255,255,0.05); border-radius: 4px; opacity: 0.5; }
+        .status-tag-bright { font-size: 10px; font-weight: 800; padding: 2px 8px; background: var(--primary-glow); color: var(--primary); border-radius: 4px; border: 1px solid rgba(0, 242, 254, 0.2); }
+        .premium-loader { width: 32px; height: 32px; border: 3px solid rgba(0, 242, 254, 0.1); border-top: 3px solid var(--primary); border-radius: 50%; animation: spin 0.8s cubic-bezier(0.4, 0, 0.2, 1) infinite; margin: 0 auto; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
       `}} />
     </div>
   );

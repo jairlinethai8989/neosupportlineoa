@@ -71,6 +71,22 @@ export async function POST(req: Request) {
       throw profileError;
     }
 
+    // 6. Log the activity
+    const { auditService } = await import('@/lib/services/auditService');
+    await auditService.log({
+      performer_id: user.id,
+      action_type: 'STAFF_CREATE',
+      entity_type: 'STAFF',
+      entity_id: newUser.user.id,
+      new_data: { 
+        username, 
+        full_name, 
+        role, 
+        department 
+      },
+      note: `Created new staff: ${full_name} (${role})`
+    }, supabaseAdmin);
+
     return NextResponse.json({ success: true, user: newUser.user });
   } catch (err: any) {
     console.error('Staff creation error:', err);
