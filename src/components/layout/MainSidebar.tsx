@@ -108,7 +108,6 @@ const Sidebar = ({ onClickLink, isCollapsed = false }: SidebarProps) => {
 
   const [inboxCount, setInboxCount] = useState(0);
   const [ticketCount, setTicketCount] = useState(0);
-  const [customerCount, setCustomerCount] = useState(0);
 
   useEffect(() => {
     let isMounted = true;
@@ -120,10 +119,6 @@ const Sidebar = ({ onClickLink, isCollapsed = false }: SidebarProps) => {
       // Inbox (Active conversations)
       const { count: iCount } = await supabase.from('conversations').select('*', { count: 'exact', head: true }).eq('status', 'active');
       if (isMounted) setInboxCount(iCount || 0);
-
-      // Customers (Total)
-      const { count: cCount } = await supabase.from('customers').select('*', { count: 'exact', head: true });
-      if (isMounted) setCustomerCount(cCount || 0);
     }
     
     fetchCounts();
@@ -131,11 +126,10 @@ const Sidebar = ({ onClickLink, isCollapsed = false }: SidebarProps) => {
     // 10-second polling fallback (Balanced for performance)
     const pollInterval = setInterval(fetchCounts, 10000);
     
-    const channel = supabase.channel('sidebar-counts-v3')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'tickets' }, () => { fetchCounts(); })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'conversations' }, () => { fetchCounts(); })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'customers' }, () => { fetchCounts(); })
-      .subscribe();
+      const channel = supabase.channel('sidebar-counts-v3')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'tickets' }, () => { fetchCounts(); })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'conversations' }, () => { fetchCounts(); })
+        .subscribe();
 
     return () => {
       isMounted = false;
@@ -158,7 +152,7 @@ const Sidebar = ({ onClickLink, isCollapsed = false }: SidebarProps) => {
     { section: 'Workspace', thai: 'พื้นที่ทำงาน', items: [
       { name: 'Tickets', thai: 'จัดการใบงาน', icon: Ticket, path: '/tickets', count: ticketCount },
       { name: 'Inbox', thai: 'ห้องแชทลูกค้า', icon: Inbox, path: '/inbox', count: inboxCount },
-      { name: 'Customers', thai: 'ฐานข้อมูลลูกค้า', icon: Users, path: '/customers', count: customerCount },
+      { name: 'Customers', thai: 'ฐานข้อมูลลูกค้า', icon: Users, path: '/customers' },
     ]},
     { section: 'Admin', thai: 'หลังบ้าน', items: [
       { 
