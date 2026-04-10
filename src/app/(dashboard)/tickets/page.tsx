@@ -118,27 +118,35 @@ function TicketsContent() {
         .select('id, customer_id, current_ticket_id, status')
         .order('last_message_at', { ascending: false });
 
+      // Try basic fetch first to avoid join errors
       const { data: tData, error: tErr } = await supabase
         .from('tickets')
         .select(`
           *,
           customers!customer_id (
             id,
-            display_name,
-            hospital_id,
-            hospitals!hospital_id (
-              name
-            )
+            display_name
           )
         `)
         .gte('created_at', from ? from.toISOString() : '2000-01-01T00:00:00Z')
         .lte('created_at', to.toISOString())
         .order('created_at', { ascending: false });
 
-      if (tErr) throw tErr;
+      if (tErr) {
+        console.warn('Joint fetch failed, falling back to basic:', tErr);
+        const { data: basicData, error: basicErr } = await supabase
+          .from('tickets')
+          .select('*')
+          .gte('created_at', from ? from.toISOString() : '2000-01-01T00:00:00Z')
+          .lte('created_at', to.toISOString())
+          .order('created_at', { ascending: false });
 
-      console.log(`Fetched ${tData?.length || 0} tickets. Relation: customer_id FIXED`);
-      setTickets(tData || []);
+        if (basicErr) throw basicErr;
+        setTickets(basicData || []);
+      } else {
+        setTickets(tData || []);
+      }
+      
       setConversations(cData || []);
     } catch (err: any) {
       console.error('Fetch tickets error:', err);
