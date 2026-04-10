@@ -113,7 +113,12 @@ function TicketsContent() {
         to.setHours(23, 59, 59, 999);
       }
 
-      let query = supabase
+      const { data: cData } = await supabase
+        .from('conversations')
+        .select('id, customer_id, current_ticket_id, status')
+        .order('last_message_at', { ascending: false });
+
+      const { data: tData, error: tErr } = await supabase
         .from('tickets')
         .select(`
           *,
@@ -121,31 +126,18 @@ function TicketsContent() {
             id,
             display_name,
             hospital_id,
-            hospitals (
+            hospitals!hospital_id (
               name
             )
           )
-        `);
+        `)
+        .gte('created_at', from ? from.toISOString() : '2000-01-01T00:00:00Z')
+        .lte('created_at', to.toISOString())
+        .order('created_at', { ascending: false });
 
-      if (from) {
-        query = query.gte('created_at', from.toISOString()).lte('created_at', to.toISOString());
-      }
-
-      const { data: tData, error: tErr } = await query.order('created_at', { ascending: false });
       if (tErr) throw tErr;
 
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        const { data: p } = await supabase.from('profiles').select('role, permissions').eq('id', user.id).single();
-        setUserProfile(p);
-      }
-
-      const { data: cData } = await supabase
-        .from('conversations')
-        .select('id, customer_id, current_ticket_id, status')
-        .order('last_message_at', { ascending: false });
-
-      console.log(`Fetched ${tData?.length || 0} tickets. Filter: ${filterCustomerId || 'None'}`);
+      console.log(`Fetched ${tData?.length || 0} tickets. Relation: customer_id FIXED`);
       setTickets(tData || []);
       setConversations(cData || []);
     } catch (err: any) {
@@ -157,6 +149,15 @@ function TicketsContent() {
   }
 
   useEffect(() => {
+    async function fetchUser() {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: p } = await supabase.from('profiles').select('role, permissions').eq('id', user.id).single();
+        setUserProfile(p);
+      }
+    }
+    fetchUser();
+    
     fetchData();
     const channel = supabase
       .channel('workspace-realtime')
