@@ -132,6 +132,7 @@ function TicketsContent() {
       }
 
       const { data: tData, error: tErr } = await query.order('created_at', { ascending: false });
+      if (tErr) throw tErr;
 
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
@@ -144,9 +145,11 @@ function TicketsContent() {
         .select('id, customer_id, current_ticket_id, status')
         .order('last_message_at', { ascending: false });
 
+      console.log(`Fetched ${tData?.length || 0} tickets. Filter: ${filterCustomerId || 'None'}`);
       setTickets(tData || []);
       setConversations(cData || []);
     } catch (err: any) {
+      console.error('Fetch tickets error:', err);
       setDebugError(err.message);
     } finally {
       setLoading(false);
@@ -161,7 +164,7 @@ function TicketsContent() {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'conversations' }, () => fetchData())
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, [timeRange, customStart, customEnd]);
+  }, [timeRange, customStart, customEnd, filterCustomerId]);
 
 
   const getConvId = (ticket: any) => {
@@ -298,6 +301,9 @@ function TicketsContent() {
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '8px' }}>
             <h1 style={{ fontSize: '32px', fontWeight: '900', letterSpacing: '-1.5px', color: 'var(--text-main)', margin: 0 }}>
               {filterCustomerId ? 'Filtered Workspace' : 'Ticket Workspace'} <span style={{ color: 'var(--primary)', opacity: 0.8 }}>({filteredTickets.length})</span>
+              {filterCustomerId && (
+                 <Link href="/tickets" style={{ fontSize: '12px', marginLeft: '16px', color: 'var(--danger)', fontWeight: '800' }}>[ล้างตัวกรอง]</Link>
+              )}
             </h1>
             
             <div style={{ display: 'flex', background: 'var(--bg-card)', padding: '4px', borderRadius: '10px', border: '1px solid var(--border)', marginLeft: '12px' }}>

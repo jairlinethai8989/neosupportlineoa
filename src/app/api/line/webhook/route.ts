@@ -63,14 +63,30 @@ export async function POST(req: Request) {
 
         if (!conversation) {
           // AUTO-LINK: Find the most recent OPEN ticket for this customer before creating conv
-          const { data: recentTicket } = await supabase
+          let { data: recentTicket } = await supabase
             .from('tickets')
-            .select('id')
+            .select('id, ticket_no')
             .eq('customer_id', customer.id)
             .not('status', 'in', '("Resolved","Closed")') // Only link to open ones
             .order('created_at', { ascending: false })
             .limit(1)
             .maybeSingle();
+
+          // CREATE TICKET IF NONE EXISTS
+          if (!recentTicket) {
+             const { data: newTicket } = await supabase
+              .from('tickets')
+              .insert([{
+                customer_id: customer.id,
+                subject: `LINE Support: ${messageText?.substring(0, 30)}${messageText?.length > 30 ? '...' : ''}`,
+                status: 'New',
+                priority: 'Medium',
+                department: 'Customer Service'
+              }])
+              .select()
+              .single();
+             recentTicket = newTicket;
+          }
 
           const { data: newConv } = await supabase
             .from('conversations')
@@ -86,9 +102,9 @@ export async function POST(req: Request) {
           // Notify Group about New Support Request (First Message)
           try {
             const { sendLineGroupNotification } = await import('@/lib/utils/lineNotifications');
-            const alertText = recentTicket 
-              ? `🆕 [ตั๋วเดิม] ${customer.display_name} ส่งข้อความในตั๋วที่มีอยู่`
-              : `🆕 [ตั๋วใหม่] ${customer.display_name} แจ้งปัญหาเข้ามาครับ`;
+            const alertText = recentTicket?.ticket_no 
+              ? `🆕 [ตั๋วใหม่] #${recentTicket.ticket_no} - ${customer.display_name} แจ้งปัญหาเข้ามาครับ`
+              : `🆕 [ข้อความ] ${customer.display_name} แจ้งปัญหาเข้ามาครับ`;
             
             await sendLineGroupNotification(`${alertText}\nข้อความ: ${messageText?.substring(0, 50)}${messageText?.length > 50 ? '...' : ''}\n👉 ตรวจสอบที่หน้าจัดการ: ${process.env.NEXT_PUBLIC_BASE_URL || 'NeoSupport Dashboard'}`);
           } catch(e) { console.error('Notif failed:', e); }
