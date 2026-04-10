@@ -34,7 +34,7 @@ export default function CreateTicketPage() {
     async function checkCustomer() {
       const { data } = await supabase
         .from('customers')
-        .select('*')
+        .select('*, hospitals(name, abbreviation)')
         .eq('line_user_id', profile?.userId)
         .maybeSingle();
 
@@ -73,10 +73,18 @@ export default function CreateTicketPage() {
       setError('');
 
       try {
-         // 1. Generate Ticket Number
-         const ticketNo = `TIC-${Math.floor(10000 + Math.random() * 90000)}`;
+         
+         
+         
+         // 1. Generate Ticket Number using Abbr + Date + Time + Random (Extreme Uniqueness)
+         const hospitalAbbr = customerData.hospitals?.abbreviation || 'NEO';
+         const now = new Date();
+         const dateStr = now.toISOString().slice(2, 10).replace(/-/g, ''); 
+         const timeStr = now.toTimeString().slice(0, 8).replace(/:/g, ''); // HHMMSS
+         const randomStr = Math.floor(100 + Math.random() * 899); // 3-digit random
+         const ticketNo = `${hospitalAbbr}-${dateStr}-${timeStr}-${randomStr}`;
 
-         // 2. Insert Ticket (Simplified to respect DB triggers)
+         // 2. Insert Ticket
          const ticketPayload: any = {
             ticket_no: ticketNo,
             customer_id: customerData.id,
@@ -122,8 +130,9 @@ export default function CreateTicketPage() {
             conversationId = newConv?.id;
          }
 
-         // 4. Initial Message (If conversationId exists)
+         // 4. Initial Messages (Files & Description)
          if (conversationId) {
+            // A. If there is a file, upload and send message
             if (file) {
                const fileExt = file.name.split('.').pop() || 'jpg';
                const fileName = `${createdTicket.id}_${Date.now()}.${fileExt}`;
@@ -134,19 +143,22 @@ export default function CreateTicketPage() {
                      ticket_id: createdTicket.id,
                      conversation_id: conversationId,
                      sender_type: 'customer',
-                   customer_id: customerData.id, // NEW STRONG RELATION
-                     customer_id: customerData.id, // NEW STRONG RELATION
+                     customer_id: customerData.id,
                      message_type: 'image',
                      content: publicUrl
                   }]);
                }
-            } else if (description) {
+            }
+            
+            // B. If there is a description, ALWAYS send it as a message to the chat
+            if (description.trim()) {
                await supabase.from('messages').insert([{
                   ticket_id: createdTicket.id,
                   conversation_id: conversationId,
                   sender_type: 'customer',
+                  customer_id: customerData.id,
                   message_type: 'text',
-                  content: description
+                  content: description.trim()
                }]);
             }
          }

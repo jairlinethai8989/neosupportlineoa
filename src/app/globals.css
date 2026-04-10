@@ -146,13 +146,13 @@ input, button, select, textarea, optgroup, option {
 }
 
 .portal-container {
-  background: #fbfcfd;
+  background: #f0f4ff;
   color: #1e293b;
   min-height: 100vh;
-  --portal-border: rgba(0, 0, 0, 0.05);
+  --portal-border: rgba(0, 98, 255, 0.12);
   --portal-bg-card: #ffffff;
   --portal-text-muted: #64748b;
-  --portal-primary: #0ea5e9;
+  --portal-primary: #0062ff;
 }
 
 .portal-glass {
@@ -164,18 +164,18 @@ input, button, select, textarea, optgroup, option {
 }
 
 .portal-btn-primary {
-  background: #1e293b;
+  background: linear-gradient(135deg, #0062ff 0%, #00d2ff 100%);
   color: white;
   border: none;
   font-weight: 800;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 10px 25px rgba(30, 41, 59, 0.15);
+  box-shadow: 0 10px 25px rgba(0, 98, 255, 0.35);
 }
 
 .portal-btn-primary:hover {
   transform: translateY(-2px);
   filter: brightness(1.1);
-  box-shadow: 0 15px 30px rgba(30, 41, 59, 0.22);
+  box-shadow: 0 15px 35px rgba(0, 98, 255, 0.45);
 }
 
 /* Layout Core */
