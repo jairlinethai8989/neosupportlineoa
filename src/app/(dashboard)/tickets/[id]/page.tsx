@@ -35,6 +35,7 @@ export default function StaffTicketDetailPage() {
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
   const [logs, setLogs] = useState<any[]>([]);
+  const [conversationId, setConversationId] = useState<string | null>(null);
 
   // State for editing
   const [status, setStatus] = useState('');
@@ -126,8 +127,16 @@ export default function StaffTicketDetailPage() {
           
           if (lRes.data) setLogs(lRes.data);
           if (mRes.data) setMessages(mRes.data);
+
+          // Fetch active conversation
+          const { data: conv } = await supabase
+             .from('conversations')
+             .select('id')
+             .eq('customer_id', t.customer_id)
+             .eq('status', 'active')
+             .maybeSingle();
+          if (conv) setConversationId(conv.id);
         }
-        // Fetch current user
         // Fetch current user and their profile for role checking
         const { data: { user: authUser } } = await supabase.auth.getUser();
         if (authUser) {
@@ -210,9 +219,10 @@ export default function StaffTicketDetailPage() {
     try {
       // INTERNAL ONLY: Save to Supabase messages table
       const { error } = await supabase.from('messages').insert([{
+        conversation_id: conversationId,
         ticket_id: id,
         sender_type: 'agent',
-        staff_id: user?.id, // NEW STRONG RELATION
+        staff_id: user?.id,
         message_type: 'text',
         content: messageToSend
       }]);
@@ -242,9 +252,10 @@ export default function StaffTicketDetailPage() {
            const messageType = file.type.startsWith('image/') ? 'image' : 'file';
            
            await supabase.from('messages').insert([{
+              conversation_id: conversationId,
               ticket_id: id,
               sender_type: 'agent',
-        staff_id: user?.id, // NEW STRONG RELATION
+              staff_id: user?.id,
               message_type: messageType,
               content: publicUrl,
            }]);
@@ -269,9 +280,10 @@ export default function StaffTicketDetailPage() {
       const { data: { publicUrl } } = supabase.storage.from('chat_media').getPublicUrl(fileName);
       
       const { error } = await supabase.from('messages').insert([{
+        conversation_id: conversationId,
         ticket_id: id,
         sender_type: 'agent',
-        staff_id: user?.id, // NEW STRONG RELATION
+        staff_id: user?.id,
         message_type: 'image',
         content: publicUrl,
       }]);
@@ -368,8 +380,10 @@ export default function StaffTicketDetailPage() {
 
       // 3. Send automated closing message to private chat
       await supabase.from('messages').insert([{
+        conversation_id: conversationId,
         ticket_id: id,
         sender_type: 'agent',
+        staff_id: user?.id,
         content: `[System: ใบงาน #${ticket.ticket_no} ได้รับการแก้ไขเรียบร้อยแล้ว: ${resSummary}\nขอบคุณที่ใช้บริการครับ 🙏]`
       }]);
 

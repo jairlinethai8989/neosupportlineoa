@@ -253,7 +253,7 @@ function InboxContent() {
         conversation_id: selectedChat.id,
         ticket_id: selectedChat.current_ticket_id || null,
         sender_type: 'agent',
-        sender_id: agent.id,
+        staff_id: agent.id, // FIXED: Use staff_id instead of deprecated sender_id
         content: publicUrl,
         message_type: dbType
       }]);
