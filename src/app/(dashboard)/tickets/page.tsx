@@ -117,7 +117,7 @@ function TicketsContent() {
         .from('tickets')
         .select(`
           *,
-          customers (
+          customers!customer_id (
             id,
             display_name,
             hospital_id,
