@@ -69,8 +69,7 @@ export default function SLASettingsPage() {
             }).eq('id', rule.id);
          } else {
             await supabase.from('sla_rules').insert([rule]);
-         }
-      }
+        }
       }
       
       // Log the activity
