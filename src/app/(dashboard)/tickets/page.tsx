@@ -124,21 +124,9 @@ function TicketsContent() {
       const { data: tData, error: tErr } = await supabase
         .from('tickets')
         .select(`
-          id,
-          ticket_no,
-          subject,
-          description,
-          status,
-          priority,
-          created_at,
-          customer_id,
-          hospital_id,
-          assigned_agent_id,
-          sla_due_at,
-          hospital:hospitals!hospital_id (
-            name
-          ),
-          customer:customers!customer_id (
+          *,
+          customers!customer_id (
+            id,
             display_name
           )
         `)
@@ -146,8 +134,20 @@ function TicketsContent() {
         .lte('created_at', to.toISOString())
         .order('created_at', { ascending: false });
 
-      if (tErr) throw tErr;
-      setTickets(tData || []);
+      if (tErr) {
+        console.warn('Joint fetch failed, falling back to basic:', tErr);
+        const { data: basicData, error: basicErr } = await supabase
+          .from('tickets')
+          .select('*')
+          .gte('created_at', from ? from.toISOString() : '2000-01-01T00:00:00Z')
+          .lte('created_at', to.toISOString())
+          .order('created_at', { ascending: false });
+
+        if (basicErr) throw basicErr;
+        setTickets(basicData || []);
+      } else {
+        setTickets(tData || []);
+      }
       
       setConversations(cData || []);
     } catch (err: any) {
@@ -491,7 +491,7 @@ function TicketsContent() {
                         {columnTickets.map(ticket => {
                             const convId = getConvId(ticket);
                             const isNew = String(ticket.status || '').toLowerCase() === 'new';
-                            const hospitalName = ticket.hospital?.name || 'ไม่ระบุโรงพยาบาล';
+                            const hospitalName = ticket.customers?.hospitals?.name || 'ไม่ระบุโรงพยาบาล';
                             return (
                                 <div key={ticket.id} className="glass-interactive" style={{ padding: '24px', borderRadius: '24px', background: 'var(--bg-card)', border: '1px solid var(--border)', borderLeft: `6px solid ${config.color}`, display: 'flex', flexDirection: 'column', gap: '18px', boxShadow: '0 8px 24px rgba(0,0,0,0.08)' }}>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
@@ -508,7 +508,7 @@ function TicketsContent() {
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '16px', borderTop: '1px solid var(--border)' }}>
                                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                                           <div style={{ width: '32px', height: '32px', borderRadius: '10px', background: 'var(--bg-input)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><User size={16} color="var(--text-muted)" /></div>
-                                          <p style={{ fontSize: '13px', color: 'var(--text-main)', fontWeight: '700' }}>{ticket.customer?.display_name || 'Customer'}</p>
+                                          <p style={{ fontSize: '13px', color: 'var(--text-main)', fontWeight: '700' }}>{ticket.customers?.display_name || 'Customer'}</p>
                                        </div>
                                        <div style={{ display: 'flex', gap: '10px' }}>
                                           {convId && (
@@ -634,13 +634,13 @@ function TicketsContent() {
               <tbody>
                  {filteredTickets.map((ticket, idx) => {
                     const convId = getConvId(ticket);
-                    const hospitalName = ticket.hospital?.name || '-';
+                    const hospitalName = ticket.customers?.hospitals?.name || '-';
                     return (
                         <tr key={idx} style={{ borderBottom: '1px solid var(--border)' }}>
                            <td style={{ padding: '16px 20px' }}><Link href={`/tickets/${ticket.id}`} style={{ fontWeight: '800', color: 'var(--primary)', textDecoration: 'none' }}>#{ticket.ticket_no}</Link></td>
                            <td style={{ padding: '16px 20px', fontSize: '14px', fontWeight: '500' }}>{ticket.subject}</td>
                            <td style={{ padding: '16px 20px', fontSize: '13px', fontWeight: '700', color: 'var(--primary)' }}>{hospitalName}</td>
-                           <td style={{ padding: '16px 20px' }}>{ticket.customer?.display_name || '-'}</td>
+                           <td style={{ padding: '16px 20px' }}>{ticket.customers?.display_name || '-'}</td>
                            <td style={{ padding: '16px 20px' }}><StatusBadge status={ticket.status} /></td>
                            <td style={{ padding: '16px 20px' }}>
                               <div style={{ display: 'flex', gap: '8px' }}>
