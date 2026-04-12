@@ -35,18 +35,18 @@
 }
 
 [data-theme='light'] {
-  --bg-deep: #f5f8fa; /* Metronic soft gray bg */
+  --bg-deep: #f0f2f5; 
   --bg-sidebar: #ffffff;
   --bg-card: #ffffff;
-  --bg-card-hover: #ffffff;
+  --bg-card-hover: #f9fafb;
   --bg-input: #f3f6f9;
   --bg-topbar: #ffffff;
-  --border: #eff2f5;
-  --border-active: #3699ff;
-  --text-main: #181c32; /* Deep corporate blue/black */
-  --text-muted: #a1a5b7;
-  --text-dim: #b5b5c3;
-  --primary: #3699ff; /* Classic Metronic Blue */
+  --border: #dee2e6;
+  --border-active: #0062ff;
+  --text-main: #1a1a1a; 
+  --text-muted: #495057;
+  --text-dim: #6c757d;
+  --primary: #0062ff; 
 }
 
 [data-theme='blue'] {

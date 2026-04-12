@@ -722,8 +722,8 @@ function TicketsContent() {
                    }}>
                       <CheckCircle size={32} />
                    </div>
-                   <h3 style={{ fontSize: '24px', fontWeight: '900', color: '#fff', marginBottom: '8px' }}>ปิดงานใบงาน #{resolvingTicket?.ticket_no}</h3>
-                   <p style={{ fontSize: '14px', color: 'rgba(255,255,255,0.5)', lineHeight: '1.6' }}>กรุณาสรุปผลการแก้ไขปัญหา เพื่อบันทึกเป็นประวัติและแจ้งลูกค้าครับ</p>
+                   <h3 style={{ fontSize: '24px', fontWeight: '900', color: 'var(--text-main)', marginBottom: '8px' }}>ปิดงานใบงาน #{resolvingTicket?.ticket_no}</h3>
+                   <p style={{ fontSize: '14px', color: 'var(--text-muted)', lineHeight: '1.6' }}>กรุณาสรุปผลการแก้ไขปัญหา เพื่อบันทึกเป็นประวัติและแจ้งลูกค้าครับ</p>
                 </div>
 
                 <div style={{ marginBottom: '32px' }}>
@@ -735,11 +735,11 @@ function TicketsContent() {
                      style={{
                         width: '100%',
                         height: '140px',
-                        background: 'rgba(255,255,255,0.03)',
-                        border: '1px solid rgba(255,255,255,0.1)',
+                        background: 'var(--bg-input)',
+                        border: '1px solid var(--border)',
                         borderRadius: '16px',
                         padding: '16px',
-                        color: '#fff',
+                        color: 'var(--text-main)',
                         fontSize: '14px',
                         resize: 'none',
                         outline: 'none',
