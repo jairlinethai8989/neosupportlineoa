@@ -7,21 +7,35 @@ import { NextResponse } from 'next/server'
  * Visit: /api/setup-admin?key=NEO_SETUP_2026
  */
 export async function GET(req: Request) {
+  // PROD GUARD
+  if (process.env.NODE_ENV === 'production') {
+    return NextResponse.json({ error: 'Setup is disabled in production environment.' }, { status: 403 });
+  }
+
   const { searchParams } = new URL(req.url);
   const key = searchParams.get('key');
   
-  if (key !== 'NEO_SETUP_2026') {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const setupKey = process.env.SETUP_KEY;
+  if (!setupKey || key !== setupKey) {
+    return NextResponse.json({ error: 'Invalid or missing setup key' }, { status: 401 });
   }
 
   // Use the env keys
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-  const email = 'admin@neo.local';
-  const password = 'admin1234';
+  if (!supabaseUrl || !anonKey) {
+    return NextResponse.json({ error: 'Supabase configuration is missing in environment variables.' }, { status: 500 });
+  }
+
+  const supabase = createClient(supabaseUrl, anonKey);
+
+  const email = process.env.INITIAL_ADMIN_EMAIL;
+  const password = process.env.INITIAL_ADMIN_PASSWORD;
+
+  if (!email || !password) {
+    return NextResponse.json({ error: 'INITIAL_ADMIN_EMAIL or INITIAL_ADMIN_PASSWORD env variable is not set.' }, { status: 500 });
+  }
 
   // 1. Try to Sign Up (This creates the Auth User if allowed by Supabase settings)
   const { data: authData, error: authError } = await supabase.auth.signUp({
@@ -47,7 +61,7 @@ export async function GET(req: Request) {
     .upsert({
       id: user.id,
       full_name: 'System Admin',
-      role: 'Admin',
+      role: 'Administrator', // Standard Canonical Role
       status: 'Active'
     });
 
@@ -57,9 +71,8 @@ export async function GET(req: Request) {
 
   return NextResponse.json({ 
     success: true, 
-    message: 'Admin account created successfully!',
+    message: 'Admin account setup completed.',
     email,
-    password,
     uuid: user.id
   });
 }

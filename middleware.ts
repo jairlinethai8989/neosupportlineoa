@@ -16,16 +16,18 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // 2. Define Public Routes
+  // 2. Define Public Routes (Sensitive)
   const PUBLIC_ROUTES = [
     '/login',
     '/portal',
     '/survey',
-    '/api/line',
-    '/api/debug-auth',
-    '/api/setup-admin',
+    '/api/line/webhook', 
+    '/api/cron',        // Allow daily summaries and other crons
   ];
-  const isPublicRoute = PUBLIC_ROUTES.some(route => pathname.startsWith(route));
+  const isPublicRoute = PUBLIC_ROUTES.some(route => {
+    if (route === '/api/line/webhook') return pathname === route;
+    return pathname.startsWith(route);
+  });
 
   // 3. Setup Response & Supabase
   let response = NextResponse.next({
