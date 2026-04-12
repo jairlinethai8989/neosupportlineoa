@@ -55,7 +55,7 @@ export async function GET(req: NextRequest) {
     const timeRangeStr = `${start.toFormat('HH:mm')} - ${end.toFormat('HH:mm')}`;
     const dateStr = start.toFormat('dd/MM/yyyy');
 
-    // LINE Flex Message Construction
+    // LINE Flex Message Construction (Simplified for stability)
     const flexContents = {
       "type": "bubble",
       "size": "mega",
@@ -74,11 +74,11 @@ export async function GET(req: NextRequest) {
             "type": "text",
             "text": `ช่วงเวลา: ${timeRangeStr} (${dateStr})`,
             "size": "sm",
-            "color": "rgba(255,255,255,0.7)",
+            "color": "#e0e0e0",
             "margin": "md"
           }
         ],
-        "backgroundColor": reportType === 'Morning' ? "#1a1b4b" : "#00f2fe",
+        "backgroundColor": reportType === 'Morning' ? "#1a1b4b" : "#4fc3f7",
         "paddingAll": "20px"
       },
       "body": {
@@ -94,7 +94,7 @@ export async function GET(req: NextRequest) {
                 "layout": "vertical",
                 "contents": [
                   { "type": "text", "text": "🆕 งานใหม่", "size": "sm", "color": "#8c9196" },
-                  { "type": "text", "text": stats.new.toString(), "weight": "bold", "size": "xxl", "margin": "sm" }
+                  { "type": "text", "text": stats.new.toString(), "weight": "bold", "size": "xxl", "margin": "sm", "color": "#333333" }
                 ]
               },
               {
@@ -149,20 +149,28 @@ export async function GET(req: NextRequest) {
             "action": {
               "type": "uri",
               "label": "เปิด Dashboard",
-              "uri": process.env.NEXT_PUBLIC_BASE_URL || "https://neosupport.vercel.app"
+              "uri": process.env.NEXT_PUBLIC_BASE_URL || "https://neoworkspace.vercel.app"
             },
             "style": "primary",
-            "color": "#00f2fe"
+            "color": "#4fc3f7"
           }
         ],
         "paddingAll": "10px"
-      },
-      "styles": {
-        "header": { "separator": true }
       }
     };
 
-    await sendLineGroupFlexNotification(`📊 รายงานสรุปงาน ${reportType === 'Morning' ? 'กะดึก' : 'ประจำวัน'}`, flexContents);
+    try {
+      await sendLineGroupFlexNotification(`📊 รายงานสรุปงาน ${reportType === 'Morning' ? 'กะดึก' : 'ประจำวัน'}`, flexContents);
+    } catch (lineErr: any) {
+      console.error('Flex Notification Error:', lineErr.message);
+      // Return success false but keep stats
+      return NextResponse.json({ 
+        success: false, 
+        error: 'LINE API Failed: ' + lineErr.message,
+        report: reportType,
+        stats 
+      }, { status: 500 });
+    }
 
     return NextResponse.json({ 
       success: true, 

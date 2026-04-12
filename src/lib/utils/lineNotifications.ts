@@ -51,7 +51,13 @@ export async function sendLineGroupFlexNotification(altText: string, contents: a
       altText,
       contents,
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error sending LINE group Flex notification:', error);
+    if (error.originalError && error.originalError.response) {
+      const detailedError = JSON.stringify(error.originalError.response.data);
+      console.error('LINE API Detailed Error:', detailedError);
+      throw new Error(`LINE API Error: ${detailedError}`);
+    }
+    throw error;
   }
 }
