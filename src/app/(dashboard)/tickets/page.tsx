@@ -123,31 +123,32 @@ function TicketsContent() {
 
       const { data: tData, error: tErr } = await supabase
         .from('tickets')
-        .select(`
-          *,
-          customers!customer_id (
-            id,
-            display_name
-          )
-        `)
+        .select('*')
         .gte('created_at', from ? from.toISOString() : '2000-01-01T00:00:00Z')
         .lte('created_at', to.toISOString())
         .order('created_at', { ascending: false });
 
-      if (tErr) {
-        console.warn('Joint fetch failed, falling back to basic:', tErr);
-        const { data: basicData, error: basicErr } = await supabase
-          .from('tickets')
-          .select('*')
-          .gte('created_at', from ? from.toISOString() : '2000-01-01T00:00:00Z')
-          .lte('created_at', to.toISOString())
-          .order('created_at', { ascending: false });
+      if (tErr) throw tErr;
 
-        if (basicErr) throw basicErr;
-        setTickets(basicData || []);
-      } else {
-        setTickets(tData || []);
-      }
+      // In-memory join to resolve hospital/customer names without ambiguity
+      const hospitalIds = Array.from(new Set(tData?.map(t => t.hospital_id).filter(Boolean)));
+      const customerIds = Array.from(new Set(tData?.map(t => t.customer_id).filter(Boolean)));
+
+      const [hRes, cRes] = await Promise.all([
+        supabase.from('hospitals').select('id, name').in('id', hospitalIds),
+        supabase.from('customers').select('id, display_name').in('id', customerIds)
+      ]);
+
+      const hMap = Object.fromEntries(hRes.data?.map(h => [h.id, h]) || []);
+      const cMap = Object.fromEntries(cRes.data?.map(c => [c.id, c]) || []);
+
+      const joinedTickets = tData?.map(t => ({
+        ...t,
+        hospitals: hMap[t.hospital_id],
+        customers: cMap[t.customer_id]
+      })) || [];
+
+      setTickets(joinedTickets);
       
       setConversations(cData || []);
     } catch (err: any) {
@@ -495,7 +496,7 @@ function TicketsContent() {
                             return (
                                 <div key={ticket.id} className="glass-interactive" style={{ padding: '24px', borderRadius: '24px', background: 'var(--bg-card)', border: '1px solid var(--border)', borderLeft: `6px solid ${config.color}`, display: 'flex', flexDirection: 'column', gap: '18px', boxShadow: '0 8px 24px rgba(0,0,0,0.08)' }}>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                                      <Link href={`/tickets/${ticket.id}`} style={{ fontSize: '18px', fontWeight: '900', color: 'var(--primary)', textDecoration: 'none' }}>#{ticket.ticket_no}</Link>
+                                      <Link href={`/tickets/${ticket.id}`} style={{ fontSize: '16px', fontWeight: '900', color: 'var(--primary)', textDecoration: 'none' }}>#{ticket.ticket_no}</Link>
                                       <PriorityIndicator priority={ticket.priority} />
                                     </div>
                                     <div>
