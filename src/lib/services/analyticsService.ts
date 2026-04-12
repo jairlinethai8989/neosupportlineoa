@@ -110,5 +110,35 @@ export const analyticsService = {
       transferred: transferred || 0,
       breached: breached || 0
     };
+  },
+
+  /**
+   * Get detailed ticket list for the summary
+   */
+  async getDetailedSummary(startDate: string, endDate: string) {
+    const { data, error } = await supabase
+      .from('tickets')
+      .select(`
+        id,
+        ticket_no,
+        subject,
+        status,
+        created_at,
+        customers!customer_id (
+          display_name,
+          hospitals!hospital_id (
+            name
+          )
+        ),
+        profiles!assigned_agent_id (
+          full_name
+        )
+      `)
+      .gte('created_at', startDate)
+      .lte('created_at', endDate)
+      .order('created_at', { ascending: true });
+
+    if (error) throw error;
+    return data || [];
   }
 };
