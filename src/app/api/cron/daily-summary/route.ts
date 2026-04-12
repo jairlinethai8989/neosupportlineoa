@@ -89,7 +89,7 @@ export async function GET(req: NextRequest) {
       // Group by Hospital
       const grouped: Record<string, any[]> = {};
       details.forEach((t: any) => {
-        const hName = t.customers?.hospitals?.name || 'ไม่ระบุโรงพยาบาล';
+        const hName = t.hospitals?.name || 'ไม่ระบุโรงพยาบาล';
         if (!grouped[hName]) grouped[hName] = [];
         grouped[hName].push(t);
       });

@@ -124,11 +124,8 @@ export const analyticsService = {
         subject,
         status,
         created_at,
-        customers!customer_id (
-          display_name,
-          hospitals!hospital_id (
-            name
-          )
+        hospitals!hospital_id (
+          name
         ),
         profiles!assigned_agent_id (
           full_name
