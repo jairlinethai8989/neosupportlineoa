@@ -492,7 +492,7 @@ function TicketsContent() {
                         {columnTickets.map(ticket => {
                             const convId = getConvId(ticket);
                             const isNew = String(ticket.status || '').toLowerCase() === 'new';
-                            const hospitalName = ticket.customers?.hospitals?.name || 'ไม่ระบุโรงพยาบาล';
+                            const hospitalName = ticket.hospitals?.name || 'ไม่ระบุโรงพยาบาล';
                             return (
                                 <div key={ticket.id} className="glass-interactive" style={{ padding: '24px', borderRadius: '24px', background: 'var(--bg-card)', border: '1px solid var(--border)', borderLeft: `6px solid ${config.color}`, display: 'flex', flexDirection: 'column', gap: '18px', boxShadow: '0 8px 24px rgba(0,0,0,0.08)' }}>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
@@ -635,7 +635,7 @@ function TicketsContent() {
               <tbody>
                  {filteredTickets.map((ticket, idx) => {
                     const convId = getConvId(ticket);
-                    const hospitalName = ticket.customers?.hospitals?.name || '-';
+                    const hospitalName = ticket.hospitals?.name || '-';
                     return (
                         <tr key={idx} style={{ borderBottom: '1px solid var(--border)' }}>
                            <td style={{ padding: '16px 20px' }}><Link href={`/tickets/${ticket.id}`} style={{ fontWeight: '800', color: 'var(--primary)', textDecoration: 'none' }}>#{ticket.ticket_no}</Link></td>
