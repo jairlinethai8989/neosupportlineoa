@@ -151,7 +151,6 @@ export async function GET(req: NextRequest) {
             "text": fullDateStr,
             "size": "sm",
             "color": "#ffffff",
-            "opacity": "0.9",
             "margin": "sm",
             "weight": "bold"
           },
@@ -160,7 +159,6 @@ export async function GET(req: NextRequest) {
             "text": `ช่วงเวลา: ${timeRangeStr}`,
             "size": "xs",
             "color": "#ffffff",
-            "opacity": "0.7",
             "margin": "xs"
           }
         ],
