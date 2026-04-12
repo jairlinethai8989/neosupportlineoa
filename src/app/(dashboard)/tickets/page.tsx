@@ -124,14 +124,22 @@ function TicketsContent() {
       const { data: tData, error: tErr } = await supabase
         .from('tickets')
         .select(`
-          *,
-          customers!customer_id (
-            id,
-            display_name
-          ),
+          id,
+          ticket_no,
+          subject,
+          description,
+          status,
+          priority,
+          created_at,
+          customer_id,
+          hospital_id,
+          assigned_agent_id,
+          sla_due_at,
           hospitals!hospital_id (
-            id,
             name
+          ),
+          customers!customer_id (
+            display_name
           )
         `)
         .gte('created_at', from ? from.toISOString() : '2000-01-01T00:00:00Z')
