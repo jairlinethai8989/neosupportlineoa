@@ -93,22 +93,22 @@ export async function GET(req: NextRequest) {
       "footer": { "type": "box", "layout": "vertical", "contents": [{ "type": "button", "action": { "type": "uri", "label": "เปิดหน้า Dashboard", "uri": process.env.NEXT_PUBLIC_BASE_URL || "https://neoworkspace.vercel.app" }, "style": "primary", "color": themeColor }], "paddingAll": "10px" }
     };
 
-    const targetSet = searchParams.get('set'); // null, '1', or '2'
+    const targetSet = searchParams.get('set');
 
-    // --- MESSAGE 1: KPI SUMMARY ---
+    // --- EXECUTE ONLY REQUESTED SET OR ALL ---
+    
+    // [SET 1] KPI SUMMARY
     if (!targetSet || targetSet === '1') {
-      await sendLineGroupFlexNotification(`📊 Reports: ${start.toFormat('dd/MM')}`, kpiFlex);
+      await sendLineGroupFlexNotification(`📊 รายงานสรุป KPI (${start.toFormat('dd/MM')})`, kpiFlex);
       if (summaryGroupId) {
         await new Promise(r => setTimeout(r, 600));
-        await sendLineGroupFlexNotification(`📊 Reports: Executive View`, kpiFlex, summaryGroupId);
+        await sendLineGroupFlexNotification(`📊 รายงานสรุป KPI (Executive)`, kpiFlex, summaryGroupId);
       }
-      await new Promise(r => setTimeout(r, 1000));
     }
 
-    // --- MESSAGE 2+: ACTIVITY DETAILS (GROUPED BY HOSPITAL) ---
+    // [SET 2] DETAILED SUMMARY
     if (!targetSet || targetSet === '2') {
-      if (details.length > 0) {
-        // ... (existing grouping and sending logic remains the same inside this block)
+      if (details && details.length > 0) {
         const grouped: Record<string, any[]> = {};
         details.forEach((t: any) => {
           const hName = t.hospitals?.name || 'ไม่ระบุโรงพยาบาล';
@@ -117,7 +117,6 @@ export async function GET(req: NextRequest) {
         });
 
         const hospitalEntries = Object.entries(grouped).sort((a, b) => a[0].localeCompare(b[0]));
-        
         let currentChunkTickets = 0;
         let currentChunkContents: any[] = [];
         let bubbleIndex = 1;
@@ -127,28 +126,29 @@ export async function GET(req: NextRequest) {
             "type": "bubble", "size": "mega",
             "body": { "type": "box", "layout": "vertical", "contents": contents, "paddingAll": "20px", "backgroundColor": "#262626" }
           };
-          await sendLineGroupFlexNotification(`📋 Data Stream ${bubbleIndex}`, detailFlex);
+          await sendLineGroupFlexNotification(`📋 รายละเอียดงานชุดที่ ${bubbleIndex}`, detailFlex);
           if (summaryGroupId) {
             await new Promise(r => setTimeout(r, 600));
-            await sendLineGroupFlexNotification(`📋 Data Stream ${bubbleIndex}`, detailFlex, summaryGroupId);
+            await sendLineGroupFlexNotification(`📋 รายละเอียดงานชุดที่ ${bubbleIndex}`, detailFlex, summaryGroupId);
           }
           bubbleIndex++;
         };
 
         for (const [hName, tickets] of hospitalEntries) {
-          if (currentChunkTickets > 0 && (currentChunkTickets + tickets.length > 12)) {
+          // Chunk limit increased to 20 tickets as requested
+          if (currentChunkTickets > 0 && (currentChunkTickets + tickets.length > 20)) {
             await sendChunk(currentChunkContents);
             currentChunkContents = [];
             currentChunkTickets = 0;
-            await new Promise(r => setTimeout(r, 800));
+            await new Promise(r => setTimeout(r, 1000));
           }
 
           if (currentChunkContents.length === 0) {
-            currentChunkContents.push({ "type": "text", "text": `🛸 MISSION LOG: BATCH ${bubbleIndex}`, "weight": "bold", "size": "sm", "color": "#00F2FE" });
+            currentChunkContents.push({ "type": "text", "text": `🛸 MISSION LOG: ชุดที่ ${bubbleIndex}`, "weight": "bold", "size": "sm", "color": "#00F2FE" });
           }
 
           const hospitalBox: any[] = [
-            { "type": "separator", "margin": "md", "color": "#333333" },
+            { "type": "separator", "margin": "md", "color": "#444444" },
             { "type": "text", "text": `🏥 ${hName} (${tickets.length})`, "weight": "bold", "size": "xs", "margin": "md", "color": "#00F2FE" }
           ];
 
