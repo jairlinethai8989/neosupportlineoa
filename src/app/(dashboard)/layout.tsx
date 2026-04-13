@@ -133,8 +133,10 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
       <div
         className={`sidebar ${isSidebarOpen ? 'open' : ''} ${isSidebarCollapsed ? 'collapsed' : ''}`}
         style={{
-          width: isSidebarCollapsed ? '80px' : '280px',
-          transition: 'width 0.3s cubic-bezier(0.4, 0, 0.2, 1), transform 0.3s ease'
+          width: typeof window !== 'undefined' && window.innerWidth > 1024 
+            ? (isSidebarCollapsed ? '80px' : '280px') 
+            : '280px',
+          transition: 'width 0.3s cubic-bezier(0.4, 0, 0.2, 1), transform 0.3s ease, left 0.3s ease'
         }}
       >
         <MainSidebar isCollapsed={isSidebarCollapsed} onClickLink={() => setIsSidebarOpen(false)} />
@@ -145,7 +147,7 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <button
               onClick={() => {
-                if (typeof window !== 'undefined' && window.innerWidth > 1024) {
+                if (window.innerWidth > 1024) {
                   setIsSidebarCollapsed(!isSidebarCollapsed);
                 } else {
                   setIsSidebarOpen(!isSidebarOpen);

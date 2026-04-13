@@ -191,20 +191,45 @@ input, button, select, textarea, optgroup, option {
   background: var(--bg-sidebar);
   border-right: 1px solid var(--border);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  z-index: 100;
+  z-index: 1000;
+}
+
+@media (max-width: 1024px) {
+  .sidebar {
+    position: fixed;
+    left: -280px;
+    width: 280px !important;
+    box-shadow: 20px 0 50px rgba(0,0,0,0.5);
+  }
+  .sidebar.open {
+    left: 0;
+  }
+}
+
+.sidebar-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  z-index: 999;
+  animation: fadeIn 0.2s ease-out;
 }
 
 .content-area {
   flex: 1;
   display: flex;
   flex-direction: column;
+  min-width: 0; /* Prevents items from stretching beyond mobile width */
 }
 
 .top-bar {
   height: 70px;
   background: var(--bg-topbar);
   backdrop-filter: blur(12px);
-  padding: 0 24px;
+  padding: 0 16px; /* Slightly tighter for mobile */
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -212,6 +237,12 @@ input, button, select, textarea, optgroup, option {
   position: sticky;
   top: 0;
   z-index: 50;
+}
+
+@media (min-width: 1025px) {
+  .top-bar {
+    padding: 0 24px;
+  }
 }
 
 /* Components */

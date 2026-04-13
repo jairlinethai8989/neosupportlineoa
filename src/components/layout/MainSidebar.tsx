@@ -189,6 +189,7 @@ const Sidebar = ({ onClickLink, isCollapsed = false }: SidebarProps) => {
     if (key.includes('inbox')) return permissions.inbox !== 'none';
     if (key.includes('ticket') || key.includes('create')) return permissions.tickets !== 'none';
     if (key.includes('customer')) return permissions.customers !== 'none';
+    if (key.includes('report')) return permissions.reports !== 'none';
     if (key.includes('settings')) return permissions.settings !== 'none';
     
     return true;

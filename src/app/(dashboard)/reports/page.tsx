@@ -21,6 +21,24 @@ export default function ReportsPage() {
   const [sending, setSending] = useState<string | null>(null);
   const [targetDate, setTargetDate] = useState(DateTime.now().toFormat('yyyy-MM-dd'));
   const [tickets, setTickets] = useState<any[]>([]);
+  const [userProfile, setUserProfile] = useState<any>(null);
+
+  // Fetch Session & Permissions
+  useEffect(() => {
+    async function getProfile() {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data } = await supabase.from('profiles').select('*').eq('id', user.id).single();
+        setUserProfile(data);
+      }
+    }
+    getProfile();
+  }, []);
+
+  const canSend = useMemo(() => {
+    if (userProfile?.role === 'Administrator') return true;
+    return userProfile?.permissions?.reports === 'edit';
+  }, [userProfile]);
 
   // Fetch preview data
   const fetchPreview = async () => {
@@ -197,18 +215,18 @@ export default function ReportsPage() {
                 ส่งรายงานสรุปยอด KPI (สีเหลืองทอง) เหมาะสมสำหรับการสรุปผลงานระดับบริหารในแต่ละวัน
              </p>
              <button 
-                disabled={sending !== null || groupedData.total === 0 || loading}
+                disabled={sending !== null || groupedData.total === 0 || loading || !canSend}
                 onClick={() => handleSendReport('1')}
                 className="glass-interactive"
                 style={{ 
                   width: '100%', padding: '14px', borderRadius: '12px', 
-                  background: sending === '1' ? 'var(--bg-card)' : '#FBC02D', 
-                  color: 'black', fontWeight: '900', border: 'none', cursor: 'pointer',
+                  background: !canSend ? 'rgba(255,255,255,0.05)' : (sending === '1' ? 'var(--bg-card)' : '#FBC02D'), 
+                  color: !canSend ? 'var(--text-muted)' : 'black', fontWeight: '900', border: 'none', cursor: 'pointer',
                   display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px',
                   opacity: (groupedData.total === 0 || loading) ? 0.5 : 1
                 }}
              >
-                {sending === '1' ? 'กำลังส่ง...' : <><Send size={18} /> ส่งรายงานสรุป KPI</>}
+                {sending === '1' ? 'กำลังส่ง...' : (!canSend ? '🔒 เฉพาะผู้ได้รับสิทธิ์' : <><Send size={18} /> ส่งรายงานสรุป KPI</>)}
              </button>
           </div>
 
@@ -221,18 +239,18 @@ export default function ReportsPage() {
                 ส่งรายละเอียดงานแยกตามโรงพยาบาล (Mission Logs) เพื่อให้ทีมงานสามารถตรวจสอบได้ครบถ้วน
              </p>
              <button 
-                disabled={sending !== null || groupedData.total === 0 || loading}
+                disabled={sending !== null || groupedData.total === 0 || loading || !canSend}
                 onClick={() => handleSendReport('2')}
                 className="glass-interactive"
                 style={{ 
                   width: '100%', padding: '14px', borderRadius: '12px', 
-                  background: sending === '2' ? 'var(--bg-card)' : 'var(--primary)', 
-                  color: 'black', fontWeight: '900', border: 'none', cursor: 'pointer',
+                  background: !canSend ? 'rgba(255,255,255,0.05)' : (sending === '2' ? 'var(--bg-card)' : 'var(--primary)'), 
+                  color: !canSend ? 'var(--text-muted)' : 'black', fontWeight: '900', border: 'none', cursor: 'pointer',
                   display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px',
                   opacity: (groupedData.total === 0 || loading) ? 0.5 : 1
                 }}
              >
-                {sending === '2' ? 'กำลังส่ง...' : <><ChevronRight size={18} /> ส่งรายละเอียดงาน</>}
+                {sending === '2' ? 'กำลังส่ง...' : (!canSend ? '🔒 เฉพาะผู้ได้รับสิทธิ์' : <><ChevronRight size={18} /> ส่งรายละเอียดงาน</>)}
              </button>
           </div>
 

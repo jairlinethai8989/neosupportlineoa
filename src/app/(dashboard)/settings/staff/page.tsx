@@ -19,7 +19,8 @@ import {
   Search,
   ArrowUpDown,
   ArrowUp,
-  ArrowDown
+  ArrowDown,
+  Send
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -43,6 +44,7 @@ export default function StaffManagementPage() {
     analytics: 'edit',
     inbox: 'edit',
     tickets: 'edit',
+    reports: 'none',
     customers: 'edit',
     settings: 'view'
   });
@@ -121,6 +123,7 @@ export default function StaffManagementPage() {
       analytics: 'view',
       inbox: 'edit',
       tickets: 'edit',
+      reports: 'none',
       customers: 'view',
       settings: 'none'
     });
@@ -500,6 +503,7 @@ export default function StaffManagementPage() {
                 { key: 'analytics', label: 'ภาพรวม & สถิติ (Analytics)', icon: CheckCircle },
                 { key: 'inbox', label: 'ระบบแชท (Inbox)', icon: Mail },
                 { key: 'tickets', label: 'จัดการตั๋ว (Tickets)', icon: Shield },
+                { key: 'reports', label: 'การส่งรายงาน (LINE Reports)', icon: Send },
                 { key: 'customers', label: 'ฐานข้อมูลลูกค้า (Customers)', icon: Users },
                 { key: 'settings', label: 'ตั้งค่าระบบ (Settings)', icon: Shield },
               ].map((module) => (
