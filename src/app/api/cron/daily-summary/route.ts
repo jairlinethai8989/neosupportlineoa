@@ -94,6 +94,7 @@ export async function GET(req: NextRequest) {
     };
 
     const targetSet = searchParams.get('set');
+    const summaryGroupId = process.env.LINE_GROUP_ID_SUMMARY;
 
     // --- EXECUTE ONLY REQUESTED SET OR ALL ---
     
