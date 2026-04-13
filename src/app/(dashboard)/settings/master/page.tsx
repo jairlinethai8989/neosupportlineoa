@@ -29,6 +29,7 @@ export default function MasterSettingsPage() {
   const [isAdding, setIsAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [newItemName, setNewItemName] = useState('');
+  const [newItemAbbr, setNewItemAbbr] = useState('');
   const [editItemName, setEditItemName] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
@@ -58,13 +59,25 @@ export default function MasterSettingsPage() {
     if (!newItemName.trim()) return;
     setSubmitting(true);
     let table = activeTab;
-    const { error } = await supabase.from(table).insert([{ name: newItemName, is_active: true }]);
+    
+    const payload: any = { 
+      name: newItemName, 
+      is_active: true 
+    };
+
+    if (table === 'hospitals') {
+      payload.abbreviation = newItemAbbr.trim() || newItemName.slice(0, 10).toUpperCase();
+      payload.ticket_prefix = `SRS_${payload.abbreviation}_`;
+    }
+
+    const { error } = await supabase.from(table).insert([payload]);
     
     if (error) {
       console.error('Add Error:', error);
       alert(`บันทึกไม่สำเร็จ: ${error.message}`);
     } else {
       setNewItemName('');
+      setNewItemAbbr('');
       setIsAdding(false);
       fetchData();
     }
@@ -178,13 +191,24 @@ export default function MasterSettingsPage() {
                    placeholder={`ระบุชื่อ${TAB_CONFIG[activeTab].title.split(' / ')[0]}...`}
                    value={newItemName}
                    onChange={e => setNewItemName(e.target.value)}
-                   style={{ flex: 1, background: 'rgba(255,255,255,0.1)', border: '1px solid var(--primary)', borderRadius: '12px', padding: '14px 20px', color: 'var(--text-main)', fontSize: '15px', outline: 'none' }}
+                   style={{ flex: 2, background: 'rgba(255,255,255,0.1)', border: '1px solid var(--primary)', borderRadius: '12px', padding: '14px 20px', color: 'var(--text-main)', fontSize: '15px', outline: 'none' }}
                    onKeyDown={e => e.key === 'Enter' && handleAdd()}
                  />
-                 <button onClick={handleAdd} disabled={submitting} style={{ background: 'var(--primary)', border: 'none', width: '48px', height: '48px', borderRadius: '12px', cursor: 'pointer', color: 'black' }} className="flex-center">
+                 
+                 {activeTab === 'hospitals' && (
+                   <input 
+                     type="text" 
+                     placeholder="ชื่อย่อ (ABBR)" 
+                     value={newItemAbbr}
+                     onChange={e => setNewItemAbbr(e.target.value)}
+                     style={{ flex: 1, background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', borderRadius: '12px', padding: '14px 20px', color: 'var(--text-main)', fontSize: '15px', outline: 'none' }}
+                   />
+                 )}
+
+                 <button onClick={handleAdd} disabled={submitting} style={{ background: 'var(--primary)', border: 'none', width: '48px', minWidth: '48px', height: '48px', borderRadius: '12px', cursor: 'pointer', color: 'black' }} className="flex-center">
                     {submitting ? <Loader2 className="animate-spin" size={20} /> : <Check size={24} />}
                  </button>
-                 <button onClick={() => setIsAdding(false)} style={{ background: 'rgba(234, 84, 85, 0.1)', border: 'none', width: '48px', height: '48px', borderRadius: '12px', cursor: 'pointer', color: 'var(--danger)' }} className="flex-center">
+                 <button onClick={() => setIsAdding(false)} style={{ background: 'rgba(234, 84, 85, 0.1)', border: 'none', width: '48px', minWidth: '48px', height: '48px', borderRadius: '12px', cursor: 'pointer', color: 'var(--danger)' }} className="flex-center">
                     <X size={24} />
                  </button>
               </div>
