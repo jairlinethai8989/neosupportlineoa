@@ -106,42 +106,70 @@ export async function GET(req: NextRequest) {
     }
     await new Promise(r => setTimeout(r, 1000));
 
-    // --- MESSAGE 2+: ACTIVITY DETAILS (10 TICKETS PER CHUNK) ---
-    if (details.length === 0) {
-      // (Empty skip or send simple text)
-    } else {
-      const TICKETS_PER_CHUNK = 10;
-      for (let i = 0; i < details.length; i += TICKETS_PER_CHUNK) {
-        const chunk = details.slice(i, i + TICKETS_PER_CHUNK);
-        const detailContents: any[] = [
-          { "type": "text", "text": `🛸 MISSION DETAILS (${i + 1}-${Math.min(i + TICKETS_PER_CHUNK, details.length)})`, "weight": "bold", "size": "sm", "color": "#00F2FE" }
+    // --- MESSAGE 2+: ACTIVITY DETAILS (GROUPED BY HOSPITAL) ---
+    if (details.length > 0) {
+      // 1. First, group ALL details by hospital
+      const grouped: Record<string, any[]> = {};
+      details.forEach((t: any) => {
+        const hName = t.hospitals?.name || 'ไม่ระบุโรงพยาบาล';
+        if (!grouped[hName]) grouped[hName] = [];
+        grouped[hName].push(t);
+      });
+
+      const hospitalEntries = Object.entries(grouped).sort((a, b) => a[0].localeCompare(b[0]));
+      
+      let currentChunkTickets = 0;
+      let currentChunkContents: any[] = [];
+      let bubbleIndex = 1;
+
+      const sendChunk = async (contents: any[]) => {
+        const detailFlex = {
+          "type": "bubble", "size": "mega",
+          "body": { "type": "box", "layout": "vertical", "contents": contents, "paddingAll": "20px", "backgroundColor": "#262626" }
+        };
+        await sendLineGroupFlexNotification(`📋 Data Stream ${bubbleIndex}`, detailFlex);
+        if (summaryGroupId) {
+          await new Promise(r => setTimeout(r, 600));
+          await sendLineGroupFlexNotification(`📋 Data Stream ${bubbleIndex}`, detailFlex, summaryGroupId);
+        }
+        bubbleIndex++;
+      };
+
+      for (const [hName, tickets] of hospitalEntries) {
+        // If adding this hospital would make the bubble too large (> 12 tickets), send current and start new
+        if (currentChunkTickets > 0 && (currentChunkTickets + tickets.length > 12)) {
+          await sendChunk(currentChunkContents);
+          currentChunkContents = [];
+          currentChunkTickets = 0;
+          await new Promise(r => setTimeout(r, 800));
+        }
+
+        if (currentChunkContents.length === 0) {
+          currentChunkContents.push({ "type": "text", "text": `🛸 MISSION LOG: BATCH ${bubbleIndex}`, "weight": "bold", "size": "sm", "color": "#00F2FE" });
+        }
+
+        const hospitalBox: any[] = [
+          { "type": "separator", "margin": "md", "color": "#333333" },
+          { "type": "text", "text": `🏥 ${hName} (${tickets.length})`, "weight": "bold", "size": "xs", "margin": "md", "color": "#00F2FE" }
         ];
 
-        chunk.forEach((t: any) => {
-          detailContents.push({ "type": "separator", "margin": "md", "color": "#333333" });
-          detailContents.push({
-            "type": "box", "layout": "vertical", "margin": "md",
+        tickets.forEach(t => {
+          hospitalBox.push({
+            "type": "box", "layout": "horizontal", "margin": "sm",
             "contents": [
-              { "type": "text", "text": `🏥 ${t.hospitals?.name || '-'}`, "size": "xxs", "color": "#BDBDBD" },
-              { "type": "box", "layout": "horizontal", "contents": [
-                { "type": "text", "text": t.subject, "size": "xs", "color": "#FFFFFF", "flex": 5, "wrap": true },
-                { "type": "text", "text": t.status === 'Resolved' ? "✅" : "⏳", "size": "sm", "flex": 1, "align": "end" }
-              ], "margin": "xs" }
+              { "type": "text", "text": `• ${t.subject}`, "size": "xs", "color": "#FFFFFF", "flex": 5, "wrap": true },
+              { "type": "text", "text": t.status === 'Resolved' ? "✅" : "⏳", "size": "xs", "flex": 1, "align": "end" }
             ]
           });
         });
 
-        const detailFlex = {
-          "type": "bubble", "size": "mega",
-          "body": { "type": "box", "layout": "vertical", "contents": detailContents, "paddingAll": "20px", "backgroundColor": "#262626" }
-        };
+        currentChunkContents.push({ "type": "box", "layout": "vertical", "contents": hospitalBox, "margin": "md" });
+        currentChunkTickets += tickets.length;
+      }
 
-        await sendLineGroupFlexNotification(`📋 Data Stream ${i/TICKETS_PER_CHUNK + 1}`, detailFlex);
-        if (summaryGroupId) {
-          await new Promise(r => setTimeout(r, 600));
-          await sendLineGroupFlexNotification(`📋 Data Stream ${i/TICKETS_PER_CHUNK + 1}`, detailFlex, summaryGroupId);
-        }
-        await new Promise(r => setTimeout(r, 1000));
+      // Send last chunk
+      if (currentChunkContents.length > 0) {
+        await sendChunk(currentChunkContents);
       }
     }
 
