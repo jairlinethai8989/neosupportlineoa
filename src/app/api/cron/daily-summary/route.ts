@@ -63,113 +63,112 @@ export async function GET(req: NextRequest) {
     const timeRangeStr = `${start.toFormat('HH:mm')} - ${end.toFormat('HH:mm')} น.`;
     const titlePrefix = reportType === 'Morning' ? '🌅 สรุปงานกะดึก' : '🌆 สรุปงานประจำวัน';
 
-    // --- MESSAGE 1: KPI SUMMARY (FUTURE 2026 THEME) ---
+    // --- MESSAGE 1: KPI SUMMARY (GOLDEN PREMIUM THEME) ---
     const kpiFlex = {
       "type": "bubble", "size": "mega",
-      "header": { "type": "box", "layout": "vertical", "contents": [{ "type": "text", "text": titlePrefix, "weight": "bold", "size": "xl", "color": "#00F2FE", "letterSpacing": "md" }, { "type": "text", "text": fullDateStr, "size": "sm", "color": "#E0E0E0", "margin": "sm", "weight": "bold" }, { "type": "text", "text": `⏱️ Active Window: ${timeRangeStr}`, "size": "xs", "color": "#BDBDBD", "margin": "xs" }], "backgroundColor": "#1A1A1A", "paddingAll": "25px" },
+      "header": { "type": "box", "layout": "vertical", "contents": [{ "type": "text", "text": titlePrefix, "weight": "bold", "size": "xl", "color": "#ffffff" }, { "type": "text", "text": fullDateStr, "size": "sm", "color": "#ffffff", "margin": "sm", "weight": "bold" }, { "type": "text", "text": `ช่วงเวลา: ${timeRangeStr}`, "size": "xs", "color": "#ffffff", "margin": "xs" }], "backgroundColor": themeColor, "paddingAll": "20px" },
       "body": { "type": "box", "layout": "vertical", "contents": [
         { "type": "box", "layout": "horizontal", "contents": [
           { "type": "box", "layout": "vertical", "contents": [
-            { "type": "text", "text": "NEW MISSION", "size": "xxs", "color": "#00F2FE", "weight": "bold" },
-            { "type": "text", "text": stats.new.toString(), "weight": "bold", "size": "4xl", "color": "#FFFFFF", "margin": "sm" }
-          ], "flex": 3 },
-          { "type": "box", "layout": "vertical", "contents": [
-            { "type": "text", "text": "RESOLVED", "size": "xxs", "color": "#28C76F", "weight": "bold", "align": "end" },
-            { "type": "text", "text": stats.resolved.toString(), "weight": "bold", "size": "xxl", "color": "#28C76F", "margin": "sm", "align": "end" }
-          ], "flex": 2, "justifyContent": "center" }
+            { "type": "text", "text": "🆕 งานใหม่", "size": "sm", "color": "#8c9196" },
+            { "type": "text", "text": stats.new.toString(), "weight": "bold", "size": "xxl", "margin": "sm", "color": themeColor }
+          ] }
         ]},
-        { "type": "separator", "margin": "xl", "color": "#333333" },
+        { "type": "separator", "margin": "xl" },
         { "type": "box", "layout": "vertical", "contents": [
           { "type": "box", "layout": "horizontal", "contents": [
-            { "type": "text", "text": "📦 PENDING TASKS", "size": "xs", "color": "#FBC02D", "flex": 4 },
-            { "type": "text", "text": stats.total.toString(), "size": "sm", "weight": "bold", "align": "end", "flex": 2, "color": "#FFFFFF" }
-          ], "margin": "lg" },
-          { "type": "box", "layout": "horizontal", "contents": [
-            { "type": "text", "text": "🔄 IN REPAIR", "size": "xs", "color": "#BDBDBD", "flex": 4 },
-            { "type": "text", "text": stats.inProgress.toString(), "size": "sm", "weight": "bold", "align": "end", "flex": 2, "color": "#FFFFFF" }
+            { "type": "text", "text": "📦 งานรอดำเนินการ", "size": "sm", "color": "#555555", "flex": 4 },
+            { "type": "text", "text": stats.total.toString(), "size": "sm", "weight": "bold", "align": "end", "flex": 2 }
           ], "margin": "md" },
           { "type": "box", "layout": "horizontal", "contents": [
-            { "type": "text", "text": "🚨 SLA BREACH", "size": "xs", "color": "#EA5455", "flex": 4 },
-            { "type": "text", "text": stats.breached.toString(), "size": "sm", "weight": "bold", "align": "end", "flex": 2, "color": "#EA5455" }
+            { "type": "text", "text": "✅ ปิดงานแล้ว (รวม)", "size": "sm", "color": "#28c76f", "flex": 4 },
+            { "type": "text", "text": stats.resolved.toString(), "size": "sm", "weight": "bold", "align": "end", "flex": 2, "color": "#28c76f" }
+          ], "margin": "md" },
+          { "type": "box", "layout": "horizontal", "contents": [
+            { "type": "text", "text": "🚨 เกิน SLA", "size": "sm", "color": "#ea5455", "flex": 4 },
+            { "type": "text", "text": stats.breached.toString(), "size": "sm", "weight": "bold", "align": "end", "flex": 2, "color": "#ea5455" }
           ], "margin": "md" }
         ], "margin": "xl" }
-      ], "backgroundColor": "#262626", "paddingAll": "25px" },
-      "footer": { "type": "box", "layout": "vertical", "contents": [{ "type": "button", "action": { "type": "uri", "label": "ACCESS CONTROL CENTER", "uri": process.env.NEXT_PUBLIC_BASE_URL || "https://neoworkspace.vercel.app" }, "style": "primary", "color": "#00F2FE", "height": "sm" }], "backgroundColor": "#1A1A1A", "paddingAll": "15px" }
+      ], "paddingAll": "20px" },
+      "footer": { "type": "box", "layout": "vertical", "contents": [{ "type": "button", "action": { "type": "uri", "label": "เปิดหน้า Dashboard", "uri": process.env.NEXT_PUBLIC_BASE_URL || "https://neoworkspace.vercel.app" }, "style": "primary", "color": themeColor }], "paddingAll": "10px" }
     };
 
-    // --- SEND KPI SUMMARY ---
-    await sendLineGroupFlexNotification(`📊 Reports: ${start.toFormat('dd/MM')}`, kpiFlex);
-    const summaryGroupId = process.env.LINE_GROUP_ID_SUMMARY;
-    if (summaryGroupId) {
-      await new Promise(r => setTimeout(r, 600));
-      await sendLineGroupFlexNotification(`📊 Reports: Executive View`, kpiFlex, summaryGroupId);
+    const targetSet = searchParams.get('set'); // null, '1', or '2'
+
+    // --- MESSAGE 1: KPI SUMMARY ---
+    if (!targetSet || targetSet === '1') {
+      await sendLineGroupFlexNotification(`📊 Reports: ${start.toFormat('dd/MM')}`, kpiFlex);
+      if (summaryGroupId) {
+        await new Promise(r => setTimeout(r, 600));
+        await sendLineGroupFlexNotification(`📊 Reports: Executive View`, kpiFlex, summaryGroupId);
+      }
+      await new Promise(r => setTimeout(r, 1000));
     }
-    await new Promise(r => setTimeout(r, 1000));
 
     // --- MESSAGE 2+: ACTIVITY DETAILS (GROUPED BY HOSPITAL) ---
-    if (details.length > 0) {
-      // 1. First, group ALL details by hospital
-      const grouped: Record<string, any[]> = {};
-      details.forEach((t: any) => {
-        const hName = t.hospitals?.name || 'ไม่ระบุโรงพยาบาล';
-        if (!grouped[hName]) grouped[hName] = [];
-        grouped[hName].push(t);
-      });
-
-      const hospitalEntries = Object.entries(grouped).sort((a, b) => a[0].localeCompare(b[0]));
-      
-      let currentChunkTickets = 0;
-      let currentChunkContents: any[] = [];
-      let bubbleIndex = 1;
-
-      const sendChunk = async (contents: any[]) => {
-        const detailFlex = {
-          "type": "bubble", "size": "mega",
-          "body": { "type": "box", "layout": "vertical", "contents": contents, "paddingAll": "20px", "backgroundColor": "#262626" }
-        };
-        await sendLineGroupFlexNotification(`📋 Data Stream ${bubbleIndex}`, detailFlex);
-        if (summaryGroupId) {
-          await new Promise(r => setTimeout(r, 600));
-          await sendLineGroupFlexNotification(`📋 Data Stream ${bubbleIndex}`, detailFlex, summaryGroupId);
-        }
-        bubbleIndex++;
-      };
-
-      for (const [hName, tickets] of hospitalEntries) {
-        // If adding this hospital would make the bubble too large (> 12 tickets), send current and start new
-        if (currentChunkTickets > 0 && (currentChunkTickets + tickets.length > 12)) {
-          await sendChunk(currentChunkContents);
-          currentChunkContents = [];
-          currentChunkTickets = 0;
-          await new Promise(r => setTimeout(r, 800));
-        }
-
-        if (currentChunkContents.length === 0) {
-          currentChunkContents.push({ "type": "text", "text": `🛸 MISSION LOG: BATCH ${bubbleIndex}`, "weight": "bold", "size": "sm", "color": "#00F2FE" });
-        }
-
-        const hospitalBox: any[] = [
-          { "type": "separator", "margin": "md", "color": "#333333" },
-          { "type": "text", "text": `🏥 ${hName} (${tickets.length})`, "weight": "bold", "size": "xs", "margin": "md", "color": "#00F2FE" }
-        ];
-
-        tickets.forEach(t => {
-          hospitalBox.push({
-            "type": "box", "layout": "horizontal", "margin": "sm",
-            "contents": [
-              { "type": "text", "text": `• ${t.subject}`, "size": "xs", "color": "#FFFFFF", "flex": 5, "wrap": true },
-              { "type": "text", "text": t.status === 'Resolved' ? "✅" : "⏳", "size": "xs", "flex": 1, "align": "end" }
-            ]
-          });
+    if (!targetSet || targetSet === '2') {
+      if (details.length > 0) {
+        // ... (existing grouping and sending logic remains the same inside this block)
+        const grouped: Record<string, any[]> = {};
+        details.forEach((t: any) => {
+          const hName = t.hospitals?.name || 'ไม่ระบุโรงพยาบาล';
+          if (!grouped[hName]) grouped[hName] = [];
+          grouped[hName].push(t);
         });
 
-        currentChunkContents.push({ "type": "box", "layout": "vertical", "contents": hospitalBox, "margin": "md" });
-        currentChunkTickets += tickets.length;
-      }
+        const hospitalEntries = Object.entries(grouped).sort((a, b) => a[0].localeCompare(b[0]));
+        
+        let currentChunkTickets = 0;
+        let currentChunkContents: any[] = [];
+        let bubbleIndex = 1;
 
-      // Send last chunk
-      if (currentChunkContents.length > 0) {
-        await sendChunk(currentChunkContents);
+        const sendChunk = async (contents: any[]) => {
+          const detailFlex = {
+            "type": "bubble", "size": "mega",
+            "body": { "type": "box", "layout": "vertical", "contents": contents, "paddingAll": "20px", "backgroundColor": "#262626" }
+          };
+          await sendLineGroupFlexNotification(`📋 Data Stream ${bubbleIndex}`, detailFlex);
+          if (summaryGroupId) {
+            await new Promise(r => setTimeout(r, 600));
+            await sendLineGroupFlexNotification(`📋 Data Stream ${bubbleIndex}`, detailFlex, summaryGroupId);
+          }
+          bubbleIndex++;
+        };
+
+        for (const [hName, tickets] of hospitalEntries) {
+          if (currentChunkTickets > 0 && (currentChunkTickets + tickets.length > 12)) {
+            await sendChunk(currentChunkContents);
+            currentChunkContents = [];
+            currentChunkTickets = 0;
+            await new Promise(r => setTimeout(r, 800));
+          }
+
+          if (currentChunkContents.length === 0) {
+            currentChunkContents.push({ "type": "text", "text": `🛸 MISSION LOG: BATCH ${bubbleIndex}`, "weight": "bold", "size": "sm", "color": "#00F2FE" });
+          }
+
+          const hospitalBox: any[] = [
+            { "type": "separator", "margin": "md", "color": "#333333" },
+            { "type": "text", "text": `🏥 ${hName} (${tickets.length})`, "weight": "bold", "size": "xs", "margin": "md", "color": "#00F2FE" }
+          ];
+
+          tickets.forEach(t => {
+            hospitalBox.push({
+              "type": "box", "layout": "horizontal", "margin": "sm",
+              "contents": [
+                { "type": "text", "text": `• ${t.subject}`, "size": "xs", "color": "#FFFFFF", "flex": 5, "wrap": true },
+                { "type": "text", "text": t.status === 'Resolved' ? "✅" : "⏳", "size": "xs", "flex": 1, "align": "end" }
+              ]
+            });
+          });
+
+          currentChunkContents.push({ "type": "box", "layout": "vertical", "contents": hospitalBox, "margin": "md" });
+          currentChunkTickets += tickets.length;
+        }
+
+        if (currentChunkContents.length > 0) {
+          await sendChunk(currentChunkContents);
+        }
       }
     }
 
