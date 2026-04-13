@@ -111,50 +111,54 @@ export async function GET(req: NextRequest) {
 
       // Prepare chunks of hospitals to prevent oversized bubbles
       const hospitalEntries = Object.entries(grouped);
-      const CHUNK_SIZE = 5; // 5 hospitals per bubble
+      const CHUNK_SIZE = 2; // VERY SMALL CHUNK for safety
+      let lastError = null;
       
       for (let i = 0; i < hospitalEntries.length; i += CHUNK_SIZE) {
         const chunk = hospitalEntries.slice(i, i + CHUNK_SIZE);
         const detailContents: any[] = [
-          { "type": "text", "text": `📋 รายละเอียดแยกรายโรงพยาบาล (${i + 1}-${Math.min(i + CHUNK_SIZE, hospitalEntries.length)})`, "weight": "bold", "size": "md", "color": themeColor }
+          { "type": "text", "text": `📋 รายละเอียดงาน (${i + 1}-${Math.min(i + CHUNK_SIZE, hospitalEntries.length)})`, "weight": "bold", "size": "md", "color": themeColor }
         ];
 
         chunk.forEach(([hName, tickets]) => {
-          detailContents.push({ "type": "separator", "margin": "lg" });
-          detailContents.push({
-            "type": "box", "layout": "vertical", "margin": "md",
-            "contents": [
-              { "type": "text", "text": `🏥 ${hName} (${tickets.length})`, "weight": "bold", "size": "sm", "color": "#333333" },
-              ...tickets.slice(0, 20).map(t => ({ // Safety limit 20 per hospital per bubble
-                 "type": "box", "layout": "vertical", "margin": "xs", "paddingLeading": "12px",
-                 "contents": [
-                   { "type": "text", "text": `• ${t.subject}`, "size": "xxs", "color": "#555555", "wrap": true },
-                   { "type": "box", "layout": "horizontal", "contents": [
-                      { "type": "text", "text": t.status === 'Resolved' ? "✅ สำเร็จ" : "⏳ " + t.status, "size": "xxs", "color": t.status === 'Resolved' ? "#28c76f" : "#ff9f43", "flex": 2 },
-                      { "type": "text", "text": t.profiles?.full_name ? "👤 " + t.profiles.full_name : "👤 -", "size": "xxs", "color": "#8c9196", "align": "end", "flex": 4 }
-                   ] }
-                 ]
-              }))
-            ]
+          detailContents.push({ "type": "separator", "margin": "md" });
+          detailContents.push({ "type": "text", "text": `🏥 ${hName}`, "weight": "bold", "size": "xs", "margin": "sm", "color": "#333333" });
+          
+          tickets.forEach(t => {
+            detailContents.push({
+              "type": "box", "layout": "horizontal", "margin": "xs",
+              "contents": [
+                { "type": "text", "text": `• ${t.subject}`, "size": "xxs", "color": "#555555", "flex": 4, "wrap": true },
+                { "type": "text", "text": t.status === 'Resolved' ? "✅" : "⏳", "size": "xxs", "flex": 1, "align": "end" }
+              ]
+            });
           });
         });
 
         const detailFlex = {
           "type": "bubble", "size": "mega",
-          "body": { "type": "box", "layout": "vertical", "contents": detailContents, "paddingAll": "20px" }
+          "body": { "type": "box", "layout": "vertical", "contents": detailContents, "paddingAll": "15px" }
         };
 
-        // Send to Main Group
-        await sendLineGroupFlexNotification(`📋 รายละเอียดงานแยกรายโรงพยาบาล`, detailFlex);
-        
-        // Send to Summary Group
-        const summaryGroupId = process.env.LINE_GROUP_ID_SUMMARY;
-        if (summaryGroupId) {
-           await new Promise(r => setTimeout(r, 500));
-           await sendLineGroupFlexNotification(`📋 รายละเอียดงานแยกรายโรงพยาบาล`, detailFlex, summaryGroupId);
+        try {
+          // Send to Main Group
+          await sendLineGroupFlexNotification(`📋 รายละเอียดงานชุดที่ ${i/CHUNK_SIZE + 1}`, detailFlex);
+          
+          // Send to Summary Group
+          const summaryGroupId = process.env.LINE_GROUP_ID_SUMMARY;
+          if (summaryGroupId) {
+             await new Promise(r => setTimeout(r, 600));
+             await sendLineGroupFlexNotification(`📋 รายละเอียดงานชุดที่ ${i/CHUNK_SIZE + 1}`, detailFlex, summaryGroupId);
+          }
+        } catch (e: any) {
+          lastError = e.message;
         }
 
-        await new Promise(r => setTimeout(r, 800)); // Delay between chunks
+        await new Promise(r => setTimeout(r, 1000)); // More delay between chunks
+      }
+
+      if (lastError) {
+        return NextResponse.json({ success: true, stats, detailCount: details.length, lineError: lastError });
       }
     }
 
