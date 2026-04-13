@@ -107,7 +107,7 @@ export const analyticsService = {
       new: newTickets || 0,
       resolved: resolved || 0,
       inProgress: inProgress || 0,
-      transferred: transferred || 0,
+      transferred: escalated || 0,
       breached: breached || 0
     };
   },
