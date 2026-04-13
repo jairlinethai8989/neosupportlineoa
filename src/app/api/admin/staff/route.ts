@@ -29,9 +29,16 @@ export async function POST(req: Request) {
     }
 
     // 3. Initialize Admin Client (Service Role)
+    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (!serviceKey) {
+      return NextResponse.json({ 
+        error: 'ระบบยังไม่ได้ตั้งค่า SUPABASE_SERVICE_ROLE_KEY ใน Vercel (กรุณาตรวจสอบ Environment Variables)' 
+      }, { status: 500 });
+    }
+
     const supabaseAdmin = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+      serviceKey,
       {
         auth: {
           autoRefreshToken: false,
