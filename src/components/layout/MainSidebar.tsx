@@ -20,7 +20,8 @@ import {
   LayoutDashboard,
   Settings2,
   Bell,
-  Plus
+  Plus,
+  Send
 } from 'lucide-react';
 import { useNotificationContext } from '@/contexts/NotificationContext';
 
@@ -158,6 +159,7 @@ const Sidebar = ({ onClickLink, isCollapsed = false }: SidebarProps) => {
       { name: 'Create Ticket', thai: 'สร้างใบงานใหม่', icon: Plus, path: '/tickets/new' },
       { name: 'Inbox', thai: 'ห้องแชทลูกค้า', icon: Inbox, path: '/inbox', count: inboxCount },
       { name: 'Notifications', thai: 'การแจ้งเตือน', icon: Bell, path: '/notifications', count: unreadCount },
+      { name: 'Reports', thai: 'ส่งรายงาน (LINE)', icon: Send, path: '/reports' },
       { name: 'Customers', thai: 'ฐานข้อมูลลูกค้า', icon: Users, path: '/customers' },
     ]},
     { section: 'Admin', thai: 'หลังบ้าน', items: [

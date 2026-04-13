@@ -344,52 +344,6 @@ export default function Home() {
           </div>
         </div>
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-          {/* LINE Reporting Hub */}
-          <div style={{ display: 'flex', gap: '8px', borderRight: '1px solid var(--border)', paddingRight: '8px', marginRight: '8px' }}>
-             <button 
-                onClick={async () => {
-                   const btn = document.getElementById('btn-kpi');
-                   if (btn) btn.innerText = 'WAIT...';
-                   try {
-                     const res = await fetch(`/api/cron/daily-summary?key=NEO_CRON_2026&set=1`);
-                     const data = await res.json();
-                     if (data.success) alert('✅ ส่งรายงาน KPI เรียบร้อย!');
-                     else alert('❌ ส่งไม่สำเร็จ: ' + (data.error || 'Unknown Error'));
-                   } catch (e) { alert('❌ เกิดข้อผิดพลาดทางเทคนิค'); }
-                   if (btn) btn.innerText = '🚀 KPI';
-                }}
-                id="btn-kpi"
-                className="glass-interactive"
-                style={{
-                  padding: '8px 16px', borderRadius: '12px', border: '1px solid #FBC02D',
-                  background: 'rgba(251, 192, 45, 0.1)', color: '#FBC02D', fontSize: '12px', fontWeight: '800'
-                }}
-             >
-                🚀 KPI
-             </button>
-             <button 
-                onClick={async () => {
-                   const btn = document.getElementById('btn-detail');
-                   if (btn) btn.innerText = 'WAIT...';
-                   try {
-                     const res = await fetch(`/api/cron/daily-summary?key=NEO_CRON_2026&set=2`);
-                     const data = await res.json();
-                     if (data.success) alert(`✅ ส่งแผนผังงานสำเร็จ (${data.detailCount || 0} งาน)!`);
-                     else alert('❌ ส่งไม่สำเร็จ: ' + (data.error || 'Unknown Error'));
-                   } catch (e) { alert('❌ เกิดข้อผิดพลาดทางเทคนิค'); }
-                   if (btn) btn.innerText = '📋 DETAIL';
-                }}
-                id="btn-detail"
-                className="glass-interactive"
-                style={{
-                  padding: '8px 16px', borderRadius: '12px', border: '1px solid var(--primary)',
-                  background: 'rgba(0, 242, 254, 0.1)', color: 'var(--primary)', fontSize: '12px', fontWeight: '800'
-                }}
-             >
-                📋 DETAIL
-             </button>
-          </div>
-
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 16px', borderRadius: '12px', border: '1px solid var(--border)', background: 'rgba(0, 242, 254, 0.05)' }}>
             <Activity size={14} color="var(--primary)" />
             <span style={{ fontSize: '12px', fontWeight: '700', color: 'var(--primary)' }}>LIVE</span>
