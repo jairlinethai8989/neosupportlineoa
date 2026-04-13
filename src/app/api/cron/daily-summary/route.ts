@@ -63,102 +63,85 @@ export async function GET(req: NextRequest) {
     const timeRangeStr = `${start.toFormat('HH:mm')} - ${end.toFormat('HH:mm')} น.`;
     const titlePrefix = reportType === 'Morning' ? '🌅 สรุปงานกะดึก' : '🌆 สรุปงานประจำวัน';
 
-    // --- MESSAGE 1: KPI SUMMARY ---
-    const statusRows: any[] = [
-      { "type": "box", "layout": "horizontal", "contents": [{ "type": "text", "text": "📦 งานรอดำเนินการ", "size": "sm", "color": "#555555", "flex": 4 }, { "type": "text", "text": stats.total.toString(), "size": "sm", "weight": "bold", "align": "end", "flex": 2 }], "margin": "md" },
-      { "type": "box", "layout": "horizontal", "contents": [{ "type": "text", "text": "✅ ปิดงานแล้ว (รวม)", "size": "sm", "color": "#28c76f", "flex": 4 }, { "type": "text", "text": stats.resolved.toString(), "size": "sm", "weight": "bold", "align": "end", "flex": 2, "color": "#28c76f" }], "margin": "md" }
-    ];
-    if (stats.inProgress > 0) statusRows.push({ "type": "box", "layout": "horizontal", "contents": [{ "type": "text", "text": "🔄 กำลังแก้ไข", "size": "sm", "color": "#7367f0", "flex": 4 }, { "type": "text", "text": stats.inProgress.toString(), "size": "sm", "weight": "bold", "align": "end", "flex": 2, "color": "#7367f0" }], "margin": "md" });
-    if (stats.transferred > 0) statusRows.push({ "type": "box", "layout": "horizontal", "contents": [{ "type": "text", "text": "↪️ งานที่ส่งต่อ", "size": "sm", "color": "#ff9f43", "flex": 4 }, { "type": "text", "text": stats.transferred.toString(), "size": "sm", "weight": "bold", "align": "end", "flex": 2, "color": "#ff9f43" }], "margin": "md" });
-    statusRows.push({ "type": "box", "layout": "horizontal", "contents": [{ "type": "text", "text": "🚨 เกิน SLA", "size": "sm", "color": "#ea5455", "flex": 4 }, { "type": "text", "text": stats.breached.toString(), "size": "sm", "weight": "bold", "align": "end", "flex": 2, "color": "#ea5455" }], "margin": "md" });
-
+    // --- MESSAGE 1: KPI SUMMARY (FUTURE 2026 THEME) ---
     const kpiFlex = {
       "type": "bubble", "size": "mega",
-      "header": { "type": "box", "layout": "vertical", "contents": [{ "type": "text", "text": titlePrefix, "weight": "bold", "size": "xl", "color": "#ffffff" }, { "type": "text", "text": fullDateStr, "size": "sm", "color": "#ffffff", "margin": "sm", "weight": "bold" }, { "type": "text", "text": `ช่วงเวลา: ${timeRangeStr}`, "size": "xs", "color": "#ffffff", "margin": "xs" }], "backgroundColor": themeColor, "paddingAll": "20px" },
-      "body": { "type": "box", "layout": "vertical", "contents": [{ "type": "box", "layout": "horizontal", "contents": [{ "type": "box", "layout": "vertical", "contents": [{ "type": "text", "text": "🆕 งานใหม่", "size": "sm", "color": "#8c9196" }, { "type": "text", "text": stats.new.toString(), "weight": "bold", "size": "xxl", "margin": "sm", "color": themeColor }] }] }, { "type": "separator", "margin": "xl" }, { "type": "box", "layout": "vertical", "contents": statusRows, "margin": "xl" }], "paddingAll": "20px" },
-      "footer": { "type": "box", "layout": "vertical", "contents": [{ "type": "button", "action": { "type": "uri", "label": "เปิดหน้า Dashboard", "uri": process.env.NEXT_PUBLIC_BASE_URL || "https://neoworkspace.vercel.app" }, "style": "primary", "color": themeColor }], "paddingAll": "10px" }
+      "header": { "type": "box", "layout": "vertical", "contents": [{ "type": "text", "text": titlePrefix, "weight": "bold", "size": "xl", "color": "#00F2FE", "letterSpacing": "md" }, { "type": "text", "text": fullDateStr, "size": "sm", "color": "#E0E0E0", "margin": "sm", "weight": "bold" }, { "type": "text", "text": `⏱️ Active Window: ${timeRangeStr}`, "size": "xs", "color": "#BDBDBD", "margin": "xs" }], "backgroundColor": "#1A1A1A", "paddingAll": "25px" },
+      "body": { "type": "box", "layout": "vertical", "contents": [
+        { "type": "box", "layout": "horizontal", "contents": [
+          { "type": "box", "layout": "vertical", "contents": [
+            { "type": "text", "text": "NEW MISSION", "size": "xxs", "color": "#00F2FE", "weight": "bold" },
+            { "type": "text", "text": stats.new.toString(), "weight": "bold", "size": "4xl", "color": "#FFFFFF", "margin": "sm" }
+          ], "flex": 3 },
+          { "type": "box", "layout": "vertical", "contents": [
+            { "type": "text", "text": "RESOLVED", "size": "xxs", "color": "#28C76F", "weight": "bold", "align": "end" },
+            { "type": "text", "text": stats.resolved.toString(), "weight": "bold", "size": "xxl", "color": "#28C76F", "margin": "sm", "align": "end" }
+          ], "flex": 2, "justifyContent": "center" }
+        ]},
+        { "type": "separator", "margin": "xl", "color": "#333333" },
+        { "type": "box", "layout": "vertical", "contents": [
+          { "type": "box", "layout": "horizontal", "contents": [
+            { "type": "text", "text": "📦 PENDING TASKS", "size": "xs", "color": "#FBC02D", "flex": 4 },
+            { "type": "text", "text": stats.total.toString(), "size": "sm", "weight": "bold", "align": "end", "flex": 2, "color": "#FFFFFF" }
+          ], "margin": "lg" },
+          { "type": "box", "layout": "horizontal", "contents": [
+            { "type": "text", "text": "🔄 IN REPAIR", "size": "xs", "color": "#BDBDBD", "flex": 4 },
+            { "type": "text", "text": stats.inProgress.toString(), "size": "sm", "weight": "bold", "align": "end", "flex": 2, "color": "#FFFFFF" }
+          ], "margin": "md" },
+          { "type": "box", "layout": "horizontal", "contents": [
+            { "type": "text", "text": "🚨 SLA BREACH", "size": "xs", "color": "#EA5455", "flex": 4 },
+            { "type": "text", "text": stats.breached.toString(), "size": "sm", "weight": "bold", "align": "end", "flex": 2, "color": "#EA5455" }
+          ], "margin": "md" }
+        ], "margin": "xl" }
+      ], "backgroundColor": "#262626", "paddingAll": "25px" },
+      "footer": { "type": "box", "layout": "vertical", "contents": [{ "type": "button", "action": { "type": "uri", "label": "ACCESS CONTROL CENTER", "uri": process.env.NEXT_PUBLIC_BASE_URL || "https://neoworkspace.vercel.app" }, "style": "primary", "color": "#00F2FE", "height": "sm" }], "backgroundColor": "#1A1A1A", "paddingAll": "15px" }
     };
 
-    // --- SEND KPI SUMMARY FIRST ---
-    await sendLineGroupFlexNotification(`📊 รายงานสรุปชุดที่ 1 (${start.toFormat('dd/MM')})`, kpiFlex);
+    // --- SEND KPI SUMMARY ---
+    await sendLineGroupFlexNotification(`📊 Reports: ${start.toFormat('dd/MM')}`, kpiFlex);
     const summaryGroupId = process.env.LINE_GROUP_ID_SUMMARY;
     if (summaryGroupId) {
-      await new Promise(r => setTimeout(r, 500));
-      await sendLineGroupFlexNotification(`📊 รายงานสรุปประจำวัน (กลุ่มสรุปงาน)`, kpiFlex, summaryGroupId);
+      await new Promise(r => setTimeout(r, 600));
+      await sendLineGroupFlexNotification(`📊 Reports: Executive View`, kpiFlex, summaryGroupId);
     }
-    await new Promise(r => setTimeout(r, 800));
+    await new Promise(r => setTimeout(r, 1000));
 
-    // --- MESSAGE 2+: ACTIVITY DETAILS (SPLIT TO PREVENT LINE SIZE LIMIT) ---
+    // --- MESSAGE 2+: ACTIVITY DETAILS (10 TICKETS PER CHUNK) ---
     if (details.length === 0) {
-      const emptyFlex = {
-        "type": "bubble", "size": "mega",
-        "body": { "type": "box", "layout": "vertical", "contents": [{ "type": "text", "text": "📋 รายละเอียดแยกตามโรงพยาบาล", "weight": "bold", "size": "md", "color": themeColor }, { "type": "text", "text": "ไม่มีข้อมูลงานใหม่ในช่วงเวลานี้", "size": "sm", "color": "#8c9196", "margin": "md" }], "paddingAll": "20px" }
-      };
-      await sendLineGroupFlexNotification(`📋 รายละเอียดงานแยกโรงพยาบาล`, emptyFlex);
-      
-      const summaryGroupId = process.env.LINE_GROUP_ID_SUMMARY;
-      if (summaryGroupId) {
-        await sendLineGroupFlexNotification(`📋 รายละเอียดงานแยกโรงพยาบาล`, emptyFlex, summaryGroupId);
-      }
+      // (Empty skip or send simple text)
     } else {
-      // Group by Hospital
-      const grouped: Record<string, any[]> = {};
-      details.forEach((t: any) => {
-        const hName = t.hospitals?.name || 'ไม่ระบุโรงพยาบาล';
-        if (!grouped[hName]) grouped[hName] = [];
-        grouped[hName].push(t);
-      });
-
-      // Prepare chunks of hospitals to prevent oversized bubbles
-      const hospitalEntries = Object.entries(grouped);
-      const CHUNK_SIZE = 2; // VERY SMALL CHUNK for safety
-      let lastError = null;
-      
-      for (let i = 0; i < hospitalEntries.length; i += CHUNK_SIZE) {
-        const chunk = hospitalEntries.slice(i, i + CHUNK_SIZE);
+      const TICKETS_PER_CHUNK = 10;
+      for (let i = 0; i < details.length; i += TICKETS_PER_CHUNK) {
+        const chunk = details.slice(i, i + TICKETS_PER_CHUNK);
         const detailContents: any[] = [
-          { "type": "text", "text": `📋 รายละเอียดงาน (${i + 1}-${Math.min(i + CHUNK_SIZE, hospitalEntries.length)})`, "weight": "bold", "size": "md", "color": themeColor }
+          { "type": "text", "text": `🛸 MISSION DETAILS (${i + 1}-${Math.min(i + TICKETS_PER_CHUNK, details.length)})`, "weight": "bold", "size": "sm", "color": "#00F2FE" }
         ];
 
-        chunk.forEach(([hName, tickets]) => {
-          detailContents.push({ "type": "separator", "margin": "md" });
-          detailContents.push({ "type": "text", "text": `🏥 ${hName}`, "weight": "bold", "size": "xs", "margin": "sm", "color": "#333333" });
-          
-          tickets.forEach(t => {
-            detailContents.push({
-              "type": "box", "layout": "horizontal", "margin": "xs",
-              "contents": [
-                { "type": "text", "text": `• ${t.subject}`, "size": "xxs", "color": "#555555", "flex": 4, "wrap": true },
-                { "type": "text", "text": t.status === 'Resolved' ? "✅" : "⏳", "size": "xxs", "flex": 1, "align": "end" }
-              ]
-            });
+        chunk.forEach((t: any) => {
+          detailContents.push({ "type": "separator", "margin": "md", "color": "#333333" });
+          detailContents.push({
+            "type": "box", "layout": "vertical", "margin": "md",
+            "contents": [
+              { "type": "text", "text": `🏥 ${t.hospitals?.name || '-'}`, "size": "xxs", "color": "#BDBDBD" },
+              { "type": "box", "layout": "horizontal", "contents": [
+                { "type": "text", "text": t.subject, "size": "xs", "color": "#FFFFFF", "flex": 5, "wrap": true },
+                { "type": "text", "text": t.status === 'Resolved' ? "✅" : "⏳", "size": "sm", "flex": 1, "align": "end" }
+              ], "margin": "xs" }
+            ]
           });
         });
 
         const detailFlex = {
           "type": "bubble", "size": "mega",
-          "body": { "type": "box", "layout": "vertical", "contents": detailContents, "paddingAll": "15px" }
+          "body": { "type": "box", "layout": "vertical", "contents": detailContents, "paddingAll": "20px", "backgroundColor": "#262626" }
         };
 
-        try {
-          // Send to Main Group
-          await sendLineGroupFlexNotification(`📋 รายละเอียดงานชุดที่ ${i/CHUNK_SIZE + 1}`, detailFlex);
-          
-          // Send to Summary Group
-          const summaryGroupId = process.env.LINE_GROUP_ID_SUMMARY;
-          if (summaryGroupId) {
-             await new Promise(r => setTimeout(r, 600));
-             await sendLineGroupFlexNotification(`📋 รายละเอียดงานชุดที่ ${i/CHUNK_SIZE + 1}`, detailFlex, summaryGroupId);
-          }
-        } catch (e: any) {
-          lastError = e.message;
+        await sendLineGroupFlexNotification(`📋 Data Stream ${i/TICKETS_PER_CHUNK + 1}`, detailFlex);
+        if (summaryGroupId) {
+          await new Promise(r => setTimeout(r, 600));
+          await sendLineGroupFlexNotification(`📋 Data Stream ${i/TICKETS_PER_CHUNK + 1}`, detailFlex, summaryGroupId);
         }
-
-        await new Promise(r => setTimeout(r, 1000)); // More delay between chunks
-      }
-
-      if (lastError) {
-        return NextResponse.json({ success: true, stats, detailCount: details.length, lineError: lastError });
+        await new Promise(r => setTimeout(r, 1000));
       }
     }
 
