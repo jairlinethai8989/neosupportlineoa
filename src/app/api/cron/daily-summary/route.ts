@@ -79,13 +79,27 @@ export async function GET(req: NextRequest) {
       "footer": { "type": "box", "layout": "vertical", "contents": [{ "type": "button", "action": { "type": "uri", "label": "เปิดหน้า Dashboard", "uri": process.env.NEXT_PUBLIC_BASE_URL || "https://neoworkspace.vercel.app" }, "style": "primary", "color": themeColor }], "paddingAll": "10px" }
     };
 
-    // --- MESSAGE 2: ACTIVITY DETAILS ---
-    const detailContents: any[] = [
-      { "type": "text", "text": "📋 รายละเอียดแยกตามโรงพยาบาล", "weight": "bold", "size": "md", "color": themeColor }
-    ];
+    // --- SEND KPI SUMMARY FIRST ---
+    await sendLineGroupFlexNotification(`📊 รายงานสรุปชุดที่ 1 (${start.toFormat('dd/MM')})`, kpiFlex);
+    const summaryGroupId = process.env.LINE_GROUP_ID_SUMMARY;
+    if (summaryGroupId) {
+      await new Promise(r => setTimeout(r, 500));
+      await sendLineGroupFlexNotification(`📊 รายงานสรุปประจำวัน (กลุ่มสรุปงาน)`, kpiFlex, summaryGroupId);
+    }
+    await new Promise(r => setTimeout(r, 800));
 
+    // --- MESSAGE 2+: ACTIVITY DETAILS (SPLIT TO PREVENT LINE SIZE LIMIT) ---
     if (details.length === 0) {
-      detailContents.push({ "type": "text", "text": "ไม่มีข้อมูลงานใหม่ในช่วงเวลานี้", "size": "sm", "color": "#8c9196", "margin": "md" });
+      const emptyFlex = {
+        "type": "bubble", "size": "mega",
+        "body": { "type": "box", "layout": "vertical", "contents": [{ "type": "text", "text": "📋 รายละเอียดแยกตามโรงพยาบาล", "weight": "bold", "size": "md", "color": themeColor }, { "type": "text", "text": "ไม่มีข้อมูลงานใหม่ในช่วงเวลานี้", "size": "sm", "color": "#8c9196", "margin": "md" }], "paddingAll": "20px" }
+      };
+      await sendLineGroupFlexNotification(`📋 รายละเอียดงานแยกโรงพยาบาล`, emptyFlex);
+      
+      const summaryGroupId = process.env.LINE_GROUP_ID_SUMMARY;
+      if (summaryGroupId) {
+        await sendLineGroupFlexNotification(`📋 รายละเอียดงานแยกโรงพยาบาล`, emptyFlex, summaryGroupId);
+      }
     } else {
       // Group by Hospital
       const grouped: Record<string, any[]> = {};
@@ -95,44 +109,53 @@ export async function GET(req: NextRequest) {
         grouped[hName].push(t);
       });
 
-      Object.entries(grouped).forEach(([hName, tickets]) => {
-        detailContents.push({ "type": "separator", "margin": "lg" });
-        detailContents.push({
-          "type": "box", "layout": "vertical", "margin": "md",
-          "contents": [
-            { "type": "text", "text": `🏥 ${hName} (${tickets.length})`, "weight": "bold", "size": "sm", "color": "#333333" },
-            ...tickets.map(t => ({
-               "type": "box", "layout": "vertical", "margin": "sm", "paddingLeading": "12px",
-               "contents": [
-                 { "type": "text", "text": `• ${t.subject}`, "size": "xs", "color": "#555555", "wrap": true },
-                 { "type": "box", "layout": "horizontal", "contents": [
-                    { "type": "text", "text": t.status === 'Resolved' ? "✅ สำเร็จ" : "⏳ " + t.status, "size": "xxs", "color": t.status === 'Resolved' ? "#28c76f" : "#ff9f43", "flex": 2 },
-                    { "type": "text", "text": t.profiles?.full_name ? "👤 " + t.profiles.full_name : "👤 -", "size": "xxs", "color": "#8c9196", "align": "end", "flex": 4 }
-                 ], "margin": "xs" }
-               ]
-            }))
-          ]
+      // Prepare chunks of hospitals to prevent oversized bubbles
+      const hospitalEntries = Object.entries(grouped);
+      const CHUNK_SIZE = 5; // 5 hospitals per bubble
+      
+      for (let i = 0; i < hospitalEntries.length; i += CHUNK_SIZE) {
+        const chunk = hospitalEntries.slice(i, i + CHUNK_SIZE);
+        const detailContents: any[] = [
+          { "type": "text", "text": `📋 รายละเอียดแยกรายโรงพยาบาล (${i + 1}-${Math.min(i + CHUNK_SIZE, hospitalEntries.length)})`, "weight": "bold", "size": "md", "color": themeColor }
+        ];
+
+        chunk.forEach(([hName, tickets]) => {
+          detailContents.push({ "type": "separator", "margin": "lg" });
+          detailContents.push({
+            "type": "box", "layout": "vertical", "margin": "md",
+            "contents": [
+              { "type": "text", "text": `🏥 ${hName} (${tickets.length})`, "weight": "bold", "size": "sm", "color": "#333333" },
+              ...tickets.slice(0, 20).map(t => ({ // Safety limit 20 per hospital per bubble
+                 "type": "box", "layout": "vertical", "margin": "xs", "paddingLeading": "12px",
+                 "contents": [
+                   { "type": "text", "text": `• ${t.subject}`, "size": "xxs", "color": "#555555", "wrap": true },
+                   { "type": "box", "layout": "horizontal", "contents": [
+                      { "type": "text", "text": t.status === 'Resolved' ? "✅ สำเร็จ" : "⏳ " + t.status, "size": "xxs", "color": t.status === 'Resolved' ? "#28c76f" : "#ff9f43", "flex": 2 },
+                      { "type": "text", "text": t.profiles?.full_name ? "👤 " + t.profiles.full_name : "👤 -", "size": "xxs", "color": "#8c9196", "align": "end", "flex": 4 }
+                   ] }
+                 ]
+              }))
+            ]
+          });
         });
-      });
-    }
 
-    const detailFlex = {
-      "type": "bubble", "size": "mega",
-      "body": { "type": "box", "layout": "vertical", "contents": detailContents, "paddingAll": "20px" }
-    };
+        const detailFlex = {
+          "type": "bubble", "size": "mega",
+          "body": { "type": "box", "layout": "vertical", "contents": detailContents, "paddingAll": "20px" }
+        };
 
-    // Send both messages to standard group
-    await sendLineGroupFlexNotification(`📊 รายงานสรุปชุดที่ 1 (${start.toFormat('dd/MM')})`, kpiFlex);
-    await new Promise(r => setTimeout(r, 800));
-    await sendLineGroupFlexNotification(`📋 รายละเอียดงานแยกโรงพยาบาล`, detailFlex);
+        // Send to Main Group
+        await sendLineGroupFlexNotification(`📋 รายละเอียดงานแยกรายโรงพยาบาล`, detailFlex);
+        
+        // Send to Summary Group
+        const summaryGroupId = process.env.LINE_GROUP_ID_SUMMARY;
+        if (summaryGroupId) {
+           await new Promise(r => setTimeout(r, 500));
+           await sendLineGroupFlexNotification(`📋 รายละเอียดงานแยกรายโรงพยาบาล`, detailFlex, summaryGroupId);
+        }
 
-    // Optionally send to Summary Group as well if configured
-    const summaryGroupId = process.env.LINE_GROUP_ID_SUMMARY;
-    if (summaryGroupId) {
-      await new Promise(r => setTimeout(r, 1000));
-      await sendLineGroupFlexNotification(`📊 รายงานสรุปประจำวัน (กลุ่มสรุปงาน) ${start.toFormat('dd/MM')}`, kpiFlex, summaryGroupId);
-      await new Promise(r => setTimeout(r, 800));
-      await sendLineGroupFlexNotification(`📋 รายละเอียดงานแยกโรงพยาบาล (กลุ่มสรุปงาน)`, detailFlex, summaryGroupId);
+        await new Promise(r => setTimeout(r, 800)); // Delay between chunks
+      }
     }
 
     return NextResponse.json({ success: true, stats, detailCount: details.length });
