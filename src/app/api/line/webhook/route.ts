@@ -46,6 +46,21 @@ export async function POST(req: Request) {
   }
 
   for (const event of events) {
+    // 0. QUICK CHECK: Get Group ID Command
+    if (event.type === 'message' && event.message.type === 'text') {
+      const text = event.message.text.toLowerCase().trim();
+      if (text === 'get group id') {
+        const sourceId = event.source.groupId || event.source.roomId || event.source.userId;
+        try {
+          await client.replyMessage(event.replyToken, {
+            type: 'text',
+            text: `ID ของกลุ่ม/แชทนี้คือ:\n${sourceId}`
+          });
+        } catch (e) { console.error('Reply ID failed:', e); }
+        continue; // Stop processing this event further
+      }
+    }
+
     if (event.type === 'message') {
       const lineUserId = event.source.userId;
       if (!lineUserId) continue; // Safety check

@@ -65,10 +65,10 @@ export async function GET(req: NextRequest) {
 
     // --- MESSAGE 1: KPI SUMMARY ---
     const statusRows: any[] = [
-      { "type": "box", "layout": "horizontal", "contents": [{ "type": "text", "text": "📦 งานทั้งหมด", "size": "sm", "color": "#555555", "flex": 4 }, { "type": "text", "text": stats.total.toString(), "size": "sm", "weight": "bold", "align": "end", "flex": 2 }], "margin": "md" },
-      { "type": "box", "layout": "horizontal", "contents": [{ "type": "text", "text": "✅ ปิดงานแล้ว", "size": "sm", "color": "#28c76f", "flex": 4 }, { "type": "text", "text": stats.resolved.toString(), "size": "sm", "weight": "bold", "align": "end", "flex": 2, "color": "#28c76f" }], "margin": "md" }
+      { "type": "box", "layout": "horizontal", "contents": [{ "type": "text", "text": "📦 งานรอดำเนินการ", "size": "sm", "color": "#555555", "flex": 4 }, { "type": "text", "text": stats.total.toString(), "size": "sm", "weight": "bold", "align": "end", "flex": 2 }], "margin": "md" },
+      { "type": "box", "layout": "horizontal", "contents": [{ "type": "text", "text": "✅ ปิดงานแล้ว (รวม)", "size": "sm", "color": "#28c76f", "flex": 4 }, { "type": "text", "text": stats.resolved.toString(), "size": "sm", "weight": "bold", "align": "end", "flex": 2, "color": "#28c76f" }], "margin": "md" }
     ];
-    if (stats.inProgress > 0) statusRows.push({ "type": "box", "layout": "horizontal", "contents": [{ "type": "text", "text": "🔄 กำลังดำเนินการ", "size": "sm", "color": "#7367f0", "flex": 4 }, { "type": "text", "text": stats.inProgress.toString(), "size": "sm", "weight": "bold", "align": "end", "flex": 2, "color": "#7367f0" }], "margin": "md" });
+    if (stats.inProgress > 0) statusRows.push({ "type": "box", "layout": "horizontal", "contents": [{ "type": "text", "text": "🔄 กำลังแก้ไข", "size": "sm", "color": "#7367f0", "flex": 4 }, { "type": "text", "text": stats.inProgress.toString(), "size": "sm", "weight": "bold", "align": "end", "flex": 2, "color": "#7367f0" }], "margin": "md" });
     if (stats.transferred > 0) statusRows.push({ "type": "box", "layout": "horizontal", "contents": [{ "type": "text", "text": "↪️ งานที่ส่งต่อ", "size": "sm", "color": "#ff9f43", "flex": 4 }, { "type": "text", "text": stats.transferred.toString(), "size": "sm", "weight": "bold", "align": "end", "flex": 2, "color": "#ff9f43" }], "margin": "md" });
     statusRows.push({ "type": "box", "layout": "horizontal", "contents": [{ "type": "text", "text": "🚨 เกิน SLA", "size": "sm", "color": "#ea5455", "flex": 4 }, { "type": "text", "text": stats.breached.toString(), "size": "sm", "weight": "bold", "align": "end", "flex": 2, "color": "#ea5455" }], "margin": "md" });
 

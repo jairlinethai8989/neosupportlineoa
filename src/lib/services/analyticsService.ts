@@ -85,7 +85,7 @@ export const analyticsService = {
       .select('*', { count: 'exact', head: true })
       .eq('status', 'In Progress');
 
-    const { count: transferred } = await supabase
+    const { count: escalated } = await supabase
       .from('tickets')
       .select('*', { count: 'exact', head: true })
       .eq('status', 'Escalated');
@@ -117,6 +117,8 @@ export const analyticsService = {
    * Includes both newly created AND resolved tickets in that period
    */
   async getDetailedSummary(startDate: string, endDate: string) {
+    // Correct way to do OR with multiple conditions in Supabase:
+    // Fetch all that was created OR resolved after startDate
     const { data, error } = await supabase
       .from('tickets')
       .select(`
@@ -132,13 +134,21 @@ export const analyticsService = {
           full_name
         )
       `)
-      .or(`created_at.gte.${startDate}.and.created_at.lte.${endDate},resolved_at.gte.${startDate}.and.resolved_at.lte.${endDate}`)
+      .or(`created_at.gte.${startDate},resolved_at.gte.${startDate}`)
       .order('created_at', { ascending: true });
 
     if (error) {
       console.error('Detailed Summary Fetch Error:', error);
       return [];
     }
-    return data || [];
+
+    // Filter in JS for precision (within the exact range)
+    const filtered = (data || []).filter(t => {
+      const isNew = t.created_at >= startDate && t.created_at <= endDate;
+      const isResolved = t.resolved_at && t.resolved_at >= startDate && t.resolved_at <= endDate;
+      return isNew || isResolved;
+    });
+
+    return filtered;
   }
 };
