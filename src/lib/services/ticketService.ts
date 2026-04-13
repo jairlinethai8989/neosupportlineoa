@@ -52,7 +52,8 @@ export const ticketService = {
       note: 'Agent claimed the ticket'
     }]);
 
-    // Send Group Notification (Non-blocking)
+    /* 
+    // Send Group Notification (Non-blocking) - DISABLED per user request for manual control
     try {
       const { sendLineGroupNotification } = await import('@/lib/utils/lineNotifications');
       const { data: agent } = await supabase.from('profiles').select('full_name').eq('id', agentId).single();
@@ -60,6 +61,7 @@ export const ticketService = {
     } catch (notifyError) {
       console.warn('Line Notification Failed:', notifyError);
     }
+    */
 
     return ticket;
   },
@@ -134,7 +136,8 @@ export const ticketService = {
        note: reason || 'Ticket transferred'
      }]);
 
-     // Send Group Notification (Non-blocking)
+     /* 
+     // Send Group Notification (Non-blocking) - DISABLED per user request for manual control
      try {
        const { sendLineGroupNotification } = await import('@/lib/utils/lineNotifications');
        const { data: agent } = await supabase.from('profiles').select('full_name').eq('id', fromAgentId).single();
@@ -147,6 +150,7 @@ export const ticketService = {
      } catch (notifyErr) {
        console.warn('Transfer Notification Failed:', notifyErr);
      }
+     */
 
      return ticket;
   },
@@ -180,10 +184,12 @@ export const ticketService = {
        note: resolutionSummary
      }]);
 
-     // Send Group Notification
+     /* 
+     // Send Group Notification - DISABLED per user request for manual control
      const { sendLineGroupNotification } = await import('@/lib/utils/lineNotifications');
      const { data: agent } = await supabase.from('profiles').select('full_name').eq('id', agentId).single();
      await sendLineGroupNotification(`✅ [ปิดงาน] แอดมิน ${agent?.full_name || 'Anonymous'} ได้แก้ไขและปิดตั๋วงาน #${ticket.ticket_no} สำเร็จแล้วครับ\nสรุปงาน: ${resolutionSummary}`);
+     */
 
      // Trigger CSAT survey record creation
      await supabase.from('csat_surveys').insert([{

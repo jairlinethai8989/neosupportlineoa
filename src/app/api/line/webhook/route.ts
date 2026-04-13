@@ -134,7 +134,8 @@ export async function POST(req: Request) {
             .single();
           conversation = newConv;
 
-          // Notify Group about New Support Request (First Message)
+          /* 
+          // Notify Group about New Support Request (First Message) - DISABLED per user request for manual control
           try {
             const { sendLineGroupNotification } = await import('@/lib/utils/lineNotifications');
             const alertText = recentTicket?.ticket_no 
@@ -143,6 +144,7 @@ export async function POST(req: Request) {
             
             await sendLineGroupNotification(`${alertText}\nข้อความ: ${messageText?.substring(0, 50)}${messageText?.length > 50 ? '...' : ''}\n👉 ตรวจสอบที่หน้าจัดการ: ${process.env.NEXT_PUBLIC_BASE_URL || 'NeoSupport Dashboard'}`);
           } catch(e) { console.error('Notif failed:', e); }
+          */
         }
 
         if (conversation) {
