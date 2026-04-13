@@ -18,8 +18,11 @@ import {
   Building,
   User,
   LayoutDashboard,
-  Settings2
+  Settings2,
+  Bell,
+  Plus
 } from 'lucide-react';
+import { useNotificationContext } from '@/contexts/NotificationContext';
 
 const DEPT_BADGES: Record<string, string> = {
   'IT Support': '💻',
@@ -48,6 +51,7 @@ const Sidebar = ({ onClickLink, isCollapsed = false }: SidebarProps) => {
   const [permissions, setPermissions] = useState<any>(null);
   const [userRole, setUserRole] = useState<string>('');
   const [profile, setProfile] = useState<any>(null);
+  const { unreadCount } = useNotificationContext();
 
   useEffect(() => {
     let isMounted = true;
@@ -150,8 +154,10 @@ const Sidebar = ({ onClickLink, isCollapsed = false }: SidebarProps) => {
       { name: 'Performance', thai: 'สถิติการทำงาน', icon: BarChart2, path: '/analytics' },
     ]},
     { section: 'Workspace', thai: 'พื้นที่ทำงาน', items: [
-      { name: 'Tickets', thai: 'จัดการใบงาน', icon: Ticket, path: '/tickets', count: ticketCount },
+      { name: 'Tickets', thai: 'ใบงานทั้งหมด', icon: Ticket, path: '/tickets', count: ticketCount },
+      { name: 'Create Ticket', thai: 'สร้างใบงานใหม่', icon: Plus, path: '/tickets/new' },
       { name: 'Inbox', thai: 'ห้องแชทลูกค้า', icon: Inbox, path: '/inbox', count: inboxCount },
+      { name: 'Notifications', thai: 'การแจ้งเตือน', icon: Bell, path: '/notifications', count: unreadCount },
       { name: 'Customers', thai: 'ฐานข้อมูลลูกค้า', icon: Users, path: '/customers' },
     ]},
     { section: 'Admin', thai: 'หลังบ้าน', items: [
@@ -174,12 +180,12 @@ const Sidebar = ({ onClickLink, isCollapsed = false }: SidebarProps) => {
   // Helper to check permission
   const hasAccess = (name: string) => {
     if (userRole === 'Administrator') return true;
-    if (!permissions) return true; // Default to show if not loaded yet
+    if (!permissions) return true;
     
     const key = name.toLowerCase();
     if (key.includes('analytics') || key.includes('performance')) return permissions.analytics !== 'none';
     if (key.includes('inbox')) return permissions.inbox !== 'none';
-    if (key.includes('ticket')) return permissions.tickets !== 'none';
+    if (key.includes('ticket') || key.includes('create')) return permissions.tickets !== 'none';
     if (key.includes('customer')) return permissions.customers !== 'none';
     if (key.includes('settings')) return permissions.settings !== 'none';
     

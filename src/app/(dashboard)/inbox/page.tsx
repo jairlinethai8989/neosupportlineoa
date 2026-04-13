@@ -35,6 +35,10 @@ import ChatAttachmentModal from '@/components/chat/ChatAttachmentModal';
 import ImageEditorModal from '@/components/chat/ImageEditorModal';
 import ImageViewerModal from '@/components/chat/ImageViewerModal';
 
+import { InboxSidebar } from '@/components/inbox/InboxSidebar';
+import { ChatWindow } from '@/components/inbox/ChatWindow';
+import { TicketSidebar } from '@/components/inbox/TicketSidebar';
+
 function InboxContent() {
   const { conversations, loading: inboxLoading } = useRealtimeInbox();
   const [selectedChat, setSelectedChat] = useState<any>(null);
@@ -64,7 +68,6 @@ function InboxContent() {
     scrollToBottom();
   }, [messages]);
 
-  // 0. Initial URL-based selection
   useEffect(() => {
     if (cid && conversations.length > 0) {
       const target = conversations.find((c: any) => c.id === cid);
@@ -75,7 +78,6 @@ function InboxContent() {
     }
   }, [cid, conversations]);
 
-  // Sync selectedChat with updated real-time data from conversations array
   useEffect(() => {
     if (selectedChat && conversations.length > 0) {
       const updated = conversations.find((c: any) => c.id === selectedChat.id);
@@ -85,7 +87,6 @@ function InboxContent() {
     }
   }, [conversations, selectedChat]);
 
-  // 1. Fetch current agent profile
   useEffect(() => {
     async function getProfile() {
       const { data: { user } } = await supabase.auth.getUser();
@@ -100,7 +101,6 @@ function InboxContent() {
     }
     getProfile();
     
-    // Load Canned Responses from LocalStorage
     const saved = localStorage.getItem('neo_canned_responses');
     if (saved) {
       setCannedResponses(JSON.parse(saved));
@@ -116,7 +116,6 @@ function InboxContent() {
     }
   }, []);
 
-  // 2. Fetch messages for selected chat
   useEffect(() => {
     if (!selectedChat) return;
 
@@ -132,18 +131,16 @@ function InboxContent() {
         const { data: ticket } = await supabase.from('tickets').select('*').eq('id', selectedChat.current_ticket_id).single();
         setCurrentTicket(ticket);
       } else {
-        // AUTO-LINK: Find the most recent OPEN ticket for this customer
         const { data: recentTicket } = await supabase
           .from('tickets')
           .select('*')
           .eq('customer_id', selectedChat.customer_id)
-          .not('status', 'in', '("Resolved","Closed")') // Only open
+          .not('status', 'in', '("Resolved","Closed")')
           .order('created_at', { ascending: false })
           .limit(1)
           .maybeSingle();
         
         if (recentTicket) {
-           // Silent background update
            await supabase.from('conversations').update({ current_ticket_id: recentTicket.id }).eq('id', selectedChat.id);
            setCurrentTicket(recentTicket);
         } else {
@@ -153,35 +150,26 @@ function InboxContent() {
     }
 
     fetchMessages();
-
-    // 10-second polling for active chat messages (Performance balanced)
     const pollInterval = setInterval(fetchMessages, 10000);
-
-    // Subscribe to ALL new messages and filter in JS to avoid subscription limits
     const channel = supabase
       .channel(`chat_realtime_${selectedChat.id}`)
       .on('postgres_changes', { 
-        event: '*', // Listen for INSERT, UPDATE, DELETE
+        event: '*', 
         schema: 'public', 
         table: 'messages'
       }, (payload) => {
-        console.log('Chat: Message Change Detected', payload);
         if (payload.new && (payload.new as any).conversation_id === selectedChat.id) {
           if (payload.eventType === 'INSERT') {
             setMessages(prev => {
-              // Avoid duplicates
               if (prev.some(m => m.id === (payload.new as any).id)) return prev;
               return [...prev, payload.new];
             });
           } else {
-            // For updates, just refetch for simplicity and accuracy
             fetchMessages();
           }
         }
       })
-      .subscribe((status) => {
-         console.log('Chat Realtime Status:', status);
-      });
+      .subscribe();
 
     return () => {
       clearInterval(pollInterval);
@@ -189,23 +177,27 @@ function InboxContent() {
     };
   }, [selectedChat]);
 
-  // 3. Actions
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newMessage.trim() || !selectedChat || !agent) return;
     
-    // Check if locked
     const isResolved = currentTicket?.status === 'Resolved' || currentTicket?.status === 'Closed';
     if (isResolved) {
       alert('ใบงานนี้ถูกปิดแล้ว (Resolved/Closed) ไม่สามารถส่งข้อความได้');
       return;
     }
 
-    // Check permission
-    // Check permission
     if (agent.role !== 'Administrator' && agent.permissions?.inbox === 'view') {
       alert('คุณไม่มีสิทธิ์ในการส่งข้อความ (View Only Access)');
       return;
+    }
+
+    const isUnassigned = currentTicket && !currentTicket.assigned_agent_id;
+    const isAdmin = agent?.role === 'Administrator';
+
+    if ((isResolved || isUnassigned) && !isAdmin) {
+       alert(isResolved ? 'ใบงานนี้ถูกปิดแล้ว' : 'กรุณากดรับงานก่อนเริ่มการสนทนาครับ');
+       return;
     }
 
     const currentMsg = newMessage;
@@ -216,14 +208,13 @@ function InboxContent() {
         conversation_id: selectedChat.id,
         ticket_id: selectedChat.current_ticket_id || null,
         sender_type: 'agent',
-        staff_id: agent.id, // NEW STRONG RELATION
+        staff_id: agent.id,
         content: currentMsg,
         message_type: 'text'
       }]);
       
       if (dbError) throw dbError;
 
-      // Update conversation last message timestamp
       await supabase.from('conversations').update({
         last_message_at: new Date().toISOString()
       }).eq('id', selectedChat.id);
@@ -253,7 +244,7 @@ function InboxContent() {
         conversation_id: selectedChat.id,
         ticket_id: selectedChat.current_ticket_id || null,
         sender_type: 'agent',
-        staff_id: agent.id, // FIXED: Use staff_id instead of deprecated sender_id
+        staff_id: agent.id,
         content: publicUrl,
         message_type: dbType
       }]);
@@ -270,50 +261,6 @@ function InboxContent() {
     }
   };
 
-  const handleScreenCapture = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getDisplayMedia({
-        video: { cursor: "always" } as any,
-        audio: false
-      });
-      const video = document.createElement('video');
-      video.srcObject = stream;
-      video.play();
-      
-      video.onloadedmetadata = () => {
-        const canvas = document.createElement('canvas');
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        const ctx = canvas.getContext('2d');
-        
-        setTimeout(() => {
-          ctx?.drawImage(video, 0, 0);
-          const dataUrl = canvas.toDataURL('image/png');
-          setEditingImage(dataUrl);
-          setIsEditorOpen(true);
-          stream.getTracks().forEach(track => track.stop());
-        }, 500);
-      };
-    } catch (err) {
-      console.error("Capture failed", err);
-    }
-  };
-
-  const handleEditExistingImage = (url: string) => {
-    setEditingImage(url);
-    setIsEditorOpen(true);
-  };
-
-  const handleOpenViewer = (url: string) => {
-    setViewingImage(url);
-    setIsViewerOpen(true);
-  };
-
-  const selectChat = (chat: any) => {
-    setSelectedChat(chat);
-    setViewMode('chat');
-  };
-
   const handleClaim = async () => {
     if (!selectedChat?.current_ticket_id || !agent) return;
     try {
@@ -326,7 +273,6 @@ function InboxContent() {
   const handleResolve = async () => {
     if (!selectedChat?.current_ticket_id || !agent) return;
 
-    // Check Ownership/Admin
     const isOwner = currentTicket?.assigned_agent_id === agent.id;
     const isAdmin = agent.role === 'Administrator';
     
@@ -341,7 +287,7 @@ function InboxContent() {
     try {
       await ticketService.resolve(selectedChat.current_ticket_id, agent.id, summary);
       
-      const surveyLink = `${window.location.origin}/portal/survey/${selectedChat.current_ticket_id}`;
+      const surveyLink = `${window.location.origin}/survey/${selectedChat.current_ticket_id}`;
       const resolutionMsg = `[SYSTEM] งานได้รับการแก้ไขแล้ว: ${summary}\nแบบประเมิน: ${surveyLink}`;
 
       await supabase.from('messages').insert([{
@@ -352,7 +298,7 @@ function InboxContent() {
       }]);
 
       alert('ปิดงานสำเร็จ! ส่งแบบประเมินไปยัง LIFF เรียบร้อย');
-      setSelectedChat(null); // Clear view on close
+      setSelectedChat(null);
     } catch (err: any) {
       console.error('Resolve Error:', err);
       alert('Failed to resolve ticket: ' + (err.message || 'API Error'));
@@ -416,7 +362,7 @@ function InboxContent() {
 
   const copySurveyLink = () => {
      if (!selectedChat?.current_ticket_id) return;
-     const link = `${window.location.origin}/portal/survey/${selectedChat.current_ticket_id}`;
+     const link = `${window.location.origin}/survey/${selectedChat.current_ticket_id}`;
      navigator.clipboard.writeText(link);
      alert('คัดลอกลิงก์แบบประเมินแล้ว');
   };
@@ -430,328 +376,86 @@ function InboxContent() {
 
   return (
     <div className="inbox-layout" style={{ display: 'flex', height: 'calc(100vh - 120px)', gap: '24px', animation: 'fadeIn 0.5s ease-out' }}>
-      {/* 1. Left Panel: Conversation List */}
-      <div className={`glass inbox-list-panel ${viewMode !== 'list' ? 'hidden-mobile' : ''}`} style={{ width: '360px', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-        <div style={{ padding: '24px', borderBottom: '1px solid var(--border)' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-            <h2 style={{ fontSize: '20px', fontWeight: '800' }}>แชททั้งหมด</h2>
-            <div style={{ background: 'var(--primary)', color: 'black', padding: '2px 8px', borderRadius: '12px', fontSize: '11px', fontWeight: '800' }}>
-               {conversations.length} รายการ
-            </div>
-          </div>
-          <div style={{ position: 'relative' }}>
-            <Search style={{ position: 'absolute', left: '12px', top: '12px', color: 'var(--text-muted)' }} size={16} aria-hidden="true" />
-            <input 
-              type="text" 
-              placeholder="ค้นหาชื่อลูกค้าหรือตั๋ว…" 
-              aria-label="ค้นหาชื่อลูกค้าหรือตั๋ว"
-              style={{
-                width: '100%',
-                background: 'var(--bg-input)',
-                border: '1px solid var(--border)',
-                borderRadius: '10px',
-                padding: '12px 12px 12px 40px',
-                color: 'white',
-                fontSize: '14px',
-                outline: 'none'
-              }}
-            />
-          </div>
-        </div>
-
-        <div style={{ flex: 1, overflowY: 'auto' }} className="no-scrollbar">
-          {conversations.length === 0 ? (
-             <div style={{ padding: '60px 20px', textAlign: 'center', color: 'var(--text-muted)' }}>
-                <Mail size={40} style={{ marginBottom: '16px', opacity: 0.2 }} />
-                <p style={{ fontSize: '14px' }}>ยังไม่มีข้อความส่งเข้ามา</p>
-             </div>
-          ) : conversations.map((chat) => (
-            <div 
-              key={chat.id} 
-              onClick={() => selectChat(chat)}
-              className="glass-interactive"
-              style={{ 
-                padding: '18px 24px', 
-                borderBottom: '1px solid var(--border)',
-                cursor: 'pointer',
-                background: selectedChat?.id === chat.id ? 'var(--bg-input)' : 'transparent',
-                borderLeft: selectedChat?.id === chat.id ? '4px solid var(--primary)' : '4px solid transparent',
-                transition: 'all 0.2s ease'
-              }}
-            >
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
-                <p style={{ fontWeight: '700', fontSize: '15px' }}>{chat.customers?.display_name || 'LINE User'}</p>
-                <p style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                   {chat.last_message_at ? new Date(chat.last_message_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', hour12: false }) : '-'}
-                </p>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <p className="truncate" style={{ fontSize: '12px', color: 'var(--text-muted)', maxWidth: '200px' }}>
-                  สถานะ: <span style={{ color: chat.status === 'active' ? 'var(--primary)' : 'inherit' }}>{chat.status.toUpperCase()}</span>
-                </p>
-                {chat.status === 'active' && <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--primary)', boxShadow: '0 0 10px var(--primary)' }} />}
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* 2. Middle Panel: Chat Window */}
-      <div className={`glass inbox-chat-panel ${viewMode !== 'chat' ? 'hidden-mobile' : ''}`} style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+      <InboxSidebar 
+        conversations={conversations} 
+        loading={inboxLoading} 
+        selectedId={selectedChat?.id} 
+        onSelect={(c) => { setSelectedChat(c); setViewMode('chat'); }} 
+      />
+      
+      {/* Mobile Control Toggle */}
+      <div 
+        className={`inbox-main-view ${viewMode}`}
+        style={{ 
+          flex: 1, 
+          display: 'flex', 
+          flexDirection: 'column', 
+          background: 'rgba(255,255,255,0.01)',
+          borderRadius: '24px',
+          border: '1px solid var(--border)',
+          overflow: 'hidden'
+        }}
+      >
         {selectedChat ? (
-           <>
-            <div style={{ padding: '16px 24px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg-topbar)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                 <button 
-                  onClick={() => setViewMode('list')}
-                  aria-label="Back to conversations"
-                  className="show-mobile glass-interactive flex-center" style={{ width: '36px', height: '36px', borderRadius: '8px', border: '1px solid var(--border)', marginRight: '8px' }}>
-                    <ArrowLeft size={18} aria-hidden="true" />
-                 </button>
-                 <div style={{ width: '42px', height: '42px', borderRadius: '12px', background: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '800', color: '#0a0e14', boxShadow: '0 4px 12px rgba(0,242,254,0.2)' }}>
-                    {selectedChat.customers?.display_name?.charAt(0) || 'L'}
-                 </div>
-                 <div>
-                    <p style={{ fontWeight: '800', fontSize: '16px' }}>{selectedChat.customers?.display_name || 'LINE User'}</p>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--success)' }} />
-                      <span style={{ fontSize: '11px', color: 'var(--success)', fontWeight: '700', textTransform: 'uppercase' }}>Active Session</span>
-                    </div>
-                 </div>
-              </div>
-              <div style={{ display: 'flex', gap: '10px' }}>
-                 <button 
-                  onClick={() => setViewMode('details')}
-                  className="show-mobile glass-interactive flex-center" style={{ width: '38px', height: '38px', borderRadius: '10px', border: '1px solid var(--border)', color: 'var(--text-muted)' }}>
-                    <Info size={18} aria-hidden="true" />
-                 </button>
-              </div>
-            </div>
-
-            <div style={{ flex: 1, padding: '24px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '16px' }} className="no-scrollbar">
-              {messages.length === 0 && (
-                <div style={{ margin: 'auto', textAlign: 'center', color: 'var(--text-muted)' }}>
-                  <p style={{ fontSize: '14px' }}>กำลังรอข้อความใหม่…</p>
-                </div>
-              )}
-              {messages.map((msg) => (
-                 <div key={msg.id} style={{ alignSelf: msg.sender_type === 'agent' ? 'flex-end' : 'flex-start', maxWidth: '80%' }}>
-                    <div style={{ 
-                       padding: '12px 18px', 
-                       borderRadius: msg.sender_type === 'agent' ? '18px 18px 4px 18px' : '18px 18px 18px 4px', 
-                       background: msg.sender_type === 'agent' ? 'var(--secondary)' : (msg.sender_type === 'system' ? 'var(--bg-input)' : 'var(--bg-card)'),
-                       border: '1px solid ' + (msg.sender_type === 'agent' ? 'rgba(115, 103, 240, 0.2)' : 'var(--border)'),
-                       fontSize: '14px',
-                       lineHeight: '1.6',
-                       boxShadow: msg.sender_type === 'agent' ? '0 4px 15px rgba(115, 103, 240, 0.2)' : 'none',
-                       color: msg.sender_type === 'system' ? 'var(--primary)' : 'white'
-                    }}>
-                       {msg.content && (msg.message_type === 'image' || (String(msg.content).startsWith('http') && String(msg.content).match(/\.(jpeg|jpg|gif|png|webp|JPG|PNG)$/i))) ? (
-                          <div style={{ position: 'relative', overflow: 'hidden', borderRadius: '10px' }}>
-                             <img 
-                                src={msg.content} 
-                                style={{ maxWidth: '100%', borderRadius: '10px', display: 'block', cursor: 'pointer' }} 
-                                onClick={() => handleEditExistingImage(msg.content)}
-                                alt="Chat attachment" 
-                                title="คลิกเพื่อทำการแก้ไขภาพ (Edit/Draw)"
-                             />
-                          </div>
-                       ) : msg.message_type === 'file' || (msg.content.startsWith('http') && msg.message_type !== 'text' && !msg.content.includes('/portal/')) ? (
-                          <a href={msg.content} target="_blank" rel="noreferrer" style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--primary)', textDecoration: 'none', fontWeight: 'bold' }}>
-                             <Clock size={16} /> ดูไฟล์แนบ
-                          </a>
-                       ) : (
-                          msg.content
-                       )}
-                    </div>
-                    <p style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '6px', textAlign: msg.sender_type === 'agent' ? 'right' : 'left', opacity: 0.7 }}>
-                       {new Date(msg.created_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', hour12: false })}
-                    </p>
-                 </div>
-              ))}
-              <div ref={messagesEndRef} />
-            </div>
-
-            <div style={{ padding: '20px 24px', borderTop: '1px solid var(--border)', background: 'var(--bg-topbar)', position: 'relative' }}>
-              {showCanned && (
-                <div className="glass animate-fade-in" style={{ position: 'absolute', bottom: '100%', left: '24px', right: '24px', marginBottom: '8px', padding: '12px', display: 'flex', flexDirection: 'column', gap: '4px', zIndex: 100, maxHeight: '200px', overflowY: 'auto', boxShadow: '0 -10px 25px rgba(0,0,0,0.5)' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', padding: '0 8px' }}>
-                    <p style={{ fontSize: '11px', fontWeight: '800', color: 'var(--primary)', textTransform: 'uppercase' }}>ข้อความสำเร็จรูป (QUICK REPLIES)</p>
-                    <button 
-                      type="button" 
-                      onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleAddCanned(); }} 
-                      style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', fontWeight: '800' }}>
-                       <Plus size={12} /> เพิ่มใหม่
-                    </button>
-                  </div>
-                  {cannedResponses.map((res, i) => (
-                    <div key={i} style={{ display: 'flex', gap: '4px' }}>
-                      <button 
-                        type="button" 
-                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); useCanned(res); }} 
-                        className="glass-interactive" 
-                        style={{ flex: 1, padding: '10px 14px', borderRadius: '8px', background: 'var(--bg-input)', border: '1px solid transparent', color: 'var(--text-main)', fontSize: '13px', textAlign: 'left', transition: 'all 0.2s', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
-                      >
-                        {res}
-                      </button>
-                      <button 
-                        type="button" 
-                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleEditCanned(i); }} 
-                        style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '8px' }}><Pencil size={14} /></button>
-                      <button 
-                        type="button" 
-                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleDeleteCanned(i); }} 
-                        style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', padding: '8px' }}><Trash2 size={14} /></button>
-                    </div>
-                  ))}
-                </div>
-              )}
-              <form onSubmit={handleSendMessage}>
-                <div className="glass" style={{ padding: '6px 14px', display: 'flex', alignItems: 'center', gap: '12px', background: 'var(--bg-input)', borderRadius: '14px', border: '1px solid var(--border)' }}>
-                   <button type="button" onClick={() => setShowCanned(!showCanned)} aria-label="Quick replies" className="glass-interactive flex-center" style={{ width: '36px', height: '36px', background: 'none', border: 'none', color: showCanned ? 'var(--primary)' : 'var(--text-muted)', cursor: 'pointer' }}><MessageSquare size={19} aria-hidden="true" /></button>
-                   <button type="button" onClick={() => setIsAttachModalOpen(true)} aria-label="Attach file" className="glass-interactive flex-center" style={{ width: '36px', height: '36px', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}><Paperclip size={20} aria-hidden="true" /></button>
-                 <input 
-                    type="text" 
-                    value={newMessage}
-                    onChange={(e) => setNewMessage(e.target.value)}
-                    placeholder={
-                      (currentTicket?.status === 'Resolved' || currentTicket?.status === 'Closed') 
-                        ? "ใบงานถูกปิดแล้ว (Read Only)" 
-                        : (agent?.role !== 'Administrator' && agent?.permissions?.inbox === 'view') 
-                          ? "คุณมีสิทธิ์อ่านเท่านั้น (View Only)" : "พิมพ์ข้อความตอบกลับ..."
-                    } 
-                    disabled={
-                      currentTicket?.status === 'Resolved' || 
-                      currentTicket?.status === 'Closed' ||
-                      (agent?.role !== 'Administrator' && agent?.permissions?.inbox === 'view')
-                    }
-                    style={{ flex: 1, background: 'none', border: 'none', outline: 'none', color: 'var(--text-main)', padding: '12px 0', fontSize: '14px', opacity: (currentTicket?.status === 'Resolved' || currentTicket?.status === 'Closed') ? 0.4 : 1 }}
-                 />
-                 <button 
-                  type="submit"
-                  disabled={sending || !newMessage.trim() || currentTicket?.status === 'Resolved' || currentTicket?.status === 'Closed'}
-                  style={{ 
-                    background: 'var(--primary)', 
-                    border: 'none', 
-                    color: '#0a0e14', 
-                    width: '42px', 
-                    height: '36px', 
-                    borderRadius: '10px', 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    justifyContent: 'center', 
-                    cursor: 'pointer',
-                    transition: 'all 0.2s',
-                    opacity: (sending || !newMessage.trim() || currentTicket?.status === 'Resolved' || currentTicket?.status === 'Closed') ? 0.4 : 1 
-                  }}>
-                    {sending ? <Loader2 size={18} className="animate-spin" aria-hidden="true" /> : <Send size={18} aria-hidden="true" />}
-                 </button>
-              </div>
-            </form>
+          <ChatWindow 
+            selectedChat={selectedChat}
+            messages={messages}
+            newMessage={newMessage}
+            setNewMessage={setNewMessage}
+            handleSendMessage={handleSendMessage}
+            sending={sending}
+            agent={agent}
+            currentTicket={currentTicket}
+            handleClaim={handleClaim}
+            onOpenAttachment={() => setIsAttachModalOpen(true)}
+            onOpenImage={(src) => { setViewingImage(src); setIsViewerOpen(true); }}
+            cannedResponses={cannedResponses}
+            showCanned={showCanned}
+            setShowCanned={setShowCanned}
+            onUseCanned={useCanned}
+            onAddCanned={handleAddCanned}
+            onEditCanned={handleEditCanned}
+            onDeleteCanned={handleDeleteCanned}
+          />
+        ) : (
+          <div className="flex-center" style={{ flex: 1, flexDirection: 'column', gap: '16px', color: 'var(--text-muted)' }}>
+            <MessageSquare size={64} style={{ opacity: 0.1 }} />
+            <h3 style={{ fontSize: '18px', fontWeight: '800' }}>กราบสวัสดีครับ NEO SUPPORT</h3>
+            <p style={{ fontSize: '14px' }}>โปรดเลือกแชทเพื่อเริ่มการสนทนา</p>
           </div>
-        </>
-      ) : (
-        <div className="flex-center" style={{ height: '100%', flexDirection: 'column', gap: '20px' }}>
-              <div className="glass" style={{ width: '120px', height: '120px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px dashed var(--border)' }}>
-                 <Mail size={48} color="var(--border)" style={{ opacity: 0.3 }} />
-              </div>
-              <div style={{ textAlign: 'center' }}>
-                <h3 style={{ fontSize: '18px', fontWeight: '800', marginBottom: '8px' }}>กล่องแชทส่วนกลาง</h3>
-                <p style={{ color: 'var(--text-muted)', maxWidth: '300px', fontSize: '14px' }}>เลือกการสนทนาทางด้านซ้ายเพื่อเริ่มต้นพูดคุยกับลูกค้าแบบ Real-time</p>
-              </div>
-           </div>
         )}
       </div>
 
-      {/* 3. Right Panel: Customer Profile & Ticket Detail */}
-      <div className={`glass inbox-details-panel ${viewMode !== 'details' ? 'hidden-mobile' : ''}`} style={{ width: '360px', padding: '24px', display: 'flex', flexDirection: 'column', gap: '24px', overflowY: 'auto' }}>
+      <div 
+        className={`inbox-details-sidebar ${viewMode === 'details' ? 'showing' : ''}`}
+        style={{ 
+          width: '320px', 
+          display: 'flex', 
+          flexDirection: 'column', 
+          gap: '24px' 
+        }}
+      >
         {selectedChat ? (
           <>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <User size={16} color="var(--primary)" />
-                  <h3 style={{ fontSize: '12px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px' }}>Customer Meta</h3>
-               </div>
-               <button onClick={() => setViewMode('chat')} className="show-mobile glass-interactive flex-center" style={{ padding: '8px', borderRadius: '8px', border: 'none' }}>
-                  <ArrowLeft size={18} />
-               </button>
-            </div>
+            <TicketSidebar 
+              customer={selectedChat.customers}
+              ticket={currentTicket} 
+              onClaim={handleClaim}
+              agent={agent}
+            />
             
-            <div className="glass" style={{ padding: '20px', background: 'rgba(255,255,255,0.02)', borderRadius: '16px' }}>
-               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px' }}>
-                  <div style={{ width: '80px', height: '80px', borderRadius: '24px', background: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 8px 24px rgba(0,242,254,0.3)' }}>
-                     <User size={40} color="#0a0e14" />
-                  </div>
-                  <div style={{ textAlign: 'center' }}>
-                     <p style={{ fontWeight: '800', fontSize: '18px', marginBottom: '4px' }}>{selectedChat.customers?.display_name || 'LINE User'}</p>
-                     <code style={{ fontSize: '10px', color: 'var(--text-muted)', background: 'rgba(0,0,0,0.2)', padding: '2px 8px', borderRadius: '4px' }}>
-                        ID: {selectedChat.customers?.line_user_id?.substring(0, 16)}...
-                     </code>
-                  </div>
-               </div>
-            </div>
-
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-               <Layout size={16} color="var(--primary)" />
-               <h3 style={{ fontSize: '12px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px' }}>Ticket Info</h3>
-            </div>
-            
-            <div className="glass" style={{ padding: '20px', background: 'rgba(255,255,255,0.02)', borderRadius: '16px' }}>
-               {currentTicket ? (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                        <div>
-                           <p style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: '800', marginBottom: '4px' }}>TICKET ID</p>
-                           <p style={{ fontSize: '15px', fontWeight: '800', color: 'var(--primary)' }}>#{currentTicket.ticket_no}</p>
-                        </div>
-                        <span style={{ 
-                           fontSize: '10px', 
-                           padding: '2px 8px', 
-                           borderRadius: '6px', 
-                           background: currentTicket.status === 'Resolved' ? 'var(--success)' : 'var(--primary)',
-                           color: 'black',
-                           fontWeight: '800'
-                        }}>{currentTicket.status}</span>
-                     </div>
-                     <div>
-                        <p style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: '800', marginBottom: '4px' }}>SUBJECT</p>
-                        <p style={{ fontSize: '14px', fontWeight: '600', lineHeight: '1.4' }}>{currentTicket.subject}</p>
-                     </div>
-                  </div>
-               ) : (
-                  <div style={{ textAlign: 'center', padding: '30px 20px', background: 'rgba(255,255,255,0.02)', borderRadius: '16px' }}>
-                      <p style={{ fontSize: '13px', color: 'var(--text-muted)', fontWeight: '600' }}>⚠️ การสนทนาทั่วไป (No Ticket)</p>
-                      <p style={{ fontSize: '11px', color: 'var(--text-muted)', opacity: 0.6, marginTop: '8px' }}>
-                         ลูกค้ายังไม่ได้เปิดใบงาน (Ticket) หรือระบบกำลังประมวลผล...
-                      </p>
-                   </div>
-                )}
-            </div>
-
             <button 
-               onClick={async () => {
-                  if (!selectedChat?.customer_id) return;
-                  const { data, error } = await supabase
-                    .from('messages')
-                    .select('*, conversations(status)') // Get all messages for this customer across all conversations
-                    .in('conversation_id', (await supabase.from('conversations').select('id').eq('customer_id', selectedChat.customer_id)).data?.map(c => c.id) || [])
-                    .order('created_at', { ascending: true });
-                  
-                  if (data) {
-                    setMessages(data); // Temporarily override current view with full history
-                    alert('แสดงประวัติการสนทนาทั้งหมดของลูกค้ารายนี้แล้ว (รวมทุกใบงาน)');
-                  }
-               }}
-               style={{ 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  gap: '8px', 
-                  background: 'none', 
-                  border: 'none', 
-                  color: 'var(--text-muted)', 
-                  fontSize: '12px', 
-                  cursor: 'pointer',
-                  justifyContent: 'center'
+               className="glass-interactive flex-center"
+               style={{
+                 width: '100%',
+                 padding: '12px',
+                 borderRadius: '12px',
+                 border: '1px solid var(--primary)',
+                 color: 'var(--primary)',
+                 fontSize: '12px',
+                 fontWeight: '800',
+                 gap: '8px',
+                 background: 'rgba(54, 153, 255, 0.05)'
                }}
             >
                <History size={14} /> <u>ดูประวัติสนทนาเก่าทั้งหมด (Global Log)</u>
@@ -864,3 +568,6 @@ export default function InboxPage() {
     </Suspense>
   );
 }
+
+
+
