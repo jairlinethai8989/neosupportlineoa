@@ -122,12 +122,8 @@ export default function CreateInternalTicketPage() {
         note: `Internal Ticket created by ${staffProfile?.full_name}`
       }]);
 
-      // 4. Send Notification
-      try {
-        const { sendLineGroupNotification } = await import('@/lib/utils/lineNotifications');
-        await sendLineGroupNotification(`👷‍♂️ [สร้างงานภายใน] ${staffProfile?.full_name} ได้สร้างใบงานส่วนตัวสำหรับลูกค้า ${customer.display_name}\nเรื่อง: ${subject}`);
-      } catch { }
-
+      // 4. Send Notification (REMOVED - User requested no LINE notification for new tickets)
+      
       router.push(`/tickets/${newTicket.id}`);
     } catch (err: any) {
       setError(err.message);

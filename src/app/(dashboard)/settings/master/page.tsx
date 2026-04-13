@@ -59,7 +59,11 @@ export default function MasterSettingsPage() {
     setSubmitting(true);
     let table = activeTab;
     const { error } = await supabase.from(table).insert([{ name: newItemName, is_active: true }]);
-    if (!error) {
+    
+    if (error) {
+      console.error('Add Error:', error);
+      alert(`บันทึกไม่สำเร็จ: ${error.message}`);
+    } else {
       setNewItemName('');
       setIsAdding(false);
       fetchData();
@@ -72,7 +76,11 @@ export default function MasterSettingsPage() {
     setSubmitting(true);
     let table = activeTab;
     const { error } = await supabase.from(table).update({ name: editItemName }).eq('id', id);
-    if (!error) {
+    
+    if (error) {
+      console.error('Update Error:', error);
+      alert(`อัปเดตไม่สำเร็จ: ${error.message}`);
+    } else {
       setEditingId(null);
       fetchData();
     }
@@ -81,7 +89,11 @@ export default function MasterSettingsPage() {
 
   const toggleStatus = async (id: string, current: boolean) => {
     let table = activeTab;
-    await supabase.from(table).update({ is_active: !current }).eq('id', id);
+    const { error } = await supabase.from(table).update({ is_active: !current }).eq('id', id);
+    if (error) {
+      console.error('Toggle status Error:', error);
+      alert(`เปลี่ยนสถานะไม่สำเร็จ: ${error.message}`);
+    }
     fetchData();
   };
 

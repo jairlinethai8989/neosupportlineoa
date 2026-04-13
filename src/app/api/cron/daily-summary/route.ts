@@ -120,13 +120,19 @@ export async function GET(req: NextRequest) {
       "body": { "type": "box", "layout": "vertical", "contents": detailContents, "paddingAll": "20px" }
     };
 
-    // Send both messages
+    // Send both messages to standard group
     await sendLineGroupFlexNotification(`📊 รายงานสรุปชุดที่ 1 (${start.toFormat('dd/MM')})`, kpiFlex);
-    
-    // Small delay to ensure order in LINE
     await new Promise(r => setTimeout(r, 800));
-    
     await sendLineGroupFlexNotification(`📋 รายละเอียดงานแยกโรงพยาบาล`, detailFlex);
+
+    // Optionally send to Summary Group as well if configured
+    const summaryGroupId = process.env.LINE_GROUP_ID_SUMMARY;
+    if (summaryGroupId) {
+      await new Promise(r => setTimeout(r, 1000));
+      await sendLineGroupFlexNotification(`📊 รายงานสรุปประจำวัน (กลุ่มสรุปงาน) ${start.toFormat('dd/MM')}`, kpiFlex, summaryGroupId);
+      await new Promise(r => setTimeout(r, 800));
+      await sendLineGroupFlexNotification(`📋 รายละเอียดงานแยกโรงพยาบาล (กลุ่มสรุปงาน)`, detailFlex, summaryGroupId);
+    }
 
     return NextResponse.json({ success: true, stats, detailCount: details.length });
 

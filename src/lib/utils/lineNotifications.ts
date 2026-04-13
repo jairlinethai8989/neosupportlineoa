@@ -16,8 +16,8 @@ const getLineClient = () => {
 /**
  * Send a notification message to the internal LINE group
  */
-export async function sendLineGroupNotification(message: string) {
-  const groupId = process.env.LINE_GROUP_ID;
+export async function sendLineGroupNotification(message: string, targetGroupId?: string) {
+  const groupId = targetGroupId || process.env.LINE_GROUP_ID;
   const client = getLineClient();
   if (!groupId || !client) return;
 
@@ -27,23 +27,17 @@ export async function sendLineGroupNotification(message: string) {
       text: message,
     });
   } catch (error: any) {
-    console.error('Error sending LINE group notification:', error.message || error);
-    if (error.originalError && error.originalError.response) {
-       console.error('LINE API Detailed Error:', JSON.stringify(error.originalError.response.data));
-    }
+    console.error(`Error sending LINE notification to group ${groupId}:`, error.message || error);
   }
 }
 
 /**
  * Send a Flex Message notification to the internal LINE group
  */
-export async function sendLineGroupFlexNotification(altText: string, contents: any) {
-  const groupId = process.env.LINE_GROUP_ID;
+export async function sendLineGroupFlexNotification(altText: string, contents: any, targetGroupId?: string) {
+  const groupId = targetGroupId || process.env.LINE_GROUP_ID;
   const client = getLineClient();
-  if (!groupId || !client) {
-    console.warn('LINE_GROUP_ID or ACCESS_TOKEN not set. Flex Notification skipped.');
-    return;
-  }
+  if (!groupId || !client) return;
 
   try {
     await client.pushMessage(groupId, {
@@ -52,12 +46,6 @@ export async function sendLineGroupFlexNotification(altText: string, contents: a
       contents,
     });
   } catch (error: any) {
-    console.error('Error sending LINE group Flex notification:', error);
-    if (error.originalError && error.originalError.response) {
-      const detailedError = JSON.stringify(error.originalError.response.data);
-      console.error('LINE API Detailed Error:', detailedError);
-      throw new Error(`LINE API Error: ${detailedError}`);
-    }
-    throw error;
+    console.error(`Error sending LINE Flex notification to group ${groupId}:`, error.message || error);
   }
 }
