@@ -45,7 +45,7 @@ export default function CreateInternalTicketPage() {
       // 2. Fetch Customers for Selection
       const { data, error: fetchErr } = await supabase
         .from('customers')
-        .select('id, display_name, hospitals(name, abbreviation)')
+        .select('id, display_name, hospital_id, hospitals(name, abbreviation)')
         .order('display_name', { ascending: true });
       
       if (!fetchErr) {
@@ -85,13 +85,13 @@ export default function CreateInternalTicketPage() {
       
       const ticketPayload = {
         customer_id: selectedCustomerId,
-        hospital_id: customer.hospital_id || null, // Might need to fetch full customer data if not in selection
+        hospital_id: customer.hospital_id || null, 
         subject: finalSubject,
         description: description || subject,
         status: 'New',
         priority: priority,
         assigned_agent_id: staffProfile?.id, // Auto-assign to the creator as it's a private order
-        created_at: new Date().toISOString()
+        source: 'Internal'
       };
 
       const { data: newTicket, error: ticketError } = await supabase
@@ -100,7 +100,10 @@ export default function CreateInternalTicketPage() {
         .select()
         .single();
 
-      if (ticketError) throw ticketError;
+      if (ticketError) {
+        console.error('Ticket Insert Error:', ticketError);
+        throw new Error(`สร้างใบงานไม่สำเร็จ: ${ticketError.message}`);
+      }
 
       // 2. Initialize Conversation if needed 
       // (Optional: Internal tickets might not need the same chat flow, but let's keep it consistent)
