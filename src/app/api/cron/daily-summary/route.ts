@@ -46,7 +46,8 @@ export async function GET(req: NextRequest) {
     } else {
       reportType = 'Evening';
       start = now.set({ hour: 8, minute: 30, second: 0, millisecond: 0 });
-      end = now.set({ hour: 17, minute: 30, second: 0, millisecond: 0 });
+      // Use current time as end, but at least 17:30 to include the full day
+      end = now; 
     }
 
     const startDateStr = start.toFormat('yyyy-MM-dd\'T\'HH:mm:ssZZ');

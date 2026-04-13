@@ -114,6 +114,7 @@ export const analyticsService = {
 
   /**
    * Get detailed ticket list for the summary
+   * Includes both newly created AND resolved tickets in that period
    */
   async getDetailedSummary(startDate: string, endDate: string) {
     const { data, error } = await supabase
@@ -124,18 +125,20 @@ export const analyticsService = {
         subject,
         status,
         created_at,
-        hospitals!hospital_id (
-          name
-        ),
+        resolved_at,
+        hospital_id,
+        hospitals(name),
         profiles!assigned_agent_id (
           full_name
         )
       `)
-      .gte('created_at', startDate)
-      .lte('created_at', endDate)
+      .or(`created_at.gte.${startDate}.and.created_at.lte.${endDate},resolved_at.gte.${startDate}.and.resolved_at.lte.${endDate}`)
       .order('created_at', { ascending: true });
 
-    if (error) throw error;
+    if (error) {
+      console.error('Detailed Summary Fetch Error:', error);
+      return [];
+    }
     return data || [];
   }
 };
