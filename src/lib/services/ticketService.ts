@@ -1,11 +1,26 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { supabase } from '@/lib/supabase';
 
+// Helper: tell the DB trigger to skip auto-logging (service will log manually)
+async function skipAuditTrigger() {
+  try {
+    await (supabase as any).rpc('set_config', {
+      setting: 'app.skip_audit_trigger',
+      value: 'true',
+      is_local: true
+    });
+  } catch {
+    // Non-critical; suppress errors silently
+  }
+}
+
 export const ticketService = {
   /**
    * Claim a ticket for the current agent
    */
   async claimTicket(ticketId: string, agentId: string) {
+    await skipAuditTrigger();
+
     const { data: ticket, error: ticketError } = await supabase
       .from('tickets')
       .update({ 
@@ -59,6 +74,8 @@ export const ticketService = {
       .eq('id', ticketId)
       .single();
 
+    await skipAuditTrigger();
+
     const { data: ticket, error: updateError } = await supabase
       .from('tickets')
       .update({ 
@@ -94,6 +111,8 @@ export const ticketService = {
      };
      if (toAgentId) updateData.assigned_agent_id = toAgentId;
      if (toTeamId) updateData.assigned_team_id = toTeamId;
+
+     await skipAuditTrigger();
 
      const { data: ticket, error: transferError } = await supabase
        .from('tickets')
@@ -133,9 +152,11 @@ export const ticketService = {
   },
 
   /**
-   * Resolve a ticket and send CSAT trigger (placeholder)
+   * Resolve a ticket and send CSAT trigger
    */
   async resolve(ticketId: string, agentId: string, resolutionSummary: string) {
+     await skipAuditTrigger();
+
      const { data: ticket, error: resolveError } = await supabase
        .from('tickets')
        .update({ 
@@ -175,7 +196,7 @@ export const ticketService = {
         await supabase.from('conversations')
          .update({ 
            status: 'closed',
-           current_ticket_id: null // Unlink for next active session
+           current_ticket_id: null
          })
          .eq('customer_id', ticket.customer_id)
          .eq('status', 'active');

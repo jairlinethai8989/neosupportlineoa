@@ -160,7 +160,7 @@ export default function ProfileRegistrationModal({ isOpen, profile, existingCust
         
         {/* Header */}
         <div style={{ textAlign: 'center' }}>
-           <div style={{ width: '70px', height: '70px', borderRadius: '24px', background: 'rgba(0, 242, 254, 0.1)', border: '1px solid var(--border-active)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px', transform: 'rotate(10deg)' }}>
+           <div style={{ width: '70px', height: '70px', borderRadius: '24px', background: 'rgba(0, 98, 255, 0.1)', border: '1px solid var(--border-active)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px', transform: 'rotate(10deg)' }}>
               {isEditing ? <UserCheck size={32} color="var(--primary)" /> : <User size={32} color="var(--primary)" />}
            </div>
            <h2 style={{ fontSize: '22px', fontWeight: '900', color: 'var(--text-main)', marginBottom: '8px' }}>
@@ -264,7 +264,7 @@ export default function ProfileRegistrationModal({ isOpen, profile, existingCust
                     justifyContent: 'center',
                     gap: '10px',
                     cursor: (submitting || loadingOpts) ? 'not-allowed' : 'pointer',
-                    boxShadow: '0 10px 30px rgba(0, 242, 254, 0.3)',
+                    boxShadow: '0 10px 30px rgba(0, 98, 255, 0.3)',
                     opacity: (submitting || loadingOpts) ? 0.6 : 1,
                     transition: 'all 0.2s ease'
                  }}

@@ -1,6 +1,6 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from 'next/server';
 import { sendLineGroupNotification, sendLineGroupFlexNotification } from '@/lib/utils/lineNotifications';
+import { createSupabaseServerClient } from '@/lib/supabase-server';
 
 /**
  * API Route: Send notification to the internal LINE staff group
@@ -12,6 +12,20 @@ import { sendLineGroupNotification, sendLineGroupFlexNotification } from '@/lib/
  * Used by: ticket lifecycle events (new ticket, SLA breach, escalation)
  */
 export async function POST(req: NextRequest) {
+  // Defense-in-depth: Auth & Role check
+  const supabase = await createSupabaseServerClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) {
+    return NextResponse.json({ error: 'Unauthorized: Access denied.' }, { status: 401 });
+  }
+
+  // Check profile role
+  const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single();
+  if (!profile || (profile.role !== 'Agent' && profile.role !== 'Administrator')) {
+    return NextResponse.json({ error: 'Forbidden: Insufficient permissions.' }, { status: 403 });
+  }
+
   try {
     const body = await req.json();
 

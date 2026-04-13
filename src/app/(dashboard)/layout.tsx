@@ -17,7 +17,8 @@ import {
   ArrowRight,
   MessageSquare,
   AlertTriangle,
-  CheckCircle2
+  CheckCircle2,
+  Clock
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { NotificationProvider, useNotificationContext } from '@/contexts/NotificationContext';
@@ -35,6 +36,7 @@ const ACTION_ICONS: Record<string, any> = {
   'Resolved': CheckCheck,
   'Message': MessageSquare,
   'sla': AlertTriangle,
+  'sla_warning': Clock,
   'ticket': Ticket,
   'message': MessageSquare,
 };
@@ -45,7 +47,8 @@ const ACTION_COLORS: Record<string, string> = {
   'Transferred': '#7367f0',
   'Resolved': '#28c76f',
   'Message': '#4facfe',
-  'sla': '#ff9f43',
+  'sla': '#ea5455',
+  'sla_warning': '#ff9f43',
   'ticket': '#00f2fe',
   'message': '#28c76f',
 };
@@ -103,7 +106,7 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
     setShowNotifications(false);
     markAsRead(notif.id);
 
-    if (notif.type === 'sla' || (notif.type === 'ticket' && notif.ticketId)) {
+    if (notif.type === 'sla' || notif.type === 'sla_warning' || (notif.type === 'ticket' && notif.ticketId)) {
       router.push(`/tickets/${notif.ticketId}`);
     } else if (notif.type === 'message') {
       router.push('/inbox');
@@ -113,7 +116,7 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
   // Filtered notifications by tab
   const filteredNotifs: AppNotification[] = notifications.filter((n) => {
     if (activeTab === 'unread') return !n.isRead;
-    if (activeTab === 'sla') return n.type === 'sla';
+    if (activeTab === 'sla') return n.type === 'sla' || n.type === 'sla_warning';
     return true;
   });
 

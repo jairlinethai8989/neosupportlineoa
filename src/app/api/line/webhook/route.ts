@@ -3,6 +3,8 @@ import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 import * as line from '@line/bot-sdk';
 
+import crypto from 'crypto';
+
 const config = {
   channelAccessToken: process.env.LINE_CHANNEL_ACCESS_TOKEN || 'unset',
   channelSecret: process.env.LINE_CHANNEL_SECRET || 'unset',
@@ -11,9 +13,27 @@ const config = {
 const client = new line.Client(config);
 
 export async function POST(req: Request) {
+  const signature = req.headers.get('x-line-signature');
+  const rawBody = await req.text();
+
+  if (!signature) {
+    return NextResponse.json({ error: 'Signature required' }, { status: 401 });
+  }
+
+  // 1. Verify Signature
+  const checkSig = crypto
+    .createHmac('SHA256', config.channelSecret)
+    .update(rawBody)
+    .digest('base64');
+
+  if (checkSig !== signature) {
+    console.error('Webhook: Invalid signature');
+    return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
+  }
+
   let body: any;
   try {
-     body = await req.json();
+     body = JSON.parse(rawBody);
   } catch {
      console.error('Webhook: Non-JSON body received');
      return NextResponse.json({ error: 'Body required' }, { status: 400 });

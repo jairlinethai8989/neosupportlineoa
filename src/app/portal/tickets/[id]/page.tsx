@@ -16,6 +16,8 @@ import {
   Paperclip
 } from 'lucide-react';
 import ChatAttachmentModal from '@/components/chat/ChatAttachmentModal';
+import ImageEditorModal from '@/components/chat/ImageEditorModal';
+import ImageViewerModal from '@/components/chat/ImageViewerModal';
 import { useLiff } from '@/hooks/useLiff';
 
 export default function TicketDetailPage() {
@@ -29,6 +31,10 @@ export default function TicketDetailPage() {
   const [newMessage, setNewMessage] = useState('');
   const [sending, setSending] = useState(false);
   const [isAttachModalOpen, setIsAttachModalOpen] = useState(false);
+  const [isEditorOpen, setIsEditorOpen] = useState(false);
+  const [isViewerOpen, setIsViewerOpen] = useState(false);
+  const [editingImage, setEditingImage] = useState<string>('');
+  const [viewingImage, setViewingImage] = useState<string>('');
   const [conversationId, setConversationId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -129,6 +135,11 @@ export default function TicketDetailPage() {
       if (channel) supabase.removeChannel(channel);
     };
   }, [id, conversationId]);
+
+  const handleEditExistingImage = (url: string) => {
+    setEditingImage(url);
+    setIsEditorOpen(true);
+  };
 
   const handleSendMessage = async () => {
     if (!newMessage.trim()) return;
@@ -263,8 +274,14 @@ export default function TicketDetailPage() {
                    boxShadow: '0 2px 8px rgba(0,0,0,0.02)'
                 }}>
                    <div style={{ fontSize: '14px', fontWeight: '500', lineHeight: '1.5' }}>
-                       {msg.message_type === 'image' || (msg.content?.startsWith('http') && msg.content?.match(/\.(jpeg|jpg|gif|png)$/i)) ? (
-                          <img src={msg.content} style={{ maxWidth: '100%', borderRadius: '12px' }} alt="Attachment" />
+                       {msg.message_type === 'image' || (msg.content?.startsWith('http') && msg.content?.match(/\.(jpeg|jpg|gif|png|webp|JPG|PNG)$/i)) ? (
+                          <img 
+                            src={msg.content} 
+                            style={{ maxWidth: '100%', borderRadius: '12px', cursor: 'pointer' }} 
+                            alt="Attachment" 
+                            onClick={() => handleEditExistingImage(msg.content)}
+                            title="คลิกเพื่อทำการแก้ไขภาพ (Edit/Draw)"
+                          />
                        ) : msg.message_type === 'file' || (msg.content?.startsWith('http') && msg.message_type !== 'text') ? (
                           <a href={msg.content} target="_blank" rel="noreferrer" style={{ textDecoration: 'none', color: 'inherit', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '8px' }}>
                              <Paperclip size={14} /> ดูไฟล์แนบ
@@ -391,6 +408,28 @@ export default function TicketDetailPage() {
           isOpen={isAttachModalOpen}
           onClose={() => setIsAttachModalOpen(false)}
           onConfirm={handleConfirmAttachment}
+        />
+
+        <ImageEditorModal 
+          isOpen={isEditorOpen}
+          imageSrc={editingImage}
+          onClose={() => setIsEditorOpen(false)}
+          onSave={(blob) => {
+            const file = new File([blob], "edited_image.png", { type: "image/png" });
+            handleConfirmAttachment(file, 'image');
+          }}
+          saveLabel="ส่งข้อความ (Send)"
+        />
+
+        <ImageViewerModal 
+          isOpen={isViewerOpen}
+          imageSrc={viewingImage}
+          onClose={() => setIsViewerOpen(false)}
+          onEdit={(src) => {
+            setIsViewerOpen(false);
+            setEditingImage(src);
+            setIsEditorOpen(true);
+          }}
         />
     </div>
   );

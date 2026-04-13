@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { X, AlertTriangle, Ticket, MessageSquare } from 'lucide-react';
+import { X, AlertTriangle, Ticket, MessageSquare, Clock } from 'lucide-react';
 import { ToastNotif, NotifType } from '@/hooks/useNotifications';
 
 interface ToastItemProps {
@@ -9,12 +9,18 @@ interface ToastItemProps {
   duration?: number;
 }
 
-const TYPE_CONFIG: Record<NotifType, { icon: React.ElementType; color: string; bg: string; label: string }> = {
+const TYPE_CONFIG: Record<string, { icon: React.ElementType; color: string; bg: string; label: string }> = {
   sla: {
     icon: AlertTriangle,
+    color: '#ea5455',
+    bg: 'rgba(234, 84, 85, 0.12)',
+    label: 'SLA หลุดกำหนด',
+  },
+  sla_warning: {
+    icon: Clock,
     color: '#ff9f43',
     bg: 'rgba(255, 159, 67, 0.12)',
-    label: 'SLA Alert',
+    label: 'SLA ใกล้หมด',
   },
   ticket: {
     icon: Ticket,
@@ -30,36 +36,35 @@ const TYPE_CONFIG: Record<NotifType, { icon: React.ElementType; color: string; b
   },
 };
 
-export default function ToastItem({ toast, onDismiss, duration = 5000 }: ToastItemProps) {
+export default function ToastItem({ toast, onDismiss }: ToastItemProps) {
   const router = useRouter();
+  // SLA toasts stay longer by default
+  const effectiveDuration = toast.duration ?? (toast.type === 'sla' ? 8000 : toast.type === 'sla_warning' ? 6000 : 5000);
+
   const [progress, setProgress] = useState(100);
   const [visible, setVisible] = useState(false);
 
-  const cfg = TYPE_CONFIG[toast.type];
+  const cfg = TYPE_CONFIG[toast.type] ?? TYPE_CONFIG.ticket;
   const Icon = cfg.icon;
 
   // Entrance animation
   useEffect(() => {
-    const enterTimer = setTimeout(() => setVisible(true), 20);
-    return () => clearTimeout(enterTimer);
+    const t = setTimeout(() => setVisible(true), 20);
+    return () => clearTimeout(t);
   }, []);
 
   // Progress countdown
   useEffect(() => {
-    const step = 100 / (duration / 100);
+    const step = 100 / (effectiveDuration / 100);
     const interval = setInterval(() => {
-      setProgress((prev) => {
-        if (prev <= 0) {
-          clearInterval(interval);
-          handleDismiss();
-          return 0;
-        }
+      setProgress(prev => {
+        if (prev <= 0) { clearInterval(interval); handleDismiss(); return 0; }
         return prev - step;
       });
     }, 100);
     return () => clearInterval(interval);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [duration]);
+  }, [effectiveDuration]);
 
   const handleDismiss = () => {
     setVisible(false);
@@ -67,8 +72,9 @@ export default function ToastItem({ toast, onDismiss, duration = 5000 }: ToastIt
   };
 
   const handleClick = () => {
-    if (toast.type === 'ticket' || toast.type === 'sla') {
+    if (toast.type === 'ticket' || toast.type === 'sla' || toast.type === 'sla_warning') {
       if (toast.ticketId) router.push(`/tickets/${toast.ticketId}`);
+      else router.push('/tickets');
     } else if (toast.type === 'message') {
       router.push('/inbox');
     }
@@ -79,12 +85,12 @@ export default function ToastItem({ toast, onDismiss, duration = 5000 }: ToastIt
     <div
       style={{
         width: '340px',
-        background: 'rgba(10, 14, 20, 0.96)',
+        background: 'rgba(10, 14, 20, 0.97)',
         border: `1px solid ${cfg.color}30`,
         borderLeft: `3px solid ${cfg.color}`,
-        borderRadius: '12px',
+        borderRadius: '14px',
         backdropFilter: 'blur(20px)',
-        boxShadow: `0 8px 32px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.04)`,
+        boxShadow: `0 8px 32px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.04), 0 0 20px ${cfg.color}15`,
         overflow: 'hidden',
         transform: visible ? 'translateX(0)' : 'translateX(120%)',
         opacity: visible ? 1 : 0,
@@ -93,7 +99,20 @@ export default function ToastItem({ toast, onDismiss, duration = 5000 }: ToastIt
         position: 'relative',
       }}
       onClick={handleClick}
+      role="alert"
+      aria-live="assertive"
     >
+      {/* Glow accent for SLA alerts */}
+      {(toast.type === 'sla' || toast.type === 'sla_warning') && (
+        <div style={{
+          position: 'absolute',
+          top: 0, left: 0, right: 0,
+          height: '1px',
+          background: `linear-gradient(90deg, transparent, ${cfg.color}, transparent)`,
+          opacity: 0.6,
+        }} />
+      )}
+
       {/* Content */}
       <div style={{ padding: '14px 16px', display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
         {/* Icon */}
@@ -103,6 +122,7 @@ export default function ToastItem({ toast, onDismiss, duration = 5000 }: ToastIt
             height: '36px',
             borderRadius: '10px',
             background: cfg.bg,
+            border: `1px solid ${cfg.color}25`,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -118,10 +138,10 @@ export default function ToastItem({ toast, onDismiss, duration = 5000 }: ToastIt
             <span
               style={{
                 fontSize: '9px',
-                fontWeight: '800',
+                fontWeight: '900',
                 color: cfg.color,
                 textTransform: 'uppercase',
-                letterSpacing: '0.08em',
+                letterSpacing: '0.1em',
               }}
             >
               {cfg.label}
