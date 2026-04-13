@@ -119,6 +119,7 @@ export const analyticsService = {
   async getDetailedSummary(startDate: string, endDate: string) {
     // Correct way to do OR with multiple conditions in Supabase:
     // Fetch all that was created OR resolved after startDate
+    // Values with + or - must be quoted for .or() filter
     const { data, error } = await supabase
       .from('tickets')
       .select(`
@@ -134,7 +135,7 @@ export const analyticsService = {
           full_name
         )
       `)
-      .or(`created_at.gte.${startDate},resolved_at.gte.${startDate}`)
+      .or(`created_at.gte."${startDate}",resolved_at.gte."${startDate}"`)
       .order('created_at', { ascending: true });
 
     if (error) {
