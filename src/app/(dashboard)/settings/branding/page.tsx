@@ -12,7 +12,8 @@ import {
   ShieldCheck,
   Building,
   Camera,
-  Trash2
+  Trash2,
+  Plus
 } from 'lucide-react';
 import Link from 'next/link';
 import Skeleton from '@/components/ui/Skeleton';
@@ -110,7 +111,7 @@ export default function BrandingSettingsPage() {
   const handleAddDepartment = async () => {
     if (!newDeptName.trim()) return;
     const updatedDepts = [...(company?.departments || []), newDeptName.trim()];
-    setCompany({ ...company, departments: updatedDepts });
+    setCompany({ ...(company || {}), departments: updatedDepts });
     setNewDeptName('');
     
     try {
@@ -138,7 +139,7 @@ export default function BrandingSettingsPage() {
   const handleDeleteDepartment = async (name: string) => {
     if (!confirm(`ยืนยันการลบแผนก "${name}"?`)) return;
     const updatedDepts = (company?.departments || []).filter((d: string) => d !== name);
-    setCompany({ ...company, departments: updatedDepts });
+    setCompany({ ...(company || {}), departments: updatedDepts });
 
     try {
       await supabase.from('company_settings').update({ 
@@ -184,7 +185,7 @@ export default function BrandingSettingsPage() {
   return (
     <div className="animate-page-in">
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '32px' }}>
-         <Link href="/" style={{ color: 'var(--text-muted)', display: 'flex' }} className="glass-interactive flex-center" style={{ width: '40px', height: '40px', borderRadius: '50%', color: 'var(--text-muted)' }}><ChevronLeft size={20} /></Link>
+         <Link href="/" className="glass-interactive flex-center" style={{ width: '40px', height: '40px', borderRadius: '50%', color: 'var(--text-muted)', display: 'flex', textDecoration: 'none' }}><ChevronLeft size={20} /></Link>
          <h1 style={{ fontSize: '28px', fontWeight: '900', letterSpacing: '-0.5px' }}>ตราสินค้าองค์กร</h1>
       </div>
 
@@ -247,7 +248,7 @@ export default function BrandingSettingsPage() {
                     type="text" 
                     placeholder="Enter company name..."
                     value={company?.company_name || ''} 
-                    onChange={e => setCompany({...company, company_name: e.target.value})}
+                    onChange={e => setCompany({...(company || {}), company_name: e.target.value})}
                     style={{ width: '100%', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '10px', padding: '14px', color: 'var(--text-main)', outline: 'none', fontWeight: '600' }}
                   />
                </div>

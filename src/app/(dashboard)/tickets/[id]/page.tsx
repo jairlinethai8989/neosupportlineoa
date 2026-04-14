@@ -61,7 +61,7 @@ export default function StaffTicketDetailPage() {
         .from('tickets')
         .select(`
           *,
-          customers (*),
+          customers!tickets_customer_id_fkey (*),
           assigned_agent:profiles!assigned_agent_id(*)
         `)
         .eq('id', id)
