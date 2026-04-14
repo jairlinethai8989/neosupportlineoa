@@ -63,7 +63,10 @@ export async function GET(req: Request) {
     // Thai Formatting
     const dayNameEn = start.toFormat('EEEE');
     const themeColor = DAY_COLORS[dayNameEn] || '#4fc3f7';
-    const fullDateStr = `${THAI_DAYS[dayNameEn] || dayNameEn}ที่ ${start.day} ${THAI_MONTHS[start.month - 1]} พ.ศ. ${start.year + 543}`;
+    const thaiDayOfMonth = start.toFormat('d');
+    const thaiMonthName = THAI_MONTHS[Number(start.toFormat('M')) - 1];
+    const thaiBuddhistYear = Number(start.toFormat('yyyy')) + 543;
+    const fullDateStr = `${THAI_DAYS[dayNameEn] || dayNameEn}ที่ ${thaiDayOfMonth} ${thaiMonthName} พ.ศ. ${thaiBuddhistYear}`;
     const timeRangeStr = `${start.toFormat('HH:mm')} - ${end.toFormat('HH:mm')} น.`;
     const titlePrefix = reportType === 'Morning' ? '🌅 สรุปงานกะดึก' : '🌆 สรุปงานประจำวัน';
 
