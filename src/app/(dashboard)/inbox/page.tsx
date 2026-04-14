@@ -416,9 +416,9 @@ function InboxContent() {
     <div className="animate-page-in inbox-layout" style={{ display: 'flex', height: 'calc(100vh - 120px)', gap: '24px' }}>
       <InboxSidebar 
         conversations={conversations} 
-        loading={inboxLoading} 
-        selectedId={selectedChat?.id} 
-        onSelect={(c) => { setSelectedChat(c); setViewMode('chat'); }} 
+        selectedChat={selectedChat} 
+        onSelectChat={(c) => { setSelectedChat(c); setViewMode('chat'); }} 
+        viewMode={viewMode}
       />
       
       {/* Mobile Control Toggle */}
