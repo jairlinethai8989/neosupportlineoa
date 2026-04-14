@@ -92,9 +92,11 @@ export default function StaffTicketDetailPage() {
         if (conv) setConversationId(conv.id);
       }
 
-      // Fetch dynamic departments
-      const { data: depts } = await supabase.from('departments').select('name').eq('is_active', true);
-      if (depts) setAvailableDepts(depts.map(d => d.name));
+      // Fetch dynamic departments from company_settings mapping
+      const { data: companyData } = await supabase.from('company_settings').select('departments').limit(1).single();
+      if (companyData && companyData.departments) {
+         setAvailableDepts(companyData.departments);
+      }
 
       // Fetch current user
       const { data: { user: authUser } } = await supabase.auth.getUser();

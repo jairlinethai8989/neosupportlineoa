@@ -6,6 +6,7 @@ import {
   History, 
   CheckCircle 
 } from 'lucide-react';
+import Link from 'next/link';
 
 interface TicketSidebarProps {
   ticket: any;
@@ -52,7 +53,13 @@ export const TicketSidebar: React.FC<TicketSidebarProps> = ({
             <span style={{ fontSize: '10px', padding: '2px 8px', background: 'rgba(0,242,254,0.1)', color: 'var(--primary)', borderRadius: '4px', fontWeight: '800' }}>CUSTOMER</span>
           </div>
         </div>
-        <button className="glass-interactive" style={{ width: '100%', padding: '10px', borderRadius: '10px', fontSize: '12px', fontWeight: '700', border: '1px solid var(--border)' }}>View Full Profile</button>
+        <Link 
+          href={`/tickets?customerId=${ticket.customer_id}`} 
+          className="glass-interactive flex-center" 
+          style={{ width: '100%', padding: '10px', borderRadius: '10px', fontSize: '12px', fontWeight: '800', border: '1px solid var(--border)', textDecoration: 'none', color: 'var(--text-main)' }}
+        >
+          ดูประวัติใบงานลูกค้า
+        </Link>
       </div>
 
       {/* Issue Overview */}
