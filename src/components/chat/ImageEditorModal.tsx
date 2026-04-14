@@ -18,11 +18,12 @@ interface ImageEditorModalProps {
   onClose: () => void;
   imageSrc: string;
   onSave: (blob: Blob) => void;
+  saveLabel?: string;
 }
 
 type Tool = 'pencil' | 'rect' | 'circle' | 'text';
 
-export default function ImageEditorModal({ isOpen, onClose, imageSrc, onSave }: ImageEditorModalProps) {
+export default function ImageEditorModal({ isOpen, onClose, imageSrc, onSave, saveLabel }: ImageEditorModalProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [tool, setTool] = useState<Tool>('pencil');
@@ -250,7 +251,7 @@ export default function ImageEditorModal({ isOpen, onClose, imageSrc, onSave }: 
               display: 'flex', gap: '8px', alignItems: 'center', cursor: 'pointer'
             }}
           >
-            <Check size={20} /> บันทึกและส่ง
+            <Check size={20} /> {saveLabel || 'บันทึกและส่ง'}
           </button>
         </div>
       </div>

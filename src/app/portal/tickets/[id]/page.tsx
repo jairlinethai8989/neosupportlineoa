@@ -24,15 +24,15 @@ export default function TicketDetailPage() {
   const { id } = useParams();
   const router = useRouter();
   const { isReady, profile, error: liffError, setMockLogin } = useLiff();
-  const [ticket, setTicket] = useState<any>(null);
+  const [ticket, setTicket] = useState<any | null>(null);
   const [logs, setLogs] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState<boolean>(true);
   const [messages, setMessages] = useState<any[]>([]);
-  const [newMessage, setNewMessage] = useState('');
-  const [sending, setSending] = useState(false);
-  const [isAttachModalOpen, setIsAttachModalOpen] = useState(false);
-  const [isEditorOpen, setIsEditorOpen] = useState(false);
-  const [isViewerOpen, setIsViewerOpen] = useState(false);
+  const [newMessage, setNewMessage] = useState<string>('');
+  const [sending, setSending] = useState<boolean>(false);
+  const [isAttachModalOpen, setIsAttachModalOpen] = useState<boolean>(false);
+  const [isEditorOpen, setIsEditorOpen] = useState<boolean>(false);
+  const [isViewerOpen, setIsViewerOpen] = useState<boolean>(false);
   const [editingImage, setEditingImage] = useState<string>('');
   const [viewingImage, setViewingImage] = useState<string>('');
   const [conversationId, setConversationId] = useState<string | null>(null);
@@ -122,12 +122,12 @@ export default function TicketDetailPage() {
         schema: 'public',
         table: 'tickets',
         filter: `id=eq.${id}`
-      }, (payload) => {
+      }, (payload: any) => {
         console.log('Ticket updated:', payload.new);
-        setTicket(prev => ({ ...prev, ...payload.new }));
+        setTicket((prev: any) => prev ? ({ ...prev, ...payload.new }) : prev);
         // Also fetch logs to update timeline
         supabase.from('ticket_logs').select('*').eq('ticket_id', id).order('created_at', { ascending: false })
-          .then(({ data }) => { if (data) setLogs(data); });
+          .then(({ data }: any) => { if (data) setLogs(data); });
       })
       .subscribe();
 
@@ -151,7 +151,7 @@ export default function TicketDetailPage() {
        created_at: new Date().toISOString(),
        ticket_id: id
     };
-    setMessages(prev => [...prev, optimisticMsg]);
+    setMessages((prev: any[]) => [...prev, optimisticMsg]);
     const messageToSend = newMessage;
     setNewMessage('');
     setSending(true);
@@ -167,7 +167,7 @@ export default function TicketDetailPage() {
       if (error) throw error;
     } catch (err: any) {
       alert('Error sending message: ' + err.message);
-      setMessages(prev => prev.filter(m => m !== optimisticMsg));
+      setMessages((prev: any[]) => prev.filter((m: any) => m !== optimisticMsg));
     } finally {
       setSending(false);
     }

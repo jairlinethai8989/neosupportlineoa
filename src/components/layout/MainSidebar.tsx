@@ -300,7 +300,7 @@ const Sidebar = ({ onClickLink, isCollapsed = false }: SidebarProps) => {
                     </button>
                     {isOpen && !isCollapsed && (
                       <div style={{ marginLeft: '28px', borderLeft: '1px solid var(--border)', paddingLeft: '8px', marginTop: '4px' }}>
-                        {item.children.map((child) => {
+                        {item.children.map((child: any) => {
                           const isChildActive = pathname === child.path;
                           return (
                             <Link key={child.path} href={child.path} onClick={onClickLink} 

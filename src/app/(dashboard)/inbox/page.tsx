@@ -43,23 +43,23 @@ import Skeleton from '@/components/ui/Skeleton';
 
 function InboxContent() {
   const { conversations, loading: inboxLoading } = useRealtimeInbox();
-  const [selectedChat, setSelectedChat] = useState<any>(null);
+  const [selectedChat, setSelectedChat] = useState<any | null>(null);
   const [viewMode, setViewMode] = useState<'list' | 'chat' | 'details'>('list');
   const [messages, setMessages] = useState<any[]>([]);
-  const [newMessage, setNewMessage] = useState('');
-  const [agent, setAgent] = useState<any>(null);
-  const [sending, setSending] = useState(false);
-  const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
-  const [isAttachModalOpen, setIsAttachModalOpen] = useState(false);
-  const [isEditorOpen, setIsEditorOpen] = useState(false);
-  const [isViewerOpen, setIsViewerOpen] = useState(false);
+  const [newMessage, setNewMessage] = useState<string>('');
+  const [agent, setAgent] = useState<any | null>(null);
+  const [sending, setSending] = useState<boolean>(false);
+  const [isTransferModalOpen, setIsTransferModalOpen] = useState<boolean>(false);
+  const [isAttachModalOpen, setIsAttachModalOpen] = useState<boolean>(false);
+  const [isEditorOpen, setIsEditorOpen] = useState<boolean>(false);
+  const [isViewerOpen, setIsViewerOpen] = useState<boolean>(false);
   const [viewingImage, setViewingImage] = useState<string>('');
   const [editingImage, setEditingImage] = useState<string>('');
   const searchParams = useSearchParams();
   const cid = searchParams.get('cid');
-  const [currentTicket, setCurrentTicket] = useState<any>(null);
+  const [currentTicket, setCurrentTicket] = useState<any | null>(null);
   const [cannedResponses, setCannedResponses] = useState<string[]>([]);
-  const [showCanned, setShowCanned] = useState(false);
+  const [showCanned, setShowCanned] = useState<boolean>(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -130,7 +130,7 @@ function InboxContent() {
       
       if (data) {
          // Transform media paths to signed URLs
-         const enrichedMessages = await Promise.all(data.map(async (msg) => {
+         const enrichedMessages = await Promise.all(data.map(async (msg: any) => {
             if (msg.message_type === 'image' || msg.message_type === 'video' || msg.message_type === 'audio' || msg.message_type === 'file') {
                if (msg.content && !msg.content.startsWith('http')) {
                   const { data: signedData } = await supabase.storage.from('chat_media').createSignedUrl(msg.content, 3600);
@@ -172,11 +172,11 @@ function InboxContent() {
         schema: 'public', 
         table: 'messages',
         filter: `conversation_id=eq.${selectedChat.id}`
-      }, (payload) => {
+      }, (payload: any) => {
         if (payload.new && (payload.new as any).conversation_id === selectedChat.id) {
           if (payload.eventType === 'INSERT') {
-            setMessages(prev => {
-              if (prev.some(m => m.id === (payload.new as any).id)) return prev;
+            setMessages((prev: any[]) => {
+              if (prev.some((m: any) => m.id === (payload.new as any).id)) return prev;
               return [...prev, payload.new];
             });
           } else {

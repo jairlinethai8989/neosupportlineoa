@@ -160,7 +160,7 @@ export default function SurveyPage() {
          </p>
       </div>
 
-      <style jsx global>{`
+      <style dangerouslySetInnerHTML={{ __html: `
         @keyframes fadeIn {
           from { opacity: 0; transform: translateY(20px); }
           to { opacity: 1; transform: translateY(0); }
@@ -172,7 +172,7 @@ export default function SurveyPage() {
         .animate-spin {
           animation: animate-spin 1s linear infinite;
         }
-      `}</style>
+      `}} />
     </div>
   );
 }
