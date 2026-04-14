@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { analyticsService } from '@/lib/services/analyticsService';
 import { sendLineGroupFlexNotification } from '@/lib/utils/lineNotifications';
 import { DateTime } from 'luxon';
@@ -22,7 +22,7 @@ const THAI_MONTHS = [
   'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'
 ];
 
-export async function GET(req: NextRequest) {
+export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const key = searchParams.get('key');
   const cronSecret = process.env.CRON_SECRET;

@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import * as line from '@line/bot-sdk';
 import { createSupabaseServerClient } from '@/lib/supabase-server';
 
@@ -18,7 +18,7 @@ const client = new line.Client(config);
  * API Route for Outbound / Push Messages
  * Allows sending messages from the agent dashboard to specific LINE users
  */
-export async function POST(req: NextRequest) {
+export async function POST(req: Request) {
   // Defense-in-depth: Auth & Role check
   const supabase = await createSupabaseServerClient();
   const { data: { user } } = await supabase.auth.getUser();

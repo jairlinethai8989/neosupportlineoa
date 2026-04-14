@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { sendLineGroupNotification, sendLineGroupFlexNotification } from '@/lib/utils/lineNotifications';
 import { createSupabaseServerClient } from '@/lib/supabase-server';
 
@@ -11,7 +11,7 @@ import { createSupabaseServerClient } from '@/lib/supabase-server';
  * 
  * Used by: ticket lifecycle events (new ticket, SLA breach, escalation)
  */
-export async function POST(req: NextRequest) {
+export async function POST(req: Request) {
   // Defense-in-depth: Auth & Role check
   const supabase = await createSupabaseServerClient();
   const { data: { user } } = await supabase.auth.getUser();
