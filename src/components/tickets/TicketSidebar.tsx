@@ -4,7 +4,8 @@ import {
   User, 
   Layout, 
   History, 
-  CheckCircle 
+  CheckCircle,
+  Clock 
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -126,6 +127,74 @@ export const TicketSidebar: React.FC<TicketSidebarProps> = ({
               ))}
             </select>
           </div>
+        </div>
+      </div>
+
+      {/* Time Tracking Section */}
+      <div className="glass" style={{ padding: '20px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
+           <Clock size={16} color="var(--primary)" />
+           <label style={{ fontSize: '10px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '0' }}>Time Tracking</label>
+        </div>
+        
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+           <div>
+              <label style={{ fontSize: '9px', fontWeight: '800', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>เวลาแจ้งงาน (REPORTED AT)</label>
+              <p style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text)' }}>
+                 {new Date(ticket.created_at).toLocaleString('th-TH', { 
+                    year: 'numeric', month: 'short', day: 'numeric', 
+                    hour: '2-digit', minute: '2-digit' 
+                 })} น.
+              </p>
+           </div>
+
+           {ticket.resolved_at && (
+              <>
+                 <div>
+                    <label style={{ fontSize: '9px', fontWeight: '800', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>เวลาปิดงาน (RESOLVED AT)</label>
+                    <p style={{ fontSize: '13px', fontWeight: '700', color: 'var(--primary)' }}>
+                       {new Date(ticket.resolved_at).toLocaleString('th-TH', { 
+                          year: 'numeric', month: 'short', day: 'numeric', 
+                          hour: '2-digit', minute: '2-digit' 
+                       })} น.
+                    </p>
+                 </div>
+
+                 <div style={{ padding: '12px', background: 'rgba(0,242,254,0.05)', borderRadius: '10px', border: '1px dashed var(--primary)' }}>
+                    <label style={{ fontSize: '9px', fontWeight: '800', color: 'var(--primary)', display: 'block', marginBottom: '4px', opacity: 0.7 }}>ระยะเวลาดำเนินการ (DURATION)</label>
+                    <p style={{ fontSize: '16px', fontWeight: '900', color: 'var(--text)' }}>
+                       {(() => {
+                          const start = new Date(ticket.created_at).getTime();
+                          const end = new Date(ticket.resolved_at).getTime();
+                          const diff = end - start;
+                          const hours = Math.floor(diff / (1000 * 60 * 60));
+                          const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+                          const days = Math.floor(hours / 24);
+                          
+                          if (days > 0) return `${days} วัน ${hours % 24} ชม. ${minutes} น.`;
+                          if (hours > 0) return `${hours} ชม. ${minutes} น.`;
+                          return `${minutes} นาที`;
+                       })()}
+                    </p>
+                 </div>
+              </>
+           )}
+
+           {!ticket.resolved_at && (
+              <div style={{ padding: '12px', background: 'rgba(255,165,0,0.05)', borderRadius: '10px', border: '1px dashed orange' }}>
+                 <label style={{ fontSize: '9px', fontWeight: '800', color: 'orange', display: 'block', marginBottom: '4px', opacity: 0.7 }}>กำลังดำเนินการ (PENDING TIME)</label>
+                 <p style={{ fontSize: '14px', fontWeight: '800', color: 'var(--text)' }}>
+                    {(() => {
+                        const start = new Date(ticket.created_at).getTime();
+                        const now = Date.now();
+                        const diff = now - start;
+                        const hours = Math.floor(diff / (1000 * 60 * 60));
+                        const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+                        return `เปิดมาแล้ว ${hours} ชม. ${minutes} น.`;
+                    })()}
+                 </p>
+              </div>
+           )}
         </div>
       </div>
 

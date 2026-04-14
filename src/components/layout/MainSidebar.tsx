@@ -159,7 +159,10 @@ const Sidebar = ({ onClickLink, isCollapsed = false }: SidebarProps) => {
       { name: 'Analytics', thai: 'ภาพรวมระบบ', icon: LayoutDashboard, path: '/' },
       { name: 'Performance', thai: 'สถิติการทำงาน', icon: BarChart2, path: '/analytics' },
       { name: 'Customers', thai: 'ฐานข้อมูลลูกค้า', icon: Users, path: '/customers' },
-      { name: 'Reports', thai: 'รายงาน & Boardcast', icon: Send, path: '/reports' },
+      { name: 'Reports', thai: 'รายงาน & Broadcast', icon: Send, children: [
+          { name: 'Daily Report', thai: 'สรุปปัญหาประจำวัน', path: '/reports/daily' },
+          { name: 'Report Hub', thai: 'ศูนย์ควบคุมการส่งรายงาน', path: '/reports/hub' }
+      ] },
     ]},
     { section: 'System', thai: 'การตั้งค่าระบบ', items: [
       { 
@@ -446,7 +449,7 @@ const Sidebar = ({ onClickLink, isCollapsed = false }: SidebarProps) => {
         
         {!isCollapsed && (
           <div style={{ textAlign: 'center', marginTop: '12px', opacity: 0.3 }}>
-             <span style={{ fontSize: '10px', fontWeight: '700', letterSpacing: '1px' }}>VERSION 1.2.1.2 (STABLE PATCH)</span>
+             <span style={{ fontSize: '10px', fontWeight: '700', letterSpacing: '1px' }}>VERSION 1.2.1.4 (REPORTING HUB)</span>
           </div>
         )}
       </div>
