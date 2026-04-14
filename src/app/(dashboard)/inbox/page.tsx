@@ -440,7 +440,7 @@ function InboxContent() {
             messages={messages}
             newMessage={newMessage}
             setNewMessage={setNewMessage}
-            handleSendMessage={handleSendMessage}
+            onSendMessage={handleSendMessage}
             sending={sending}
             agent={agent}
             currentTicket={currentTicket}
