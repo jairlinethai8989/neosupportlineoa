@@ -273,6 +273,7 @@ const Sidebar = ({ onClickLink, isCollapsed = false }: SidebarProps) => {
                     <button 
                       onClick={() => !isCollapsed && toggleMenu(item.name)}
                       className="sidebar-btn-premium"
+                      title={isCollapsed ? item.thai : undefined}
                       style={{
                         width: '100%',
                         display: 'flex',
@@ -322,7 +323,9 @@ const Sidebar = ({ onClickLink, isCollapsed = false }: SidebarProps) => {
 
               const isActive = pathname === item.path;
               return (
-                <Link key={item.path} href={item.path} onClick={onClickLink} className={`sidebar-btn-premium ${isActive ? 'active' : ''}`}
+                <Link key={item.path} href={item.path} onClick={onClickLink} 
+                  className={`sidebar-btn-premium ${isActive ? 'active' : ''}`}
+                  title={isCollapsed ? item.thai : undefined}
                   style={{
                     display: 'flex',
                     alignItems: 'center',
@@ -449,29 +452,29 @@ const Sidebar = ({ onClickLink, isCollapsed = false }: SidebarProps) => {
       </div>
       
       <style dangerouslySetInnerHTML={{ __html: `
-        .sidebar-btn {
-          position: relative;
-        }
-        @media (min-width: 1025px) {
-          .sidebar-btn:hover::after {
-            content: attr(title);
-            position: absolute;
-            left: 100%;
-            margin-left: 12px;
-            padding: 8px 14px;
-            background: #1e293b;
-            color: white;
-            font-size: 12px;
-            font-weight: 700;
-            border-radius: 8px;
-            white-space: nowrap;
-            z-index: 1000;
-            pointer-events: none;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
-            border: 1px solid rgba(255,255,255,0.15);
-            display: ${isCollapsed ? 'block' : 'none'};
-            animation: tooltipIn 0.2s ease-out;
+          .sidebar-btn-premium {
+            position: relative;
           }
+          @media (min-width: 1025px) {
+            .sidebar-btn-premium:hover::after {
+              content: attr(title);
+              position: absolute;
+              left: 100%;
+              margin-left: 12px;
+              padding: 8px 14px;
+              background: #1e293b;
+              color: white;
+              font-size: 12px;
+              font-weight: 700;
+              border-radius: 8px;
+              white-space: nowrap;
+              z-index: 1000;
+              pointer-events: none;
+              box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+              border: 1px solid rgba(255,255,255,0.15);
+              display: ${isCollapsed ? 'block' : 'none'};
+              animation: tooltipIn 0.2s ease-out;
+            }
           @keyframes tooltipIn {
             from { opacity: 0; transform: translateX(-10px); }
             to { opacity: 1; transform: translateX(0); }
