@@ -444,9 +444,9 @@ function InboxContent() {
             sending={sending}
             agent={agent}
             currentTicket={currentTicket}
-            handleClaim={handleClaim}
-            onOpenAttachment={() => setIsAttachModalOpen(true)}
-            onOpenImage={(src) => { setViewingImage(src); setIsViewerOpen(true); }}
+            onClaim={handleClaim}
+            onAttachClick={() => setIsAttachModalOpen(true)}
+            onEditImage={(src) => { setViewingImage(src); setIsViewerOpen(true); }}
             cannedResponses={cannedResponses}
             showCanned={showCanned}
             setShowCanned={setShowCanned}
@@ -454,6 +454,9 @@ function InboxContent() {
             onAddCanned={handleAddCanned}
             onEditCanned={handleEditCanned}
             onDeleteCanned={handleDeleteCanned}
+            viewMode={viewMode}
+            setViewMode={setViewMode}
+            messagesEndRef={messagesEndRef}
           />
         ) : (
           <div className="flex-center" style={{ flex: 1, flexDirection: 'column', gap: '16px', color: 'var(--text-muted)' }}>
