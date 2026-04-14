@@ -374,7 +374,7 @@ export default function AdvancedAnalyticsPage() {
       <div className="animate-page-in">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '24px', marginBottom: '32px' }}>
           <div style={{ flex: '1', minWidth: '300px' }}>
-            <Skeleton width="50%" height={36} style={{ marginBottom: 8 }} />
+            <Skeleton width="50%" height={36} marginBottom={8} />
             <Skeleton width="40%" height={16} />
           </div>
           <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
