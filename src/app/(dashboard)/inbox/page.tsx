@@ -479,10 +479,16 @@ function InboxContent() {
         {selectedChat ? (
           <>
             <TicketSidebar 
-              customer={selectedChat.customers}
-              ticket={currentTicket} 
-              onClaim={handleClaim}
+              selectedChat={selectedChat}
+              currentTicket={currentTicket} 
               agent={agent}
+              viewMode={viewMode}
+              setViewMode={setViewMode}
+              onFetchGlobalHistory={() => alert('ระบบประวัติสนทนากำลังพัฒนา (Coming Soon)...')}
+              onResolve={handleResolve}
+              onTransfer={() => setIsTransferModalOpen(true)}
+              onCloseSession={handleCloseSession}
+              onCopySurvey={copySurveyLink}
             />
             
             <button 
