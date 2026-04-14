@@ -280,6 +280,10 @@ const Sidebar = ({ onClickLink, isCollapsed = false }: SidebarProps) => {
                         gap: isCollapsed ? '0' : '10px',
                         padding: '10px 16px',
                         borderRadius: '10px',
+                        color: 'var(--text-muted)',
+                        background: 'transparent',
+                        border: 'none',
+                        cursor: 'pointer'
                       }}
                     >
                       <item.icon size={18} />
@@ -304,7 +308,7 @@ const Sidebar = ({ onClickLink, isCollapsed = false }: SidebarProps) => {
                                 fontWeight: isChildActive ? '700' : '500',
                                 textDecoration: 'none',
                                 borderRadius: '8px',
-                                background: isChildActive ? 'rgba(54, 153, 255, 0.08)' : 'transparent'
+                                background: isChildActive ? 'var(--primary-transparent)' : 'transparent'
                               }}>
                               {child.thai}
                             </Link>
@@ -328,6 +332,7 @@ const Sidebar = ({ onClickLink, isCollapsed = false }: SidebarProps) => {
                     marginBottom: '4px',
                     textDecoration: 'none',
                     fontWeight: isActive ? '700' : '500',
+                    color: isActive ? 'var(--primary)' : 'var(--text-muted)',
                   }}>
                   <item.icon size={18} />
                   {!isCollapsed && (

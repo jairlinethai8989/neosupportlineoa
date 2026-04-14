@@ -191,12 +191,13 @@ input, button, select, textarea, optgroup, option {
   position: relative;
   transition: all var(--dur-fast) var(--ease-soft);
   overflow: hidden;
+  color: var(--text-muted);
 }
 
 .sidebar-btn-premium:hover {
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--bg-card-hover) !important;
   transform: translateX(4px);
-  color: var(--primary) !important;
+  color: var(--text-main) !important;
 }
 
 .sidebar-btn-premium.active {
