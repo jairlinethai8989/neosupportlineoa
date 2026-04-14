@@ -1,10 +1,10 @@
 import { createServerClient } from '@supabase/ssr';
-import { NextResponse, NextRequest } from 'next/server';
+import { NextResponse } from 'next/server';
 
 /**
  * Standard Next.js 16 Middleware for Supabase Auth
  */
-export async function middleware(request: NextRequest) {
+export async function middleware(request: any) {
   const { pathname } = request.nextUrl;
 
   // 1. Skip static assets and internal paths
