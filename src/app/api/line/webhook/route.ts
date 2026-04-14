@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@supabase/supabase-js';
 import * as line from '@line/bot-sdk';
 
 import crypto from 'crypto';
@@ -30,6 +30,11 @@ export async function POST(req: Request) {
     console.error('Webhook: Invalid signature');
     return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
   }
+
+  const supabaseAdmin = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
 
   let body: any;
   try {
@@ -68,14 +73,14 @@ export async function POST(req: Request) {
       const messageText = event.message.type === 'text' ? event.message.text : `[Attachment: ${event.message.type}]`;
 
       // 2. Map Customer
-      let { data: customer } = await supabase
+      let { data: customer } = await supabaseAdmin
         .from('customers')
         .select('id, display_name')
         .eq('line_user_id', lineUserId)
         .single();
 
       if (!customer) {
-        const { data: newCustomer } = await supabase
+        const { data: newCustomer } = await supabaseAdmin
           .from('customers')
           .insert([{ 
              line_user_id: lineUserId, 
@@ -89,7 +94,7 @@ export async function POST(req: Request) {
 
       if (customer) {
         // 3. Map/Create Conversation
-        let { data: conversation } = await supabase
+        let { data: conversation } = await supabaseAdmin
           .from('conversations')
           .select('id, current_ticket_id')
           .eq('customer_id', customer.id)
@@ -98,7 +103,7 @@ export async function POST(req: Request) {
 
         if (!conversation) {
           // AUTO-LINK: Find the most recent OPEN ticket for this customer before creating conv
-          let { data: recentTicket } = await supabase
+          let { data: recentTicket } = await supabaseAdmin
             .from('tickets')
             .select('id, ticket_no')
             .eq('customer_id', customer.id)
@@ -109,7 +114,7 @@ export async function POST(req: Request) {
 
           // CREATE TICKET IF NONE EXISTS
           if (!recentTicket) {
-             const { data: newTicket } = await supabase
+             const { data: newTicket } = await supabaseAdmin
               .from('tickets')
               .insert([{
                 customer_id: customer.id,
@@ -123,7 +128,7 @@ export async function POST(req: Request) {
              recentTicket = newTicket;
           }
 
-          const { data: newConv } = await supabase
+          const { data: newConv } = await supabaseAdmin
             .from('conversations')
             .insert([{ 
                 customer_id: customer.id, 
@@ -206,7 +211,7 @@ export async function POST(req: Request) {
 
               const fileName = `customer/${customer.id}/${event.message.id}_${Date.now()}.${fileExt}`;
               
-              const { error: uploadError } = await supabase.storage
+              const { error: uploadError } = await supabaseAdmin.storage
                 .from('chat_media')
                 .upload(fileName, buffer, {
                   contentType: contentType,
@@ -215,7 +220,7 @@ export async function POST(req: Request) {
                 });
 
               if (!uploadError) {
-                const { data: { publicUrl } } = supabase.storage
+                const { data: { publicUrl } } = supabaseAdmin.storage
                   .from('chat_media')
                   .getPublicUrl(fileName);
                 finalContent = publicUrl;
@@ -228,9 +233,21 @@ export async function POST(req: Request) {
           }
 
 
+          // 4.5. Idempotency Check (P1 Security)
+          const { data: existingMessage } = await supabaseAdmin
+            .from('messages')
+            .select('id')
+            .eq('line_message_id', event.message.id)
+            .maybeSingle();
+
+          if (existingMessage) {
+             console.log(`Webhook: Idempotency blocked duplicate message ${event.message.id}`);
+             continue;
+          }
+
           // 5. Save Message
           console.log(`Webhook: Saving message for ticket ${conversation.current_ticket_id}`);
-          await supabase.from('messages').insert([{
+          await supabaseAdmin.from('messages').insert([{
             conversation_id: conversation.id,
             ticket_id: conversation.current_ticket_id,
             sender_type: 'customer',
@@ -243,7 +260,7 @@ export async function POST(req: Request) {
           }]);
 
           // Update conversation timestamp
-          await supabase.from('conversations')
+          await supabaseAdmin.from('conversations')
             .update({ last_message_at: new Date().toISOString() })
             .eq('id', conversation.id);
         }

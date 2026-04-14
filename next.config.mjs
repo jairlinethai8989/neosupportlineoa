@@ -14,9 +14,9 @@ const nextConfig = {
     ],
   },
   reactStrictMode: true,
-  // Skip type checking on build to handle Next.js 16 environment issues
+  // Strict type checking enabled for production safety
   typescript: {
-    ignoreBuildErrors: true,
+    ignoreBuildErrors: false,
   },
 };
 

@@ -151,7 +151,6 @@ function InboxContent() {
     }
 
     fetchMessages();
-    const pollInterval = setInterval(fetchMessages, 10000);
     const channel = supabase
       .channel(`chat_realtime_${selectedChat.id}`)
       .on('postgres_changes', { 
@@ -173,7 +172,6 @@ function InboxContent() {
       .subscribe();
 
     return () => {
-      clearInterval(pollInterval);
       supabase.removeChannel(channel);
     };
   }, [selectedChat]);

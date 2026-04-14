@@ -25,7 +25,11 @@ const THAI_MONTHS = [
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const key = searchParams.get('key');
-  const cronSecret = process.env.CRON_SECRET || 'NEO_CRON_2026';
+  const cronSecret = process.env.CRON_SECRET;
+
+  if (!cronSecret) {
+    return NextResponse.json({ error: 'System not configured for cron' }, { status: 500 });
+  }
 
   if (key !== cronSecret) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

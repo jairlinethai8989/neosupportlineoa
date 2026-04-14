@@ -5,6 +5,10 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
 export async function GET() {
+  if (process.env.ENABLE_DEBUG_ROUTES !== 'true') {
+    return NextResponse.json({ error: 'Not Found' }, { status: 404 });
+  }
+
   const supabase = createClient(supabaseUrl, supabaseKey);
   
   try {

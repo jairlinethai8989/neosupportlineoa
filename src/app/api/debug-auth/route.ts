@@ -3,6 +3,10 @@ import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 
 export async function GET() {
+  if (process.env.ENABLE_DEBUG_ROUTES !== 'true') {
+    return NextResponse.json({ error: 'Not Found' }, { status: 404 });
+  }
+
   const cookieStore = await cookies()
   
   const supabase = createServerClient(
