@@ -26,10 +26,19 @@ export default function BrandingSettingsPage() {
   const [showToast, setShowToast] = useState(false);
   const [toastMsg, setToastMsg] = useState('');
   const [newDeptName, setNewDeptName] = useState('');
+  const [newModuleName, setNewModuleName] = useState('');
 
   useEffect(() => {
     async function fetchData() {
       const { data: c } = await supabase.from('company_settings').select('*').limit(1).single();
+      if (c && !c.modules) {
+        c.modules = [
+          "ห้องทำงานแพทย์", "ห้องพยาบาล", "ห้องยาผู้ป่วยใน", "ห้องเวชระเบียน", "ห้องคลอด", 
+          "ห้องผ่าตัด", "วิสัญญี", "โภชนาการ", "Discharge Summary", "Consult", 
+          "ลงทะเบียนผู้ป่วยใน", "ห้องเวชศาสตร์ฟื้นฟู", "Admit ล่วงหน้า", "ผู้ดูแลระบบ(Admin)", 
+          "ฝ่ายสารสนเทศ", "ALL", "ห้องทำงานแพทย์,Admit ล่วงหน้า", "อาหาร", "จองเตียง"
+        ];
+      }
       setCompany(c);
       setLoading(false);
     }
@@ -70,18 +79,20 @@ export default function BrandingSettingsPage() {
     try {
       if (company?.id) {
          const { error } = await supabase.from('company_settings').update({
-           company_name: company.company_name,
-           logo_url: company.logo_url,
-           departments: company.departments || [],
-           updated_at: new Date().toISOString()
-         }).eq('id', company.id);
+            company_name: company.company_name,
+            logo_url: company.logo_url,
+            departments: company.departments || [],
+            modules: company.modules || [],
+            updated_at: new Date().toISOString()
+          }).eq('id', company.id);
          if (error) throw error;
       } else {
          const { error } = await supabase.from('company_settings').insert([{
-           company_name: company.company_name,
-           logo_url: company.logo_url,
-           departments: company.departments || []
-         }]);
+            company_name: company.company_name,
+            logo_url: company.logo_url,
+            departments: company.departments || [],
+            modules: company.modules || []
+          }]);
          if (error) throw error;
       }
       // Log the update
@@ -151,6 +162,41 @@ export default function BrandingSettingsPage() {
       setShowToast(true);
       setTimeout(() => setShowToast(false), 3000);
     } catch (err) { alert('Failed to delete department'); }
+  };
+
+  const handleAddModule = async () => {
+    if (!newModuleName.trim()) return;
+    const updatedModules = [...(company?.modules || []), newModuleName.trim()];
+    setCompany({ ...(company || {}), modules: updatedModules });
+    setNewModuleName('');
+    
+    try {
+      await supabase.from('company_settings').update({ 
+        modules: updatedModules,
+        updated_at: new Date().toISOString() 
+      }).eq('id', company.id);
+      
+      setToastMsg('เพิ่มโมดูลเรียบร้อย! ✨');
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 3000);
+    } catch (err) { alert('Failed to add module'); }
+  };
+
+  const handleDeleteModule = async (name: string) => {
+    if (!confirm(`ยืนยันการลบโมดูล "${name}"?`)) return;
+    const updatedModules = (company?.modules || []).filter((m: string) => m !== name);
+    setCompany({ ...(company || {}), modules: updatedModules });
+
+    try {
+      await supabase.from('company_settings').update({ 
+        modules: updatedModules,
+        updated_at: new Date().toISOString() 
+      }).eq('id', company.id);
+      
+      setToastMsg('ลบโมดูลเรียบร้อย! 🗑️');
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 3000);
+    } catch (err) { alert('Failed to delete module'); }
   };
 
   if (loading) {
@@ -320,6 +366,58 @@ export default function BrandingSettingsPage() {
                   <div style={{ textAlign: 'center', padding: '40px', background: 'rgba(255,255,255,0.01)', borderRadius: '16px', border: '1px dashed var(--border)' }}>
                      <p style={{ color: 'var(--text-muted)', fontSize: '13px' }}>ยังไม่มีการกำหนดแผนกในระบบ</p>
                   </div>
+               )}
+            </div>
+         </div>
+
+         {/* 3. Module Management */}
+         <div className="glass" style={{ padding: '32px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '32px' }}>
+               <div style={{ background: 'rgba(54, 153, 255, 0.1)', padding: '10px', borderRadius: '12px' }}>
+                  <ShieldCheck size={24} color="var(--primary)" />
+               </div>
+               <div>
+                 <h2 style={{ fontSize: '20px', fontWeight: '700', lineHeight: '1.2' }}>จัดการโมดูล (Modules)</h2>
+                 <p style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Module Category Settings</p>
+               </div>
+            </div>
+
+            <div style={{ marginBottom: '24px' }}>
+               <label style={{ display: 'block', fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '12px' }}>เพิ่มโมดูลใหม่ (ADD MODULE)</label>
+               <div style={{ display: 'flex', gap: '8px' }}>
+                  <input 
+                    type="text" 
+                    placeholder="ระบุชื่อโมดูล (เช่น ห้องผ่าตัด, ICU)..." 
+                    value={newModuleName}
+                    onChange={e => setNewModuleName(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && handleAddModule()}
+                    style={{ flex: 1, background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '10px', padding: '14px', color: 'var(--text-main)', outline: 'none', fontWeight: '600' }}
+                  />
+                  <button 
+                    onClick={handleAddModule}
+                    className="glass-interactive flex-center"
+                    style={{ width: '52px', height: '52px', borderRadius: '10px', background: 'var(--primary)', color: 'black', border: 'none' }}>
+                    <Plus size={24} />
+                  </button>
+               </div>
+            </div>
+
+            <div style={{ maxHeight: '400px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px', paddingRight: '8px' }}>
+               {(company?.modules || []).map((module: string, idx: number) => (
+                  <div key={idx} className="glass-interactive" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 18px', borderRadius: '12px', background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border)' }}>
+                     <span style={{ fontSize: '14px', fontWeight: '700', color: 'var(--text-main)' }}>{module}</span>
+                     <button 
+                        onClick={() => handleDeleteModule(module)}
+                        style={{ background: 'none', border: 'none', padding: '8px', cursor: 'pointer', color: '#ff4d4d', opacity: 0.6, transition: '0.2s' }}
+                        onMouseOver={e => e.currentTarget.style.opacity = '1'}
+                        onMouseOut={e => e.currentTarget.style.opacity = '0.6'}
+                     >
+                        <Trash2 size={16} />
+                     </button>
+                  </div>
+               ))}
+               {(!company?.modules || company.modules.length === 0) && (
+                  <p style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '12px', padding: '20px' }}>ยังไม่มีโมดูลในระบบ</p>
                )}
             </div>
          </div>

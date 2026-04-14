@@ -18,6 +18,9 @@ interface TicketSidebarProps {
   selectedDept: string;
   setSelectedDept: (d: string) => void;
   availableDepts: string[];
+  selectedModule: string;
+  setSelectedModule: (m: string) => void;
+  availableModules: string[];
   logs: any[];
 }
 
@@ -31,6 +34,9 @@ export const TicketSidebar: React.FC<TicketSidebarProps> = ({
   selectedDept,
   setSelectedDept,
   availableDepts,
+  selectedModule,
+  setSelectedModule,
+  availableModules,
   logs
 }) => {
   if (!ticket) return null;
@@ -102,9 +108,21 @@ export const TicketSidebar: React.FC<TicketSidebarProps> = ({
               onChange={(e) => setSelectedDept(e.target.value)}
               style={{ width: '100%', padding: '8px', borderRadius: '8px', fontSize: '12px', background: 'rgba(0,242,254,0.05)', border: '1px solid rgba(0,242,254,0.2)', color: 'var(--primary)', fontWeight: '800' }}
             >
-              <option value="">-- ไม่ระบุแผนก --</option>
               {availableDepts.map((d, i) => (
                 <option key={i} value={d}>{d}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label style={{ fontSize: '9px', fontWeight: '800', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>Module</label>
+            <select 
+              value={selectedModule} 
+              onChange={(e) => setSelectedModule(e.target.value)}
+              style={{ width: '100%', padding: '8px', borderRadius: '8px', fontSize: '12px', background: 'var(--secondary)', border: '1px solid var(--border)', color: 'var(--text)', fontWeight: '700' }}
+            >
+              <option value="">-- ไม่ระบุโมดูล --</option>
+              {availableModules.map((m, i) => (
+                <option key={i} value={m}>{m}</option>
               ))}
             </select>
           </div>

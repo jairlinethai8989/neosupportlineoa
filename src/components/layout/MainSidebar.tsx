@@ -446,7 +446,7 @@ const Sidebar = ({ onClickLink, isCollapsed = false }: SidebarProps) => {
         
         {!isCollapsed && (
           <div style={{ textAlign: 'center', marginTop: '12px', opacity: 0.3 }}>
-             <span style={{ fontSize: '10px', fontWeight: '700', letterSpacing: '1px' }}>VERSION 1.2.1.1 (PATCH STABLE)</span>
+             <span style={{ fontSize: '10px', fontWeight: '700', letterSpacing: '1px' }}>VERSION 1.2.1.2 (STABLE PATCH)</span>
           </div>
         )}
       </div>

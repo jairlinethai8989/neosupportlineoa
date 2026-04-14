@@ -35,6 +35,8 @@ export default function StaffTicketDetailPage() {
   const [priority, setPriority] = useState('');
   const [selectedDept, setSelectedDept] = useState('');
   const [availableDepts, setAvailableDepts] = useState<string[]>([]);
+  const [selectedModule, setSelectedModule] = useState('');
+  const [availableModules, setAvailableModules] = useState<string[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [sending, setSending] = useState(false);
   
@@ -73,6 +75,7 @@ export default function StaffTicketDetailPage() {
         setStatus(ticketData.status);
         setPriority(ticketData.priority);
         setSelectedDept(ticketData.department || '');
+        setSelectedModule(ticketData.module || '');
 
         // Fetch Logs & Messages
         const [lRes, mRes] = await Promise.all([
@@ -92,10 +95,21 @@ export default function StaffTicketDetailPage() {
         if (conv) setConversationId(conv.id);
       }
 
-      // Fetch dynamic departments from company_settings mapping
-      const { data: companyData } = await supabase.from('company_settings').select('departments').limit(1).single();
-      if (companyData && companyData.departments) {
-         setAvailableDepts(companyData.departments);
+      // Fetch dynamic departments & modules from company_settings mapping
+      const { data: companyData } = await supabase.from('company_settings').select('departments, modules').limit(1).single();
+      if (companyData) {
+         if (companyData.departments) setAvailableDepts(companyData.departments);
+         if (companyData.modules) setAvailableModules(companyData.modules);
+         else {
+           // Default modules if none set
+           const defaultModules = [
+              "ห้องทำงานแพทย์", "ห้องพยาบาล", "ห้องยาผู้ป่วยใน", "ห้องเวชระเบียน", "ห้องคลอด", 
+              "ห้องผ่าตัด", "วิสัญญี", "โภชนาการ", "Discharge Summary", "Consult", 
+              "ลงทะเบียนผู้ป่วยใน", "ห้องเวชศาสตร์ฟื้นฟู", "Admit ล่วงหน้า", "ผู้ดูแลระบบ(Admin)", 
+              "ฝ่ายสารสนเทศ", "ALL", "ห้องทำงานแพทย์,Admit ล่วงหน้า", "อาหาร", "จองเตียง"
+           ];
+           setAvailableModules(defaultModules);
+         }
       }
 
       // Fetch current user
@@ -252,7 +266,12 @@ export default function StaffTicketDetailPage() {
   const handleUpdate = async () => {
     setUpdating(true);
     try {
-      const { error } = await supabase.from('tickets').update({ status, priority, updated_at: new Date().toISOString() }).eq('id', id);
+      const { error } = await supabase.from('tickets').update({ 
+        status, 
+        priority, 
+        module: selectedModule, 
+        updated_at: new Date().toISOString() 
+      }).eq('id', id);
       if (error) throw error;
       if (status !== ticket.status) {
         await supabase.from('ticket_logs').insert([{
@@ -339,8 +358,19 @@ export default function StaffTicketDetailPage() {
         />
 
         <TicketSidebar 
-          ticket={ticket} user={user} status={status} setStatus={setStatus} priority={priority} setPriority={setPriority}
-          selectedDept={selectedDept} setSelectedDept={setSelectedDept} availableDepts={availableDepts} logs={logs}
+          ticket={ticket} 
+          user={user}
+          status={status}
+          setStatus={setStatus}
+          priority={priority}
+          setPriority={setPriority}
+          selectedDept={selectedDept}
+          setSelectedDept={setSelectedDept}
+          availableDepts={availableDepts}
+          selectedModule={selectedModule}
+          setSelectedModule={setSelectedModule}
+          availableModules={availableModules}
+          logs={logs}
         />
       </div>
 
