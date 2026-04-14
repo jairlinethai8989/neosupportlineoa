@@ -27,8 +27,22 @@ async function getSessionUser() {
   return user;
 }
 
+async function verifyAgentRole(userId: string) {
+  const { data: profile } = await supabaseAdmin
+    .from('profiles')
+    .select('role')
+    .eq('id', userId)
+    .single();
+
+  if (!profile || !['Agent', 'Administrator'].includes(profile.role)) {
+    throw new Error('Unauthorized: Agent role required');
+  }
+  return profile.role;
+}
+
 export async function claimTicketServerAction(ticketId: string) {
   const user = await getSessionUser();
+  await verifyAgentRole(user.id);
   const agentId = user.id;
 
   const { data: ticket, error: ticketError } = await supabaseAdmin
@@ -65,6 +79,7 @@ export async function claimTicketServerAction(ticketId: string) {
 
 export async function updateTicketStatusAction(ticketId: string, newStatus: string, note?: string) {
   const user = await getSessionUser();
+  await verifyAgentRole(user.id);
   const agentId = user.id;
 
   const { data: currentTicket } = await supabaseAdmin
@@ -99,6 +114,7 @@ export async function updateTicketStatusAction(ticketId: string, newStatus: stri
 
 export async function transferTicketAction(ticketId: string, toAgentId?: string, toTeamId?: string, reason?: string) {
    const user = await getSessionUser();
+   await verifyAgentRole(user.id);
    const fromAgentId = user.id;
 
    const updateData: any = { 
@@ -132,6 +148,7 @@ export async function transferTicketAction(ticketId: string, toAgentId?: string,
 
 export async function resolveTicketAction(ticketId: string, resolutionSummary: string) {
    const user = await getSessionUser();
+   await verifyAgentRole(user.id);
    const agentId = user.id;
 
    const { data: ticket, error: resolveError } = await supabaseAdmin

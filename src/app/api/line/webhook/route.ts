@@ -153,9 +153,32 @@ export async function POST(req: Request) {
         }
 
         if (conversation) {
+          // 4. Atomic Idempotency Insert (P1 Security)
+          const { error: messageError } = await supabaseAdmin.from('messages').insert([{
+            conversation_id: conversation.id,
+            ticket_id: conversation.current_ticket_id,
+            sender_type: 'customer',
+            customer_id: customer.id,
+            content: messageText || '...', // Temp content for media
+            line_message_id: event.message.id,
+            line_uid: event.source.userId,
+            message_type: event.message.type === 'text' ? 'text' : 
+                         (['image', 'video', 'file', 'audio'].includes(event.message.type) ? event.message.type : 'text')
+          }]);
+
+          if (messageError) {
+             // 23505 is PostgreSQL unique constraint violation
+             if (messageError.code === '23505') {
+                 console.log(`Webhook: Atomic idempotency blocked duplicate message ${event.message.id}`);
+                 continue; // Abort processing, media won't be downloaded twice
+             }
+             console.error(`Webhook: Message insert error:`, messageError);
+             continue;
+          }
+
           let finalContent = messageText;
 
-          // 4. Handle Media Contents (Images, Video, Files)
+          // 5. Handle Media Contents (Images, Video, Files)
           if (['image', 'video', 'file', 'audio'].includes(event.message.type)) {
             try {
               console.log(`Webhook: Processing ${event.message.type} from ${event.message.contentProvider?.type || 'line'} provider`);
@@ -163,14 +186,11 @@ export async function POST(req: Request) {
               let buffer: Buffer;
               
               if (event.message.contentProvider?.type === 'external') {
-                // Fetch from external URL
                 const externalUrl = event.message.originalContentUrl;
-                console.log(`Webhook: Downloading external content from ${externalUrl}`);
                 const res = await fetch(externalUrl);
                 const arrayBuffer = await res.arrayBuffer();
                 buffer = Buffer.from(arrayBuffer);
               } else {
-                // Fetch Content from LINE using ID
                 const responseStream: any = await client.getMessageContent(event.message.id);
                 buffer = await new Promise<Buffer>((resolve, reject) => {
                   const _chunks: Buffer[] = [];
@@ -180,9 +200,6 @@ export async function POST(req: Request) {
                 });
               }
 
-              console.log(`Webhook: Downloaded ${event.message.type}. Size: ${buffer.length} bytes. Signature: ${buffer.slice(0, 4).toString('hex')}`);
-
-              // Upload to Supabase Storage
               let fileExt = 'bin';
               let contentType = 'application/octet-stream';
 
@@ -220,10 +237,12 @@ export async function POST(req: Request) {
                 });
 
               if (!uploadError) {
-                const { data: { publicUrl } } = supabaseAdmin.storage
-                  .from('chat_media')
-                  .getPublicUrl(fileName);
-                finalContent = publicUrl;
+                finalContent = fileName;
+                
+                // Update the previously inserted message with the final URL
+                await supabaseAdmin.from('messages')
+                  .update({ content: finalContent })
+                  .eq('line_message_id', event.message.id);
               } else {
                 console.error('Webhook: Upload Error:', uploadError);
               }
@@ -231,33 +250,6 @@ export async function POST(req: Request) {
               console.error('Webhook: Media Fetch Error:', err);
             }
           }
-
-
-          // 4.5. Idempotency Check (P1 Security)
-          const { data: existingMessage } = await supabaseAdmin
-            .from('messages')
-            .select('id')
-            .eq('line_message_id', event.message.id)
-            .maybeSingle();
-
-          if (existingMessage) {
-             console.log(`Webhook: Idempotency blocked duplicate message ${event.message.id}`);
-             continue;
-          }
-
-          // 5. Save Message
-          console.log(`Webhook: Saving message for ticket ${conversation.current_ticket_id}`);
-          await supabaseAdmin.from('messages').insert([{
-            conversation_id: conversation.id,
-            ticket_id: conversation.current_ticket_id,
-            sender_type: 'customer',
-            customer_id: customer.id, // NEW STRONG RELATION
-            content: finalContent,
-            line_message_id: event.message.id,
-            line_uid: event.source.userId,
-            message_type: event.message.type === 'text' ? 'text' : 
-                         (['image', 'video', 'file', 'audio'].includes(event.message.type) ? event.message.type : 'text')
-          }]);
 
           // Update conversation timestamp
           await supabaseAdmin.from('conversations')

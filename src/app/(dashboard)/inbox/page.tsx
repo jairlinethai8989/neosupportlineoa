@@ -30,6 +30,7 @@ import {
 import { supabase } from '@/lib/supabase';
 import { useRealtimeInbox } from '@/hooks/useRealtimeInbox';
 import { ticketService } from '@/lib/services/ticketService';
+import { sendAgentMessageAction, sendSystemMessageAction, closeConversationAction } from '@/app/actions/messageActions';
 import TransferModal from '@/components/modals/TransferModal';
 import ChatAttachmentModal from '@/components/chat/ChatAttachmentModal';
 import ImageEditorModal from '@/components/chat/ImageEditorModal';
@@ -126,7 +127,20 @@ function InboxContent() {
         .select('*')
         .eq('conversation_id', selectedChat.id)
         .order('created_at', { ascending: true });
-      if (data) setMessages(data);
+      
+      if (data) {
+         // Transform media paths to signed URLs
+         const enrichedMessages = await Promise.all(data.map(async (msg) => {
+            if (msg.message_type === 'image' || msg.message_type === 'video' || msg.message_type === 'audio' || msg.message_type === 'file') {
+               if (msg.content && !msg.content.startsWith('http')) {
+                  const { data: signedData } = await supabase.storage.from('chat_media').createSignedUrl(msg.content, 3600);
+                  return { ...msg, content: signedData?.signedUrl || msg.content };
+               }
+            }
+            return msg;
+         }));
+         setMessages(enrichedMessages);
+      }
 
       if (selectedChat.current_ticket_id) {
         const { data: ticket } = await supabase.from('tickets').select('*').eq('id', selectedChat.current_ticket_id).single();
@@ -156,7 +170,8 @@ function InboxContent() {
       .on('postgres_changes', { 
         event: '*', 
         schema: 'public', 
-        table: 'messages'
+        table: 'messages',
+        filter: `conversation_id=eq.${selectedChat.id}`
       }, (payload) => {
         if (payload.new && (payload.new as any).conversation_id === selectedChat.id) {
           if (payload.eventType === 'INSERT') {
@@ -203,21 +218,12 @@ function InboxContent() {
     setNewMessage('');
     setSending(true);
     try {
-      const { error: dbError } = await supabase.from('messages').insert([{
-        conversation_id: selectedChat.id,
-        ticket_id: selectedChat.current_ticket_id || null,
-        sender_type: 'agent',
-        staff_id: agent.id,
-        content: currentMsg,
-        message_type: 'text'
-      }]);
-      
-      if (dbError) throw dbError;
-
-      await supabase.from('conversations').update({
-        last_message_at: new Date().toISOString()
-      }).eq('id', selectedChat.id);
-
+      await sendAgentMessageAction(
+        selectedChat.id,
+        selectedChat.current_ticket_id || null,
+        currentMsg,
+        'text'
+      );
     } catch (err: any) {
       console.error('Send Error:', err);
       alert('Failed to send message: ' + (err.message || 'Check connection'));
@@ -239,20 +245,12 @@ function InboxContent() {
       const { data: { publicUrl } } = supabase.storage.from('chat_media').getPublicUrl(fileName);
 
       const dbType = type === 'image' ? 'image' : 'file';
-      const { error: dbError } = await supabase.from('messages').insert([{
-        conversation_id: selectedChat.id,
-        ticket_id: selectedChat.current_ticket_id || null,
-        sender_type: 'agent',
-        staff_id: agent.id,
-        content: publicUrl,
-        message_type: dbType
-      }]);
-      if (dbError) throw dbError;
-
-      await supabase.from('conversations').update({
-        last_message_at: new Date().toISOString()
-      }).eq('id', selectedChat.id);
-
+      await sendAgentMessageAction(
+        selectedChat.id,
+        selectedChat.current_ticket_id || null,
+        fileName, // store internal path instead of publicUrl
+        dbType
+      );
     } catch (err: any) {
       alert('Upload failed: ' + err.message);
     } finally {
@@ -289,12 +287,7 @@ function InboxContent() {
       const surveyLink = `${window.location.origin}/survey/${selectedChat.current_ticket_id}`;
       const resolutionMsg = `[SYSTEM] งานได้รับการแก้ไขแล้ว: ${summary}\nแบบประเมิน: ${surveyLink}`;
 
-      await supabase.from('messages').insert([{
-         conversation_id: selectedChat.id,
-         sender_type: 'system',
-         content: resolutionMsg,
-         message_type: 'text'
-      }]);
+      await sendSystemMessageAction(selectedChat.id, resolutionMsg);
 
       alert('ปิดงานสำเร็จ! ส่งแบบประเมินไปยัง LIFF เรียบร้อย');
       setSelectedChat(null);
@@ -308,17 +301,7 @@ function InboxContent() {
     if (!selectedChat || !confirm('คุณต้องการจบการสนทนานี้โดยไม่เชื่อมโยงใบงานใช่หรือไม่?')) return;
     
     try {
-      await supabase.from('conversations')
-        .update({ status: 'closed' })
-        .eq('id', selectedChat.id);
-      
-      await supabase.from('messages').insert([{
-        conversation_id: selectedChat.id,
-        sender_type: 'system',
-        content: '[SYSTEM] จบการสนทนาโดยเจ้าหน้าที่',
-        message_type: 'text'
-      }]);
-      
+      await closeConversationAction(selectedChat.id);
       alert('จบการสนทนาเรียบร้อยแล้ว');
       setSelectedChat(null);
     } catch (err: any) {
