@@ -20,6 +20,7 @@ import {
   ArrowDown
 } from 'lucide-react';
 import Link from 'next/link';
+import Skeleton from '@/components/ui/Skeleton';
 
 export default function CustomersPage() {
   const [customers, setCustomers] = useState<any[]>([]);
@@ -124,15 +125,50 @@ export default function CustomersPage() {
 
   if (loading && !isRefreshing) {
     return (
-      <div className="flex-center" style={{ height: '70vh', flexDirection: 'column', gap: '16px' }}>
-        <Loader2 className="animate-spin" size={32} color="var(--primary)" />
-        <p style={{ color: 'var(--text-muted)' }}>กำลังดึงข้อมูลพนักงาน (Loading Customers)...</p>
+      <div className="animate-page-in">
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
+          <div>
+            <Skeleton width={300} height={40} marginBottom={8} />
+            <Skeleton width={250} height={20} />
+          </div>
+          <div style={{ display: 'flex', gap: '12px' }}>
+            <Skeleton width={48} height={48} borderRadius={12} />
+            <Skeleton width={180} height={48} borderRadius={12} />
+          </div>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '20px', marginBottom: '32px' }}>
+          {[1, 2, 3, 4].map(i => (
+            <div key={i} className="glass" style={{ padding: '24px', borderRadius: '24px' }}>
+              <Skeleton width="40%" height={12} marginBottom={12} />
+              <Skeleton width="60%" height={32} />
+            </div>
+          ))}
+        </div>
+
+        <div className="glass" style={{ padding: '32px', borderRadius: '32px' }}>
+          <Skeleton width="100%" height={56} borderRadius={16} marginBottom={24} />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            {[1, 2, 3, 4, 5].map(i => (
+              <div key={i} style={{ display: 'flex', gap: '20px', alignItems: 'center', padding: '12px 0' }}>
+                <Skeleton width={52} height={52} borderRadius={16} />
+                <div style={{ flex: 1 }}>
+                  <Skeleton width="30%" height={16} marginBottom={8} />
+                  <Skeleton width="20%" height={12} />
+                </div>
+                <Skeleton width="20%" height={24} />
+                <Skeleton width="15%" height={24} />
+                <Skeleton width={100} height={44} borderRadius={12} />
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
     );
   }
 
   return (
-    <div style={{ animation: 'fadeIn 0.6s ease-out' }}>
+    <div className="animate-page-in">
       {/* 1. Page Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
         <div>
@@ -256,7 +292,7 @@ export default function CustomersPage() {
                </thead>
                <tbody>
                   {filteredCustomers.map((c) => (
-                    <tr key={c.id} className="customer-row" style={{ transition: 'all 0.3s' }}>
+                    <tr key={c.id} className="row-interactive" style={{ animation: 'contentSlideIn 0.4s ease-out forwards', animationDelay: `${Math.min(0.5, (customers.indexOf(c) * 0.05))}s` }}>
                        <td style={{ padding: '16px 20px', background: 'rgba(255, 255, 255, 0.02)', borderRadius: '20px 0 0 20px' }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
                              <div style={{ 
@@ -356,13 +392,14 @@ export default function CustomersPage() {
       </div>
 
       <style dangerouslySetInnerHTML={{ __html: `
-        .customer-row:hover td {
-           background: rgba(255, 255, 255, 0.05) !important;
+        .row-interactive:hover td:first-child {
+           border-top-left-radius: 20px;
+           border-bottom-left-radius: 20px;
         }
-        @keyframes fadeIn {
-           from { opacity: 0; transform: translateY(20px); }
-           to { opacity: 1; transform: translateY(0); }
-         }
+        .row-interactive:hover td:last-child {
+           border-top-right-radius: 20px;
+           border-bottom-right-radius: 20px;
+        }
       `}} />
     </div>
   );

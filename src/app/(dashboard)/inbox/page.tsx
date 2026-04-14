@@ -38,6 +38,7 @@ import ImageViewerModal from '@/components/chat/ImageViewerModal';
 import { InboxSidebar } from '@/components/inbox/InboxSidebar';
 import { ChatWindow } from '@/components/inbox/ChatWindow';
 import { TicketSidebar } from '@/components/inbox/TicketSidebar';
+import Skeleton from '@/components/ui/Skeleton';
 
 function InboxContent() {
   const { conversations, loading: inboxLoading } = useRealtimeInbox();
@@ -368,14 +369,70 @@ function InboxContent() {
   };
 
   if (inboxLoading) return (
-    <div className="flex-center" style={{ height: '70vh', flexDirection: 'column', gap: '16px' }}>
-      <Loader2 className="animate-spin" size={32} color="var(--primary)" aria-hidden="true" />
-      <p style={{ color: 'var(--text-muted)' }}>กำลังโหลดกล่องข้อความ…</p>
+    <div className="animate-page-in" style={{ display: 'flex', height: 'calc(100vh - 120px)', gap: '24px' }}>
+      <div className="glass" style={{ width: '360px', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        <div style={{ padding: '24px', borderBottom: '1px solid var(--border)' }}>
+          <Skeleton width="60%" height={24} marginBottom={20} />
+          <Skeleton width="100%" height={40} borderRadius={10} />
+        </div>
+        <div style={{ flex: 1, padding: '12px' }}>
+          {[1, 2, 3, 4, 5, 6].map(i => (
+            <div key={i} style={{ padding: '16px', display: 'flex', gap: '12px' }}>
+               <Skeleton width={48} height={48} borderRadius={12} />
+               <div style={{ flex: 1 }}>
+                  <Skeleton width="70%" height={16} marginBottom={8} />
+                  <Skeleton width="40%" height={12} />
+               </div>
+            </div>
+          ))}
+        </div>
+      </div>
+      
+      <div className="glass" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+         <div style={{ padding: '20px 32px', borderBottom: '1px solid var(--border)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+               <Skeleton width={42} height={42} borderRadius={12} />
+               <Skeleton width={200} height={20} />
+            </div>
+         </div>
+         <div style={{ flex: 1, padding: '32px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-start' }}>
+               <Skeleton width={32} height={32} borderRadius="50%" />
+               <Skeleton width="40%" height={60} borderRadius="20px" />
+            </div>
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+               <Skeleton width="30%" height={60} borderRadius="20px" />
+               <Skeleton width={32} height={32} borderRadius="50%" />
+            </div>
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-start' }}>
+               <Skeleton width={32} height={32} borderRadius="50%" />
+               <Skeleton width="45%" height={120} borderRadius="20px" />
+            </div>
+         </div>
+         <div style={{ padding: '24px', borderTop: '1px solid var(--border)' }}>
+            <Skeleton width="100%" height={52} borderRadius={14} />
+         </div>
+      </div>
+
+      <div style={{ width: '320px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
+         <div className="glass" style={{ height: '400px', padding: '24px' }}>
+            <Skeleton width="50%" height={20} marginBottom={24} />
+            <Skeleton width="100%" height={100} borderRadius={16} marginBottom={24} />
+            <Skeleton width="100%" height={20} marginBottom={12} />
+            <Skeleton width="100%" height={20} marginBottom={12} />
+            <Skeleton width="100%" height={20} />
+         </div>
+         <Skeleton width="100%" height={56} borderRadius={12} />
+         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+            <Skeleton width="100%" height={48} borderRadius={12} />
+            <Skeleton width="100%" height={48} borderRadius={12} />
+         </div>
+      </div>
     </div>
   );
 
   return (
-    <div className="inbox-layout" style={{ display: 'flex', height: 'calc(100vh - 120px)', gap: '24px', animation: 'fadeIn 0.5s ease-out' }}>
+    <div className="animate-page-in inbox-layout" style={{ display: 'flex', height: 'calc(100vh - 120px)', gap: '24px' }}>
       <InboxSidebar 
         conversations={conversations} 
         loading={inboxLoading} 

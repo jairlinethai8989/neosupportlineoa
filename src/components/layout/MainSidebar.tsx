@@ -150,28 +150,27 @@ const Sidebar = ({ onClickLink, isCollapsed = false }: SidebarProps) => {
   };
 
   const menuItems = [
-    { section: 'Dashboard', thai: 'หน้าหลัก', items: [
+    { section: 'Operations', thai: 'ส่วนปฏิบัติการหลัก', items: [
+      { name: 'Inbox', thai: 'ห้องแชทลูกค้า', icon: Inbox, path: '/inbox', count: inboxCount },
+      { name: 'Tickets', thai: 'จัดการใบงาน', icon: Ticket, path: '/tickets', count: ticketCount },
+      { name: 'Notifications', thai: 'การแจ้งเตือน', icon: Bell, path: '/notifications', count: unreadCount },
+    ]},
+    { section: 'Intelligence', thai: 'ระบบข้อมูลเชิงลึก', items: [
       { name: 'Analytics', thai: 'ภาพรวมระบบ', icon: LayoutDashboard, path: '/' },
       { name: 'Performance', thai: 'สถิติการทำงาน', icon: BarChart2, path: '/analytics' },
-    ]},
-    { section: 'Workspace', thai: 'พื้นที่ทำงาน', items: [
-      { name: 'Tickets', thai: 'ใบงานทั้งหมด', icon: Ticket, path: '/tickets', count: ticketCount },
-      { name: 'Create Ticket', thai: 'สร้างใบงานใหม่', icon: Plus, path: '/tickets/new' },
-      { name: 'Inbox', thai: 'ห้องแชทลูกค้า', icon: Inbox, path: '/inbox', count: inboxCount },
-      { name: 'Notifications', thai: 'การแจ้งเตือน', icon: Bell, path: '/notifications', count: unreadCount },
-      { name: 'Reports', thai: 'ส่งรายงาน (LINE)', icon: Send, path: '/reports' },
       { name: 'Customers', thai: 'ฐานข้อมูลลูกค้า', icon: Users, path: '/customers' },
+      { name: 'Reports', thai: 'รายงาน & Boardcast', icon: Send, path: '/reports' },
     ]},
-    { section: 'Admin', thai: 'หลังบ้าน', items: [
+    { section: 'System', thai: 'การตั้งค่าระบบ', items: [
       { 
         name: 'Settings', 
-        thai: 'ตั้งค่าองค์กร', 
+        thai: 'การตั้งค่า (Settings)', 
         icon: Settings, 
         children: [
+          { name: 'Profile', thai: 'ข้อมูลส่วนตัว', path: '/settings/profile' },
+          { name: 'Branding', thai: 'ข้อมูลองค์กร', path: '/settings/branding' },
           { name: 'Staff', thai: 'จัดการทีมงาน', path: '/settings/staff' },
           { name: 'SLA', thai: 'ตั้งค่า SLA', path: '/settings/sla' },
-          { name: 'Branding', thai: 'ข้อมูลองค์กร', path: '/settings/branding' },
-          { name: 'Profile', thai: 'ข้อมูลส่วนตัว', path: '/settings/profile' },
           { name: 'Master', thai: 'ข้อมูลพื้นฐาน', path: '/settings/master' },
           { name: 'Security', thai: 'Audit Logs', path: '/settings/audit' },
         ]
@@ -221,11 +220,35 @@ const Sidebar = ({ onClickLink, isCollapsed = false }: SidebarProps) => {
           </div>
         )}
         {!isCollapsed && (
-          <h1 style={{ fontSize: '18px', fontWeight: '800', color: 'var(--text-main)', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>
+          <h1 style={{ fontSize: '18px', fontWeight: '900', color: 'var(--text-main)', textTransform: 'uppercase', whiteSpace: 'nowrap', letterSpacing: '-0.5px' }}>
              {company?.company_name || 'NEO SUPPORT'}
           </h1>
         )}
       </div>
+
+      {!isCollapsed && hasAccess('ticket') && (
+         <div style={{ padding: '0 20px 20px' }}>
+            <Link href="/tickets/new" style={{ textDecoration: 'none' }}>
+               <button className="glass-interactive" style={{ 
+                  width: '100%', 
+                  padding: '14px', 
+                  borderRadius: '14px', 
+                  background: 'linear-gradient(135deg, var(--primary) 0%, oklch(75% 0.18 200) 100%)', 
+                  color: '#0a0e14', 
+                  border: 'none',
+                  fontWeight: '900',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  boxShadow: '0 10px 25px rgba(0, 242, 254, 0.3)',
+                  cursor: 'pointer'
+               }}>
+                  <Plus size={18} /> สร้างใบงานใหม่
+               </button>
+            </Link>
+         </div>
+      )}
 
       <nav style={{ padding: '0 12px', flex: 1, overflowY: 'auto' }} className="no-scrollbar">
         {filteredMenuItems.map((section, sIdx) => (
@@ -257,11 +280,6 @@ const Sidebar = ({ onClickLink, isCollapsed = false }: SidebarProps) => {
                         gap: isCollapsed ? '0' : '10px',
                         padding: '10px 16px',
                         borderRadius: '10px',
-                        color: isOpen ? 'var(--primary)' : 'var(--text-muted)',
-                        background: 'transparent',
-                        border: 'none',
-                        cursor: 'pointer',
-                        justifyContent: isCollapsed ? 'center' : 'flex-start',
                       }}
                     >
                       <item.icon size={18} />
@@ -308,8 +326,6 @@ const Sidebar = ({ onClickLink, isCollapsed = false }: SidebarProps) => {
                     padding: '10px 16px',
                     borderRadius: '10px',
                     marginBottom: '4px',
-                    color: isActive ? 'var(--primary)' : 'var(--text-muted)',
-                    background: isActive ? 'rgba(54, 153, 255, 0.08)' : 'transparent',
                     textDecoration: 'none',
                     fontWeight: isActive ? '700' : '500',
                   }}>

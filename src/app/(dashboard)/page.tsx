@@ -24,6 +24,7 @@ import {
 } from 'recharts';
 import { supabase } from '@/lib/supabase';
 import { exportTickets } from '@/lib/utils/exportUtils';
+import Skeleton from '@/components/ui/Skeleton';
 
 const CHART_COLORS = {
   primary: '#00f2fe',
@@ -142,6 +143,7 @@ export default function Home() {
   const [recentLogs, setRecentLogs] = useState<any[]>([]);
   const [showExportMenu, setShowExportMenu] = useState(false);
   const exportRef = React.useRef<HTMLDivElement>(null);
+  const [isLoading, setIsLoading] = useState(true);
   
   // Date Filter State
   const [timeRange, setTimeRange] = useState<'today' | 'week' | 'month' | 'custom'>('week');
@@ -161,6 +163,7 @@ export default function Home() {
 
   useEffect(() => {
     async function fetchDashboard() {
+      setIsLoading(true);
       let from: Date, to: Date = new Date();
       to.setHours(23, 59, 59, 999);
 
@@ -193,6 +196,7 @@ export default function Home() {
         .order('created_at', { ascending: false })
         .limit(10);
       if (logs) setRecentLogs(logs);
+      setIsLoading(false);
     }
     fetchDashboard();
 
@@ -288,8 +292,53 @@ export default function Home() {
       .map(([name, value]) => ({ name: name.length > 12 ? name.substring(0, 12) + '...' : name, value }));
   }, [tickets]);
 
+  if (isLoading) {
+    return (
+      <div className="animate-page-in">
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '32px' }}>
+          <div>
+            <Skeleton width={200} height={32} marginBottom={8} />
+            <Skeleton width={150} height={16} />
+          </div>
+          <Skeleton width={160} height={48} borderRadius={14} />
+        </div>
+        
+        <div style={{ display: 'flex', gap: '20px', marginBottom: '32px' }}>
+          {[1, 2, 3, 4].map(i => (
+            <div key={i} className="glass" style={{ padding: '24px', flex: 1 }}>
+               <Skeleton width="40%" height={12} marginBottom={16} />
+               <Skeleton width="60%" height={28} />
+            </div>
+          ))}
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '24px', marginBottom: '24px' }}>
+          <div className="glass" style={{ padding: '24px', height: '350px' }}>
+             <Skeleton width="30%" height={20} marginBottom={24} />
+             <Skeleton width="100%" height="80%" />
+          </div>
+          <div className="glass" style={{ padding: '24px', height: '350px' }}>
+             <Skeleton width="40%" height={20} marginBottom={24} />
+             <Skeleton width="100%" height="80%" borderRadius="50%" />
+          </div>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '24px' }}>
+           {[1, 2, 3].map(i => (
+             <div key={i} className="glass" style={{ padding: '24px', height: '300px' }}>
+                <Skeleton width="50%" height={16} marginBottom={20} />
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                   {[1, 2, 3, 4].map(j => <Skeleton key={j} width="100%" height={32} />)}
+                </div>
+             </div>
+           ))}
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div style={{ animation: 'fadeIn 0.5s ease-out' }}>
+    <div className="animate-page-in">
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px', flexWrap: 'wrap', gap: '16px' }}>
         <div>

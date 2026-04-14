@@ -143,27 +143,28 @@ export default function ProfileRegistrationModal({ isOpen, profile, existingCust
   const labelStyle = { fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', marginBottom: '6px', textTransform: 'uppercase' as any, letterSpacing: '0.05em' };
   const inputStyle = { 
     width: '100%', 
-    padding: '14px 16px', 
-    background: 'rgba(255,255,255,0.05)', 
-    border: '1px solid var(--border)', 
-    borderRadius: '14px', 
+    padding: '16px 20px', 
+    background: 'rgba(255,255,255,0.03)', 
+    border: '1px solid rgba(255,255,255,0.08)', 
+    borderRadius: '16px', 
     color: 'var(--text-main)', 
-    fontSize: '14px',
+    fontSize: '15px',
     outline: 'none',
-    transition: 'all 0.2s ease',
-    WebkitAppearance: 'none' as any
+    transition: 'all var(--dur-main) var(--ease-soft)',
+    WebkitAppearance: 'none' as any,
+    boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.1)'
   };
 
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(20px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '20px' }}>
-      <div className="glass" style={{ width: '100%', maxWidth: '440px', padding: '32px', borderRadius: '32px', display: 'flex', flexDirection: 'column', gap: '24px', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 30px 60px rgba(0,0,0,0.6)' }}>
+    <div className="animate-fade-in" style={{ position: 'fixed', inset: 0, background: 'rgba(10, 14, 20, 0.85)', backdropFilter: 'blur(24px) saturate(180%)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '20px' }}>
+      <div className="glass animate-page-in" style={{ width: '100%', maxWidth: '440px', padding: '32px', borderRadius: '32px', display: 'flex', flexDirection: 'column', gap: '24px', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 40px 80px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.1)' }}>
         
         {/* Header */}
         <div style={{ textAlign: 'center' }}>
-           <div style={{ width: '70px', height: '70px', borderRadius: '24px', background: 'rgba(0, 98, 255, 0.1)', border: '1px solid var(--border-active)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px', transform: 'rotate(10deg)' }}>
-              {isEditing ? <UserCheck size={32} color="var(--primary)" /> : <User size={32} color="var(--primary)" />}
+           <div style={{ width: '80px', height: '80px', borderRadius: '28px', background: 'linear-gradient(135deg, rgba(0, 242, 254, 0.1), rgba(0, 98, 255, 0.1))', border: '1px solid var(--border-active)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px', transform: 'rotate(10deg)', boxShadow: '0 10px 30px rgba(0, 98, 255, 0.2)' }}>
+              {isEditing ? <UserCheck size={36} color="var(--primary)" /> : <User size={36} color="var(--primary)" />}
            </div>
-           <h2 style={{ fontSize: '22px', fontWeight: '900', color: 'var(--text-main)', marginBottom: '8px' }}>
+           <h2 style={{ fontSize: '24px', fontWeight: '900', color: 'var(--text-main)', marginBottom: '8px', letterSpacing: '-0.5px' }}>
               {isEditing ? 'แก้ไขข้อมูลส่วนตัว' : 'ลงทะเบียนผู้ใช้งานใหม่'}
            </h2>
            <p style={{ fontSize: '13px', color: 'var(--text-muted)', lineHeight: '1.5' }}>
@@ -250,12 +251,13 @@ export default function ProfileRegistrationModal({ isOpen, profile, existingCust
               <button 
                  type="submit" 
                  disabled={submitting || loadingOpts}
+                 className="glass-interactive"
                  style={{ 
                     width: '100%',
-                    padding: '16px',
-                    borderRadius: '16px',
-                    background: 'var(--primary)',
-                    color: '#000',
+                    padding: '18px',
+                    borderRadius: '20px',
+                    background: 'linear-gradient(135deg, var(--primary) 0%, oklch(75% 0.18 200) 100%)',
+                    color: '#0a0e14',
                     border: 'none',
                     fontSize: '16px',
                     fontWeight: '900',
@@ -264,15 +266,14 @@ export default function ProfileRegistrationModal({ isOpen, profile, existingCust
                     justifyContent: 'center',
                     gap: '10px',
                     cursor: (submitting || loadingOpts) ? 'not-allowed' : 'pointer',
-                    boxShadow: '0 10px 30px rgba(0, 98, 255, 0.3)',
+                    boxShadow: '0 15px 35px rgba(0, 242, 254, 0.35)',
                     opacity: (submitting || loadingOpts) ? 0.6 : 1,
-                    transition: 'all 0.2s ease'
                  }}
               >
                  {submitting ? (
-                   <Loader2 size={20} className="animate-spin" />
+                   <Loader2 size={24} className="animate-spin" />
                  ) : (
-                   isEditing ? <>ตกลง</> : <>เริ่มต้นใช้งานระบบ <ArrowRight size={20}/></>
+                   isEditing ? <>บันทึกข้อมูล (Save changes)</> : <>เริ่มต้นใช้งานระบบ (Get Started) <ArrowRight size={20}/></>
                  )}
               </button>
               

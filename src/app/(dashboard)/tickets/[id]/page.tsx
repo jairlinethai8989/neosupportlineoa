@@ -14,6 +14,7 @@ import { ticketService } from '@/lib/services/ticketService';
 import { TicketHeader } from '@/components/tickets/TicketHeader';
 import { TicketChat } from '@/components/tickets/TicketChat';
 import { TicketSidebar } from '@/components/tickets/TicketSidebar';
+import Skeleton from '@/components/ui/Skeleton';
 
 export default function StaffTicketDetailPage() {
   const { id } = useParams();
@@ -273,8 +274,42 @@ export default function StaffTicketDetailPage() {
   };
 
   if (loading) return (
-    <div className="flex-center" style={{ height: '70vh' }}>
-      <Loader2 className="animate-spin" size={32} color="var(--primary)" />
+    <div className="animate-page-in">
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '24px' }}>
+         <Skeleton width={300} height={40} />
+         <div style={{ display: 'flex', gap: '12px' }}>
+            <Skeleton width={120} height={40} borderRadius={12} />
+            <Skeleton width={120} height={40} borderRadius={12} />
+         </div>
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: '24px', alignItems: 'start' }}>
+         <div className="glass" style={{ height: '70vh', padding: '24px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
+            <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+               <Skeleton width={48} height={48} borderRadius="50%" />
+               <Skeleton width="40%" height={24} />
+            </div>
+            <div style={{ display: 'flex', gap: '16px', alignItems: 'center', alignSelf: 'flex-end', flexDirection: 'row-reverse' }}>
+               <Skeleton width={48} height={48} borderRadius="50%" />
+               <Skeleton width="40%" height={80} borderRadius={16} />
+            </div>
+            <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+               <Skeleton width={48} height={48} borderRadius="50%" />
+               <Skeleton width="60%" height={120} borderRadius={16} />
+            </div>
+         </div>
+         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+            <div className="glass" style={{ height: '300px', padding: '24px' }}>
+               <Skeleton width="100%" height={24} marginBottom={24} />
+               <Skeleton width="100%" height={40} marginBottom={16} />
+               <Skeleton width="100%" height={40} />
+            </div>
+            <div className="glass" style={{ height: '400px', padding: '24px' }}>
+               <Skeleton width="100%" height={24} marginBottom={24} />
+               <Skeleton width="100%" height={60} marginBottom={16} />
+               <Skeleton width="100%" height={60} />
+            </div>
+         </div>
+      </div>
     </div>
   );
 
@@ -287,7 +322,7 @@ export default function StaffTicketDetailPage() {
   );
 
   return (
-    <div style={{ animation: 'fadeIn 0.5s ease-out' }}>
+    <div className="animate-page-in">
       <TicketHeader 
         ticket={ticket} status={status} user={user} updating={updating}
         onUpdate={handleUpdate} onResolveClick={() => setShowResolveModal(true)} onExportClick={() => setShowExportModal(true)}
@@ -316,8 +351,8 @@ export default function StaffTicketDetailPage() {
        )}
 
        {showResolveModal && (
-         <div style={{ position: 'fixed', inset: 0, zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(5, 8, 12, 0.85)', backdropFilter: 'blur(20px)', padding: '20px' }}>
-            <div className="glass" style={{ width: '100%', maxWidth: '480px', padding: '40px', borderRadius: '32px', border: '1px solid rgba(255, 255, 255, 0.1)', boxShadow: '0 40px 100px rgba(0,0,0,0.6)', animation: 'scaleIn 0.4s cubic-bezier(0.16, 1, 0.3, 1)' }}>
+         <div className="animate-fade-in" style={{ position: 'fixed', inset: 0, zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(5, 8, 12, 0.85)', backdropFilter: 'blur(24px) saturate(180%)', padding: '20px' }}>
+            <div className="glass animate-page-in" style={{ width: '100%', maxWidth: '480px', padding: '40px', borderRadius: '32px', border: '1px solid rgba(255, 255, 255, 0.1)', boxShadow: '0 40px 100px rgba(0,0,0,0.6)' }}>
                <div style={{ textAlign: 'center', marginBottom: '32px' }}>
                   <div style={{ width: '64px', height: '64px', borderRadius: '20px', background: 'rgba(0, 255, 127, 0.1)', color: 'var(--success)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginBottom: '20px' }}><CheckCircle size={32} /></div>
                   <h3 style={{ fontSize: '24px', fontWeight: '900', color: '#fff', marginBottom: '8px' }}>ปิดงานการสนทนา</h3>
@@ -329,8 +364,8 @@ export default function StaffTicketDetailPage() {
                </div>
                <div style={{ display: 'flex', gap: '16px' }}>
                   <button onClick={() => setShowResolveModal(false)} style={{ flex: 1, padding: '16px', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.1)', background: 'transparent', color: 'rgba(255,255,255,0.5)', fontWeight: '800', cursor: 'pointer' }}>ยกเลิก</button>
-                  <button onClick={handleResolve} disabled={updating || !resSummary.trim()} style={{ flex: 1.5, padding: '16px', borderRadius: '14px', border: 'none', background: updating || !resSummary.trim() ? 'rgba(255,255,255,0.05)' : 'var(--success)', color: updating || !resSummary.trim() ? 'rgba(255,255,255,0.2)' : 'black', fontWeight: '900', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }}>
-                     {updating ? <Loader2 size={18} className="animate-spin" /> : <><CheckCircle size={18} /> ยืนยันปิดงาน</>}
+                  <button onClick={handleResolve} disabled={updating || !resSummary.trim()} style={{ flex: 1.5, padding: '16px', borderRadius: '14px', border: 'none', background: updating || !resSummary.trim() ? 'rgba(255,255,255,0.05)' : 'linear-gradient(135deg, var(--success) 0%, oklch(75% 0.18 150) 100%)', color: updating || !resSummary.trim() ? 'rgba(255,255,255,0.2)' : '#000', fontWeight: '900', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', boxShadow: updating || !resSummary.trim() ? 'none' : '0 10px 25px rgba(0, 255, 127, 0.25)' }}>
+                     {updating ? <Loader2 size={24} className="animate-spin" /> : <><CheckCircle size={20} /> ยืนยันปิดงาน</>}
                   </button>
                </div>
             </div>

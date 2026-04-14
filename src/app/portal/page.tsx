@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import ProfileRegistrationModal from '@/components/portal/ProfileRegistrationModal';
+import Skeleton from '@/components/ui/Skeleton';
 
 export default function PortalPage() {
   const { profile, isReady, error: liffError, setMockLogin } = useLiff();
@@ -66,9 +67,39 @@ export default function PortalPage() {
 
   if (!isReady || (profile && fetching && !needsRegistration)) {
     return (
-      <div className="flex-center" style={{ height: '70vh', flexDirection: 'column', gap: '16px' }}>
-        <Loader2 className="animate-spin" size={32} color="var(--portal-primary)" />
-        <p style={{ color: 'var(--portal-text-muted)', fontSize: '14px', fontWeight: '600' }}>กำลังเตรียมข้อมูลศูนย์ช่วยเหลือ...</p>
+      <div className="animate-page-in">
+        <div style={{ marginBottom: '40px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            <Skeleton width={120} height={12} marginBottom={12} />
+            <Skeleton width={250} height={32} />
+          </div>
+          <Skeleton width={44} height={44} borderRadius={12} />
+        </div>
+
+        <div style={{ marginBottom: '40px' }}>
+          <div className="portal-glass" style={{ padding: '24px', borderRadius: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '16px' }}>
+             <Skeleton width={44} height={44} borderRadius={14} />
+             <Skeleton width={200} height={24} />
+          </div>
+        </div>
+
+        <div style={{ marginBottom: '32px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px' }}>
+             <Skeleton width={180} height={16} />
+             <Skeleton width={80} height={16} />
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+             {[1, 2, 3].map((i) => (
+               <div key={i} className="portal-glass" style={{ padding: '20px', borderRadius: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ flex: 1 }}>
+                     <Skeleton width={120} height={20} marginBottom={8} />
+                     <Skeleton width="60%" height={16} />
+                  </div>
+                  <Skeleton width={80} height={24} borderRadius={30} />
+               </div>
+             ))}
+          </div>
+        </div>
       </div>
     );
   }
@@ -94,7 +125,7 @@ export default function PortalPage() {
   const pastTickets = tickets.filter(t => !activeStatuses.includes(String(t.status || '').toLowerCase()));
 
   return (
-    <div style={{ animation: 'fadeIn 0.5s ease-out' }}>
+    <div className="animate-page-in">
       <div style={{ marginBottom: '32px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
          <div>
             <p style={{ color: 'var(--portal-primary)', fontWeight: '800', letterSpacing: '1px', textTransform: 'uppercase', fontSize: '10px', marginBottom: '6px' }}>Dashboard</p>

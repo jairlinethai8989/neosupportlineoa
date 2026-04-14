@@ -63,14 +63,15 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
 }) => {
   if (!selectedChat) {
     return (
-      <div className="glass inbox-chat-panel" style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-        <div className="flex-center" style={{ height: '100%', flexDirection: 'column', gap: '20px' }}>
-          <div className="glass" style={{ width: '120px', height: '120px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px dashed var(--border)' }}>
-             <MessageSquare size={48} color="var(--border)" style={{ opacity: 0.3 }} />
+      <div className="glass inbox-chat-panel animate-page-in" style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        <div className="flex-center" style={{ height: '100%', flexDirection: 'column', gap: '24px' }}>
+          <div className="glass flex-center" style={{ width: '140px', height: '140px', borderRadius: '40px', background: 'rgba(54, 153, 255, 0.03)', border: '1px solid var(--border)', position: 'relative' }}>
+             <MessageSquare size={56} color="var(--primary)" style={{ opacity: 0.4 }} />
+             <div className="skeleton" style={{ position: 'absolute', bottom: '-10px', width: '80%', height: '8px', opacity: 0.2 }} />
           </div>
           <div style={{ textAlign: 'center' }}>
-            <h3 style={{ fontSize: '18px', fontWeight: '800', marginBottom: '8px' }}>กล่องแชทส่วนกลาง</h3>
-            <p style={{ color: 'var(--text-muted)', maxWidth: '300px', fontSize: '14px' }}>เลือกการสนทนาทางด้านซ้ายเพื่อเริ่มต้นพูดคุยกับลูกค้าแบบ Real-time</p>
+            <h3 style={{ fontSize: '22px', fontWeight: '900', marginBottom: '8px', letterSpacing: '-0.5px' }}>NeoSupport Central Hub</h3>
+            <p style={{ color: 'var(--text-muted)', maxWidth: '340px', fontSize: '14px', lineHeight: '1.6' }}>เลือกการสนทนาจากรายการทางด้านซ้ายเพื่อเริ่มต้นจัดการปัญหาของลูกค้าแบบเรียลไทม์</p>
           </div>
         </div>
       </div>
@@ -119,17 +120,25 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
           </div>
         )}
         {messages.map((msg) => (
-           <div key={msg.id} style={{ alignSelf: msg.sender_type === 'agent' ? 'flex-end' : 'flex-start', maxWidth: '80%' }}>
-              <div style={{ 
-                 padding: '12px 18px', 
-                 borderRadius: msg.sender_type === 'agent' ? '18px 18px 4px 18px' : '18px 18px 18px 4px', 
-                 background: msg.sender_type === 'agent' ? 'var(--secondary)' : (msg.sender_type === 'system' ? 'var(--bg-input)' : 'var(--bg-card)'),
-                 border: '1px solid ' + (msg.sender_type === 'agent' ? 'rgba(115, 103, 240, 0.2)' : 'var(--border)'),
-                 fontSize: '14px',
-                 lineHeight: '1.6',
-                 boxShadow: msg.sender_type === 'agent' ? '0 4px 15px rgba(115, 103, 240, 0.2)' : 'none',
-                 color: msg.sender_type === 'system' ? 'var(--primary)' : 'white'
-              }}>
+            <div key={msg.id} className="animate-content-slide" style={{ 
+              alignSelf: msg.sender_type === 'agent' ? 'flex-end' : 'flex-start', 
+              maxWidth: '80%',
+              animationDelay: `${Math.min(0.3, (messages.indexOf(msg) % 10) * 0.05)}s` 
+            }}>
+               <div style={{ 
+                  padding: '12px 18px', 
+                  borderRadius: msg.sender_type === 'agent' ? '20px 20px 4px 20px' : '20px 20px 20px 4px', 
+                  background: msg.sender_type === 'agent' 
+                    ? 'linear-gradient(135deg, var(--secondary) 0%, oklch(60% 0.15 280) 100%)' 
+                    : (msg.sender_type === 'system' ? 'var(--bg-input)' : 'var(--bg-card)'),
+                  border: '1px solid ' + (msg.sender_type === 'agent' ? 'rgba(255, 255, 255, 0.1)' : 'var(--border)'),
+                  fontSize: '14px',
+                  lineHeight: '1.6',
+                  boxShadow: msg.sender_type === 'agent' ? '0 8px 25px -5px rgba(115, 103, 240, 0.3)' : 'none',
+                  color: msg.sender_type === 'system' ? 'var(--primary)' : 'white',
+                  position: 'relative',
+                  transition: 'transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1)'
+               }}>
                  {msg.content && (msg.message_type === 'image' || (String(msg.content).startsWith('http') && String(msg.content).match(/\.(jpeg|jpg|gif|png|webp|JPG|PNG)$/i))) ? (
                     <div style={{ position: 'relative', overflow: 'hidden', borderRadius: '10px' }}>
                        <img 

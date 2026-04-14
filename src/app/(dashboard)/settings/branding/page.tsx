@@ -15,6 +15,7 @@ import {
   Trash2
 } from 'lucide-react';
 import Link from 'next/link';
+import Skeleton from '@/components/ui/Skeleton';
 
 export default function BrandingSettingsPage() {
   const [company, setCompany] = useState<any>(null);
@@ -151,13 +152,40 @@ export default function BrandingSettingsPage() {
     } catch (err) { alert('Failed to delete department'); }
   };
 
-  if (loading) return <div className="flex-center" style={{ height: '70vh' }}><Loader2 className="animate-spin" color="var(--primary)" /></div>;
+  if (loading) {
+    return (
+      <div className="animate-page-in">
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '32px' }}>
+          <Skeleton width={32} height={32} borderRadius="50%" />
+          <Skeleton width={400} height={32} />
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '32px' }}>
+          {[1, 2].map(i => (
+            <div key={i} className="glass" style={{ padding: '32px' }}>
+              <div style={{ display: 'flex', gap: '16px', marginBottom: '32px' }}>
+                <Skeleton width={44} height={44} borderRadius={12} />
+                <div style={{ flex: 1 }}>
+                  <Skeleton width="60%" height={24} marginBottom={8} />
+                  <Skeleton width="40%" height={12} />
+                </div>
+              </div>
+              <Skeleton width="100%" height={180} borderRadius={16} marginBottom={32} />
+              <Skeleton width="100%" height={16} marginBottom={12} />
+              <Skeleton width="100%" height={48} borderRadius={10} marginBottom={24} />
+              <Skeleton width="100%" height={56} borderRadius={12} />
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div style={{ animation: 'fadeIn 0.5s ease-out' }}>
+    <div className="animate-page-in">
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '32px' }}>
-         <Link href="/" style={{ color: 'var(--text-muted)' }}><ChevronLeft size={24} /></Link>
-         <h1 style={{ fontSize: '28px', fontWeight: '800' }}>ตั้งค่าองค์กรและตราสินค้า</h1>
+         <Link href="/" style={{ color: 'var(--text-muted)', display: 'flex' }} className="glass-interactive flex-center" style={{ width: '40px', height: '40px', borderRadius: '50%', color: 'var(--text-muted)' }}><ChevronLeft size={20} /></Link>
+         <h1 style={{ fontSize: '28px', fontWeight: '900', letterSpacing: '-0.5px' }}>ตราสินค้าองค์กร</h1>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '32px' }}>
@@ -174,7 +202,21 @@ export default function BrandingSettingsPage() {
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: '32px' }}>
-               <div className="glass" style={{ position: 'relative', width: '100%', height: '180px', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', padding: '24px', background: 'rgba(0,0,0,0.02)', borderRadius: '16px' }}>
+               <div className="glass" style={{ 
+                  position: 'relative', 
+                  width: '100%', 
+                  height: '180px', 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  justifyContent: 'center', 
+                  overflow: 'hidden', 
+                  padding: '24px', 
+                  background: 'rgba(0,0,0,0.1)', 
+                  backgroundImage: 'radial-gradient(var(--border) 1px, transparent 0)',
+                  backgroundSize: '24px 24px',
+                  borderRadius: '16px',
+                  border: '1px solid var(--border)'
+               }}>
                   {company?.logo_url ? (
                     <img src={company.logo_url} style={{ maxHeight: '100%', maxWidth: '100%', objectFit: 'contain' }} />
                   ) : (
@@ -183,14 +225,16 @@ export default function BrandingSettingsPage() {
                        <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '8px' }}>โลโก้องค์กร (No Logo)</p>
                     </div>
                   )}
-                  <label style={{ 
-                     position: 'absolute', bottom: '12px', right: '12px', 
-                     background: 'var(--primary)', padding: '8px 16px', borderRadius: '10px', 
-                     cursor: 'pointer', boxShadow: '0 4px 15px rgba(0,0,0,0.2)',
-                     display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', fontWeight: '800'
-                  }}>
-                     {uploading ? <Loader2 size={16} className="animate-spin" /> : <Camera size={16} color="#0a0e14" />}
-                     <span>{uploading ? 'กำลังอัปโหลด...' : 'เปลี่ยนโลโก้'}</span>
+                  <label 
+                     className="glass-interactive flex-center"
+                     style={{ 
+                      position: 'absolute', bottom: '12px', right: '12px', 
+                      background: 'var(--primary)', padding: '0 20px', height: '40px', borderRadius: '10px', 
+                      cursor: 'pointer', boxShadow: '0 8px 20px rgba(0, 242, 254, 0.3)',
+                      gap: '8px', fontSize: '13px', fontWeight: '850', border: 'none', color: 'black'
+                   }}>
+                     {uploading ? <Loader2 size={16} className="animate-spin" /> : <Camera size={18} />}
+                     <span>{uploading ? 'UPLOADING...' : 'CHANGE LOGO'}</span>
                      <input type="file" hidden accept="image/*" onChange={handleFileUpload} disabled={uploading} />
                   </label>
                </div>
@@ -211,8 +255,8 @@ export default function BrandingSettingsPage() {
                 onClick={handleSaveCompany}
                 disabled={saving || uploading}
                 className="glass-interactive" 
-                style={{ width: '100%', padding: '16px', borderRadius: '12px', background: 'var(--primary)', border: 'none', color: '#0a0e14', fontWeight: '800', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', marginTop: '12px' }}>
-                  {saving ? <Loader2 className="animate-spin" /> : <><Save size={20} /> บันทึกการเปลี่ยนแปลง (SAVE CHANGES)</>}
+                style={{ width: '100%', height: '56px', borderRadius: '14px', background: 'var(--primary)', border: 'none', color: '#0a0e14', fontWeight: '900', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', marginTop: '12px', boxShadow: '0 8px 30px rgba(0, 242, 254, 0.2)' }}>
+                  {saving ? <Loader2 className="animate-spin" /> : <><Save size={20} /> ยืนยันข้อมูลองค์กร (SAVE BRANDING)</>}
                </button>
             </div>
 
@@ -252,8 +296,8 @@ export default function BrandingSettingsPage() {
                   <button 
                     onClick={handleAddDepartment}
                     className="glass-interactive flex-center"
-                    style={{ width: '52px', height: '52px', borderRadius: '12px', background: 'var(--primary)', color: 'black', border: 'none', fontSize: '24px' }}>
-                    +
+                    style={{ width: '52px', height: '52px', borderRadius: '10px', background: 'var(--primary)', color: 'black', border: 'none' }}>
+                    <Plus size={24} />
                   </button>
                </div>
             </div>
@@ -283,8 +327,14 @@ export default function BrandingSettingsPage() {
       {/* Success Toast */}
       {showToast && (
         <div style={{
-          position: 'fixed', bottom: '32px', right: '32px', background: 'var(--primary)', color: 'black', padding: '16px 28px', borderRadius: '14px', fontWeight: '900', display: 'flex', alignItems: 'center', gap: '12px', boxShadow: '0 10px 40px rgba(0, 242, 254, 0.3)', zIndex: 9999, animation: 'slideInRight 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
+          position: 'fixed', bottom: '32px', right: '32px', background: 'var(--primary)', color: 'black', 
+          padding: '16px 28px', borderRadius: '16px', fontWeight: '900', display: 'flex', alignItems: 'center', 
+          gap: '12px', boxShadow: '0 20px 50px rgba(0, 242, 254, 0.4)', zIndex: 9999, 
+          animation: 'slideInRight var(--dur-main) var(--ease-out-back)'
         }}>
+          <div style={{ position: 'absolute', bottom: 0, left: 0, height: '4px', background: 'rgba(0,0,0,0.2)', width: '100%', overflow: 'hidden' }}>
+             <div style={{ height: '100%', background: 'black', width: '100%', animation: 'progressDrain 3s linear forwards' }} />
+          </div>
           <ShieldCheck size={20} />
           {toastMsg}
         </div>

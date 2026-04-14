@@ -35,6 +35,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { DateTime } from 'luxon';
 import { supabase } from '@/lib/supabase';
 import { exportToExcel, exportToPDF } from '@/lib/utils/exportUtils';
+import Skeleton from '@/components/ui/Skeleton';
 
 /**
  * 1. Define Chart Types & Mock Logic for 16 variations
@@ -184,10 +185,12 @@ const SortableWidget = ({ id, chart, data, onRemove }: any) => {
 
   return (
     <div ref={setNodeRef} style={style} className="glass">
-      <div style={{ padding: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border)' }}>
-        <div {...attributes} {...listeners} style={{ cursor: 'grab', display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <chart.icon size={18} color="var(--primary)" />
-          <h3 style={{ fontSize: '15px', fontWeight: '800', color: 'var(--text-main)' }}>{chart.name}</h3>
+      <div style={{ padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+        <div {...attributes} {...listeners} style={{ cursor: 'grab', display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <div style={{ background: 'linear-gradient(135deg, rgba(0,242,254,0.1), rgba(0,98,255,0.1))', padding: '8px', borderRadius: '10px', color: 'var(--primary)', border: '1px solid var(--border-active)' }}>
+             <chart.icon size={16} />
+          </div>
+          <h3 style={{ fontSize: '15px', fontWeight: '800', color: 'var(--text-main)', letterSpacing: '-0.3px' }}>{chart.name}</h3>
           {(['radar-agent', 'radar-skill', 'scatter-response', 'scatter-load', 'composed-mix', 'tree-tags'].includes(id)) && (
              <span style={{ fontSize: '9px', padding: '2px 6px', background: 'rgba(255, 171, 0, 0.1)', color: 'var(--warning)', borderRadius: '4px', fontWeight: '800' }}>MOCK DATA</span>
           )}
@@ -224,7 +227,7 @@ export default function AdvancedAnalyticsPage() {
     start: DateTime.now().minus({ months: 1 }).toISODate(),
     end: DateTime.now().toISODate()
   });
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [tickets, setTickets] = useState<any[]>([]);
   const [showWidgetSelector, setShowWidgetSelector] = useState(false);
 
@@ -366,8 +369,51 @@ export default function AdvancedAnalyticsPage() {
     }
   };
 
+  if (loading && !tickets.length) {
+    return (
+      <div className="animate-page-in">
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '24px', marginBottom: '32px' }}>
+          <div style={{ flex: '1', minWidth: '300px' }}>
+            <Skeleton width="50%" height={36} marginBottom={8} />
+            <Skeleton width="40%" height={16} />
+          </div>
+          <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
+             <Skeleton width={260} height={42} borderRadius={12} />
+             <div style={{ display: 'flex', gap: '8px' }}>
+                <Skeleton width={100} height={42} borderRadius={12} />
+                <Skeleton width={100} height={42} borderRadius={12} />
+             </div>
+          </div>
+        </div>
+
+        <Skeleton width={200} height={36} borderRadius={20} marginBottom={32} />
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(400px, 1fr))', gap: '24px' }}>
+          {[1, 2, 3, 4, 5, 6].map(i => (
+             <div key={i} className="glass" style={{ height: '340px', padding: '16px', display: 'flex', flexDirection: 'column' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '24px' }}>
+                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <Skeleton width={32} height={32} borderRadius={8} />
+                      <Skeleton width={150} height={20} />
+                   </div>
+                   <Skeleton width={60} height={26} borderRadius={8} />
+                </div>
+                <div style={{ flex: 1, padding: '20px' }}>
+                   <Skeleton width="100%" height="80%" marginBottom={16} />
+                   <div style={{ display: 'flex', gap: '8px' }}>
+                      <Skeleton width={80} height={20} />
+                      <Skeleton width={80} height={20} />
+                   </div>
+                </div>
+             </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div style={{ animation: 'fadeIn 0.5s ease-out' }}>
+    <div className="animate-page-in">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '24px', marginBottom: '32px' }}>
         <div style={{ flex: '1', minWidth: '300px' }}>
           <h1 style={{ fontSize: '32px', fontWeight: '800', marginBottom: '4px' }}>ศูนย์บริหารสถิติอัจฉริยะ</h1>

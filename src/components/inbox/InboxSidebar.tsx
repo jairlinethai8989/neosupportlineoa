@@ -59,22 +59,43 @@ export const InboxSidebar: React.FC<InboxSidebarProps> = ({
               padding: '18px 24px', 
               borderBottom: '1px solid var(--border)',
               cursor: 'pointer',
-              background: selectedChat?.id === chat.id ? 'var(--bg-input)' : 'transparent',
+              background: selectedChat?.id === chat.id ? 'rgba(54, 153, 255, 0.1)' : 'transparent',
               borderLeft: selectedChat?.id === chat.id ? '4px solid var(--primary)' : '4px solid transparent',
-              transition: 'all 0.2s ease'
+              transition: 'all var(--dur-main) var(--ease-soft)',
+              display: 'flex',
+              gap: '14px',
+              alignItems: 'center'
             }}
           >
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
-              <p style={{ fontWeight: '700', fontSize: '15px' }}>{chat.customers?.display_name || 'LINE User'}</p>
-              <p style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                 {chat.last_message_at ? new Date(chat.last_message_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', hour12: false }) : '-'}
-              </p>
+            <div style={{ 
+              width: '46px', 
+              height: '46px', 
+              borderRadius: '14px', 
+              background: `linear-gradient(135deg, oklch(70% 0.1 200), oklch(80% 0.15 190))`,
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'center', 
+              fontSize: '18px', 
+              fontWeight: '900', 
+              color: '#0a0e14',
+              flexShrink: 0,
+              boxShadow: selectedChat?.id === chat.id ? '0 4px 15px rgba(0, 242, 254, 0.2)' : 'none'
+            }}>
+              {chat.customers?.display_name?.charAt(0) || 'L'}
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <p className="truncate" style={{ fontSize: '12px', color: 'var(--text-muted)', maxWidth: '200px' }}>
-                สถานะ: <span style={{ color: chat.status === 'active' ? 'var(--primary)' : 'inherit' }}>{chat.status.toUpperCase()}</span>
-              </p>
-              {chat.status === 'active' && <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--primary)', boxShadow: '0 0 10px var(--primary)' }} />}
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                <p style={{ fontWeight: '800', fontSize: '15px', color: selectedChat?.id === chat.id ? 'var(--primary)' : 'var(--text-main)' }}>{chat.customers?.display_name || 'LINE User'}</p>
+                <p style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                  {chat.last_message_at ? new Date(chat.last_message_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', hour12: false }) : '-'}
+                </p>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <p className="truncate" style={{ fontSize: '12px', color: 'var(--text-muted)', maxWidth: '180px' }}>
+                  สถานะ: <span style={{ color: chat.status === 'active' ? 'var(--primary)' : 'inherit', fontWeight: '700' }}>{chat.status.toUpperCase()}</span>
+                </p>
+                {chat.status === 'active' && <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--primary)', boxShadow: '0 0 12px var(--primary)' }} />}
+              </div>
             </div>
           </div>
         ))}
