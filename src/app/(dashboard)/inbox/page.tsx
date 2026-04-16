@@ -29,6 +29,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useRealtimeInbox } from '@/hooks/useRealtimeInbox';
+import { useNotificationContext } from '@/contexts/NotificationContext';
 import { ticketService } from '@/lib/services/ticketService';
 import { sendAgentMessageAction, sendSystemMessageAction, closeConversationAction } from '@/app/actions/messageActions';
 import TransferModal from '@/components/modals/TransferModal';
@@ -43,6 +44,7 @@ import Skeleton from '@/components/ui/Skeleton';
 
 function InboxContent() {
   const { conversations, loading: inboxLoading } = useRealtimeInbox();
+  const { addToast } = useNotificationContext();
   const [selectedChat, setSelectedChat] = useState<any | null>(null);
   const [viewMode, setViewMode] = useState<'list' | 'chat' | 'details'>('list');
   const [messages, setMessages] = useState<any[]>([]);
