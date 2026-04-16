@@ -35,6 +35,7 @@ interface ChatWindowProps {
   onAttachClick: () => void;
   onEditImage: (url: string) => void;
   onClaim: () => void;
+  onDeleteMessage?: (id: string) => void;
   messagesEndRef: React.RefObject<HTMLDivElement | null>;
 }
 
@@ -59,6 +60,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
   onAttachClick,
   onEditImage,
   onClaim,
+  onDeleteMessage,
   messagesEndRef
 }) => {
   if (!selectedChat) {
