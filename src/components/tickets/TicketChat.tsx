@@ -56,7 +56,7 @@ export const TicketChat: React.FC<TicketChatProps> = ({
       
       {/* Message History */}
       <div style={{ flex: 1, overflowY: 'auto', marginBottom: '20px', display: 'flex', flexDirection: 'column', gap: '16px', paddingRight: '12px' }} className="no-scrollbar">
-         {messages.map((msg, idx) => {
+         {messages.filter((m: any) => m.message_type !== 'unsent').map((msg, idx) => {
             const isOwn = msg.staff_id === user?.id;
             const canDelete = (isOwn || isAdmin) && msg.sender_type === 'agent' && onDeleteMessage;
 

@@ -110,7 +110,7 @@ export default function TicketDetailPage() {
       .channel(`customer-ticket-realtime-${id}`)
       // 1. Listen for new messages
       .on('postgres_changes', { 
-        event: 'INSERT', 
+        event: '*', 
         schema: 'public', 
         table: 'messages',
         filter: conversationId ? `conversation_id=eq.${conversationId}` : `ticket_id=eq.${id}`
@@ -261,7 +261,7 @@ export default function TicketDetailPage() {
 
           {/* Chat Messages */}
           <div style={{ flex: 1, overflowY: 'auto', marginBottom: '20px', display: 'flex', flexDirection: 'column', gap: '14px', padding: '0 4px' }} className="no-scrollbar">
-             {messages.map((msg, idx) => (
+             {messages.filter((m: any) => m.message_type !== 'unsent').map((msg, idx) => (
                 <div key={idx} style={{ 
                    alignSelf: msg.sender_type === 'customer' ? 'flex-end' : 'flex-start',
                    maxWidth: '80%',

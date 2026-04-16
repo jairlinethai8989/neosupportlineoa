@@ -121,10 +121,13 @@ export async function deleteMessageAction(messageId: string) {
       return { success: false, error: 'Unauthorized: You can only unsend your own messages.' };
     }
 
-    // Process deletion
+    // Process unsending (soft delete)
     const { error: dbError } = await supabaseAdmin
       .from('messages')
-      .delete()
+      .update({ 
+        message_type: 'unsent',
+        content: '[ข้อความถูกยกเลิก]'
+      })
       .eq('id', messageId);
       
     if (dbError) {

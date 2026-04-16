@@ -121,7 +121,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
             <p style={{ fontSize: '14px' }}>กำลังรอข้อความใหม่…</p>
           </div>
         )}
-        {messages.map((msg) => {
+        {messages.filter((m: any) => m.message_type !== 'unsent').map((msg) => {
             const isOwn = msg.staff_id === agent?.id;
             const isAdmin = agent?.role === 'Administrator';
             const canDelete = (isOwn || isAdmin) && msg.sender_type === 'agent' && onDeleteMessage;
