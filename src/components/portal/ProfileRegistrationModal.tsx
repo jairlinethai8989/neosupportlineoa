@@ -156,8 +156,36 @@ export default function ProfileRegistrationModal({ isOpen, profile, existingCust
   };
 
   return (
-    <div className="animate-fade-in" style={{ position: 'fixed', inset: 0, background: 'rgba(10, 14, 20, 0.85)', backdropFilter: 'blur(24px) saturate(180%)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '20px' }}>
-      <div className="glass animate-page-in" style={{ width: '100%', maxWidth: '440px', padding: '32px', borderRadius: '32px', display: 'flex', flexDirection: 'column', gap: '24px', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 40px 80px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.1)' }}>
+    <div style={{ 
+      position: 'fixed', 
+      inset: 0, 
+      background: 'rgba(5, 8, 12, 0.85)', 
+      backdropFilter: 'blur(16px)', 
+      display: 'flex', 
+      alignItems: 'center', 
+      justifyContent: 'center', 
+      zIndex: 10000, 
+      padding: '20px',
+      animation: 'modalFadeIn 0.3s ease-out'
+    }}>
+      <div className="glass" style={{ 
+        width: '100%', 
+        maxWidth: '440px', 
+        padding: '32px', 
+        borderRadius: '32px', 
+        display: 'flex', 
+        flexDirection: 'column', 
+        gap: '24px', 
+        maxHeight: '90vh', 
+        overflowY: 'auto', 
+        boxShadow: '0 40px 80px rgba(0,0,0,0.5)',
+        animation: 'modalContentIn 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
+        position: 'relative'
+      }}>
+        <style>{`
+          @keyframes modalFadeIn { from { opacity: 0; } to { opacity: 1; } }
+          @keyframes modalContentIn { from { opacity: 0; transform: translateY(20px) scale(0.95); } to { opacity: 1; transform: translateY(0) scale(1); } }
+        `}</style>
         
         {/* Header */}
         <div style={{ textAlign: 'center' }}>

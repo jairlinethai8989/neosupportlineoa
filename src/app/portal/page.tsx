@@ -31,26 +31,36 @@ export default function PortalPage() {
   const fetchTickets = async () => {
     if (!profile?.userId) return;
     setFetching(true);
-    // Find customer by line_user_id
-    const { data: customer } = await supabase
+    
+    // OPTIMIZATION: Use single relational query to avoid waterfall
+    const { data: customer, error: fetchErr } = await supabase
       .from('customers')
-      .select('id, hospital_id, department_id, position_id')
+      .select(`
+        *, 
+        hospitals(name, abbreviation),
+        tickets(*, assigned_agent:profiles!assigned_agent_id (id, display_name))
+      `)
       .eq('line_user_id', profile.userId)
-      .maybeSingle(); // Use maybeSingle to avoid 406 Error if none exists
+      .maybeSingle();
+
+    if (fetchErr) {
+       console.error('Portal Fetch Error:', fetchErr);
+       setFetching(false);
+       return;
+    }
 
     if (customer && customer.hospital_id) {
       setCustomerData(customer);
       setNeedsRegistration(false);
-      // Fetch all tickets for this customer
-      const { data: ticketData } = await supabase
-        .from('tickets')
-        .select('*, assigned_agent:profiles!assigned_agent_id (id, display_name)')
-        .eq('customer_id', customer.id)
-        .order('created_at', { ascending: false });
-
-      if (ticketData) setTickets(ticketData);
+      
+      // Sort tickets by created_at desc (relational select doesn't guarantee order)
+      if (customer.tickets) {
+        const sortedTickets = [...customer.tickets].sort((a, b) => 
+          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        );
+        setTickets(sortedTickets);
+      }
     } else {
-      // Record might exist from LINE Webhook but lacks profile info
       if (customer) setCustomerData(customer);
       setNeedsRegistration(true);
     }
