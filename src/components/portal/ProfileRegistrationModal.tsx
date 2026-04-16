@@ -132,62 +132,56 @@ export default function ProfileRegistrationModal({ isOpen, profile, existingCust
     }
   };
 
-  const labelStyle = { fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', marginBottom: '6px', textTransform: 'uppercase' as any, letterSpacing: '0.05em' };
+  const labelStyle = { fontSize: '11px', fontWeight: '700', color: '#64748b', marginBottom: '6px', textTransform: 'uppercase' as any };
   const inputStyle = { 
     width: '100%', 
-    padding: '16px 20px', 
-    background: 'rgba(255,255,255,0.03)', 
-    border: '1px solid rgba(255,255,255,0.08)', 
-    borderRadius: '16px', 
-    color: 'var(--text-main)', 
-    fontSize: '15px',
+    padding: '12px 14px', 
+    background: '#f8fafc', 
+    border: '1px solid #e2e8f0', 
+    borderRadius: '10px', 
+    color: '#0f172a', 
+    fontSize: '14px',
     outline: 'none',
-    transition: 'all var(--dur-main) var(--ease-soft)',
-    WebkitAppearance: 'none' as any,
-    boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.1)'
+    transition: 'all 0.2s ease',
+    WebkitAppearance: 'none' as any
   };
 
   return (
     <div style={{ 
       position: 'fixed', 
       inset: 0, 
-      background: 'rgba(5, 8, 12, 0.85)', 
-      backdropFilter: 'blur(16px)', 
+      background: 'rgba(15, 23, 42, 0.5)', 
       display: 'flex', 
       alignItems: 'center', 
       justifyContent: 'center', 
       zIndex: 10000, 
-      padding: '20px',
-      animation: 'modalFadeIn 0.3s ease-out'
+      padding: '20px'
     }}>
-      <div className="glass" style={{ 
+      <div style={{ 
         width: '100%', 
-        maxWidth: '440px', 
-        padding: '32px', 
-        borderRadius: '32px', 
+        maxWidth: '400px', 
+        padding: '24px', 
+        borderRadius: '16px', 
+        background: 'white',
         display: 'flex', 
         flexDirection: 'column', 
-        gap: '24px', 
+        gap: '20px', 
         maxHeight: '90vh', 
         overflowY: 'auto', 
-        boxShadow: '0 40px 80px rgba(0,0,0,0.5)',
-        animation: 'modalContentIn 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
-        position: 'relative'
+        boxShadow: '0 20px 50px rgba(0,0,0,0.1)',
+        position: 'relative',
+        border: '1px solid #e2e8f0'
       }}>
         <style>{`
           @keyframes modalFadeIn { from { opacity: 0; } to { opacity: 1; } }
           @keyframes modalContentIn { from { opacity: 0; transform: translateY(20px) scale(0.95); } to { opacity: 1; transform: translateY(0) scale(1); } }
         `}</style>
         
-        {/* Header */}
         <div style={{ textAlign: 'center' }}>
-           <div style={{ width: '80px', height: '80px', borderRadius: '28px', background: 'rgba(0, 98, 255, 0.1)', border: '1px solid var(--portal-primary, #0062ff)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px', transform: 'rotate(10deg)', boxShadow: '0 10px 30px rgba(0, 98, 255, 0.2)' }}>
-              {isEditing ? <UserCheck size={36} color="var(--portal-primary, #0062ff)" /> : <User size={36} color="var(--portal-primary, #0062ff)" />}
-           </div>
-           <h2 style={{ fontSize: '24px', fontWeight: '900', color: '#1e293b', marginBottom: '8px', letterSpacing: '-0.5px' }}>
+           <h2 style={{ fontSize: '20px', fontWeight: '800', color: '#0f172a', marginBottom: '4px' }}>
               {isEditing ? 'แก้ไขข้อมูลส่วนตัว' : 'ลงทะเบียนผู้ใช้งานใหม่'}
            </h2>
-           <p style={{ fontSize: '13px', color: '#64748b', lineHeight: '1.5' }}>
+           <p style={{ fontSize: '13px', color: '#64748b' }}>
               กรุณาระบุข้อมูลของคุณเพื่อเริ่มต้นแจ้งปัญหาการใช้งาน
            </p>
         </div>
@@ -267,35 +261,30 @@ export default function ProfileRegistrationModal({ isOpen, profile, existingCust
               <ChevronDown size={16} style={{ position: 'absolute', right: '16px', top: '38px', opacity: 0.5, pointerEvents: 'none' }} />
            </div>
 
-           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '12px' }}>
-              <button 
-                 type="submit" 
-                 disabled={submitting || loadingOpts}
-                 className="glass-interactive"
-                 style={{ 
-                    width: '100%',
-                    padding: '18px',
-                    borderRadius: '20px',
-                    background: 'linear-gradient(135deg, var(--primary) 0%, oklch(75% 0.18 200) 100%)',
-                    color: '#0a0e14',
-                    border: 'none',
-                    fontSize: '16px',
-                    fontWeight: '900',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '10px',
-                    cursor: (submitting || loadingOpts) ? 'not-allowed' : 'pointer',
-                    boxShadow: '0 15px 35px rgba(0, 242, 254, 0.35)',
-                    opacity: (submitting || loadingOpts) ? 0.6 : 1,
-                 }}
-              >
-                 {submitting ? (
-                   <Loader2 size={24} className="animate-spin" />
-                 ) : (
-                   isEditing ? <>บันทึกข้อมูล (Save changes)</> : <>เริ่มต้นใช้งานระบบ (Get Started) <ArrowRight size={20}/></>
-                 )}
-              </button>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '10px' }}>
+               <button 
+                  type="submit" 
+                  disabled={submitting || loadingOpts}
+                  className="portal-btn-primary"
+                  style={{ 
+                     width: '100%',
+                     padding: '16px',
+                     borderRadius: '12px',
+                     fontSize: '15px',
+                     fontWeight: '700',
+                     display: 'flex',
+                     alignItems: 'center',
+                     justifyContent: 'center',
+                     gap: '8px',
+                     cursor: (submitting || loadingOpts) ? 'not-allowed' : 'pointer'
+                  }}
+               >
+                  {submitting ? (
+                    <Loader2 size={24} className="animate-spin" />
+                  ) : (
+                    isEditing ? <>บันทึกข้อมูล (Save changes)</> : <>ลงทะเบียนเพื่อเริ่มต้นใช้งาน <ArrowRight size={20}/></>
+                  )}
+               </button>
               
               {isEditing && existingCustomer?.hospital_id && onClose && (
                  <button 

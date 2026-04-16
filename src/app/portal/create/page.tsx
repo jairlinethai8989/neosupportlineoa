@@ -75,13 +75,14 @@ export default function CreateTicketPage() {
       setError('');
 
       try {
-         // 1. Generate Highly Unique Ticket Number (Bypass broken trigger)
+         // 1. Generate a highly unique Ticket ID
+         // Format: [HospitalAbbr]-[YYMMDD]-[6RandomChars] 
+         // This maximizes uniqueness to prevent "duplicate key" errors
          const hospitalAbbr = customerData.hospitals?.abbreviation || 'NEO';
          const now = new Date();
-         const datePart = now.toISOString().slice(2, 10).replace(/-/g, ''); // YYMMDD
-         const timePart = now.getTime().toString().slice(-4); // Last 4 digits of ms
-         const randPart = Math.floor(1000 + Math.random() * 9000);
-         const ticketNo = `${hospitalAbbr}-${datePart}-${timePart}${randPart}`;
+         const dateStr = now.toISOString().slice(2, 10).replace(/-/g, '');
+         const randomSuffix = Math.random().toString(36).substring(2, 8).toUpperCase();
+         const ticketNo = `${hospitalAbbr}-${dateStr}-${randomSuffix}`;
 
          // 2. Insert Ticket
          const ticketPayload: any = {
