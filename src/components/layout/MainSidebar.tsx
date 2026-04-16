@@ -117,8 +117,11 @@ const Sidebar = ({ onClickLink, isCollapsed = false }: SidebarProps) => {
   useEffect(() => {
     let isMounted = true;
     async function fetchCounts() {
-      // Tickets (Only New)
-      const { count: tCount } = await supabase.from('tickets').select('*', { count: 'exact', head: true }).eq('status', 'New');
+      // Tickets (Unresolved/Needs Attention)
+      const { count: tCount } = await supabase
+        .from('tickets')
+        .select('*', { count: 'exact', head: true })
+        .in('status', ['New', 'Pending', 'Escalated']);
       if (isMounted) setTicketCount(tCount || 0);
 
       // Inbox (Active conversations)
