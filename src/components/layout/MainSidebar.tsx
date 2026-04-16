@@ -43,6 +43,14 @@ interface SidebarProps {
   isCollapsed?: boolean;
 }
 
+const THEMES = [
+  { id: 'dark', name: 'Dark', thai: 'ธีมเข้ม', color: '#0a0e14', iconColor: '#7367f0' },
+  { id: 'light', name: 'Light', thai: 'ธีมสว่าง', color: '#ffffff', iconColor: '#ffcd3c' },
+  { id: 'blue', name: 'Blue', thai: 'ธีมฟ้า', color: '#0f172a', iconColor: '#38bdf8' },
+  { id: 'cyan', name: 'Cyan', thai: 'ธีมไซแอนด์', color: '#081a26', iconColor: '#06b6d4' },
+  { id: 'gray', name: 'Gray', thai: 'ธีมเทา', color: '#111827', iconColor: '#f3f4f6' },
+];
+
 const Sidebar = ({ onClickLink, isCollapsed = false }: SidebarProps) => {
   const pathname = usePathname();
   const router = useRouter();
