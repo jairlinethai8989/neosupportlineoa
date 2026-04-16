@@ -102,36 +102,28 @@ export default function ProfileRegistrationModal({ isOpen, profile, existingCust
     setError('');
 
     try {
-      if (isEditing) {
-         // Update existing profile
-         const { error: updErr } = await supabase
-           .from('customers')
-           .update({ 
-               display_name: displayName,
-               hospital_id: selectedHospital, 
-               department_id: selectedDept,
-               position_id: selectedPosition,
-               updated_at: new Date().toISOString()
-           })
-           .eq('id', existingCustomer.id);
-           
-         if (updErr) throw updErr;
-      } else {
-         // Create new registration
-         const { error: insErr } = await supabase
-           .from('customers')
-           .insert([{
-              line_user_id: profile.userId,
-              display_name: displayName,
-              email: `${profile.userId}@line.me`, // placeholder
-              phone: '-',
-              hospital_id: selectedHospital,
-              department_id: selectedDept,
-              position_id: selectedPosition
-           }]);
-           
-         if (insErr) throw insErr;
+      // USE UPSERT: This handles both Insert and Update transparently and 
+      // prevents "duplicate key on line_user_id" errors.
+      const payload: any = {
+         line_user_id: profile.userId,
+         display_name: displayName,
+         hospital_id: selectedHospital, 
+         department_id: selectedDept,
+         position_id: selectedPosition,
+         updated_at: new Date().toISOString()
+      };
+
+      // Add ID if it's a known existing customer to be extra safe with PostgREST
+      if (existingCustomer?.id) {
+         payload.id = existingCustomer.id;
       }
+
+      const { error: saveErr } = await supabase
+        .from('customers')
+        .upsert(payload, { onConflict: 'line_user_id' });
+        
+      if (saveErr) throw saveErr;
+      
       onComplete();
     } catch (err: any) {
        setError(err.message || 'ไม่สามารถบันทึกข้อมูลได้ กรุณาลองใหม่อีกครั้ง');

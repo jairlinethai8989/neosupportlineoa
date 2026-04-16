@@ -28,43 +28,37 @@ export default function PortalPage() {
   const [needsRegistration, setNeedsRegistration] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
-  const fetchTickets = async () => {
-    if (!profile?.userId) return;
-    setFetching(true);
-    
-    // OPTIMIZATION: Use single relational query to avoid waterfall
-    const { data: customer, error: fetchErr } = await supabase
-      .from('customers')
-      .select(`
-        *, 
-        hospitals(name, abbreviation),
-        tickets(*, assigned_agent:profiles!assigned_agent_id (id, display_name))
-      `)
-      .eq('line_user_id', profile.userId)
-      .maybeSingle();
+    // Simplified parallel-safe fetching
+    try {
+      const { data: customer } = await supabase
+        .from('customers')
+        .select(`*, hospitals(name, abbreviation)`)
+        .eq('line_user_id', profile.userId)
+        .maybeSingle();
 
-    if (fetchErr) {
-       console.error('Portal Fetch Error:', fetchErr);
-       setFetching(false);
-       return;
-    }
-
-    if (customer && customer.hospital_id) {
-      setCustomerData(customer);
-      setNeedsRegistration(false);
-      
-      // Sort tickets by created_at desc (relational select doesn't guarantee order)
-      if (customer.tickets) {
-        const sortedTickets = [...customer.tickets].sort((a, b) => 
-          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-        );
-        setTickets(sortedTickets);
+      if (customer) {
+        setCustomerData(customer);
+        if (customer.hospital_id) {
+          setNeedsRegistration(false);
+          // Fetch tickets in parallel or immediately after
+          const { data: ticketData } = await supabase
+            .from('tickets')
+            .select('*, assigned_agent:profiles!assigned_agent_id (id, display_name)')
+            .eq('customer_id', customer.id)
+            .order('created_at', { ascending: false });
+          
+          if (ticketData) setTickets(ticketData);
+        } else {
+          setNeedsRegistration(true);
+        }
+      } else {
+        setNeedsRegistration(true);
       }
-    } else {
-      if (customer) setCustomerData(customer);
-      setNeedsRegistration(true);
+    } catch (err) {
+      console.error('Portal Fetch Error:', err);
+    } finally {
+      setFetching(false);
     }
-    setFetching(false);
   };
 
   useEffect(() => {
@@ -245,18 +239,19 @@ export default function PortalPage() {
           </div>
         </section>
       )}
+    </main>
 
-      {/* 5. Modals */}
-      <ProfileRegistrationModal 
-         isOpen={needsRegistration || isEditModalOpen} 
-         profile={profile} 
-         existingCustomer={needsRegistration ? null : customerData}
-         onComplete={() => {
+    {/* MODALS - Moved outside container to avoid transform-fixed ghosting */}
+    <ProfileRegistrationModal 
+        isOpen={needsRegistration || isEditModalOpen} 
+        profile={profile}
+        existingCustomer={customerData}
+        onComplete={() => {
             setIsEditModalOpen(false);
-            fetchTickets(); // Refresh global customerData and hide registration
-         }}
-         onClose={() => setIsEditModalOpen(false)}
-      />
-    </div>
+            fetchTickets();
+        }}
+        onClose={() => setIsEditModalOpen(false)}
+    />
+    </>
   );
 }
