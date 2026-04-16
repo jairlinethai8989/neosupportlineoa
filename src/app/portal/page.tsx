@@ -130,9 +130,9 @@ export default function PortalPage() {
     );
   }
 
-  const activeStatuses = ['new', 'assigned', 'in progress', 'escalated', 'pending'];
-  const activeTickets = tickets.filter(t => activeStatuses.includes(String(t.status || '').toLowerCase()));
-  const pastTickets = tickets.filter(t => !activeStatuses.includes(String(t.status || '').toLowerCase()));
+  const closedStatuses = ['resolved', 'closed'];
+  const activeTickets = tickets.filter(t => !closedStatuses.includes(String(t.status || '').toLowerCase()));
+  const pastTickets = tickets.filter(t => closedStatuses.includes(String(t.status || '').toLowerCase()));
 
   return (
     <>

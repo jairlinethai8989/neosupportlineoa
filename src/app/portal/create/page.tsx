@@ -10,8 +10,12 @@ import {
   Paperclip, 
   SendHorizontal, 
   Image as ImageIcon,
-  AlertCircle 
+  AlertCircle,
+  Camera,
+  CheckCircle,
+  MessageSquare
 } from 'lucide-react';
+import ChatAttachmentModal from '@/components/chat/ChatAttachmentModal';
 
 export default function CreateTicketPage() {
   const router = useRouter();
@@ -20,6 +24,7 @@ export default function CreateTicketPage() {
   const [subject, setSubject] = useState('');
   const [description, setDescription] = useState('');
   const [file, setFile] = useState<File | null>(null);
+  const [isAttachOpen, setIsAttachOpen] = useState(false);
   
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -76,8 +81,6 @@ export default function CreateTicketPage() {
 
       try {
          // 1. Generate a highly unique Ticket ID
-         // Format: [HospitalAbbr]-[YYMMDD]-[6RandomChars] 
-         // This maximizes uniqueness to prevent "duplicate key" errors
          const hospitalAbbr = customerData.hospitals?.abbreviation || 'NEO';
          const now = new Date();
          const dateStr = now.toISOString().slice(2, 10).replace(/-/g, '');
@@ -96,43 +99,30 @@ export default function CreateTicketPage() {
             created_at: new Date().toISOString()
          };
 
-         console.log('Sending payload:', ticketPayload);
          const { data: newTicket, error: ticketError } = await supabase.from('tickets').insert([ticketPayload]).select();
 
-         if (ticketError) {
-            console.error('Insert Error Detail:', ticketError);
-            throw new Error(`Ticket Creation Failed: ${ticketError.message}`);
-         }
+         if (ticketError) throw new Error(`Ticket Creation Failed: ${ticketError.message}`);
          
          const createdTicket = newTicket?.[0];
-         if (!createdTicket) throw new Error('Ticket was not created (No returned data)');
+         if (!createdTicket) throw new Error('Ticket was not created');
 
-         // 3. Create Fresh Conversation for THIS Ticket (Don't combine with old ones)
-         // First, close any "active" ones for this customer to avoid multiple active chats for the same person
+         // 3. Create Fresh Conversation
          await supabase.from('conversations')
            .update({ status: 'closed' })
            .eq('customer_id', customerData.id)
            .eq('status', 'active');
 
-         // Create new one specifically for this ticket
-         const { data: newConv, error: createError } = await supabase.from('conversations').insert([{
+         const { data: newConv } = await supabase.from('conversations').insert([{
              customer_id: customerData.id,
              status: 'active',
              current_ticket_id: createdTicket.id,
              last_message_at: new Date().toISOString()
          }]).select().single();
          
-         let conversationId;
-         if (createError) {
-            console.error('Conv Create Error:', createError);
-            // Fallback: If we can't create, we can't link messages correctly, but ticket is already saved.
-         } else {
-            conversationId = newConv?.id;
-         }
+         const conversationId = newConv?.id;
 
-         // 4. Initial Messages (Files & Description)
+         // 4. Initial Messages
          if (conversationId) {
-            // A. If there is a file, upload and send message
             if (file) {
                const fileExt = file.name.split('.').pop() || 'jpg';
                const fileName = `${createdTicket.id}_${Date.now()}.${fileExt}`;
@@ -150,7 +140,6 @@ export default function CreateTicketPage() {
                }
             }
             
-            // B. If there is a description, ALWAYS send it as a message to the chat
             if (description.trim()) {
                await supabase.from('messages').insert([{
                   ticket_id: createdTicket.id,
@@ -179,36 +168,23 @@ export default function CreateTicketPage() {
 
   return (
     <div className="portal-container">
-      <div style={{ padding: '0 20px 16px', textAlign: 'center' }}>
+      <div style={{ padding: '0 20px 16px', textAlign: 'center', animation: 'fadeIn 0.5s ease-out' }}>
          <h1 style={{ fontSize: '20px', fontWeight: '800', color: '#0f172a', marginBottom: '4px' }}>แจ้งเรื่องใหม่</h1>
          <p style={{ fontSize: '11px', color: '#64748b', fontWeight: '600', textTransform: 'uppercase' }}>New Support Ticket</p>
       </div>
 
       <div className="portal-content" style={{ padding: '0 20px' }}>
-         <div className="portal-glass" style={{ 
-            padding: '20px', 
-            background: 'white'
-         }}>
+         <div className="portal-glass" style={{ padding: '24px', background: 'white' }}>
             <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                {error && (
-                  <div style={{ 
-                    padding: '16px', 
-                    borderRadius: '16px', 
-                    background: '#fef2f2', 
-                    color: '#ef4444', 
-                    fontSize: '13px', 
-                    lineHeight: '1.6', 
-                    border: '1px solid #fee2e2',
-                    display: 'flex',
-                    gap: '12px'
-                  }}>
+                  <div style={{ padding: '16px', borderRadius: '16px', background: '#fef2f2', color: '#ef4444', fontSize: '13px', border: '1px solid #fee2e2', display: 'flex', gap: '12px' }}>
                      <AlertCircle size={18} style={{ flexShrink: 0 }} /> 
                      <div>{error}</div>
                   </div>
                )}
 
                <div>
-                  <label htmlFor="ticket-subject" style={{ display: 'block', fontSize: '11px', fontWeight: '800', color: 'var(--portal-text-muted)', textTransform: 'uppercase', marginBottom: '8px', letterSpacing: '0.08em' }}>หัวข้อที่ต้องการแจ้ง</label>
+                  <label htmlFor="ticket-subject" style={{ display: 'block', fontSize: '11px', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', marginBottom: '8px' }}>หัวข้อที่ต้องการแจ้ง</label>
                   <input 
                     id="ticket-subject"
                     name="subject"
@@ -216,99 +192,52 @@ export default function CreateTicketPage() {
                     value={subject}
                     onChange={e => setSubject(e.target.value)}
                     placeholder="เช่น เข้าใช้งานไม่ได้, ปัญหาอุปกรณ์…"
-                    style={{ 
-                      background: '#f8fafc', 
-                      border: '1px solid var(--portal-border)',
-                      borderRadius: '12px',
-                      padding: '14px 16px',
-                      color: '#1e293b',
-                      fontSize: '15px',
-                      width: '100%',
-                      outline: 'none',
-                      transition: 'all 0.2s'
-                    }}
-                    autoComplete="off"
+                    style={{ background: '#f8fafc', border: '1px solid var(--portal-border)', borderRadius: '12px', padding: '14px 16px', color: '#1e293b', fontSize: '15px', width: '100%', outline: 'none' }}
                   />
                </div>
 
                <div>
-                  <label htmlFor="ticket-description" style={{ display: 'block', fontSize: '11px', fontWeight: '800', color: 'var(--portal-text-muted)', textTransform: 'uppercase', marginBottom: '8px', letterSpacing: '0.08em' }}>รายละเอียดเพิ่มเติม</label>
+                  <label htmlFor="ticket-description" style={{ display: 'block', fontSize: '11px', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', marginBottom: '8px' }}>รายละเอียดเพิ่มเติม</label>
                   <textarea 
                     id="ticket-description"
                     name="description"
                     value={description}
                     onChange={e => setDescription(e.target.value)}
                     placeholder="เล่ารายละเอียดของปัญหาให้เราฟัง…"
-                    style={{ 
-                      height: '140px', 
-                      resize: 'none', 
-                      padding: '14px 16px',
-                      background: '#f8fafc', 
-                      border: '1px solid var(--portal-border)',
-                      borderRadius: '12px',
-                      color: '#1e293b',
-                      fontSize: '15px',
-                      width: '100%',
-                      outline: 'none',
-                      lineHeight: '1.6'
-                    }}
+                    style={{ height: '140px', resize: 'none', padding: '14px 16px', background: '#f8fafc', border: '1px solid var(--portal-border)', borderRadius: '12px', color: '#1e293b', fontSize: '15px', width: '100%', outline: 'none', lineHeight: '1.6' }}
                   />
                </div>
 
                <div>
-                  <input 
-                    type="file" 
-                    id="ticket-file"
-                    ref={fileInputRef} 
-                    onChange={handleFileChange} 
-                    style={{ display: 'none' }}
-                    accept="image/*,.pdf,.doc,.docx"
-                  />
-                  {!file ? (
-                    <button 
-                      type="button" 
-                      onClick={() => fileInputRef.current?.click()} 
-                      className="flex-center" 
-                      style={{ 
-                        width: '100%', 
-                        gap: '12px', 
-                        border: '2px dashed #e2e8f0', 
-                        borderRadius: '16px', 
-                        padding: '16px', 
-                        color: '#94a3b8',
-                        background: 'transparent',
-                        transition: 'all 0.3s'
-                      }}
-                    >
-                       <ImageIcon size={20} />
-                       <span style={{ fontSize: '14px', fontWeight: '700' }}>เพิ่มรูปภาพหรือไฟล์ประกอบ</span>
-                    </button>
-                  ) : (
-                    <div className="flex-between portal-glass" style={{ 
-                      padding: '12px 16px', 
-                      background: '#f0f9ff',
-                      border: '1px solid #bae6fd' 
-                    }}>
-                       <div className="flex-center" style={{ gap: '10px', overflow: 'hidden' }}>
-                          <Paperclip size={18} color="#0284c7" />
-                          <span style={{ fontSize: '13px', fontWeight: '800', color: '#0369a1', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{file.name}</span>
-                       </div>
-                       <button type="button" onClick={() => setFile(null)} style={{ color: '#ef4444', border: 'none', background: 'none', fontSize: '12px', fontWeight: '900', marginLeft: '12px', cursor: 'pointer' }}>ลบออก</button>
-                    </div>
-                  )}
+                  <button 
+                    type="button" 
+                    onClick={() => setIsAttachOpen(true)} 
+                    style={{ 
+                      width: '100%', 
+                      padding: '16px', 
+                      borderRadius: '16px', 
+                      border: '2px dashed #e2e8f0', 
+                      background: file ? '#f0fdf4' : 'transparent', 
+                      color: file ? '#16a34a' : '#94a3b8',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '12px',
+                      cursor: 'pointer'
+                    }}
+                  >
+                     {file ? <CheckCircle size={20} /> : <Camera size={20} />}
+                     <span style={{ fontSize: '14px', fontWeight: '800' }}>
+                        {file ? `แนบหลักฐานแล้ว: ${file.name.slice(0,10)}...` : 'ถ่ายรูป หรือ แนบไฟล์ประกอบ'}
+                     </span>
+                  </button>
                </div>
 
                <button 
                  type="submit" 
                  disabled={submitting} 
                  className="portal-btn-primary" 
-                 style={{ 
-                   width: '100%', 
-                   padding: '16px',
-                   borderRadius: '16px',
-                   gap: '12px',
-                   opacity: submitting ? 0.7 : 1
-                 }}
+                 style={{ width: '100%', padding: '16px', borderRadius: '16px', gap: '12px', opacity: submitting ? 0.7 : 1 }}
                >
                   {submitting ? (
                     <Loader2 className="animate-spin" size={22} />
@@ -322,6 +251,24 @@ export default function CreateTicketPage() {
             </form>
          </div>
       </div>
+
+      <ChatAttachmentModal 
+         isOpen={isAttachOpen}
+         onClose={() => setIsAttachOpen(false)}
+         onConfirm={(f) => {
+            setFile(f);
+            setIsAttachOpen(false);
+         }}
+         onImageSelect={(dataUrl) => {
+            fetch(dataUrl)
+              .then(res => res.blob())
+              .then(blob => {
+                 const f = new File([blob], `cam_${Date.now()}.jpg`, { type: 'image/jpeg' });
+                 setFile(f);
+                 setIsAttachOpen(false);
+              });
+         }}
+      />
     </div>
   );
 }
