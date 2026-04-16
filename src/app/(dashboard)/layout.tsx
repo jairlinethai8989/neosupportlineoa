@@ -42,15 +42,15 @@ const ACTION_ICONS: Record<string, any> = {
 };
 
 const ACTION_COLORS: Record<string, string> = {
-  'Created': '#00f2fe',
-  'Claimed': '#ff9f43',
-  'Transferred': '#3b82f6',
-  'Resolved': '#28c76f',
-  'Message': '#4facfe',
-  'sla': '#ef4444',
-  'sla_warning': '#f59e0b',
-  'ticket': '#00f2fe',
-  'message': '#28c76f',
+  'Created': 'var(--primary)',
+  'Claimed': 'var(--warning)',
+  'Transferred': 'var(--primary)',
+  'Resolved': 'var(--success)',
+  'Message': 'var(--primary)',
+  'sla': 'var(--danger)',
+  'sla_warning': 'var(--warning)',
+  'ticket': 'var(--primary)',
+  'message': 'var(--success)',
 };
 
 function timeAgo(dateStr: string): string {
@@ -161,7 +161,7 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
             <div className="show-desktop">
               <h2 style={{ fontSize: '18px', fontWeight: '800', display: 'flex', flexDirection: 'column', lineHeight: '1.2' }}>
                 <span>ระบบจัดการอัจฉริยะ</span>
-                <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: '600' }}>NEO INTELLIGENCE SUITE</span>
+                <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: '500' }}>NEO INTELLIGENCE SUITE</span>
               </h2>
             </div>
           </div>
@@ -182,10 +182,10 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
                     right: '4px',
                     minWidth: '16px',
                     height: '16px',
-                    background: 'var(--danger, #ea5455)',
+                    background: 'var(--danger)',
                     borderRadius: '10px',
                     fontSize: '9px',
-                    fontWeight: '900',
+                    fontWeight: '800',
                     color: 'white',
                     display: 'flex',
                     alignItems: 'center',
@@ -210,7 +210,7 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
                   border: '1px solid var(--border)',
                   borderRadius: '16px',
                   backdropFilter: 'blur(34px)',
-                  boxShadow: '0 20px 60px rgba(0, 0, 0, 0.6), 0 0 0 1px var(--border)',
+                  boxShadow: '0 20px 60px rgba(0, 0, 0, 0.5), 0 0 0 1px var(--border)',
                   zIndex: 100,
                   overflow: 'hidden',
                   animation: 'fadeIn 0.2s ease-out',
@@ -220,13 +220,13 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
                   <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--border)' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
                       <div>
-                        <h3 style={{ fontSize: '14px', fontWeight: '800', color: 'var(--text-main)' }}>การแจ้งเตือน</h3>
+                        <h3 style={{ fontSize: '14px', fontWeight: '700', color: 'var(--text-main)' }}>การแจ้งเตือน</h3>
                         <p style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '1px' }}>สถานะและเหตุการณ์ล่าสุด</p>
                       </div>
                       {unreadCount > 0 && (
                         <button
                           onClick={markAllRead}
-                          style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: 'var(--primary)', fontWeight: '700', background: 'none', border: 'none', cursor: 'pointer', opacity: 0.8 }}
+                          style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: 'var(--primary)', fontWeight: '600', background: 'none', border: 'none', cursor: 'pointer', opacity: 0.8 }}
                         >
                           <CheckCheck size={12} />
                           อ่านทั้งหมด
@@ -257,37 +257,37 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
                     ) : (
                       filteredNotifs.map((notif) => {
                         const IconComponent = ACTION_ICONS[notif.type] || Ticket;
-                        const iconColor = ACTION_COLORS[notif.type] || '#00f2fe';
+                        const iconColor = ACTION_COLORS[notif.type] || 'var(--primary)';
                         return (
                           <div
                             key={notif.id}
                             onClick={() => handleNotifClick(notif)}
                             style={{
                               padding: '12px 16px',
-                              borderBottom: '1px solid rgba(255,255,255,0.04)',
+                              borderBottom: '1px solid var(--border)',
                               display: 'flex',
                               gap: '12px',
                               alignItems: 'flex-start',
-                              background: !notif.isRead ? `${iconColor}08` : 'transparent',
+                              background: !notif.isRead ? 'rgba(var(--primary-rgb), 0.05)' : 'transparent',
                               cursor: 'pointer',
                               transition: 'all 0.15s ease',
                               position: 'relative'
                             }}
-                            onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.04)')}
-                            onMouseLeave={(e) => (e.currentTarget.style.background = !notif.isRead ? `${iconColor}08` : 'transparent')}
+                            onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.03)')}
+                            onMouseLeave={(e) => (e.currentTarget.style.background = !notif.isRead ? 'rgba(var(--primary-rgb), 0.05)' : 'transparent')}
                           >
-                            <div style={{ width: '32px', height: '32px', borderRadius: '10px', background: `${iconColor}18`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                            <div style={{ width: '32px', height: '32px', borderRadius: '10px', background: 'var(--primary-transparent)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                               <IconComponent size={14} color={iconColor} />
                             </div>
                             <div style={{ flex: 1, minWidth: 0 }}>
                               <div style={{ display: 'flex', justifyContent: 'space-between', gap: '6px' }}>
-                                <p style={{ fontSize: '12px', fontWeight: !notif.isRead ? '800' : '600', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                <p style={{ fontSize: '12px', fontWeight: !notif.isRead ? '700' : '400', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                   {notif.title}
                                 </p>
                                 {!notif.isRead && (
                                   <button
                                     onClick={(e) => { e.stopPropagation(); markAsRead(notif.id); }}
-                                    style={{ width: '18px', height: '18px', borderRadius: '50%', background: 'rgba(255,255,255,0.1)', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: iconColor }}
+                                    style={{ width: '18px', height: '18px', borderRadius: '50%', background: 'rgba(255,255,255,0.05)', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: iconColor }}
                                   >
                                     <CheckCircle2 size={10} />
                                   </button>
@@ -297,7 +297,7 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
                                 {notif.body}
                               </p>
                               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px' }}>
-                                <p style={{ fontSize: '10px', color: 'var(--text-muted)', opacity: 0.6 }}>
+                                <p style={{ fontSize: '10px', color: 'var(--text-dim)', opacity: 0.6 }}>
                                   {timeAgo(notif.createdAt)}
                                 </p>
                               </div>
@@ -313,23 +313,24 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginLeft: '8px', padding: '4px 12px 4px 4px', borderRadius: '30px', border: '1px solid var(--border)' }} className="glass-interactive">
               {agent?.avatar_url ? (
-                <img src={agent.avatar_url} style={{ width: '32px', height: '32px', borderRadius: '50%', objectFit: 'cover' }} />
+                <img src={agent.avatar_url} style={{ width: '30px', height: '30px', borderRadius: '50%', objectFit: 'cover' }} />
               ) : (
                 <div style={{
-                  width: '32px',
-                  height: '32px',
+                  width: '30px',
+                  height: '30px',
                   borderRadius: '50%',
                   background: 'var(--secondary)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  fontWeight: '800',
-                  fontSize: '12px',
+                  fontWeight: '700',
+                  fontSize: '11px',
+                  color: 'white',
                   boxShadow: '0 0 10px rgba(115, 103, 240, 0.4)'
                 }}>{agent?.full_name?.charAt(0) || 'A'}</div>
               )}
               <div className="show-desktop">
-                <p style={{ fontSize: '12px', fontWeight: '800' }}>{agent?.full_name || 'Agent'}</p>
+                <p style={{ fontSize: '12px', fontWeight: '700' }}>{agent?.full_name || 'Agent'}</p>
               </div>
             </div>
           </div>
@@ -350,6 +351,9 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
 
       <style dangerouslySetInnerHTML={{
         __html: `
+        :root {
+          --primary-rgb: 59, 130, 246;
+        }
         @keyframes pulse {
           0%, 100% { opacity: 1; }
           50% { opacity: 0.4; }
@@ -372,3 +376,4 @@ export default function DashboardLayout({ children }: Readonly<{ children: React
     </NotificationProvider>
   );
 }
+ Broadway Broadway  

@@ -190,12 +190,12 @@ export default function DailyReportPage() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexShrink: 0 }}>
          <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-               <div style={{ background: '#e8f5e9', padding: '10px', borderRadius: '12px' }}>
-                  <TableIcon size={24} color="#2e7d32" />
+               <div style={{ background: 'var(--primary-transparent)', padding: '10px', borderRadius: '12px' }}>
+                  <TableIcon size={24} color="var(--primary)" />
                </div>
                <div>
-                 <h1 style={{ fontSize: '24px', fontWeight: '900', letterSpacing: '-0.5px', color: 'var(--text-main)' }}>รายงานสรุปปัญหาประจำวัน</h1>
-                 <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Daily Issues & Resolution Tracker</p>
+                 <h1 style={{ fontSize: '22px', fontWeight: '800', letterSpacing: '-0.5px', color: 'var(--text-main)' }}>รายงานสรุปปัญหาประจำวัน</h1>
+                 <p style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: '500' }}>Daily Issues & Resolution Tracker</p>
                </div>
             </div>
          </div>
@@ -206,7 +206,7 @@ export default function DailyReportPage() {
                 <Search size={16} style={{ position: 'absolute', left: '12px', color: 'var(--text-muted)' }} />
                 <input 
                   type="text"
-                  placeholder="ค้นหาข้อมูลในตาราง..."
+                  placeholder="ค้นหาข้อมูล..."
                   value={filterText}
                   onChange={(e) => setFilterText(e.target.value)}
                   className="glass-interactive"
@@ -234,14 +234,14 @@ export default function DailyReportPage() {
                value={dateStr}
                onChange={(e) => setDateStr(e.target.value)}
                className="glass-interactive"
-               style={{ padding: '0 16px', borderRadius: '12px', border: '1px solid var(--border)', background: 'var(--bg-input)', color: 'var(--text-main)', fontWeight: '700' }}
+               style={{ padding: '0 16px', borderRadius: '12px', border: '1px solid var(--border)', background: 'var(--bg-input)', color: 'var(--text-main)', fontWeight: '600' }}
             />
             
             <button 
                onClick={handleExportExcel}
                disabled={isExporting || processedTickets.length === 0}
                className="glass-interactive"
-               style={{ height: '44px', padding: '0 20px', borderRadius: '12px', border: 'none', background: '#2e7d32', color: 'white', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 8px 20px rgba(46,125,50,0.3)' }}
+               style={{ height: '44px', padding: '0 20px', borderRadius: '12px', border: 'none', background: 'var(--success)', color: 'white', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 8px 20px rgba(16, 185, 129, 0.25)' }}
             >
                {isExporting ? <Loader2 size={18} className="animate-spin" /> : <Download size={18} />}
                EXPORT EXCEL
@@ -253,7 +253,7 @@ export default function DailyReportPage() {
       <div className="glass" style={{ flex: 1, borderRadius: '16px', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
          <div style={{ overflowX: 'auto', overflowY: 'auto', height: '100%', background: 'var(--bg-card)' }}>
             <table style={{ width: '100%', minWidth: '1800px', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
-               <thead style={{ position: 'sticky', top: 0, zIndex: 10, background: '#4CAF50', color: 'white', fontWeight: '800' }}>
+               <thead style={{ position: 'sticky', top: 0, zIndex: 10, background: 'var(--primary)', color: 'white', fontWeight: '700' }}>
                   <tr>
                      {COLUMNS.map((col, i) => (
                         <th 
@@ -261,18 +261,18 @@ export default function DailyReportPage() {
                           onClick={() => handleSort(col.key)}
                           style={{ 
                             padding: '12px 16px', 
-                            borderRight: '1px solid rgba(255,255,255,0.2)', 
+                            borderRight: '1px solid rgba(255,255,255,0.15)', 
                             whiteSpace: 'nowrap', 
                             textTransform: 'uppercase', 
                             fontSize: '11px', 
-                            letterSpacing: '0.5px',
+                            letterSpacing: '0.8px',
                             cursor: 'pointer',
                             userSelect: 'none'
                           }}
                         >
                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
                               {col.label}
-                              <div style={{ display: 'flex', flexDirection: 'column', opacity: sortConfig?.key === col.key ? 1 : 0.3 }}>
+                              <div style={{ display: 'flex', flexDirection: 'column', opacity: sortConfig?.key === col.key ? 1 : 0.4 }}>
                                 <ArrowUpDown size={12} />
                               </div>
                            </div>
@@ -280,7 +280,7 @@ export default function DailyReportPage() {
                      ))}
                   </tr>
                </thead>
-               <tbody>
+               <tbody style={{ fontWeight: '500' }}>
                   {loading && tickets.length === 0 ? (
                      <tr><td colSpan={13} style={{ textAlign: 'center', padding: '40px' }}><Loader2 className="animate-spin text-primary" style={{ margin: '0 auto' }} /></td></tr>
                   ) : processedTickets.length === 0 ? (
@@ -289,23 +289,23 @@ export default function DailyReportPage() {
                      </td></tr>
                   ) : (
                      processedTickets.map((t, idx) => (
-                        <tr key={t.id || idx} style={{ borderBottom: '1px solid var(--border)', background: idx % 2 === 0 ? 'transparent' : 'rgba(0,0,0,0.02)' }}>
+                        <tr key={t.id || idx} style={{ borderBottom: '1px solid var(--border)', background: idx % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.02)' }}>
                            <td style={{ padding: '12px 16px', textAlign: 'center' }}>
                               {t.status === 'Resolved' || t.status === 'Closed' ? '✅' : (t.status === 'New' ? '⚪' : '🔄')}
                            </td>
                            <td style={{ padding: '12px 16px' }}>{new Date(t.created_at).toLocaleDateString('th-TH')}</td>
-                           <td style={{ padding: '12px 16px', fontWeight: '700' }}>{t.customers?.hospitals?.name || '-'}</td>
+                           <td style={{ padding: '12px 16px', fontWeight: '700', color: 'var(--text-main)' }}>{t.customers?.hospitals?.name || '-'}</td>
                            <td style={{ padding: '12px 16px' }}>{t.customers?.display_name || '-'}</td>
                            <td style={{ padding: '12px 16px', maxWidth: '300px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                               <AlignLeft size={12} style={{ display: 'inline', marginRight: '6px', opacity: 0.5 }} />
                               {t.subject || t.description || '-'}
                            </td>
-                           <td style={{ padding: '12px 16px', color: 'var(--primary)', maxWidth: '250px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.resolution_summary || '-'}</td>
+                           <td style={{ padding: '12px 16px', color: 'var(--primary)', maxWidth: '250px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: '600' }}>{t.resolution_summary || '-'}</td>
                            <td style={{ padding: '12px 16px' }}>{t.assigned_agent?.display_name || '-'}</td>
-                           <td style={{ padding: '12px 16px', color: '#2e7d32', background: 'rgba(46,125,50,0.05)' }}>{t.source || 'Line กลุ่ม'}</td>
+                           <td style={{ padding: '12px 16px', color: 'var(--success)', background: 'var(--primary-transparent)' }}>{t.source || 'Line กลุ่ม'}</td>
                            <td style={{ padding: '12px 16px', fontWeight: '700' }}>{t.module || '-'}</td>
                            <td style={{ padding: '12px 16px' }}>
-                              <span style={{ padding: '4px 8px', background: 'rgba(255,165,0,0.1)', color: 'orange', borderRadius: '4px', fontSize: '10px', fontWeight: '800' }}>
+                              <span style={{ padding: '4px 8px', background: 'var(--primary-transparent)', color: 'var(--accent)', borderRadius: '4px', fontSize: '10px', fontWeight: '800' }}>
                                  {t.issue_type || t.priority || 'PB'}
                               </span>
                            </td>
@@ -319,7 +319,7 @@ export default function DailyReportPage() {
             </table>
          </div>
          
-         <div style={{ padding: '14px 20px', background: 'var(--bg-card)', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px', fontWeight: '700', color: 'var(--text-muted)' }}>
+         <div style={{ padding: '14px 20px', background: 'var(--bg-card)', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11px', fontWeight: '500', color: 'var(--text-muted)', letterSpacing: '0.3px' }}>
             <span>กำลังแสดงผล {processedTickets.length} รายการ {filterText && `(จากทั้งหมด ${tickets.length} รายการ)`}</span>
             <span>ข้อมูล Real-time ตามรอบวัน (00:00 - 23:59)</span>
          </div>
@@ -327,4 +327,4 @@ export default function DailyReportPage() {
     </div>
   );
 }
-
+ Broadway Broadway  

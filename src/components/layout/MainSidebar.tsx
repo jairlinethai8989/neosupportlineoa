@@ -3,7 +3,7 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @next/next/no-img-element */
 /* eslint-disable jsx-a11y/alt-text */
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
@@ -21,7 +21,7 @@ import {
   Settings2,
   Bell,
   Plus,
-  Send
+  Send,
 } from 'lucide-react';
 import { useNotificationContext } from '@/contexts/NotificationContext';
 
@@ -47,118 +47,102 @@ const Sidebar = ({ onClickLink, isCollapsed = false }: SidebarProps) => {
   const pathname = usePathname();
   const router = useRouter();
   const [company, setCompany] = useState<any>(null);
-
   const [theme, setTheme] = useState('dark');
   const [permissions, setPermissions] = useState<any>(null);
   const [userRole, setUserRole] = useState<string>('');
   const [profile, setProfile] = useState<any>(null);
   const { unreadCount } = useNotificationContext();
 
-  useEffect(() => {
-    let isMounted = true;
-    
-    async function fetchUserData() {
-       const { data: { user } } = await supabase.auth.getUser();
-       if (user && isMounted) {
-          const { data: p } = await supabase.from('profiles').select('*').eq('id', user.id).single();
-          if (p && isMounted) {
-             setProfile(p);
-             setUserRole(p.role);
-             setPermissions(p.permissions);
-          }
-       }
-    }
-    fetchUserData();
+  const [inboxCount, setInboxCount] = useState(0);
+  const [ticketCount, setTicketCount] = useState(0);
+  const [openMenus, setOpenMenus] = useState<string[]>(['System Settings', 'Intelligence Dashboard']);
 
-    const savedTheme = localStorage.getItem('theme') || 'dark';
-    if (isMounted) {
-      setTimeout(() => {
-        if (isMounted) {
-          setTheme(savedTheme);
-          document.documentElement.setAttribute('data-theme', savedTheme);
-        }
-      }, 0);
-    }
-    
-    async function fetchBranding() {
-       const { data } = await supabase.from('company_settings').select('*').limit(1).single();
-       if (data && isMounted) setCompany(data);
-    }
-    fetchBranding();
+  // OPTIMIZATION: Parallel Data Fetching
+  const fetchAllInitialData = useCallback(async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
 
-    return () => { isMounted = false; };
+      const [profileRes, companyRes, ticketsRes, conversationsRes] = await Promise.all([
+        supabase.from('profiles').select('*').eq('id', user.id).single(),
+        supabase.from('company_settings').select('*').limit(1).single(),
+        supabase.from('tickets').select('*', { count: 'exact', head: true }).eq('status', 'New'),
+        supabase.from('conversations').select('*', { count: 'exact', head: true }).eq('status', 'active')
+      ]);
+
+      if (profileRes.data) {
+        setProfile(profileRes.data);
+        setUserRole(profileRes.data.role);
+        setPermissions(profileRes.data.permissions);
+      }
+      if (companyRes.data) setCompany(companyRes.data);
+      if (ticketsRes.count !== null) setTicketCount(ticketsRes.count);
+      if (conversationsRes.count !== null) setInboxCount(conversationsRes.count);
+
+    } catch (err) {
+      console.error('Sidebar fetch error:', err);
+    }
   }, []);
 
-  const THEMES = [
-    { id: 'dark', name: 'Dark', thai: 'ธีมเข้ม', color: '#0a0e14', iconColor: '#7367f0' },
-    { id: 'light', name: 'Light', thai: 'ธีมสว่าง', color: '#ffffff', iconColor: '#ffcd3c' },
-    { id: 'blue', name: 'Blue', thai: 'ธีมฟ้า', color: '#0f172a', iconColor: '#38bdf8' },
-    { id: 'purple', name: 'Purple', thai: 'ธีมม่วง', color: '#1e1b4b', iconColor: '#a78bfa' },
-    { id: 'gray', name: 'Gray', thai: 'ธีมเทา', color: '#111827', iconColor: '#f3f4f6' },
-  ];
+  useEffect(() => {
+    fetchAllInitialData();
 
-  const changeTheme = (newTheme: string) => {
+    const savedTheme = localStorage.getItem('theme') || 'dark';
+    setTheme(savedTheme);
+    document.documentElement.setAttribute('data-theme', savedTheme);
+
+    // Optimized Realtime Channel
+    const channel = supabase.channel('sidebar-sync')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'tickets' }, () => {
+         supabase.from('tickets').select('*', { count: 'exact', head: true }).eq('status', 'New')
+           .then(res => res.count !== null && setTicketCount(res.count));
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'conversations' }, () => {
+         supabase.from('conversations').select('*', { count: 'exact', head: true }).eq('status', 'active')
+           .then(res => res.count !== null && setInboxCount(res.count));
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [fetchAllInitialData]);
+
+  const changeTheme = useCallback((newTheme: string) => {
     setTheme(newTheme);
     localStorage.setItem('theme', newTheme);
     document.documentElement.setAttribute('data-theme', newTheme);
-  };
+  }, []);
 
-  const handleLogout = async () => {
+  const handleLogout = useCallback(async () => {
     await supabase.auth.signOut();
     router.push('/login');
     router.refresh();
-  };
+  }, [router]);
 
-  const [openMenus, setOpenMenus] = useState<string[]>(['System Settings']);
-
-  const [inboxCount, setInboxCount] = useState(0);
-  const [ticketCount, setTicketCount] = useState(0);
-
-  useEffect(() => {
-    let isMounted = true;
-    async function fetchCounts() {
-      // Tickets (Unresolved/Needs Attention)
-      const { count: tCount } = await supabase
-        .from('tickets')
-        .select('*', { count: 'exact', head: true })
-        .in('status', ['New', 'Pending', 'Escalated']);
-      if (isMounted) setTicketCount(tCount || 0);
-
-      // Inbox (Active conversations)
-      const { count: iCount } = await supabase.from('conversations').select('*', { count: 'exact', head: true }).eq('status', 'active');
-      if (isMounted) setInboxCount(iCount || 0);
-    }
-    
-    // Rely purely on Realtime for counts to reduce DB load
-    fetchCounts();
-
-    
-      const channel = supabase.channel('sidebar-counts-v3')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'tickets' }, () => { fetchCounts(); })
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'conversations' }, () => { fetchCounts(); })
-        .subscribe();
-
-    return () => {
-      isMounted = false;
-      supabase.removeChannel(channel);
-    };
-  }, []);
-
-  const toggleMenu = (name: string) => {
+  const toggleMenu = useCallback((name: string) => {
     setOpenMenus(prev => 
       prev.includes(name) ? prev.filter(m => m !== name) : [...prev, name]
     );
-  };
+  }, []);
 
-  const menuItems = [
+  // OPTIMIZATION: Memoized Menu Items
+  const menuItems = useMemo(() => [
     { section: 'Operations', thai: 'ส่วนปฏิบัติการหลัก', items: [
       { name: 'Inbox', thai: 'ห้องแชทลูกค้า', icon: Inbox, path: '/inbox', count: inboxCount },
       { name: 'Tickets', thai: 'จัดการใบงาน', icon: Ticket, path: '/tickets', count: ticketCount },
       { name: 'Notifications', thai: 'การแจ้งเตือน', icon: Bell, path: '/notifications', count: unreadCount },
     ]},
     { section: 'Intelligence', thai: 'ระบบข้อมูลเชิงลึก', items: [
-      { name: 'Analytics', thai: 'ภาพรวมระบบ', icon: LayoutDashboard, path: '/' },
-      { name: 'Performance', thai: 'สถิติการทำงาน', icon: BarChart2, path: '/analytics' },
+      { 
+        name: 'Dashboard', 
+        thai: 'วิเคราะห์และสถิติ', 
+        icon: LayoutDashboard, 
+        children: [
+          { name: 'Overview', thai: 'ภาพรวมระบบ', path: '/' },
+          { name: 'Performance', thai: 'สถิติการทำงาน', path: '/analytics' },
+        ]
+      },
       { name: 'Customers', thai: 'ฐานข้อมูลลูกค้า', icon: Users, path: '/customers' },
       { name: 'Reports', thai: 'รายงาน & Broadcast', icon: Send, children: [
           { name: 'Daily Report', thai: 'สรุปปัญหาประจำวัน', path: '/reports/daily' },
@@ -180,15 +164,15 @@ const Sidebar = ({ onClickLink, isCollapsed = false }: SidebarProps) => {
         ]
       },
     ]},
-  ];
+  ], [inboxCount, ticketCount, unreadCount]);
 
-  // Helper to check permission
-  const hasAccess = (name: string) => {
+  // OPTIMIZATION: Memoized Permission Check
+  const hasAccess = useCallback((name: string) => {
     if (userRole === 'Administrator') return true;
     if (!permissions) return true;
     
     const key = name.toLowerCase();
-    if (key.includes('analytics') || key.includes('performance')) return permissions.analytics !== 'none';
+    if (key.includes('analytics') || key.includes('performance') || key.includes('dashboard')) return permissions.analytics !== 'none';
     if (key.includes('inbox')) return permissions.inbox !== 'none';
     if (key.includes('ticket') || key.includes('create')) return permissions.tickets !== 'none';
     if (key.includes('customer')) return permissions.customers !== 'none';
@@ -196,18 +180,20 @@ const Sidebar = ({ onClickLink, isCollapsed = false }: SidebarProps) => {
     if (key.includes('settings')) return permissions.settings !== 'none';
     
     return true;
-  };
+  }, [userRole, permissions]);
 
-  const filteredMenuItems = menuItems.map((section: any) => ({
-    ...section,
-    items: section.items.filter((item: any) => hasAccess(item.name))
-  })).filter((section: any) => section.items.length > 0);
+  const filteredMenuItems = useMemo(() => 
+    menuItems.map((section: any) => ({
+      ...section,
+      items: section.items.filter((item: any) => hasAccess(item.name))
+    })).filter((section: any) => section.items.length > 0)
+  , [menuItems, hasAccess]);
 
   return (
     <aside style={{ display: 'flex', flexDirection: 'column', height: '100%', background: 'var(--bg-sidebar)' }}>
       <div style={{ padding: isCollapsed ? '24px 12px' : '24px', display: 'flex', alignItems: 'center', gap: '12px', justifyContent: isCollapsed ? 'center' : 'flex-start' }}>
         {company?.logo_url ? (
-          <img src={company.logo_url} style={{ width: '36px', height: '36px', borderRadius: '8px', objectFit: 'contain' }} />
+          <img src={company.logo_url} alt="Company Logo" style={{ width: '36px', height: '36px', borderRadius: '8px', objectFit: 'contain' }} />
         ) : (
           <div style={{ 
             background: 'var(--primary)', 
@@ -217,14 +203,14 @@ const Sidebar = ({ onClickLink, isCollapsed = false }: SidebarProps) => {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            boxShadow: '0 0 15px rgba(0, 242, 254, 0.4)',
+            boxShadow: '0 0 15px var(--primary-glow)',
             flexShrink: 0
           }}>
             <ShieldCheck color="#0a0e14" size={20} />
           </div>
         )}
         {!isCollapsed && (
-          <h1 style={{ fontSize: '18px', fontWeight: '900', color: 'var(--text-main)', textTransform: 'uppercase', whiteSpace: 'nowrap', letterSpacing: '-0.5px' }}>
+          <h1 style={{ fontSize: '18px', fontWeight: '800', color: 'var(--text-main)', textTransform: 'uppercase', whiteSpace: 'nowrap', letterSpacing: '-0.5px' }}>
              {company?.company_name || 'NEO SUPPORT'}
           </h1>
         )}
@@ -237,15 +223,15 @@ const Sidebar = ({ onClickLink, isCollapsed = false }: SidebarProps) => {
                   width: '100%', 
                   padding: '14px', 
                   borderRadius: '14px', 
-                  background: 'linear-gradient(135deg, var(--primary) 0%, oklch(75% 0.18 200) 100%)', 
+                  background: 'linear-gradient(135deg, var(--primary) 0%, var(--border-active) 100%)', 
                   color: '#0a0e14', 
                   border: 'none',
-                  fontWeight: '900',
+                  fontWeight: '700',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   gap: '8px',
-                  boxShadow: '0 10px 25px rgba(0, 242, 254, 0.3)',
+                  boxShadow: '0 10px 25px var(--primary-transparent)',
                   cursor: 'pointer'
                }}>
                   <Plus size={18} /> สร้างใบงานใหม่
@@ -260,7 +246,7 @@ const Sidebar = ({ onClickLink, isCollapsed = false }: SidebarProps) => {
             {!isCollapsed && (
               <label style={{ 
                 fontSize: '10px', 
-                fontWeight: '800', 
+                fontWeight: '700', 
                 color: 'var(--text-dim)', 
                 textTransform: 'uppercase', 
                 letterSpacing: '0.8px',
@@ -294,7 +280,7 @@ const Sidebar = ({ onClickLink, isCollapsed = false }: SidebarProps) => {
                       <item.icon size={18} />
                       {!isCollapsed && (
                         <>
-                          <span style={{ fontWeight: '600', fontSize: '13px', flex: 1, textAlign: 'left' }}>{item.thai}</span>
+                          <span style={{ fontWeight: '500', fontSize: '13px', flex: 1, textAlign: 'left' }}>{item.thai}</span>
                           <div style={{ opacity: 0.5, fontSize: '10px' }}>{isOpen ? '▼' : '▶'}</div>
                         </>
                       )}
@@ -310,7 +296,7 @@ const Sidebar = ({ onClickLink, isCollapsed = false }: SidebarProps) => {
                                 padding: '8px 16px',
                                 fontSize: '12px',
                                 color: isChildActive ? 'var(--primary)' : 'var(--text-muted)',
-                                fontWeight: isChildActive ? '700' : '500',
+                                fontWeight: isChildActive ? '700' : '400',
                                 textDecoration: 'none',
                                 borderRadius: '8px',
                                 background: isChildActive ? 'var(--primary-transparent)' : 'transparent'
@@ -338,7 +324,7 @@ const Sidebar = ({ onClickLink, isCollapsed = false }: SidebarProps) => {
                     borderRadius: '10px',
                     marginBottom: '4px',
                     textDecoration: 'none',
-                    fontWeight: isActive ? '700' : '500',
+                    fontWeight: isActive ? '700' : '400',
                     color: isActive ? 'var(--primary)' : 'var(--text-muted)',
                   }}>
                   <item.icon size={18} />
@@ -352,7 +338,7 @@ const Sidebar = ({ onClickLink, isCollapsed = false }: SidebarProps) => {
                       color: 'white', 
                       padding: '2px 8px', 
                       borderRadius: '10px',
-                      fontWeight: '800'
+                      fontWeight: '700'
                     }}>{item.count}</span>
                   )}
                 </Link>
@@ -369,6 +355,7 @@ const Sidebar = ({ onClickLink, isCollapsed = false }: SidebarProps) => {
                 <div style={{ position: 'relative', width: '38px', height: '38px', flexShrink: 0 }}>
                    <img 
                       src={profile?.avatar_url || 'https://ui-avatars.com/api/?name=' + profile?.full_name} 
+                      alt="User Avatar"
                       style={{ width: '38px', height: '38px', borderRadius: '12px', objectFit: 'cover', border: '1px solid var(--border)' }} 
                    />
                    {profile?.department && (
@@ -379,8 +366,8 @@ const Sidebar = ({ onClickLink, isCollapsed = false }: SidebarProps) => {
                 </div>
                 {!isCollapsed && (
                   <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-                     <span style={{ fontSize: '13px', fontWeight: '800', color: 'var(--text-main)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{profile?.full_name || 'Staff User'}</span>
-                     <span style={{ fontSize: '10px', color: 'var(--primary)', fontWeight: '700', textTransform: 'uppercase' }}>{userRole || 'Agent'}</span>
+                     <span style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-main)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{profile?.full_name || 'Staff User'}</span>
+                     <span style={{ fontSize: '10px', color: 'var(--primary)', fontWeight: '600', textTransform: 'uppercase' }}>{userRole || 'Agent'}</span>
                   </div>
                 )}
              </div>
@@ -388,7 +375,7 @@ const Sidebar = ({ onClickLink, isCollapsed = false }: SidebarProps) => {
 
         {!isCollapsed && (
            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-             <span style={{ fontSize: '10px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px' }}>สลับธีมพรีเมียม</span>
+             <span style={{ fontSize: '10px', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px' }}>สลับธีมพรีเมียม</span>
              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                 {THEMES.map(t => (
                   <button 
@@ -443,16 +430,10 @@ const Sidebar = ({ onClickLink, isCollapsed = false }: SidebarProps) => {
           {!isCollapsed && (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
               <span style={{ fontWeight: '700', fontSize: '13px' }}>ออกจากระบบ</span>
-              <span style={{ fontSize: '9px', opacity: 0.6, fontWeight: '800' }}>LOGOUT</span>
+              <span style={{ fontSize: '9px', opacity: 0.6, fontWeight: '700' }}>LOGOUT</span>
             </div>
           )}
         </button>
-        
-        {!isCollapsed && (
-          <div style={{ textAlign: 'center', marginTop: '12px', opacity: 0.3 }}>
-             <span style={{ fontSize: '10px', fontWeight: '700', letterSpacing: '1px' }}>VERSION 1.2.1.4 (REPORTING HUB)</span>
-          </div>
-        )}
       </div>
       
       <style dangerouslySetInnerHTML={{ __html: `
@@ -483,11 +464,6 @@ const Sidebar = ({ onClickLink, isCollapsed = false }: SidebarProps) => {
             from { opacity: 0; transform: translateX(-10px); }
             to { opacity: 1; transform: translateX(0); }
           }
-          @keyframes notifPulse {
-            0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.6); }
-            70% { transform: scale(1.05); box-shadow: 0 0 0 8px rgba(239, 68, 68, 0); }
-            100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
-          }
         }
       `}} />
     </aside>
@@ -495,3 +471,4 @@ const Sidebar = ({ onClickLink, isCollapsed = false }: SidebarProps) => {
 };
 
 export default Sidebar;
+ Broadway Broadway  
