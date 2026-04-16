@@ -89,6 +89,8 @@ function TicketsContent() {
   const [showResolveModal, setShowResolveModal] = useState(false);
   const [resolvingTicket, setResolvingTicket] = useState<any>(null);
   const [resSummary, setResSummary] = useState('');
+  const [availableModules, setAvailableModules] = useState<string[]>([]);
+  const [selectedModule, setSelectedModule] = useState('');
 
   // Date Filter State
   const [timeRange, setTimeRange] = useState<'all' | 'today' | 'week' | 'month' | 'custom'>('all');
@@ -139,6 +141,16 @@ function TicketsContent() {
 
       setTickets(tData || []);
       
+      const { data: companyData } = await supabase.from('company_settings').select('modules').limit(1).single();
+      const defaultModules = [
+         "ห้องทำงานแพทย์", "ห้องพยาบาล", "ห้องยาผู้ป่วยใน", "ห้องเวชระเบียน", "ห้องคลอด", 
+         "ห้องผ่าตัด", "วิสัญญี", "โภชนาการ", "Discharge Summary", "Consult", 
+         "ลงทะเบียนผู้ป่วยใน", "ห้องเวชศาสตร์ฟื้นฟู", "Admit ล่วงหน้า", "ผู้ดูแลระบบ(Admin)", 
+         "ฝ่ายสารสนเทศ", "ALL", "ห้องทำงานแพทย์,Admit ล่วงหน้า", "อาหาร", "จองเตียง"
+      ];
+      if (companyData?.modules && companyData.modules.length > 0) setAvailableModules(companyData.modules);
+      else setAvailableModules(defaultModules);
+
       setConversations(cData || []);
     } catch (err: any) {
       console.error('Fetch tickets error:', err);
@@ -155,10 +167,11 @@ function TicketsContent() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
       
-      await ticketService.resolve(resolvingTicket.id, user.id, resSummary);
+      await ticketService.resolve(resolvingTicket.id, user.id, resSummary, selectedModule);
       setShowResolveModal(false);
       setResolvingTicket(null);
       setResSummary('');
+      setSelectedModule('');
       fetchData();
       
       addToast({
@@ -757,7 +770,49 @@ function TicketsContent() {
                    <p style={{ fontSize: '14px', color: 'var(--text-muted)', lineHeight: '1.6' }}>กรุณาสรุปผลการแก้ไขปัญหา เพื่อบันทึกเป็นประวัติและแจ้งลูกค้าครับ</p>
                 </div>
 
-                <div style={{ marginBottom: '32px' }}>
+                <div style={{ marginBottom: '24px' }}>
+                    <label style={{ display: 'block', fontSize: '11px', fontWeight: '800', color: 'var(--primary)', textTransform: 'uppercase', marginBottom: '12px', letterSpacing: '1px' }}>เทมเพลตด่วน</label>
+                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                       {['ดำเนินการแก้ไขเรียบร้อยแล้วครับ', 'ส่งมอบงานประสานงานสำเร็จ', 'ยกเลิกเนื่องจากแจ้งผิดพลาด'].map(t => (
+                         <button key={t} type="button" onClick={() => setResSummary(t)} style={{ padding: '6px 14px', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--bg-input)', fontSize: '12px', color: 'var(--text-muted)', cursor: 'pointer' }}>{t}</button>
+                       ))}
+                    </div>
+                 </div>
+
+                 <div style={{ marginBottom: '24px' }}>
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#64748b', marginBottom: '8px' }}>Module</label>
+                    <div style={{ position: 'relative' }}>
+                       <select 
+                         value={selectedModule} 
+                         onChange={(e) => setSelectedModule(e.target.value)}
+                         style={{ 
+                            width: '100%', 
+                            padding: '14px 40px 14px 16px', 
+                            borderRadius: '12px', 
+                            border: 'none', 
+                            background: '#7c3aed', 
+                            color: 'white', 
+                            fontSize: '14px', 
+                            fontWeight: '700', 
+                            outline: 'none',
+                            appearance: 'none',
+                            cursor: 'pointer',
+                            boxShadow: '0 4px 12px rgba(124, 58, 237, 0.25)',
+                            backgroundImage: `url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e")`,
+                            backgroundRepeat: 'no-repeat',
+                            backgroundPosition: 'right 16px center',
+                            backgroundSize: '16px'
+                         }}
+                       >
+                          <option value="" style={{ background: '#7c3aed', color: 'white' }}>-- ไม่ระบุโมดูล --</option>
+                          {availableModules.map(m => (
+                            <option key={m} value={m} style={{ background: '#7c3aed', color: 'white' }}>{m}</option>
+                          ))}
+                       </select>
+                    </div>
+                 </div>
+
+                 <div style={{ marginBottom: '32px' }}>
                    <label style={{ display: 'block', fontSize: '11px', fontWeight: '800', color: 'var(--primary)', textTransform: 'uppercase', marginBottom: '12px', letterSpacing: '1px' }}>สรุปผลการแก้ไขงาน (Resolution Summary)</label>
                    <textarea 
                      value={resSummary}

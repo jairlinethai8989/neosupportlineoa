@@ -122,7 +122,7 @@ export const TicketSidebar: React.FC<TicketSidebarProps> = ({
       </button>
 
       <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-         {selectedChat.current_ticket_id ? (
+         {currentTicket ? (
              <>
                <button 
                 onClick={onResolve} 

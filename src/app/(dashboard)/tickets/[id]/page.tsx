@@ -98,18 +98,19 @@ export default function StaffTicketDetailPage() {
       }
 
       const { data: companyData } = await supabase.from('company_settings').select('departments, modules').limit(1).single();
+      const defaultModules = [
+         "ห้องทำงานแพทย์", "ห้องพยาบาล", "ห้องยาผู้ป่วยใน", "ห้องเวชระเบียน", "ห้องคลอด", 
+         "ห้องผ่าตัด", "วิสัญญี", "โภชนาการ", "Discharge Summary", "Consult", 
+         "ลงทะเบียนผู้ป่วยใน", "ห้องเวชศาสตร์ฟื้นฟู", "Admit ล่วงหน้า", "ผู้ดูแลระบบ(Admin)", 
+         "ฝ่ายสารสนเทศ", "ALL", "ห้องทำงานแพทย์,Admit ล่วงหน้า", "อาหาร", "จองเตียง"
+      ];
+
       if (companyData) {
          if (companyData.departments) setAvailableDepts(companyData.departments);
-         if (companyData.modules) setAvailableModules(companyData.modules);
-         else {
-            const defaultModules = [
-               "ห้องทำงานแพทย์", "ห้องพยาบาล", "ห้องยาผู้ป่วยใน", "ห้องเวชระเบียน", "ห้องคลอด", 
-               "ห้องผ่าตัด", "วิสัญญี", "โภชนาการ", "Discharge Summary", "Consult", 
-               "ลงทะเบียนผู้ป่วยใน", "ห้องเวชศาสตร์ฟื้นฟู", "Admit ล่วงหน้า", "ผู้ดูแลระบบ(Admin)", 
-               "ฝ่ายสารสนเทศ", "ALL", "ห้องทำงานแพทย์,Admit ล่วงหน้า", "อาหาร", "จองเตียง"
-            ];
-            setAvailableModules(defaultModules);
-         }
+         if (companyData.modules && companyData.modules.length > 0) setAvailableModules(companyData.modules);
+         else setAvailableModules(defaultModules);
+      } else {
+         setAvailableModules(defaultModules);
       }
 
       const { data: { user: authUser } } = await supabase.auth.getUser();
@@ -244,17 +245,13 @@ export default function StaffTicketDetailPage() {
     if (!resSummary.trim()) { alert('กรุณากรอกสรุปการแก้ไขงานก่อนปิดตั๋วครับ'); return; }
     setUpdating(true);
     try {
-      // Also update the module if it was changed in the modal
-      if (selectedModule) {
-        await supabase.from('tickets').update({ module: selectedModule }).eq('id', id);
-      }
-      
-      const updatedData = await ticketService.resolve(id as string, user?.id, resSummary);
+      const updatedData = await ticketService.resolve(id as string, user?.id, resSummary, selectedModule);
       if (conversationId) {
         const surveyLink = `${window.location.origin}/survey/${id}`;
+        const moduleText = selectedModule ? `\nโมดูล: ${selectedModule}` : '';
         await supabase.from('messages').insert([{
           conversation_id: conversationId, ticket_id: id, sender_type: 'agent', staff_id: user?.id,
-          content: `[System: ใบงาน #${updatedData.ticket_no} ได้รับการแก้ไขเรียบร้อยแล้ว: ${resSummary}\nแบบประเมิน: ${surveyLink}]`
+          content: `[System: ใบงาน #${updatedData.ticket_no} ได้รับการแก้ไขเรียบร้อยแล้ว: ${resSummary}${moduleText}\nแบบประเมิน: ${surveyLink}]`
         }]);
       }
       setStatus('Resolved');
@@ -392,6 +389,7 @@ export default function StaffTicketDetailPage() {
           onScreenCapture={handleScreenCapture} onEditImage={(url) => { setEditingImage(url); setShowEditor(true); }}
           onDeleteMessage={handleDeleteMessage}
           quickReplies={quickReplies}
+          isReadOnly={true}
         />
 
         <TicketSidebar 
@@ -429,18 +427,37 @@ export default function StaffTicketDetailPage() {
                         <button key={t} type="button" onClick={() => setResSummary(t)} style={{ padding: '6px 14px', borderRadius: '8px', border: '1px solid #e2e8f0', background: '#f8fafc', fontSize: '12px', color: '#475569', cursor: 'pointer' }}>{t}</button>
                       ))}
                    </div>
-                    <div style={{ marginBottom: '16px' }}>
-                       <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', marginBottom: '8px' }}>ระบุโมดูลที่เกี่ยวข้อง (Module)</label>
-                       <select 
-                         value={selectedModule} 
-                         onChange={(e) => setSelectedModule(e.target.value)}
-                         style={{ width: '100%', padding: '12px', borderRadius: '12px', border: '1px solid #e2e8f0', background: '#f8fafc', color: '#0f172a', fontSize: '14px', outline: 'none' }}
-                       >
-                          <option value="">-- ไม่ระบุโมดูล --</option>
-                          {availableModules.map(m => (
-                            <option key={m} value={m}>{m}</option>
-                          ))}
-                       </select>
+                    <div style={{ marginBottom: '20px' }}>
+                       <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#64748b', marginBottom: '8px' }}>Module</label>
+                       <div style={{ position: 'relative' }}>
+                          <select 
+                            value={selectedModule} 
+                            onChange={(e) => setSelectedModule(e.target.value)}
+                            style={{ 
+                               width: '100%', 
+                               padding: '14px 40px 14px 16px', 
+                               borderRadius: '12px', 
+                               border: 'none', 
+                               background: '#7c3aed', 
+                               color: 'white', 
+                               fontSize: '14px', 
+                               fontWeight: '700', 
+                               outline: 'none',
+                               appearance: 'none',
+                               cursor: 'pointer',
+                               boxShadow: '0 4px 12px rgba(124, 58, 237, 0.25)',
+                               backgroundImage: `url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e")`,
+                               backgroundRepeat: 'no-repeat',
+                               backgroundPosition: 'right 16px center',
+                               backgroundSize: '16px'
+                            }}
+                          >
+                             <option value="" style={{ background: '#7c3aed', color: 'white' }}>-- ไม่ระบุโมดูล --</option>
+                             {availableModules.map(m => (
+                               <option key={m} value={m} style={{ background: '#7c3aed', color: 'white' }}>{m}</option>
+                             ))}
+                          </select>
+                       </div>
                     </div>
 
                     <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', marginBottom: '8px' }}>สรุปผลการแก้ไขงาน</label>

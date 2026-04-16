@@ -101,6 +101,11 @@ export default function SurveyPage() {
             <h1 style={{ fontSize: '24px', fontWeight: '800', marginBottom: '8px' }}>Service Feedback</h1>
             <p style={{ color: 'var(--text-muted)', fontSize: '14px' }}>
                Hi {ticket.customers?.display_name}, how was your experience with Ticket <strong>#{ticket.ticket_no}</strong>?
+               {ticket.module && (
+                 <span style={{ display: 'block', marginTop: '12px' }}>
+                   Module: <span style={{ color: 'var(--primary)', fontWeight: '800' }}>{ticket.module}</span>
+                 </span>
+               )}
             </p>
          </div>
 

@@ -62,6 +62,10 @@ function InboxContent() {
   const [currentTicket, setCurrentTicket] = useState<any | null>(null);
   const [cannedResponses, setCannedResponses] = useState<string[]>([]);
   const [showCanned, setShowCanned] = useState<boolean>(false);
+  const [showResolveModal, setShowResolveModal] = useState<boolean>(false);
+  const [resSummary, setResSummary] = useState<string>('');
+  const [selectedModule, setSelectedModule] = useState<string>('');
+  const [availableModules, setAvailableModules] = useState<string[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -104,6 +108,19 @@ function InboxContent() {
       }
     }
     getProfile();
+    
+    async function fetchModules() {
+       const { data: companyData } = await supabase.from('company_settings').select('modules').limit(1).single();
+       const defaultModules = [
+          "ห้องทำงานแพทย์", "ห้องพยาบาล", "ห้องยาผู้ป่วยใน", "ห้องเวชระเบียน", "ห้องคลอด", 
+          "ห้องผ่าตัด", "วิสัญญี", "โภจากาาร", "Discharge Summary", "Consult", 
+          "ลงทะเบียนผู้ป่วยใน", "ห้องเวชศาสตร์ฟื้นฟู", "Admit ล่วงหน้า", "ผู้ดูแลระบบ(Admin)", 
+          "ฝ่ายสารสนเทศ", "ALL", "ห้องทำงานแพทย์,Admit ล่วงหน้า", "อาหาร", "จองเตียง"
+       ];
+       if (companyData?.modules && companyData.modules.length > 0) setAvailableModules(companyData.modules);
+       else setAvailableModules(defaultModules);
+    }
+    fetchModules();
     
     const saved = localStorage.getItem('neo_canned_responses');
     if (saved) {
@@ -280,22 +297,31 @@ function InboxContent() {
       return;
     }
 
-    const summary = prompt('กรอกสรุปการแก้ไขงาน (Resolution Summary):');
-    if (!summary) return;
+    setResSummary('');
+    setSelectedModule(currentTicket.module || '');
+    setShowResolveModal(true);
+  };
 
+  const handleExecuteResolve = async () => {
+    if (!selectedChat?.current_ticket_id || !resSummary.trim()) return;
+    setSending(true);
     try {
-      await ticketService.resolve(selectedChat.current_ticket_id, agent.id, summary);
+      await ticketService.resolve(selectedChat.current_ticket_id, agent.id, resSummary, selectedModule);
       
       const surveyLink = `${window.location.origin}/survey/${selectedChat.current_ticket_id}`;
-      const resolutionMsg = `[SYSTEM] งานได้รับการแก้ไขแล้ว: ${summary}\nแบบประเมิน: ${surveyLink}`;
+      const moduleStr = selectedModule ? `\nโมดูล: ${selectedModule}` : '';
+      const resolutionMsg = `[SYSTEM] งานได้รับการแก้ไขแล้ว: ${resSummary}${moduleStr}\nแบบประเมิน: ${surveyLink}`;
 
       await sendSystemMessageAction(selectedChat.id, resolutionMsg);
 
       alert('ปิดงานสำเร็จ! ส่งแบบประเมินไปยัง LIFF เรียบร้อย');
+      setShowResolveModal(false);
       setSelectedChat(null);
     } catch (err: any) {
       console.error('Resolve Error:', err);
       alert('Failed to resolve ticket: ' + (err.message || 'API Error'));
+    } finally {
+      setSending(false);
     }
   };
 
@@ -530,28 +556,9 @@ function InboxContent() {
                <History size={14} /> <u>ดูประวัติสนทนาเก่าทั้งหมด (Global Log)</u>
             </button>
 
-            <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-               {selectedChat.current_ticket_id ? (
-                   <button 
-                    onClick={handleResolve} 
-                    disabled={!currentTicket || currentTicket.status === 'Resolved' || (currentTicket.assigned_agent_id !== agent.id && agent.role !== 'Administrator')}
-                    className="glass-interactive flex-center" 
-                    style={{ 
-                      width: '100%', 
-                      padding: '16px', 
-                      borderRadius: '12px', 
-                      background: (!currentTicket || currentTicket.status === 'Resolved' || (currentTicket.assigned_agent_id !== agent.id && agent.role !== 'Administrator')) ? 'var(--bg-input)' : 'var(--success)', 
-                      color: 'white', 
-                      border: 'none', 
-                      fontWeight: '800', 
-                      gap: '10px',
-                      opacity: (!currentTicket || currentTicket.status === 'Resolved' || (currentTicket.assigned_agent_id !== agent.id && agent.role !== 'Administrator')) ? 0.5 : 1
-                    }}
-                   >
-                      <CheckCircle size={20} /> แก้ไขเสร็จสิ้น (RESOLVE)
-                   </button>
-               ) : (
-                 <button 
+            <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+               {/* 1. Close Session (Always visible for active chat) */}
+               <button 
                   onClick={handleCloseSession} 
                   className="glass-interactive flex-center" 
                   style={{ 
@@ -561,21 +568,48 @@ function InboxContent() {
                     background: 'var(--secondary)', 
                     color: 'white', 
                     border: 'none', 
-                    fontWeight: '800', 
-                    gap: '10px'
+                    fontWeight: '850', 
+                    fontSize: '14px',
+                    gap: '10px',
+                    boxShadow: '0 4px 12px rgba(124, 58, 237, 0.2)'
                   }}
-                 >
-                    <CheckCircle size={20} /> จบการสนทนา (CLOSE CHAT)
-                 </button>
+               >
+                  <CheckCircle size={18} /> จบการสนทนา (CLOSE CHAT)
+               </button>
+
+               {/* 2. Resolve Ticket (Show if ticket exists and not already resolved) */}
+               {currentTicket && currentTicket.status !== 'Resolved' && currentTicket.status !== 'Closed' && (
+                  <button 
+                    onClick={handleResolve} 
+                    disabled={!currentTicket || (currentTicket.assigned_agent_id !== agent?.id && agent?.role !== 'Administrator')}
+                    className="glass-interactive flex-center" 
+                    style={{ 
+                      width: '100%', 
+                      padding: '16px', 
+                      borderRadius: '12px', 
+                      background: 'var(--success)', 
+                      color: 'white', 
+                      border: 'none', 
+                      fontWeight: '850', 
+                      fontSize: '14px',
+                      gap: '10px',
+                      boxShadow: '0 4px 12px rgba(40, 199, 111, 0.2)',
+                      opacity: (!currentTicket || (currentTicket.assigned_agent_id !== agent?.id && agent?.role !== 'Administrator')) ? 0.5 : 1
+                    }}
+                  >
+                     <CheckCircle size={18} /> ปิดงานนี้ (RESOLVE TICKET)
+                  </button>
                )}
-               <div style={{ display: 'grid', gridTemplateColumns: (currentTicket?.status === 'Escalated' || currentTicket?.status === 'Pending') ? '1fr 1fr' : '1fr', gap: '10px' }}>
-                  {(currentTicket?.status === 'Escalated' || currentTicket?.status === 'Pending') && (
-                    <button onClick={() => setIsTransferModalOpen(true)} className="glass-interactive flex-center" style={{ padding: '12px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', color: 'var(--text-main)', border: '1px solid var(--border)', fontWeight: '700', fontSize: '12px', gap: '8px' }}>
-                       <Share2 size={16} /> ส่งต่อ
+
+               {/* 3. Sub-actions (Transfer, Survey) */}
+               <div style={{ display: 'grid', gridTemplateColumns: (currentTicket && !['Resolved', 'Closed'].includes(currentTicket.status)) ? '1fr 1fr' : '1fr', gap: '10px' }}>
+                  {(currentTicket && !['Resolved', 'Closed'].includes(currentTicket.status)) && (
+                    <button onClick={() => setIsTransferModalOpen(true)} className="glass-interactive flex-center" style={{ padding: '12px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', color: 'var(--text-main)', border: '1px solid var(--border)', fontWeight: '700', fontSize: '11px', gap: '8px' }}>
+                       <Share2 size={14} /> ส่งต่อแผนก
                     </button>
                   )}
-                  <button onClick={copySurveyLink} className="glass-interactive flex-center" style={{ padding: '12px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', color: 'var(--text-main)', border: '1px solid var(--border)', fontWeight: '700', fontSize: '12px', gap: '8px' }}>
-                     <Copy size={16} /> แบบประเมิน
+                  <button onClick={copySurveyLink} className="glass-interactive flex-center" style={{ padding: '12px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', color: 'var(--text-main)', border: '1px solid var(--border)', fontWeight: '700', fontSize: '11px', gap: '8px' }}>
+                     <Copy size={14} /> แบบประเมิน
                   </button>
                </div>
             </div>
@@ -612,16 +646,147 @@ function InboxContent() {
         }}
       />
 
-      <ImageViewerModal 
-        isOpen={isViewerOpen}
-        imageSrc={viewingImage}
-        onClose={() => setIsViewerOpen(false)}
-        onEdit={(src) => {
-          setIsViewerOpen(false);
-          setEditingImage(src);
-          setIsEditorOpen(true);
-        }}
-      />
+      {showResolveModal && (
+          <div style={{
+             position: 'fixed',
+             inset: 0,
+             zIndex: 10000,
+             display: 'flex',
+             alignItems: 'center',
+             justifyContent: 'center',
+             background: 'rgba(5, 8, 12, 0.85)',
+             backdropFilter: 'blur(20px)',
+             padding: '20px'
+          }}>
+             <div className="glass" style={{
+                width: '100%',
+                maxWidth: '480px',
+                padding: '40px',
+                borderRadius: '32px',
+                border: '1px solid rgba(255, 255, 255, 0.1)',
+                boxShadow: '0 40px 100px rgba(0,0,0,0.6)',
+                animation: 'scaleIn 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
+                color: 'white'
+             }}>
+                <div style={{ textAlign: 'center', marginBottom: '32px' }}>
+                   <div style={{ 
+                     width: '64px', 
+                     height: '64px', 
+                     borderRadius: '20px', 
+                     background: 'rgba(0, 255, 127, 0.1)', 
+                     color: 'var(--success)', 
+                     display: 'inline-flex',
+                     alignItems: 'center',
+                     justifyContent: 'center',
+                     marginBottom: '20px'
+                   }}>
+                      <CheckCircle size={32} />
+                   </div>
+                   <h3 style={{ fontSize: '24px', fontWeight: '900', color: 'white', marginBottom: '8px' }}>ปิดงานใบงาน #{currentTicket?.ticket_no}</h3>
+                   <p style={{ fontSize: '14px', color: 'var(--text-muted)', lineHeight: '1.6' }}>กรุณาสรุปผลการแก้ไขปัญหา เพื่อบันทึกเป็นประวัติและแจ้งลูกค้าครับ</p>
+                </div>
+
+                <div style={{ marginBottom: '24px' }}>
+                    <label style={{ display: 'block', fontSize: '11px', fontWeight: '800', color: 'var(--primary)', textTransform: 'uppercase', marginBottom: '12px', letterSpacing: '1px' }}>เทมเพลตด่วน</label>
+                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                       {['ดำเนินการแก้ไขเรียบร้อยแล้วครับ', 'ส่งมอบงานประสานงานสำเร็จ', 'ยกเลิกเนื่องจากแจ้งผิดพลาด'].map(t => (
+                         <button key={t} type="button" onClick={() => setResSummary(t)} style={{ padding: '6px 14px', borderRadius: '8px', border: '1px solid var(--border)', background: 'rgba(255,255,255,0.05)', fontSize: '12px', color: 'var(--text-muted)', cursor: 'pointer' }}>{t}</button>
+                       ))}
+                    </div>
+                </div>
+
+                <div style={{ marginBottom: '24px' }}>
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: 'rgba(255,255,255,0.6)', marginBottom: '8px' }}>Module</label>
+                    <div style={{ position: 'relative' }}>
+                       <select 
+                         value={selectedModule} 
+                         onChange={(e) => setSelectedModule(e.target.value)}
+                         style={{ 
+                            width: '100%', 
+                            padding: '14px 40px 14px 16px', 
+                            borderRadius: '12px', 
+                            border: 'none', 
+                            background: '#7c3aed', 
+                            color: 'white', 
+                            fontSize: '14px', 
+                            fontWeight: '700', 
+                            outline: 'none',
+                            appearance: 'none',
+                            cursor: 'pointer',
+                            boxShadow: '0 4px 12px rgba(124, 58, 237, 0.25)',
+                            backgroundImage: `url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e")`,
+                            backgroundRepeat: 'no-repeat',
+                            backgroundPosition: 'right 16px center',
+                            backgroundSize: '16px'
+                         }}
+                       >
+                          <option value="" style={{ background: '#7c3aed', color: 'white' }}>-- ไม่ระบุโมดูล --</option>
+                          {availableModules.map(m => (
+                            <option key={m} value={m} style={{ background: '#7c3aed', color: 'white' }}>{m}</option>
+                          ))}
+                       </select>
+                    </div>
+                </div>
+
+                <div style={{ marginBottom: '32px' }}>
+                   <label style={{ display: 'block', fontSize: '11px', fontWeight: '800', color: 'var(--primary)', textTransform: 'uppercase', marginBottom: '12px', letterSpacing: '1px' }}>สรุปผลการแก้ไขงาน</label>
+                   <textarea 
+                     value={resSummary}
+                     onChange={(e) => setResSummary(e.target.value)}
+                     placeholder="ระบุรายละเอียดการแก้ไข..."
+                     style={{
+                        width: '100%',
+                        height: '100px',
+                        background: 'rgba(255,255,255,0.02)',
+                        border: '1px solid var(--border)',
+                        borderRadius: '16px',
+                        padding: '16px',
+                        color: 'white',
+                        fontSize: '14px',
+                        resize: 'none',
+                        outline: 'none'
+                     }}
+                   />
+                </div>
+
+                <div style={{ display: 'flex', gap: '16px' }}>
+                   <button 
+                     onClick={() => setShowResolveModal(false)}
+                     style={{ flex: 1, padding: '16px', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.1)', background: 'transparent', color: 'rgba(255,255,255,0.5)', fontWeight: '800', cursor: 'pointer' }}
+                   >
+                      ยกเลิก
+                   </button>
+                   <button 
+                     onClick={handleExecuteResolve}
+                     disabled={sending || !resSummary.trim()}
+                     style={{ 
+                       flex: 1.5, 
+                       padding: '16px', 
+                       borderRadius: '14px', 
+                       border: 'none', 
+                       background: (sending || !resSummary.trim()) ? 'rgba(255,255,255,0.05)' : 'var(--success)', 
+                       color: (sending || !resSummary.trim()) ? 'rgba(255,255,255,0.2)' : 'black', 
+                       fontWeight: '900', 
+                       cursor: 'pointer',
+                       display: 'flex',
+                       alignItems: 'center',
+                       justifyContent: 'center',
+                       gap: '10px'
+                     }}
+                   >
+                      {sending ? <Loader2 size={18} className="animate-spin" /> : <><CheckCircle size={18} /> ยืนยันสมบูรณ์</>}
+                   </button>
+                </div>
+             </div>
+          </div>
+       )}
+
+       <style dangerouslySetInnerHTML={{ __html: `
+          @keyframes scaleIn {
+             from { opacity: 0; transform: scale(0.95); }
+             to { opacity: 1; transform: scale(1); }
+          }
+       `}} />
 
     </div>
   );

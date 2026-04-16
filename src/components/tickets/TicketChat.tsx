@@ -21,6 +21,7 @@ interface TicketChatProps {
   onEditImage: (url: string) => void;
   onDeleteMessage?: (id: string) => void;
   quickReplies: string[];
+  isReadOnly?: boolean;
 }
 
 export const TicketChat: React.FC<TicketChatProps> = ({
@@ -35,7 +36,8 @@ export const TicketChat: React.FC<TicketChatProps> = ({
   onScreenCapture,
   onEditImage,
   onDeleteMessage,
-  quickReplies
+  quickReplies,
+  isReadOnly = false
 }) => {
   if (!ticket) return null;
 
@@ -139,76 +141,78 @@ export const TicketChat: React.FC<TicketChatProps> = ({
       </div>
 
       {/* Input Area */}
-      <div style={{ marginTop: 'auto' }}>
-         {/* Quick Replies */}
-         {!isResolvedOrClosed && !isNew && (
-          <div className="no-scrollbar" style={{ display: 'flex', gap: '8px', overflowX: 'auto', marginBottom: '12px', paddingBottom: '4px' }}>
-              {quickReplies.map((qr, idx) => (
-                <button 
-                  key={idx}
-                  onClick={() => setNewMessage(newMessage ? newMessage + ' ' + qr : qr)}
-                  className="glass-interactive"
-                  style={{ whiteSpace: 'nowrap', padding: '6px 14px', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border)', borderRadius: '20px', fontSize: '11px', color: 'var(--text-muted)', cursor: 'pointer', transition: 'all 0.2s' }}>
-                  {qr.substring(0, 30)}...
-                </button>
-              ))}
-          </div>
-         )}
-         
-         {isNew ? (
-            <div style={{ padding: '16px', borderRadius: '10px', background: 'rgba(255, 171, 0, 0.05)', border: '1px dotted var(--warning)', textAlign: 'center' }}>
-              <p style={{ fontSize: '13px', color: 'var(--warning)', fontWeight: '800' }}>
-                 ⚠️ กรุณากด "รับงาน (Claim)" เพื่อเริ่มต้นการพูดคุยกับลูกค้า
-              </p>
+      {!isReadOnly && (
+        <div style={{ marginTop: 'auto' }}>
+           {/* Quick Replies */}
+           {!isResolvedOrClosed && !isNew && (
+            <div className="no-scrollbar" style={{ display: 'flex', gap: '8px', overflowX: 'auto', marginBottom: '12px', paddingBottom: '4px' }}>
+                {quickReplies.map((qr, idx) => (
+                  <button 
+                    key={idx}
+                    onClick={() => setNewMessage(newMessage ? newMessage + ' ' + qr : qr)}
+                    className="glass-interactive"
+                    style={{ whiteSpace: 'nowrap', padding: '6px 14px', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border)', borderRadius: '20px', fontSize: '11px', color: 'var(--text-muted)', cursor: 'pointer', transition: 'all 0.2s' }}>
+                    {qr.substring(0, 30)}...
+                  </button>
+                ))}
             </div>
-          ) : isAssignedToOther ? (
-            <div style={{ padding: '16px', borderRadius: '10px', background: 'rgba(255, 255, 255, 0.05)', border: '1px dotted var(--border)', textAlign: 'center' }}>
-               <p style={{ fontSize: '13px', color: 'var(--text-muted)', fontWeight: '800' }}>
-                  🔐 ใบงานนี้มีผู้ดูแลแล้ว (Read Only)
-               </p>
-            </div>
-          ) : (isResolvedOrClosed && !isAdmin) ? (
-            <div style={{ padding: '16px', borderRadius: '10px', background: 'rgba(0, 255, 127, 0.05)', border: '1px dotted var(--success)', textAlign: 'center' }}>
-               <p style={{ fontSize: '13px', color: 'var(--success)', fontWeight: '800' }}>
-                  ✅ ใบงานนี้เสร็จสมบูรณ์แล้ว ระบบปิดการสนทนาขอบคุณที่ใช้บริการครับ
-               </p>
-            </div>
-          ) : (
-            <div style={{ display: 'flex', gap: '12px', background: 'rgba(0,0,0,0.03)', padding: '12px', borderRadius: '16px', border: '1px solid var(--border)', alignItems: 'center' }}>
-               <button 
-                  onClick={onAttachFile}
-                  disabled={sending}
+           )}
+           
+           {isNew ? (
+              <div style={{ padding: '16px', borderRadius: '10px', background: 'rgba(255, 171, 0, 0.05)', border: '1px dotted var(--warning)', textAlign: 'center' }}>
+                <p style={{ fontSize: '13px', color: 'var(--warning)', fontWeight: '800' }}>
+                   ⚠️ กรุณากด "รับงาน (Claim)" เพื่อเริ่มต้นการพูดคุยกับลูกค้า
+                </p>
+              </div>
+            ) : isAssignedToOther ? (
+              <div style={{ padding: '16px', borderRadius: '10px', background: 'rgba(255, 255, 255, 0.05)', border: '1px dotted var(--border)', textAlign: 'center' }}>
+                 <p style={{ fontSize: '13px', color: 'var(--text-muted)', fontWeight: '800' }}>
+                    🔐 ใบงานนี้มีผู้ดูแลแล้ว (Read Only)
+                 </p>
+              </div>
+            ) : (isResolvedOrClosed && !isAdmin) ? (
+              <div style={{ padding: '16px', borderRadius: '10px', background: 'rgba(0, 255, 127, 0.05)', border: '1px dotted var(--success)', textAlign: 'center' }}>
+                 <p style={{ fontSize: '13px', color: 'var(--success)', fontWeight: '800' }}>
+                    ✅ ใบงานนี้เสร็จสมบูรณ์แล้ว ระบบปิดการสนทนาขอบคุณที่ใช้บริการครับ
+                 </p>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', gap: '12px', background: 'rgba(0,0,0,0.03)', padding: '12px', borderRadius: '16px', border: '1px solid var(--border)', alignItems: 'center' }}>
+                 <button 
+                    onClick={onAttachFile}
+                    disabled={sending}
+                    className="glass-interactive flex-center" 
+                    title="แนบไฟล์รูปภาพ"
+                    style={{ width: '36px', height: '36px', borderRadius: '50%', border: 'none', background: 'transparent', color: 'var(--text-muted)' }}>
+                    <Paperclip size={18} />
+                 </button>
+                 <button 
+                    onClick={onScreenCapture}
+                    disabled={sending}
+                    className="glass-interactive flex-center" 
+                    title="จับภาพหน้าจอ (Capture Screen)"
+                    style={{ width: '36px', height: '36px', borderRadius: '50%', border: 'none', background: 'transparent', color: 'var(--text-muted)' }}>
+                    <Monitor size={18} />
+                 </button>
+                 <input 
+                    type="text" 
+                    placeholder={isResolvedOrClosed ? "ใบงานปิดแล้ว (Admin Re-open Mode)" : "Type your response or select a template..."} 
+                    value={newMessage}
+                    onChange={(e) => setNewMessage(e.target.value)}
+                    onKeyPress={(e) => e.key === 'Enter' && onSendMessage()}
+                    style={{ flex: 1, background: 'transparent', border: 'none', padding: '12px', color: 'var(--text)', fontSize: '14px', fontWeight: '500', outline: 'none' }}
+                 />
+                 <button 
+                  onClick={onSendMessage}
+                  disabled={sending || !newMessage.trim()}
                   className="glass-interactive flex-center" 
-                  title="แนบไฟล์รูปภาพ"
-                  style={{ width: '36px', height: '36px', borderRadius: '50%', border: 'none', background: 'transparent', color: 'var(--text-muted)' }}>
-                  <Paperclip size={18} />
-               </button>
-               <button 
-                  onClick={onScreenCapture}
-                  disabled={sending}
-                  className="glass-interactive flex-center" 
-                  title="จับภาพหน้าจอ (Capture Screen)"
-                  style={{ width: '36px', height: '36px', borderRadius: '50%', border: 'none', background: 'transparent', color: 'var(--text-muted)' }}>
-                  <Monitor size={18} />
-               </button>
-               <input 
-                  type="text" 
-                  placeholder={isResolvedOrClosed ? "ใบงานปิดแล้ว (Admin Re-open Mode)" : "Type your response or select a template..."} 
-                  value={newMessage}
-                  onChange={(e) => setNewMessage(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && onSendMessage()}
-                  style={{ flex: 1, background: 'transparent', border: 'none', padding: '12px', color: 'var(--text)', fontSize: '14px', fontWeight: '500', outline: 'none' }}
-               />
-               <button 
-                onClick={onSendMessage}
-                disabled={sending || !newMessage.trim()}
-                className="glass-interactive flex-center" 
-                style={{ width: '48px', height: '48px', borderRadius: '12px', border: 'none', background: (!newMessage.trim() && !sending) ? 'rgba(255,255,255,0.05)' : 'var(--primary)', color: (!newMessage.trim() && !sending) ? 'var(--text-muted)' : 'black', transition: 'all 0.3s' }}>
-                  {sending ? <Loader2 size={18} className="animate-spin" /> : <SendHorizontal size={20} />}
-               </button>
-            </div>
-          )}
-      </div>
+                  style={{ width: '48px', height: '48px', borderRadius: '12px', border: 'none', background: (!newMessage.trim() && !sending) ? 'rgba(255,255,255,0.05)' : 'var(--primary)', color: (!newMessage.trim() && !sending) ? 'var(--text-muted)' : 'black', transition: 'all 0.3s' }}>
+                    {sending ? <Loader2 size={18} className="animate-spin" /> : <SendHorizontal size={20} />}
+                 </button>
+              </div>
+            )}
+        </div>
+      )}
     </div>
   );
 };

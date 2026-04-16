@@ -146,19 +146,23 @@ export async function transferTicketAction(ticketId: string, toAgentId?: string,
    return ticket;
 }
 
-export async function resolveTicketAction(ticketId: string, resolutionSummary: string) {
+export async function resolveTicketAction(ticketId: string, resolutionSummary: string, module?: string) {
    const user = await getSessionUser();
    await verifyAgentRole(user.id);
    const agentId = user.id;
 
+   const updateData: any = { 
+     status: 'Resolved',
+     resolved_at: new Date().toISOString(),
+     resolution_summary: resolutionSummary,
+     updated_at: new Date().toISOString()
+   };
+
+   if (module) updateData.module = module;
+
    const { data: ticket, error: resolveError } = await supabaseAdmin
      .from('tickets')
-     .update({ 
-       status: 'Resolved',
-       resolved_at: new Date().toISOString(),
-       resolution_summary: resolutionSummary,
-       updated_at: new Date().toISOString()
-     })
+     .update(updateData)
      .eq('id', ticketId)
      .select()
      .single();

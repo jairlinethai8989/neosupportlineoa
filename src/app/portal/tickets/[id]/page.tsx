@@ -361,15 +361,33 @@ export default function TicketDetailPage() {
           </div>
        </section>
 
-       {/* 4. Ticket Info */}
-       <div className="portal-glass" style={{ padding: '20px', marginBottom: '24px', background: 'white' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
-             <FileText size={16} color="var(--portal-primary)" />
-             <p style={{ fontSize: '12px', fontWeight: '800', color: 'var(--portal-text-muted)', textTransform: 'uppercase' }}>หัวข้อที่แจ้ง</p>
-          </div>
-          <p style={{ fontSize: '17px', fontWeight: '800', color: '#1e293b' }}>{ticket.subject || 'แจ้งปัญหาทั่วไป'}</p>
-          {ticket.description && <p style={{ fontSize: '14px', color: '#64748b', marginTop: '8px', lineHeight: '1.6' }}>{ticket.description}</p>}
-       </div>
+        <div className="portal-glass" style={{ padding: '20px', marginBottom: '24px', background: 'white' }}>
+           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
+              <FileText size={16} color="var(--portal-primary)" />
+              <p style={{ fontSize: '12px', fontWeight: '800', color: 'var(--portal-text-muted)', textTransform: 'uppercase' }}>ข้อมูลใบงาน</p>
+           </div>
+           
+           <div style={{ marginBottom: '16px' }}>
+              <p style={{ fontSize: '10px', color: '#64748b', fontWeight: '800', textTransform: 'uppercase', marginBottom: '4px' }}>หัวข้อที่แจ้ง</p>
+              <p style={{ fontSize: '17px', fontWeight: '800', color: '#1e293b' }}>{ticket.subject || 'แจ้งปัญหาทั่วไป'}</p>
+           </div>
+
+           {ticket.module && (
+              <div style={{ marginBottom: '16px' }}>
+                 <p style={{ fontSize: '10px', color: '#64748b', fontWeight: '800', textTransform: 'uppercase', marginBottom: '4px' }}>โมดูลที่เกี่ยวข้อง (Module)</p>
+                 <div style={{ display: 'inline-flex', padding: '6px 12px', background: '#7c3aed', color: 'white', borderRadius: '10px', fontSize: '13px', fontWeight: '800' }}>
+                    {ticket.module}
+                 </div>
+              </div>
+           )}
+
+           {ticket.description && (
+              <div>
+                 <p style={{ fontSize: '10px', color: '#64748b', fontWeight: '800', textTransform: 'uppercase', marginBottom: '4px' }}>รายละเอียด</p>
+                 <p style={{ fontSize: '14px', color: '#64748b', lineHeight: '1.6' }}>{ticket.description}</p>
+              </div>
+           )}
+        </div>
 
        {/* 5. Timeline */}
        <section className="portal-glass" style={{ padding: '24px', background: 'white' }}>

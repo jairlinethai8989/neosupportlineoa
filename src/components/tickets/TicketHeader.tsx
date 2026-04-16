@@ -77,8 +77,9 @@ export const TicketHeader: React.FC<TicketHeaderProps> = ({
           <button 
             onClick={onResolveClick}
             className="glass-interactive flex-center" 
-            style={{ padding: '0 20px', height: '44px', borderRadius: '12px', border: '1px solid var(--success)', background: 'rgba(0, 255, 127, 0.1)', color: 'var(--success)', fontWeight: '800', gap: '8px' }}>
-            <CheckCircle size={18} /> End Conversation
+            style={{ padding: '0 20px', height: '44px', borderRadius: '12px', border: 'none', background: 'var(--success)', color: 'black', fontWeight: '900', gap: '8px', boxShadow: '0 4px 12px rgba(0, 255, 127, 0.3)' }}
+          >
+            <CheckCircle size={18} /> ปิดงาน (RESOLVE)
           </button>
         )}
         <button 
