@@ -26,9 +26,9 @@ export default function DailyReportPage() {
           *,
           customers!tickets_customer_id_fkey (
             display_name,
-            hospitals ( name )
+            hospitals!hospital_id ( name )
           ),
-          assigned_agent:profiles!assigned_agent_id( display_name )
+          assigned_agent:profiles!assigned_agent_id( display_name:full_name )
         `)
         .gte('created_at', startOfDay)
         .lte('created_at', endOfDay)
