@@ -12,26 +12,26 @@ interface ToastItemProps {
 const TYPE_CONFIG: Record<string, { icon: React.ElementType; color: string; bg: string; label: string }> = {
   sla: {
     icon: AlertTriangle,
-    color: '#ea5455',
-    bg: 'rgba(234, 84, 85, 0.12)',
+    color: '#ef4444',
+    bg: 'rgba(239, 68, 68, 0.12)',
     label: 'SLA หลุดกำหนด',
   },
   sla_warning: {
     icon: Clock,
-    color: '#ff9f43',
-    bg: 'rgba(255, 159, 67, 0.12)',
+    color: '#f59e0b',
+    bg: 'rgba(245, 158, 11, 0.12)',
     label: 'SLA ใกล้หมด',
   },
   ticket: {
     icon: Ticket,
     color: '#00f2fe',
-    bg: 'rgba(0, 242, 254, 0.10)',
+    bg: 'rgba(0, 242, 254, 0.12)',
     label: 'ใบงาน',
   },
   message: {
     icon: MessageSquare,
-    color: '#28c76f',
-    bg: 'rgba(40, 199, 111, 0.10)',
+    color: '#34d399',
+    bg: 'rgba(52, 211, 153, 0.12)',
     label: 'ข้อความ',
   },
 };
@@ -85,12 +85,12 @@ export default function ToastItem({ toast, onDismiss }: ToastItemProps) {
     <div
       style={{
         width: '340px',
-        background: 'rgba(10, 14, 20, 0.97)',
+        background: 'var(--bg-card)',
         border: `1px solid ${cfg.color}30`,
         borderLeft: `3px solid ${cfg.color}`,
-        borderRadius: '14px',
-        backdropFilter: 'blur(20px)',
-        boxShadow: `0 8px 32px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.04), 0 0 20px ${cfg.color}15`,
+        borderRadius: '16px',
+        backdropFilter: 'blur(34px)',
+        boxShadow: `0 20px 60px rgba(0,0,0,0.5), 0 0 0 1px var(--border), 0 0 20px ${cfg.color}15`,
         overflow: 'hidden',
         transform: visible ? 'translateX(0)' : 'translateX(120%)',
         opacity: visible ? 1 : 0,

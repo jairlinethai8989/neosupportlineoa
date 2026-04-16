@@ -44,7 +44,7 @@ export default function PortalPage() {
       // Fetch all tickets for this customer
       const { data: ticketData } = await supabase
         .from('tickets')
-        .select('*')
+        .select('*, assigned_agent:profiles!assigned_agent_id (id, display_name)')
         .eq('customer_id', customer.id)
         .order('created_at', { ascending: false });
 
@@ -182,6 +182,12 @@ export default function PortalPage() {
                           <div style={{ flex: 1, minWidth: 0 }}>
                              <p style={{ fontWeight: '800', fontSize: '15px', marginBottom: '4px', color: '#1e293b' }}>#{ticket.ticket_no}</p>
                              <p className="truncate" style={{ fontSize: '13px', color: 'var(--portal-text-muted)' }}>{ticket.subject || 'แจ้งปัญหาทั่วไป'}</p>
+                             {ticket.assigned_agent && (
+                                <p style={{ fontSize: '11px', color: 'var(--portal-primary)', fontWeight: '800', marginTop: '6px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                   <div style={{ width: '12px', height: '12px', borderRadius: '50%', background: 'var(--portal-primary)', opacity: 0.1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><User size={8} color="var(--portal-primary)" /></div>
+                                   ผู้รับงาน: {ticket.assigned_agent.display_name}
+                                </p>
+                             )}
                           </div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                              <span style={{ 

@@ -568,13 +568,15 @@ function InboxContent() {
                     <CheckCircle size={20} /> จบการสนทนา (CLOSE CHAT)
                  </button>
                )}
-               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                  <button onClick={() => setIsTransferModalOpen(true)} className="glass-interactive flex-center" style={{ padding: '12px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', color: 'var(--text-main)', border: '1px solid var(--border)', fontWeight: '700', fontSize: '12px', gap: '8px' }}>
-                      <Share2 size={16} /> ส่งต่อ
-                   </button>
-                   <button onClick={copySurveyLink} className="glass-interactive flex-center" style={{ padding: '12px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', color: 'var(--text-main)', border: '1px solid var(--border)', fontWeight: '700', fontSize: '12px', gap: '8px' }}>
-                      <Copy size={16} /> แบบประเมิน
-                   </button>
+               <div style={{ display: 'grid', gridTemplateColumns: (currentTicket?.status === 'Escalated' || currentTicket?.status === 'Pending') ? '1fr 1fr' : '1fr', gap: '10px' }}>
+                  {(currentTicket?.status === 'Escalated' || currentTicket?.status === 'Pending') && (
+                    <button onClick={() => setIsTransferModalOpen(true)} className="glass-interactive flex-center" style={{ padding: '12px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', color: 'var(--text-main)', border: '1px solid var(--border)', fontWeight: '700', fontSize: '12px', gap: '8px' }}>
+                       <Share2 size={16} /> ส่งต่อ
+                    </button>
+                  )}
+                  <button onClick={copySurveyLink} className="glass-interactive flex-center" style={{ padding: '12px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', color: 'var(--text-main)', border: '1px solid var(--border)', fontWeight: '700', fontSize: '12px', gap: '8px' }}>
+                     <Copy size={16} /> แบบประเมิน
+                  </button>
                </div>
             </div>
           </>

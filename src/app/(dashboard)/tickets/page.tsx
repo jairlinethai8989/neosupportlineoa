@@ -125,36 +125,14 @@ function TicketsContent() {
 
       const { data: tData, error: tErr } = await supabase
         .from('tickets')
-        .select('*')
+        .select('*, hospitals (id, name), customers (id, display_name), assigned_agent:profiles!assigned_agent_id (id, display_name)')
         .gte('created_at', from ? from.toISOString() : '2000-01-01T00:00:00Z')
         .lte('created_at', to.toISOString())
         .order('created_at', { ascending: false });
 
       if (tErr) throw tErr;
 
-      // In-memory join to resolve hospital/customer names without ambiguity
-      const hospitalIds = Array.from(new Set(tData?.map(t => t.hospital_id).filter(Boolean)));
-      const customerIds = Array.from(new Set(tData?.map(t => t.customer_id).filter(Boolean)));
-      const agentIds = Array.from(new Set(tData?.map(t => t.assigned_agent_id).filter(Boolean)));
-
-      const [hRes, cRes, aRes] = await Promise.all([
-        supabase.from('hospitals').select('id, name').in('id', hospitalIds),
-        supabase.from('customers').select('id, display_name').in('id', customerIds),
-        supabase.from('profiles').select('id, display_name').in('id', agentIds)
-      ]);
-
-      const hMap = Object.fromEntries(hRes.data?.map(h => [h.id, h]) || []);
-      const cMap = Object.fromEntries(cRes.data?.map(c => [c.id, c]) || []);
-      const aMap = Object.fromEntries(aRes.data?.map(a => [a.id, a]) || []);
-
-      const joinedTickets = tData?.map(t => ({
-        ...t,
-        hospitals: hMap[t.hospital_id],
-        customers: cMap[t.customer_id],
-        assigned_agent: aMap[t.assigned_agent_id]
-      })) || [];
-
-      setTickets(joinedTickets);
+      setTickets(tData || []);
       
       setConversations(cData || []);
     } catch (err: any) {
@@ -553,9 +531,9 @@ function TicketsContent() {
                                        </div>
                                        <div style={{ display: 'flex', gap: '10px' }}>
                                           {convId && (
-                                             <Link href={`/inbox?cid=${convId}`} className="glass-interactive flex-center" style={{ width: '38px', height: '38px', borderRadius: '12px', color: 'var(--primary)', background: 'var(--bg-input)', border: '1px solid var(--border)' }}><MessageCircle size={18} /></Link>
+                                             <Link href={`/inbox?cid=${convId}`} title="แชท" className="glass-interactive flex-center" style={{ width: '38px', height: '38px', borderRadius: '12px', color: 'var(--primary)', background: 'var(--bg-input)', border: '1px solid var(--border)' }}><MessageCircle size={18} /></Link>
                                           )}
-                                          <Link href={`/tickets/${ticket.id}`} className="glass-interactive flex-center" style={{ width: '38px', height: '38px', borderRadius: '12px', color: 'var(--text-muted)', background: 'var(--bg-input)', border: '1px solid var(--border)' }}><ExternalLink size={18} /></Link>
+                                          <Link href={`/tickets/${ticket.id}`} title="ดูรายละเอียดใบงาน" className="glass-interactive flex-center" style={{ width: '38px', height: '38px', borderRadius: '12px', color: 'var(--text-muted)', background: 'var(--bg-input)', border: '1px solid var(--border)' }}><ExternalLink size={18} /></Link>
                                        </div>
                                     </div>
                                     {isNew && (
@@ -694,9 +672,9 @@ function TicketsContent() {
                            <td style={{ padding: '16px 20px' }}>
                               <div style={{ display: 'flex', gap: '8px' }}>
                                  {convId && (
-                                    <Link href={`/inbox?cid=${convId}`} className="glass-interactive flex-center" style={{ width: '32px', height: '32px', borderRadius: '8px', color: 'var(--primary)', background: 'rgba(115, 103, 240, 0.1)' }}><MessageCircle size={16} /></Link>
+                                    <Link href={`/inbox?cid=${convId}`} title="แชท" className="glass-interactive flex-center" style={{ width: '32px', height: '32px', borderRadius: '8px', color: 'var(--primary)', background: 'rgba(115, 103, 240, 0.1)' }}><MessageCircle size={16} /></Link>
                                  )}
-                                 <Link href={`/tickets/${ticket.id}`} className="glass-interactive flex-center" style={{ width: '32px', height: '32px', borderRadius: '8px', color: 'var(--text-muted)' }}><ExternalLink size={16} /></Link>
+                                 <Link href={`/tickets/${ticket.id}`} title="เปิดใบงาน" className="glass-interactive flex-center" style={{ width: '32px', height: '32px', borderRadius: '8px', color: 'var(--text-muted)' }}><ExternalLink size={16} /></Link>
                               </div>
                            </td>
                         </tr>

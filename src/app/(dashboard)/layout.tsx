@@ -44,11 +44,11 @@ const ACTION_ICONS: Record<string, any> = {
 const ACTION_COLORS: Record<string, string> = {
   'Created': '#00f2fe',
   'Claimed': '#ff9f43',
-  'Transferred': '#7367f0',
+  'Transferred': '#3b82f6',
   'Resolved': '#28c76f',
   'Message': '#4facfe',
-  'sla': '#ea5455',
-  'sla_warning': '#ff9f43',
+  'sla': '#ef4444',
+  'sla_warning': '#f59e0b',
   'ticket': '#00f2fe',
   'message': '#28c76f',
 };
@@ -206,11 +206,11 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
                   right: 0,
                   width: '380px',
                   maxHeight: '480px',
-                  background: 'rgba(10, 14, 20, 0.97)',
+                  background: 'var(--bg-card)',
                   border: '1px solid var(--border)',
                   borderRadius: '16px',
-                  backdropFilter: 'blur(20px)',
-                  boxShadow: '0 16px 48px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255,255,255,0.05)',
+                  backdropFilter: 'blur(34px)',
+                  boxShadow: '0 20px 60px rgba(0, 0, 0, 0.6), 0 0 0 1px var(--border)',
                   zIndex: 100,
                   overflow: 'hidden',
                   animation: 'fadeIn 0.2s ease-out',
@@ -220,7 +220,7 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
                   <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--border)' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
                       <div>
-                        <h3 style={{ fontSize: '14px', fontWeight: '800' }}>การแจ้งเตือน</h3>
+                        <h3 style={{ fontSize: '14px', fontWeight: '800', color: 'var(--text-main)' }}>การแจ้งเตือน</h3>
                         <p style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '1px' }}>สถานะและเหตุการณ์ล่าสุด</p>
                       </div>
                       {unreadCount > 0 && (
@@ -234,7 +234,7 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
                       )}
                     </div>
                     {/* Tabs */}
-                    <div style={{ display: 'flex', gap: '4px', background: 'rgba(255,255,255,0.03)', borderRadius: '24px', padding: '3px' }}>
+                    <div style={{ display: 'flex', gap: '4px', background: 'var(--bg-input)', borderRadius: '24px', padding: '3px' }}>
                       {(['all', 'unread', 'sla'] as NotifTab[]).map((tab) => (
                         <button
                           key={tab}
