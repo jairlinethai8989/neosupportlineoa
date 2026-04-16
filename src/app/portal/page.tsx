@@ -28,6 +28,10 @@ export default function PortalPage() {
   const [needsRegistration, setNeedsRegistration] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
+  const fetchTickets = async () => {
+    if (!profile?.userId) return;
+    setFetching(true);
+    
     // Simplified parallel-safe fetching
     try {
       const { data: customer } = await supabase
@@ -131,6 +135,7 @@ export default function PortalPage() {
   const pastTickets = tickets.filter(t => !activeStatuses.includes(String(t.status || '').toLowerCase()));
 
   return (
+    <>
     <div className="animate-page-in">
       <div style={{ marginBottom: '32px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
          <div>
@@ -167,7 +172,7 @@ export default function PortalPage() {
             </h3>
             {activeTickets.length > 0 && (
               <span style={{ fontSize: '12px', fontWeight: '700', color: '#1e293b' }}>
-                {activeTickets.length} กรายการ
+                {activeTickets.length} รายการ
               </span>
             )}
          </div>
@@ -212,8 +217,6 @@ export default function PortalPage() {
          )}
       </section>
 
-
-
       {/* 4. History (Optional) */}
       {pastTickets.length > 0 && (
         <section>
@@ -239,7 +242,7 @@ export default function PortalPage() {
           </div>
         </section>
       )}
-    </main>
+    </div>
 
     {/* MODALS - Moved outside container to avoid transform-fixed ghosting */}
     <ProfileRegistrationModal 
