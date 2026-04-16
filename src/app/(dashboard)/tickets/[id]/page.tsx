@@ -131,7 +131,7 @@ export default function StaffTicketDetailPage() {
     const channel = supabase
       .channel(`ticket-messages-${id}`)
       .on('postgres_changes', { 
-        event: 'INSERT', 
+        event: '*', 
         schema: 'public', 
         table: 'messages',
         filter: `ticket_id=eq.${id}`
@@ -273,7 +273,11 @@ export default function StaffTicketDetailPage() {
   const handleDeleteMessage = async (messageId: string) => {
     if (!confirm('คุณต้องการยกเลิกการส่งข้อความนี้ใช่หรือไม่?')) return;
     try {
-      await deleteMessageAction(messageId);
+      const res = await deleteMessageAction(messageId);
+      if (res && !res.success) {
+        alert('Failed to unsend: ' + res.error);
+        return;
+      }
       addToast({
         id: `delete-${messageId}`,
         type: 'message',

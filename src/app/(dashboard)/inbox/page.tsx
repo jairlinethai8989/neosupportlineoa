@@ -175,15 +175,15 @@ function InboxContent() {
         table: 'messages',
         filter: `conversation_id=eq.${selectedChat.id}`
       }, (payload: any) => {
-        if (payload.new && (payload.new as any).conversation_id === selectedChat.id) {
-          if (payload.eventType === 'INSERT') {
-            setMessages((prev: any[]) => {
-              if (prev.some((m: any) => m.id === (payload.new as any).id)) return prev;
-              return [...prev, payload.new];
-            });
-          } else {
-            fetchMessages();
-          }
+        if (payload.eventType === 'INSERT' && payload.new) {
+          setMessages((prev: any[]) => {
+            if (prev.some((m: any) => m.id === payload.new.id)) return prev;
+            return [...prev, payload.new];
+          });
+        } else if (payload.eventType === 'DELETE' && payload.old) {
+          setMessages((prev: any[]) => prev.filter(m => m.id !== payload.old.id));
+        } else {
+          fetchMessages();
         }
       })
       .subscribe();
@@ -354,7 +354,11 @@ function InboxContent() {
   const handleDeleteMessage = async (messageId: string) => {
     if (!confirm('คุณต้องการยกเลิกการส่งข้อความนี้ใช่หรือไม่?')) return;
     try {
-      await deleteMessageAction(messageId);
+      const res = await deleteMessageAction(messageId);
+      if (res && !res.success) {
+        alert('Failed to unsend: ' + res.error);
+        return;
+      }
       addToast({
         id: `delete-${messageId}`,
         type: 'message',
