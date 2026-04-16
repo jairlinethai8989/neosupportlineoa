@@ -293,8 +293,19 @@ function InboxContent() {
     if (!selectedChat?.current_ticket_id || !agent) return;
     try {
       await ticketService.claimTicket(selectedChat.current_ticket_id, agent.id);
-    } catch (err) {
-      alert('Failed to claim ticket');
+      
+      // Refetch ticket data to update UI immediately
+      const { data: ticket } = await supabase.from('tickets').select('*').eq('id', selectedChat.current_ticket_id).single();
+      if (ticket) setCurrentTicket(ticket);
+      
+      addToast({
+        id: 'claim-success',
+        type: 'success',
+        title: 'รับงานสำเร็จ',
+        body: `คุณได้เป็นผู้ดูแลใบงาน #${ticket?.ticket_no} เรียบร้อยแล้ว`
+      });
+    } catch (err: any) {
+      alert('Failed to claim ticket: ' + err.message);
     }
   };
 
@@ -321,7 +332,18 @@ function InboxContent() {
   };
 
   const handleExecuteResolve = async () => {
-    if (!selectedChat?.current_ticket_id || !resSummary.trim()) return;
+    if (!selectedChat?.current_ticket_id) return;
+    
+    if (!selectedModule) {
+       alert('กรุณาเลือก Module ก่อนทำการปิดงานครับ');
+       return;
+    }
+    
+    if (!resSummary.trim()) {
+       alert('กรุณากรอกสรุปผลการแก้ไขงานก่อนครับ');
+       return;
+    }
+
     setSending(true);
     try {
       await ticketService.resolve(selectedChat.current_ticket_id, agent.id, resSummary, selectedModule);
@@ -591,31 +613,55 @@ function InboxContent() {
             </button>
 
             <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-               {/* 1. Close Session (Always visible for active chat) */}
-               <button 
-                  onClick={handleCloseSession} 
-                  className="glass-interactive flex-center" 
-                  style={{ 
-                    width: '100%', 
-                    padding: '16px', 
-                    borderRadius: '12px', 
-                    background: 'var(--secondary)', 
-                    color: 'white', 
-                    border: 'none', 
-                    fontWeight: '850', 
-                    fontSize: '14px',
-                    gap: '10px',
-                    boxShadow: '0 4px 12px rgba(124, 58, 237, 0.2)'
-                  }}
-               >
-                  <CheckCircle size={18} /> จบการสนทนา (CLOSE CHAT)
-               </button>
+               {/* CASE 1: Ticket exists but NOT assigned yet (Show CLAIM) */}
+               {currentTicket && !currentTicket.assigned_agent_id && (
+                  <button 
+                     onClick={handleClaim} 
+                     className="glass-interactive flex-center" 
+                     style={{ 
+                        width: '100%', 
+                        padding: '16px', 
+                        borderRadius: '12px', 
+                        background: 'var(--primary)', 
+                        color: 'black', 
+                        border: 'none', 
+                        fontWeight: '900', 
+                        fontSize: '15px',
+                        gap: '10px',
+                        boxShadow: '0 8px 24px rgba(0, 242, 254, 0.4)'
+                     }}
+                  >
+                     <UserPlus size={20} /> รับงานนี้ (CLAIM TICKET)
+                  </button>
+               )}
 
-               {/* 2. Resolve Ticket (Show if ticket exists and not already resolved) */}
-               {currentTicket && currentTicket.status !== 'Resolved' && currentTicket.status !== 'Closed' && (
+               {/* CASE 2: Close Session (Only for active sessions) */}
+               {(selectedChat.status === 'active' || selectedChat.is_active) && (
+                  <button 
+                     onClick={handleCloseSession} 
+                     className="glass-interactive flex-center" 
+                     style={{ 
+                        width: '100%', 
+                        padding: '16px', 
+                        borderRadius: '12px', 
+                        background: 'var(--secondary)', 
+                        color: 'white', 
+                        border: 'none', 
+                        fontWeight: '850', 
+                        fontSize: '14px',
+                        gap: '10px',
+                        boxShadow: '0 4px 12px rgba(124, 58, 237, 0.2)'
+                     }}
+                  >
+                     <CheckCircle size={18} /> จบการสนทนา (CLOSE CHAT)
+                  </button>
+               )}
+
+               {/* CASE 3: Resolve Ticket (Show if claimed and not resolved) */}
+               {currentTicket && currentTicket.assigned_agent_id && !['Resolved', 'Closed'].includes(currentTicket.status) && (
                   <button 
                     onClick={handleResolve} 
-                    disabled={!currentTicket || (currentTicket.assigned_agent_id !== agent?.id && agent?.role !== 'Administrator') || (selectedChat.status === 'active' || selectedChat.is_active)}
+                    disabled={(currentTicket.assigned_agent_id !== agent?.id && agent?.role !== 'Administrator') || (selectedChat.status === 'active' || selectedChat.is_active)}
                     className="glass-interactive flex-center" 
                     style={{ 
                       width: '100%', 
@@ -632,19 +678,26 @@ function InboxContent() {
                       cursor: (selectedChat.status === 'active' || selectedChat.is_active) ? 'not-allowed' : 'pointer'
                     }}
                   >
-                     <CheckCircle size={18} /> {(selectedChat.status === 'active' || selectedChat.is_active) ? 'จบสนทนาก่อนปิดงาน' : 'ปิดงานนี้ (RESOLVE TICKET)'}
+                     <CheckCircle size={18} /> {(selectedChat.status === 'active' || selectedChat.is_active) ? 'รอจบสนทนา -> จึงจะปิดงานได้' : 'ปิดงานนี้ (RESOLVE TICKET)'}
                   </button>
                )}
 
-               {/* 3. Sub-actions (Transfer, Survey) */}
-               <div style={{ display: 'grid', gridTemplateColumns: (currentTicket && !['Resolved', 'Closed'].includes(currentTicket.status)) ? '1fr 1fr' : '1fr', gap: '10px' }}>
-                  {(currentTicket && !['Resolved', 'Closed'].includes(currentTicket.status)) && (
-                    <button onClick={() => setIsTransferModalOpen(true)} className="glass-interactive flex-center" style={{ padding: '12px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', color: 'var(--text-main)', border: '1px solid var(--border)', fontWeight: '700', fontSize: '11px', gap: '8px' }}>
-                       <Share2 size={14} /> ส่งต่อแผนก
-                    </button>
-                  )}
-                  <button onClick={copySurveyLink} className="glass-interactive flex-center" style={{ padding: '12px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', color: 'var(--text-main)', border: '1px solid var(--border)', fontWeight: '700', fontSize: '11px', gap: '8px' }}>
-                     <Copy size={14} /> แบบประเมิน
+               {/* CASE 4: Sub-actions (Transfer, Survey) */}
+               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                  <button 
+                     onClick={() => setIsTransferModalOpen(true)} 
+                     disabled={!currentTicket || ['Resolved', 'Closed'].includes(currentTicket.status)}
+                     className="glass-interactive flex-center" 
+                     style={{ padding: '12px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', color: 'var(--text-main)', border: '1px solid var(--border)', fontWeight: '700', fontSize: '11px', gap: '8px', opacity: (!currentTicket || ['Resolved', 'Closed'].includes(currentTicket.status)) ? 0.3 : 1 }}
+                  >
+                     <Share2 size={14} /> ส่งต่อแผนก
+                  </button>
+                  <button 
+                     onClick={copySurveyLink} 
+                     className="glass-interactive flex-center" 
+                     style={{ padding: '12px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', color: 'var(--text-main)', border: '1px solid var(--border)', fontWeight: '700', fontSize: '11px', gap: '8px' }}
+                  >
+                     <Copy size={14} /> คัดลอกลิงก์
                   </button>
                </div>
             </div>

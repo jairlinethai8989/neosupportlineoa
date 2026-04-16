@@ -123,65 +123,10 @@ export const TicketSidebar: React.FC<TicketSidebarProps> = ({
       </button>
 
       <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-         {currentTicket ? (
-             <>
-               <button 
-                onClick={onResolve} 
-                disabled={!canResolve}
-                className="glass-interactive flex-center" 
-                style={{ 
-                  width: '100%', 
-                  padding: '16px', 
-                  borderRadius: '12px', 
-                  background: !canResolve ? 'rgba(255,255,255,0.05)' : 'var(--success)', 
-                  color: !canResolve ? 'rgba(255,255,255,0.3)' : 'white', 
-                  border: 'none', 
-                  fontWeight: '800', 
-                  gap: '10px',
-                  opacity: !canResolve ? 0.6 : 1,
-                  cursor: !canResolve ? 'not-allowed' : 'pointer'
-                }}>
-                  <CheckCircle size={18} /> {isSessionActive ? 'จบสนทนาก่อนปิดงาน' : 'Resolve & Send Survey'}
-               </button>
-               {isResolved && (
-                  <button onClick={onCopySurvey} className="glass-interactive" style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid var(--border)', fontSize: '12px', color: 'var(--text-muted)' }}>
-                    คัดลอกลิงก์แบบประเมิน
-                  </button>
-               )}
-               <button 
-                onClick={onTransfer}
-                disabled={isResolved}
-                className="glass-interactive flex-center" 
-                style={{ 
-                  width: '100%', 
-                  padding: '16px', 
-                  borderRadius: '12px', 
-                  background: 'rgba(115, 103, 240, 0.1)', 
-                  color: 'var(--secondary-text)', 
-                  border: '1px solid var(--border)', 
-                  fontWeight: '800', 
-                  gap: '10px',
-                  opacity: isResolved ? 0.3 : 1
-                }}>
-                  <ArrowRight size={18} /> Transfer Ticket
-               </button>
-             </>
-         ) : (
-            <button 
-              onClick={onCloseSession}
-              className="glass-interactive flex-center" 
-              style={{ 
-                width: '100%', 
-                padding: '16px', 
-                borderRadius: '12px', 
-                background: 'rgba(234, 84, 85, 0.1)', 
-                color: 'var(--danger)', 
-                border: '1px solid rgba(234, 84, 85, 0.2)', 
-                fontWeight: '800' 
-              }}>
-               End Session
-            </button>
-         )}
+         <p style={{ fontSize: '11px', color: 'var(--text-muted)', textAlign: 'center', opacity: 0.6 }}>
+            <Info size={11} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '4px' }} />
+            Ticket Actions can be found below
+         </p>
       </div>
     </div>
   );
