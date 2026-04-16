@@ -5,7 +5,8 @@ import { supabase } from '@/lib/supabase';
 import { 
   ShieldAlert, 
   Loader2, 
-  CheckCircle 
+  CheckCircle,
+  X 
 } from 'lucide-react';
 import { exportToPDF, exportToExcel } from '@/lib/utils/exportUtils';
 import ImageEditorModal from '@/components/modals/ImageEditorModal';
@@ -96,24 +97,21 @@ export default function StaffTicketDetailPage() {
         if (conv) setConversationId(conv.id);
       }
 
-      // Fetch dynamic departments & modules from company_settings mapping
       const { data: companyData } = await supabase.from('company_settings').select('departments, modules').limit(1).single();
       if (companyData) {
          if (companyData.departments) setAvailableDepts(companyData.departments);
          if (companyData.modules) setAvailableModules(companyData.modules);
          else {
-           // Default modules if none set
-           const defaultModules = [
-              "ห้องทำงานแพทย์", "ห้องพยาบาล", "ห้องยาผู้ป่วยใน", "ห้องเวชระเบียน", "ห้องคลอด", 
-              "ห้องผ่าตัด", "วิสัญญี", "โภชนาการ", "Discharge Summary", "Consult", 
-              "ลงทะเบียนผู้ป่วยใน", "ห้องเวชศาสตร์ฟื้นฟู", "Admit ล่วงหน้า", "ผู้ดูแลระบบ(Admin)", 
-              "ฝ่ายสารสนเทศ", "ALL", "ห้องทำงานแพทย์,Admit ล่วงหน้า", "อาหาร", "จองเตียง"
-           ];
-           setAvailableModules(defaultModules);
+            const defaultModules = [
+               "ห้องทำงานแพทย์", "ห้องพยาบาล", "ห้องยาผู้ป่วยใน", "ห้องเวชระเบียน", "ห้องคลอด", 
+               "ห้องผ่าตัด", "วิสัญญี", "โภชนาการ", "Discharge Summary", "Consult", 
+               "ลงทะเบียนผู้ป่วยใน", "ห้องเวชศาสตร์ฟื้นฟู", "Admit ล่วงหน้า", "ผู้ดูแลระบบ(Admin)", 
+               "ฝ่ายสารสนเทศ", "ALL", "ห้องทำงานแพทย์,Admit ล่วงหน้า", "อาหาร", "จองเตียง"
+            ];
+            setAvailableModules(defaultModules);
          }
       }
 
-      // Fetch current user
       const { data: { user: authUser } } = await supabase.auth.getUser();
       if (authUser) {
          const { data: profile } = await supabase.from('profiles').select('*').eq('id', authUser.id).single();
@@ -379,7 +377,7 @@ export default function StaffTicketDetailPage() {
     <div className="animate-page-in">
       <TicketHeader 
         ticket={ticket} status={status} user={user} updating={updating}
-        onUpdate={handleUpdate} onResolveClick={() => setShowResolveModal(true)} onExportClick={() => setShowExportModal(true)}
+        onUpdate={handleUpdate} onResolveClick={() => { setShowResolveModal(true); setResSummary(''); }} onExportClick={() => setShowExportModal(true)}
       />
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: '24px', alignItems: 'start' }}>
@@ -411,26 +409,32 @@ export default function StaffTicketDetailPage() {
        <input type="file" ref={adminFileRef} onChange={handleAdminFile} style={{ display: 'none' }} />
        
        {showResolveModal && (
-         <div className="animate-fade-in" style={{ position: 'fixed', inset: 0, zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(5, 8, 12, 0.85)', backdropFilter: 'blur(24px) saturate(180%)', padding: '20px' }}>
-            <div className="glass animate-page-in" style={{ width: '100%', maxWidth: '480px', padding: '40px', borderRadius: '32px', border: '1px solid rgba(255, 255, 255, 0.1)', boxShadow: '0 40px 100px rgba(0,0,0,0.6)' }}>
-               <div style={{ textAlign: 'center', marginBottom: '32px' }}>
-                  <div style={{ width: '64px', height: '64px', borderRadius: '20px', background: 'rgba(0, 255, 127, 0.1)', color: 'var(--success)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginBottom: '20px' }}><CheckCircle size={32} /></div>
-                  <h3 style={{ fontSize: '24px', fontWeight: '900', color: '#fff', marginBottom: '8px' }}>ปิดงานการสนทนา</h3>
-                  <p style={{ fontSize: '14px', color: 'rgba(255,255,255,0.5)', lineHeight: '1.6' }}>กรุณาสรุปผลการแก้ไขปัญหา เพื่อบันทึกเป็นประวัติและส่งการยืนยันให้ลูกค้าทราบครับ</p>
-               </div>
-               <div style={{ marginBottom: '32px' }}>
-                  <label style={{ display: 'block', fontSize: '11px', fontWeight: '800', color: 'var(--primary)', textTransform: 'uppercase', marginBottom: '12px', letterSpacing: '1px' }}>สรุปผลการแก้ไขงาน</label>
-                  <textarea value={resSummary} onChange={(e) => setResSummary(e.target.value)} placeholder="ระบุสิ่งที่แอดมินดำเนินการแก้ไข..." style={{ width: '100%', height: '120px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '16px', padding: '16px', color: '#fff', fontSize: '14px', resize: 'none', outline: 'none' }} />
-               </div>
-               <div style={{ display: 'flex', gap: '16px' }}>
-                  <button onClick={() => setShowResolveModal(false)} style={{ flex: 1, padding: '16px', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.1)', background: 'transparent', color: 'rgba(255,255,255,0.5)', fontWeight: '800', cursor: 'pointer' }}>ยกเลิก</button>
-                  <button onClick={handleResolve} disabled={updating || !resSummary.trim()} style={{ flex: 1.5, padding: '16px', borderRadius: '14px', border: 'none', background: updating || !resSummary.trim() ? 'rgba(255,255,255,0.05)' : 'linear-gradient(135deg, var(--success) 0%, oklch(75% 0.18 150) 100%)', color: updating || !resSummary.trim() ? 'rgba(255,255,255,0.2)' : '#000', fontWeight: '900', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', boxShadow: updating || !resSummary.trim() ? 'none' : '0 10px 25px rgba(0, 255, 127, 0.25)' }}>
-                     {updating ? <Loader2 size={24} className="animate-spin" /> : <><CheckCircle size={20} /> ยืนยันปิดงาน</>}
-                  </button>
-               </div>
-            </div>
-         </div>
-       )}
+          <div className="animate-fade-in" style={{ position: 'fixed', inset: 0, zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(15, 23, 42, 0.4)', padding: '20px' }}>
+             <div style={{ width: '100%', maxWidth: '440px', padding: '32px', borderRadius: '24px', background: 'white', boxShadow: '0 20px 60px rgba(0,0,0,0.15)', border: '1px solid #e2e8f0' }}>
+                <div style={{ textAlign: 'center', marginBottom: '24px' }}>
+                   <div style={{ width: '56px', height: '56px', borderRadius: '16px', background: '#f0fdf4', color: '#22c55e', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px' }}><CheckCircle size={28} /></div>
+                   <h3 style={{ fontSize: '22px', fontWeight: '800', color: '#0f172a', marginBottom: '6px' }}>ปิดงานใบงาน #{ticket?.ticket_no}</h3>
+                   <p style={{ fontSize: '13px', color: '#64748b' }}>กรุณาสรุปผลการแก้ไขปัญหา เพื่อบันทึกเป็นประวัติและแจ้งลูกค้าครับ</p>
+                </div>
+
+                <div style={{ marginBottom: '20px' }}>
+                   <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', marginBottom: '8px' }}>ข้อความด่วน (Quick Summary)</label>
+                   <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '16px' }}>
+                      {['ดำเนินการแก้ไขเรียบร้อยแล้วครับ', 'ส่งมอบงานประสานงานสำเร็จ', 'ยกเลิกเนื่องจากแจ้งผิดพลาด'].map(t => (
+                        <button key={t} type="button" onClick={() => setResSummary(t)} style={{ padding: '6px 14px', borderRadius: '8px', border: '1px solid #e2e8f0', background: '#f8fafc', fontSize: '12px', color: '#475569', cursor: 'pointer' }}>{t}</button>
+                      ))}
+                   </div>
+                   <textarea value={resSummary} onChange={(e) => setResSummary(e.target.value)} placeholder="ระบุสิ่งที่แอดมินดำเนินการแก้ไข..." style={{ width: '100%', height: '120px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '16px', padding: '16px', color: '#0f172a', fontSize: '14px', resize: 'none', outline: 'none' }} />
+                </div>
+                <div style={{ display: 'flex', gap: '12px' }}>
+                   <button onClick={() => setShowResolveModal(false)} style={{ flex: 1, padding: '16px', borderRadius: '14px', border: '1px solid #e2e8f0', background: 'transparent', color: '#64748b', fontWeight: '800', cursor: 'pointer' }}>ยกเลิก</button>
+                   <button onClick={handleResolve} disabled={updating || !resSummary.trim()} style={{ flex: 1.5, padding: '16px', borderRadius: '14px', border: 'none', background: '#22c55e', color: '#fff', fontWeight: '900', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }}>
+                      {updating ? <Loader2 size={24} className="animate-spin" /> : <><CheckCircle size={20} /> ยืนยันปิดงาน</>}
+                   </button>
+                </div>
+             </div>
+          </div>
+        )}
 
        {showEditor && editingImage && <ImageEditorModal imageUrl={editingImage} onClose={() => { setShowEditor(false); setEditingImage(null); }} onSave={handleEditorSave} />}
        <SummaryExportModal isOpen={showExportModal} onClose={() => setShowExportModal(false)} onExport={handleExportSummary} ticketNo={ticket?.ticket_no || ''} />
