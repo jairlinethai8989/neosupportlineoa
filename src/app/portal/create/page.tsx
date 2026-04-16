@@ -64,6 +64,8 @@ export default function CreateTicketPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
       e.preventDefault();
+      if (submitting) return;
+
       if (!subject.trim()) {
          setError('กรุณาระบุหัวข้อปัญหา');
          return;
@@ -73,14 +75,13 @@ export default function CreateTicketPage() {
       setError('');
 
       try {
-         
-         
-
-         // 1. Generate Unique Ticket Number (Bypass broken trigger)
+         // 1. Generate Highly Unique Ticket Number (Bypass broken trigger)
          const hospitalAbbr = customerData.hospitals?.abbreviation || 'NEO';
-         const dateStr = new Date().toISOString().slice(2, 10).replace(/-/g, ''); // YYMMDD
-         const randomStr = Math.floor(1000 + Math.random() * 9000);
-         const ticketNo = `${hospitalAbbr}-${dateStr}-${randomStr}`;
+         const now = new Date();
+         const datePart = now.toISOString().slice(2, 10).replace(/-/g, ''); // YYMMDD
+         const timePart = now.getTime().toString().slice(-4); // Last 4 digits of ms
+         const randPart = Math.floor(1000 + Math.random() * 9000);
+         const ticketNo = `${hospitalAbbr}-${datePart}-${timePart}${randPart}`;
 
          // 2. Insert Ticket
          const ticketPayload: any = {

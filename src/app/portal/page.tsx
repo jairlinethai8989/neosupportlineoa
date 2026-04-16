@@ -69,13 +69,13 @@ export default function PortalPage() {
 
   useEffect(() => {
     let isMounted = true;
-    if (profile) {
+    if (profile?.userId) {
       setTimeout(() => {
         if (isMounted) fetchTickets();
       }, 0);
     }
     return () => { isMounted = false; };
-  }, [profile]);
+  }, [profile?.userId]);
 
   if (!isReady || (profile && fetching && !needsRegistration)) {
     return (

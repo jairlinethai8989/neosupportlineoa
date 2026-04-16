@@ -189,13 +189,13 @@ export default function ProfileRegistrationModal({ isOpen, profile, existingCust
         
         {/* Header */}
         <div style={{ textAlign: 'center' }}>
-           <div style={{ width: '80px', height: '80px', borderRadius: '28px', background: 'linear-gradient(135deg, rgba(0, 242, 254, 0.1), rgba(0, 98, 255, 0.1))', border: '1px solid var(--border-active)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px', transform: 'rotate(10deg)', boxShadow: '0 10px 30px rgba(0, 98, 255, 0.2)' }}>
-              {isEditing ? <UserCheck size={36} color="var(--primary)" /> : <User size={36} color="var(--primary)" />}
+           <div style={{ width: '80px', height: '80px', borderRadius: '28px', background: 'rgba(0, 98, 255, 0.1)', border: '1px solid var(--portal-primary, #0062ff)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px', transform: 'rotate(10deg)', boxShadow: '0 10px 30px rgba(0, 98, 255, 0.2)' }}>
+              {isEditing ? <UserCheck size={36} color="var(--portal-primary, #0062ff)" /> : <User size={36} color="var(--portal-primary, #0062ff)" />}
            </div>
-           <h2 style={{ fontSize: '24px', fontWeight: '900', color: 'var(--text-main)', marginBottom: '8px', letterSpacing: '-0.5px' }}>
+           <h2 style={{ fontSize: '24px', fontWeight: '900', color: '#1e293b', marginBottom: '8px', letterSpacing: '-0.5px' }}>
               {isEditing ? 'แก้ไขข้อมูลส่วนตัว' : 'ลงทะเบียนผู้ใช้งานใหม่'}
            </h2>
-           <p style={{ fontSize: '13px', color: 'var(--text-muted)', lineHeight: '1.5' }}>
+           <p style={{ fontSize: '13px', color: '#64748b', lineHeight: '1.5' }}>
               กรุณาระบุข้อมูลของคุณเพื่อเริ่มต้นแจ้งปัญหาการใช้งาน
            </p>
         </div>
