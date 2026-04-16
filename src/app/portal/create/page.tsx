@@ -177,19 +177,16 @@ export default function CreateTicketPage() {
   };
 
   return (
-    <div className="portal-container" style={{ animation: 'fadeIn 0.5s ease-out' }}>
-      {/* minimal header handled by layout, but we need the sub-header for this page */}
-      <div style={{ padding: '0 20px 24px', textAlign: 'center' }}>
-         <h1 style={{ fontSize: '22px', fontWeight: '900', color: '#1e293b', marginBottom: '4px' }}>แจ้งเรื่องใหม่</h1>
-         <p style={{ fontSize: '12px', color: 'var(--portal-text-muted)', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.05em' }}>New Support Ticket</p>
+    <div className="portal-container">
+      <div style={{ padding: '0 20px 16px', textAlign: 'center' }}>
+         <h1 style={{ fontSize: '20px', fontWeight: '800', color: '#0f172a', marginBottom: '4px' }}>แจ้งเรื่องใหม่</h1>
+         <p style={{ fontSize: '11px', color: '#64748b', fontWeight: '600', textTransform: 'uppercase' }}>New Support Ticket</p>
       </div>
 
       <div className="portal-content" style={{ padding: '0 20px' }}>
          <div className="portal-glass" style={{ 
-            padding: '24px', 
-            background: 'white',
-            boxShadow: '0 10px 30px rgba(0,0,0,0.02)',
-            border: '1px solid var(--portal-border)'
+            padding: '20px', 
+            background: 'white'
          }}>
             <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                {error && (
