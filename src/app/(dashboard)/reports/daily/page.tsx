@@ -47,23 +47,40 @@ export default function DailyReportPage() {
     fetchDailyTickets(dateStr);
   }, [dateStr]);
 
+  const getDuration = (start: string, end: string | null) => {
+    if (!end) return '-';
+    const s = new Date(start).getTime();
+    const e = new Date(end).getTime();
+    const diff = e - s;
+    if (diff < 0) return '0 นาที';
+    const mins = Math.floor(diff / (1000 * 60));
+    const hours = Math.floor(mins / 60);
+    const m = mins % 60;
+    if (hours > 0) return `${hours} ชม. ${m} นาที`;
+    return `${m} นาที`;
+  };
+
   const handleExportExcel = () => {
     setIsExporting(true);
     setTimeout(() => {
       const formatData = tickets.map(t => {
         const d = new Date(t.created_at);
+        const resolvedAt = t.resolved_at ? new Date(t.resolved_at) : null;
+        
         return {
            'สถานะ': t.status === 'Resolved' || t.status === 'Closed' ? '✅' : (t.status === 'New' ? '⚪' : '🔄'),
-           'วันที่รับแจ้ง': d.toLocaleDateString('th-TH'),
-           'เวลา': d.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }),
-           'โรงพยาบาล/คลินิก': t.customers?.hospitals?.name || '-',
-           'งาน': t.subject || t.description || '-',
-           'ผู้ประสานงาน': t.assigned_agent?.display_name || '-',
-           'วิธีการแก้ไข': t.resolution_summary || '-',
-           'Module': t.module || '-',
-           'ที่มาของปัญหา': t.source || 'Line กลุ่ม',
+           'วันที่แจ้ง': d.toLocaleDateString('th-TH'),
+           'โรงพยาบาล': t.customers?.hospitals?.name || '-',
            'ผู้แจ้ง': t.customers?.display_name || '-',
-           'ประเภทงาน': t.issue_type || '-'
+           'รายละเอียดงาน': t.subject || t.description || '-',
+           'วิธีการแก้ไข': t.resolution_summary || '-',
+           'ผู้รับงาน': t.assigned_agent?.display_name || '-',
+           'ที่มาของปัญหา': t.source || 'Line กลุ่ม',
+           'module': t.module || '-',
+           'ประเภทงาน': t.issue_type || '-',
+           'เวลาที่แจ้ง': d.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }),
+           'เวลาที่ปิดงาน': resolvedAt ? resolvedAt.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }) : '-',
+           'เวลาที่ใช้ไป': getDuration(t.created_at, t.resolved_at)
         };
       });
       exportToExcel(formatData, `Daily_Issues_${dateStr}`);
@@ -126,10 +143,14 @@ export default function DailyReportPage() {
       {/* Spreadsheet View */}
       <div className="glass" style={{ flex: 1, borderRadius: '16px', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
          <div style={{ overflowX: 'auto', overflowY: 'auto', height: '100%', background: 'var(--bg-card)' }}>
-            <table style={{ width: '100%', minWidth: '1500px', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
+            <table style={{ width: '100%', minWidth: '1800px', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
                <thead style={{ position: 'sticky', top: 0, zIndex: 10, background: '#4CAF50', color: 'white', fontWeight: '800' }}>
                   <tr>
-                     {['สถานะ', 'วันที่รับแจ้ง', 'เวลา', 'โรงพยาบาล/คลินิก', 'รายละเอียดงาน', 'ผู้ประสานงาน', 'วิธีการแก้ไข', 'Module', 'ที่มาของปัญหา', 'ผู้แจ้ง', 'ประเภทงาน'].map((col, i) => (
+                     {[
+                       'สถานะ', 'วันที่แจ้ง', 'โรงพยาบาล', 'ผู้แจ้ง', 'รายละเอียดงาน', 
+                       'วิธีการแก้ไข', 'ผู้รับงาน', 'ที่มาของปัญหา', 'module', 'ประเภทงาน', 
+                       'เวลาที่แจ้ง', 'เวลาที่ปิดงาน', 'เวลาที่ใช้ไป'
+                     ].map((col, i) => (
                         <th key={i} style={{ padding: '12px 16px', borderRight: '1px solid rgba(255,255,255,0.2)', whiteSpace: 'nowrap', textTransform: 'uppercase', fontSize: '11px', letterSpacing: '0.5px' }}>
                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                               {col}
@@ -141,9 +162,9 @@ export default function DailyReportPage() {
                </thead>
                <tbody>
                   {loading && tickets.length === 0 ? (
-                     <tr><td colSpan={11} style={{ textAlign: 'center', padding: '40px' }}><Loader2 className="animate-spin text-primary" style={{ margin: '0 auto' }} /></td></tr>
+                     <tr><td colSpan={13} style={{ textAlign: 'center', padding: '40px' }}><Loader2 className="animate-spin text-primary" style={{ margin: '0 auto' }} /></td></tr>
                   ) : tickets.length === 0 ? (
-                     <tr><td colSpan={11} style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>ไม่พบข้อมูลใบงานในวันที่เลือก</td></tr>
+                     <tr><td colSpan={13} style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>ไม่พบข้อมูลใบงานในวันที่เลือก</td></tr>
                   ) : (
                      tickets.map((t, idx) => (
                         <tr key={idx} style={{ borderBottom: '1px solid var(--border)', background: idx % 2 === 0 ? 'transparent' : 'rgba(0,0,0,0.02)' }}>
@@ -151,22 +172,24 @@ export default function DailyReportPage() {
                               {t.status === 'Resolved' || t.status === 'Closed' ? '✅' : (t.status === 'New' ? '⚪' : '🔄')}
                            </td>
                            <td style={{ padding: '12px 16px' }}>{new Date(t.created_at).toLocaleDateString('th-TH')}</td>
-                           <td style={{ padding: '12px 16px' }}>{new Date(t.created_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })} น.</td>
                            <td style={{ padding: '12px 16px', fontWeight: '700' }}>{t.customers?.hospitals?.name || '-'}</td>
+                           <td style={{ padding: '12px 16px' }}>{t.customers?.display_name || '-'}</td>
                            <td style={{ padding: '12px 16px', maxWidth: '300px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                               <AlignLeft size={12} style={{ display: 'inline', marginRight: '6px', opacity: 0.5 }} />
                               {t.subject || t.description || '-'}
                            </td>
-                           <td style={{ padding: '12px 16px' }}>{t.assigned_agent?.display_name || '-'}</td>
                            <td style={{ padding: '12px 16px', color: 'var(--primary)', maxWidth: '250px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.resolution_summary || '-'}</td>
-                           <td style={{ padding: '12px 16px', fontWeight: '700' }}>{t.module || '-'}</td>
+                           <td style={{ padding: '12px 16px' }}>{t.assigned_agent?.display_name || '-'}</td>
                            <td style={{ padding: '12px 16px', color: '#2e7d32', background: 'rgba(46,125,50,0.05)' }}>{t.source || 'Line กลุ่ม'}</td>
-                           <td style={{ padding: '12px 16px' }}>{t.customers?.display_name || '-'}</td>
+                           <td style={{ padding: '12px 16px', fontWeight: '700' }}>{t.module || '-'}</td>
                            <td style={{ padding: '12px 16px' }}>
                               <span style={{ padding: '4px 8px', background: 'rgba(255,165,0,0.1)', color: 'orange', borderRadius: '4px', fontSize: '10px', fontWeight: '800' }}>
                                  {t.issue_type || t.priority || 'PB'}
                               </span>
                            </td>
+                           <td style={{ padding: '12px 16px' }}>{new Date(t.created_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })} น.</td>
+                           <td style={{ padding: '12px 16px' }}>{t.resolved_at ? new Date(t.resolved_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }) + ' น.' : '-'}</td>
+                           <td style={{ padding: '12px 16px', fontWeight: '700', color: t.resolved_at ? 'var(--success)' : 'inherit' }}>{getDuration(t.created_at, t.resolved_at)}</td>
                         </tr>
                      ))
                   )}
