@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, ZoomIn, ZoomOut, Maximize, RotateCcw, Pencil } from 'lucide-react';
+import { X, ZoomIn, ZoomOut, Maximize, RotateCcw, Pencil, Download } from 'lucide-react';
 
 interface ImageViewerModalProps {
   isOpen: boolean;
@@ -40,6 +40,20 @@ export default function ImageViewerModal({ isOpen, onClose, imageSrc, onEdit }: 
           
           <button onClick={() => setRotate(prev => prev + 90)} style={{ color: 'white', background: 'none', border: 'none', cursor: 'pointer' }} title="Rotate"><RotateCcw size={18} /></button>
           <button onClick={() => setZoom(1.5)} style={{ color: 'white', background: 'none', border: 'none', cursor: 'pointer' }} title="Expand"><Maximize size={18} /></button>
+          
+          <div style={{ width: '1px', height: '20px', background: 'rgba(255,255,255,0.1)' }} />
+          
+          <a 
+            href={imageSrc} 
+            download="neo_attachment.png" 
+            target="_blank" 
+            rel="noreferrer"
+            style={{ color: 'white', background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center' }} 
+            title="Download Full Size"
+          >
+            <Download size={18} />
+          </a>
+          
           
           {onEdit && (
             <>

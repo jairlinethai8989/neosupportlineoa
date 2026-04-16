@@ -16,6 +16,8 @@ import {
   Search,
   ChevronRight
 } from 'lucide-react';
+import { useNotificationContext } from '@/contexts/NotificationContext';
+import { auditService } from '@/lib/services/auditService';
 
 type Tab = 'hospitals' | 'departments' | 'positions';
 
@@ -24,6 +26,7 @@ export default function MasterSettingsPage() {
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const { addToast } = useNotificationContext();
   
   // Form State
   const [isAdding, setIsAdding] = useState(false);
@@ -80,6 +83,22 @@ export default function MasterSettingsPage() {
       setNewItemAbbr('');
       setIsAdding(false);
       fetchData();
+
+      const { data: { user } } = await supabase.auth.getUser();
+      await auditService.log({
+        performer_id: user?.id,
+        action_type: 'MASTER_CREATE',
+        entity_type: table.toUpperCase(),
+        new_data: payload,
+        note: `Created new ${table}: ${newItemName}`
+      });
+
+      addToast({
+        id: `master-add-${Date.now()}`,
+        type: 'ticket',
+        title: 'Successfully Added! ✨',
+        body: `เพิ่มรายการ "${newItemName}" เรียบร้อยแล้ว`
+      });
     }
     setSubmitting(false);
   };
@@ -96,6 +115,23 @@ export default function MasterSettingsPage() {
     } else {
       setEditingId(null);
       fetchData();
+
+      const { data: { user } } = await supabase.auth.getUser();
+      await auditService.log({
+        performer_id: user?.id,
+        action_type: 'MASTER_UPDATE',
+        entity_type: table.toUpperCase(),
+        entity_id: id,
+        new_data: { name: editItemName },
+        note: `Updated ${table} name to: ${editItemName}`
+      });
+
+      addToast({
+        id: `master-upd-${Date.now()}`,
+        type: 'ticket',
+        title: 'Successfully Updated! ✅',
+        body: `แก้ไขเป็น "${editItemName}" เรียบร้อย`
+      });
     }
     setSubmitting(false);
   };
@@ -106,8 +142,25 @@ export default function MasterSettingsPage() {
     if (error) {
       console.error('Toggle status Error:', error);
       alert(`เปลี่ยนสถานะไม่สำเร็จ: ${error.message}`);
+    } else {
+      const { data: { user } } = await supabase.auth.getUser();
+      await auditService.log({
+        performer_id: user?.id,
+        action_type: 'MASTER_TOGGLE',
+        entity_type: table.toUpperCase(),
+        entity_id: id,
+        new_data: { is_active: !current },
+        note: `Toggled ${table} status to: ${!current ? 'Active' : 'Inactive'}`
+      });
+
+      addToast({
+        id: `master-toggle-${id}`,
+        type: 'ticket',
+        title: 'Status Updated! 🔄',
+        body: `เปลี่ยนสถานะรายการเรียบร้อยแล้ว`
+      });
+      fetchData();
     }
-    fetchData();
   };
 
   const filteredItems = items.filter(i => i.name.toLowerCase().includes(search.toLowerCase()));

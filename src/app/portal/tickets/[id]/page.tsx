@@ -19,6 +19,7 @@ import ChatAttachmentModal from '@/components/chat/ChatAttachmentModal';
 import ImageEditorModal from '@/components/chat/ImageEditorModal';
 import ImageViewerModal from '@/components/chat/ImageViewerModal';
 import { useLiff } from '@/hooks/useLiff';
+import { sendPortalMessageAction } from '@/app/actions/portalActions';
 
 export default function TicketDetailPage() {
   const { id } = useParams();
@@ -157,14 +158,14 @@ export default function TicketDetailPage() {
     setSending(true);
 
     try {
-      const { error } = await supabase.from('messages').insert([{
-        ticket_id: id,
-        conversation_id: conversationId,
-        sender_type: 'customer',
-        customer_id: ticket.customer_id, // NEW STRONG RELATION
-        content: messageToSend
-      }]);
-      if (error) throw error;
+      if (!profile?.userId) throw new Error('LINE profile not loaded');
+      
+      await sendPortalMessageAction(
+         id as string,
+         profile.userId,
+         messageToSend,
+         'text'
+      );
     } catch (err: any) {
       alert('Error sending message: ' + err.message);
       setMessages((prev: any[]) => prev.filter((m: any) => m !== optimisticMsg));
@@ -181,18 +182,15 @@ export default function TicketDetailPage() {
       const { error: uploadError } = await supabase.storage.from('chat_media').upload(fileName, file);
       if (uploadError) throw uploadError;
 
-      const { data: { publicUrl } } = supabase.storage.from('chat_media').getPublicUrl(fileName);
-
+      if (!profile?.userId) throw new Error('LINE profile not loaded');
       const dbType = type === 'image' ? 'image' : 'file';
-      const { error: dbError } = await supabase.from('messages').insert([{
-        ticket_id: id,
-        conversation_id: conversationId,
-        sender_type: 'customer',
-        customer_id: ticket.customer_id, // NEW STRONG RELATION
-        content: publicUrl,
-        message_type: dbType
-      }]);
-      if (dbError) throw dbError;
+      
+      await sendPortalMessageAction(
+         id as string,
+         profile.userId,
+         fileName,
+         dbType
+      );
     } catch (err: any) {
       alert('Upload failed: ' + err.message);
     } finally {

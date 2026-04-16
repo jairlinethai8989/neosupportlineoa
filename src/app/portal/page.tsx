@@ -38,7 +38,7 @@ export default function PortalPage() {
       .eq('line_user_id', profile.userId)
       .maybeSingle(); // Use maybeSingle to avoid 406 Error if none exists
 
-    if (customer) {
+    if (customer && customer.hospital_id) {
       setCustomerData(customer);
       setNeedsRegistration(false);
       // Fetch all tickets for this customer
@@ -50,6 +50,8 @@ export default function PortalPage() {
 
       if (ticketData) setTickets(ticketData);
     } else {
+      // Record might exist from LINE Webhook but lacks profile info
+      if (customer) setCustomerData(customer);
       setNeedsRegistration(true);
     }
     setFetching(false);

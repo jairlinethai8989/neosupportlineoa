@@ -277,7 +277,7 @@ export default function ProfileRegistrationModal({ isOpen, profile, existingCust
                  )}
               </button>
               
-              {isEditing && onClose && (
+              {isEditing && existingCustomer?.hospital_id && onClose && (
                  <button 
                    type="button"
                    onClick={onClose}

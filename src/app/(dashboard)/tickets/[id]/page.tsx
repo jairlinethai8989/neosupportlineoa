@@ -15,6 +15,7 @@ import { TicketHeader } from '@/components/tickets/TicketHeader';
 import { TicketChat } from '@/components/tickets/TicketChat';
 import { TicketSidebar } from '@/components/tickets/TicketSidebar';
 import Skeleton from '@/components/ui/Skeleton';
+import { useNotificationContext } from '@/contexts/NotificationContext';
 
 export default function StaffTicketDetailPage() {
   const { id } = useParams();
@@ -29,6 +30,7 @@ export default function StaffTicketDetailPage() {
   const [logs, setLogs] = useState<any[]>([]);
   const [messages, setMessages] = useState<any[]>([]);
   const [conversationId, setConversationId] = useState<string | null>(null);
+  const { addToast } = useNotificationContext();
 
   // Edit State
   const [status, setStatus] = useState('');
@@ -41,8 +43,6 @@ export default function StaffTicketDetailPage() {
   const [sending, setSending] = useState(false);
   
   // UI / Modal State
-  const [showToast, setShowToast] = useState(false);
-  const [toastMsg, setToastMsg] = useState('');
   const [showResolveModal, setShowResolveModal] = useState(false);
   const [resSummary, setResSummary] = useState('');
   const [editingImage, setEditingImage] = useState<string | null>(null);
@@ -257,8 +257,14 @@ export default function StaffTicketDetailPage() {
       setTicket({ ...ticket, ...updatedData });
       setShowResolveModal(false);
       fetchData();
-      setToastMsg('Ticket resolved successfully! 🎉'); setShowToast(true);
-      setTimeout(() => setShowToast(false), 3000);
+      addToast({
+        id: `resolve-${id}-${Date.now()}`,
+        type: 'ticket',
+        title: 'Ticket Resolved! 🎉',
+        body: `ใบงาน #${updatedData.ticket_no} ถูกปิดเรียบร้อยแล้ว`,
+        ticketId: id as string,
+        ticketNo: updatedData.ticket_no
+      });
     } catch (err: any) { alert('Failed: ' + err.message); }
     finally { setUpdating(false); }
   };
@@ -288,8 +294,14 @@ export default function StaffTicketDetailPage() {
       }
       setTicket({ ...ticket, status, priority, department: selectedDept });
       fetchData();
-      setToastMsg('Changes saved successfully! ✅'); setShowToast(true);
-      setTimeout(() => setShowToast(false), 3000);
+      addToast({
+        id: `update-${id}-${Date.now()}`,
+        type: 'ticket',
+        title: 'Changes Saved! ✅',
+        body: `อัปเดตข้อมูลใบงาน #${ticket.ticket_no} เรียบร้อยแล้ว`,
+        ticketId: id as string,
+        ticketNo: ticket.ticket_no
+      });
     } catch (err: any) { alert('Failed: ' + err.message); }
     finally { setUpdating(false); }
   };
@@ -376,12 +388,6 @@ export default function StaffTicketDetailPage() {
 
        <input type="file" ref={adminFileRef} onChange={handleAdminFile} style={{ display: 'none' }} />
        
-       {showToast && (
-         <div style={{ position: 'fixed', top: '24px', right: '24px', background: 'var(--success)', color: 'black', padding: '16px 24px', borderRadius: '12px', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '12px', boxShadow: '0 8px 32px rgba(0, 255, 127, 0.3)', zIndex: 9999, animation: 'slideInRight 0.3s ease-out' }}>
-           <CheckCircle size={20} /> {toastMsg}
-         </div>
-       )}
-
        {showResolveModal && (
          <div className="animate-fade-in" style={{ position: 'fixed', inset: 0, zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(5, 8, 12, 0.85)', backdropFilter: 'blur(24px) saturate(180%)', padding: '20px' }}>
             <div className="glass animate-page-in" style={{ width: '100%', maxWidth: '480px', padding: '40px', borderRadius: '32px', border: '1px solid rgba(255, 255, 255, 0.1)', boxShadow: '0 40px 100px rgba(0,0,0,0.6)' }}>

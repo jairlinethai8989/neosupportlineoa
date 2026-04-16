@@ -19,6 +19,7 @@ import {
   ArrowUp,
   ArrowDown
 } from 'lucide-react';
+import { useNotificationContext } from '@/contexts/NotificationContext';
 import { supabase } from '@/lib/supabase';
 import { ticketService } from '@/lib/services/ticketService';
 import Link from 'next/link';
@@ -81,6 +82,7 @@ function TicketsContent() {
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<'board' | 'table'>('board');
   const [searchTerm, setSearchTerm] = useState('');
+  const { addToast } = useNotificationContext();
   const [debugError, setDebugError] = useState<string | null>(null);
   const [claimingId, setClaimingId] = useState<string | null>(null);
   const [userProfile, setUserProfile] = useState<any>(null);
@@ -171,9 +173,20 @@ function TicketsContent() {
       setResolvingTicket(null);
       setResSummary('');
       fetchData();
-      alert('ปิดงานสำเร็จ! 🎉');
+      
+      addToast({
+        id: `resolve-${resolvingTicket.id}`,
+        type: 'ticket',
+        title: 'Work Completed! 🎉',
+        body: `ใบงาน #${resolvingTicket.ticket_no} ถูกปิดงานเรียบร้อยแล้ว`
+      });
     } catch (err: any) {
-      alert('Failed: ' + err.message);
+      addToast({
+        id: 'resolve-fail',
+        type: 'ticket',
+        title: 'Error',
+        body: 'ไม่สามารถปิดงานได้: ' + err.message
+      });
     } finally {
       setLoading(false);
     }
@@ -221,10 +234,21 @@ function TicketsContent() {
       }
       await ticketService.claimTicket(ticketId, user.id);
       await fetchData();
-      alert('รับงานเรียบร้อยแล้ว!');
+      
+      addToast({
+        id: `claim-${ticketId}`,
+        type: 'ticket',
+        title: 'Work Claimed! ⚡',
+        body: 'คุณเข้ารับงานเรียบร้อย เริ่มการสนทนาได้เลย'
+      });
     } catch (err: any) { 
       console.error('Claim Error:', err);
-      alert('Failed to claim: ' + err.message);
+      addToast({
+        id: 'claim-fail',
+        type: 'ticket',
+        title: 'Error',
+        body: 'รับงานไม่สำเร็จ: ' + err.message
+      });
     } finally {
       setClaimingId(null);
     }

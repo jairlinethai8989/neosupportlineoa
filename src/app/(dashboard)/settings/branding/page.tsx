@@ -17,16 +17,17 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import Skeleton from '@/components/ui/Skeleton';
+import { useNotificationContext } from '@/contexts/NotificationContext';
+import { auditService } from '@/lib/services/auditService';
 
 export default function BrandingSettingsPage() {
   const [company, setCompany] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const [showToast, setShowToast] = useState(false);
-  const [toastMsg, setToastMsg] = useState('');
   const [newDeptName, setNewDeptName] = useState('');
   const [newModuleName, setNewModuleName] = useState('');
+  const { addToast } = useNotificationContext();
 
   useEffect(() => {
     async function fetchData() {
@@ -63,10 +64,12 @@ export default function BrandingSettingsPage() {
 
         const { data: { publicUrl } } = supabase.storage.from('chat_media').getPublicUrl(filePath);
         setCompany({ ...company, logo_url: publicUrl });
-        
-        setToastMsg('อัปโหลดโลโก้สำเร็จ! 🎉');
-        setShowToast(true);
-        setTimeout(() => setShowToast(false), 3000);
+        addToast({
+           id: 'logo-upload',
+           type: 'ticket',
+           title: 'Success! 🖼️',
+           body: 'อัปโหลดโลโก้สำเร็จเรียบร้อยแล้ว'
+        });
      } catch (err: any) {
         alert('อัปโหลดล้มเหลว: ' + (err.message || 'Error uploading file'));
      } finally {
@@ -109,9 +112,12 @@ export default function BrandingSettingsPage() {
         note: `Updated corporate branding and logo`
       });
 
-      setToastMsg('บันทึกข้อมูลองค์กรเรียบร้อย! ✅');
-      setShowToast(true);
-      setTimeout(() => setShowToast(false), 3000);
+      addToast({
+        id: 'branding-save',
+        type: 'ticket',
+        title: 'Success! ✅',
+        body: 'บันทึกข้อมูลองค์กรเรียบร้อยแล้ว'
+      });
     } catch (err) {
       alert('Save failed');
     } finally {
@@ -141,9 +147,12 @@ export default function BrandingSettingsPage() {
         note: `Added new department: ${newDeptName.trim()}`
       });
 
-      setToastMsg('เพิ่มแผนกเรียบร้อย! ✨');
-      setShowToast(true);
-      setTimeout(() => setShowToast(false), 3000);
+      addToast({
+        id: 'dept-add',
+        type: 'ticket',
+        title: 'Added! ✨',
+        body: `เพิ่มแผนก "${newDeptName.trim()}" เรียบร้อย`
+      });
     } catch (err) { alert('Failed to add department'); }
   };
 
@@ -158,9 +167,12 @@ export default function BrandingSettingsPage() {
         updated_at: new Date().toISOString() 
       }).eq('id', company.id);
       
-      setToastMsg('ลบแผนกเรียบร้อย! 🗑️');
-      setShowToast(true);
-      setTimeout(() => setShowToast(false), 3000);
+      addToast({
+        id: 'dept-delete',
+        type: 'ticket',
+        title: 'Deleted! 🗑️',
+        body: 'ลบแผนกเรียบร้อยแล้ว'
+      });
     } catch (err) { alert('Failed to delete department'); }
   };
 
@@ -176,9 +188,13 @@ export default function BrandingSettingsPage() {
         updated_at: new Date().toISOString() 
       }).eq('id', company.id);
       
-      setToastMsg('เพิ่มโมดูลเรียบร้อย! ✨');
-      setShowToast(true);
-      setTimeout(() => setShowToast(false), 3000);
+      
+      addToast({
+        id: 'module-add',
+        type: 'ticket',
+        title: 'Module Added! 🧩',
+        body: 'เพิ่มโมดูลใหม่เข้าสู่ระบบเรียบร้อยแล้ว'
+      });
     } catch (err) { alert('Failed to add module'); }
   };
 
@@ -193,9 +209,13 @@ export default function BrandingSettingsPage() {
         updated_at: new Date().toISOString() 
       }).eq('id', company.id);
       
-      setToastMsg('ลบโมดูลเรียบร้อย! 🗑️');
-      setShowToast(true);
-      setTimeout(() => setShowToast(false), 3000);
+      
+      addToast({
+        id: 'module-del',
+        type: 'ticket',
+        title: 'Module Deleted! 🗑️',
+        body: 'ลบโมดูลเรียบร้อยแล้ว'
+      });
     } catch (err) { alert('Failed to delete module'); }
   };
 
@@ -422,22 +442,7 @@ export default function BrandingSettingsPage() {
             </div>
          </div>
       </div>
-
-      {/* Success Toast */}
-      {showToast && (
-        <div style={{
-          position: 'fixed', bottom: '32px', right: '32px', background: 'var(--primary)', color: 'black', 
-          padding: '16px 28px', borderRadius: '16px', fontWeight: '900', display: 'flex', alignItems: 'center', 
-          gap: '12px', boxShadow: '0 20px 50px rgba(0, 242, 254, 0.4)', zIndex: 9999, 
-          animation: 'slideInRight var(--dur-main) var(--ease-out-back)'
-        }}>
-          <div style={{ position: 'absolute', bottom: 0, left: 0, height: '4px', background: 'rgba(0,0,0,0.2)', width: '100%', overflow: 'hidden' }}>
-             <div style={{ height: '100%', background: 'black', width: '100%', animation: 'progressDrain 3s linear forwards' }} />
-          </div>
-          <ShieldCheck size={20} />
-          {toastMsg}
-        </div>
-      )}
+       
     </div>
   );
 }

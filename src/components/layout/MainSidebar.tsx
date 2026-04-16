@@ -126,10 +126,9 @@ const Sidebar = ({ onClickLink, isCollapsed = false }: SidebarProps) => {
       if (isMounted) setInboxCount(iCount || 0);
     }
     
+    // Rely purely on Realtime for counts to reduce DB load
     fetchCounts();
 
-    // 10-second polling fallback (Balanced for performance)
-    const pollInterval = setInterval(fetchCounts, 10000);
     
       const channel = supabase.channel('sidebar-counts-v3')
         .on('postgres_changes', { event: '*', schema: 'public', table: 'tickets' }, () => { fetchCounts(); })
@@ -138,7 +137,6 @@ const Sidebar = ({ onClickLink, isCollapsed = false }: SidebarProps) => {
 
     return () => {
       isMounted = false;
-      clearInterval(pollInterval);
       supabase.removeChannel(channel);
     };
   }, []);

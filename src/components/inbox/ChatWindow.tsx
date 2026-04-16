@@ -135,7 +135,9 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
                   fontSize: '14px',
                   lineHeight: '1.6',
                   boxShadow: msg.sender_type === 'agent' ? '0 8px 25px -5px rgba(115, 103, 240, 0.3)' : 'none',
-                  color: msg.sender_type === 'system' ? 'var(--primary)' : 'white',
+                  color: msg.sender_type === 'system' 
+                    ? 'var(--primary)' 
+                    : (msg.sender_type === 'agent' ? 'white' : 'var(--text-main)'),
                   position: 'relative',
                   transition: 'transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1)'
                }}>
@@ -143,6 +145,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
                     <div style={{ position: 'relative', overflow: 'hidden', borderRadius: '10px' }}>
                        <img 
                           src={msg.content} 
+                          loading="lazy"
                           style={{ maxWidth: '100%', borderRadius: '10px', display: 'block', cursor: 'pointer' }} 
                           onClick={() => onEditImage(msg.content)}
                           alt="Chat attachment" 

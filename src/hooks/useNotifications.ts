@@ -373,5 +373,5 @@ export function useNotifications(agentId: string | null) {
     };
   }, [agentId, fetchLogs, fetchSlaBreaches, addToast]);
 
-  return { notifications, toasts, unreadCount, markAsRead, markAllRead, dismissToast };
+  return { notifications, toasts, unreadCount, markAsRead, markAllRead, dismissToast, addToast };
 }

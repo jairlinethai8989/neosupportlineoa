@@ -23,6 +23,8 @@ import {
   Send
 } from 'lucide-react';
 import Link from 'next/link';
+import { useNotificationContext } from '@/contexts/NotificationContext';
+import { auditService } from '@/lib/services/auditService';
 
 export default function StaffManagementPage() {
   const [staff, setStaff] = useState<any[]>([]);
@@ -38,6 +40,7 @@ export default function StaffManagementPage() {
   });
   const [submitting, setSubmitting] = useState(false);
   const [departments, setDepartments] = useState<string[]>([]);
+  const { addToast } = useNotificationContext();
   const [permissionModalOpen, setPermissionModalOpen] = useState(false);
   const [selectedStaff, setSelectedStaff] = useState<any>(null);
   const [permissions, setPermissions] = useState<any>({
@@ -91,6 +94,22 @@ export default function StaffManagementPage() {
       alert('ลบข้อมูลไม่สำเร็จ: ' + error.message);
     } else {
       setStaff(prev => prev.filter(s => s.id !== id));
+      
+      const { data: { user } } = await supabase.auth.getUser();
+      await auditService.log({
+        performer_id: user?.id,
+        action_type: 'STAFF_DELETE',
+        entity_type: 'PROFILE',
+        entity_id: id,
+        note: `Deleted staff member: ${name}`
+      });
+
+      addToast({
+        id: `staff-del-${id}`,
+        type: 'ticket',
+        title: 'Staff Deleted 🗑️',
+        body: `ลบพนักงาน ${name} เรียบร้อยแล้ว`
+      });
     }
   };
 
@@ -143,6 +162,23 @@ export default function StaffManagementPage() {
       alert('อัปเดตสิทธิ์การใช้งานสำเร็จ! 🛡️');
       setPermissionModalOpen(false);
       fetchStaff();
+
+      const { data: { user } } = await supabase.auth.getUser();
+      await auditService.log({
+        performer_id: user?.id,
+        action_type: 'STAFF_PERMISSION_UPDATE',
+        entity_type: 'PROFILE',
+        entity_id: selectedStaff.id,
+        new_data: { permissions },
+        note: `Updated permissions for ${selectedStaff.full_name}`
+      });
+
+      addToast({
+        id: `staff-perm-${selectedStaff.id}`,
+        type: 'ticket',
+        title: 'Permissions Updated! 🛡️',
+        body: `บันทึกสิทธิ์พนักงาน ${selectedStaff.full_name} เรียบร้อย`
+      });
     } catch (err: any) {
       alert('ล้มเหลว: ' + err.message);
     } finally {

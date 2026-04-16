@@ -38,7 +38,7 @@ export default function CreateTicketPage() {
         .eq('line_user_id', profile?.userId)
         .maybeSingle();
 
-      if (!data) {
+      if (!data || !data.hospital_id) {
          router.push('/portal');
       } else {
          setCustomerData(data);
