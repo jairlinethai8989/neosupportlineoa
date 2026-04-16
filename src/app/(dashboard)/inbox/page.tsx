@@ -31,7 +31,7 @@ import { supabase } from '@/lib/supabase';
 import { useRealtimeInbox } from '@/hooks/useRealtimeInbox';
 import { useNotificationContext } from '@/contexts/NotificationContext';
 import { ticketService } from '@/lib/services/ticketService';
-import { sendAgentMessageAction, sendSystemMessageAction, closeConversationAction } from '@/app/actions/messageActions';
+import { sendAgentMessageAction, sendSystemMessageAction, closeConversationAction, deleteMessageAction } from '@/app/actions/messageActions';
 import TransferModal from '@/components/modals/TransferModal';
 import ChatAttachmentModal from '@/components/chat/ChatAttachmentModal';
 import ImageEditorModal from '@/components/chat/ImageEditorModal';
@@ -250,7 +250,7 @@ function InboxContent() {
       await sendAgentMessageAction(
         selectedChat.id,
         selectedChat.current_ticket_id || null,
-        fileName, // store internal path instead of publicUrl
+        publicUrl,
         dbType
       );
     } catch (err: any) {
@@ -354,7 +354,6 @@ function InboxContent() {
   const handleDeleteMessage = async (messageId: string) => {
     if (!confirm('คุณต้องการยกเลิกการส่งข้อความนี้ใช่หรือไม่?')) return;
     try {
-      const { deleteMessageAction } = await import('@/app/actions/messageActions');
       await deleteMessageAction(messageId);
       addToast({
         id: `delete-${messageId}`,

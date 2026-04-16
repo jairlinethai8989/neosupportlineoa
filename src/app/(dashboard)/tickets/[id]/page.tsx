@@ -14,6 +14,7 @@ import { ticketService } from '@/lib/services/ticketService';
 import { TicketHeader } from '@/components/tickets/TicketHeader';
 import { TicketChat } from '@/components/tickets/TicketChat';
 import { TicketSidebar } from '@/components/tickets/TicketSidebar';
+import { deleteMessageAction } from '@/app/actions/messageActions';
 import Skeleton from '@/components/ui/Skeleton';
 import { useNotificationContext } from '@/contexts/NotificationContext';
 
@@ -272,7 +273,6 @@ export default function StaffTicketDetailPage() {
   const handleDeleteMessage = async (messageId: string) => {
     if (!confirm('คุณต้องการยกเลิกการส่งข้อความนี้ใช่หรือไม่?')) return;
     try {
-      const { deleteMessageAction } = await import('@/app/actions/messageActions');
       await deleteMessageAction(messageId);
       addToast({
         id: `delete-${messageId}`,
