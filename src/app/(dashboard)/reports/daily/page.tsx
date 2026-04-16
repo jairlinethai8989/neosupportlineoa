@@ -1,18 +1,29 @@
 'use client';
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/lib/supabase';
 import { 
-  Download, Loader2, Table as TableIcon, AlignLeft, Filter, Link as LinkIcon 
+  Download, Loader2, Table as TableIcon, AlignLeft, Filter, Link as LinkIcon,
+  ArrowUpDown, Search, X
 } from 'lucide-react';
 import { exportToExcel } from '@/lib/utils/exportUtils';
 import Skeleton from '@/components/ui/Skeleton';
+
+type SortConfig = {
+  key: string;
+  direction: 'asc' | 'desc';
+} | null;
 
 export default function DailyReportPage() {
   const [tickets, setTickets] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [dateStr, setDateStr] = useState(new Date().toISOString().split('T')[0]);
   const [isExporting, setIsExporting] = useState(false);
+  
+  // Sorting & Filtering State
+  const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'created_at', direction: 'desc' });
+  const [filterText, setFilterText] = useState('');
+  const [showFilter, setShowFilter] = useState(false);
 
   const fetchDailyTickets = async (selectedDate: string) => {
     setLoading(true);
@@ -47,12 +58,14 @@ export default function DailyReportPage() {
     fetchDailyTickets(dateStr);
   }, [dateStr]);
 
-  const getDuration = (start: string, end: string | null) => {
-    if (!end) return '-';
-    const s = new Date(start).getTime();
-    const e = new Date(end).getTime();
-    const diff = e - s;
-    if (diff < 0) return '0 นาที';
+  const getDurationMs = (start: string, end: string | null) => {
+    if (!end) return 0;
+    return new Date(end).getTime() - new Date(start).getTime();
+  };
+
+  const getDurationStr = (start: string, end: string | null) => {
+    const diff = getDurationMs(start, end);
+    if (!end || diff <= 0) return '-';
     const mins = Math.floor(diff / (1000 * 60));
     const hours = Math.floor(mins / 60);
     const m = mins % 60;
@@ -60,10 +73,68 @@ export default function DailyReportPage() {
     return `${m} นาที`;
   };
 
+  // Process data (Filter & Sort)
+  const processedTickets = useMemo(() => {
+    let result = [...tickets];
+
+    // Filter
+    if (filterText) {
+      const lower = filterText.toLowerCase();
+      result = result.filter(t => 
+        (t.subject?.toLowerCase().includes(lower)) ||
+        (t.description?.toLowerCase().includes(lower)) ||
+        (t.customers?.display_name?.toLowerCase().includes(lower)) ||
+        (t.customers?.hospitals?.name?.toLowerCase().includes(lower)) ||
+        (t.assigned_agent?.display_name?.toLowerCase().includes(lower)) ||
+        (t.status?.toLowerCase().includes(lower)) ||
+        (t.module?.toLowerCase().includes(lower))
+      );
+    }
+
+    // Sort
+    if (sortConfig) {
+      result.sort((a, b) => {
+        let valA: any = '';
+        let valB: any = '';
+
+        switch (sortConfig.key) {
+          case 'status': valA = a.status; valB = b.status; break;
+          case 'date': valA = a.created_at; valB = b.created_at; break;
+          case 'hospital': valA = a.customers?.hospitals?.name; valB = b.customers?.hospitals?.name; break;
+          case 'customer': valA = a.customers?.display_name; valB = b.customers?.display_name; break;
+          case 'subject': valA = a.subject || a.description; valB = b.subject || b.description; break;
+          case 'resolution': valA = a.resolution_summary; valB = b.resolution_summary; break;
+          case 'agent': valA = a.assigned_agent?.display_name; valB = b.assigned_agent?.display_name; break;
+          case 'source': valA = a.source; valB = b.source; break;
+          case 'module': valA = a.module; valB = b.module; break;
+          case 'type': valA = a.issue_type; valB = b.issue_type; break;
+          case 'resolved_at': valA = a.resolved_at || ''; valB = b.resolved_at || ''; break;
+          case 'duration': valA = getDurationMs(a.created_at, a.resolved_at); valB = getDurationMs(b.created_at, b.resolved_at); break;
+          default: valA = a.created_at; valB = b.created_at;
+        }
+
+        if (valA < valB) return sortConfig.direction === 'asc' ? -1 : 1;
+        if (valA > valB) return sortConfig.direction === 'asc' ? 1 : -1;
+        return 0;
+      });
+    }
+
+    return result;
+  }, [tickets, filterText, sortConfig]);
+
+  const handleSort = (key: string) => {
+    setSortConfig(prev => {
+      if (prev?.key === key) {
+        return { key, direction: prev.direction === 'asc' ? 'desc' : 'asc' };
+      }
+      return { key, direction: 'asc' };
+    });
+  };
+
   const handleExportExcel = () => {
     setIsExporting(true);
     setTimeout(() => {
-      const formatData = tickets.map(t => {
+      const formatData = processedTickets.map(t => {
         const d = new Date(t.created_at);
         const resolvedAt = t.resolved_at ? new Date(t.resolved_at) : null;
         
@@ -80,7 +151,7 @@ export default function DailyReportPage() {
            'ประเภทงาน': t.issue_type || '-',
            'เวลาที่แจ้ง': d.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }),
            'เวลาที่ปิดงาน': resolvedAt ? resolvedAt.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }) : '-',
-           'เวลาที่ใช้ไป': getDuration(t.created_at, t.resolved_at)
+           'เวลาที่ใช้ไป': getDurationStr(t.created_at, t.resolved_at)
         };
       });
       exportToExcel(formatData, `Daily_Issues_${dateStr}`);
@@ -96,6 +167,22 @@ export default function DailyReportPage() {
       </div>
     );
   }
+
+  const COLUMNS = [
+    { label: 'สถานะ', key: 'status' },
+    { label: 'วันที่แจ้ง', key: 'date' },
+    { label: 'โรงพยาบาล', key: 'hospital' },
+    { label: 'ผู้แจ้ง', key: 'customer' },
+    { label: 'รายละเอียดงาน', key: 'subject' },
+    { label: 'วิธีการแก้ไข', key: 'resolution' },
+    { label: 'ผู้รับงาน', key: 'agent' },
+    { label: 'ที่มาของปัญหา', key: 'source' },
+    { label: 'module', key: 'module' },
+    { label: 'ประเภทงาน', key: 'type' },
+    { label: 'เวลาที่แจ้ง', key: 'date' },
+    { label: 'เวลาที่ปิดงาน', key: 'resolved_at' },
+    { label: 'เวลาที่ใช้ไป', key: 'duration' },
+  ];
 
   return (
     <div className="animate-page-in" style={{ height: 'calc(100vh - 40px)', display: 'flex', flexDirection: 'column' }}>
@@ -114,6 +201,34 @@ export default function DailyReportPage() {
          </div>
 
          <div style={{ display: 'flex', gap: '12px' }}>
+            {showFilter && (
+              <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                <Search size={16} style={{ position: 'absolute', left: '12px', color: 'var(--text-muted)' }} />
+                <input 
+                  type="text"
+                  placeholder="ค้นหาข้อมูลในตาราง..."
+                  value={filterText}
+                  onChange={(e) => setFilterText(e.target.value)}
+                  className="glass-interactive"
+                  autoFocus
+                  style={{ padding: '0 36px', width: '250px', height: '44px', borderRadius: '12px', border: '1px solid var(--primary)', background: 'var(--bg-input)', color: 'var(--text-main)' }}
+                />
+                {filterText && (
+                  <button onClick={() => setFilterText('')} style={{ position: 'absolute', right: '12px', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
+                    <X size={14} />
+                  </button>
+                )}
+              </div>
+            )}
+
+            <button 
+              onClick={() => setShowFilter(!showFilter)}
+              className={`glass-interactive ${showFilter ? 'active' : ''}`}
+              style={{ width: '44px', height: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '12px', border: showFilter ? '1px solid var(--primary)' : '1px solid var(--border)', background: showFilter ? 'var(--primary-transparent)' : 'var(--bg-card)', color: showFilter ? 'var(--primary)' : 'var(--text-main)' }}
+            >
+              <Filter size={18} />
+            </button>
+
             <input 
                type="date" 
                value={dateStr}
@@ -121,16 +236,10 @@ export default function DailyReportPage() {
                className="glass-interactive"
                style={{ padding: '0 16px', borderRadius: '12px', border: '1px solid var(--border)', background: 'var(--bg-input)', color: 'var(--text-main)', fontWeight: '700' }}
             />
-            <button 
-               onClick={() => alert('เชื่อมต่อ Google Sheets สำเร็จ! (Simulation)')}
-               className="glass-interactive"
-               style={{ height: '44px', padding: '0 16px', borderRadius: '12px', border: '1px solid #1a73e8', background: 'rgba(26,115,232,0.1)', color: '#1a73e8', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '8px' }}
-            >
-               <LinkIcon size={16} /> Connect G-Sheets
-            </button>
+            
             <button 
                onClick={handleExportExcel}
-               disabled={isExporting || tickets.length === 0}
+               disabled={isExporting || processedTickets.length === 0}
                className="glass-interactive"
                style={{ height: '44px', padding: '0 20px', borderRadius: '12px', border: 'none', background: '#2e7d32', color: 'white', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 8px 20px rgba(46,125,50,0.3)' }}
             >
@@ -146,15 +255,26 @@ export default function DailyReportPage() {
             <table style={{ width: '100%', minWidth: '1800px', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
                <thead style={{ position: 'sticky', top: 0, zIndex: 10, background: '#4CAF50', color: 'white', fontWeight: '800' }}>
                   <tr>
-                     {[
-                       'สถานะ', 'วันที่แจ้ง', 'โรงพยาบาล', 'ผู้แจ้ง', 'รายละเอียดงาน', 
-                       'วิธีการแก้ไข', 'ผู้รับงาน', 'ที่มาของปัญหา', 'module', 'ประเภทงาน', 
-                       'เวลาที่แจ้ง', 'เวลาที่ปิดงาน', 'เวลาที่ใช้ไป'
-                     ].map((col, i) => (
-                        <th key={i} style={{ padding: '12px 16px', borderRight: '1px solid rgba(255,255,255,0.2)', whiteSpace: 'nowrap', textTransform: 'uppercase', fontSize: '11px', letterSpacing: '0.5px' }}>
-                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                              {col}
-                              <Filter size={12} opacity={0.6} cursor="pointer" />
+                     {COLUMNS.map((col, i) => (
+                        <th 
+                          key={i} 
+                          onClick={() => handleSort(col.key)}
+                          style={{ 
+                            padding: '12px 16px', 
+                            borderRight: '1px solid rgba(255,255,255,0.2)', 
+                            whiteSpace: 'nowrap', 
+                            textTransform: 'uppercase', 
+                            fontSize: '11px', 
+                            letterSpacing: '0.5px',
+                            cursor: 'pointer',
+                            userSelect: 'none'
+                          }}
+                        >
+                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
+                              {col.label}
+                              <div style={{ display: 'flex', flexDirection: 'column', opacity: sortConfig?.key === col.key ? 1 : 0.3 }}>
+                                <ArrowUpDown size={12} />
+                              </div>
                            </div>
                         </th>
                      ))}
@@ -163,11 +283,13 @@ export default function DailyReportPage() {
                <tbody>
                   {loading && tickets.length === 0 ? (
                      <tr><td colSpan={13} style={{ textAlign: 'center', padding: '40px' }}><Loader2 className="animate-spin text-primary" style={{ margin: '0 auto' }} /></td></tr>
-                  ) : tickets.length === 0 ? (
-                     <tr><td colSpan={13} style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>ไม่พบข้อมูลใบงานในวันที่เลือก</td></tr>
+                  ) : processedTickets.length === 0 ? (
+                     <tr><td colSpan={13} style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
+                        {filterText ? 'ไม่พบข้อมูลที่ตรงกับการค้นหา' : 'ไม่พบข้อมูลใบงานในวันที่เลือก'}
+                     </td></tr>
                   ) : (
-                     tickets.map((t, idx) => (
-                        <tr key={idx} style={{ borderBottom: '1px solid var(--border)', background: idx % 2 === 0 ? 'transparent' : 'rgba(0,0,0,0.02)' }}>
+                     processedTickets.map((t, idx) => (
+                        <tr key={t.id || idx} style={{ borderBottom: '1px solid var(--border)', background: idx % 2 === 0 ? 'transparent' : 'rgba(0,0,0,0.02)' }}>
                            <td style={{ padding: '12px 16px', textAlign: 'center' }}>
                               {t.status === 'Resolved' || t.status === 'Closed' ? '✅' : (t.status === 'New' ? '⚪' : '🔄')}
                            </td>
@@ -189,7 +311,7 @@ export default function DailyReportPage() {
                            </td>
                            <td style={{ padding: '12px 16px' }}>{new Date(t.created_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })} น.</td>
                            <td style={{ padding: '12px 16px' }}>{t.resolved_at ? new Date(t.resolved_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }) + ' น.' : '-'}</td>
-                           <td style={{ padding: '12px 16px', fontWeight: '700', color: t.resolved_at ? 'var(--success)' : 'inherit' }}>{getDuration(t.created_at, t.resolved_at)}</td>
+                           <td style={{ padding: '12px 16px', fontWeight: '700', color: t.resolved_at ? 'var(--success)' : 'inherit' }}>{getDurationStr(t.created_at, t.resolved_at)}</td>
                         </tr>
                      ))
                   )}
@@ -198,10 +320,11 @@ export default function DailyReportPage() {
          </div>
          
          <div style={{ padding: '14px 20px', background: 'var(--bg-card)', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px', fontWeight: '700', color: 'var(--text-muted)' }}>
-            <span>กำลังแสดงผล {tickets.length} รายการ</span>
+            <span>กำลังแสดงผล {processedTickets.length} รายการ {filterText && `(จากทั้งหมด ${tickets.length} รายการ)`}</span>
             <span>ข้อมูล Real-time ตามรอบวัน (00:00 - 23:59)</span>
          </div>
       </div>
     </div>
   );
 }
+ Broadway Broadway  
