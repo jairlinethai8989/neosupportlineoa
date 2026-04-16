@@ -1,16 +1,21 @@
 'use client';
+/* eslint-disable @next/next/no-img-element */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useRef, useState, useEffect } from 'react';
 import { 
   X, 
   Square, 
-  Circle, 
+  Circle as CircleIcon, 
   Type, 
   Pencil, 
   RotateCcw, 
   Check,
   ZoomIn,
   ZoomOut,
-  Maximize
+  Maximize,
+  Undo,
+  Minus,
+  Plus
 } from 'lucide-react';
 
 interface ImageEditorModalProps {
@@ -26,13 +31,16 @@ type Tool = 'pencil' | 'rect' | 'circle' | 'text';
 export default function ImageEditorModal({ isOpen, onClose, imageSrc, onSave, saveLabel }: ImageEditorModalProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  
   const [tool, setTool] = useState<Tool>('pencil');
-  const [color, setColor] = useState('#ff4d4f'); // Default Red for highlight
+  const [color, setColor] = useState('#ff4d4f'); // Default Red
+  const [lineWidth, setLineWidth] = useState(3);
   const [isDrawing, setIsDrawing] = useState(false);
   const [startPos, setStartPos] = useState({ x: 0, y: 0 });
   const [history, setHistory] = useState<string[]>([]);
   const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 });
   const [zoom, setZoom] = useState(1);
+  const [snapshot, setSnapshot] = useState<ImageData | null>(null);
 
   useEffect(() => {
     if (isOpen && imageSrc) {
@@ -50,14 +58,14 @@ export default function ImageEditorModal({ isOpen, onClose, imageSrc, onSave, sa
       const ctx = canvas.getContext('2d');
       if (!ctx) return;
 
-      // Maintain full resolution by using original image dimensions for the canvas
       const { width, height } = img;
-      
       setCanvasSize({ width, height });
       canvas.width = width;
       canvas.height = height;
       ctx.drawImage(img, 0, 0, width, height);
-      saveToHistory();
+      
+      const initialDataUrl = canvas.toDataURL();
+      setHistory([initialDataUrl]);
       setZoom(1); 
     };
   };
@@ -65,22 +73,24 @@ export default function ImageEditorModal({ isOpen, onClose, imageSrc, onSave, sa
   const saveToHistory = () => {
     const canvas = canvasRef.current;
     if (canvas) {
-      setHistory(prev => [...prev.slice(-10), canvas.toDataURL()]);
+      const dataUrl = canvas.toDataURL();
+      setHistory(prev => [...prev.slice(-15), dataUrl]);
     }
   };
 
   const undo = () => {
     if (history.length <= 1) return;
-    const prev = history[history.length - 2];
-    const newHist = history.slice(0, -1);
-    setHistory(newHist);
+    const newHistory = history.slice(0, -1);
+    const prevState = newHistory[newHistory.length - 1];
+    setHistory(newHistory);
 
     const img = new Image();
-    img.src = prev;
+    img.src = prevState;
     img.onload = () => {
-      const ctx = canvasRef.current?.getContext('2d');
-      if (ctx) {
-        ctx.clearRect(0, 0, canvasSize.width, canvasSize.height);
+      const canvas = canvasRef.current;
+      const ctx = canvas?.getContext('2d');
+      if (canvas && ctx) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
         ctx.drawImage(img, 0, 0);
       }
     };
@@ -90,10 +100,9 @@ export default function ImageEditorModal({ isOpen, onClose, imageSrc, onSave, sa
     const canvas = canvasRef.current;
     if (!canvas) return { x: 0, y: 0 };
     const rect = canvas.getBoundingClientRect();
-    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
-    const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
+    const clientX = 'touches' in e ? (e as any).touches[0].clientX : (e as any).clientX;
+    const clientY = 'touches' in e ? (e as any).touches[0].clientY : (e as any).clientY;
     
-    // Scale coordinates based on current visual size vs internal size
     const scaleX = canvas.width / rect.width;
     const scaleY = canvas.height / rect.height;
 
@@ -104,39 +113,40 @@ export default function ImageEditorModal({ isOpen, onClose, imageSrc, onSave, sa
   };
 
   const startDrawing = (e: React.MouseEvent | React.TouchEvent) => {
-    setIsDrawing(true);
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
     const pos = getPos(e);
+    setIsDrawing(true);
     setStartPos(pos);
+    setSnapshot(ctx.getImageData(0, 0, canvas.width, canvas.height));
 
     if (tool === 'pencil') {
-      const ctx = canvasRef.current?.getContext('2d');
-      if (ctx) {
-        ctx.beginPath();
-        ctx.moveTo(pos.x, pos.y);
-        ctx.strokeStyle = color;
-        ctx.lineWidth = 3;
-        ctx.lineCap = 'round';
-      }
+      ctx.beginPath();
+      ctx.moveTo(pos.x, pos.y);
+      ctx.strokeStyle = color;
+      ctx.lineWidth = lineWidth;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
     }
   };
 
   const draw = (e: React.MouseEvent | React.TouchEvent) => {
     if (!isDrawing) return;
     const pos = getPos(e);
-    const ctx = canvasRef.current?.getContext('2d');
-    if (!ctx) return;
+    const canvas = canvasRef.current;
+    const ctx = canvas?.getContext('2d');
+    if (!ctx || !snapshot || !canvas) return;
 
     if (tool === 'pencil') {
       ctx.lineTo(pos.x, pos.y);
       ctx.stroke();
     } else if (tool === 'rect' || tool === 'circle') {
-      const img = new Image();
-      img.src = history[history.length - 1];
-      ctx.clearRect(0, 0, canvasSize.width, canvasSize.height);
-      ctx.drawImage(img, 0, 0);
-      
+      ctx.putImageData(snapshot, 0, 0);
       ctx.strokeStyle = color;
-      ctx.lineWidth = 3;
+      ctx.lineWidth = lineWidth;
       if (tool === 'rect') {
         ctx.strokeRect(startPos.x, startPos.y, pos.x - startPos.x, pos.y - startPos.y);
       } else {
@@ -151,12 +161,14 @@ export default function ImageEditorModal({ isOpen, onClose, imageSrc, onSave, sa
   const stopDrawing = () => {
     if (!isDrawing) return;
     setIsDrawing(false);
+    
     if (tool === 'text') {
       const text = prompt('กรอกข้อความที่ต้องการเพิ่ม:');
       if (text) {
-        const ctx = canvasRef.current?.getContext('2d');
+        const canvas = canvasRef.current;
+        const ctx = canvas?.getContext('2d');
         if (ctx) {
-          ctx.font = 'bold 24px Kanit, sans-serif';
+          ctx.font = `bold ${lineWidth * 5 + 15}px Noto Sans Thai, sans-serif`;
           ctx.fillStyle = color;
           ctx.fillText(text, startPos.x, startPos.y);
         }
@@ -171,7 +183,7 @@ export default function ImageEditorModal({ isOpen, onClose, imageSrc, onSave, sa
       canvas.toBlob((blob) => {
         if (blob) onSave(blob);
         onClose();
-      }, 'image/png');
+      }, 'image/png', 0.9);
     }
   };
 
@@ -179,27 +191,35 @@ export default function ImageEditorModal({ isOpen, onClose, imageSrc, onSave, sa
 
   return (
     <div style={{
-      position: 'fixed', inset: 0, zIndex: 1200,
-      background: 'rgba(0,0,0,0.9)', backdropFilter: 'blur(20px)',
+      position: 'fixed', inset: 0, zIndex: 9999,
+      background: 'rgba(5, 8, 15, 0.95)', backdropFilter: 'blur(15px)',
       display: 'flex', flexDirection: 'column',
-       animation: 'fadeIn 0.3s ease-out'
+      animation: 'fadeIn 0.3s ease-out'
     }}>
-      {/* Toolbar Top */}
+      {/* Premium Header Toolbar */}
       <div style={{
         height: '70px', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         padding: '0 24px', borderBottom: '1px solid rgba(255,255,255,0.1)', background: '#0a0e14'
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-          <button onClick={onClose} style={{ color: 'white', background: 'none', border: 'none', cursor: 'pointer', display: 'flex' }}><X size={24} /></button>
-          <span style={{ fontWeight: '800', fontSize: '18px', color: 'var(--primary)', letterSpacing: '0.5px' }}>IMAGE EDITOR</span>
+          <button onClick={onClose} style={{ 
+            color: 'white', background: 'rgba(255,255,255,0.1)', border: 'none', 
+            cursor: 'pointer', display: 'flex', padding: '8px', borderRadius: '10px' 
+          }}>
+            <X size={20} />
+          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+             <div style={{ width: '4px', height: '20px', background: 'var(--primary)', borderRadius: '2px' }} />
+             <span style={{ fontWeight: '900', fontSize: '16px', color: 'white', letterSpacing: '1px' }}>IMAGE EDITOR PRO</span>
+          </div>
         </div>
         
         {/* Drawing Tools */}
-        <div style={{ display: 'flex', gap: '8px', background: 'rgba(255,255,255,0.05)', padding: '6px', borderRadius: '12px' }}>
+        <div style={{ display: 'flex', gap: '8px', background: 'rgba(255,255,255,0.05)', padding: '6px', borderRadius: '16px' }}>
           {[
             { id: 'pencil', icon: Pencil, label: 'วาดเขียน' },
             { id: 'rect', icon: Square, label: 'สี่เหลี่ยม' },
-            { id: 'circle', icon: Circle, label: 'วงกลม' },
+            { id: 'circle', icon: CircleIcon, label: 'วงกลม' },
             { id: 'text', icon: Type, label: 'ข้อความ' },
           ].map(t => (
             <button
@@ -207,11 +227,12 @@ export default function ImageEditorModal({ isOpen, onClose, imageSrc, onSave, sa
                onClick={() => setTool(t.id as Tool)}
                title={t.label}
                style={{
-                 width: '40px', height: '40px', borderRadius: '8px', border: 'none',
+                 width: '44px', height: '44px', borderRadius: '12px', border: 'none',
                  background: tool === t.id ? 'var(--primary)' : 'transparent',
                  color: tool === t.id ? '#000' : 'white',
                  cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                 transition: 'all 0.2s'
+                 transition: 'all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1)',
+                 transform: tool === t.id ? 'scale(1.1)' : 'scale(1)'
                }}
             >
               <t.icon size={20} />
@@ -219,39 +240,25 @@ export default function ImageEditorModal({ isOpen, onClose, imageSrc, onSave, sa
           ))}
         </div>
 
-        {/* Zoom Controls */}
-        <div style={{ display: 'flex', gap: '8px', background: 'rgba(255,255,255,0.05)', padding: '6px', borderRadius: '12px', alignItems: 'center' }}>
-          <button onClick={() => setZoom(prev => Math.max(0.5, prev - 0.2))} style={{ color: 'white', background: 'none', border: 'none', cursor: 'pointer', width: '32px' }} title="Zoom Out"><ZoomOut size={18} /></button>
-          <button onClick={() => setZoom(1)} style={{ color: 'white', background: 'none', border: 'none', cursor: 'pointer', fontSize: '12px', fontWeight: '800', minWidth: '40px' }}>{Math.round(zoom * 100)}%</button>
-          <button onClick={() => setZoom(prev => Math.min(3, prev + 0.2))} style={{ color: 'white', background: 'none', border: 'none', cursor: 'pointer', width: '32px' }} title="Zoom In"><ZoomIn size={18} /></button>
-          <button onClick={() => setZoom(1.5)} style={{ color: 'var(--primary)', background: 'none', border: 'none', cursor: 'pointer', marginLeft: '4px' }} title="Expand"><Maximize size={18} /></button>
-        </div>
-
         {/* Actions */}
-        <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-          <div style={{ display: 'flex', gap: '6px' }}>
-            {['#ff4d4f', '#28c76f', '#00f2fe', '#ff9f43', '#ffffff'].map(c => (
-              <button
-                key={c}
-                onClick={() => setColor(c)}
-                style={{
-                  width: '24px', height: '24px', borderRadius: '50%', border: color === c ? '2px solid white' : 'none',
-                  background: c, cursor: 'pointer', boxShadow: '0 0 10px rgba(0,0,0,0.5)'
-                }}
-              />
-            ))}
-          </div>
+        <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+          <button onClick={undo} disabled={history.length <= 1} style={{ 
+            color: history.length <= 1 ? 'rgba(255,255,255,0.2)' : 'white', 
+            background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px' 
+          }}>
+            <Undo size={18} /> ย้อนกลับ
+          </button>
           <div style={{ width: '1px', height: '24px', background: 'rgba(255,255,255,0.1)' }} />
-          <button onClick={undo} style={{ color: 'white', background: 'none', border: 'none', cursor: 'pointer' }} title="เลิกทำ (Undo)"><RotateCcw size={20} /></button>
           <button 
             onClick={handleSave}
             style={{ 
               background: 'var(--primary)', color: 'black', border: 'none', 
-              borderRadius: '10px', padding: '10px 24px', fontWeight: '900', 
-              display: 'flex', gap: '8px', alignItems: 'center', cursor: 'pointer'
+              borderRadius: '12px', padding: '12px 28px', fontWeight: '900', 
+              display: 'flex', gap: '8px', alignItems: 'center', cursor: 'pointer',
+              boxShadow: '0 4px 15px rgba(115, 103, 240, 0.3)'
             }}
           >
-            <Check size={20} /> {saveLabel || 'บันทึกและส่ง'}
+            <Check size={20} /> {saveLabel || 'ส่งภาพที่แก้ไข'}
           </button>
         </div>
       </div>
@@ -260,14 +267,16 @@ export default function ImageEditorModal({ isOpen, onClose, imageSrc, onSave, sa
       <div 
         ref={containerRef}
         style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'auto', padding: '40px' }}
+        className="no-scrollbar"
       >
         <div style={{ 
           position: 'relative', 
-          boxShadow: '0 20px 60px rgba(0,0,0,0.8)', 
-          borderRadius: '4px', 
+          boxShadow: '0 30px 100px rgba(0,0,0,0.8)', 
+          borderRadius: '8px', 
           transform: `scale(${zoom})`,
           transition: 'transform 0.2s',
-          transformOrigin: 'center center'
+          transformOrigin: 'center center',
+          background: 'white'
         }}>
           <canvas
             ref={canvasRef}
@@ -281,14 +290,71 @@ export default function ImageEditorModal({ isOpen, onClose, imageSrc, onSave, sa
             style={{ 
               cursor: tool === 'pencil' ? 'crosshair' : 'default',
               display: 'block',
-              background: '#000'
+              borderRadius: '8px'
             }}
           />
         </div>
       </div>
+
+      {/* Bottom Settings Bar */}
+      <div style={{
+         padding: '24px', background: '#0a0e14', borderTop: '1px solid rgba(255,255,255,0.1)',
+         display: 'flex', justifyContent: 'center', gap: '48px', alignItems: 'center'
+      }}>
+          {/* Zoom Controls */}
+          <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+            <button onClick={() => setZoom(prev => Math.max(0.3, prev - 0.2))} style={{ color: 'white', background: 'rgba(255,255,255,0.05)', border: 'none', cursor: 'pointer', width: '36px', height: '36px', borderRadius: '50%' }}><ZoomOut size={18} /></button>
+            <span style={{ color: 'white', fontSize: '13px', fontWeight: '800', minWidth: '45px', textAlign: 'center' }}>{Math.round(zoom * 100)}%</span>
+            <button onClick={() => setZoom(prev => Math.min(3, prev + 0.2))} style={{ color: 'white', background: 'rgba(255,255,255,0.05)', border: 'none', cursor: 'pointer', width: '36px', height: '36px', borderRadius: '50%' }}><ZoomIn size={18} /></button>
+            <button onClick={() => setZoom(1)} style={{ color: 'var(--primary)', background: 'none', border: 'none', cursor: 'pointer', marginLeft: '8px' }}><Maximize size={18} /></button>
+          </div>
+
+          <div style={{ width: '1px', height: '30px', background: 'rgba(255,255,255,0.1)' }} />
+
+          {/* Color Picker */}
+          <div style={{ display: 'flex', gap: '10px' }}>
+            {['#ff4d4f', '#28c76f', '#00f2fe', '#ff9f43', '#ffffff', '#000000'].map(c => (
+              <button
+                key={c}
+                onClick={() => setColor(c)}
+                style={{
+                  width: '32px', height: '32px', borderRadius: '50%', border: color === c ? '3px solid white' : '2px solid rgba(255,255,255,0.2)',
+                  background: c, cursor: 'pointer', transition: 'transform 0.2s',
+                  transform: color === c ? 'scale(1.2)' : 'scale(1)',
+                  boxShadow: '0 4px 10px rgba(0,0,0,0.3)'
+                }}
+              />
+            ))}
+          </div>
+
+          <div style={{ width: '1px', height: '30px', background: 'rgba(255,255,255,0.1)' }} />
+
+          {/* Line Width */}
+          <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+            <button 
+              onClick={() => setLineWidth(Math.max(1, lineWidth - 1))}
+              style={{ background: 'rgba(255,255,255,0.05)', border: 'none', color: 'white', borderRadius: '50%', width: '32px', height: '32px', cursor: 'pointer' }}
+            >
+              <Minus size={16} />
+            </button>
+            <div style={{ 
+              width: `${lineWidth * 2 + 8}px`, height: `${lineWidth * 2 + 8}px`,
+              borderRadius: '50%', background: color, border: '2px solid white',
+              boxShadow: `0 0 10px ${color}44`
+            }} />
+            <button 
+              onClick={() => setLineWidth(Math.min(20, lineWidth + 1))}
+              style={{ background: 'rgba(255,255,255,0.05)', border: 'none', color: 'white', borderRadius: '50%', width: '32px', height: '32px', cursor: 'pointer' }}
+            >
+              <Plus size={16} />
+            </button>
+          </div>
+      </div>
       
       <style dangerouslySetInnerHTML={{ __html: `
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
       `}} />
     </div>
   );

@@ -185,10 +185,11 @@ export default function TicketDetailPage() {
       if (!profile?.userId) throw new Error('LINE profile not loaded');
       const dbType = type === 'image' ? 'image' : 'file';
       
+      const { data: { publicUrl } } = supabase.storage.from('chat_media').getPublicUrl(fileName);
       await sendPortalMessageAction(
          id as string,
          profile.userId,
-         fileName,
+         publicUrl,
          dbType
       );
     } catch (err: any) {
