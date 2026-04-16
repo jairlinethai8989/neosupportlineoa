@@ -179,8 +179,8 @@ export default function ChatAttachmentModal({ isOpen, onClose, onConfirm }: Chat
   if (!isOpen) return null;
 
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <div className="glass" style={{ width: '90%', maxWidth: '600px', background: 'var(--bg-main)', borderRadius: '16px', overflow: 'hidden', border: '1px solid var(--border)' }}>
+    <div style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(5, 8, 12, 0.85)', backdropFilter: 'blur(20px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div className="glass" style={{ width: '90%', maxWidth: '600px', background: 'var(--bg-card)', borderRadius: '24px', overflow: 'hidden', border: '1px solid var(--border)', boxShadow: '0 40px 100px rgba(0,0,0,0.5)' }}>
         
         {/* Header */}
         <div style={{ padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border)' }}>
@@ -192,20 +192,48 @@ export default function ChatAttachmentModal({ isOpen, onClose, onConfirm }: Chat
 
         {/* Content */}
         <div style={{ padding: '24px' }}>
-           {mode === 'select' && (
-             <div style={{ display: 'flex', gap: '16px', justifyContent: 'center' }}>
-                <button onClick={startCamera} className="glass-interactive" style={{ flex: 1, padding: '32px', borderRadius: '16px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', background: 'rgba(0, 242, 254, 0.05)', color: 'var(--text-main)', border: '1px solid rgba(0, 242, 254, 0.2)' }}>
-                   <Camera size={40} color="var(--info)" />
-                   <span style={{ fontWeight: '700', fontSize: '14px' }}>Take Photo</span>
-                </button>
-                <label className="glass-interactive" style={{ flex: 1, padding: '32px', borderRadius: '16px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', background: 'rgba(115, 103, 240, 0.05)', color: 'var(--text-main)', border: '1px solid rgba(115, 103, 240, 0.2)', cursor: 'pointer' }}>
-                   <FileUp size={40} color="var(--secondary)" />
-                   <span style={{ fontWeight: '700', fontSize: '14px' }}>Upload File or Image</span>
-                   <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Max 10MB (PDF, DOCX, JPG)</span>
-                   <input type="file" hidden onChange={handleFileUpload} accept="image/*, .pdf, .docx, .doc, .xlsx" />
-                </label>
-             </div>
-           )}
+            {mode === 'select' && (
+              <div style={{ display: 'flex', gap: '16px', justifyContent: 'center' }}>
+                 <button 
+                  onClick={startCamera} 
+                  className="glass-interactive" 
+                  style={{ 
+                    flex: 1, 
+                    padding: '32px', 
+                    borderRadius: '20px', 
+                    display: 'flex', 
+                    flexDirection: 'column', 
+                    alignItems: 'center', 
+                    gap: '12px', 
+                    background: 'var(--primary-transparent)', 
+                    color: 'var(--text-main)', 
+                    border: '1px solid var(--primary-glow)' 
+                  }}>
+                    <Camera size={40} color="var(--primary)" />
+                    <span style={{ fontWeight: '800', fontSize: '14px' }}>Take Photo</span>
+                 </button>
+                 <label 
+                  className="glass-interactive" 
+                  style={{ 
+                    flex: 1, 
+                    padding: '32px', 
+                    borderRadius: '20px', 
+                    display: 'flex', 
+                    flexDirection: 'column', 
+                    alignItems: 'center', 
+                    gap: '12px', 
+                    background: 'rgba(139, 92, 246, 0.08)', 
+                    color: 'var(--text-main)', 
+                    border: '1px solid rgba(139, 92, 246, 0.2)', 
+                    cursor: 'pointer' 
+                  }}>
+                    <FileUp size={40} color="var(--secondary)" />
+                    <span style={{ fontWeight: '800', fontSize: '14px' }}>Upload File or Image</span>
+                    <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Max 10MB (PDF, DOCX, JPG)</span>
+                    <input type="file" hidden onChange={handleFileUpload} accept="image/*, .pdf, .docx, .doc, .xlsx" />
+                 </label>
+              </div>
+            )}
 
            {mode === 'camera' && (
              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px' }}>

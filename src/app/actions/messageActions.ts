@@ -96,3 +96,33 @@ export async function closeConversationAction(conversationId: string) {
     message_type: 'text'
   }]);
 }
+
+export async function deleteMessageAction(messageId: string) {
+  const user = await getSessionUser();
+  await verifyAgentRole(user.id);
+
+  // First, verify that the message exists and was sent by an agent or system (not customer)
+  // or at least that the current user has permission to delete it.
+  const { data: message } = await supabaseAdmin
+    .from('messages')
+    .select('staff_id, sender_type')
+    .eq('id', messageId)
+    .single();
+
+  if (!message) throw new Error('Message not found');
+  
+  // Only allow deleting own messages or if Admin
+  const { data: profile } = await supabaseAdmin.from('profiles').select('role').eq('id', user.id).single();
+  const isAdmin = profile?.role === 'Administrator';
+  
+  if (message.staff_id !== user.id && !isAdmin) {
+    throw new Error('Unauthorized: You can only unsend your own messages.');
+  }
+
+  const { error: dbError } = await supabaseAdmin
+    .from('messages')
+    .delete()
+    .eq('id', messageId);
+    
+  if (dbError) throw new Error(dbError.message);
+}

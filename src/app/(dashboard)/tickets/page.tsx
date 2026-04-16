@@ -135,19 +135,23 @@ function TicketsContent() {
       // In-memory join to resolve hospital/customer names without ambiguity
       const hospitalIds = Array.from(new Set(tData?.map(t => t.hospital_id).filter(Boolean)));
       const customerIds = Array.from(new Set(tData?.map(t => t.customer_id).filter(Boolean)));
+      const agentIds = Array.from(new Set(tData?.map(t => t.assigned_agent_id).filter(Boolean)));
 
-      const [hRes, cRes] = await Promise.all([
+      const [hRes, cRes, aRes] = await Promise.all([
         supabase.from('hospitals').select('id, name').in('id', hospitalIds),
-        supabase.from('customers').select('id, display_name').in('id', customerIds)
+        supabase.from('customers').select('id, display_name').in('id', customerIds),
+        supabase.from('profiles').select('id, display_name').in('id', agentIds)
       ]);
 
       const hMap = Object.fromEntries(hRes.data?.map(h => [h.id, h]) || []);
       const cMap = Object.fromEntries(cRes.data?.map(c => [c.id, c]) || []);
+      const aMap = Object.fromEntries(aRes.data?.map(a => [a.id, a]) || []);
 
       const joinedTickets = tData?.map(t => ({
         ...t,
         hospitals: hMap[t.hospital_id],
-        customers: cMap[t.customer_id]
+        customers: cMap[t.customer_id],
+        assigned_agent: aMap[t.assigned_agent_id]
       })) || [];
 
       setTickets(joinedTickets);
@@ -299,6 +303,10 @@ function TicketsContent() {
           case 'customer':
             aValue = a.customers?.display_name || '';
             bValue = b.customers?.display_name || '';
+            break;
+          case 'agent':
+            aValue = a.assigned_agent?.display_name || '';
+            bValue = b.assigned_agent?.display_name || '';
             break;
           case 'status':
             aValue = a.status;
@@ -531,9 +539,17 @@ function TicketsContent() {
                                       </div>
                                     </div>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '16px', borderTop: '1px solid var(--border)' }}>
-                                       <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                          <div style={{ width: '32px', height: '32px', borderRadius: '10px', background: 'var(--bg-input)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><User size={16} color="var(--text-muted)" /></div>
-                                          <p style={{ fontSize: '13px', color: 'var(--text-main)', fontWeight: '700' }}>{ticket.customers?.display_name || 'Customer'}</p>
+                                       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                            <div style={{ width: '24px', height: '24px', borderRadius: '50%', background: 'var(--bg-card)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><User size={12} color="var(--primary)" /></div>
+                                            <p style={{ fontSize: '13px', color: 'var(--text-main)', fontWeight: '700' }}>{ticket.customers?.display_name || 'Customer'}</p>
+                                         </div>
+                                         {ticket.assigned_agent && (
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', opacity: 0.8 }}>
+                                               <div style={{ width: '24px', height: '24px', borderRadius: '50%', background: 'var(--primary-transparent)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><CheckCircle size={12} color="var(--primary)" /></div>
+                                               <p style={{ fontSize: '12px', color: 'var(--primary)', fontWeight: '800' }}>{ticket.assigned_agent.display_name}</p>
+                                            </div>
+                                         )}
                                        </div>
                                        <div style={{ display: 'flex', gap: '10px' }}>
                                           {convId && (
@@ -624,6 +640,7 @@ function TicketsContent() {
                       { key: 'subject', label: 'หัวข้อ' },
                       { key: 'hospital', label: 'โรงพยาบาล' },
                       { key: 'customer', label: 'ลูกค้า' },
+                      { key: 'agent', label: 'ผู้รับงาน' },
                       { key: 'status', label: 'สถานะ' },
                       { key: 'actions', label: 'จัดการ', noSort: true }
                     ].map((col) => (
@@ -666,6 +683,13 @@ function TicketsContent() {
                            <td style={{ padding: '16px 20px', fontSize: '14px', fontWeight: '500' }}>{ticket.subject}</td>
                            <td style={{ padding: '16px 20px', fontSize: '13px', fontWeight: '700', color: 'var(--primary)' }}>{hospitalName}</td>
                            <td style={{ padding: '16px 20px' }}>{ticket.customers?.display_name || '-'}</td>
+                           <td style={{ padding: '16px 20px' }}>
+                              {ticket.assigned_agent ? (
+                                <span style={{ color: 'var(--primary)', fontWeight: '800' }}>{ticket.assigned_agent.display_name}</span>
+                              ) : (
+                                <span style={{ opacity: 0.3 }}>-</span>
+                              )}
+                           </td>
                            <td style={{ padding: '16px 20px' }}><StatusBadge status={ticket.status} /></td>
                            <td style={{ padding: '16px 20px' }}>
                               <div style={{ display: 'flex', gap: '8px' }}>

@@ -56,6 +56,12 @@ export const TicketHeader: React.FC<TicketHeaderProps> = ({
             }}>
                {status.toUpperCase()}
             </span>
+            {ticket.assigned_agent && (
+               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '4px 12px', background: 'var(--primary-transparent)', borderRadius: '20px', marginLeft: '8px' }}>
+                  <CheckCircle size={14} color="var(--primary)" />
+                  <span style={{ fontSize: '12px', color: 'var(--primary)', fontWeight: '900' }}>ผู้รับงาน: {ticket.assigned_agent.display_name}</span>
+               </div>
+            )}
           </div>
           <p style={{ color: 'var(--text-muted)', fontSize: '14px' }}>Ticket Details & Management</p>
         </div>

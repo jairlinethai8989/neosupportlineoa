@@ -19,6 +19,7 @@ interface TicketChatProps {
   onAttachFile: () => void;
   onScreenCapture: () => void;
   onEditImage: (url: string) => void;
+  onDeleteMessage?: (id: string) => void;
   quickReplies: string[];
 }
 
@@ -33,6 +34,7 @@ export const TicketChat: React.FC<TicketChatProps> = ({
   onAttachFile,
   onScreenCapture,
   onEditImage,
+  onDeleteMessage,
   quickReplies
 }) => {
   if (!ticket) return null;
@@ -53,42 +55,80 @@ export const TicketChat: React.FC<TicketChatProps> = ({
       </div>
       
       {/* Message History */}
-      <div style={{ flex: 1, overflowY: 'auto', marginBottom: '20px', display: 'flex', flexDirection: 'column', gap: '16px', paddingRight: '12px' }}>
-         {messages.map((msg, idx) => (
-            <div key={idx} style={{ 
-               alignSelf: msg.sender_type === 'agent' ? 'flex-end' : 'flex-start',
-               maxWidth: '75%',
-               display: 'flex',
-               flexDirection: 'column',
-               alignItems: msg.sender_type === 'agent' ? 'flex-end' : 'flex-start'
-            }}>
-               <div style={{ 
-                  padding: '12px 18px',
-                  borderRadius: '18px',
-                  borderTopRightRadius: msg.sender_type === 'agent' ? '4px' : '18px',
-                  borderTopLeftRadius: msg.sender_type === 'customer' ? '4px' : '18px',
-                  background: msg.sender_type === 'agent' ? 'var(--primary)' : 'var(--secondary)',
-                  color: msg.sender_type === 'agent' ? 'black' : 'var(--text)',
-                  boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
-               }}>
-                  {msg.message_type === 'image' || msg.content?.includes('supabase.co/storage') ? (
-                     <img 
-                        src={msg.content} 
-                        alt="attachment" 
-                        onClick={() => onEditImage(msg.content)}
-                        title="คลิกเพื่อแก้ไขและวาดรูป"
-                        style={{ maxWidth: '280px', borderRadius: '8px', cursor: 'pointer', objectFit: 'cover' }} 
-                     />
-                  ) : (
-                     <p style={{ fontSize: '14px', fontWeight: msg.sender_type === 'agent' ? '700' : '500', lineHeight: '1.5', whiteSpace: 'pre-wrap' }}>{msg.content}</p>
-                  )}
-               </div>
-               <p style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '6px', fontWeight: '600' }}>
-                  {new Date(msg.created_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', hour12: false })}
-                  {msg.sender_type === 'agent' && ' • Sent by you'}
-               </p>
-            </div>
-         ))}
+      <div style={{ flex: 1, overflowY: 'auto', marginBottom: '20px', display: 'flex', flexDirection: 'column', gap: '16px', paddingRight: '12px' }} className="no-scrollbar">
+         {messages.map((msg, idx) => {
+            const isOwn = msg.staff_id === user?.id;
+            const canDelete = (isOwn || isAdmin) && msg.sender_type === 'agent' && onDeleteMessage;
+
+            return (
+              <div key={idx} style={{ 
+                alignSelf: msg.sender_type === 'agent' ? 'flex-end' : 'flex-start',
+                maxWidth: '75%',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: msg.sender_type === 'agent' ? 'flex-end' : 'flex-start'
+              }}>
+                 <div style={{ 
+                    padding: '12px 18px',
+                    borderRadius: '18px',
+                    borderTopRightRadius: msg.sender_type === 'agent' ? '4px' : '18px',
+                    borderTopLeftRadius: msg.sender_type === 'customer' ? '4px' : '18px',
+                    background: msg.sender_type === 'agent' ? 'var(--primary)' : 'var(--secondary)',
+                    color: msg.sender_type === 'agent' ? 'black' : 'var(--text)',
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                    position: 'relative'
+                 }}>
+                    {msg.message_type === 'image' || msg.content?.includes('supabase.co/storage') ? (
+                       <img 
+                          src={msg.content} 
+                          alt="attachment" 
+                          onClick={() => onEditImage(msg.content)}
+                          title="คลิกเพื่อแก้ไขและวาดรูป"
+                          style={{ maxWidth: '280px', borderRadius: '8px', cursor: 'pointer', objectFit: 'cover' }} 
+                       />
+                    ) : (
+                       <p style={{ fontSize: '14px', fontWeight: msg.sender_type === 'agent' ? '700' : '500', lineHeight: '1.5', whiteSpace: 'pre-wrap' }}>{msg.content}</p>
+                    )}
+                    
+                    {canDelete && (
+                      <button 
+                        onClick={() => onDeleteMessage && onDeleteMessage(msg.id)}
+                        className="glass-interactive flex-center"
+                        style={{
+                          position: 'absolute',
+                          right: '-10px',
+                          top: '-10px',
+                          width: '24px',
+                          height: '24px',
+                          borderRadius: '50%',
+                          background: 'rgba(255, 68, 68, 0.9)',
+                          color: 'white',
+                          border: 'none',
+                          cursor: 'pointer',
+                          boxShadow: '0 2px 8px rgba(255, 68, 68, 0.3)',
+                          display: 'none', // Shown on hover via CSS if possible, or always
+                          zIndex: 10
+                        }}
+                        title="Unsend"
+                      >
+                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2M10 11v6M14 11v6"/></svg>
+                      </button>
+                    )}
+                 </div>
+                 <p style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '6px', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    {new Date(msg.created_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', hour12: false })}
+                    {msg.sender_type === 'agent' && ' • Sent by you'}
+                    {canDelete && (
+                       <span 
+                         onClick={() => onDeleteMessage && onDeleteMessage(msg.id)}
+                         style={{ color: 'var(--danger)', cursor: 'pointer', marginLeft: '8px', textDecoration: 'underline' }}>
+                         Unsend
+                       </span>
+                    )}
+                 </p>
+              </div>
+            );
+         })}
          {messages.length === 0 && (
             <div style={{ textAlign: 'center', marginTop: '100px', opacity: 0.3 }}>
                <MessageSquare size={48} style={{ marginBottom: '16px' }} />

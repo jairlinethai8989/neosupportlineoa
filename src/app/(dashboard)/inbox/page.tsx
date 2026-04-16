@@ -349,6 +349,22 @@ function InboxContent() {
      alert('คัดลอกลิงก์แบบประเมินแล้ว');
   };
 
+  const handleDeleteMessage = async (messageId: string) => {
+    if (!confirm('คุณต้องการยกเลิกการส่งข้อความนี้ใช่หรือไม่?')) return;
+    try {
+      const { deleteMessageAction } = await import('@/app/actions/messageActions');
+      await deleteMessageAction(messageId);
+      addToast({
+        id: `delete-${messageId}`,
+        type: 'message',
+        title: 'Unsent Success',
+        body: 'ยกเลิกการส่งข้อความเรียบร้อยแล้ว'
+      });
+    } catch (err: any) {
+      alert('Failed: ' + err.message);
+    }
+  };
+
   if (inboxLoading) return (
     <div className="animate-page-in" style={{ display: 'flex', height: 'calc(100vh - 120px)', gap: '24px' }}>
       <div className="glass" style={{ width: '360px', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
@@ -456,6 +472,7 @@ function InboxContent() {
             onDeleteCanned={handleDeleteCanned}
             viewMode={viewMode}
             setViewMode={setViewMode}
+            onDeleteMessage={handleDeleteMessage}
             messagesEndRef={messagesEndRef}
           />
         ) : (

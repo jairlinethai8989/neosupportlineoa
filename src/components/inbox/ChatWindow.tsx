@@ -119,52 +119,90 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
             <p style={{ fontSize: '14px' }}>กำลังรอข้อความใหม่…</p>
           </div>
         )}
-        {messages.map((msg) => (
-            <div key={msg.id} className="animate-content-slide" style={{ 
-              alignSelf: msg.sender_type === 'agent' ? 'flex-end' : 'flex-start', 
-              maxWidth: '80%',
-              animationDelay: `${Math.min(0.3, (messages.indexOf(msg) % 10) * 0.05)}s` 
-            }}>
-               <div style={{ 
-                  padding: '12px 18px', 
-                  borderRadius: msg.sender_type === 'agent' ? '20px 20px 4px 20px' : '20px 20px 20px 4px', 
-                  background: msg.sender_type === 'agent' 
-                    ? 'linear-gradient(135deg, var(--secondary) 0%, oklch(60% 0.15 280) 100%)' 
-                    : (msg.sender_type === 'system' ? 'var(--bg-input)' : 'var(--bg-card)'),
-                  border: '1px solid ' + (msg.sender_type === 'agent' ? 'rgba(255, 255, 255, 0.1)' : 'var(--border)'),
-                  fontSize: '14px',
-                  lineHeight: '1.6',
-                  boxShadow: msg.sender_type === 'agent' ? '0 8px 25px -5px rgba(115, 103, 240, 0.3)' : 'none',
-                  color: msg.sender_type === 'system' 
-                    ? 'var(--primary)' 
-                    : (msg.sender_type === 'agent' ? 'white' : 'var(--text-main)'),
-                  position: 'relative',
-                  transition: 'transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1)'
-               }}>
-                 {msg.content && (msg.message_type === 'image' || (String(msg.content).startsWith('http') && String(msg.content).match(/\.(jpeg|jpg|gif|png|webp|JPG|PNG)$/i))) ? (
-                    <div style={{ position: 'relative', overflow: 'hidden', borderRadius: '10px' }}>
-                       <img 
-                          src={msg.content} 
-                          loading="lazy"
-                          style={{ maxWidth: '100%', borderRadius: '10px', display: 'block', cursor: 'pointer' }} 
-                          onClick={() => onEditImage(msg.content)}
-                          alt="Chat attachment" 
-                          title="คลิกเพื่อทำการแก้ไขภาพ (Edit/Draw)"
-                       />
-                    </div>
-                 ) : msg.message_type === 'file' || (msg.content?.startsWith('http') && msg.message_type !== 'text') ? (
-                    <a href={msg.content} target="_blank" rel="noreferrer" style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--primary)', textDecoration: 'none', fontWeight: 'bold' }}>
-                       <Clock size={16} /> ดูไฟล์แนบ
-                    </a>
-                 ) : (
-                    msg.content
-                 )}
-              </div>
-              <p style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '6px', textAlign: msg.sender_type === 'agent' ? 'right' : 'left', opacity: 0.7 }}>
-                 {new Date(msg.created_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', hour12: false })}
-              </p>
-           </div>
-        ))}
+        {messages.map((msg) => {
+            const isOwn = msg.staff_id === agent?.id;
+            const isAdmin = agent?.role === 'Administrator';
+            const canDelete = (isOwn || isAdmin) && msg.sender_type === 'agent' && onDeleteMessage;
+
+            return (
+              <div key={msg.id} className="animate-content-slide" style={{ 
+                alignSelf: msg.sender_type === 'agent' ? 'flex-end' : 'flex-start', 
+                maxWidth: '80%',
+                animationDelay: `${Math.min(0.3, (messages.indexOf(msg) % 10) * 0.05)}s` 
+              }}>
+                 <div style={{ 
+                    padding: '12px 18px', 
+                    borderRadius: msg.sender_type === 'agent' ? '20px 20px 4px 20px' : '20px 20px 20px 4px', 
+                    background: msg.sender_type === 'agent' 
+                      ? 'linear-gradient(135deg, var(--secondary) 0%, oklch(60% 0.15 280) 100%)' 
+                      : (msg.sender_type === 'system' ? 'var(--bg-input)' : 'var(--bg-card)'),
+                    border: '1px solid ' + (msg.sender_type === 'agent' ? 'rgba(255, 255, 255, 0.1)' : 'var(--border)'),
+                    fontSize: '14px',
+                    lineHeight: '1.6',
+                    boxShadow: msg.sender_type === 'agent' ? '0 8px 25px -5px rgba(115, 103, 240, 0.3)' : 'none',
+                    color: msg.sender_type === 'system' 
+                      ? 'var(--primary)' 
+                      : (msg.sender_type === 'agent' ? 'white' : 'var(--text-main)'),
+                    position: 'relative',
+                    transition: 'transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1)'
+                 }}>
+                   {msg.content && (msg.message_type === 'image' || (String(msg.content).startsWith('http') && String(msg.content).match(/\.(jpeg|jpg|gif|png|webp|JPG|PNG)$/i))) ? (
+                      <div style={{ position: 'relative', overflow: 'hidden', borderRadius: '10px' }}>
+                         <img 
+                            src={msg.content} 
+                            loading="lazy"
+                            style={{ maxWidth: '100%', borderRadius: '10px', display: 'block', cursor: 'pointer' }} 
+                            onClick={() => onEditImage(msg.content)}
+                            alt="Chat attachment" 
+                            title="คลิกเพื่อทำการแก้ไขภาพ (Edit/Draw)"
+                         />
+                      </div>
+                   ) : msg.message_type === 'file' || (msg.content?.startsWith('http') && msg.message_type !== 'text') ? (
+                      <a href={msg.content} target="_blank" rel="noreferrer" style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--primary)', textDecoration: 'none', fontWeight: 'bold' }}>
+                         <Clock size={16} /> ดูไฟล์แนบ
+                      </a>
+                   ) : (
+                      msg.content
+                   )}
+
+                   {canDelete && (
+                     <button 
+                       onClick={() => onDeleteMessage && onDeleteMessage(msg.id)}
+                       className="glass-interactive flex-center"
+                       style={{
+                         position: 'absolute',
+                         right: msg.sender_type === 'agent' ? 'auto' : '-10px',
+                         left: msg.sender_type === 'agent' ? '-10px' : 'auto',
+                         top: '-10px',
+                         width: '24px',
+                         height: '24px',
+                         borderRadius: '50%',
+                         background: 'rgba(255, 68, 68, 0.9)',
+                         color: 'white',
+                         border: 'none',
+                         cursor: 'pointer',
+                         boxShadow: '0 2px 8px rgba(255, 68, 68, 0.3)',
+                         zIndex: 10
+                       }}
+                       title="Unsend"
+                     >
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2M10 11v6M14 11v6"/></svg>
+                     </button>
+                   )}
+                </div>
+                <p style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '6px', textAlign: msg.sender_type === 'agent' ? 'right' : 'left', opacity: 0.7, display: 'flex', alignItems: 'center', justifyContent: msg.sender_type === 'agent' ? 'flex-end' : 'flex-start', gap: '4px' }}>
+                   {new Date(msg.created_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', hour12: false })}
+                   {canDelete && (
+                      <span 
+                        onClick={() => onDeleteMessage && onDeleteMessage(msg.id)}
+                        style={{ color: 'var(--danger)', cursor: 'pointer', marginLeft: '8px', textDecoration: 'underline' }}>
+                        Unsend
+                      </span>
+                   )}
+                </p>
+             </div>
+            );
+        })}
         <div ref={messagesEndRef} />
       </div>
 

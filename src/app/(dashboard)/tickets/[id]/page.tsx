@@ -269,6 +269,23 @@ export default function StaffTicketDetailPage() {
     finally { setUpdating(false); }
   };
 
+  const handleDeleteMessage = async (messageId: string) => {
+    if (!confirm('คุณต้องการยกเลิกการส่งข้อความนี้ใช่หรือไม่?')) return;
+    try {
+      const { deleteMessageAction } = await import('@/app/actions/messageActions');
+      await deleteMessageAction(messageId);
+      addToast({
+        id: `delete-${messageId}`,
+        type: 'message',
+        title: 'Unsent Success',
+        body: 'ยกเลิกการส่งข้อความเรียบร้อยแล้ว'
+      });
+      fetchData();
+    } catch (err: any) {
+      alert('Failed: ' + err.message);
+    }
+  };
+
   const handleUpdate = async () => {
     setUpdating(true);
     try {
@@ -366,6 +383,7 @@ export default function StaffTicketDetailPage() {
           messages={messages} ticket={ticket} user={user} newMessage={newMessage} setNewMessage={setNewMessage}
           sending={sending} onSendMessage={handleSendMessage} onAttachFile={() => adminFileRef.current?.click()}
           onScreenCapture={handleScreenCapture} onEditImage={(url) => { setEditingImage(url); setShowEditor(true); }}
+          onDeleteMessage={handleDeleteMessage}
           quickReplies={quickReplies}
         />
 
