@@ -25,7 +25,9 @@ import {
   Trash2,
   Pencil,
   Monitor,
-  Maximize
+  Maximize,
+  UserPlus,
+  LogOut
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useRealtimeInbox } from '@/hooks/useRealtimeInbox';
