@@ -14,7 +14,8 @@ import {
   ShieldAlert,
   Inbox,
   Settings,
-  ArrowRight
+  ArrowRight,
+  RefreshCw
 } from 'lucide-react';
 import Link from 'next/link';
 import ProfileRegistrationModal from '@/components/portal/ProfileRegistrationModal';
@@ -68,11 +69,19 @@ export default function PortalPage() {
   useEffect(() => {
     let isMounted = true;
     if (profile?.userId) {
-      setTimeout(() => {
-        if (isMounted) fetchTickets();
-      }, 0);
+       fetchTickets();
     }
-    return () => { isMounted = false; };
+    
+    // Auto-refresh when window gains focus (e.g. back from browser or background)
+    const onFocus = () => {
+       if (profile?.userId) fetchTickets();
+    };
+    window.addEventListener('focus', onFocus);
+
+    return () => { 
+       isMounted = false; 
+       window.removeEventListener('focus', onFocus);
+    };
   }, [profile?.userId]);
 
   if (!isReady || (profile && fetching && !needsRegistration)) {
@@ -142,9 +151,14 @@ export default function PortalPage() {
             <p style={{ color: 'var(--portal-primary)', fontWeight: '700', letterSpacing: '0.5px', textTransform: 'uppercase', fontSize: '10px', marginBottom: '4px' }}>Support Portal</p>
             <h2 style={{ fontSize: '22px', fontWeight: '800', color: '#0f172a' }}>สวัสดี, {profile?.displayName?.split(' ')[0] || 'คุณลูกค้า'}</h2>
          </div>
-         <button onClick={() => setIsEditModalOpen(true)} style={{ padding: '8px', border: '1px solid var(--portal-border)', borderRadius: '8px', background: 'white', color: '#64748b', cursor: 'pointer' }} aria-label="Edit Profile">
-            <Settings size={20} />
-         </button>
+          <div style={{ display: 'flex', gap: '10px' }}>
+             <button onClick={fetchTickets} style={{ padding: '8px', border: '1px solid var(--portal-border)', borderRadius: '8px', background: 'white', color: fetching ? 'var(--portal-primary)' : '#64748b', cursor: 'pointer' }} aria-label="Refresh">
+                <RefreshCw size={20} className={fetching ? 'animate-spin' : ''} />
+             </button>
+             <button onClick={() => setIsEditModalOpen(true)} style={{ padding: '8px', border: '1px solid var(--portal-border)', borderRadius: '8px', background: 'white', color: '#64748b', cursor: 'pointer' }} aria-label="Settings">
+                <Settings size={20} />
+             </button>
+          </div>
       </div>
 
       <section style={{ marginBottom: '32px' }}>

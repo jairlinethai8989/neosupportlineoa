@@ -244,6 +244,11 @@ export default function StaffTicketDetailPage() {
     if (!resSummary.trim()) { alert('กรุณากรอกสรุปการแก้ไขงานก่อนปิดตั๋วครับ'); return; }
     setUpdating(true);
     try {
+      // Also update the module if it was changed in the modal
+      if (selectedModule) {
+        await supabase.from('tickets').update({ module: selectedModule }).eq('id', id);
+      }
+      
       const updatedData = await ticketService.resolve(id as string, user?.id, resSummary);
       if (conversationId) {
         const surveyLink = `${window.location.origin}/survey/${id}`;
@@ -424,8 +429,23 @@ export default function StaffTicketDetailPage() {
                         <button key={t} type="button" onClick={() => setResSummary(t)} style={{ padding: '6px 14px', borderRadius: '8px', border: '1px solid #e2e8f0', background: '#f8fafc', fontSize: '12px', color: '#475569', cursor: 'pointer' }}>{t}</button>
                       ))}
                    </div>
-                   <textarea value={resSummary} onChange={(e) => setResSummary(e.target.value)} placeholder="ระบุสิ่งที่แอดมินดำเนินการแก้ไข..." style={{ width: '100%', height: '120px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '16px', padding: '16px', color: '#0f172a', fontSize: '14px', resize: 'none', outline: 'none' }} />
-                </div>
+                    <div style={{ marginBottom: '16px' }}>
+                       <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', marginBottom: '8px' }}>ระบุโมดูลที่เกี่ยวข้อง (Module)</label>
+                       <select 
+                         value={selectedModule} 
+                         onChange={(e) => setSelectedModule(e.target.value)}
+                         style={{ width: '100%', padding: '12px', borderRadius: '12px', border: '1px solid #e2e8f0', background: '#f8fafc', color: '#0f172a', fontSize: '14px', outline: 'none' }}
+                       >
+                          <option value="">-- ไม่ระบุโมดูล --</option>
+                          {availableModules.map(m => (
+                            <option key={m} value={m}>{m}</option>
+                          ))}
+                       </select>
+                    </div>
+
+                    <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', marginBottom: '8px' }}>สรุปผลการแก้ไขงาน</label>
+                    <textarea value={resSummary} onChange={(e) => setResSummary(e.target.value)} placeholder="ระบุสิ่งที่แอดมินดำเนินการแก้ไข..." style={{ width: '100%', height: '100px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '16px', padding: '16px', color: '#0f172a', fontSize: '14px', resize: 'none', outline: 'none' }} />
+                 </div>
                 <div style={{ display: 'flex', gap: '12px' }}>
                    <button onClick={() => setShowResolveModal(false)} style={{ flex: 1, padding: '16px', borderRadius: '14px', border: '1px solid #e2e8f0', background: 'transparent', color: '#64748b', fontWeight: '800', cursor: 'pointer' }}>ยกเลิก</button>
                    <button onClick={handleResolve} disabled={updating || !resSummary.trim()} style={{ flex: 1.5, padding: '16px', borderRadius: '14px', border: 'none', background: '#22c55e', color: '#fff', fontWeight: '900', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }}>
