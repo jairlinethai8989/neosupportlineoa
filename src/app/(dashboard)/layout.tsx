@@ -154,7 +154,7 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
                 }
               }}
               className="glass-interactive flex-center"
-              style={{ padding: '8px', borderRadius: '8px', border: '1px solid var(--border)', display: 'flex', color: 'white', marginRight: '8px' }}
+              style={{ padding: '8px', borderRadius: '8px', border: '1px solid var(--border)', display: 'flex', color: 'var(--text-main)', marginRight: '8px' }}
             >
               <Menu size={20} />
             </button>
