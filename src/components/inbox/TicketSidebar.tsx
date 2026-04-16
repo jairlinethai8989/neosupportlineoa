@@ -39,7 +39,8 @@ export const TicketSidebar: React.FC<TicketSidebarProps> = ({
   const isResolved = currentTicket?.status === 'Resolved' || currentTicket?.status === 'Closed';
   const isOwner = currentTicket?.assigned_agent_id === agent?.id;
   const isAdmin = agent?.role === 'Administrator';
-  const canResolve = currentTicket && !isResolved && (isOwner || isAdmin);
+  const isSessionActive = selectedChat.status === 'active' || selectedChat.is_active;
+  const canResolve = currentTicket && !isResolved && (isOwner || isAdmin) && !isSessionActive;
 
   return (
     <div className={`glass inbox-details-panel ${viewMode !== 'details' ? 'hidden-mobile' : ''}`} style={{ width: '360px', padding: '24px', display: 'flex', flexDirection: 'column', gap: '24px', overflowY: 'auto' }}>
@@ -132,14 +133,15 @@ export const TicketSidebar: React.FC<TicketSidebarProps> = ({
                   width: '100%', 
                   padding: '16px', 
                   borderRadius: '12px', 
-                  background: !canResolve ? 'var(--bg-input)' : 'var(--success)', 
-                  color: 'white', 
+                  background: !canResolve ? 'rgba(255,255,255,0.05)' : 'var(--success)', 
+                  color: !canResolve ? 'rgba(255,255,255,0.3)' : 'white', 
                   border: 'none', 
                   fontWeight: '800', 
                   gap: '10px',
-                  opacity: !canResolve ? 0.4 : 1
+                  opacity: !canResolve ? 0.6 : 1,
+                  cursor: !canResolve ? 'not-allowed' : 'pointer'
                 }}>
-                  <CheckCircle size={18} /> Resolve & Send Survey
+                  <CheckCircle size={18} /> {isSessionActive ? 'จบสนทนาก่อนปิดงาน' : 'Resolve & Send Survey'}
                </button>
                {isResolved && (
                   <button onClick={onCopySurvey} className="glass-interactive" style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid var(--border)', fontSize: '12px', color: 'var(--text-muted)' }}>

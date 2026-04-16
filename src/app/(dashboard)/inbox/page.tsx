@@ -66,6 +66,8 @@ function InboxContent() {
   const [resSummary, setResSummary] = useState<string>('');
   const [selectedModule, setSelectedModule] = useState<string>('');
   const [availableModules, setAvailableModules] = useState<string[]>([]);
+  const [resolutionTemplates, setResolutionTemplates] = useState<string[]>([]);
+  const [isManagingTemplates, setIsManagingTemplates] = useState<boolean>(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -134,6 +136,16 @@ function InboxContent() {
       ];
       setCannedResponses(defaults);
       localStorage.setItem('neo_canned_responses', JSON.stringify(defaults));
+    }
+    
+    // Fetch/Set Resolution Templates
+    const savedRes = localStorage.getItem('neo_resolution_templates');
+    if (savedRes) {
+       setResolutionTemplates(JSON.parse(savedRes));
+    } else {
+       const resDefaults = ['ดำเนินการแก้ไขเรียบร้อยแล้วครับ', 'ส่งมอบงานประสานงานสำเร็จ', 'ยกเลิกเนื่องจากแจ้งผิดพลาด'];
+       setResolutionTemplates(resDefaults);
+       localStorage.setItem('neo_resolution_templates', JSON.stringify(resDefaults));
     }
   }, []);
 
@@ -291,10 +303,16 @@ function InboxContent() {
 
     const isOwner = currentTicket?.assigned_agent_id === agent.id;
     const isAdmin = agent.role === 'Administrator';
+    const isSessionActive = selectedChat.status === 'active' || selectedChat.is_active;
+
+    if (isSessionActive) {
+       alert('กรุณากด "จบการสนทนา (CLOSE CHAT)" ก่อนทำการปิดงานใบงานครับ');
+       return;
+    }
     
     if (!isOwner && !isAdmin) {
-      alert('คุณไม่มีสิทธิ์ปิดใบงานนี้ (เฉพาะเจ้าหน้าที่ที่รับงานหรือ Manager เท่านั้น)');
-      return;
+       alert('คุณไม่มีสิทธิ์ปิดใบงานนี้ (เฉพาะเจ้าหน้าที่ที่รับงานหรือ Manager เท่านั้น)');
+       return;
     }
 
     setResSummary('');
@@ -325,6 +343,22 @@ function InboxContent() {
     }
   };
 
+  const saveResTemplates = (list: string[]) => {
+     setResolutionTemplates(list);
+     localStorage.setItem('neo_resolution_templates', JSON.stringify(list));
+  };
+
+  const addResTemplate = (text: string) => {
+     if (!text.trim()) return;
+     if (resolutionTemplates.includes(text.trim())) return;
+     saveResTemplates([...resolutionTemplates, text.trim()]);
+  };
+
+  const removeResTemplate = (index: number) => {
+     const next = resolutionTemplates.filter((_, i) => i !== index);
+     saveResTemplates(next);
+  };
+   
   const handleCloseSession = async () => {
     if (!selectedChat || !confirm('คุณต้องการจบการสนทนานี้โดยไม่เชื่อมโยงใบงานใช่หรือไม่?')) return;
     
@@ -581,23 +615,24 @@ function InboxContent() {
                {currentTicket && currentTicket.status !== 'Resolved' && currentTicket.status !== 'Closed' && (
                   <button 
                     onClick={handleResolve} 
-                    disabled={!currentTicket || (currentTicket.assigned_agent_id !== agent?.id && agent?.role !== 'Administrator')}
+                    disabled={!currentTicket || (currentTicket.assigned_agent_id !== agent?.id && agent?.role !== 'Administrator') || (selectedChat.status === 'active' || selectedChat.is_active)}
                     className="glass-interactive flex-center" 
                     style={{ 
                       width: '100%', 
                       padding: '16px', 
                       borderRadius: '12px', 
-                      background: 'var(--success)', 
-                      color: 'white', 
+                      background: (selectedChat.status === 'active' || selectedChat.is_active) ? 'rgba(255,255,255,0.05)' : 'var(--success)', 
+                      color: (selectedChat.status === 'active' || selectedChat.is_active) ? 'rgba(255,255,255,0.3)' : 'white', 
                       border: 'none', 
                       fontWeight: '850', 
                       fontSize: '14px',
                       gap: '10px',
                       boxShadow: '0 4px 12px rgba(40, 199, 111, 0.2)',
-                      opacity: (!currentTicket || (currentTicket.assigned_agent_id !== agent?.id && agent?.role !== 'Administrator')) ? 0.5 : 1
+                      opacity: (selectedChat.status === 'active' || selectedChat.is_active) ? 0.6 : 1,
+                      cursor: (selectedChat.status === 'active' || selectedChat.is_active) ? 'not-allowed' : 'pointer'
                     }}
                   >
-                     <CheckCircle size={18} /> ปิดงานนี้ (RESOLVE TICKET)
+                     <CheckCircle size={18} /> {(selectedChat.status === 'active' || selectedChat.is_active) ? 'จบสนทนาก่อนปิดงาน' : 'ปิดงานนี้ (RESOLVE TICKET)'}
                   </button>
                )}
 
@@ -687,11 +722,46 @@ function InboxContent() {
                 </div>
 
                 <div style={{ marginBottom: '24px' }}>
-                    <label style={{ display: 'block', fontSize: '11px', fontWeight: '800', color: 'var(--primary)', textTransform: 'uppercase', marginBottom: '12px', letterSpacing: '1px' }}>เทมเพลตด่วน</label>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                       <label style={{ fontSize: '11px', fontWeight: '800', color: 'var(--primary)', textTransform: 'uppercase', letterSpacing: '1px' }}>เทมเพลตด่วน</label>
+                       <button 
+                          onClick={() => setIsManagingTemplates(!isManagingTemplates)}
+                          style={{ fontSize: '10px', color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}
+                       >
+                          {isManagingTemplates ? 'เสร็จสิ้น' : 'จัดการเทมเพลต'}
+                       </button>
+                    </div>
                     <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                       {['ดำเนินการแก้ไขเรียบร้อยแล้วครับ', 'ส่งมอบงานประสานงานสำเร็จ', 'ยกเลิกเนื่องจากแจ้งผิดพลาด'].map(t => (
-                         <button key={t} type="button" onClick={() => setResSummary(t)} style={{ padding: '6px 14px', borderRadius: '8px', border: '1px solid var(--border)', background: 'rgba(255,255,255,0.05)', fontSize: '12px', color: 'var(--text-muted)', cursor: 'pointer' }}>{t}</button>
+                       {resolutionTemplates.map((t, idx) => (
+                         <div key={idx} style={{ position: 'relative' }}>
+                            <button 
+                             type="button" 
+                             onClick={() => setResSummary(t)} 
+                             style={{ padding: '6px 14px', borderRadius: '8px', border: '1px solid var(--border)', background: 'rgba(255,255,255,0.05)', fontSize: '12px', color: 'var(--text-muted)', cursor: 'pointer' }}
+                            >
+                               {t}
+                            </button>
+                            {isManagingTemplates && (
+                               <button 
+                                 onClick={() => removeResTemplate(idx)}
+                                 style={{ position: 'absolute', top: '-8px', right: '-8px', width: '20px', height: '20px', borderRadius: '50%', background: 'var(--danger)', color: 'white', border: 'none', fontSize: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                               >
+                                  ×
+                               </button>
+                            )}
+                         </div>
                        ))}
+                       {isManagingTemplates && (
+                          <button 
+                            onClick={() => {
+                               const val = prompt('เพิ่มข้อความเทมเพลตใหม่:');
+                               if (val) addResTemplate(val);
+                            }}
+                            style={{ padding: '6px 14px', borderRadius: '8px', border: '1px dashed var(--primary)', background: 'none', fontSize: '12px', color: 'var(--primary)', cursor: 'pointer' }}
+                          >
+                             + เพิ่ม
+                          </button>
+                       )}
                     </div>
                 </div>
 
@@ -706,23 +776,23 @@ function InboxContent() {
                             padding: '14px 40px 14px 16px', 
                             borderRadius: '12px', 
                             border: 'none', 
-                            background: '#7c3aed', 
-                            color: 'white', 
+                            background: 'linear-gradient(135deg, var(--primary), #7367f0)', 
+                            color: 'black', 
                             fontSize: '14px', 
-                            fontWeight: '700', 
+                            fontWeight: '800', 
                             outline: 'none',
                             appearance: 'none',
                             cursor: 'pointer',
-                            boxShadow: '0 4px 12px rgba(124, 58, 237, 0.25)',
-                            backgroundImage: `url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e")`,
+                            boxShadow: '0 8px 24px rgba(0,242,254,0.25)',
+                            backgroundImage: `url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e")`,
                             backgroundRepeat: 'no-repeat',
                             backgroundPosition: 'right 16px center',
                             backgroundSize: '16px'
                          }}
                        >
-                          <option value="" style={{ background: '#7c3aed', color: 'white' }}>-- ไม่ระบุโมดูล --</option>
+                          <option value="" style={{ background: 'white', color: 'black' }}>-- ไม่ระบุโมดูล --</option>
                           {availableModules.map(m => (
-                            <option key={m} value={m} style={{ background: '#7c3aed', color: 'white' }}>{m}</option>
+                            <option key={m} value={m} style={{ background: 'white', color: 'black' }}>{m}</option>
                           ))}
                        </select>
                     </div>
