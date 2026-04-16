@@ -129,7 +129,7 @@ function TicketsContent() {
           *,
           hospitals!tickets_hospital_id_fkey (id, name),
           customers!tickets_customer_id_fkey (id, display_name),
-          assigned_agent:profiles!assigned_agent_id (id, display_name)
+          assigned_agent:profiles!assigned_agent_id (id, display_name:full_name)
         `)
         .gte('created_at', from ? from.toISOString() : '2000-01-01T00:00:00Z')
         .lte('created_at', to.toISOString())
