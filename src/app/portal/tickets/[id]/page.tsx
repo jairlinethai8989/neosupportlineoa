@@ -406,7 +406,7 @@ export default function TicketDetailPage() {
         <ChatAttachmentModal 
            isOpen={isAttachModalOpen} 
            onClose={() => setIsAttachModalOpen(false)}
-           onConfirm={handleAttachmentConfirm}
+           onConfirm={handleConfirmAttachment}
            onImageSelect={(dataUrl) => {
               setEditingImage(dataUrl);
               setIsEditorOpen(true);
@@ -421,7 +421,7 @@ export default function TicketDetailPage() {
            saveLabel="Send Image"
            onSave={async (blob) => {
               const file = new File([blob], `edit_${Date.now()}.jpg`, { type: 'image/jpeg' });
-              await handleAttachmentConfirm(file, 'image');
+              await handleConfirmAttachment(file, 'image');
               setIsEditorOpen(false);
            }}
         />
