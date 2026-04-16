@@ -404,20 +404,26 @@ export default function TicketDetailPage() {
         </section>
 
         <ChatAttachmentModal 
-          isOpen={isAttachModalOpen}
-          onClose={() => setIsAttachModalOpen(false)}
-          onConfirm={handleConfirmAttachment}
+           isOpen={isAttachModalOpen} 
+           onClose={() => setIsAttachModalOpen(false)}
+           onConfirm={handleAttachmentConfirm}
+           onImageSelect={(dataUrl) => {
+              setEditingImage(dataUrl);
+              setIsEditorOpen(true);
+              setIsAttachModalOpen(false);
+           }}
         />
 
         <ImageEditorModal 
-          isOpen={isEditorOpen}
-          imageSrc={editingImage}
-          onClose={() => setIsEditorOpen(false)}
-          onSave={(blob) => {
-            const file = new File([blob], "edited_image.png", { type: "image/png" });
-            handleConfirmAttachment(file, 'image');
-          }}
-          saveLabel="ส่งข้อความ (Send)"
+           isOpen={isEditorOpen}
+           onClose={() => setIsEditorOpen(false)}
+           imageSrc={editingImage}
+           saveLabel="Send Image"
+           onSave={async (blob) => {
+              const file = new File([blob], `edit_${Date.now()}.jpg`, { type: 'image/jpeg' });
+              await handleAttachmentConfirm(file, 'image');
+              setIsEditorOpen(false);
+           }}
         />
 
         <ImageViewerModal 
