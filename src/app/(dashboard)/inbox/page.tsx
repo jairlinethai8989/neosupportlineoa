@@ -300,7 +300,7 @@ function InboxContent() {
       
       addToast({
         id: 'claim-success',
-        type: 'success',
+        type: 'ticket',
         title: 'รับงานสำเร็จ',
         body: `คุณได้เป็นผู้ดูแลใบงาน #${ticket?.ticket_no} เรียบร้อยแล้ว`
       });
