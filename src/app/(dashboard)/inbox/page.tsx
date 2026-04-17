@@ -367,9 +367,9 @@ function InboxContent() {
 
       {showResolveModal && (
           <div style={{ position: 'fixed', inset: 0, zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(5, 8, 12, 0.6)', backdropFilter: 'blur(12px)', padding: '20px' }}>
-             <div className="glass" style={{ width: '100%', maxWidth: '480px', padding: '40px', borderRadius: '32px', border: '1px solid var(--border)', boxShadow: '0 40px 100px rgba(0,0,0,0.4)', color: 'var(--text-main)', background: 'var(--bg-card)' }}>
-                <div style={{ textAlign: 'center', marginBottom: '32px' }}>
-                   <div style={{ width: '64px', height: '64px', borderRadius: '20px', background: 'rgba(40, 199, 111, 0.1)', color: 'var(--success)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginBottom: '20px' }}>
+              <div className="glass" style={{ width: '100%', maxWidth: '480px', maxHeight: '90vh', overflowY: 'auto', padding: '32px', borderRadius: '32px', border: '1px solid var(--border)', boxShadow: '0 40px 100px rgba(0,0,0,0.4)', color: 'var(--text-main)', background: 'var(--bg-card)', animation: 'scaleIn 0.3s ease-out' }}>
+                <div style={{ textAlign: 'center', marginBottom: '24px' }}>
+                   <div style={{ width: '64px', height: '64px', borderRadius: '20px', background: 'rgba(40, 199, 111, 0.1)', color: 'var(--success)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px' }}>
                       <CheckCircle size={32} />
                    </div>
                    <h3 style={{ fontSize: '24px', fontWeight: '900', color: 'var(--text-main)', marginBottom: '8px' }}>ปิดงานใบงาน #{currentTicket?.ticket_no}</h3>
@@ -406,9 +406,9 @@ function InboxContent() {
                    <textarea value={resSummary} onChange={(e) => setResSummary(e.target.value)} placeholder="ระบุรายละเอียดการแก้ไข เช่น 'แก้ไขส่วนลดให้แล้ว'..." style={{ width: '100%', height: '100px', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '16px', padding: '16px', color: 'var(--text-main)', fontSize: '14px', resize: 'none' }} />
                 </div>
 
-                <div style={{ display: 'flex', gap: '16px' }}>
-                   <button onClick={() => setShowResolveModal(false)} style={{ flex: 1, padding: '16px', borderRadius: '15px', border: '1px solid var(--border)', background: 'var(--bg-input)', color: 'var(--text-main)', fontWeight: '800', cursor: 'pointer' }}>ยกเลิก</button>
-                   <button onClick={handleExecuteResolve} disabled={sending || !resSummary.trim() || !selectedModule} style={{ flex: 1.5, padding: '16px', borderRadius: '15px', border: 'none', background: (sending || !resSummary.trim() || !selectedModule) ? 'var(--border)' : 'var(--success)', color: (sending || !resSummary.trim() || !selectedModule) ? 'var(--text-muted)' : '#000', fontWeight: '900', cursor: 'pointer' }}>
+                <div style={{ display: 'flex', gap: '16px', marginTop: 'auto' }}>
+                   <button onClick={() => setShowResolveModal(false)} style={{ flex: 1, padding: '16px', borderRadius: '15px', border: '1px solid var(--border)', background: 'var(--bg-input)', color: '#6d727b', fontWeight: '800', cursor: 'pointer' }}>ยกเลิก</button>
+                   <button onClick={handleExecuteResolve} disabled={sending || !resSummary.trim() || !selectedModule} style={{ flex: 1.5, padding: '16px', borderRadius: '15px', border: 'none', background: (sending || !resSummary.trim() || !selectedModule) ? 'rgba(40, 199, 111, 0.2)' : 'var(--success)', color: (sending || !resSummary.trim() || !selectedModule) ? 'rgba(0,0,0,0.3)' : '#000', fontWeight: '900', cursor: 'pointer' }}>
                       {sending ? <Loader2 size={18} className="animate-spin" /> : 'ยืนยันปิดงาน'}
                    </button>
                 </div>

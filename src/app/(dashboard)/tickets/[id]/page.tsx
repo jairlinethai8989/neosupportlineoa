@@ -270,8 +270,8 @@ export default function StaffTicketDetailPage() {
       </div>
 
       {showResolveModal && (
-         <div style={{ position: 'fixed', inset: 0, zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(15, 23, 42, 0.4)', padding: '20px', backdropFilter: 'blur(8px)' }}>
-            <div className="glass" style={{ width: '100%', maxWidth: '440px', padding: '32px', borderRadius: '32px', background: 'var(--bg-card)', boxShadow: '0 40px 100px rgba(0,0,0,0.6)', border: '1px solid var(--border)', color: 'var(--text-main)' }}>
+          <div style={{ position: 'fixed', inset: 0, zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(15, 23, 42, 0.4)', padding: '20px', backdropFilter: 'blur(8px)' }}>
+            <div className="glass" style={{ width: '100%', maxWidth: '440px', maxHeight: '90vh', overflowY: 'auto', padding: '32px', borderRadius: '32px', background: 'var(--bg-card)', boxShadow: '0 40px 100px rgba(0,0,0,0.6)', border: '1px solid var(--border)', color: 'var(--text-main)', animation: 'scaleIn 0.3s ease-out' }}>
                <div style={{ textAlign: 'center', marginBottom: '24px' }}>
                   <div style={{ width: '56px', height: '56px', borderRadius: '16px', background: 'rgba(54, 153, 255, 0.1)', color: 'var(--primary)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px' }}><CheckCircle size={28} /></div>
                   <h3 style={{ fontSize: '22px', fontWeight: '900', marginBottom: '6px' }}>ปิดงานใบงาน #{ticket?.ticket_no}</h3>
@@ -304,15 +304,16 @@ export default function StaffTicketDetailPage() {
                   <label style={{ display: 'block', fontSize: '11px', fontWeight: '800', color: 'var(--primary)', textTransform: 'uppercase', marginBottom: '8px' }}>สรุปผลการแก้ไขงาน (RESOLUTION SUMMARY) <span style={{ color: 'var(--danger)' }}>*</span></label>
                   <textarea value={resSummary} onChange={(e) => setResSummary(e.target.value)} placeholder="ระบุรายละเอียดการแก้ไข เช่น 'แก้ไขส่วนลดให้แล้ว'..." style={{ width: '100%', height: '100px', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '16px', padding: '16px', color: 'var(--text-main)', fontSize: '14px', resize: 'none' }} />
                </div>
-               <div style={{ display: 'flex', gap: '16px' }}>
-                  <button onClick={() => setShowResolveModal(false)} style={{ flex: 1, padding: '16px', borderRadius: '15px', border: '1px solid var(--border)', background: 'var(--bg-card)', color: 'var(--text-main)', fontWeight: '800', cursor: 'pointer' }}>ยกเลิก</button>
-                  <button onClick={handleResolve} disabled={updating || !resSummary.trim() || !selectedModule} style={{ flex: 1.5, padding: '16px', borderRadius: '15px', border: 'none', background: (updating || !resSummary.trim() || !selectedModule) ? 'var(--border)' : 'var(--success)', color: (updating || !resSummary.trim() || !selectedModule) ? 'var(--text-muted)' : '#000', fontWeight: '900', cursor: 'pointer' }}>
+               <div style={{ display: 'flex', gap: '16px', marginTop: 'auto' }}>
+                  <button onClick={() => setShowResolveModal(false)} style={{ flex: 1, padding: '16px', borderRadius: '15px', border: '1px solid var(--border)', background: 'var(--bg-card)', color: '#6d727b', fontWeight: '800', cursor: 'pointer' }}>ยกเลิก</button>
+                  <button onClick={handleResolve} disabled={updating || !resSummary.trim() || !selectedModule} style={{ flex: 1.5, padding: '16px', borderRadius: '15px', border: 'none', background: (updating || !resSummary.trim() || !selectedModule) ? 'rgba(40, 199, 111, 0.2)' : 'var(--success)', color: (updating || !resSummary.trim() || !selectedModule) ? 'rgba(0,0,0,0.3)' : '#000', fontWeight: '900', cursor: 'pointer' }}>
                      {updating ? <Loader2 size={18} className="animate-spin" /> : 'ยืนยันปิดงาน'}
                   </button>
                </div>
             </div>
-         </div>
+          </div>
       )}
+
       <input type="file" ref={adminFileRef} onChange={handleAdminFile} style={{ display: 'none' }} />
       {showViewer && viewingImage && <ImageViewerModal imageUrl={viewingImage} onClose={() => { setShowViewer(false); setViewingImage(null); }} onEdit={(u) => { setEditingImage(u); setShowEditor(true); }} />}
       {showEditor && editingImage && <ImageEditorModal imageUrl={editingImage} onClose={() => { setShowEditor(false); setEditingImage(null); }} onSave={handleEditorSave} />}
