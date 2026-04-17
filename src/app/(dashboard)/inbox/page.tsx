@@ -278,12 +278,16 @@ function InboxContent() {
   };
 
   const handleClaim = async () => {
-    if (!selectedChat?.current_ticket_id || !agent) return;
+    const ticketId = currentTicket?.id || selectedChat?.current_ticket_id;
+    if (!ticketId || !agent) {
+      console.error('Claim Error: No Ticket ID found', { ticketId, agentId: agent?.id });
+      return;
+    }
     try {
-      await ticketService.claimTicket(selectedChat.current_ticket_id, agent.id);
+      await ticketService.claimTicket(ticketId, agent.id);
       
       // Refetch ticket data to update UI immediately
-      const { data: ticket } = await supabase.from('tickets').select('*').eq('id', selectedChat.current_ticket_id).single();
+      const { data: ticket } = await supabase.from('tickets').select('*').eq('id', ticketId).single();
       if (ticket) setCurrentTicket(ticket);
       
       addToast({
