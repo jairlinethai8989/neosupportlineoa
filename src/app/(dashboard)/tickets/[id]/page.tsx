@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { 
@@ -33,6 +33,9 @@ export default function StaffTicketDetailPage() {
   const [logs, setLogs] = useState<any[]>([]);
   const [messages, setMessages] = useState<any[]>([]);
   const [conversationId, setConversationId] = useState<string | null>(null);
+  // Ref keeps the latest conversationId available to realtime handlers
+  // without causing channel re-subscription on every state change
+  const conversationIdRef = useRef<string | null>(null);
   const [isChatActive, setIsChatActive] = useState(false);
   const { addToast } = useNotificationContext();
 
@@ -86,13 +89,9 @@ export default function StaffTicketDetailPage() {
         setSelectedDept(ticketData.department || '');
         setSelectedModule(ticketData.module || '');
 
-        // Fetch Logs & Messages
-        const [lRes, mRes] = await Promise.all([
-           supabase.from('ticket_logs').select('*').eq('ticket_id', id).order('created_at', { ascending: false }),
-           supabase.from('messages').select('*').eq('ticket_id', id).order('created_at', { ascending: true })
-        ]);
+        // Fetch Logs
+        const lRes = await supabase.from('ticket_logs').select('*').eq('ticket_id', id).order('created_at', { ascending: false });
         if (lRes.data) setLogs(lRes.data);
-        if (mRes.data) setMessages(mRes.data);
 
         // Fetch active conversation
         const { data: conv } = await supabase
@@ -103,10 +102,20 @@ export default function StaffTicketDetailPage() {
            .maybeSingle();
         if (conv) {
           setConversationId(conv.id);
+          conversationIdRef.current = conv.id; // sync ref immediately for realtime handler
           setIsChatActive(true);
         } else {
           setIsChatActive(false);
         }
+
+        // Fetch all messages (by ticket_id OR conversation_id)
+        const cid = conversationIdRef.current;
+        const mQuery = supabase.from('messages').select('*');
+        const { data: msgData } = await (cid
+          ? mQuery.or(`ticket_id.eq.${id},conversation_id.eq.${cid}`)
+          : mQuery.eq('ticket_id', id)
+        ).order('created_at', { ascending: true });
+        if (msgData) setMessages(msgData);
       }
 
       const { data: companyData } = await supabase.from('company_settings').select('id, departments, modules, resolution_templates').limit(1).single();
@@ -172,60 +181,54 @@ export default function StaffTicketDetailPage() {
   };
 
   useEffect(() => {
-    fetchData();
-    const channel = supabase
-      .channel(`ticket-messages-${id}`)
-      .on('postgres_changes', { 
-        event: 'INSERT', 
-        schema: 'public', 
-        table: 'messages',
-        filter: `ticket_id=eq.${id}`
-      }, (payload: any) => {
-        setMessages(prev => {
-           if (prev.some(m => m.id === payload.new.id)) return prev;
-           return [...prev, payload.new];
+    // Run fetch first so conversationIdRef is populated before subscribing
+    fetchData().then(() => {
+      const channel = supabase
+        .channel(`staff-ticket-${id}`)
+        // Broad listener: filter inside handler using ref (avoids stale-closure bug)
+        .on('postgres_changes', {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'messages',
+        }, (payload: any) => {
+          const msg = payload.new;
+          const cid = conversationIdRef.current;
+          const belongs =
+            msg.ticket_id === id ||
+            (cid && msg.conversation_id === cid);
+          if (!belongs) return;
+          setMessages(prev => {
+            if (prev.some(m => m.id === msg.id)) return prev;
+            return [...prev, msg];
+          });
+        })
+        .on('postgres_changes', {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'messages',
+        }, (payload: any) => {
+          setMessages(prev => prev.map(m => m.id === payload.new.id ? payload.new : m));
+        })
+        .on('postgres_changes', {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'tickets',
+          filter: `id=eq.${id}`
+        }, (payload: any) => {
+          setTicket((prev: any) => prev ? ({ ...prev, ...payload.new }) : prev);
+          setStatus(payload.new.status);
+        })
+        .subscribe((status) => {
+          console.log(`Staff Realtime Status (ticket=${id}):`, status);
         });
-      });
 
-    if (conversationId) {
-      channel.on('postgres_changes', {
-        event: 'INSERT',
-        schema: 'public',
-        table: 'messages',
-        filter: `conversation_id=eq.${conversationId}`
-      }, (payload: any) => {
-        setMessages(prev => {
-           if (prev.some(m => m.id === payload.new.id)) return prev;
-           return [...prev, payload.new];
-        });
-      });
-    }
+      return () => { supabase.removeChannel(channel); };
+    });
 
-    channel
-      .on('postgres_changes', {
-        event: 'UPDATE',
-        schema: 'public',
-        table: 'messages'
-      }, (payload: any) => {
-         setMessages(prev => prev.map(m => m.id === payload.new.id ? payload.new : m));
-      })
-      .on('postgres_changes', {
-        event: 'UPDATE',
-        schema: 'public',
-        table: 'tickets',
-        filter: `id=eq.${id}`
-      }, (payload: any) => {
-        setTicket((prev: any) => prev ? ({ ...prev, ...payload.new }) : prev);
-        setStatus(payload.new.status);
-      })
-      .subscribe((status) => {
-        if (status === 'SUBSCRIBED') {
-          console.log(`Staff Realtime Connected (${id})`);
-        }
-      });
-
-    return () => { supabase.removeChannel(channel); };
-  }, [id, conversationId]);
+    return () => {
+      conversationIdRef.current = null;
+    };
+  }, [id]);
 
   const handleExportSummary = (format: 'pdf' | 'xlsx') => {
     if (!ticket) return;

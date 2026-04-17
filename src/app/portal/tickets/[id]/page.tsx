@@ -2,7 +2,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @next/next/no-img-element */
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { 
@@ -37,6 +37,9 @@ export default function TicketDetailPage() {
   const [editingImage, setEditingImage] = useState<string>('');
   const [viewingImage, setViewingImage] = useState<string>('');
   const [conversationId, setConversationId] = useState<string | null>(null);
+  // Use a ref so realtime handler always has the latest conversationId
+  // without needing to re-subscribe every time state changes
+  const conversationIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (!id) return;
@@ -58,29 +61,39 @@ export default function TicketDetailPage() {
            return;
         }
 
-        const { data: ticketData, error: e2 } = await supabase
+        const { data: ticketData } = await supabase
           .from('tickets')
-          .select(`
-            *,
-            assigned_agent:profiles!assigned_agent_id(*)
-          `)
+          .select(`*, assigned_agent:profiles!assigned_agent_id(*)`)
           .eq('id', id)
           .maybeSingle();
 
-        if (ticketData) {
-          setTicket(ticketData);
-        } else {
-          setTicket(tBase);
-        }
+        setTicket(ticketData || tBase);
         
+        // Try to find conversation by current_ticket_id OR by customer_id
+        let cid: string | null = null;
         const { data: convData } = await supabase
           .from('conversations')
           .select('id')
           .eq('current_ticket_id', id)
           .maybeSingle();
+        cid = convData?.id || null;
 
-        const cid = convData?.id || null;
-        if (cid) setConversationId(cid);
+        // Fallback: try searching by customer_id of this ticket
+        if (!cid && tBase.customer_id) {
+          const { data: convFallback } = await supabase
+            .from('conversations')
+            .select('id')
+            .eq('customer_id', tBase.customer_id)
+            .eq('status', 'active')
+            .maybeSingle();
+          cid = convFallback?.id || null;
+        }
+
+        // Set both state and ref so realtime handler is immediately aware
+        if (cid) {
+          setConversationId(cid);
+          conversationIdRef.current = cid;
+        }
 
         const [lRes, mRes] = await Promise.all([
            supabase.from('ticket_logs').select('*').eq('ticket_id', id).order('created_at', { ascending: false }),
@@ -99,64 +112,58 @@ export default function TicketDetailPage() {
         setLoading(false);
       }
     }
-    fetchTicketData();
 
-    const channel = supabase
-      .channel(`customer-ticket-realtime-${id}`)
-      .on('postgres_changes', { 
-        event: 'INSERT', 
-        schema: 'public', 
-        table: 'messages',
-        filter: `ticket_id=eq.${id}`
-      }, (payload: any) => {
-        setMessages(prev => {
-           if (prev.some(m => m.id === payload.new.id)) return prev;
-           return [...prev, payload.new];
+    // Run fetch first, then subscribe
+    fetchTicketData().then(() => {
+      const channel = supabase
+        .channel(`portal-ticket-${id}`)
+        // Listen to ALL message inserts — filter inside handler using ref
+        .on('postgres_changes', {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'messages',
+        }, (payload: any) => {
+          const msg = payload.new;
+          const cid = conversationIdRef.current;
+          // Accept message if it belongs to this ticket or this conversation
+          const belongs =
+            msg.ticket_id === id ||
+            (cid && msg.conversation_id === cid);
+          if (!belongs) return;
+          setMessages(prev => {
+            if (prev.some(m => m.id === msg.id)) return prev;
+            return [...prev, msg];
+          });
+        })
+        .on('postgres_changes', {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'messages',
+        }, (payload: any) => {
+          setMessages(prev => prev.map(m => m.id === payload.new.id ? payload.new : m));
+        })
+        .on('postgres_changes', {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'tickets',
+          filter: `id=eq.${id}`
+        }, (payload: any) => {
+          setTicket((prev: any) => prev ? ({ ...prev, ...payload.new }) : prev);
+          supabase.from('ticket_logs').select('*').eq('ticket_id', id).order('created_at', { ascending: false })
+            .then(({ data }: any) => { if (data) setLogs(data); });
+        })
+        .subscribe((status) => {
+          console.log(`Portal Realtime Status (ticket=${id}):`, status);
         });
-      });
 
-    if (conversationId) {
-      channel.on('postgres_changes', {
-        event: 'INSERT',
-        schema: 'public',
-        table: 'messages',
-        filter: `conversation_id=eq.${conversationId}`
-      }, (payload: any) => {
-        setMessages(prev => {
-           if (prev.some(m => m.id === payload.new.id)) return prev;
-           return [...prev, payload.new];
-        });
-      });
-    }
+      return () => { supabase.removeChannel(channel); };
+    });
 
-    channel
-      .on('postgres_changes', {
-        event: 'UPDATE',
-        schema: 'public',
-        table: 'messages'
-      }, (payload: any) => {
-         setMessages(prev => prev.map(m => m.id === payload.new.id ? payload.new : m));
-      })
-      .on('postgres_changes', {
-        event: 'UPDATE',
-        schema: 'public',
-        table: 'tickets',
-        filter: `id=eq.${id}`
-      }, (payload: any) => {
-        setTicket((prev: any) => prev ? ({ ...prev, ...payload.new }) : prev);
-        supabase.from('ticket_logs').select('*').eq('ticket_id', id).order('created_at', { ascending: false })
-          .then(({ data }: any) => { if (data) setLogs(data); });
-      })
-      .subscribe((status) => {
-         if (status === 'SUBSCRIBED') {
-            console.log(`Realtime Connected (${id})`);
-         }
-      });
-
+    // Cleanup on unmount/id change
     return () => {
-      if (channel) supabase.removeChannel(channel);
+      conversationIdRef.current = null;
     };
-  }, [id, conversationId]);
+  }, [id]);
 
   const handleEditExistingImage = (url: string) => {
     setViewingImage(url);
