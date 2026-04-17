@@ -29,11 +29,10 @@ export default function PortalPage() {
   const [needsRegistration, setNeedsRegistration] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
-  const fetchTickets = async () => {
+  const fetchTickets = async (silent = false) => {
     if (!profile?.userId) return;
-    setFetching(true);
+    if (!silent) setFetching(true);
     
-    // Simplified parallel-safe fetching
     try {
       const { data: customer } = await supabase
         .from('customers')
@@ -45,7 +44,6 @@ export default function PortalPage() {
         setCustomerData(customer);
         if (customer.hospital_id) {
           setNeedsRegistration(false);
-          // Fetch tickets in parallel or immediately after
           const { data: ticketData } = await supabase
             .from('tickets')
             .select('*, assigned_agent:profiles!assigned_agent_id (id, display_name)')
@@ -67,22 +65,43 @@ export default function PortalPage() {
   };
 
   useEffect(() => {
-    let isMounted = true;
     if (profile?.userId) {
        fetchTickets();
     }
     
-    // Auto-refresh when window gains focus (e.g. back from browser or background)
-    const onFocus = () => {
-       if (profile?.userId) fetchTickets();
+    // Refresh on focus or back navigation
+    const onRefresh = () => {
+       if (profile?.userId) fetchTickets(true);
     };
-    window.addEventListener('focus', onFocus);
+    window.addEventListener('focus', onRefresh);
+    window.addEventListener('popstate', onRefresh);
 
     return () => { 
-       isMounted = false; 
-       window.removeEventListener('focus', onFocus);
+       window.removeEventListener('focus', onRefresh);
+       window.removeEventListener('popstate', onRefresh);
     };
   }, [profile?.userId]);
+
+  // Realtime subscription for ticket updates
+  useEffect(() => {
+    if (!customerData?.id) return;
+
+    const channel = supabase
+      .channel(`portal_tickets_${customerData.id}`)
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'tickets',
+        filter: `customer_id=eq.${customerData.id}`
+      }, () => {
+        fetchTickets(true);
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [customerData?.id]);
 
   if (!isReady || (profile && fetching && !needsRegistration)) {
     return (
@@ -139,7 +158,7 @@ export default function PortalPage() {
     );
   }
 
-  const closedStatuses = ['resolved', 'closed'];
+  const closedStatuses = ['resolved', 'closed', 'canceled'];
   const activeTickets = tickets.filter(t => !closedStatuses.includes(String(t.status || '').toLowerCase()));
   const pastTickets = tickets.filter(t => closedStatuses.includes(String(t.status || '').toLowerCase()));
 
@@ -225,7 +244,7 @@ export default function PortalPage() {
              <h3 style={{ fontSize: '13px', fontWeight: '800', color: 'var(--portal-text-muted)', textTransform: 'uppercase', letterSpacing: '0.8px' }}>ประวัติการแจ้งงาน</h3>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-             {pastTickets.slice(0, 5).map(ticket => (
+             {pastTickets.slice(0, 20).map(ticket => (
                 <Link href={`/portal/tickets/${ticket.id}`} key={ticket.id} style={{ textDecoration: 'none', color: 'inherit' }}>
                    <div className="portal-glass" style={{ padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'white', border: '1px solid rgba(0,0,0,0.02)' }}>
                       <div>
