@@ -378,7 +378,7 @@ function InboxContent() {
 
                 <div style={{ marginBottom: '24px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                       <label style={{ fontSize: '11px', fontWeight: '800', color: 'var(--primary)', textTransform: 'uppercase' }}>เทมเพลตส่วนตัว</label>
+                       <label style={{ fontSize: '11px', fontWeight: '800', color: 'var(--primary)', textTransform: 'uppercase' }}>Efficiency Tools</label>
                        <button onClick={() => setIsManagingTemplates(!isManagingTemplates)} style={{ fontSize: '10px', color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}>{isManagingTemplates ? 'เสร็จสิ้น' : 'จัดการ'}</button>
                     </div>
                     <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
@@ -388,27 +388,27 @@ function InboxContent() {
                               {isManagingTemplates && <button onClick={() => removeResTemplate(idx)} style={{ position: 'absolute', top: '-8px', right: '-8px', width: '20px', height: '20px', borderRadius: '50%', background: 'var(--danger)', color: 'white', border: 'none', cursor: 'pointer' }}>×</button>}
                            </div>
                         ))}
-                        {isManagingTemplates && <button onClick={() => { const v=prompt('เพิ่มเทมเพลต:'); if(v) addResTemplate(v); }} style={{ padding: '8px 16px', borderRadius: '12px', border: '1px dashed var(--primary)', color: 'var(--primary)', cursor: 'pointer' }}>+ เพิ่มส่วนตัว</button>}
-                        {(personalResTemplates.length === 0 && !isManagingTemplates) && <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>ยังไม่ได้ตั้งค่าเทมเพลต</p>}
+                        {isManagingTemplates && <button onClick={() => { const v=prompt('เพิ่มเทมเพลต:'); if(v) addResTemplate(v); }} style={{ padding: '8px 16px', borderRadius: '12px', border: '1px dashed var(--primary)', color: 'var(--primary)', cursor: 'pointer' }}>+ เพิ่มใหม่</button>}
+                        {(personalResTemplates.length === 0 && !isManagingTemplates) && <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>ยังไม่มีข้อมูลใน Efficiency Tools</p>}
                     </div>
                 </div>
 
                 <div style={{ marginBottom: '24px' }}>
                     <label style={{ display: 'block', fontSize: '11px', fontWeight: '800', color: 'var(--primary)', textTransform: 'uppercase', marginBottom: '8px' }}>Module <span style={{ color: 'var(--danger)' }}>*</span></label>
-                    <select value={selectedModule} onChange={(e) => setSelectedModule(e.target.value)} style={{ width: '100%', padding: '14px', borderRadius: '12px', background: 'var(--primary)', color: 'black', fontWeight: '800', border: 'none' }}>
+                    <select value={selectedModule} onChange={(e) => setSelectedModule(e.target.value)} style={{ width: '100%', padding: '14px', borderRadius: '12px', background: 'var(--primary)', color: '#000', fontWeight: '800', border: 'none' }}>
                        <option value="">-- เลือกโมดูล --</option>
                        {availableModules.map(m => <option key={m} value={m}>{m}</option>)}
                     </select>
                 </div>
 
                 <div style={{ marginBottom: '32px' }}>
-                   <label style={{ display: 'block', fontSize: '11px', fontWeight: '800', color: 'var(--primary)', textTransform: 'uppercase', marginBottom: '8px' }}>สรุปผล <span style={{ color: 'var(--danger)' }}>*</span></label>
-                   <textarea value={resSummary} onChange={(e) => setResSummary(e.target.value)} placeholder="รายละเอียดการแก้ไข..." style={{ width: '100%', height: '100px', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '16px', padding: '16px', color: 'var(--text-main)', fontSize: '14px', resize: 'none' }} />
+                   <label style={{ display: 'block', fontSize: '11px', fontWeight: '800', color: 'var(--primary)', textTransform: 'uppercase', marginBottom: '8px' }}>สรุปผลการแก้ไขงาน (RESOLUTION SUMMARY) <span style={{ color: 'var(--danger)' }}>*</span></label>
+                   <textarea value={resSummary} onChange={(e) => setResSummary(e.target.value)} placeholder="ระบุรายละเอียดการแก้ไข เช่น 'แก้ไขส่วนลดให้แล้ว'..." style={{ width: '100%', height: '100px', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '16px', padding: '16px', color: 'var(--text-main)', fontSize: '14px', resize: 'none' }} />
                 </div>
 
                 <div style={{ display: 'flex', gap: '16px' }}>
-                   <button onClick={() => setShowResolveModal(false)} style={{ flex: 1, padding: '16px', borderRadius: '15px', border: '1px solid var(--border)', background: 'rgba(255,255,255,0.02)', color: 'var(--text-muted)', fontWeight: '800', cursor: 'pointer' }}>ยกเลิก</button>
-                   <button onClick={handleExecuteResolve} disabled={sending || !resSummary.trim() || !selectedModule} style={{ flex: 1.5, padding: '16px', borderRadius: '15px', border: 'none', background: (sending || !resSummary.trim() || !selectedModule) ? 'var(--bg-card)' : 'var(--success)', color: (sending || !resSummary.trim() || !selectedModule) ? 'var(--text-muted)' : '#000', fontWeight: '900', cursor: 'pointer' }}>
+                   <button onClick={() => setShowResolveModal(false)} style={{ flex: 1, padding: '16px', borderRadius: '15px', border: '1px solid var(--border)', background: 'var(--bg-input)', color: 'var(--text-main)', fontWeight: '800', cursor: 'pointer' }}>ยกเลิก</button>
+                   <button onClick={handleExecuteResolve} disabled={sending || !resSummary.trim() || !selectedModule} style={{ flex: 1.5, padding: '16px', borderRadius: '15px', border: 'none', background: (sending || !resSummary.trim() || !selectedModule) ? 'var(--border)' : 'var(--success)', color: (sending || !resSummary.trim() || !selectedModule) ? 'var(--text-muted)' : '#000', fontWeight: '900', cursor: 'pointer' }}>
                       {sending ? <Loader2 size={18} className="animate-spin" /> : 'ยืนยันปิดงาน'}
                    </button>
                 </div>
