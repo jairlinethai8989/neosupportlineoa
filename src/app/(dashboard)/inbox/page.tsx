@@ -723,15 +723,17 @@ function InboxContent() {
         />
       )}
 
-      <ImageEditorModal 
-        isOpen={isEditorOpen}
-        imageSrc={editingImage}
-        onClose={() => setIsEditorOpen(false)}
-        onSave={(blob) => {
-          const file = new File([blob], "edited_image.png", { type: "image/png" });
-          handleConfirmAttachment(file, 'image');
-        }}
-      />
+      {isEditorOpen && editingImage && (
+        <ImageEditorModal 
+          imageUrl={editingImage}
+          onClose={() => setIsEditorOpen(false)}
+          onSave={async (blob) => {
+            const file = new File([blob], "edited_image.png", { type: "image/png" });
+            await handleConfirmAttachment(file, 'image');
+            setIsEditorOpen(false);
+          }}
+        />
+      )}
 
       {showResolveModal && (
           <div style={{

@@ -45,7 +45,6 @@ export default function TicketDetailPage() {
       if (!id) return;
       setLoading(true);
       try {
-        // Stage 1: Fetch Base Ticket
         const { data: tBase, error: e1 } = await supabase
           .from('tickets')
           .select('*')
@@ -59,7 +58,6 @@ export default function TicketDetailPage() {
            return;
         }
 
-        // Stage 2: Attempt Relations
         const { data: ticketData, error: e2 } = await supabase
           .from('tickets')
           .select(`
@@ -75,7 +73,6 @@ export default function TicketDetailPage() {
           setTicket(tBase);
         }
         
-        // 1. Fetch linked conversation FIRST
         const { data: convData } = await supabase
           .from('conversations')
           .select('id')
@@ -85,7 +82,6 @@ export default function TicketDetailPage() {
         const cid = convData?.id || null;
         if (cid) setConversationId(cid);
 
-        // 2. Fetch Logs & Messages
         const [lRes, mRes] = await Promise.all([
            supabase.from('ticket_logs').select('*').eq('ticket_id', id).order('created_at', { ascending: false }),
            supabase.from('messages')
@@ -105,10 +101,8 @@ export default function TicketDetailPage() {
     }
     fetchTicketData();
 
-    // Real-time subscription for chat and ticket updates
     const channel = supabase
       .channel(`customer-ticket-realtime-${id}`)
-      // 1. Listen for new messages
       .on('postgres_changes', { 
         event: '*', 
         schema: 'public', 
@@ -117,16 +111,13 @@ export default function TicketDetailPage() {
       }, () => {
         fetchTicketData();
       })
-      // 2. Listen for ticket status changes
       .on('postgres_changes', {
         event: 'UPDATE',
         schema: 'public',
         table: 'tickets',
         filter: `id=eq.${id}`
       }, (payload: any) => {
-        console.log('Ticket updated:', payload.new);
         setTicket((prev: any) => prev ? ({ ...prev, ...payload.new }) : prev);
-        // Also fetch logs to update timeline
         supabase.from('ticket_logs').select('*').eq('ticket_id', id).order('created_at', { ascending: false })
           .then(({ data }: any) => { if (data) setLogs(data); });
       })
@@ -145,7 +136,6 @@ export default function TicketDetailPage() {
   const handleSendMessage = async () => {
     if (!newMessage.trim()) return;
     
-    // Optimistic Update
     const optimisticMsg = {
        content: newMessage,
        sender_type: 'customer',
@@ -231,7 +221,6 @@ export default function TicketDetailPage() {
      </div>
   );
 
-  // Status mapping for visual tracker
   const statusLevels: Record<string, number> = {
     'new': 1,
     'pending': 1,
@@ -245,7 +234,6 @@ export default function TicketDetailPage() {
 
   return (
     <div className="portal-container" style={{ animation: 'fadeIn 0.5s ease-out' }}>
-       {/* 1. Navbar */}
        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px', padding: '0 4px' }}>
           <button onClick={() => router.push('/portal')} style={{ padding: '8px', borderRadius: '12px', border: '1px solid var(--portal-border)', background: 'white', color: '#1e293b', cursor: 'pointer' }}>
              <ArrowLeft size={18} />
@@ -253,14 +241,12 @@ export default function TicketDetailPage() {
           <h2 style={{ fontSize: '18px', fontWeight: '900', color: '#1e293b' }}>ตั๋วเลขที่ #{ticket.ticket_no}</h2>
        </div>
 
-       {/* 2. Private Chat Workspace */}
        <section className="portal-glass" style={{ padding: '20px', marginBottom: '24px', display: 'flex', flexDirection: 'column', height: '450px', background: 'white' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px', borderBottom: '1px solid var(--portal-border)', paddingBottom: '12px' }}>
              <MessageCircle size={16} color="var(--portal-primary)" />
              <h3 style={{ fontSize: '13px', fontWeight: '800', color: '#1e293b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>สนทนากับเจ้าหน้าที่</h3>
           </div>
 
-          {/* Chat Messages */}
           <div style={{ flex: 1, overflowY: 'auto', marginBottom: '20px', display: 'flex', flexDirection: 'column', gap: '14px', padding: '0 4px' }} className="no-scrollbar">
              {messages.filter((m: any) => m.message_type !== 'unsent').map((msg, idx) => (
                 <div key={idx} style={{ 
@@ -279,7 +265,7 @@ export default function TicketDetailPage() {
                             style={{ maxWidth: '100%', borderRadius: '12px', cursor: 'pointer' }} 
                             alt="Attachment" 
                             onClick={() => handleEditExistingImage(msg.content)}
-                            title="คลิกเพื่อทำการแก้ไขภาพ (Edit/Draw)"
+                            title="คลิกเพื่อทำการขยายภาพ"
                           />
                        ) : msg.message_type === 'file' || (msg.content?.startsWith('http') && msg.message_type !== 'text') ? (
                           <a href={msg.content} target="_blank" rel="noreferrer" style={{ textDecoration: 'none', color: 'inherit', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -297,32 +283,31 @@ export default function TicketDetailPage() {
              {messages.length === 0 && <p style={{ textAlign: 'center', color: 'var(--portal-text-muted)', fontSize: '13px', marginTop: '40px' }}>ยังไม่มีข้อความ เริ่มคุยกับเราได้เลยครับ</p>}
           </div>
 
-          {/* Chat Input */}
           {ticket.status !== 'Resolved' && ticket.status !== 'Closed' ? (
             <div style={{ display: 'flex', gap: '10px', alignItems: 'center', background: '#f8fafc', padding: '8px', borderRadius: '16px' }}>
-              <button 
-                onClick={() => setIsAttachModalOpen(true)} 
-                style={{ width: '40px', height: '40px', borderRadius: '12px', border: 'none', background: 'white', color: '#64748b', cursor: 'pointer', boxShadow: '0 2px 5px rgba(0,0,0,0.05)' }} 
-                className="flex-center"
-              >
-                 <Paperclip size={18} />
-              </button>
-              <input 
-                type="text" 
-                placeholder="เขียนข้อความถึงเจ้าหน้าที่..." 
-                value={newMessage}
-                onChange={(e) => setNewMessage(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
-                style={{ flex: 1, background: 'transparent', border: 'none', borderRadius: '10px', padding: '10px', color: '#1e293b', outline: 'none', fontSize: '14px' }}
-              />
-              <button 
-                onClick={handleSendMessage}
-                disabled={sending}
-                style={{ width: '40px', height: '40px', borderRadius: '12px', border: 'none', background: '#1e293b', color: 'white', cursor: 'pointer' }}
-                className="flex-center"
-              >
-                  {sending ? <Loader2 size={18} className="animate-spin" /> : <SendHorizontal size={18} />}
-              </button>
+               <button 
+                 onClick={() => setIsAttachModalOpen(true)} 
+                 style={{ width: '40px', height: '40px', borderRadius: '12px', border: 'none', background: 'white', color: '#64748b', cursor: 'pointer', boxShadow: '0 2px 5px rgba(0,0,0,0.05)' }} 
+                 className="flex-center"
+               >
+                  <Paperclip size={18} />
+               </button>
+               <input 
+                 type="text" 
+                 placeholder="เขียนข้อความถึงเจ้าหน้าที่..." 
+                 value={newMessage}
+                 onChange={(e) => setNewMessage(e.target.value)}
+                 onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
+                 style={{ flex: 1, background: 'transparent', border: 'none', borderRadius: '10px', padding: '10px', color: '#1e293b', outline: 'none', fontSize: '14px' }}
+               />
+               <button 
+                 onClick={handleSendMessage}
+                 disabled={sending}
+                 style={{ width: '40px', height: '40px', borderRadius: '12px', border: 'none', background: '#1e293b', color: 'white', cursor: 'pointer' }}
+                 className="flex-center"
+               >
+                   {sending ? <Loader2 size={18} className="animate-spin" /> : <SendHorizontal size={18} />}
+               </button>
             </div>
           ) : (
             <div style={{ padding: '16px', borderRadius: '16px', background: '#f0fdf4', border: '1px solid #dcfce7', textAlign: 'center' }}>
@@ -333,7 +318,6 @@ export default function TicketDetailPage() {
           )}
        </section>
 
-       {/* 3. Status Tracker */}
        <section className="portal-glass" style={{ padding: '24px', marginBottom: '24px', background: 'white', border: '1px solid var(--portal-border)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px', alignItems: 'center' }}>
              <h3 style={{ fontSize: '12px', fontWeight: '800', color: 'var(--portal-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>สถานะปัจจุบัน</h3>
@@ -342,7 +326,6 @@ export default function TicketDetailPage() {
              </span>
           </div>
 
-          {/* Progress Bar */}
           <div style={{ height: '6px', background: '#f1f5f9', borderRadius: '10px', overflow: 'hidden', display: 'flex', gap: '4px', marginBottom: '20px' }}>
              {[1, 2, 3, 4].map(step => (
                 <div key={step} style={{ 
@@ -389,7 +372,6 @@ export default function TicketDetailPage() {
            )}
         </div>
 
-       {/* 5. Timeline */}
        <section className="portal-glass" style={{ padding: '24px', background: 'white' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px' }}>
              <Clock size={16} color="var(--portal-primary)" />
@@ -432,17 +414,17 @@ export default function TicketDetailPage() {
            }}
         />
 
-        <ImageEditorModal 
-           isOpen={isEditorOpen}
-           onClose={() => setIsEditorOpen(false)}
-           imageSrc={editingImage}
-           saveLabel="Send Image"
-           onSave={async (blob) => {
-              const file = new File([blob], `edit_${Date.now()}.jpg`, { type: 'image/jpeg' });
-              await handleConfirmAttachment(file, 'image');
-              setIsEditorOpen(false);
-           }}
-        />
+        {isEditorOpen && editingImage && (
+           <ImageEditorModal 
+              imageUrl={editingImage}
+              onClose={() => setIsEditorOpen(false)}
+              onSave={async (blob) => {
+                 const file = new File([blob], `edit_${Date.now()}.jpg`, { type: 'image/jpeg' });
+                 await handleConfirmAttachment(file, 'image');
+                 setIsEditorOpen(false);
+              }}
+           />
+        )}
 
         {isViewerOpen && viewingImage && (
            <ImageViewerModal 
