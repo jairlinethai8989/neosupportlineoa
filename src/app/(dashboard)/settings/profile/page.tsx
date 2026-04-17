@@ -121,19 +121,57 @@ export default function ProfileSettingsPage() {
     }
   };
 
-  const addTemplate = (type: 'quick' | 'res', text: string) => {
-    if (!text.trim()) return;
+  const addTemplate = async (type: 'quick' | 'res', text: string) => {
+    if (!text.trim() || !profile) return;
     const key = type === 'quick' ? 'quick_replies' : 'resolution_templates';
     const current = profile[key] || [];
     if (current.includes(text)) return;
-    setProfile({ ...profile, [key]: [...current, text] });
+    
+    const updatedList = [...current, text];
+    const updatedProfile = { ...profile, [key]: updatedList };
+    setProfile(updatedProfile);
+
+    // Auto-save to Supabase immediately for better UX
+    try {
+      const { error } = await supabase.from('profiles').update({
+        [key]: updatedList,
+        updated_at: new Date().toISOString()
+      }).eq('id', profile.id);
+      
+      if (!error) {
+        setToastMsg('บันทึกเทมเพลตอัตโนมัติสำเร็จ! ✨');
+        setShowToast(true);
+        setTimeout(() => setShowToast(false), 2000);
+      }
+    } catch (err) {
+      console.error('Auto-save failed:', err);
+    }
   };
 
-  const removeTemplate = (type: 'quick' | 'res', index: number) => {
+  const removeTemplate = async (type: 'quick' | 'res', index: number) => {
+    if (!profile) return;
     const key = type === 'quick' ? 'quick_replies' : 'resolution_templates';
     const current = profile[key] || [];
     const next = current.filter((_: any, i: number) => i !== index);
-    setProfile({ ...profile, [key]: next });
+    
+    const updatedProfile = { ...profile, [key]: next };
+    setProfile(updatedProfile);
+
+    // Auto-save to Supabase immediately
+    try {
+      const { error } = await supabase.from('profiles').update({
+        [key]: next,
+        updated_at: new Date().toISOString()
+      }).eq('id', profile.id);
+
+      if (!error) {
+        setToastMsg('ลบเทมเพลตเรียบร้อย! 🗑️');
+        setShowToast(true);
+        setTimeout(() => setShowToast(false), 2000);
+      }
+    } catch (err) {
+      console.error('Auto-delete failed:', err);
+    }
   };
 
   const handleChangePassword = async (e: React.FormEvent) => {
@@ -162,9 +200,44 @@ export default function ProfileSettingsPage() {
 
   return (
     <div style={{ animation: 'fadeIn 0.5s ease-out' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '32px' }}>
-         <Link href="/" style={{ color: 'var(--text-muted)' }}><ChevronLeft size={24} /></Link>
-         <h1 style={{ fontSize: '28px', fontWeight: '800' }}>ข้อมูลส่วนตัวของฉัน</h1>
+      <div style={{ 
+        display: 'flex', 
+        alignItems: 'center', 
+        justifyContent: 'space-between', 
+        gap: '12px', 
+        marginBottom: '32px',
+        position: 'sticky',
+        top: '-20px',
+        zIndex: 50,
+        background: 'var(--bg-main)',
+        padding: '20px 0',
+        borderBottom: '1px solid var(--border)'
+      }}>
+         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+            <Link href="/" style={{ color: 'var(--text-muted)', background: 'var(--bg-card)', padding: '8px', borderRadius: '10px', border: '1px solid var(--border)' }}><ChevronLeft size={24} /></Link>
+            <div>
+              <h1 style={{ fontSize: '28px', fontWeight: '800', lineHeight: 1 }}>ข้อมูลส่วนตัวของฉัน</h1>
+              <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px', textTransform: 'uppercase', letterSpacing: '1px' }}>Manage your profile and preferences</p>
+            </div>
+         </div>
+         <button 
+          onClick={handleSaveProfile}
+          disabled={saving || uploading}
+          className="glass-interactive" 
+          style={{ 
+            padding: '12px 24px', 
+            borderRadius: '14px', 
+            background: 'var(--primary)', 
+            border: 'none', 
+            color: '#000', 
+            fontWeight: '900', 
+            display: 'flex', 
+            alignItems: 'center', 
+            gap: '10px',
+            boxShadow: '0 8px 25px rgba(0, 242, 254, 0.3)'
+          }}>
+            {saving ? <Loader2 className="animate-spin" size={20} /> : <><Save size={20} /> บันทึกการเปลี่ยนแปลง</>}
+         </button>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '32px' }}>
@@ -270,13 +343,6 @@ export default function ProfileSettingsPage() {
                     ))}
                   </select>
                </div>
-               <button 
-                onClick={handleSaveProfile}
-                disabled={saving || uploading}
-                className="glass-interactive" 
-                style={{ width: '100%', padding: '16px', borderRadius: '15px', background: 'var(--primary)', border: 'none', color: '#000', fontWeight: '900', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', marginTop: '12px' }}>
-                  {saving ? <Loader2 className="animate-spin" /> : <><Save size={20} /> บันทึกข้อมูล (SAVE PROFILE)</>}
-               </button>
             </div>
          </div>
 
