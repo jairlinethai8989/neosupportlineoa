@@ -70,6 +70,8 @@ function InboxContent() {
   const [availableModules, setAvailableModules] = useState<string[]>([]);
   const [resolutionTemplates, setResolutionTemplates] = useState<string[]>([]);
   const [isManagingTemplates, setIsManagingTemplates] = useState<boolean>(false);
+  const [personalQuickReplies, setPersonalQuickReplies] = useState<string[]>([]);
+  const [personalResTemplates, setPersonalResTemplates] = useState<string[]>([]);
   const [companySettingsId, setCompanySettingsId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -110,6 +112,8 @@ function InboxContent() {
           .eq('id', user.id)
           .single();
         setAgent(profile || user);
+        if (profile?.quick_replies) setPersonalQuickReplies(profile.quick_replies);
+        if (profile?.resolution_templates) setPersonalResTemplates(profile.resolution_templates);
       }
     }
     getProfile();
@@ -420,28 +424,26 @@ function InboxContent() {
      }
   };
 
-  const addResTemplate = (text: string) => {
-     if (!text.trim()) return;
-     setResolutionTemplates(prev => {
-       if (prev.includes(text.trim())) return prev;
-       const next = [...prev, text.trim()];
-       localStorage.setItem('neo_resolution_templates', JSON.stringify(next));
-       if (companySettingsId) {
-         supabase.from('company_settings').update({ resolution_templates: next }).eq('id', companySettingsId);
-       }
-       return next;
-     });
+  const addResTemplate = async (text: string) => {
+     if (!text.trim() || !agent) return;
+     const updated = [...personalResTemplates, text.trim()];
+     setPersonalResTemplates(updated);
+     
+     await supabase.from('profiles').update({ 
+       resolution_templates: updated,
+       updated_at: new Date().toISOString()
+     }).eq('id', agent.id);
   };
 
-  const removeResTemplate = (index: number) => {
-     setResolutionTemplates(prev => {
-       const next = prev.filter((_, i) => i !== index);
-       localStorage.setItem('neo_resolution_templates', JSON.stringify(next));
-       if (companySettingsId) {
-         supabase.from('company_settings').update({ resolution_templates: next }).eq('id', companySettingsId);
-       }
-       return next;
-     });
+  const removeResTemplate = async (index: number) => {
+     if (!agent) return;
+     const updated = personalResTemplates.filter((_, i) => i !== index);
+     setPersonalResTemplates(updated);
+     
+     await supabase.from('profiles').update({ 
+       resolution_templates: updated,
+       updated_at: new Date().toISOString()
+     }).eq('id', agent.id);
   };
    
   const handleCloseSession = async () => {
@@ -456,31 +458,44 @@ function InboxContent() {
     }
   };
 
-  const handleAddCanned = () => {
-    const text = prompt('กรอกข้อความที่ต้องการบันทึกเป็นข้อความสำเร็จรูป:');
-    if (text && text.trim()) {
-      const updated = [...cannedResponses, text.trim()];
-      setCannedResponses(updated);
-      localStorage.setItem('neo_canned_responses', JSON.stringify(updated));
+  const handleAddCanned = async () => {
+    const text = prompt('กรอกข้อความที่ต้องการบันทึกเป็นข้อความสำเร็จรูปส่วนตัว:');
+    if (text && text.trim() && agent) {
+      const updated = [...personalQuickReplies, text.trim()];
+      setPersonalQuickReplies(updated);
+      
+      await supabase.from('profiles').update({ 
+        quick_replies: updated,
+        updated_at: new Date().toISOString()
+      }).eq('id', agent.id);
     }
   };
 
-  const handleEditCanned = (index: number) => {
-    const current = cannedResponses[index];
-    const text = prompt('แก้ไขข้อความสำเร็จรูป:', current);
+  const handleEditCanned = async (index: number) => {
+    if (!agent) return;
+    const current = personalQuickReplies[index];
+    const text = prompt('แก้ไขข้อความสำเร็จรูปส่วนตัว:', current);
     if (text && text.trim() && text !== current) {
-      const updated = [...cannedResponses];
+      const updated = [...personalQuickReplies];
       updated[index] = text.trim();
-      setCannedResponses(updated);
-      localStorage.setItem('neo_canned_responses', JSON.stringify(updated));
+      setPersonalQuickReplies(updated);
+      
+      await supabase.from('profiles').update({ 
+        quick_replies: updated,
+        updated_at: new Date().toISOString()
+      }).eq('id', agent.id);
     }
   };
 
-  const handleDeleteCanned = (index: number) => {
-    if (confirm('คุณแน่ใจหรือไม่ว่าต้องการลบข้อความนี้?')) {
-      const updated = cannedResponses.filter((_, i) => i !== index);
-      setCannedResponses(updated);
-      localStorage.setItem('neo_canned_responses', JSON.stringify(updated));
+  const handleDeleteCanned = async (index: number) => {
+    if (agent && confirm('คุณแน่ใจหรือไม่ว่าต้องการลบข้อความส่วนตัวนี้?')) {
+      const updated = personalQuickReplies.filter((_, i) => i !== index);
+      setPersonalQuickReplies(updated);
+      
+      await supabase.from('profiles').update({ 
+        quick_replies: updated,
+        updated_at: new Date().toISOString()
+      }).eq('id', agent.id);
     }
   };
 
@@ -613,7 +628,7 @@ function InboxContent() {
             onClaim={handleClaim}
             onAttachClick={() => setIsAttachModalOpen(true)}
             onEditImage={(src) => { setViewingImage(src); setIsViewerOpen(true); }}
-            cannedResponses={cannedResponses}
+            cannedResponses={[...cannedResponses, ...personalQuickReplies]}
             showCanned={showCanned}
             setShowCanned={setShowCanned}
             onUseCanned={useCanned}
@@ -852,7 +867,7 @@ function InboxContent() {
 
                 <div style={{ marginBottom: '24px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                       <label style={{ fontSize: '11px', fontWeight: '800', color: 'var(--primary)', textTransform: 'uppercase', letterSpacing: '1px' }}>เทมเพลตด่วน</label>
+                       <label style={{ fontSize: '11px', fontWeight: '800', color: 'var(--primary)', textTransform: 'uppercase', letterSpacing: '1px' }}>เทมเพลตด่วน (PERSONAL & GLOBAL)</label>
                        <button 
                           onClick={() => setIsManagingTemplates(!isManagingTemplates)}
                           style={{ fontSize: '10px', color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}
@@ -861,35 +876,49 @@ function InboxContent() {
                         </button>
                      </div>
                      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                        {/* 1. Global Templates */}
                         {resolutionTemplates.map((t, idx) => (
-                          <div key={idx} style={{ position: 'relative' }}>
-                             <button 
-                              type="button" 
-                              onClick={() => setResSummary(t)} 
-                              style={{ padding: '6px 14px', borderRadius: '8px', border: '1px solid var(--border)', background: 'rgba(255,255,255,0.05)', fontSize: '12px', color: 'var(--text-muted)', cursor: 'pointer' }}
-                             >
-                                {t}
-                             </button>
-                             {isManagingTemplates && (
-                                <button 
-                                  onClick={() => removeResTemplate(idx)}
-                                  style={{ position: 'absolute', top: '-8px', right: '-8px', width: '20px', height: '20px', borderRadius: '50%', background: 'var(--danger)', color: 'white', border: 'none', fontSize: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                                >
-                                   ×
-                                </button>
-                             )}
-                          </div>
-                        ))}
-                        {isManagingTemplates && (
                            <button 
-                             onClick={() => {
-                                const val = prompt('เพิ่มข้อความเทมเพลตใหม่:');
-                                if (val) addResTemplate(val);
-                             }}
-                             style={{ padding: '6px 14px', borderRadius: '8px', border: '1px dashed var(--primary)', background: 'none', fontSize: '12px', color: 'var(--primary)', cursor: 'pointer' }}
+                            key={`global-${idx}`}
+                            type="button" 
+                            onClick={() => setResSummary(t)} 
+                            style={{ padding: '6px 14px', borderRadius: '8px', border: '1px solid var(--border)', background: 'rgba(255,255,255,0.03)', fontSize: '12px', color: 'var(--text-muted)', cursor: 'pointer' }}
                            >
-                              + เพิ่ม
+                              {t}
                            </button>
+                        ))}
+
+                        {/* 2. Personal Templates */}
+                        {personalResTemplates.map((t, idx) => (
+                           <div key={`personal-${idx}`} style={{ position: 'relative' }}>
+                              <button 
+                               type="button" 
+                               onClick={() => setResSummary(t)} 
+                               style={{ padding: '6px 14px', borderRadius: '8px', border: '1px solid var(--primary)', background: 'rgba(0, 242, 254, 0.05)', fontSize: '12px', color: 'var(--primary)', cursor: 'pointer' }}
+                              >
+                                 {t}
+                              </button>
+                              {isManagingTemplates && (
+                                 <button 
+                                   onClick={() => removeResTemplate(idx)}
+                                   style={{ position: 'absolute', top: '-8px', right: '-8px', width: '20px', height: '20px', borderRadius: '50%', background: 'var(--danger)', color: 'white', border: 'none', fontSize: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                                 >
+                                    ×
+                                 </button>
+                              )}
+                           </div>
+                        ))}
+
+                        {isManagingTemplates && (
+                            <button 
+                              onClick={() => {
+                                 const val = prompt('เพิ่มเทมเพลตส่วนตัวใหม่:');
+                                 if (val) addResTemplate(val);
+                              }}
+                              style={{ padding: '6px 14px', borderRadius: '8px', border: '1px dashed var(--primary)', background: 'none', fontSize: '12px', color: 'var(--primary)', cursor: 'pointer' }}
+                            >
+                               + เพิ่มส่วนตัว
+                            </button>
                         )}
                      </div>
                  </div>

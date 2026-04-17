@@ -13,7 +13,13 @@ import {
   ChevronLeft,
   ShieldCheck,
   Lock,
-  Mail
+  Mail,
+  MessageSquarePlus,
+  ClipboardCheck,
+  Plus,
+  Trash2,
+  Edit2,
+  CheckCircle
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -99,11 +105,13 @@ export default function ProfileSettingsPage() {
         full_name: profile.full_name,
         avatar_url: profile.avatar_url,
         department: profile.department,
+        quick_replies: profile.quick_replies || [],
+        resolution_templates: profile.resolution_templates || [],
         updated_at: new Date().toISOString()
       }).eq('id', profile.id);
       
       if (error) throw error;
-      setToastMsg('บันทึกข้อมูลส่วนตัวเรียบร้อย! ✅');
+      setToastMsg('บันทึกข้อมูลและเทมเพลตเรียบร้อย! ✅');
       setShowToast(true);
       setTimeout(() => setShowToast(false), 3000);
     } catch (err) {
@@ -111,6 +119,21 @@ export default function ProfileSettingsPage() {
     } finally {
       setSaving(false);
     }
+  };
+
+  const addTemplate = (type: 'quick' | 'res', text: string) => {
+    if (!text.trim()) return;
+    const key = type === 'quick' ? 'quick_replies' : 'resolution_templates';
+    const current = profile[key] || [];
+    if (current.includes(text)) return;
+    setProfile({ ...profile, [key]: [...current, text] });
+  };
+
+  const removeTemplate = (type: 'quick' | 'res', index: number) => {
+    const key = type === 'quick' ? 'quick_replies' : 'resolution_templates';
+    const current = profile[key] || [];
+    const next = current.filter((_: any, i: number) => i !== index);
+    setProfile({ ...profile, [key]: next });
   };
 
   const handleChangePassword = async (e: React.FormEvent) => {
@@ -307,6 +330,99 @@ export default function ProfileSettingsPage() {
                   {updatingPassword ? <Loader2 className="animate-spin" /> : <><ShieldCheck size={20} /> ยืนยันการเปลี่ยนรหัสผ่าน</>}
                </button>
             </form>
+         </div>
+      </div>
+
+      {/* 3. Personal Templates */}
+      <div style={{ marginTop: '32px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '32px' }}>
+         {/* 3.1 Quick Replies */}
+         <div className="glass" style={{ padding: '32px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+               <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                  <div style={{ background: 'rgba(0, 242, 254, 0.1)', padding: '10px', borderRadius: '12px' }}>
+                     <MessageSquarePlus size={24} color="var(--primary)" />
+                  </div>
+                  <div>
+                    <h2 style={{ fontSize: '20px', fontWeight: '700', lineHeight: '1.2' }}>ข้อความตอบด่วนส่วนตัว</h2>
+                    <p style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Personal Quick Replies</p>
+                  </div>
+               </div>
+               <button 
+                onClick={() => {
+                  const val = prompt('ใส่ข้อความตอบด่วนใหม่:');
+                  if (val) addTemplate('quick', val);
+                }}
+                className="glass-interactive" style={{ padding: '8px 16px', borderRadius: '10px', background: 'var(--primary)', border: 'none', color: '#000', fontSize: '12px', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <Plus size={14} /> เพิ่มใหม่
+               </button>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+               {(profile?.quick_replies || []).length === 0 ? (
+                  <div style={{ padding: '40px', textAlign: 'center', background: 'rgba(255,255,255,0.01)', borderRadius: '16px', border: '1px dashed var(--border)' }}>
+                     <p style={{ color: 'var(--text-muted)', fontSize: '13px' }}>ยังไม่มีข้อความตอบด่วนส่วนตัว</p>
+                  </div>
+               ) : (
+                  profile.quick_replies.map((text: string, idx: number) => (
+                     <div key={idx} style={{ 
+                        display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px',
+                        padding: '16px', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '14px'
+                     }}>
+                        <p style={{ fontSize: '14px', color: 'var(--text-main)', flex: 1 }}>{text}</p>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                           <button onClick={() => removeTemplate('quick', idx)} style={{ padding: '6px', color: 'var(--danger)', background: 'transparent', border: 'none', cursor: 'pointer' }}>
+                              <Trash2 size={16} />
+                           </button>
+                        </div>
+                     </div>
+                  ))
+               )}
+            </div>
+         </div>
+
+         {/* 3.2 Resolution Templates */}
+         <div className="glass" style={{ padding: '32px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+               <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                  <div style={{ background: 'rgba(40, 199, 111, 0.1)', padding: '10px', borderRadius: '12px' }}>
+                     <ClipboardCheck size={24} color="#28c76f" />
+                  </div>
+                  <div>
+                    <h2 style={{ fontSize: '20px', fontWeight: '700', lineHeight: '1.2' }}>เทมเพลตสรุปงานส่วนตัว</h2>
+                    <p style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Resolution Templates</p>
+                  </div>
+               </div>
+               <button 
+                onClick={() => {
+                  const val = prompt('ใส่ข้อความสรุปงานใหม่:');
+                  if (val) addTemplate('res', val);
+                }}
+                className="glass-interactive" style={{ padding: '8px 16px', borderRadius: '10px', background: '#28c76f', border: 'none', color: '#fff', fontSize: '12px', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <Plus size={14} /> เพิ่มใหม่
+               </button>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+               {(profile?.resolution_templates || []).length === 0 ? (
+                  <div style={{ padding: '40px', textAlign: 'center', background: 'rgba(255,255,255,0.01)', borderRadius: '16px', border: '1px dashed var(--border)' }}>
+                     <p style={{ color: 'var(--text-muted)', fontSize: '13px' }}>ยังไม่มีเทมเพลตสรุปงานส่วนตัว</p>
+                  </div>
+               ) : (
+                  profile.resolution_templates.map((text: string, idx: number) => (
+                     <div key={idx} style={{ 
+                        display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px',
+                        padding: '16px', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '14px'
+                     }}>
+                        <p style={{ fontSize: '14px', color: 'var(--text-main)', flex: 1 }}>{text}</p>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                           <button onClick={() => removeTemplate('res', idx)} style={{ padding: '6px', color: 'var(--danger)', background: 'transparent', border: 'none', cursor: 'pointer' }}>
+                              <Trash2 size={16} />
+                           </button>
+                        </div>
+                     </div>
+                  ))
+               )}
+            </div>
          </div>
       </div>
 

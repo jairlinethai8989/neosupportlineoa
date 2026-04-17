@@ -50,6 +50,8 @@ export default function StaffTicketDetailPage() {
   const [isManagingTemplates, setIsManagingTemplates] = useState(false);
   const [companySettingsId, setCompanySettingsId] = useState<string | null>(null);
   const [newMessage, setNewMessage] = useState('');
+  const [personalQuickReplies, setPersonalQuickReplies] = useState<string[]>([]);
+  const [personalResTemplates, setPersonalResTemplates] = useState<string[]>([]);
   const [sending, setSending] = useState(false);
   
   // UI / Modal State
@@ -138,8 +140,14 @@ export default function StaffTicketDetailPage() {
 
       const { data: { user: authUser } } = await supabase.auth.getUser();
       if (authUser) {
-         const { data: profile } = await supabase.from('profiles').select('*').eq('id', authUser.id).single();
-         setUser({ ...authUser, ...profile });
+          const { data: profile } = await supabase.from('profiles').select('*').eq('id', authUser.id).single();
+          if (profile) {
+            setUser({ ...authUser, ...profile });
+            if (profile.quick_replies) setPersonalQuickReplies(profile.quick_replies);
+            if (profile.resolution_templates) setPersonalResTemplates(profile.resolution_templates);
+          } else {
+            setUser(authUser);
+          }
       }
     } catch (err: any) {
       console.error('Fetch error:', err);
@@ -156,28 +164,26 @@ export default function StaffTicketDetailPage() {
      }
   };
 
-  const addResTemplate = (text: string) => {
-     if (!text.trim()) return;
-     // Use functional update to avoid stale closure issue
-     setAvailableTemplates(prev => {
-       if (prev.includes(text.trim())) return prev;
-       const next = [...prev, text.trim()];
-       // Fire-and-forget the DB save with the freshest list
-       if (companySettingsId) {
-         supabase.from('company_settings').update({ resolution_templates: next }).eq('id', companySettingsId);
-       }
-       return next;
-     });
+  const addResTemplate = async (text: string) => {
+     if (!text.trim() || !user) return;
+     const updated = [...personalResTemplates, text.trim()];
+     setPersonalResTemplates(updated);
+     
+     await supabase.from('profiles').update({ 
+       resolution_templates: updated,
+       updated_at: new Date().toISOString()
+     }).eq('id', user.id);
   };
 
-  const removeResTemplate = (index: number) => {
-     setAvailableTemplates(prev => {
-       const next = prev.filter((_, i) => i !== index);
-       if (companySettingsId) {
-         supabase.from('company_settings').update({ resolution_templates: next }).eq('id', companySettingsId);
-       }
-       return next;
-     });
+  const removeResTemplate = async (index: number) => {
+     if (!user) return;
+     const updated = personalResTemplates.filter((_, i) => i !== index);
+     setPersonalResTemplates(updated);
+     
+     await supabase.from('profiles').update({ 
+       resolution_templates: updated,
+       updated_at: new Date().toISOString()
+     }).eq('id', user.id);
   };
 
   useEffect(() => {
@@ -536,7 +542,7 @@ export default function StaffTicketDetailPage() {
           onDeleteMessage={handleDeleteMessage}
           onEndChat={handleEndChat}
           isChatActive={isChatActive}
-          quickReplies={quickReplies}
+          quickReplies={[...quickReplies, ...personalQuickReplies]}
           isReadOnly={true}
         />
 
@@ -570,7 +576,7 @@ export default function StaffTicketDetailPage() {
 
                  <div style={{ marginBottom: '24px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                       <label style={{ fontSize: '11px', fontWeight: '800', color: 'var(--primary)', textTransform: 'uppercase', letterSpacing: '1px' }}>เทมเพลตด่วน (Templates)</label>
+                       <label style={{ fontSize: '11px', fontWeight: '800', color: 'var(--primary)', textTransform: 'uppercase', letterSpacing: '1px' }}>เทมเพลตด่วน (PERSONAL & GLOBAL)</label>
                        <button 
                           onClick={() => setIsManagingTemplates(!isManagingTemplates)}
                           style={{ fontSize: '10px', color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}
@@ -579,37 +585,51 @@ export default function StaffTicketDetailPage() {
                        </button>
                     </div>
                     <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                       {availableTemplates.map((t, idx) => (
-                         <div key={idx} style={{ position: 'relative' }}>
-                            <button 
-                             type="button" 
-                             onClick={() => setResSummary(t)} 
-                             style={{ padding: '8px 14px', borderRadius: '10px', border: '1px solid var(--border)', background: 'rgba(255,255,255,0.03)', fontSize: '12px', color: 'var(--text-muted)', cursor: 'pointer', transition: 'all 0.2s' }}
-                            >
-                               {t}
-                            </button>
-                            {isManagingTemplates && (
-                               <button 
-                                 onClick={() => removeResTemplate(idx)}
-                                 style={{ position: 'absolute', top: '-8px', right: '-8px', width: '20px', height: '20px', borderRadius: '50%', background: 'var(--danger)', color: 'white', border: 'none', fontSize: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                               >
-                                  ×
-                               </button>
-                            )}
-                         </div>
-                       ))}
-                       {availableTemplates.length === 0 && !isManagingTemplates && <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>ยังไม่ได้ตั้งค่าเทมเพลต</p>}
-                       {isManagingTemplates && (
-                          <button 
-                            onClick={() => {
-                               const val = prompt('เพิ่มข้อความเทมเพลตใหม่:');
-                               if (val) addResTemplate(val);
-                            }}
-                            style={{ padding: '8px 14px', borderRadius: '10px', border: '1px dashed var(--primary)', background: 'none', fontSize: '12px', color: 'var(--primary)', cursor: 'pointer' }}
-                          >
-                             + เพิ่ม
-                          </button>
-                       )}
+                        {/* 1. Global Templates */}
+                        {availableTemplates.map((t, idx) => (
+                           <button 
+                            key={`global-${idx}`}
+                            type="button" 
+                            onClick={() => setResSummary(t)} 
+                            style={{ padding: '8px 14px', borderRadius: '10px', border: '1px solid var(--border)', background: 'rgba(255,255,255,0.03)', fontSize: '12px', color: 'var(--text-muted)', cursor: 'pointer', transition: 'all 0.2s' }}
+                           >
+                              {t}
+                           </button>
+                        ))}
+
+                        {/* 2. Personal Templates */}
+                        {personalResTemplates.map((t, idx) => (
+                           <div key={`personal-${idx}`} style={{ position: 'relative' }}>
+                              <button 
+                               type="button" 
+                               onClick={() => setResSummary(t)} 
+                               style={{ padding: '8px 14px', borderRadius: '10px', border: '1px solid var(--primary)', background: 'rgba(0, 242, 254, 0.05)', fontSize: '12px', color: 'var(--primary)', cursor: 'pointer', transition: 'all 0.2s' }}
+                              >
+                                 {t}
+                              </button>
+                              {isManagingTemplates && (
+                                 <button 
+                                   onClick={() => removeResTemplate(idx)}
+                                   style={{ position: 'absolute', top: '-8px', right: '-8px', width: '20px', height: '20px', borderRadius: '50%', background: 'var(--danger)', color: 'white', border: 'none', fontSize: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                                 >
+                                    ×
+                                 </button>
+                              )}
+                           </div>
+                        ))}
+
+                        {isManagingTemplates && (
+                           <button 
+                             onClick={() => {
+                                const val = prompt('เพิ่มเทมเพลตส่วนตัวใหม่:');
+                                if (val) addResTemplate(val);
+                             }}
+                             style={{ padding: '8px 14px', borderRadius: '10px', border: '1px dashed var(--primary)', background: 'none', fontSize: '12px', color: 'var(--primary)', cursor: 'pointer' }}
+                           >
+                              + เพิ่มส่วนตัว
+                           </button>
+                        )}
+                        {(availableTemplates.length === 0 && personalResTemplates.length === 0 && !isManagingTemplates) && <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>ยังไม่ได้ตั้งค่าเทมเพลต</p>}
                     </div>
                   </div>
 
