@@ -25,7 +25,8 @@ import Link from 'next/link';
 
 const AVATAR_SEEDS = [
   'Ariel', 'Willow', 'Casper', 'Sasha', 'Jasper', 'Zoey', 'Felix', 'Luna',
-  'Simba', 'Nala', 'Coco', 'Ruby', 'Milo', 'Cleo', 'Jack', 'Oliver'
+  'Simba', 'Nala', 'Coco', 'Ruby', 'Milo', 'Cleo', 'Jack', 'Oliver',
+  'Midnight', 'Shadow', 'Ginger', 'Snowball', 'Pepper', 'Sunny', 'Cookie', 'Bear'
 ];
 
 const AVATAR_OPTIONS = AVATAR_SEEDS.map(seed => `https://api.dicebear.com/7.x/adventurer/svg?seed=${seed}`);
@@ -200,7 +201,7 @@ export default function ProfileSettingsPage() {
   if (loading) return <div className="flex-center" style={{ height: '70vh' }}><Loader2 className="animate-spin" color="var(--primary)" /></div>;
 
   return (
-    <div style={{ animation: 'fadeIn 0.5s ease-out', maxWidth: '1200px', margin: '0 auto', paddingBottom: '60px' }}>
+    <div style={{ animation: 'fadeIn 0.5s ease-out', width: '100%', paddingBottom: '60px' }}>
       {/* 1. Header Area */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '32px' }}>
          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
@@ -212,7 +213,7 @@ export default function ProfileSettingsPage() {
          </div>
       </div>
 
-      {/* 2. Navigation Tabs (Law of Similarity) */}
+      {/* 2. Navigation Tabs */}
       <div style={{ display: 'flex', gap: '12px', marginBottom: '32px', padding: '6px', background: 'rgba(255,255,255,0.03)', borderRadius: '16px', width: 'fit-content', border: '1px solid var(--border)' }}>
         <button 
           onClick={() => setActiveTab('profile')}
@@ -220,7 +221,8 @@ export default function ProfileSettingsPage() {
             padding: '12px 28px', borderRadius: '12px', border: 'none', 
             background: activeTab === 'profile' ? 'var(--primary)' : 'transparent',
             color: activeTab === 'profile' ? '#000' : 'var(--text-muted)',
-            fontWeight: '800', cursor: 'pointer', transition: 'all 0.3s' 
+            fontWeight: '800', cursor: 'pointer', transition: 'all 0.3s',
+            boxShadow: activeTab === 'profile' ? '0 4px 15px rgba(0, 242, 254, 0.2)' : 'none'
           }}
         >
           จัดการเวิร์กสเปซและโปรไฟล์
@@ -229,9 +231,10 @@ export default function ProfileSettingsPage() {
           onClick={() => setActiveTab('security')}
           style={{ 
             padding: '12px 28px', borderRadius: '12px', border: 'none', 
-            background: activeTab === 'security' ? 'var(--primary)' : 'transparent',
-            color: activeTab === 'security' ? '#000' : 'var(--text-muted)',
-            fontWeight: '800', cursor: 'pointer', transition: 'all 0.3s' 
+            background: activeTab === 'security' ? '#7367f0' : 'transparent',
+            color: activeTab === 'security' ? '#fff' : 'var(--text-muted)',
+            fontWeight: '800', cursor: 'pointer', transition: 'all 0.3s',
+            boxShadow: activeTab === 'security' ? '0 4px 15px rgba(115, 103, 240, 0.3)' : 'none'
           }}
         >
           รหัสผ่านและความปลอดภัย
@@ -239,7 +242,7 @@ export default function ProfileSettingsPage() {
       </div>
 
       {activeTab === 'profile' ? (
-        <div style={{ display: 'grid', gridTemplateColumns: '400px 1fr', gap: '32px', animation: 'slideUp 0.4s ease-out' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(350px, 450px) 1fr', gap: '32px', animation: 'slideUp 0.4s ease-out' }}>
           
           {/* Identity & Global Save (Law of Proximity) */}
           <div className="glass" style={{ padding: '32px', height: 'fit-content', position: 'sticky', top: '24px' }}>
@@ -262,9 +265,20 @@ export default function ProfileSettingsPage() {
                  </label>
               </div>
 
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', justifyContent: 'center', padding: '16px', borderRadius: '20px', border: '1px solid var(--border)', background: 'rgba(255,255,255,0.01)' }}>
-                {AVATAR_OPTIONS.slice(0, 8).map((url, idx) => (
-                   <button key={idx} onClick={() => setProfile({...profile, avatar_url: url})} style={{ width: '30px', height: '30px', borderRadius: '8px', overflow: 'hidden', border: profile?.avatar_url === url ? '2px solid var(--primary)' : '1px solid transparent', padding: 0, cursor: 'pointer' }}>
+              <div style={{ 
+                display: 'grid', 
+                gridTemplateColumns: 'repeat(8, 1fr)', 
+                gap: '8px', 
+                justifyContent: 'center', 
+                padding: '16px', 
+                borderRadius: '20px', 
+                border: '1px solid var(--border)', 
+                background: 'rgba(255,255,255,0.01)',
+                maxHeight: '140px',
+                overflowY: 'auto'
+              }}>
+                {AVATAR_OPTIONS.map((url, idx) => (
+                   <button key={idx} onClick={() => setProfile({...profile, avatar_url: url})} style={{ width: '32px', height: '32px', borderRadius: '8px', overflow: 'hidden', border: profile?.avatar_url === url ? '2px solid var(--primary)' : '1px solid transparent', padding: 0, cursor: 'pointer', flexShrink: 0 }}>
                      <img src={url} style={{ width: '100%', height: '100%' }} />
                    </button>
                 ))}
@@ -352,9 +366,9 @@ export default function ProfileSettingsPage() {
           </div>
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '32px', animation: 'fadeIn 0.3s' }}>
+        <div style={{ display: 'flex', justifyContent: 'flex-start', animation: 'fadeIn 0.3s' }}>
           {/* Security & Password */}
-          <div className="glass" style={{ padding: '40px' }}>
+          <div className="glass" style={{ padding: '40px', width: '100%', maxWidth: '600px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '32px' }}>
                <div style={{ background: 'rgba(234, 84, 85, 0.1)', padding: '10px', borderRadius: '12px' }}>
                   <Lock size={24} color="var(--danger)" />
