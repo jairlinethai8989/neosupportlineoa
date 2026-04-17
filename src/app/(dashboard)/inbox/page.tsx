@@ -114,15 +114,11 @@ function InboxContent() {
     getProfile();
     
     async function fetchModules() {
-       const { data: companyData } = await supabase.from('company_settings').select('modules').limit(1).single();
-       const defaultModules = [
-          "ห้องทำงานแพทย์", "ห้องพยาบาล", "ห้องยาผู้ป่วยใน", "ห้องเวชระเบียน", "ห้องคลอด", 
-          "ห้องผ่าตัด", "วิสัญญี", "โภจากาาร", "Discharge Summary", "Consult", 
-          "ลงทะเบียนผู้ป่วยใน", "ห้องเวชศาสตร์ฟื้นฟู", "Admit ล่วงหน้า", "ผู้ดูแลระบบ(Admin)", 
-          "ฝ่ายสารสนเทศ", "ALL", "ห้องทำงานแพทย์,Admit ล่วงหน้า", "อาหาร", "จองเตียง"
-       ];
-       if (companyData?.modules && companyData.modules.length > 0) setAvailableModules(companyData.modules);
-       else setAvailableModules(defaultModules);
+       const { data: companyData } = await supabase.from('company_settings').select('modules, resolution_templates').limit(1).single();
+       if (companyData) {
+          if (companyData.modules) setAvailableModules(companyData.modules);
+          if (companyData.resolution_templates) setResolutionTemplates(companyData.resolution_templates);
+       }
     }
     fetchModules();
     
@@ -138,16 +134,6 @@ function InboxContent() {
       ];
       setCannedResponses(defaults);
       localStorage.setItem('neo_canned_responses', JSON.stringify(defaults));
-    }
-    
-    // Fetch/Set Resolution Templates
-    const savedRes = localStorage.getItem('neo_resolution_templates');
-    if (savedRes) {
-       setResolutionTemplates(JSON.parse(savedRes));
-    } else {
-       const resDefaults = ['ดำเนินการแก้ไขเรียบร้อยแล้วครับ', 'ส่งมอบงานประสานงานสำเร็จ', 'ยกเลิกเนื่องจากแจ้งผิดพลาด'];
-       setResolutionTemplates(resDefaults);
-       localStorage.setItem('neo_resolution_templates', JSON.stringify(resDefaults));
     }
   }, []);
 
@@ -725,6 +711,17 @@ function InboxContent() {
         onClose={() => setIsAttachModalOpen(false)}
         onConfirm={handleConfirmAttachment}
       />
+
+      {isViewerOpen && viewingImage && (
+        <ImageViewerModal 
+           imageUrl={viewingImage} 
+           onClose={() => setIsViewerOpen(false)} 
+           onEdit={(src) => {
+              setEditingImage(src);
+              setIsEditorOpen(true);
+           }}
+        />
+      )}
 
       <ImageEditorModal 
         isOpen={isEditorOpen}

@@ -18,7 +18,34 @@ import {
   ArrowUpDown,
   ArrowUp,
   ArrowDown
+import { 
+  ShieldAlert, 
+  Loader2, 
+  CheckCircle,
+  X,
+  Building2,
+  Users,
+  Briefcase,
+  Layout as LayoutIcon,
+  FileText,
+  Search,
+  MessageCircle,
+  ExternalLink,
+  Zap,
+  MoreVertical,
+  Plus,
+  Trash2,
+  Edit2,
+  AlertCircle,
+  Calendar,
+  Grid,
+  List,
+  Filter,
+  BarChart3,
+  User,
+  ArrowRight
 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useNotificationContext } from '@/contexts/NotificationContext';
 import { supabase } from '@/lib/supabase';
 import { ticketService } from '@/lib/services/ticketService';
@@ -90,6 +117,7 @@ function TicketsContent() {
   const [resolvingTicket, setResolvingTicket] = useState<any>(null);
   const [resSummary, setResSummary] = useState('');
   const [availableModules, setAvailableModules] = useState<string[]>([]);
+  const [availableTemplates, setAvailableTemplates] = useState<string[]>([]);
   const [selectedModule, setSelectedModule] = useState('');
 
   // Date Filter State
@@ -141,7 +169,7 @@ function TicketsContent() {
 
       setTickets(tData || []);
       
-      const { data: companyData } = await supabase.from('company_settings').select('modules').limit(1).single();
+      const { data: companyData } = await supabase.from('company_settings').select('modules, resolution_templates').limit(1).single();
       const defaultModules = [
          "ห้องทำงานแพทย์", "ห้องพยาบาล", "ห้องยาผู้ป่วยใน", "ห้องเวชระเบียน", "ห้องคลอด", 
          "ห้องผ่าตัด", "วิสัญญี", "โภชนาการ", "Discharge Summary", "Consult", 
@@ -150,6 +178,7 @@ function TicketsContent() {
       ];
       if (companyData?.modules && companyData.modules.length > 0) setAvailableModules(companyData.modules);
       else setAvailableModules(defaultModules);
+      if (companyData?.resolution_templates) setAvailableTemplates(companyData.resolution_templates);
 
       setConversations(cData || []);
     } catch (err: any) {
@@ -162,6 +191,18 @@ function TicketsContent() {
 
   const handleExecuteResolve = async () => {
     if (!resolvingTicket || !resSummary.trim()) return;
+    
+    // Check for active conversation
+    const activeConv = conversations.find(c => 
+      (c.current_ticket_id === resolvingTicket.id || c.customer_id === resolvingTicket.customer_id) && 
+      c.status === 'active'
+    );
+    
+    if (activeConv) {
+        alert('ไม่สามารถปิดงานได้ เนื่องจากมีการสนทนาที่ยังค้างอยู่กับลูกค้า กรุณาจบการสนทนาก่อนครับ (แนะนำให้เข้าไปจัดการในหน้าแก้ปัญหาแยกเพื่อความถูกต้อง)');
+        return;
+    }
+
     try {
       setLoading(true);
       const { data: { user } } = await supabase.auth.getUser();
@@ -517,12 +558,22 @@ function TicketsContent() {
                      </div>
                      
                      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                        {columnTickets.map(ticket => {
-                            const convId = getConvId(ticket);
-                            const isNew = String(ticket.status || '').toLowerCase() === 'new';
-                            const hospitalName = ticket.hospitals?.name || 'ไม่ระบุโรงพยาบาล';
-                            return (
-                                <div key={ticket.id} className="glass-interactive" style={{ padding: '24px', borderRadius: '24px', background: 'var(--bg-card)', border: '1px solid var(--border)', borderLeft: `6px solid ${config.color}`, display: 'flex', flexDirection: 'column', gap: '18px', boxShadow: '0 8px 24px rgba(0,0,0,0.08)' }}>
+                         <AnimatePresence mode="popLayout">
+                           {columnTickets.map(ticket => {
+                               const convId = getConvId(ticket);
+                               const isNew = String(ticket.status || '').toLowerCase() === 'new';
+                               const hospitalName = ticket.hospitals?.name || 'ไม่ระบุโรงพยาบาล';
+                               return (
+                                   <motion.div 
+                                       key={ticket.id} 
+                                       layout
+                                       initial={{ opacity: 0, y: 20, scale: 0.95 }}
+                                       animate={{ opacity: 1, y: 0, scale: 1 }}
+                                       exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.2 } }}
+                                       whileHover={{ y: -4, boxShadow: '0 20px 40px rgba(0,0,0,0.12)' }}
+                                       className="glass-interactive" 
+                                       style={{ padding: '24px', borderRadius: '24px', background: 'var(--bg-card)', border: '1px solid var(--border)', borderLeft: `6px solid ${config.color}`, display: 'flex', flexDirection: 'column', gap: '18px', boxShadow: '0 8px 24px rgba(0,0,0,0.08)' }}
+                                   >
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                                       <Link href={`/tickets/${ticket.id}`} style={{ fontSize: '16px', fontWeight: '900', color: 'var(--primary)', textDecoration: 'none' }}>#{ticket.ticket_no}</Link>
                                       <PriorityIndicator priority={ticket.priority} />
@@ -612,9 +663,10 @@ function TicketsContent() {
                                         <CheckCircle size={14} /> {userProfile?.role !== 'Administrator' && userProfile?.permissions?.tickets === 'view' ? 'อ่านอย่างเดียว' : 'แก้ไขเสร็จสิ้น (Resolve)'}
                                       </button>
                                     )}
-                                </div>
-                            );
-                        })}
+                                    </motion.div>
+                               );
+                           })}
+                         </AnimatePresence>
                         {columnTickets.length === 0 && (
                            <div style={{ border: '2px dashed var(--border)', borderRadius: '24px', height: '140px', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0.5 }}>
                               <p style={{ fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)' }}>Empty Column</p>
@@ -771,16 +823,17 @@ function TicketsContent() {
                 </div>
 
                 <div style={{ marginBottom: '24px' }}>
-                    <label style={{ display: 'block', fontSize: '11px', fontWeight: '800', color: 'var(--primary)', textTransform: 'uppercase', marginBottom: '12px', letterSpacing: '1px' }}>เทมเพลตด่วน</label>
+                    <label style={{ display: 'block', fontSize: '11px', fontWeight: '800', color: 'var(--primary)', textTransform: 'uppercase', marginBottom: '12px', letterSpacing: '1px' }}>เทมเพลตด่วน (Templates)</label>
                     <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                       {['ดำเนินการแก้ไขเรียบร้อยแล้วครับ', 'ส่งมอบงานประสานงานสำเร็จ', 'ยกเลิกเนื่องจากแจ้งผิดพลาด'].map(t => (
-                         <button key={t} type="button" onClick={() => setResSummary(t)} style={{ padding: '6px 14px', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--bg-input)', fontSize: '12px', color: 'var(--text-muted)', cursor: 'pointer' }}>{t}</button>
+                       {availableTemplates.map(t => (
+                         <button key={t} type="button" onClick={() => setResSummary(t)} style={{ padding: '8px 14px', borderRadius: '10px', border: '1px solid var(--border)', background: 'var(--bg-card)', fontSize: '12px', color: 'var(--text-muted)', cursor: 'pointer', transition: 'all 0.2s' }}>{t}</button>
                        ))}
+                       {availableTemplates.length === 0 && <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>ยังไม่ได้ตั้งค่าเทมเพลต</p>}
                     </div>
                  </div>
 
                  <div style={{ marginBottom: '24px' }}>
-                    <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#64748b', marginBottom: '8px' }}>Module</label>
+                    <label style={{ display: 'block', fontSize: '11px', fontWeight: '800', color: 'var(--primary)', textTransform: 'uppercase', marginBottom: '12px', letterSpacing: '1px' }}>Module ที่เกี่ยวข้อง <span style={{ color: '#ef4444' }}>*</span></label>
                     <div style={{ position: 'relative' }}>
                        <select 
                          value={selectedModule} 
@@ -790,23 +843,23 @@ function TicketsContent() {
                             padding: '14px 40px 14px 16px', 
                             borderRadius: '12px', 
                             border: 'none', 
-                            background: '#7c3aed', 
+                            background: 'var(--secondary)', 
                             color: 'white', 
                             fontSize: '14px', 
                             fontWeight: '700', 
                             outline: 'none',
                             appearance: 'none',
                             cursor: 'pointer',
-                            boxShadow: '0 4px 12px rgba(124, 58, 237, 0.25)',
+                            boxShadow: '0 4px 12px rgba(139, 92, 246, 0.25)',
                             backgroundImage: `url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e")`,
                             backgroundRepeat: 'no-repeat',
                             backgroundPosition: 'right 16px center',
                             backgroundSize: '16px'
                          }}
                        >
-                          <option value="" style={{ background: '#7c3aed', color: 'white' }}>-- ไม่ระบุโมดูล --</option>
+                          <option value="" style={{ background: 'var(--secondary)', color: 'white' }}>-- เลือกโมดูล --</option>
                           {availableModules.map(m => (
-                            <option key={m} value={m} style={{ background: '#7c3aed', color: 'white' }}>{m}</option>
+                            <option key={m} value={m} style={{ background: 'var(--secondary)', color: 'white' }}>{m}</option>
                           ))}
                        </select>
                     </div>
@@ -843,14 +896,14 @@ function TicketsContent() {
                    </button>
                    <button 
                      onClick={handleExecuteResolve}
-                     disabled={loading || !resSummary.trim()}
+                     disabled={loading || !resSummary.trim() || !selectedModule}
                      style={{ 
                        flex: 1.5, 
                        padding: '16px', 
                        borderRadius: '14px', 
                        border: 'none', 
-                       background: (loading || !resSummary.trim()) ? 'rgba(255,255,255,0.05)' : 'var(--success)', 
-                       color: (loading || !resSummary.trim()) ? 'rgba(255,255,255,0.2)' : 'black', 
+                       background: (loading || !resSummary.trim() || !selectedModule) ? 'rgba(255,255,255,0.05)' : 'var(--success)', 
+                       color: (loading || !resSummary.trim() || !selectedModule) ? 'rgba(255,255,255,0.2)' : 'black', 
                        fontWeight: '900', 
                        cursor: 'pointer',
                        display: 'flex',

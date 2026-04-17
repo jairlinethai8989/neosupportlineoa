@@ -20,6 +20,8 @@ interface TicketChatProps {
   onScreenCapture: () => void;
   onEditImage: (url: string) => void;
   onDeleteMessage?: (id: string) => void;
+  onEndChat?: () => void;
+  isChatActive?: boolean;
   quickReplies: string[];
   isReadOnly?: boolean;
 }
@@ -36,6 +38,8 @@ export const TicketChat: React.FC<TicketChatProps> = ({
   onScreenCapture,
   onEditImage,
   onDeleteMessage,
+  onEndChat,
+  isChatActive = false,
   quickReplies,
   isReadOnly = false
 }) => {
@@ -50,9 +54,34 @@ export const TicketChat: React.FC<TicketChatProps> = ({
     <div className="glass" style={{ padding: '32px', display: 'flex', flexDirection: 'column', height: 'calc(100vh - 200px)', minHeight: '600px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
         <label style={{ fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', display: 'block' }}>Chat Workspace</label>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '4px 12px', background: 'rgba(0,255,127,0.1)', borderRadius: '20px' }}>
-           <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--success)' }} />
-           <span style={{ fontSize: '10px', color: 'var(--success)', fontWeight: '800' }}>LIVE SESSION</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          {isChatActive && onEndChat && (
+            <button 
+              onClick={onEndChat}
+              className="glass-interactive"
+              style={{ 
+                padding: '6px 14px', 
+                borderRadius: '20px', 
+                background: 'rgba(239, 68, 68, 0.1)', 
+                color: '#ef4444', 
+                border: '1px solid rgba(239, 68, 68, 0.2)', 
+                fontSize: '11px', 
+                fontWeight: '800', 
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px'
+              }}
+            >
+              <X size={14} /> จบการสนทนา (End Chat)
+            </button>
+          )}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '4px 12px', background: isChatActive ? 'rgba(0,255,127,0.1)' : 'rgba(255,255,255,0.05)', borderRadius: '20px' }}>
+             <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: isChatActive ? 'var(--success)' : 'var(--text-muted)' }} />
+             <span style={{ fontSize: '10px', color: isChatActive ? 'var(--success)' : 'var(--text-muted)', fontWeight: '800' }}>
+               {isChatActive ? 'LIVE SESSION' : 'CLOSED SESSION'}
+             </span>
+          </div>
         </div>
       </div>
       
@@ -85,7 +114,7 @@ export const TicketChat: React.FC<TicketChatProps> = ({
                           src={msg.content} 
                           alt="attachment" 
                           onClick={() => onEditImage(msg.content)}
-                          title="คลิกเพื่อแก้ไขและวาดรูป"
+                          title="คลิกเพื่อดูรูปขยาย"
                           style={{ maxWidth: '280px', borderRadius: '8px', cursor: 'pointer', objectFit: 'cover' }} 
                        />
                     ) : (

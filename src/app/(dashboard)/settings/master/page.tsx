@@ -14,18 +14,21 @@ import {
   X,
   Loader2,
   Search,
-  ChevronRight
+  ChevronRight,
+  Layout,
+  FileText
 } from 'lucide-react';
 import { useNotificationContext } from '@/contexts/NotificationContext';
 import { auditService } from '@/lib/services/auditService';
 
-type Tab = 'hospitals' | 'departments' | 'positions';
+type Tab = 'hospitals' | 'departments' | 'positions' | 'modules' | 'templates';
 
 export default function MasterSettingsPage() {
   const [activeTab, setActiveTab] = useState<Tab>('hospitals');
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [globalSettings, setGlobalSettings] = useState<any>(null);
   const { addToast } = useNotificationContext();
   
   // Form State
@@ -38,6 +41,24 @@ export default function MasterSettingsPage() {
 
   const fetchData = async () => {
     setLoading(true);
+    
+    // Handle company_settings based tabs
+    if (activeTab === 'modules' || activeTab === 'templates') {
+      const { data } = await supabase.from('company_settings').select('*').limit(1).single();
+      setGlobalSettings(data);
+      if (data) {
+        const arrayProp = activeTab === 'modules' ? 'modules' : 'resolution_templates';
+        const itemsList = (data[arrayProp] || []).map((name: string, index: number) => ({
+          id: `item-${index}`,
+          name: name,
+          is_active: true
+        }));
+        setItems(itemsList);
+      }
+      setLoading(false);
+      return;
+    }
+
     let table = '';
     if (activeTab === 'hospitals') table = 'hospitals';
     else if (activeTab === 'departments') table = 'departments';
@@ -63,6 +84,30 @@ export default function MasterSettingsPage() {
     setSubmitting(true);
     let table = activeTab;
     
+    // Handle company_settings based tabs
+    if (activeTab === 'modules' || activeTab === 'templates') {
+      const arrayProp = activeTab === 'modules' ? 'modules' : 'resolution_templates';
+      const currentList = globalSettings?.[arrayProp] || [];
+      if (currentList.includes(newItemName)) {
+        alert('มีรายการนี้อยู่แล้วครับ');
+        setSubmitting(false);
+        return;
+      }
+      const newList = [...currentList, newItemName];
+      const { error } = await supabase.from('company_settings').update({ [arrayProp]: newList }).eq('id', globalSettings.id);
+      
+      if (!error) {
+        setNewItemName('');
+        setIsAdding(false);
+        fetchData();
+        addToast({ id: `master-add-${Date.now()}`, type: 'ticket', title: 'Successfully Added! ✨', body: `เพิ่มรายการ "${newItemName}" เรียบร้อยแล้ว` });
+      } else {
+        alert('บันทึกไม่สำเร็จ');
+      }
+      setSubmitting(false);
+      return;
+    }
+
     const payload: any = { 
       name: newItemName, 
       is_active: true 
@@ -107,6 +152,25 @@ export default function MasterSettingsPage() {
     if (!editItemName.trim()) return;
     setSubmitting(true);
     let table = activeTab;
+
+    if (activeTab === 'modules' || activeTab === 'templates') {
+        const arrayProp = activeTab === 'modules' ? 'modules' : 'resolution_templates';
+        const currentList = globalSettings?.[arrayProp] || [];
+        const itemToUpdate = items.find(i => i.id === id);
+        const newList = currentList.map((name: string) => name === itemToUpdate.name ? editItemName : name);
+        
+        const { error } = await supabase.from('company_settings').update({ [arrayProp]: newList }).eq('id', globalSettings.id);
+        if (!error) {
+          setEditingId(null);
+          fetchData();
+          addToast({ id: `master-upd-${Date.now()}`, type: 'ticket', title: 'Successfully Updated! ✅', body: `แก้ไขเป็น "${editItemName}" เรียบร้อย` });
+        } else {
+          alert('อัปเดตไม่สำเร็จ');
+        }
+        setSubmitting(false);
+        return;
+    }
+
     const { error } = await supabase.from(table).update({ name: editItemName }).eq('id', id);
     
     if (error) {
@@ -138,6 +202,22 @@ export default function MasterSettingsPage() {
 
   const toggleStatus = async (id: string, current: boolean) => {
     let table = activeTab;
+    
+    if (activeTab === 'modules' || activeTab === 'templates') {
+        // Simple delete for arrays instead of toggle
+        if (!confirm('ยืนยันผลการลบรายการนี้ใช่หรือไม่?')) return;
+        const arrayProp = activeTab === 'modules' ? 'modules' : 'resolution_templates';
+        const itemToDelete = items.find(i => i.id === id);
+        const newList = (globalSettings?.[arrayProp] || []).filter((name: string) => name !== itemToDelete.name);
+        
+        const { error } = await supabase.from('company_settings').update({ [arrayProp]: newList }).eq('id', globalSettings.id);
+        if (!error) {
+           fetchData();
+           addToast({ id: `master-del-${id}`, type: 'ticket', title: 'Deleted! 🗑️', body: `ลบรายการเรียบร้อยแล้ว` });
+        }
+        return;
+    }
+
     const { error } = await supabase.from(table).update({ is_active: !current }).eq('id', id);
     if (error) {
       console.error('Toggle status Error:', error);
@@ -168,7 +248,9 @@ export default function MasterSettingsPage() {
   const TAB_CONFIG = {
     hospitals: { title: 'โรงพยาบาล / หน่วยงาน', icon: Building2, desc: 'จัดการรายชื่อสถานพยาบาลที่รองรับในระบบ' },
     departments: { title: 'แผนก / ฝ่าย', icon: Users, desc: 'จัดการรายชื่อแผนกภายในองค์กร' },
-    positions: { title: 'ตำแหน่งงาน', icon: Briefcase, desc: 'จัดการชื่อตำแหน่งสำหรับผู้แจ้งล่วงหน้า' }
+    positions: { title: 'ตำแหน่งงาน', icon: Briefcase, desc: 'จัดการชื่อตำแหน่งสำหรับผู้แจ้งล่วงหน้า' },
+    modules: { title: 'ระบบที่เกี่ยวข้อง / Modules', icon: Layout, desc: 'จัดการชื่อโมดูลหรือโปรแกรมต่างๆ' },
+    templates: { title: 'เทมเพลตสรุปงาน', icon: FileText, desc: 'จัดการชุดข้อความด่วนสำหรับสรุปปิดงาน' }
   };
 
   const ActiveIcon = TAB_CONFIG[activeTab].icon;
@@ -185,8 +267,8 @@ export default function MasterSettingsPage() {
       </div>
 
       {/* Tabs Selector */}
-      <div style={{ display: 'flex', gap: '12px', marginBottom: '32px', background: 'rgba(255,255,255,0.03)', padding: '6px', borderRadius: '16px', border: '1px solid var(--border)', width: 'fit-content' }}>
-        {(['hospitals', 'departments', 'positions'] as Tab[]).map(t => (
+      <div style={{ display: 'flex', gap: '8px', marginBottom: '32px', background: 'rgba(255,255,255,0.03)', padding: '6px', borderRadius: '16px', border: '1px solid var(--border)', width: 'fit-content', flexWrap: 'wrap' }}>
+        {(['hospitals', 'departments', 'positions', 'modules', 'templates'] as Tab[]).map(t => (
           <button
             key={t}
             onClick={() => setActiveTab(t)}

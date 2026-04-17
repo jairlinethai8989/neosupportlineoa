@@ -10,12 +10,13 @@ import {
 } from 'lucide-react';
 import { exportToPDF, exportToExcel } from '@/lib/utils/exportUtils';
 import ImageEditorModal from '@/components/modals/ImageEditorModal';
+import ImageViewerModal from '@/components/modals/ImageViewerModal';
 import SummaryExportModal from '@/components/modals/SummaryExportModal';
 import { ticketService } from '@/lib/services/ticketService';
 import { TicketHeader } from '@/components/tickets/TicketHeader';
 import { TicketChat } from '@/components/tickets/TicketChat';
 import { TicketSidebar } from '@/components/tickets/TicketSidebar';
-import { deleteMessageAction } from '@/app/actions/messageActions';
+import { deleteMessageAction, closeConversationAction } from '@/app/actions/messageActions';
 import Skeleton from '@/components/ui/Skeleton';
 import { useNotificationContext } from '@/contexts/NotificationContext';
 
@@ -32,6 +33,7 @@ export default function StaffTicketDetailPage() {
   const [logs, setLogs] = useState<any[]>([]);
   const [messages, setMessages] = useState<any[]>([]);
   const [conversationId, setConversationId] = useState<string | null>(null);
+  const [isChatActive, setIsChatActive] = useState(false);
   const { addToast } = useNotificationContext();
 
   // Edit State
@@ -41,6 +43,7 @@ export default function StaffTicketDetailPage() {
   const [availableDepts, setAvailableDepts] = useState<string[]>([]);
   const [selectedModule, setSelectedModule] = useState('');
   const [availableModules, setAvailableModules] = useState<string[]>([]);
+  const [availableTemplates, setAvailableTemplates] = useState<string[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [sending, setSending] = useState(false);
   
@@ -49,6 +52,8 @@ export default function StaffTicketDetailPage() {
   const [resSummary, setResSummary] = useState('');
   const [editingImage, setEditingImage] = useState<string | null>(null);
   const [showEditor, setShowEditor] = useState(false);
+  const [viewingImage, setViewingImage] = useState<string | null>(null);
+  const [showViewer, setShowViewer] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
 
   const quickReplies = [
@@ -90,14 +95,19 @@ export default function StaffTicketDetailPage() {
         // Fetch active conversation
         const { data: conv } = await supabase
            .from('conversations')
-           .select('id')
+           .select('id, status')
            .eq('customer_id', ticketData.customer_id)
            .eq('status', 'active')
            .maybeSingle();
-        if (conv) setConversationId(conv.id);
+        if (conv) {
+          setConversationId(conv.id);
+          setIsChatActive(true);
+        } else {
+          setIsChatActive(false);
+        }
       }
 
-      const { data: companyData } = await supabase.from('company_settings').select('departments, modules').limit(1).single();
+      const { data: companyData } = await supabase.from('company_settings').select('departments, modules, resolution_templates').limit(1).single();
       const defaultModules = [
          "ห้องทำงานแพทย์", "ห้องพยาบาล", "ห้องยาผู้ป่วยใน", "ห้องเวชระเบียน", "ห้องคลอด", 
          "ห้องผ่าตัด", "วิสัญญี", "โภชนาการ", "Discharge Summary", "Consult", 
@@ -109,6 +119,7 @@ export default function StaffTicketDetailPage() {
          if (companyData.departments) setAvailableDepts(companyData.departments);
          if (companyData.modules && companyData.modules.length > 0) setAvailableModules(companyData.modules);
          else setAvailableModules(defaultModules);
+         if (companyData.resolution_templates) setAvailableTemplates(companyData.resolution_templates);
       } else {
          setAvailableModules(defaultModules);
       }
@@ -241,19 +252,54 @@ export default function StaffTicketDetailPage() {
     } catch (err: any) { if (err.name !== 'NotAllowedError') alert('Failed: ' + err.message); }
   };
 
+  const handleEndChat = async () => {
+    if (!conversationId) return;
+    if (!confirm('คุณยืนยันที่จะจบการสนทนานี้ใช่หรือไม่?\nหากกด "ตกลง" ลูกค้าจะไม่สามารถส่งข้อความใหม่ในเซสชั่นนี้ได้จนกว่าจะมีการเปิดใบงานใหม่ครับ')) return;
+    
+    setUpdating(true);
+    try {
+      await closeConversationAction(conversationId);
+      setIsChatActive(false);
+      fetchData();
+      addToast({
+        id: `end-chat-${id}`,
+        type: 'message',
+        title: 'Chat Ended! 🔒',
+        body: 'การสนทนาถูกปิดเรียบร้อยแล้ว'
+      });
+    } catch (err: any) {
+      alert('Failed: ' + err.message);
+    } finally {
+      setUpdating(false);
+    }
+  };
+
   const handleResolve = async () => {
     if (!resSummary.trim()) { alert('กรุณากรอกสรุปการแก้ไขงานก่อนปิดตั๋วครับ'); return; }
+    if (!selectedModule) { alert('กรุณาเลือกโมดูลที่เกี่ยวข้องก่อนปิดตั๋วครับ'); return; }
+    
+    if (isChatActive) {
+      alert('ไม่สามารถปิดงานได้ เนื่องจากคุณยังไม่ได้กด "จบการสนทนา" กับลูกค้าครับ กรุณากดจบการสนทนาในช่องแชทก่อน');
+      return;
+    }
+
     setUpdating(true);
     try {
       const updatedData = await ticketService.resolve(id as string, user?.id, resSummary, selectedModule);
+      
+      // Send resolution message to conversation if it exists (even if closed)
       if (conversationId) {
         const surveyLink = `${window.location.origin}/survey/${id}`;
         const moduleText = selectedModule ? `\nโมดูล: ${selectedModule}` : '';
         await supabase.from('messages').insert([{
-          conversation_id: conversationId, ticket_id: id, sender_type: 'agent', staff_id: user?.id,
+          conversation_id: conversationId, 
+          ticket_id: id, 
+          sender_type: 'system', 
+          staff_id: user?.id,
           content: `[System: ใบงาน #${updatedData.ticket_no} ได้รับการแก้ไขเรียบร้อยแล้ว: ${resSummary}${moduleText}\nแบบประเมิน: ${surveyLink}]`
         }]);
       }
+
       setStatus('Resolved');
       setTicket({ ...ticket, ...updatedData });
       setShowResolveModal(false);
@@ -379,15 +425,21 @@ export default function StaffTicketDetailPage() {
     <div className="animate-page-in">
       <TicketHeader 
         ticket={ticket} status={status} user={user} updating={updating}
-        onUpdate={handleUpdate} onResolveClick={() => { setShowResolveModal(true); setResSummary(''); }} onExportClick={() => setShowExportModal(true)}
+        isChatActive={isChatActive}
+        onUpdate={handleUpdate} 
+        onResolveClick={() => { setShowResolveModal(true); setResSummary(''); }} 
+        onExportClick={() => setShowExportModal(true)}
       />
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: '24px', alignItems: 'start' }}>
         <TicketChat 
           messages={messages} ticket={ticket} user={user} newMessage={newMessage} setNewMessage={setNewMessage}
           sending={sending} onSendMessage={handleSendMessage} onAttachFile={() => adminFileRef.current?.click()}
-          onScreenCapture={handleScreenCapture} onEditImage={(url) => { setEditingImage(url); setShowEditor(true); }}
+          onScreenCapture={handleScreenCapture} 
+          onEditImage={(url) => { setViewingImage(url); setShowViewer(true); }}
           onDeleteMessage={handleDeleteMessage}
+          onEndChat={handleEndChat}
+          isChatActive={isChatActive}
           quickReplies={quickReplies}
           isReadOnly={true}
         />
@@ -421,14 +473,16 @@ export default function StaffTicketDetailPage() {
                 </div>
 
                 <div style={{ marginBottom: '20px' }}>
-                   <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', marginBottom: '8px' }}>ข้อความด่วน (Quick Summary)</label>
+                   <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', marginBottom: '12px' }}>เทมเพลตสรุปงาน (Quick Summary)</label>
                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '16px' }}>
-                      {['ดำเนินการแก้ไขเรียบร้อยแล้วครับ', 'ส่งมอบงานประสานงานสำเร็จ', 'ยกเลิกเนื่องจากแจ้งผิดพลาด'].map(t => (
-                        <button key={t} type="button" onClick={() => setResSummary(t)} style={{ padding: '6px 14px', borderRadius: '8px', border: '1px solid #e2e8f0', background: '#f8fafc', fontSize: '12px', color: '#475569', cursor: 'pointer' }}>{t}</button>
+                      {availableTemplates.map(t => (
+                        <button key={t} type="button" onClick={() => setResSummary(t)} style={{ padding: '8px 14px', borderRadius: '10px', border: '1px solid #e2e8f0', background: '#f8fafc', fontSize: '12px', color: '#475569', cursor: 'pointer', transition: 'all 0.2s' }}>{t}</button>
                       ))}
+                      {availableTemplates.length === 0 && <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>ยังไม่ได้ตั้งค่าเทมเพลต</p>}
                    </div>
-                    <div style={{ marginBottom: '20px' }}>
-                       <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#64748b', marginBottom: '8px' }}>Module</label>
+
+                   <div style={{ marginBottom: '20px' }}>
+                       <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', marginBottom: '8px' }}>Module ที่เกี่ยวข้อง <span style={{ color: '#ef4444' }}>*</span></label>
                        <div style={{ position: 'relative' }}>
                           <select 
                             value={selectedModule} 
@@ -438,40 +492,48 @@ export default function StaffTicketDetailPage() {
                                padding: '14px 40px 14px 16px', 
                                borderRadius: '12px', 
                                border: 'none', 
-                               background: '#7c3aed', 
+                               background: 'var(--secondary)', 
                                color: 'white', 
                                fontSize: '14px', 
                                fontWeight: '700', 
                                outline: 'none',
                                appearance: 'none',
                                cursor: 'pointer',
-                               boxShadow: '0 4px 12px rgba(124, 58, 237, 0.25)',
+                               boxShadow: '0 4px 12px rgba(139, 92, 246, 0.25)',
                                backgroundImage: `url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e")`,
                                backgroundRepeat: 'no-repeat',
                                backgroundPosition: 'right 16px center',
                                backgroundSize: '16px'
                             }}
                           >
-                             <option value="" style={{ background: '#7c3aed', color: 'white' }}>-- ไม่ระบุโมดูล --</option>
+                             <option value="" style={{ background: 'var(--secondary)', color: 'white' }}>-- เลือกโมดูล --</option>
                              {availableModules.map(m => (
-                               <option key={m} value={m} style={{ background: '#7c3aed', color: 'white' }}>{m}</option>
+                               <option key={m} value={m} style={{ background: 'var(--secondary)', color: 'white' }}>{m}</option>
                              ))}
                           </select>
                        </div>
-                    </div>
+                   </div>
 
-                    <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', marginBottom: '8px' }}>สรุปผลการแก้ไขงาน</label>
-                    <textarea value={resSummary} onChange={(e) => setResSummary(e.target.value)} placeholder="ระบุสิ่งที่แอดมินดำเนินการแก้ไข..." style={{ width: '100%', height: '100px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '16px', padding: '16px', color: '#0f172a', fontSize: '14px', resize: 'none', outline: 'none' }} />
-                 </div>
+                   <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', marginBottom: '8px' }}>สรุปผลการแก้ไขงาน <span style={{ color: '#ef4444' }}>*</span></label>
+                   <textarea value={resSummary} onChange={(e) => setResSummary(e.target.value)} placeholder="ระบุสิ่งที่แอดมินดำเนินการแก้ไข..." style={{ width: '100%', height: '100px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '16px', padding: '16px', color: '#0f172a', fontSize: '14px', resize: 'none', outline: 'none' }} />
+                </div>
                 <div style={{ display: 'flex', gap: '12px' }}>
                    <button onClick={() => setShowResolveModal(false)} style={{ flex: 1, padding: '16px', borderRadius: '14px', border: '1px solid #e2e8f0', background: 'transparent', color: '#64748b', fontWeight: '800', cursor: 'pointer' }}>ยกเลิก</button>
-                   <button onClick={handleResolve} disabled={updating || !resSummary.trim()} style={{ flex: 1.5, padding: '16px', borderRadius: '14px', border: 'none', background: '#22c55e', color: '#fff', fontWeight: '900', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }}>
+                   <button onClick={handleResolve} disabled={updating || !resSummary.trim() || !selectedModule} style={{ flex: 1.5, padding: '16px', borderRadius: '14px', border: 'none', background: '#22c55e', color: '#fff', fontWeight: '900', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', opacity: (!resSummary.trim() || !selectedModule) ? 0.6 : 1 }}>
                       {updating ? <Loader2 size={24} className="animate-spin" /> : <><CheckCircle size={20} /> ยืนยันปิดงาน</>}
                    </button>
                 </div>
              </div>
           </div>
         )}
+
+       {showViewer && viewingImage && (
+          <ImageViewerModal 
+            imageUrl={viewingImage} 
+            onClose={() => { setShowViewer(false); setViewingImage(null); }} 
+            onEdit={(url) => { setEditingImage(url); setShowEditor(true); }}
+          />
+       )}
 
        {showEditor && editingImage && <ImageEditorModal imageUrl={editingImage} onClose={() => { setShowEditor(false); setEditingImage(null); }} onSave={handleEditorSave} />}
        <SummaryExportModal isOpen={showExportModal} onClose={() => setShowExportModal(false)} onExport={handleExportSummary} ticketNo={ticket?.ticket_no || ''} />

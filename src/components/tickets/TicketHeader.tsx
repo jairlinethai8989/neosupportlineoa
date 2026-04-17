@@ -14,6 +14,7 @@ interface TicketHeaderProps {
   status: string;
   user: any;
   updating: boolean;
+  isChatActive: boolean;
   onUpdate: () => void;
   onResolveClick: () => void;
   onExportClick: () => void;
@@ -24,6 +25,7 @@ export const TicketHeader: React.FC<TicketHeaderProps> = ({
   status,
   user,
   updating,
+  isChatActive,
   onUpdate,
   onResolveClick,
   onExportClick
@@ -34,7 +36,7 @@ export const TicketHeader: React.FC<TicketHeaderProps> = ({
 
   const isResolvedOrClosed = status === 'Resolved' || status === 'Closed';
   const isOwnerOrAdmin = ticket.assigned_agent_id === user?.id || user?.role === 'Administrator';
-  const canResolve = !isResolvedOrClosed && status !== 'New' && isOwnerOrAdmin;
+  const canResolve = !isResolvedOrClosed && status !== 'New' && isOwnerOrAdmin && !isChatActive;
 
   return (
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
@@ -73,6 +75,16 @@ export const TicketHeader: React.FC<TicketHeaderProps> = ({
           style={{ padding: '0 20px', height: '44px', borderRadius: '12px', border: '1px solid var(--border)', background: 'rgba(255, 255, 255, 0.05)', color: 'var(--text-main)', fontWeight: '800', gap: '8px' }}>
           <FileDown size={18} /> สรุปใบงาน (Summary)
         </button>
+        {!isResolvedOrClosed && status !== 'New' && isOwnerOrAdmin && isChatActive && (
+          <button 
+            disabled
+            className="flex-center" 
+            style={{ padding: '0 20px', height: '44px', borderRadius: '12px', border: '1px solid var(--border)', background: 'rgba(255,255,255,0.05)', color: 'var(--text-muted)', fontWeight: '800', gap: '8px', cursor: 'not-allowed' }}
+            title="กรุณากด 'จบการสนทนา' ในช่องแชทก่อนจึงจะสามารถปิดงานได้"
+          >
+            <CheckCircle size={18} /> จบการสนทนาก่อน
+          </button>
+        )}
         {canResolve && (
           <button 
             onClick={onResolveClick}
