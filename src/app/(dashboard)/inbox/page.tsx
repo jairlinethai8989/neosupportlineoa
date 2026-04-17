@@ -418,6 +418,20 @@ function InboxContent() {
     setShowCanned(false);
   };
 
+  const addResTemplate = async (text: string) => {
+    const updated = [...resolutionTemplates, text];
+    setResolutionTemplates(updated);
+    const { error } = await supabase.from('company_settings').update({ resolution_templates: updated }).neq('id', '00000000-0000-0000-0000-000000000000'); // Update matching all as we usually have 1 record
+    if (error) console.error('Update templates error:', error);
+  };
+
+  const removeResTemplate = async (index: number) => {
+    const updated = resolutionTemplates.filter((_, i) => i !== index);
+    setResolutionTemplates(updated);
+    const { error } = await supabase.from('company_settings').update({ resolution_templates: updated }).neq('id', '00000000-0000-0000-0000-000000000000');
+    if (error) console.error('Remove template error:', error);
+  };
+
   const copySurveyLink = () => {
      if (!selectedChat?.current_ticket_id) return;
      const link = `${window.location.origin}/survey/${selectedChat.current_ticket_id}`;
@@ -791,7 +805,7 @@ function InboxContent() {
                     </div>
                     <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                        {resolutionTemplates.map((t, idx) => (
-                         <div key={idx} style={{ position: 'relative', display: 'inline-block', margin: '4px' }}>
+                         <div key={idx} style={{ position: 'relative' }}>
                             <button 
                              type="button" 
                              onClick={() => setResSummary(t)} 
@@ -801,7 +815,10 @@ function InboxContent() {
                             </button>
                             {isManagingTemplates && (
                                <button 
-                                 onClick={() => removeResTemplate(idx)}
+                                 onClick={() => {
+                                    console.log('Removing template at index:', idx);
+                                    removeResTemplate(idx);
+                                 }}
                                  style={{ position: 'absolute', top: '-8px', right: '-8px', width: '20px', height: '20px', borderRadius: '50%', background: 'var(--danger)', color: 'white', border: 'none', fontSize: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                                >
                                   ×
@@ -809,9 +826,6 @@ function InboxContent() {
                             )}
                          </div>
                        ))}
-                       {resolutionTemplates.length === 0 && !isManagingTemplates && (
-                          <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>ยังไม่ได้ตั้งค่าเทมเพลต</p>
-                       )}
                        {isManagingTemplates && (
                           <button 
                             onClick={() => {
@@ -827,7 +841,7 @@ function InboxContent() {
                 </div>
 
                 <div style={{ marginBottom: '24px' }}>
-                    <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: 'rgba(255,255,255,0.6)', marginBottom: '8px' }}>Module <span style={{ color: 'var(--danger)' }}>*</span></label>
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: 'rgba(255,255,255,0.6)', marginBottom: '8px' }}>Module</label>
                     <div style={{ position: 'relative' }}>
                        <select 
                          value={selectedModule} 
@@ -837,27 +851,29 @@ function InboxContent() {
                             padding: '14px 40px 14px 16px', 
                             borderRadius: '12px', 
                             border: 'none', 
-                            background: 'linear-gradient(135deg, var(--primary), #00d2ff)', 
+                            background: 'var(--primary)', 
                             color: 'black', 
                             fontSize: '14px', 
                             fontWeight: '800', 
                             outline: 'none',
                             appearance: 'none',
                             cursor: 'pointer',
-                            boxShadow: '0 8px 24px rgba(0,210,254,0.25)',
+                            boxShadow: '0 8px 24px rgba(0,242,254,0.25)',
                             backgroundImage: `url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e")`,
                             backgroundRepeat: 'no-repeat',
                             backgroundPosition: 'right 16px center',
                             backgroundSize: '16px'
                          }}
                        >
-                          <option value="" style={{ background: 'white', color: 'black' }}>-- เลือกโมดูล --</option>
+                          <option value="" style={{ background: 'white', color: 'black' }}>-- ไม่ระบุโมดูล --</option>
                           {availableModules.map(m => (
                             <option key={m} value={m} style={{ background: 'white', color: 'black' }}>{m}</option>
                           ))}
                        </select>
                     </div>
                 </div>
+
+                <div style={{ marginBottom: '32px' }}>
                    <label style={{ display: 'block', fontSize: '11px', fontWeight: '800', color: 'var(--primary)', textTransform: 'uppercase', marginBottom: '12px', letterSpacing: '1px' }}>สรุปผลการแก้ไขงาน</label>
                    <textarea 
                      value={resSummary}

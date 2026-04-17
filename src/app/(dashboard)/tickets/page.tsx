@@ -181,10 +181,7 @@ function TicketsContent() {
   }
 
   const handleExecuteResolve = async () => {
-    if (!resolvingTicket || !resSummary.trim() || !selectedModule) {
-       alert('กรุณากรอกข้อมูลให้ครบถ้วน (Module และ สรุปคำตอบ)');
-       return;
-    }
+    if (!resolvingTicket || !resSummary.trim()) return;
     
     // Check for active conversation
     const activeConv = conversations.find(c => 
@@ -227,21 +224,18 @@ function TicketsContent() {
     }
   };
 
-  const saveResTemplates = (list: string[]) => {
-      setAvailableTemplates(list);
-      supabase.from('company_settings').update({ resolution_templates: list }).eq('id', 1).then(() => {
-         addToast({ id: 'temp-save', type: 'system', title: 'Settings Saved', body: 'Resolution templates updated' });
-      });
+  const addResTemplate = async (text: string) => {
+    const updated = [...availableTemplates, text];
+    setAvailableTemplates(updated);
+    const { error } = await supabase.from('company_settings').update({ resolution_templates: updated }).neq('id', '00000000-0000-0000-0000-000000000000');
+    if (error) console.error('Update templates error:', error);
   };
 
-  const addResTemplate = (val: string) => {
-      const newList = [...availableTemplates, val];
-      saveResTemplates(newList);
-  };
-
-  const removeResTemplate = (idx: number) => {
-      const newList = availableTemplates.filter((_, i) => i !== idx);
-      saveResTemplates(newList);
+  const removeResTemplate = async (index: number) => {
+    const updated = availableTemplates.filter((_, i) => i !== index);
+    setAvailableTemplates(updated);
+    const { error } = await supabase.from('company_settings').update({ resolution_templates: updated }).neq('id', '00000000-0000-0000-0000-000000000000');
+    if (error) console.error('Remove template error:', error);
   };
 
   useEffect(() => {
@@ -813,7 +807,8 @@ function TicketsContent() {
                 borderRadius: '32px',
                 border: '1px solid rgba(255, 255, 255, 0.1)',
                 boxShadow: '0 40px 100px rgba(0,0,0,0.6)',
-                animation: 'scaleIn 0.4s cubic-bezier(0.16, 1, 0.3, 1)'
+                animation: 'scaleIn 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
+                color: 'white'
              }}>
                 <div style={{ textAlign: 'center', marginBottom: '32px' }}>
                    <div style={{ 
@@ -829,21 +824,19 @@ function TicketsContent() {
                    }}>
                       <CheckCircle size={32} />
                    </div>
-                   <h3 style={{ fontSize: '24px', fontWeight: '900', color: 'var(--text-main)', marginBottom: '8px' }}>ปิดงานใบงาน #{resolvingTicket?.ticket_no}</h3>
+                   <h3 style={{ fontSize: '24px', fontWeight: '900', color: 'white', marginBottom: '8px' }}>ปิดงานใบงาน #{resolvingTicket?.ticket_no}</h3>
                    <p style={{ fontSize: '14px', color: 'var(--text-muted)', lineHeight: '1.6' }}>กรุณาสรุปผลการแก้ไขปัญหา เพื่อบันทึกเป็นประวัติและแจ้งลูกค้าครับ</p>
                 </div>
 
                 <div style={{ marginBottom: '24px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                       <label style={{ fontSize: '11px', fontWeight: '800', color: 'var(--primary)', textTransform: 'uppercase', letterSpacing: '1px' }}>เทมเพลตด่วน (Templates)</label>
-                       {userProfile?.role === 'Administrator' && (
-                         <button 
-                            onClick={() => setIsManagingTemplates(!isManagingTemplates)}
-                            style={{ fontSize: '10px', color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}
-                         >
-                            {isManagingTemplates ? 'เสร็จสิ้น' : 'จัดการเทมเพลต'}
-                         </button>
-                       )}
+                       <label style={{ fontSize: '11px', fontWeight: '800', color: 'var(--primary)', textTransform: 'uppercase', letterSpacing: '1px' }}>เทมเพลตด่วน</label>
+                       <button 
+                          onClick={() => setIsManagingTemplates(!isManagingTemplates)}
+                          style={{ fontSize: '10px', color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}
+                       >
+                          {isManagingTemplates ? 'เสร็จสิ้น' : 'จัดการเทมเพลต'}
+                       </button>
                     </div>
                     <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                        {availableTemplates.map((t, idx) => (
@@ -851,7 +844,7 @@ function TicketsContent() {
                             <button 
                               type="button" 
                               onClick={() => setResSummary(t)} 
-                              style={{ padding: '8px 14px', borderRadius: '10px', border: '1px solid var(--border)', background: 'rgba(255,255,255,0.05)', fontSize: '12px', color: 'var(--text-muted)', cursor: 'pointer', transition: 'all 0.2s' }}
+                              style={{ padding: '6px 14px', borderRadius: '8px', border: '1px solid var(--border)', background: 'rgba(255,255,255,0.05)', fontSize: '12px', color: 'var(--text-muted)', cursor: 'pointer' }}
                             >
                                {t}
                             </button>
@@ -865,25 +858,22 @@ function TicketsContent() {
                             )}
                          </div>
                        ))}
-                       {availableTemplates.length === 0 && !isManagingTemplates && (
-                          <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>ยังไม่ได้ตั้งค่าเทมเพลต</p>
-                       )}
                        {isManagingTemplates && (
                           <button 
                             onClick={() => {
                                const val = prompt('เพิ่มข้อความเทมเพลตใหม่:');
                                if (val) addResTemplate(val);
                             }}
-                            style={{ padding: '8px 14px', borderRadius: '10px', border: '1px dashed var(--primary)', background: 'none', fontSize: '12px', color: 'var(--primary)', cursor: 'pointer' }}
+                            style={{ padding: '6px 14px', borderRadius: '8px', border: '1px dashed var(--primary)', background: 'none', fontSize: '12px', color: 'var(--primary)', cursor: 'pointer' }}
                           >
                              + เพิ่ม
                           </button>
                        )}
                     </div>
-                 </div>
+                </div>
 
-                 <div style={{ marginBottom: '24px' }}>
-                    <label style={{ display: 'block', fontSize: '11px', fontWeight: '800', color: 'var(--primary)', textTransform: 'uppercase', marginBottom: '12px', letterSpacing: '1px' }}>Module ที่เกี่ยวข้อง <span style={{ color: '#ef4444' }}>*</span></label>
+                <div style={{ marginBottom: '24px' }}>
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: 'rgba(255,255,255,0.6)', marginBottom: '8px' }}>Module</label>
                     <div style={{ position: 'relative' }}>
                        <select 
                          value={selectedModule} 
@@ -893,46 +883,45 @@ function TicketsContent() {
                             padding: '14px 40px 14px 16px', 
                             borderRadius: '12px', 
                             border: 'none', 
-                            background: 'linear-gradient(135deg, var(--primary), #00d2ff)', 
+                            background: 'var(--primary)', 
                             color: 'black', 
                             fontSize: '14px', 
                             fontWeight: '800', 
                             outline: 'none',
                             appearance: 'none',
                             cursor: 'pointer',
-                            boxShadow: '0 8px 20px rgba(0, 210, 255, 0.25)',
+                            boxShadow: '0 8px 24px var(--primary-shadow, rgba(0,242,254,0.25))',
                             backgroundImage: `url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e")`,
                             backgroundRepeat: 'no-repeat',
                             backgroundPosition: 'right 16px center',
                             backgroundSize: '16px'
                          }}
                        >
-                          <option value="" style={{ background: 'white', color: 'black' }}>-- เลือกโมดูล --</option>
+                          <option value="" style={{ background: 'white', color: 'black' }}>-- ไม่ระบุโมดูล --</option>
                           {availableModules.map(m => (
                             <option key={m} value={m} style={{ background: 'white', color: 'black' }}>{m}</option>
                           ))}
                        </select>
                     </div>
-                 </div>
+                </div>
 
-                 <div style={{ marginBottom: '32px' }}>
-                   <label style={{ display: 'block', fontSize: '11px', fontWeight: '800', color: 'var(--primary)', textTransform: 'uppercase', marginBottom: '12px', letterSpacing: '1px' }}>สรุปผลการแก้ไขงาน (Resolution Summary)</label>
+                <div style={{ marginBottom: '32px' }}>
+                   <label style={{ display: 'block', fontSize: '11px', fontWeight: '800', color: 'var(--primary)', textTransform: 'uppercase', marginBottom: '12px', letterSpacing: '1px' }}>สรุปผลการแก้ไขงาน</label>
                    <textarea 
                      value={resSummary}
                      onChange={(e) => setResSummary(e.target.value)}
-                     placeholder="ระบุรายละเอียดการแก้ไข เช่น 'แก้ไขส่วนลดให้แล้ว', 'อัปเดตสถานะการจัดส่งสำเร็จ'..."
+                     placeholder="ระบุรายละเอียดการแก้ไข..."
                      style={{
                         width: '100%',
-                        height: '140px',
-                        background: 'var(--bg-input)',
+                        height: '100px',
+                        background: 'rgba(255,255,255,0.02)',
                         border: '1px solid var(--border)',
                         borderRadius: '16px',
                         padding: '16px',
-                        color: 'var(--text-main)',
+                        color: 'white',
                         fontSize: '14px',
                         resize: 'none',
-                        outline: 'none',
-                        transition: 'all 0.3s'
+                        outline: 'none'
                      }}
                    />
                 </div>
@@ -946,14 +935,14 @@ function TicketsContent() {
                    </button>
                    <button 
                      onClick={handleExecuteResolve}
-                     disabled={loading || !resSummary.trim() || !selectedModule}
+                     disabled={loading || !resSummary.trim()}
                      style={{ 
                        flex: 1.5, 
                        padding: '16px', 
                        borderRadius: '14px', 
                        border: 'none', 
-                       background: (loading || !resSummary.trim() || !selectedModule) ? 'rgba(255,255,255,0.05)' : 'var(--success)', 
-                       color: (loading || !resSummary.trim() || !selectedModule) ? 'rgba(255,255,255,0.2)' : 'black', 
+                       background: (loading || !resSummary.trim()) ? 'rgba(255,255,255,0.05)' : 'var(--success)', 
+                       color: (loading || !resSummary.trim()) ? 'rgba(255,255,255,0.2)' : 'black', 
                        fontWeight: '900', 
                        cursor: 'pointer',
                        display: 'flex',
