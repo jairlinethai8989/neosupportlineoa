@@ -158,7 +158,7 @@ export default function CreateTicketPage() {
             await sendLineGroupNotification(`🆕 ตั๋วใหม่จาก Portal: ${subject}\nลูกค้า: ${customerData.display_name}`);
          } catch { }
 
-         router.push(`/portal/tickets/${createdTicket.id}`);
+          router.replace(`/portal/tickets/${createdTicket.id}`);
 
       } catch (err: any) {
          setError(err.message);
@@ -168,9 +168,28 @@ export default function CreateTicketPage() {
 
   return (
     <div className="portal-container">
-      <div style={{ padding: '0 20px 16px', textAlign: 'center', animation: 'fadeIn 0.5s ease-out' }}>
-         <h1 style={{ fontSize: '20px', fontWeight: '800', color: '#0f172a', marginBottom: '4px' }}>แจ้งเรื่องใหม่</h1>
-         <p style={{ fontSize: '11px', color: '#64748b', fontWeight: '600', textTransform: 'uppercase' }}>New Support Ticket</p>
+      <div style={{ padding: '0 20px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', animation: 'fadeIn 0.5s ease-out' }}>
+         <button 
+           onClick={() => router.push('/portal')} 
+           style={{ 
+             width: '40px', 
+             height: '40px', 
+             borderRadius: '12px', 
+             border: '1px solid var(--portal-border)', 
+             background: 'white', 
+             color: '#1e293b', 
+             cursor: 'pointer',
+             display: 'flex',
+             alignItems: 'center',
+             justifyContent: 'center'
+           }}
+         >
+           <ArrowLeft size={18} />
+         </button>
+         <div style={{ textAlign: 'center', flex: 1, marginRight: '40px' }}>
+           <h1 style={{ fontSize: '20px', fontWeight: '800', color: '#0f172a', marginBottom: '4px' }}>แจ้งเรื่องใหม่</h1>
+           <p style={{ fontSize: '11px', color: '#64748b', fontWeight: '600', textTransform: 'uppercase' }}>New Support Ticket</p>
+         </div>
       </div>
 
       <div className="portal-content" style={{ padding: '0 20px' }}>

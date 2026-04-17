@@ -158,7 +158,7 @@ export default function PortalPage() {
     );
   }
 
-  const closedStatuses = ['resolved', 'closed', 'canceled'];
+  const closedStatuses = ['closed', 'canceled'];
   const activeTickets = tickets.filter(t => !closedStatuses.includes(String(t.status || '').toLowerCase()));
   const pastTickets = tickets.filter(t => closedStatuses.includes(String(t.status || '').toLowerCase()));
 
@@ -226,6 +226,17 @@ export default function PortalPage() {
                                 fontWeight: '700',
                                 borderRadius: '6px'
                              }}>{ticket.status}</span>
+                             {String(ticket.status).toLowerCase() === 'resolved' && (
+                                <span style={{ 
+                                   background: '#dcfce7',
+                                   color: '#166534',
+                                   padding: '4px 10px',
+                                   fontSize: '10px',
+                                   fontWeight: '800',
+                                   borderRadius: '6px',
+                                   marginLeft: '6px'
+                                }}>รอปิดงาน</span>
+                             )}
                              <ArrowRight size={14} color="#94a3b8" />
                           </div>
                        </div>
@@ -237,12 +248,17 @@ export default function PortalPage() {
       </section>
 
       {/* 4. History (Optional) */}
-      {pastTickets.length > 0 && (
-        <section>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
-             <Clock size={16} color="var(--portal-text-muted)" />
-             <h3 style={{ fontSize: '13px', fontWeight: '800', color: 'var(--portal-text-muted)', textTransform: 'uppercase', letterSpacing: '0.8px' }}>ประวัติการแจ้งงาน</h3>
+      <section style={{ marginTop: '24px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px', borderTop: '1px solid var(--portal-border)', paddingTop: '24px' }}>
+           <Clock size={16} color="var(--portal-text-muted)" />
+           <h3 style={{ fontSize: '13px', fontWeight: '800', color: 'var(--portal-text-muted)', textTransform: 'uppercase', letterSpacing: '0.8px' }}>ประวัติการแจ้งงาน</h3>
+        </div>
+        
+        {pastTickets.length === 0 ? (
+          <div style={{ padding: '24px', textAlign: 'center', color: '#94a3b8', background: '#f8fafc', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+            <p style={{ fontSize: '12px' }}>ยังไม่มีประวัติการแจ้งงานที่สมบูรณ์</p>
           </div>
+        ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
              {pastTickets.slice(0, 20).map(ticket => (
                 <Link href={`/portal/tickets/${ticket.id}`} key={ticket.id} style={{ textDecoration: 'none', color: 'inherit' }}>
@@ -259,8 +275,8 @@ export default function PortalPage() {
                 </Link>
              ))}
           </div>
-        </section>
-      )}
+        )}
+      </section>
     </div>
 
     {/* MODALS - Moved outside container to avoid transform-fixed ghosting */}

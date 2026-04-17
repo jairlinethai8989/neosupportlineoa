@@ -104,12 +104,38 @@ export default function TicketDetailPage() {
     const channel = supabase
       .channel(`customer-ticket-realtime-${id}`)
       .on('postgres_changes', { 
-        event: '*', 
+        event: 'INSERT', 
         schema: 'public', 
         table: 'messages',
-        filter: conversationId ? `conversation_id=eq.${conversationId}` : `ticket_id=eq.${id}`
-      }, () => {
-        fetchTicketData();
+        filter: `ticket_id=eq.${id}`
+      }, (payload: any) => {
+        setMessages(prev => {
+           if (prev.some(m => m.id === payload.new.id)) return prev;
+           return [...prev, payload.new];
+        });
+      });
+
+    if (conversationId) {
+      channel.on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'messages',
+        filter: `conversation_id=eq.${conversationId}`
+      }, (payload: any) => {
+        setMessages(prev => {
+           if (prev.some(m => m.id === payload.new.id)) return prev;
+           return [...prev, payload.new];
+        });
+      });
+    }
+
+    channel
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'messages'
+      }, (payload: any) => {
+         setMessages(prev => prev.map(m => m.id === payload.new.id ? payload.new : m));
       })
       .on('postgres_changes', {
         event: 'UPDATE',
@@ -121,7 +147,11 @@ export default function TicketDetailPage() {
         supabase.from('ticket_logs').select('*').eq('ticket_id', id).order('created_at', { ascending: false })
           .then(({ data }: any) => { if (data) setLogs(data); });
       })
-      .subscribe();
+      .subscribe((status) => {
+         if (status === 'SUBSCRIBED') {
+            console.log(`Realtime Connected (${id})`);
+         }
+      });
 
     return () => {
       if (channel) supabase.removeChannel(channel);

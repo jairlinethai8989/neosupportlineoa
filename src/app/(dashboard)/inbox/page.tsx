@@ -195,23 +195,52 @@ function InboxContent() {
     const channel = supabase
       .channel(`chat_realtime_${selectedChat.id}`)
       .on('postgres_changes', { 
-        event: '*', 
+        event: 'INSERT', 
         schema: 'public', 
         table: 'messages',
         filter: `conversation_id=eq.${selectedChat.id}`
       }, (payload: any) => {
-        if (payload.eventType === 'INSERT' && payload.new) {
-          setMessages((prev: any[]) => {
-            if (prev.some((m: any) => m.id === payload.new.id)) return prev;
-            return [...prev, payload.new];
-          });
-        } else if (payload.eventType === 'DELETE' && payload.old) {
-          setMessages((prev: any[]) => prev.filter(m => m.id !== payload.old.id));
-        } else {
-          fetchMessages();
-        }
+        setMessages((prev: any[]) => {
+          if (prev.some((m: any) => m.id === payload.new.id)) return prev;
+          return [...prev, payload.new];
+        });
+      });
+
+    if (selectedChat.current_ticket_id) {
+      channel.on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'messages',
+        filter: `ticket_id=eq.${selectedChat.current_ticket_id}`
+      }, (payload: any) => {
+        setMessages((prev: any[]) => {
+          if (prev.some((m: any) => m.id === payload.new.id)) return prev;
+          return [...prev, payload.new];
+        });
+      });
+    }
+
+    channel
+      .on('postgres_changes', { 
+        event: 'UPDATE', 
+        schema: 'public', 
+        table: 'messages',
+        filter: `conversation_id=eq.${selectedChat.id}`
+      }, (payload: any) => {
+        setMessages((prev: any[]) => prev.map(m => m.id === payload.new.id ? payload.new : m));
       })
-      .subscribe();
+      .on('postgres_changes', { 
+        event: 'DELETE', 
+        schema: 'public', 
+        table: 'messages'
+      }, (payload: any) => {
+        setMessages((prev: any[]) => prev.filter(m => m.id !== payload.old.id));
+      })
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          console.log(`Inbox Chat Connected (${selectedChat.id})`);
+        }
+      });
 
     return () => {
       supabase.removeChannel(channel);
@@ -242,6 +271,18 @@ function InboxContent() {
     }
 
     const currentMsg = newMessage;
+    const optimisticMsg = {
+      id: `temp-${Date.now()}`,
+      content: currentMsg,
+      sender_type: 'agent',
+      staff_id: agent.id,
+      conversation_id: selectedChat.id,
+      ticket_id: selectedChat.current_ticket_id || null,
+      message_type: 'text',
+      created_at: new Date().toISOString()
+    };
+
+    setMessages(prev => [...prev, optimisticMsg]);
     setNewMessage('');
     setSending(true);
     try {
@@ -253,6 +294,8 @@ function InboxContent() {
       );
     } catch (err: any) {
       console.error('Send Error:', err);
+      // Remove optimistic message on error
+      setMessages(prev => prev.filter(m => m.id !== optimisticMsg.id));
       alert('Failed to send message: ' + (err.message || 'Check connection'));
       setNewMessage(currentMsg);
     } finally {

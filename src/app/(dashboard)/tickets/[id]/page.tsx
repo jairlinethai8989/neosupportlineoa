@@ -159,15 +159,56 @@ export default function StaffTicketDetailPage() {
     const channel = supabase
       .channel(`ticket-messages-${id}`)
       .on('postgres_changes', { 
-        event: '*', 
+        event: 'INSERT', 
         schema: 'public', 
         table: 'messages',
         filter: `ticket_id=eq.${id}`
-      }, () => fetchData())
-      .subscribe();
+      }, (payload: any) => {
+        setMessages(prev => {
+           if (prev.some(m => m.id === payload.new.id)) return prev;
+           return [...prev, payload.new];
+        });
+      });
+
+    if (conversationId) {
+      channel.on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'messages',
+        filter: `conversation_id=eq.${conversationId}`
+      }, (payload: any) => {
+        setMessages(prev => {
+           if (prev.some(m => m.id === payload.new.id)) return prev;
+           return [...prev, payload.new];
+        });
+      });
+    }
+
+    channel
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'messages'
+      }, (payload: any) => {
+         setMessages(prev => prev.map(m => m.id === payload.new.id ? payload.new : m));
+      })
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'tickets',
+        filter: `id=eq.${id}`
+      }, (payload: any) => {
+        setTicket((prev: any) => prev ? ({ ...prev, ...payload.new }) : prev);
+        setStatus(payload.new.status);
+      })
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          console.log(`Staff Realtime Connected (${id})`);
+        }
+      });
 
     return () => { supabase.removeChannel(channel); };
-  }, [id]);
+  }, [id, conversationId]);
 
   const handleExportSummary = (format: 'pdf' | 'xlsx') => {
     if (!ticket) return;
@@ -191,6 +232,18 @@ export default function StaffTicketDetailPage() {
   const handleSendMessage = async () => {
     if (!newMessage.trim()) return;
     const content = newMessage;
+    const optimisticMsg = {
+      id: `temp-${Date.now()}`,
+      content: content,
+      sender_type: 'agent',
+      staff_id: user?.id,
+      ticket_id: id,
+      conversation_id: conversationId,
+      message_type: 'text',
+      created_at: new Date().toISOString()
+    };
+
+    setMessages(prev => [...prev, optimisticMsg]);
     setNewMessage('');
     setSending(true);
     try {
@@ -203,8 +256,13 @@ export default function StaffTicketDetailPage() {
         content
       }]);
       if (error) throw error;
+      // Note: fetchData() will eventually replace the temp message with the DB one via realtime or fetch
       fetchData();
-    } catch (err: any) { alert('Error: ' + err.message); }
+    } catch (err: any) {
+      setMessages(prev => prev.filter(m => m.id !== optimisticMsg.id));
+      alert('Error: ' + err.message);
+      setNewMessage(content);
+    }
     finally { setSending(false); }
   };
 
