@@ -188,7 +188,18 @@ export default function ProfileSettingsPage() {
       setToastMsg('เปลี่ยนรหัสผ่านสำเร็จ! 🔐');
       setShowToast(true);
       setNewPassword('');
-      setConf  return (
+      setConfirmPassword('');
+      setTimeout(() => setShowToast(false), 3000);
+    } catch (err: any) {
+      alert('ล้มเหลว: ' + err.message);
+    } finally {
+      setUpdatingPassword(false);
+    }
+  };
+
+  if (loading) return <div className="flex-center" style={{ height: '70vh' }}><Loader2 className="animate-spin" color="var(--primary)" /></div>;
+
+  return (
     <div style={{ animation: 'fadeIn 0.5s ease-out', maxWidth: '1200px', margin: '0 auto', paddingBottom: '60px' }}>
       {/* 1. Header Area */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '32px' }}>
