@@ -16,8 +16,8 @@ import {
   Paperclip
 } from 'lucide-react';
 import ChatAttachmentModal from '@/components/chat/ChatAttachmentModal';
-import ImageEditorModal from '@/components/chat/ImageEditorModal';
-import ImageViewerModal from '@/components/chat/ImageViewerModal';
+import ImageEditorModal from '@/components/modals/ImageEditorModal';
+import ImageViewerModal from '@/components/modals/ImageViewerModal';
 import { useLiff } from '@/hooks/useLiff';
 import { sendPortalMessageAction } from '@/app/actions/portalActions';
 
@@ -138,8 +138,8 @@ export default function TicketDetailPage() {
   }, [id, conversationId]);
 
   const handleEditExistingImage = (url: string) => {
-    setEditingImage(url);
-    setIsEditorOpen(true);
+    setViewingImage(url);
+    setIsViewerOpen(true);
   };
 
   const handleSendMessage = async () => {
@@ -444,16 +444,17 @@ export default function TicketDetailPage() {
            }}
         />
 
-        <ImageViewerModal 
-          isOpen={isViewerOpen}
-          imageSrc={viewingImage}
-          onClose={() => setIsViewerOpen(false)}
-          onEdit={(src) => {
-            setIsViewerOpen(false);
-            setEditingImage(src);
-            setIsEditorOpen(true);
-          }}
-        />
+        {isViewerOpen && viewingImage && (
+           <ImageViewerModal 
+              imageUrl={viewingImage} 
+              onClose={() => setIsViewerOpen(false)} 
+              onEdit={(src) => {
+                 setIsViewerOpen(false);
+                 setEditingImage(src);
+                 setIsEditorOpen(true);
+              }}
+           />
+        )}
     </div>
   );
 }

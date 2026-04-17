@@ -36,8 +36,8 @@ import { ticketService } from '@/lib/services/ticketService';
 import { sendAgentMessageAction, sendSystemMessageAction, closeConversationAction, deleteMessageAction } from '@/app/actions/messageActions';
 import TransferModal from '@/components/modals/TransferModal';
 import ChatAttachmentModal from '@/components/chat/ChatAttachmentModal';
-import ImageEditorModal from '@/components/chat/ImageEditorModal';
-import ImageViewerModal from '@/components/chat/ImageViewerModal';
+import ImageEditorModal from '@/components/modals/ImageEditorModal';
+import ImageViewerModal from '@/components/modals/ImageViewerModal';
 
 import { InboxSidebar } from '@/components/inbox/InboxSidebar';
 import { ChatWindow } from '@/components/inbox/ChatWindow';
