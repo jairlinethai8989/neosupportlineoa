@@ -46,7 +46,7 @@ export default function PortalPage() {
           setNeedsRegistration(false);
           const { data: ticketData } = await supabase
             .from('tickets')
-            .select('*, assigned_agent:profiles!assigned_agent_id (id, display_name)')
+            .select('*, assigned_agent:profiles!assigned_agent_id (id, full_name)')
             .eq('customer_id', customer.id)
             .order('created_at', { ascending: false });
           
@@ -80,7 +80,7 @@ export default function PortalPage() {
        window.removeEventListener('focus', onRefresh);
        window.removeEventListener('popstate', onRefresh);
     };
-  }, [profile?.userId]);
+  }, [profile?.userId, isReady]);
 
   // Realtime subscription for ticket updates
   useEffect(() => {
@@ -159,7 +159,6 @@ export default function PortalPage() {
   }
 
   // Status values from DB: 'New', 'Assigned', 'In Progress', 'Escalated', 'Resolved', 'Closed', 'Canceled'
-  // After resolveTicketAction the status becomes 'Resolved' — show in history
   const doneStatuses = ['resolved', 'closed', 'canceled'];
   const activeTickets = tickets.filter(t => !doneStatuses.includes(String(t.status || '').toLowerCase()));
   const pastTickets = tickets.filter(t => doneStatuses.includes(String(t.status || '').toLowerCase()));

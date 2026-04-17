@@ -42,7 +42,7 @@ export default function TicketDetailPage() {
   const conversationIdRef = useRef<string | null>(null);
 
   useEffect(() => {
-    if (!id || !isReady) return; // Wait for LIFF to be ready before fetching
+    if (!id) return;
 
     async function fetchTicketData() {
       if (!id) return;
@@ -114,8 +114,8 @@ export default function TicketDetailPage() {
     }
 
     // Run fetch first, then subscribe
-    let channelRef: ReturnType<typeof supabase.channel> | null = null;
-
+    let channelRef: any = null;
+    
     fetchTicketData().then(() => {
       const channel = supabase
         .channel(`portal-ticket-${id}`)
@@ -157,6 +157,7 @@ export default function TicketDetailPage() {
         .subscribe((status) => {
           console.log(`Portal Realtime Status (ticket=${id}):`, status);
         });
+      
       channelRef = channel;
     });
 
