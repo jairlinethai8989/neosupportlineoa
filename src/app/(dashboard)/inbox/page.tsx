@@ -114,8 +114,9 @@ function InboxContent() {
     getProfile();
     
     async function fetchModules() {
-       const { data: companyData } = await supabase.from('company_settings').select('modules, resolution_templates').limit(1).single();
+       const { data: companyData } = await supabase.from('company_settings').select('id, modules, resolution_templates').limit(1).single();
        if (companyData) {
+          setCompanySettingsId(companyData.id);
           if (companyData.modules) setAvailableModules(companyData.modules);
           if (companyData.resolution_templates) setResolutionTemplates(companyData.resolution_templates);
        }
@@ -357,9 +358,13 @@ function InboxContent() {
     }
   };
 
-  const saveResTemplates = (list: string[]) => {
+  const saveResTemplates = async (list: string[]) => {
      setResolutionTemplates(list);
      localStorage.setItem('neo_resolution_templates', JSON.stringify(list));
+     
+     if (companySettingsId) {
+       await supabase.from('company_settings').update({ resolution_templates: list }).eq('id', companySettingsId);
+     }
   };
 
   const addResTemplate = (text: string) => {
@@ -416,20 +421,6 @@ function InboxContent() {
   const useCanned = (text: string) => {
     setNewMessage(text);
     setShowCanned(false);
-  };
-
-  const addResTemplate = async (text: string) => {
-    const updated = [...resolutionTemplates, text];
-    setResolutionTemplates(updated);
-    const { error } = await supabase.from('company_settings').update({ resolution_templates: updated }).neq('id', '00000000-0000-0000-0000-000000000000'); // Update matching all as we usually have 1 record
-    if (error) console.error('Update templates error:', error);
-  };
-
-  const removeResTemplate = async (index: number) => {
-    const updated = resolutionTemplates.filter((_, i) => i !== index);
-    setResolutionTemplates(updated);
-    const { error } = await supabase.from('company_settings').update({ resolution_templates: updated }).neq('id', '00000000-0000-0000-0000-000000000000');
-    if (error) console.error('Remove template error:', error);
   };
 
   const copySurveyLink = () => {
@@ -800,47 +791,44 @@ function InboxContent() {
                           onClick={() => setIsManagingTemplates(!isManagingTemplates)}
                           style={{ fontSize: '10px', color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}
                        >
-                          {isManagingTemplates ? 'เสร็จสิ้น' : 'จัดการเทมเพลต'}
-                       </button>
-                    </div>
-                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                       {resolutionTemplates.map((t, idx) => (
-                         <div key={idx} style={{ position: 'relative' }}>
-                            <button 
-                             type="button" 
-                             onClick={() => setResSummary(t)} 
-                             style={{ padding: '6px 14px', borderRadius: '8px', border: '1px solid var(--border)', background: 'rgba(255,255,255,0.05)', fontSize: '12px', color: 'var(--text-muted)', cursor: 'pointer' }}
-                            >
-                               {t}
-                            </button>
-                            {isManagingTemplates && (
-                               <button 
-                                 onClick={() => {
-                                    console.log('Removing template at index:', idx);
-                                    removeResTemplate(idx);
-                                 }}
-                                 style={{ position: 'absolute', top: '-8px', right: '-8px', width: '20px', height: '20px', borderRadius: '50%', background: 'var(--danger)', color: 'white', border: 'none', fontSize: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                               >
-                                  ×
-                               </button>
-                            )}
-                         </div>
-                       ))}
-                       {isManagingTemplates && (
-                          <button 
-                            onClick={() => {
-                               const val = prompt('เพิ่มข้อความเทมเพลตใหม่:');
-                               if (val) addResTemplate(val);
-                            }}
-                            style={{ padding: '6px 14px', borderRadius: '8px', border: '1px dashed var(--primary)', background: 'none', fontSize: '12px', color: 'var(--primary)', cursor: 'pointer' }}
-                          >
-                             + เพิ่ม
-                          </button>
-                       )}
-                    </div>
-                </div>
+                           {isManagingTemplates ? 'เสร็จสิ้น' : 'จัดการเทมเพลต'}
+                        </button>
+                     </div>
+                     <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                        {resolutionTemplates.map((t, idx) => (
+                          <div key={idx} style={{ position: 'relative' }}>
+                             <button 
+                              type="button" 
+                              onClick={() => setResSummary(t)} 
+                              style={{ padding: '6px 14px', borderRadius: '8px', border: '1px solid var(--border)', background: 'rgba(255,255,255,0.05)', fontSize: '12px', color: 'var(--text-muted)', cursor: 'pointer' }}
+                             >
+                                {t}
+                             </button>
+                             {isManagingTemplates && (
+                                <button 
+                                  onClick={() => removeResTemplate(idx)}
+                                  style={{ position: 'absolute', top: '-8px', right: '-8px', width: '20px', height: '20px', borderRadius: '50%', background: 'var(--danger)', color: 'white', border: 'none', fontSize: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                                >
+                                   ×
+                                </button>
+                             )}
+                          </div>
+                        ))}
+                        {isManagingTemplates && (
+                           <button 
+                             onClick={() => {
+                                const val = prompt('เพิ่มข้อความเทมเพลตใหม่:');
+                                if (val) addResTemplate(val);
+                             }}
+                             style={{ padding: '6px 14px', borderRadius: '8px', border: '1px dashed var(--primary)', background: 'none', fontSize: '12px', color: 'var(--primary)', cursor: 'pointer' }}
+                           >
+                              + เพิ่ม
+                           </button>
+                        )}
+                     </div>
+                 </div>
 
-                <div style={{ marginBottom: '24px' }}>
+                 <div style={{ marginBottom: '24px' }}>
                     <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: 'rgba(255,255,255,0.6)', marginBottom: '8px' }}>Module</label>
                     <div style={{ position: 'relative' }}>
                        <select 
@@ -851,14 +839,7 @@ function InboxContent() {
                             padding: '14px 40px 14px 16px', 
                             borderRadius: '12px', 
                             border: 'none', 
-                            background: 'var(--primary)', 
-                            color: 'black', 
-                            fontSize: '14px', 
-                            fontWeight: '800', 
-                            outline: 'none',
-                            appearance: 'none',
-                            cursor: 'pointer',
-                            boxShadow: '0 8px 24px rgba(0,242,254,0.25)',
+                            background: 'var(--primary)', color: 'black', fontSize: '14px', fontWeight: '800', outline: 'none', appearance: 'none', cursor: 'pointer', boxShadow: '0 8px 24px var(--primary-glow)',
                             backgroundImage: `url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e")`,
                             backgroundRepeat: 'no-repeat',
                             backgroundPosition: 'right 16px center',

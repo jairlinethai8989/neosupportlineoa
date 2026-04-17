@@ -110,6 +110,7 @@ function TicketsContent() {
   const [availableTemplates, setAvailableTemplates] = useState<string[]>([]);
   const [selectedModule, setSelectedModule] = useState('');
   const [isManagingTemplates, setIsManagingTemplates] = useState(false);
+  const [companySettingsId, setCompanySettingsId] = useState<string | null>(null);
 
   // Date Filter State
   const [timeRange, setTimeRange] = useState<'all' | 'today' | 'week' | 'month' | 'custom'>('all');
@@ -160,16 +161,21 @@ function TicketsContent() {
 
       setTickets(tData || []);
       
-      const { data: companyData } = await supabase.from('company_settings').select('modules, resolution_templates').limit(1).single();
+      const { data: companyData } = await supabase.from('company_settings').select('id, modules, resolution_templates').limit(1).single();
       const defaultModules = [
          "ห้องทำงานแพทย์", "ห้องพยาบาล", "ห้องยาผู้ป่วยใน", "ห้องเวชระเบียน", "ห้องคลอด", 
          "ห้องผ่าตัด", "วิสัญญี", "โภชนาการ", "Discharge Summary", "Consult", 
          "ลงทะเบียนผู้ป่วยใน", "ห้องเวชศาสตร์ฟื้นฟู", "Admit ล่วงหน้า", "ผู้ดูแลระบบ(Admin)", 
          "ฝ่ายสารสนเทศ", "ALL", "ห้องทำงานแพทย์,Admit ล่วงหน้า", "อาหาร", "จองเตียง"
       ];
-      if (companyData?.modules && companyData.modules.length > 0) setAvailableModules(companyData.modules);
-      else setAvailableModules(defaultModules);
-      if (companyData?.resolution_templates) setAvailableTemplates(companyData.resolution_templates);
+      if (companyData) {
+         setCompanySettingsId(companyData.id);
+         if (companyData.modules && companyData.modules.length > 0) setAvailableModules(companyData.modules);
+         else setAvailableModules(defaultModules);
+         if (companyData.resolution_templates) setAvailableTemplates(companyData.resolution_templates);
+      } else {
+         setAvailableModules(defaultModules);
+      }
 
       setConversations(cData || []);
     } catch (err: any) {
@@ -223,19 +229,23 @@ function TicketsContent() {
       setLoading(false);
     }
   };
-
-  const addResTemplate = async (text: string) => {
-    const updated = [...availableTemplates, text];
-    setAvailableTemplates(updated);
-    const { error } = await supabase.from('company_settings').update({ resolution_templates: updated }).neq('id', '00000000-0000-0000-0000-000000000000');
-    if (error) console.error('Update templates error:', error);
+  
+  const saveAvailableTemplates = async (list: string[]) => {
+     setAvailableTemplates(list);
+     if (companySettingsId) {
+       await supabase.from('company_settings').update({ resolution_templates: list }).eq('id', companySettingsId);
+     }
   };
 
-  const removeResTemplate = async (index: number) => {
-    const updated = availableTemplates.filter((_, i) => i !== index);
-    setAvailableTemplates(updated);
-    const { error } = await supabase.from('company_settings').update({ resolution_templates: updated }).neq('id', '00000000-0000-0000-0000-000000000000');
-    if (error) console.error('Remove template error:', error);
+  const addResTemplate = (text: string) => {
+     if (!text.trim()) return;
+     if (availableTemplates.includes(text.trim())) return;
+     saveAvailableTemplates([...availableTemplates, text.trim()]);
+  };
+
+  const removeResTemplate = (index: number) => {
+     const next = availableTemplates.filter((_, i) => i !== index);
+     saveAvailableTemplates(next);
   };
 
   useEffect(() => {
@@ -807,8 +817,7 @@ function TicketsContent() {
                 borderRadius: '32px',
                 border: '1px solid rgba(255, 255, 255, 0.1)',
                 boxShadow: '0 40px 100px rgba(0,0,0,0.6)',
-                animation: 'scaleIn 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
-                color: 'white'
+                animation: 'scaleIn 0.4s cubic-bezier(0.16, 1, 0.3, 1)'
              }}>
                 <div style={{ textAlign: 'center', marginBottom: '32px' }}>
                    <div style={{ 
@@ -824,13 +833,13 @@ function TicketsContent() {
                    }}>
                       <CheckCircle size={32} />
                    </div>
-                   <h3 style={{ fontSize: '24px', fontWeight: '900', color: 'white', marginBottom: '8px' }}>ปิดงานใบงาน #{resolvingTicket?.ticket_no}</h3>
+                   <h3 style={{ fontSize: '24px', fontWeight: '900', color: 'var(--text-main)', marginBottom: '8px' }}>ปิดงานใบงาน #{resolvingTicket?.ticket_no}</h3>
                    <p style={{ fontSize: '14px', color: 'var(--text-muted)', lineHeight: '1.6' }}>กรุณาสรุปผลการแก้ไขปัญหา เพื่อบันทึกเป็นประวัติและแจ้งลูกค้าครับ</p>
                 </div>
 
                 <div style={{ marginBottom: '24px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                       <label style={{ fontSize: '11px', fontWeight: '800', color: 'var(--primary)', textTransform: 'uppercase', letterSpacing: '1px' }}>เทมเพลตด่วน</label>
+                       <label style={{ fontSize: '11px', fontWeight: '800', color: 'var(--primary)', textTransform: 'uppercase', letterSpacing: '1px' }}>เทมเพลตด่วน (Templates)</label>
                        <button 
                           onClick={() => setIsManagingTemplates(!isManagingTemplates)}
                           style={{ fontSize: '10px', color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}
@@ -842,9 +851,9 @@ function TicketsContent() {
                        {availableTemplates.map((t, idx) => (
                          <div key={idx} style={{ position: 'relative' }}>
                             <button 
-                              type="button" 
-                              onClick={() => setResSummary(t)} 
-                              style={{ padding: '6px 14px', borderRadius: '8px', border: '1px solid var(--border)', background: 'rgba(255,255,255,0.05)', fontSize: '12px', color: 'var(--text-muted)', cursor: 'pointer' }}
+                             type="button" 
+                             onClick={() => setResSummary(t)} 
+                             style={{ padding: '8px 14px', borderRadius: '10px', border: '1px solid var(--border)', background: 'var(--bg-card)', fontSize: '12px', color: 'var(--text-muted)', cursor: 'pointer', transition: 'all 0.2s' }}
                             >
                                {t}
                             </button>
@@ -858,70 +867,72 @@ function TicketsContent() {
                             )}
                          </div>
                        ))}
+                       {availableTemplates.length === 0 && !isManagingTemplates && <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>ยังไม่ได้ตั้งค่าเทมเพลต</p>}
                        {isManagingTemplates && (
                           <button 
                             onClick={() => {
                                const val = prompt('เพิ่มข้อความเทมเพลตใหม่:');
                                if (val) addResTemplate(val);
                             }}
-                            style={{ padding: '6px 14px', borderRadius: '8px', border: '1px dashed var(--primary)', background: 'none', fontSize: '12px', color: 'var(--primary)', cursor: 'pointer' }}
+                            style={{ padding: '8px 14px', borderRadius: '10px', border: '1px dashed var(--primary)', background: 'none', fontSize: '12px', color: 'var(--primary)', cursor: 'pointer' }}
                           >
                              + เพิ่ม
                           </button>
                        )}
                     </div>
-                </div>
+                  </div>
 
-                <div style={{ marginBottom: '24px' }}>
-                    <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: 'rgba(255,255,255,0.6)', marginBottom: '8px' }}>Module</label>
-                    <div style={{ position: 'relative' }}>
-                       <select 
-                         value={selectedModule} 
-                         onChange={(e) => setSelectedModule(e.target.value)}
-                         style={{ 
-                            width: '100%', 
-                            padding: '14px 40px 14px 16px', 
-                            borderRadius: '12px', 
-                            border: 'none', 
-                            background: 'var(--primary)', 
-                            color: 'black', 
-                            fontSize: '14px', 
-                            fontWeight: '800', 
-                            outline: 'none',
-                            appearance: 'none',
-                            cursor: 'pointer',
-                            boxShadow: '0 8px 24px var(--primary-shadow, rgba(0,242,254,0.25))',
-                            backgroundImage: `url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e")`,
-                            backgroundRepeat: 'no-repeat',
-                            backgroundPosition: 'right 16px center',
-                            backgroundSize: '16px'
-                         }}
-                       >
-                          <option value="" style={{ background: 'white', color: 'black' }}>-- ไม่ระบุโมดูล --</option>
-                          {availableModules.map(m => (
-                            <option key={m} value={m} style={{ background: 'white', color: 'black' }}>{m}</option>
-                          ))}
-                       </select>
-                    </div>
-                </div>
+                  <div style={{ marginBottom: '24px' }}>
+                     <label style={{ display: 'block', fontSize: '11px', fontWeight: '800', color: 'var(--primary)', textTransform: 'uppercase', marginBottom: '12px', letterSpacing: '1px' }}>Module ที่เกี่ยวข้อง <span style={{ color: '#ef4444' }}>*</span></label>
+                     <div style={{ position: 'relative' }}>
+                        <select 
+                          value={selectedModule} 
+                          onChange={(e) => setSelectedModule(e.target.value)}
+                          style={{ 
+                             width: '100%', 
+                             padding: '14px 40px 14px 16px', 
+                             borderRadius: '12px', 
+                             border: 'none', 
+                             background: 'var(--primary)', 
+                             color: 'black', 
+                             fontSize: '14px', 
+                             fontWeight: '800', 
+                             outline: 'none',
+                             appearance: 'none',
+                             cursor: 'pointer',
+                             boxShadow: '0 8px 12px var(--primary-glow)',
+                             backgroundImage: `url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e")`,
+                             backgroundRepeat: 'no-repeat',
+                             backgroundPosition: 'right 16px center',
+                             backgroundSize: '16px'
+                          }}
+                        >
+                           <option value="" style={{ background: 'white', color: 'black' }}>-- เลือกโมดูล --</option>
+                           {availableModules.map(m => (
+                             <option key={m} value={m} style={{ background: 'white', color: 'black' }}>{m}</option>
+                           ))}
+                        </select>
+                     </div>
+                  </div>
 
-                <div style={{ marginBottom: '32px' }}>
-                   <label style={{ display: 'block', fontSize: '11px', fontWeight: '800', color: 'var(--primary)', textTransform: 'uppercase', marginBottom: '12px', letterSpacing: '1px' }}>สรุปผลการแก้ไขงาน</label>
+                  <div style={{ marginBottom: '32px' }}>
+                   <label style={{ display: 'block', fontSize: '11px', fontWeight: '800', color: 'var(--primary)', textTransform: 'uppercase', marginBottom: '12px', letterSpacing: '1px' }}>สรุปผลการแก้ไขงาน (Resolution Summary)</label>
                    <textarea 
                      value={resSummary}
                      onChange={(e) => setResSummary(e.target.value)}
-                     placeholder="ระบุรายละเอียดการแก้ไข..."
+                     placeholder="ระบุรายละเอียดการแก้ไข เช่น 'แก้ไขส่วนลดให้แล้ว', 'อัปเดตสถานะการจัดส่งสำเร็จ'..."
                      style={{
                         width: '100%',
-                        height: '100px',
-                        background: 'rgba(255,255,255,0.02)',
+                        height: '140px',
+                        background: 'var(--bg-input)',
                         border: '1px solid var(--border)',
                         borderRadius: '16px',
                         padding: '16px',
-                        color: 'white',
+                        color: 'var(--text-main)',
                         fontSize: '14px',
                         resize: 'none',
-                        outline: 'none'
+                        outline: 'none',
+                        transition: 'all 0.3s'
                      }}
                    />
                 </div>
@@ -935,14 +946,14 @@ function TicketsContent() {
                    </button>
                    <button 
                      onClick={handleExecuteResolve}
-                     disabled={loading || !resSummary.trim()}
+                     disabled={loading || !resSummary.trim() || !selectedModule}
                      style={{ 
                        flex: 1.5, 
                        padding: '16px', 
                        borderRadius: '14px', 
                        border: 'none', 
-                       background: (loading || !resSummary.trim()) ? 'rgba(255,255,255,0.05)' : 'var(--success)', 
-                       color: (loading || !resSummary.trim()) ? 'rgba(255,255,255,0.2)' : 'black', 
+                       background: (loading || !resSummary.trim() || !selectedModule) ? 'rgba(255,255,255,0.05)' : 'var(--success)', 
+                       color: (loading || !resSummary.trim() || !selectedModule) ? 'rgba(255,255,255,0.2)' : 'black', 
                        fontWeight: '900', 
                        cursor: 'pointer',
                        display: 'flex',
