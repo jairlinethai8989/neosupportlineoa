@@ -5,7 +5,8 @@ import {
   Paperclip, 
   Monitor, 
   Loader2, 
-  SendHorizontal 
+  SendHorizontal,
+  X 
 } from 'lucide-react';
 
 interface TicketChatProps {
