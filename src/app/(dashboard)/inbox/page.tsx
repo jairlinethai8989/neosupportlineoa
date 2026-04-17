@@ -70,6 +70,7 @@ function InboxContent() {
   const [availableModules, setAvailableModules] = useState<string[]>([]);
   const [resolutionTemplates, setResolutionTemplates] = useState<string[]>([]);
   const [isManagingTemplates, setIsManagingTemplates] = useState<boolean>(false);
+  const [companySettingsId, setCompanySettingsId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
