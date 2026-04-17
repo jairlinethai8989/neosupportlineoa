@@ -119,7 +119,10 @@ export default function StaffTicketDetailPage() {
          if (companyData.departments) setAvailableDepts(companyData.departments);
          if (companyData.modules && companyData.modules.length > 0) setAvailableModules(companyData.modules);
          else setAvailableModules(defaultModules);
-         if (companyData.resolution_templates) setAvailableTemplates(companyData.resolution_templates);
+         // Only set templates if state is empty (avoid overwriting user edits via refetch)
+         setAvailableTemplates(prev =>
+           prev.length > 0 ? prev : (companyData.resolution_templates || [])
+         );
       } else {
          setAvailableModules(defaultModules);
       }
@@ -137,6 +140,7 @@ export default function StaffTicketDetailPage() {
   };
 
   const saveResTemplates = async (list: string[]) => {
+     // Optimistic update: update state immediately so UI doesn't revert
      setAvailableTemplates(list);
      if (companySettingsId) {
        await supabase.from('company_settings').update({ resolution_templates: list }).eq('id', companySettingsId);
@@ -145,13 +149,26 @@ export default function StaffTicketDetailPage() {
 
   const addResTemplate = (text: string) => {
      if (!text.trim()) return;
-     if (availableTemplates.includes(text.trim())) return;
-     saveResTemplates([...availableTemplates, text.trim()]);
+     // Use functional update to avoid stale closure issue
+     setAvailableTemplates(prev => {
+       if (prev.includes(text.trim())) return prev;
+       const next = [...prev, text.trim()];
+       // Fire-and-forget the DB save with the freshest list
+       if (companySettingsId) {
+         supabase.from('company_settings').update({ resolution_templates: next }).eq('id', companySettingsId);
+       }
+       return next;
+     });
   };
 
   const removeResTemplate = (index: number) => {
-     const next = availableTemplates.filter((_, i) => i !== index);
-     saveResTemplates(next);
+     setAvailableTemplates(prev => {
+       const next = prev.filter((_, i) => i !== index);
+       if (companySettingsId) {
+         supabase.from('company_settings').update({ resolution_templates: next }).eq('id', companySettingsId);
+       }
+       return next;
+     });
   };
 
   useEffect(() => {

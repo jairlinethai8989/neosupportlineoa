@@ -123,7 +123,10 @@ function InboxContent() {
           setCompanySettingsId(companyData.id);
           if (companyData.modules && companyData.modules.length > 0) setAvailableModules(companyData.modules);
           else setAvailableModules(defaultModules);
-          if (companyData.resolution_templates) setResolutionTemplates(companyData.resolution_templates);
+          // Only set templates if state is empty (avoid overwriting user edits on refetch)
+          setResolutionTemplates(prev =>
+            prev.length > 0 ? prev : (companyData.resolution_templates || [])
+          );
        } else {
           setAvailableModules(defaultModules);
        }
@@ -419,13 +422,26 @@ function InboxContent() {
 
   const addResTemplate = (text: string) => {
      if (!text.trim()) return;
-     if (resolutionTemplates.includes(text.trim())) return;
-     saveResTemplates([...resolutionTemplates, text.trim()]);
+     setResolutionTemplates(prev => {
+       if (prev.includes(text.trim())) return prev;
+       const next = [...prev, text.trim()];
+       localStorage.setItem('neo_resolution_templates', JSON.stringify(next));
+       if (companySettingsId) {
+         supabase.from('company_settings').update({ resolution_templates: next }).eq('id', companySettingsId);
+       }
+       return next;
+     });
   };
 
   const removeResTemplate = (index: number) => {
-     const next = resolutionTemplates.filter((_, i) => i !== index);
-     saveResTemplates(next);
+     setResolutionTemplates(prev => {
+       const next = prev.filter((_, i) => i !== index);
+       localStorage.setItem('neo_resolution_templates', JSON.stringify(next));
+       if (companySettingsId) {
+         supabase.from('company_settings').update({ resolution_templates: next }).eq('id', companySettingsId);
+       }
+       return next;
+     });
   };
    
   const handleCloseSession = async () => {
