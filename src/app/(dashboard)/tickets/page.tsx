@@ -32,7 +32,8 @@ import {
   Grid,
   Filter,
   BarChart3,
-  ArrowRight
+  ArrowRight,
+  LayoutGrid
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNotificationContext } from '@/contexts/NotificationContext';
