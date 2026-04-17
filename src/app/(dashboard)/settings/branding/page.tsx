@@ -34,10 +34,7 @@ export default function BrandingSettingsPage() {
       const { data: c } = await supabase.from('company_settings').select('*').limit(1).single();
       if (c && !c.modules) {
         c.modules = [
-          "ห้องทำงานแพทย์", "ห้องพยาบาล", "ห้องยาผู้ป่วยใน", "ห้องเวชระเบียน", "ห้องคลอด", 
-          "ห้องผ่าตัด", "วิสัญญี", "โภชนาการ", "Discharge Summary", "Consult", 
-          "ลงทะเบียนผู้ป่วยใน", "ห้องเวชศาสตร์ฟื้นฟู", "Admit ล่วงหน้า", "ผู้ดูแลระบบ(Admin)", 
-          "ฝ่ายสารสนเทศ", "ALL", "ห้องทำงานแพทย์,Admit ล่วงหน้า", "อาหาร", "จองเตียง"
+          "ห้องทำงานแพทย์", "ห้องพยาบาล", "ห้องยาผู้ป่วยใน", "ห้องเวชระเบียน", "ห้องผ่าตัด", "ห้องวิสัญญี", "ห้อง Consult", "All"
         ];
       }
       setCompany(c);

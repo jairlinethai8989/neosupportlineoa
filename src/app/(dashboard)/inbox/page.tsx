@@ -115,10 +115,16 @@ function InboxContent() {
     
     async function fetchModules() {
        const { data: companyData } = await supabase.from('company_settings').select('id, modules, resolution_templates').limit(1).single();
+       const defaultModules = [
+          "ห้องทำงานแพทย์", "ห้องพยาบาล", "ห้องยาผู้ป่วยใน", "ห้องเวชระเบียน", "ห้องผ่าตัด", "ห้องวิสญญี", "ห้อง Consult", "All"
+       ];
        if (companyData) {
           setCompanySettingsId(companyData.id);
-          if (companyData.modules) setAvailableModules(companyData.modules);
+          if (companyData.modules && companyData.modules.length > 0) setAvailableModules(companyData.modules);
+          else setAvailableModules(defaultModules);
           if (companyData.resolution_templates) setResolutionTemplates(companyData.resolution_templates);
+       } else {
+          setAvailableModules(defaultModules);
        }
     }
     fetchModules();
