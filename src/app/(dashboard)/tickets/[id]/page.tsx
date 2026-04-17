@@ -243,7 +243,30 @@ export default function StaffTicketDetailPage() {
       <TicketHeader ticket={ticket} status={status} user={user} updating={updating} isChatActive={isChatActive} onUpdate={() => fetchData()} onResolveClick={() => { setShowResolveModal(true); setResSummary(''); }} onExportClick={() => setShowExportModal(true)} />
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: '24px', alignItems: 'start' }}>
         <TicketChat messages={messages} ticket={ticket} user={user} newMessage={newMessage} setNewMessage={setNewMessage} sending={sending} onSendMessage={handleSendMessage} onAttachFile={() => adminFileRef.current?.click()} onScreenCapture={handleScreenCapture} onEditImage={(u) => { setViewingImage(u); setShowViewer(true); }} onDeleteMessage={handleDeleteMessage} onEndChat={handleEndChat} isChatActive={isChatActive} quickReplies={personalQuickReplies} isReadOnly={true} />
-        <TicketSidebar ticket={ticket} user={user} status={status} setStatus={setStatus} priority={priority} setPriority={setPriority} selectedDept={selectedDept} setSelectedDept={setSelectedDept} availableDepts={availableDepts} selectedModule={selectedModule} setSelectedModule={setSelectedModule} availableModules={availableModules} logs={logs} onUpdate={() => fetchData()} />
+        <TicketSidebar 
+          ticket={ticket} user={user} 
+          status={status} setStatus={async (s) => { 
+            setStatus(s); 
+            await supabase.from('tickets').update({ status: s }).eq('id', id);
+            fetchData();
+          }} 
+          priority={priority} setPriority={async (p) => { 
+            setPriority(p); 
+            await supabase.from('tickets').update({ priority: p }).eq('id', id);
+            fetchData();
+          }} 
+          selectedDept={selectedDept} setSelectedDept={async (d) => { 
+            setSelectedDept(d); 
+            await supabase.from('tickets').update({ department: d }).eq('id', id);
+            fetchData();
+          }} 
+          selectedModule={selectedModule} setSelectedModule={async (m) => { 
+            setSelectedModule(m); 
+            await supabase.from('tickets').update({ module: m }).eq('id', id);
+            fetchData();
+          }} 
+          availableDepts={availableDepts} availableModules={availableModules} logs={logs} 
+        />
       </div>
 
       {showResolveModal && (
