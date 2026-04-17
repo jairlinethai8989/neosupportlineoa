@@ -42,7 +42,7 @@ export default function TicketDetailPage() {
   const conversationIdRef = useRef<string | null>(null);
 
   useEffect(() => {
-    if (!id) return;
+    if (!id || !isReady) return; // Wait for LIFF to be ready before fetching
 
     async function fetchTicketData() {
       if (!id) return;
@@ -114,6 +114,8 @@ export default function TicketDetailPage() {
     }
 
     // Run fetch first, then subscribe
+    let channelRef: ReturnType<typeof supabase.channel> | null = null;
+
     fetchTicketData().then(() => {
       const channel = supabase
         .channel(`portal-ticket-${id}`)
@@ -155,15 +157,15 @@ export default function TicketDetailPage() {
         .subscribe((status) => {
           console.log(`Portal Realtime Status (ticket=${id}):`, status);
         });
-
-      return () => { supabase.removeChannel(channel); };
+      channelRef = channel;
     });
 
     // Cleanup on unmount/id change
     return () => {
       conversationIdRef.current = null;
+      if (channelRef) supabase.removeChannel(channelRef);
     };
-  }, [id]);
+  }, [id, isReady]);
 
   const handleEditExistingImage = (url: string) => {
     setViewingImage(url);

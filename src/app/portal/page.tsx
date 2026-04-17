@@ -158,9 +158,11 @@ export default function PortalPage() {
     );
   }
 
-  const closedStatuses = ['closed', 'canceled'];
-  const activeTickets = tickets.filter(t => !closedStatuses.includes(String(t.status || '').toLowerCase()));
-  const pastTickets = tickets.filter(t => closedStatuses.includes(String(t.status || '').toLowerCase()));
+  // Status values from DB: 'New', 'Assigned', 'In Progress', 'Escalated', 'Resolved', 'Closed', 'Canceled'
+  // After resolveTicketAction the status becomes 'Resolved' — show in history
+  const doneStatuses = ['resolved', 'closed', 'canceled'];
+  const activeTickets = tickets.filter(t => !doneStatuses.includes(String(t.status || '').toLowerCase()));
+  const pastTickets = tickets.filter(t => doneStatuses.includes(String(t.status || '').toLowerCase()));
 
   return (
     <>
