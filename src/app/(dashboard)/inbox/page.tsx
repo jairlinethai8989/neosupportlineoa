@@ -116,7 +116,7 @@ function InboxContent() {
     async function fetchModules() {
        const { data: companyData } = await supabase.from('company_settings').select('id, modules, resolution_templates').limit(1).single();
        const defaultModules = [
-          "ห้องทำงานแพทย์", "ห้องพยาบาล", "ห้องยาผู้ป่วยใน", "ห้องเวชระเบียน", "ห้องผ่าตัด", "ห้องวิสญญี", "ห้อง Consult", "All"
+          "ห้องทำงานแพทย์", "ห้องพยาบาล", "ห้องยาผู้ป่วยใน", "ห้องเวชระเบียน", "ห้องผ่าตัด", "ห้องวิสัญญี", "ห้อง Consult", "All"
        ];
        if (companyData) {
           setCompanySettingsId(companyData.id);
