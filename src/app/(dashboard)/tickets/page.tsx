@@ -109,6 +109,7 @@ function TicketsContent() {
   const [availableModules, setAvailableModules] = useState<string[]>([]);
   const [availableTemplates, setAvailableTemplates] = useState<string[]>([]);
   const [selectedModule, setSelectedModule] = useState('');
+  const [isManagingTemplates, setIsManagingTemplates] = useState(false);
 
   // Date Filter State
   const [timeRange, setTimeRange] = useState<'all' | 'today' | 'week' | 'month' | 'custom'>('all');
@@ -180,7 +181,10 @@ function TicketsContent() {
   }
 
   const handleExecuteResolve = async () => {
-    if (!resolvingTicket || !resSummary.trim()) return;
+    if (!resolvingTicket || !resSummary.trim() || !selectedModule) {
+       alert('กรุณากรอกข้อมูลให้ครบถ้วน (Module และ สรุปคำตอบ)');
+       return;
+    }
     
     // Check for active conversation
     const activeConv = conversations.find(c => 
@@ -221,6 +225,23 @@ function TicketsContent() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const saveResTemplates = (list: string[]) => {
+      setAvailableTemplates(list);
+      supabase.from('company_settings').update({ resolution_templates: list }).eq('id', 1).then(() => {
+         addToast({ id: 'temp-save', type: 'system', title: 'Settings Saved', body: 'Resolution templates updated' });
+      });
+  };
+
+  const addResTemplate = (val: string) => {
+      const newList = [...availableTemplates, val];
+      saveResTemplates(newList);
+  };
+
+  const removeResTemplate = (idx: number) => {
+      const newList = availableTemplates.filter((_, i) => i !== idx);
+      saveResTemplates(newList);
   };
 
   useEffect(() => {
@@ -813,12 +834,51 @@ function TicketsContent() {
                 </div>
 
                 <div style={{ marginBottom: '24px' }}>
-                    <label style={{ display: 'block', fontSize: '11px', fontWeight: '800', color: 'var(--primary)', textTransform: 'uppercase', marginBottom: '12px', letterSpacing: '1px' }}>เทมเพลตด่วน (Templates)</label>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                       <label style={{ fontSize: '11px', fontWeight: '800', color: 'var(--primary)', textTransform: 'uppercase', letterSpacing: '1px' }}>เทมเพลตด่วน (Templates)</label>
+                       {userProfile?.role === 'Administrator' && (
+                         <button 
+                            onClick={() => setIsManagingTemplates(!isManagingTemplates)}
+                            style={{ fontSize: '10px', color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}
+                         >
+                            {isManagingTemplates ? 'เสร็จสิ้น' : 'จัดการเทมเพลต'}
+                         </button>
+                       )}
+                    </div>
                     <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                       {availableTemplates.map(t => (
-                         <button key={t} type="button" onClick={() => setResSummary(t)} style={{ padding: '8px 14px', borderRadius: '10px', border: '1px solid var(--border)', background: 'var(--bg-card)', fontSize: '12px', color: 'var(--text-muted)', cursor: 'pointer', transition: 'all 0.2s' }}>{t}</button>
+                       {availableTemplates.map((t, idx) => (
+                         <div key={idx} style={{ position: 'relative' }}>
+                            <button 
+                              type="button" 
+                              onClick={() => setResSummary(t)} 
+                              style={{ padding: '8px 14px', borderRadius: '10px', border: '1px solid var(--border)', background: 'rgba(255,255,255,0.05)', fontSize: '12px', color: 'var(--text-muted)', cursor: 'pointer', transition: 'all 0.2s' }}
+                            >
+                               {t}
+                            </button>
+                            {isManagingTemplates && (
+                               <button 
+                                 onClick={() => removeResTemplate(idx)}
+                                 style={{ position: 'absolute', top: '-8px', right: '-8px', width: '20px', height: '20px', borderRadius: '50%', background: 'var(--danger)', color: 'white', border: 'none', fontSize: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                               >
+                                  ×
+                               </button>
+                            )}
+                         </div>
                        ))}
-                       {availableTemplates.length === 0 && <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>ยังไม่ได้ตั้งค่าเทมเพลต</p>}
+                       {availableTemplates.length === 0 && !isManagingTemplates && (
+                          <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>ยังไม่ได้ตั้งค่าเทมเพลต</p>
+                       )}
+                       {isManagingTemplates && (
+                          <button 
+                            onClick={() => {
+                               const val = prompt('เพิ่มข้อความเทมเพลตใหม่:');
+                               if (val) addResTemplate(val);
+                            }}
+                            style={{ padding: '8px 14px', borderRadius: '10px', border: '1px dashed var(--primary)', background: 'none', fontSize: '12px', color: 'var(--primary)', cursor: 'pointer' }}
+                          >
+                             + เพิ่ม
+                          </button>
+                       )}
                     </div>
                  </div>
 
@@ -833,23 +893,23 @@ function TicketsContent() {
                             padding: '14px 40px 14px 16px', 
                             borderRadius: '12px', 
                             border: 'none', 
-                            background: 'var(--secondary)', 
-                            color: 'white', 
+                            background: 'linear-gradient(135deg, var(--primary), #00d2ff)', 
+                            color: 'black', 
                             fontSize: '14px', 
-                            fontWeight: '700', 
+                            fontWeight: '800', 
                             outline: 'none',
                             appearance: 'none',
                             cursor: 'pointer',
-                            boxShadow: '0 4px 12px rgba(139, 92, 246, 0.25)',
-                            backgroundImage: `url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e")`,
+                            boxShadow: '0 8px 20px rgba(0, 210, 255, 0.25)',
+                            backgroundImage: `url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e")`,
                             backgroundRepeat: 'no-repeat',
                             backgroundPosition: 'right 16px center',
                             backgroundSize: '16px'
                          }}
                        >
-                          <option value="" style={{ background: 'var(--secondary)', color: 'white' }}>-- เลือกโมดูล --</option>
+                          <option value="" style={{ background: 'white', color: 'black' }}>-- เลือกโมดูล --</option>
                           {availableModules.map(m => (
-                            <option key={m} value={m} style={{ background: 'var(--secondary)', color: 'white' }}>{m}</option>
+                            <option key={m} value={m} style={{ background: 'white', color: 'black' }}>{m}</option>
                           ))}
                        </select>
                     </div>
