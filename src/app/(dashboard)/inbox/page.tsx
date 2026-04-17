@@ -358,8 +358,9 @@ function InboxContent() {
         {selectedChat && (
           <TicketSidebar 
             selectedChat={selectedChat} currentTicket={currentTicket} agent={agent} viewMode={viewMode} setViewMode={setViewMode}
+            onFetchGlobalHistory={() => alert('ฟีเจอร์ประวัติการสนทนาส่วนกลาง (Global Log) กำลังอยู่ระหว่างการพัฒนาครับ')}
             onResolve={handleResolve} onTransfer={() => setIsTransferModalOpen(true)} onCloseSession={handleCloseSession}
-            onCopySurvey={() => { navigator.clipboard.writeText(`${window.location.origin}/survey/${selectedChat.current_ticket_id}`); alert('Copied!'); }}
+            onCopySurvey={() => { navigator.clipboard.writeText(`${window.location.origin}/survey/${selectedChat.current_ticket_id}`); alert('คัดลอกลิงก์ประเมินแล้ว!'); }}
           />
         )}
       </div>
