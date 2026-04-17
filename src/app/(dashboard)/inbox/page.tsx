@@ -417,7 +417,27 @@ function InboxContent() {
        )}
 
        {isViewerOpen && viewingImage && <ImageViewerModal imageUrl={viewingImage} onClose={() => setIsViewerOpen(false)} />}
-       {isEditorOpen && editingImage && <ImageEditorModal imageUrl={editingImage} onClose={() => setIsEditorOpen(false)} onSave={() => {}} />}
+       {isEditorOpen && editingImage && (
+         <ImageEditorModal 
+           imageUrl={editingImage} 
+           onClose={() => setIsEditorOpen(false)} 
+           onSave={async (blob: Blob) => {
+             setSending(true);
+             try {
+               const fileName = `edited_inbox_${selectedChat?.id}_${Date.now()}.jpg`;
+               const { error: upErr } = await supabase.storage.from('chat_media').upload(fileName, blob, { contentType: 'image/jpeg' });
+               if (upErr) throw upErr;
+               const { data: { publicUrl } } = supabase.storage.from('chat_media').getPublicUrl(fileName);
+               await sendAgentMessageAction(selectedChat?.id, selectedChat?.current_ticket_id || null, publicUrl, 'image');
+               setIsEditorOpen(false);
+             } catch (err: any) {
+               alert('Upload Failed: ' + err.message);
+             } finally {
+               setSending(false);
+             }
+           }} 
+         />
+       )}
 
        <style dangerouslySetInnerHTML={{ __html: `@keyframes scaleIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }` }} />
     </div>
