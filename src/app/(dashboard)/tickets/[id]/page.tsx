@@ -33,8 +33,6 @@ export default function StaffTicketDetailPage() {
   const [logs, setLogs] = useState<any[]>([]);
   const [messages, setMessages] = useState<any[]>([]);
   const [conversationId, setConversationId] = useState<string | null>(null);
-  // Ref keeps the latest conversationId available to realtime handlers
-  // without causing channel re-subscription on every state change
   const conversationIdRef = useRef<string | null>(null);
   const [isChatActive, setIsChatActive] = useState(false);
   const { addToast } = useNotificationContext();
@@ -46,9 +44,7 @@ export default function StaffTicketDetailPage() {
   const [availableDepts, setAvailableDepts] = useState<string[]>([]);
   const [selectedModule, setSelectedModule] = useState('');
   const [availableModules, setAvailableModules] = useState<string[]>([]);
-  const [availableTemplates, setAvailableTemplates] = useState<string[]>([]);
   const [isManagingTemplates, setIsManagingTemplates] = useState(false);
-  const [companySettingsId, setCompanySettingsId] = useState<string | null>(null);
   const [newMessage, setNewMessage] = useState('');
   const [personalQuickReplies, setPersonalQuickReplies] = useState<string[]>([]);
   const [personalResTemplates, setPersonalResTemplates] = useState<string[]>([]);
@@ -62,13 +58,6 @@ export default function StaffTicketDetailPage() {
   const [viewingImage, setViewingImage] = useState<string | null>(null);
   const [showViewer, setShowViewer] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
-
-  const quickReplies = [
-    "สวัสดีครับ แอดมินรับเรื่องแล้ว กำลังเร่งตรวจสอบให้นะครับ ⏳",
-    "รบกวนแจ้ง Error Code หรือจับภาพหน้าจอที่พบปัญหาให้ทีมงานหน่อยครับ 📸",
-    "ดำเนินการแก้ไขและอัปเดตระบบเรียบร้อยแล้ว ลองใช้งานใหม่อีกครั้งนะครับ ✅",
-    "ขอบคุณที่ใช้บริการครับ ทางเราขออนุญาตปิดตั๋วงานนี้นะครับ 🙏"
-  ];
 
   const fetchData = async () => {
     if (!id) return;
@@ -90,53 +79,33 @@ export default function StaffTicketDetailPage() {
         setPriority(ticketData.priority);
         setSelectedDept(ticketData.department || '');
         setSelectedModule(ticketData.module || '');
-
-        // Fetch Logs
         const lRes = await supabase.from('ticket_logs').select('*').eq('ticket_id', id).order('created_at', { ascending: false });
         if (lRes.data) setLogs(lRes.data);
 
-        // Fetch active conversation
-        const { data: conv } = await supabase
-           .from('conversations')
-           .select('id, status')
-           .eq('customer_id', ticketData.customer_id)
-           .eq('status', 'active')
-           .maybeSingle();
+        const { data: conv } = await supabase.from('conversations').select('id, status').eq('customer_id', ticketData.customer_id).eq('status', 'active').maybeSingle();
         if (conv) {
           setConversationId(conv.id);
-          conversationIdRef.current = conv.id; // sync ref immediately for realtime handler
+          conversationIdRef.current = conv.id;
           setIsChatActive(true);
         } else {
           setIsChatActive(false);
         }
 
-        // Fetch all messages (by ticket_id OR conversation_id)
         const cid = conversationIdRef.current;
-        const mQuery = supabase.from('messages').select('*');
         const { data: msgData } = await (cid
-          ? mQuery.or(`ticket_id.eq.${id},conversation_id.eq.${cid}`)
-          : mQuery.eq('ticket_id', id)
+          ? supabase.from('messages').select('*').or(`ticket_id.eq.${id},conversation_id.eq.${cid}`)
+          : supabase.from('messages').select('*').eq('ticket_id', id)
         ).order('created_at', { ascending: true });
         if (msgData) setMessages(msgData);
       }
 
-      const { data: companyData } = await supabase.from('company_settings').select('id, departments, modules, resolution_templates').limit(1).single();
-      const defaultModules = [
-         "ห้องทำงานแพทย์", "ห้องพยาบาล", "ห้องยาผู้ป่วยใน", "ห้องเวชระเบียน", "ห้องผ่าตัด", "ห้องวิสัญญี", "ห้อง Consult", "All"
-      ];
-
+      const { data: companyData } = await supabase.from('company_settings').select('id, departments, modules').limit(1).single();
+      const defaultModules = ["ห้องทำงานแพทย์", "ห้องพยาบาล", "ห้องยาผู้ป่วยใน", "ห้องเวชระเบียน", "ห้องผ่าตัด", "ห้องวิสัญญี", "ห้อง Consult", "All"];
       if (companyData) {
-         setCompanySettingsId(companyData.id);
          if (companyData.departments) setAvailableDepts(companyData.departments);
          if (companyData.modules && companyData.modules.length > 0) setAvailableModules(companyData.modules);
          else setAvailableModules(defaultModules);
-         // Only set templates if state is empty (avoid overwriting user edits via refetch)
-         setAvailableTemplates(prev =>
-           prev.length > 0 ? prev : (companyData.resolution_templates || [])
-         );
-      } else {
-         setAvailableModules(defaultModules);
-      }
+      } else { setAvailableModules(defaultModules); }
 
       const { data: { user: authUser } } = await supabase.auth.getUser();
       if (authUser) {
@@ -145,553 +114,187 @@ export default function StaffTicketDetailPage() {
             setUser({ ...authUser, ...profile });
             if (profile.quick_replies) setPersonalQuickReplies(profile.quick_replies);
             if (profile.resolution_templates) setPersonalResTemplates(profile.resolution_templates);
-          } else {
-            setUser(authUser);
-          }
+          } else { setUser(authUser); }
       }
-    } catch (err: any) {
-      console.error('Fetch error:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const saveResTemplates = async (list: string[]) => {
-     // Optimistic update: update state immediately so UI doesn't revert
-     setAvailableTemplates(list);
-     if (companySettingsId) {
-       await supabase.from('company_settings').update({ resolution_templates: list }).eq('id', companySettingsId);
-     }
+    } catch (err) { console.error('Fetch error:', err); }
+    finally { setLoading(false); }
   };
 
   const addResTemplate = async (text: string) => {
      if (!text.trim() || !user) return;
      const updated = [...personalResTemplates, text.trim()];
      setPersonalResTemplates(updated);
-     
-     await supabase.from('profiles').update({ 
-       resolution_templates: updated,
-       updated_at: new Date().toISOString()
-     }).eq('id', user.id);
+     await supabase.from('profiles').update({ resolution_templates: updated, updated_at: new Date().toISOString() }).eq('id', user.id);
   };
 
   const removeResTemplate = async (index: number) => {
      if (!user) return;
      const updated = personalResTemplates.filter((_, i) => i !== index);
      setPersonalResTemplates(updated);
-     
-     await supabase.from('profiles').update({ 
-       resolution_templates: updated,
-       updated_at: new Date().toISOString()
-     }).eq('id', user.id);
+     await supabase.from('profiles').update({ resolution_templates: updated, updated_at: new Date().toISOString() }).eq('id', user.id);
   };
 
   useEffect(() => {
-    // Run fetch first so conversationIdRef is populated before subscribing
-    fetchData().then(() => {
-      const channel = supabase
-        .channel(`staff-ticket-${id}`)
-        // Broad listener: filter inside handler using ref (avoids stale-closure bug)
-        .on('postgres_changes', {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'messages',
-        }, (payload: any) => {
-          const msg = payload.new;
-          const cid = conversationIdRef.current;
-          const belongs =
-            msg.ticket_id === id ||
-            (cid && msg.conversation_id === cid);
-          if (!belongs) return;
-          setMessages(prev => {
-            if (prev.some(m => m.id === msg.id)) return prev;
-            return [...prev, msg];
-          });
-        })
-        .on('postgres_changes', {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'messages',
-        }, (payload: any) => {
-          setMessages(prev => prev.map(m => m.id === payload.new.id ? payload.new : m));
-        })
-        .on('postgres_changes', {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'tickets',
-          filter: `id=eq.${id}`
-        }, (payload: any) => {
-          setTicket((prev: any) => prev ? ({ ...prev, ...payload.new }) : prev);
-          setStatus(payload.new.status);
-        })
-        .subscribe((status) => {
-          console.log(`Staff Realtime Status (ticket=${id}):`, status);
-        });
-
-      return () => { supabase.removeChannel(channel); };
-    });
-
-    return () => {
-      conversationIdRef.current = null;
-    };
+    fetchData();
+    const chan = supabase.channel(`staff-ticket-${id}`)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (p: any) => {
+        const msg = p.new; const cid = conversationIdRef.current;
+        if (msg.ticket_id === id || (cid && msg.conversation_id === cid)) {
+          setMessages(prev => prev.some(m => m.id === msg.id) ? prev : [...prev, msg]);
+        }
+      })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'messages' }, (p: any) => {
+        setMessages(prev => prev.map(m => m.id === p.new.id ? p.new : m));
+      })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'tickets', filter: `id=eq.${id}` }, (p: any) => {
+        setTicket((prev: any) => prev ? ({ ...prev, ...p.new }) : prev);
+        setStatus(p.new.status);
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(chan); conversationIdRef.current = null; };
   }, [id]);
-
-  const handleExportSummary = (format: 'pdf' | 'xlsx') => {
-    if (!ticket) return;
-    try {
-      const summaryData = [{
-        'Ticket No': ticket.ticket_no,
-        'Subject': ticket.subject,
-        'Customer': ticket.customers?.display_name || 'N/A',
-        'Status': ticket.status,
-        'Priority': ticket.priority,
-        'Department': ticket.department || 'N/A',
-        'Created At': new Date(ticket.created_at).toLocaleString('th-TH'),
-        'Resolved At': ticket.resolved_at ? new Date(ticket.resolved_at).toLocaleString('th-TH') : '-',
-        'Resolution summary': ticket.resolution_summary || '-'
-      }];
-      if (format === 'xlsx') exportToExcel(summaryData, `Summary_Ticket_${ticket.ticket_no}`);
-      else exportToPDF(summaryData, `Summary_Ticket_${ticket.ticket_no}`, `NeoSupport Summary: Ticket #${ticket.ticket_no}`);
-    } catch (err) { console.error('Export Error:', err); }
-  };
 
   const handleSendMessage = async () => {
     if (!newMessage.trim()) return;
     const content = newMessage;
-    const optimisticMsg = {
-      id: `temp-${Date.now()}`,
-      content: content,
-      sender_type: 'agent',
-      staff_id: user?.id,
-      ticket_id: id,
-      conversation_id: conversationId,
-      message_type: 'text',
-      created_at: new Date().toISOString()
-    };
-
+    const optimisticMsg = { id: `temp-${Date.now()}`, content, sender_type: 'agent', staff_id: user?.id, ticket_id: id, conversation_id: conversationId, message_type: 'text', created_at: new Date().toISOString() };
     setMessages(prev => [...prev, optimisticMsg]);
-    setNewMessage('');
-    setSending(true);
+    setNewMessage(''); setSending(true);
     try {
-      const { error } = await supabase.from('messages').insert([{
-        conversation_id: conversationId,
-        ticket_id: id,
-        sender_type: 'agent',
-        staff_id: user?.id,
-        message_type: 'text',
-        content
-      }]);
+      const { error } = await supabase.from('messages').insert([{ conversation_id: conversationId, ticket_id: id, sender_type: 'agent', staff_id: user?.id, message_type: 'text', content }]);
       if (error) throw error;
-      // Note: fetchData() will eventually replace the temp message with the DB one via realtime or fetch
       fetchData();
     } catch (err: any) {
       setMessages(prev => prev.filter(m => m.id !== optimisticMsg.id));
-      alert('Error: ' + err.message);
-      setNewMessage(content);
-    }
-    finally { setSending(false); }
+      setNewMessage(content); alert('Error: ' + err.message);
+    } finally { setSending(false); }
   };
 
   const handleAdminFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
-     if (e.target.files && e.target.files.length > 0) {
-        const file = e.target.files[0];
-        setSending(true);
-        try {
-           const fileExt = file.name.split('.').pop() || 'jpg';
-           const fileName = `admin_${id}_${Date.now()}.${fileExt}`;
-           const { error: uploadError } = await supabase.storage.from('chat_media').upload(fileName, file);
-           if (uploadError) throw uploadError;
-           const { data: { publicUrl } } = supabase.storage.from('chat_media').getPublicUrl(fileName);
-           await supabase.from('messages').insert([{
-              conversation_id: conversationId,
-              ticket_id: id,
-              sender_type: 'agent',
-              staff_id: user?.id,
-              message_type: file.type.startsWith('image/') ? 'image' : 'file',
-              content: publicUrl,
-           }]);
-           fetchData();
-        } catch(err: any) { alert('Upload Failed: ' + err.message); }
-        finally { setSending(false); if(adminFileRef.current) adminFileRef.current.value = ''; }
-     }
-  };
-
-  const handleEditorSave = async (blob: Blob) => {
-    const fileName = `edited_${id}_${Date.now()}.jpg`;
-    setSending(true);
-    try {
-      const { error: uploadError } = await supabase.storage.from('chat_media').upload(fileName, blob, { contentType: 'image/jpeg' });
-      if (uploadError) throw uploadError;
-      const { data: { publicUrl } } = supabase.storage.from('chat_media').getPublicUrl(fileName);
-      await supabase.from('messages').insert([{
-        conversation_id: conversationId,
-        ticket_id: id,
-        sender_type: 'agent',
-        staff_id: user?.id,
-        message_type: 'image',
-        content: publicUrl,
-      }]);
-      fetchData();
-      setShowEditor(false);
-      setEditingImage(null);
-    } catch (err: any) { alert('Failed: ' + err.message); }
-    finally { setSending(false); }
+    if (e.target.files && e.target.files.length > 0) {
+      const file = e.target.files[0]; setSending(true);
+      try {
+        const fileName = `admin_${id}_${Date.now()}.${file.name.split('.').pop()}`;
+        const { error: upErr } = await supabase.storage.from('chat_media').upload(fileName, file);
+        if (upErr) throw upErr;
+        const { data: { publicUrl } } = supabase.storage.from('chat_media').getPublicUrl(fileName);
+        await supabase.from('messages').insert([{ conversation_id: conversationId, ticket_id: id, sender_type: 'agent', staff_id: user?.id, message_type: file.type.startsWith('image/') ? 'image' : 'file', content: publicUrl }]);
+        fetchData();
+      } catch (err: any) { alert('Upload Failed: ' + err.message); }
+      finally { setSending(false); if (adminFileRef.current) adminFileRef.current.value = ''; }
+    }
   };
 
   const handleScreenCapture = async () => {
     try {
-      const stream = await navigator.mediaDevices.getDisplayMedia({ video: { cursor: 'always' } as any });
-      const video = document.createElement('video');
-      video.srcObject = stream;
-      await new Promise((resolve) => { video.onloadedmetadata = () => { video.play(); resolve(true); }; });
-      await new Promise(r => setTimeout(r, 100));
-      const canvas = document.createElement('canvas');
-      canvas.width = video.videoWidth; canvas.height = video.videoHeight;
-      canvas.getContext('2d')?.drawImage(video, 0, 0);
-      stream.getTracks().forEach(track => track.stop());
-      setEditingImage(canvas.toDataURL('image/jpeg', 0.9));
-      setShowEditor(true);
+      const stream = await navigator.mediaDevices.getDisplayMedia({ video: true } as any);
+      const video = document.createElement('video'); video.srcObject = stream;
+      await new Promise(r => video.onloadedmetadata = () => { video.play(); r(true); });
+      const canvas = document.createElement('canvas'); canvas.width = video.videoWidth; canvas.height = video.videoHeight;
+      canvas.getContext('2d')?.drawImage(video, 0, 0); stream.getTracks().forEach(t => t.stop());
+      setEditingImage(canvas.toDataURL('image/jpeg', 0.9)); setShowEditor(true);
     } catch (err: any) { if (err.name !== 'NotAllowedError') alert('Failed: ' + err.message); }
   };
 
-  const handleEndChat = async () => {
-    if (!conversationId) return;
-    if (!confirm('คุณยืนยันที่จะจบการสนทนานี้ใช่หรือไม่?\nหากกด "ตกลง" ลูกค้าจะไม่สามารถส่งข้อความใหม่ในเซสชั่นนี้ได้จนกว่าจะมีการเปิดใบงานใหม่ครับ')) return;
-    
-    setUpdating(true);
+  const handleEditorSave = async (blob: Blob) => {
+    setSending(true);
     try {
-      await closeConversationAction(conversationId);
-      setIsChatActive(false);
-      fetchData();
-      addToast({
-        id: `end-chat-${id}`,
-        type: 'message',
-        title: 'Chat Ended! 🔒',
-        body: 'การสนทนาถูกปิดเรียบร้อยแล้ว'
-      });
-    } catch (err: any) {
-      alert('Failed: ' + err.message);
-    } finally {
-      setUpdating(false);
-    }
+      const fileName = `edited_${id}_${Date.now()}.jpg`;
+      const { error: upErr } = await supabase.storage.from('chat_media').upload(fileName, blob, { contentType: 'image/jpeg' });
+      if (upErr) throw upErr;
+      const { data: { publicUrl } } = supabase.storage.from('chat_media').getPublicUrl(fileName);
+      await supabase.from('messages').insert([{ conversation_id: conversationId, ticket_id: id, sender_type: 'agent', staff_id: user?.id, message_type: 'image', content: publicUrl }]);
+      fetchData(); setShowEditor(false); setEditingImage(null);
+    } catch (err: any) { alert('Failed: ' + err.message); }
+    finally { setSending(false); }
+  };
+
+  const handleDeleteMessage = async (mid: string) => {
+    if (!confirm('ยกเลิกส่ง?')) return;
+    try { await deleteMessageAction(mid); fetchData(); } catch (err: any) { alert('Failed: ' + err.message); }
+  };
+
+  const handleEndChat = async () => {
+    if (!conversationId || !confirm('ยืนยันจบการสนทนา?')) return;
+    setUpdating(true);
+    try { await closeConversationAction(conversationId); setIsChatActive(false); fetchData(); }
+    catch (err: any) { alert('Failed: ' + err.message); } finally { setUpdating(false); }
   };
 
   const handleResolve = async () => {
-    if (!resSummary.trim()) { alert('กรุณากรอกสรุปการแก้ไขงานก่อนปิดตั๋วครับ'); return; }
-    if (!selectedModule) { alert('กรุณาเลือกโมดูลที่เกี่ยวข้องก่อนปิดตั๋วครับ'); return; }
-    
-    if (isChatActive) {
-      alert('ไม่สามารถปิดงานได้ เนื่องจากคุณยังไม่ได้กด "จบการสนทนา" กับลูกค้าครับ กรุณากดจบการสนทนาในช่องแชทก่อน');
-      return;
-    }
-
+    if (!resSummary.trim() || !selectedModule) return;
+    if (isChatActive) { alert('จบการสนทนาก่อนครับ'); return; }
     setUpdating(true);
     try {
-      const updatedData = await ticketService.resolve(id as string, user?.id, resSummary, selectedModule);
-      
-      // Send resolution message to conversation if it exists (even if closed)
+      const up = await ticketService.resolve(id as string, user?.id, resSummary, selectedModule);
       if (conversationId) {
-        const surveyLink = `${window.location.origin}/survey/${id}`;
-        const moduleText = selectedModule ? `\nโมดูล: ${selectedModule}` : '';
-        await supabase.from('messages').insert([{
-          conversation_id: conversationId, 
-          ticket_id: id, 
-          sender_type: 'system', 
-          staff_id: user?.id,
-          content: `[System: ใบงาน #${updatedData.ticket_no} ได้รับการแก้ไขเรียบร้อยแล้ว: ${resSummary}${moduleText}\nแบบประเมิน: ${surveyLink}]`
-        }]);
+        const link = `${window.location.origin}/survey/${id}`;
+        await supabase.from('messages').insert([{ conversation_id: conversationId, ticket_id: id, sender_type: 'system', staff_id: user?.id, content: `[SYSTEM] แก้ไขเรียบร้อย: ${resSummary}\nโมดูล: ${selectedModule}\nประเมิน: ${link}` }]);
       }
-
-      setStatus('Resolved');
-      setTicket({ ...ticket, ...updatedData });
-      setShowResolveModal(false);
-      fetchData();
-      addToast({
-        id: `resolve-${id}-${Date.now()}`,
-        type: 'ticket',
-        title: 'Ticket Resolved! 🎉',
-        body: `ใบงาน #${updatedData.ticket_no} ถูกปิดเรียบร้อยแล้ว`,
-        ticketId: id as string,
-        ticketNo: updatedData.ticket_no
-      });
-    } catch (err: any) { alert('Failed: ' + err.message); }
-    finally { setUpdating(false); }
+      setShowResolveModal(false); fetchData();
+    } catch (err: any) { alert('Failed: ' + err.message); } finally { setUpdating(false); }
   };
 
-  const handleDeleteMessage = async (messageId: string) => {
-    if (!confirm('คุณต้องการยกเลิกการส่งข้อความนี้ใช่หรือไม่?')) return;
-    try {
-      const res = await deleteMessageAction(messageId);
-      if (res && !res.success) {
-        alert('Failed to unsend: ' + res.error);
-        return;
-      }
-      addToast({
-        id: `delete-${messageId}`,
-        type: 'message',
-        title: 'Unsent Success',
-        body: 'ยกเลิกการส่งข้อความเรียบร้อยแล้ว'
-      });
-      fetchData();
-    } catch (err: any) {
-      alert('Failed: ' + err.message);
-    }
-  };
-
-  const handleUpdate = async () => {
-    setUpdating(true);
-    try {
-      const { error } = await supabase.from('tickets').update({ 
-        status, 
-        priority, 
-        module: selectedModule, 
-        updated_at: new Date().toISOString() 
-      }).eq('id', id);
-      if (error) throw error;
-      if (status !== ticket.status) {
-        await supabase.from('ticket_logs').insert([{
-          ticket_id: id, action_type: 'status_change', from_status: ticket.status, to_status: status,
-          note: `Agent updated status to ${status}`
-        }]);
-      }
-      if (selectedDept && selectedDept !== ticket.department) {
-         try {
-           const { sendLineGroupNotification } = await import('@/lib/utils/lineNotifications');
-           await sendLineGroupNotification(`🔔 [ส่งต่อแผนก] ใบงาน #${ticket.ticket_no} ถูกส่งต่อไปยัง [${selectedDept}] เรียบร้อยแล้วครับ`);
-         } catch (e) {}
-         await supabase.from('ticket_logs').insert([{ ticket_id: id, action_type: 'transfer', note: `Ticket moved to department: ${selectedDept}` }]);
-      }
-      setTicket({ ...ticket, status, priority, department: selectedDept });
-      fetchData();
-      addToast({
-        id: `update-${id}-${Date.now()}`,
-        type: 'ticket',
-        title: 'Changes Saved! ✅',
-        body: `อัปเดตข้อมูลใบงาน #${ticket.ticket_no} เรียบร้อยแล้ว`,
-        ticketId: id as string,
-        ticketNo: ticket.ticket_no
-      });
-    } catch (err: any) { alert('Failed: ' + err.message); }
-    finally { setUpdating(false); }
-  };
-
-  if (loading) return (
-    <div className="animate-page-in">
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '24px' }}>
-         <Skeleton width={300} height={40} />
-         <div style={{ display: 'flex', gap: '12px' }}>
-            <Skeleton width={120} height={40} borderRadius={12} />
-            <Skeleton width={120} height={40} borderRadius={12} />
-         </div>
-      </div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: '24px', alignItems: 'start' }}>
-         <div className="glass" style={{ height: '70vh', padding: '24px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
-            <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
-               <Skeleton width={48} height={48} borderRadius="50%" />
-               <Skeleton width="40%" height={24} />
-            </div>
-            <div style={{ display: 'flex', gap: '16px', alignItems: 'center', alignSelf: 'flex-end', flexDirection: 'row-reverse' }}>
-               <Skeleton width={48} height={48} borderRadius="50%" />
-               <Skeleton width="40%" height={80} borderRadius={16} />
-            </div>
-            <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
-               <Skeleton width={48} height={48} borderRadius="50%" />
-               <Skeleton width="60%" height={120} borderRadius={16} />
-            </div>
-         </div>
-         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-            <div className="glass" style={{ height: '300px', padding: '24px' }}>
-               <Skeleton width="100%" height={24} marginBottom={24} />
-               <Skeleton width="100%" height={40} marginBottom={16} />
-               <Skeleton width="100%" height={40} />
-            </div>
-            <div className="glass" style={{ height: '400px', padding: '24px' }}>
-               <Skeleton width="100%" height={24} marginBottom={24} />
-               <Skeleton width="100%" height={60} marginBottom={16} />
-               <Skeleton width="100%" height={60} />
-            </div>
-         </div>
-      </div>
-    </div>
-  );
-
-  if (!ticket) return (
-    <div className="flex-center" style={{ height: '70vh', flexDirection: 'column', gap: '20px' }}>
-      <ShieldAlert size={64} color="var(--danger)" />
-      <h2 style={{ fontSize: '24px', fontWeight: '800' }}>Ticket Not Found</h2>
-      <button onClick={() => router.push('/tickets')} className="glass-interactive" style={{ padding: '12px 24px', borderRadius: '12px' }}>Back to List</button>
-    </div>
-  );
+  if (loading) return <div className="flex-center" style={{ height: '70vh' }}><Loader2 className="animate-spin" /></div>;
+  if (!ticket) return <div className="flex-center" style={{ height: '70vh' }}><h2>Ticket Not Found</h2></div>;
 
   return (
     <div className="animate-page-in">
-      <TicketHeader 
-        ticket={ticket} status={status} user={user} updating={updating}
-        isChatActive={isChatActive}
-        onUpdate={handleUpdate} 
-        onResolveClick={() => { setShowResolveModal(true); setResSummary(''); }} 
-        onExportClick={() => setShowExportModal(true)}
-      />
-
+      <TicketHeader ticket={ticket} status={status} user={user} updating={updating} isChatActive={isChatActive} onUpdate={() => fetchData()} onResolveClick={() => { setShowResolveModal(true); setResSummary(''); }} onExportClick={() => setShowExportModal(true)} />
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: '24px', alignItems: 'start' }}>
-        <TicketChat 
-          messages={messages} ticket={ticket} user={user} newMessage={newMessage} setNewMessage={setNewMessage}
-          sending={sending} onSendMessage={handleSendMessage} onAttachFile={() => adminFileRef.current?.click()}
-          onScreenCapture={handleScreenCapture} 
-          onEditImage={(url) => { setViewingImage(url); setShowViewer(true); }}
-          onDeleteMessage={handleDeleteMessage}
-          onEndChat={handleEndChat}
-          isChatActive={isChatActive}
-          quickReplies={[...quickReplies, ...personalQuickReplies]}
-          isReadOnly={true}
-        />
-
-        <TicketSidebar 
-          ticket={ticket} 
-          user={user}
-          status={status}
-          setStatus={setStatus}
-          priority={priority}
-          setPriority={setPriority}
-          selectedDept={selectedDept}
-          setSelectedDept={setSelectedDept}
-          availableDepts={availableDepts}
-          selectedModule={selectedModule}
-          setSelectedModule={setSelectedModule}
-          availableModules={availableModules}
-          logs={logs}
-        />
+        <TicketChat messages={messages} ticket={ticket} user={user} newMessage={newMessage} setNewMessage={setNewMessage} sending={sending} onSendMessage={handleSendMessage} onAttachFile={() => adminFileRef.current?.click()} onScreenCapture={handleScreenCapture} onEditImage={(u) => { setViewingImage(u); setShowViewer(true); }} onDeleteMessage={handleDeleteMessage} onEndChat={handleEndChat} isChatActive={isChatActive} quickReplies={personalQuickReplies} isReadOnly={true} />
+        <TicketSidebar ticket={ticket} user={user} status={status} setStatus={setStatus} priority={priority} setPriority={setPriority} selectedDept={selectedDept} setSelectedDept={setSelectedDept} availableDepts={availableDepts} selectedModule={selectedModule} setSelectedModule={setSelectedModule} availableModules={availableModules} logs={logs} onUpdate={() => fetchData()} />
       </div>
 
-       <input type="file" ref={adminFileRef} onChange={handleAdminFile} style={{ display: 'none' }} />
-       
-        {showResolveModal && (
-           <div className="animate-fade-in" style={{ position: 'fixed', inset: 0, zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(15, 23, 42, 0.4)', padding: '20px', backdropFilter: 'blur(8px)' }}>
-              <div className="glass" style={{ width: '100%', maxWidth: '440px', padding: '32px', borderRadius: '32px', background: 'var(--bg-card)', boxShadow: '0 40px 100px rgba(0,0,0,0.6)', border: '1px solid var(--border)' }}>
-                 <div style={{ textAlign: 'center', marginBottom: '24px' }}>
-                    <div style={{ width: '56px', height: '56px', borderRadius: '16px', background: 'rgba(54, 153, 255, 0.1)', color: 'var(--primary)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px' }}><CheckCircle size={28} /></div>
-                    <h3 style={{ fontSize: '22px', fontWeight: '900', color: 'var(--text-main)', marginBottom: '6px' }}>ปิดงานใบงาน #{ticket?.ticket_no}</h3>
-                    <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>กรุณาสรุปผลการแก้ไขปัญหา เพื่อบันทึกเป็นประวัติและแจ้งลูกค้าครับ</p>
-                 </div>
-
-                 <div style={{ marginBottom: '24px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                       <label style={{ fontSize: '11px', fontWeight: '800', color: 'var(--primary)', textTransform: 'uppercase', letterSpacing: '1px' }}>เทมเพลตด่วน (PERSONAL & GLOBAL)</label>
-                       <button 
-                          onClick={() => setIsManagingTemplates(!isManagingTemplates)}
-                          style={{ fontSize: '10px', color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}
-                       >
-                          {isManagingTemplates ? 'เสร็จสิ้น' : 'จัดการเทมเพลต'}
-                       </button>
-                    </div>
-                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                        {/* 1. Global Templates */}
-                        {availableTemplates.map((t, idx) => (
-                           <button 
-                            key={`global-${idx}`}
-                            type="button" 
-                            onClick={() => setResSummary(t)} 
-                            style={{ padding: '8px 14px', borderRadius: '10px', border: '1px solid var(--border)', background: 'rgba(255,255,255,0.03)', fontSize: '12px', color: 'var(--text-muted)', cursor: 'pointer', transition: 'all 0.2s' }}
-                           >
-                              {t}
-                           </button>
-                        ))}
-
-                        {/* 2. Personal Templates */}
-                        {personalResTemplates.map((t, idx) => (
-                           <div key={`personal-${idx}`} style={{ position: 'relative' }}>
-                              <button 
-                               type="button" 
-                               onClick={() => setResSummary(t)} 
-                               style={{ padding: '8px 14px', borderRadius: '10px', border: '1px solid var(--primary)', background: 'rgba(0, 242, 254, 0.05)', fontSize: '12px', color: 'var(--primary)', cursor: 'pointer', transition: 'all 0.2s' }}
-                              >
-                                 {t}
-                              </button>
-                              {isManagingTemplates && (
-                                 <button 
-                                   onClick={() => removeResTemplate(idx)}
-                                   style={{ position: 'absolute', top: '-8px', right: '-8px', width: '20px', height: '20px', borderRadius: '50%', background: 'var(--danger)', color: 'white', border: 'none', fontSize: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                                 >
-                                    ×
-                                 </button>
-                              )}
-                           </div>
-                        ))}
-
-                        {isManagingTemplates && (
-                           <button 
-                             onClick={() => {
-                                const val = prompt('เพิ่มเทมเพลตส่วนตัวใหม่:');
-                                if (val) addResTemplate(val);
-                             }}
-                             style={{ padding: '8px 14px', borderRadius: '10px', border: '1px dashed var(--primary)', background: 'none', fontSize: '12px', color: 'var(--primary)', cursor: 'pointer' }}
-                           >
-                              + เพิ่มส่วนตัว
-                           </button>
-                        )}
-                        {(availableTemplates.length === 0 && personalResTemplates.length === 0 && !isManagingTemplates) && <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>ยังไม่ได้ตั้งค่าเทมเพลต</p>}
-                    </div>
+      {showResolveModal && (
+         <div style={{ position: 'fixed', inset: 0, zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(15, 23, 42, 0.4)', padding: '20px', backdropFilter: 'blur(8px)' }}>
+            <div className="glass" style={{ width: '100%', maxWidth: '440px', padding: '32px', borderRadius: '32px', background: 'var(--bg-card)', boxShadow: '0 40px 100px rgba(0,0,0,0.6)', border: '1px solid var(--border)', color: 'var(--text-main)' }}>
+               <div style={{ textAlign: 'center', marginBottom: '24px' }}>
+                  <div style={{ width: '56px', height: '56px', borderRadius: '16px', background: 'rgba(54, 153, 255, 0.1)', color: 'var(--primary)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px' }}><CheckCircle size={28} /></div>
+                  <h3 style={{ fontSize: '22px', fontWeight: '900', marginBottom: '6px' }}>ปิดงานใบงาน #{ticket?.ticket_no}</h3>
+                  <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>กรุณาสรุปผลการแก้ไขปัญหาเพื่อแจ้งลูกค้าครับ</p>
+               </div>
+               <div style={{ marginBottom: '20px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
+                     <label style={{ fontSize: '11px', fontWeight: '800', color: 'var(--primary)', textTransform: 'uppercase' }}>เทมเพลตส่วนตัว</label>
+                     <button onClick={() => setIsManagingTemplates(!isManagingTemplates)} style={{ fontSize: '10px', color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}>{isManagingTemplates ? 'เสร็จสิ้น' : 'จัดการ'}</button>
                   </div>
-
-                 <div style={{ marginBottom: '20px' }}>
-                    <label style={{ display: 'block', fontSize: '11px', fontWeight: '800', color: 'var(--primary)', textTransform: 'uppercase', marginBottom: '8px' }}>Module ที่เกี่ยวข้อง <span style={{ color: '#ef4444' }}>*</span></label>
-                    <div style={{ position: 'relative' }}>
-                       <select 
-                         value={selectedModule} 
-                         onChange={(e) => setSelectedModule(e.target.value)}
-                         style={{ 
-                            width: '100%', 
-                            padding: '14px 40px 14px 16px', 
-                            borderRadius: '12px', 
-                            border: 'none', 
-                            background: 'var(--primary)', 
-                            color: 'black', 
-                            fontSize: '14px', 
-                            fontWeight: '800', 
-                            outline: 'none',
-                            appearance: 'none',
-                            cursor: 'pointer',
-                            boxShadow: '0 8px 12px var(--primary-glow)',
-                            backgroundImage: `url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e")`,
-                            backgroundRepeat: 'no-repeat',
-                            backgroundPosition: 'right 16px center',
-                            backgroundSize: '16px'
-                         }}
-                       >
-                          <option value="" style={{ background: 'white', color: 'black' }}>-- เลือกโมดูล --</option>
-                          {availableModules.map(m => (
-                            <option key={m} value={m} style={{ background: 'white', color: 'black' }}>{m}</option>
-                          ))}
-                       </select>
-                    </div>
-                 </div>
-
-                 <div style={{ marginBottom: '24px' }}>
-                    <label style={{ display: 'block', fontSize: '11px', fontWeight: '800', color: 'var(--primary)', textTransform: 'uppercase', marginBottom: '8px' }}>สรุปผลการแก้ไขงาน <span style={{ color: '#ef4444' }}>*</span></label>
-                    <textarea value={resSummary} onChange={(e) => setResSummary(e.target.value)} placeholder="ระบุสิ่งที่แอดมินดำเนินการแก้ไข..." style={{ width: '100%', height: '100px', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '16px', padding: '16px', color: 'var(--text-main)', fontSize: '14px', resize: 'none', outline: 'none' }} />
-                 </div>
-
-                 <div style={{ display: 'flex', gap: '12px' }}>
-                    <button onClick={() => setShowResolveModal(false)} style={{ flex: 1, padding: '16px', borderRadius: '14px', border: '1px solid var(--border)', background: 'transparent', color: 'var(--text-muted)', fontWeight: '800', cursor: 'pointer' }}>ยกเลิก</button>
-                    <button onClick={handleResolve} disabled={updating || !resSummary.trim() || !selectedModule} style={{ flex: 1.5, padding: '16px', borderRadius: '14px', border: 'none', background: 'var(--primary)', color: 'black', fontWeight: '900', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', opacity: (!resSummary.trim() || !selectedModule) ? 0.6 : 1, boxShadow: '0 8px 24px var(--primary-glow)' }}>
-                       {updating ? <Loader2 size={24} className="animate-spin" /> : <><CheckCircle size={20} /> ยืนยันปิดงาน</>}
-                    </button>
-                 </div>
-              </div>
-           </div>
-        )}
-
-       {showViewer && viewingImage && (
-          <ImageViewerModal 
-            imageUrl={viewingImage} 
-            onClose={() => { setShowViewer(false); setViewingImage(null); }} 
-            onEdit={(url) => { setEditingImage(url); setShowEditor(true); }}
-          />
-       )}
-
-       {showEditor && editingImage && <ImageEditorModal imageUrl={editingImage} onClose={() => { setShowEditor(false); setEditingImage(null); }} onSave={handleEditorSave} />}
-       <SummaryExportModal isOpen={showExportModal} onClose={() => setShowExportModal(false)} onExport={handleExportSummary} ticketNo={ticket?.ticket_no || ''} />
-       <style dangerouslySetInnerHTML={{ __html: `@keyframes scaleIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }`}} />
+                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                      {personalResTemplates.map((t, idx) => (
+                         <div key={idx} style={{ position: 'relative' }}>
+                            <button onClick={() => setResSummary(t)} style={{ padding: '8px 16px', borderRadius: '12px', border: '1px solid var(--primary)', background: 'rgba(0, 242, 254, 0.08)', fontSize: '13px', color: 'var(--primary)', cursor: 'pointer' }}>{t}</button>
+                            {isManagingTemplates && <button onClick={() => removeResTemplate(idx)} style={{ position: 'absolute', top: '-8px', right: '-8px', width: '20px', height: '20px', borderRadius: '50%', background: 'var(--danger)', color: 'white', border: 'none', cursor: 'pointer' }}>×</button>}
+                         </div>
+                      ))}
+                      {isManagingTemplates && <button onClick={() => { const v=prompt('เพิ่ม:'); if(v) addResTemplate(v); }} style={{ padding: '8px 14px', borderRadius: '10px', border: '1px dashed var(--primary)', color: 'var(--primary)', cursor: 'pointer' }}>+ เพิ่มส่วนตัว</button>}
+                      {(personalResTemplates.length === 0 && !isManagingTemplates) && <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>ยังไม่มีเทมเพลต</p>}
+                  </div>
+               </div>
+               <div style={{ marginBottom: '20px' }}>
+                  <label style={{ display: 'block', fontSize: '11px', fontWeight: '800', color: 'var(--primary)', textTransform: 'uppercase', marginBottom: '8px' }}>Module <span style={{ color: 'var(--danger)' }}>*</span></label>
+                  <select value={selectedModule} onChange={(e) => setSelectedModule(e.target.value)} style={{ width: '100%', padding: '14px', borderRadius: '12px', background: 'var(--primary)', color: 'black', fontWeight: '800', border: 'none' }}>
+                     <option value="">-- เลือกโมดูล --</option>
+                     {availableModules.map(m => <option key={m} value={m}>{m}</option>)}
+                  </select>
+               </div>
+               <div style={{ marginBottom: '24px' }}>
+                  <label style={{ display: 'block', fontSize: '11px', fontWeight: '800', color: 'var(--primary)', textTransform: 'uppercase', marginBottom: '8px' }}>สรุปผล <span style={{ color: 'var(--danger)' }}>*</span></label>
+                  <textarea value={resSummary} onChange={(e) => setResSummary(e.target.value)} placeholder="รายละเอียด..." style={{ width: '100%', height: '100px', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '16px', padding: '16px', color: 'var(--text-main)', fontSize: '14px', resize: 'none' }} />
+               </div>
+               <div style={{ display: 'flex', gap: '16px' }}>
+                  <button onClick={() => setShowResolveModal(false)} style={{ flex: 1, padding: '16px', borderRadius: '15px', border: '1px solid var(--border)', background: 'rgba(255,255,255,0.02)', color: 'var(--text-muted)', fontWeight: '800', cursor: 'pointer' }}>ยกเลิก</button>
+                  <button onClick={handleResolve} disabled={updating || !resSummary.trim() || !selectedModule} style={{ flex: 1.5, padding: '16px', borderRadius: '15px', border: 'none', background: (updating || !resSummary.trim() || !selectedModule) ? 'var(--bg-card)' : 'var(--success)', color: (updating || !resSummary.trim() || !selectedModule) ? 'var(--text-muted)' : '#000', fontWeight: '900', cursor: 'pointer' }}>
+                     {updating ? <Loader2 size={18} className="animate-spin" /> : 'ยืนยันปิดงาน'}
+                  </button>
+               </div>
+            </div>
+         </div>
+      )}
+      <input type="file" ref={adminFileRef} onChange={handleAdminFile} style={{ display: 'none' }} />
+      {showViewer && viewingImage && <ImageViewerModal imageUrl={viewingImage} onClose={() => { setShowViewer(false); setViewingImage(null); }} onEdit={(u) => { setEditingImage(u); setShowEditor(true); }} />}
+      {showEditor && editingImage && <ImageEditorModal imageUrl={editingImage} onClose={() => { setShowEditor(false); setEditingImage(null); }} onSave={handleEditorSave} />}
+      <SummaryExportModal isOpen={showExportModal} onClose={() => setShowExportModal(false)} onExport={(f) => {}} ticketNo={ticket?.ticket_no || ''} />
+      <style dangerouslySetInnerHTML={{ __html: `@keyframes scaleIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }`}} />
     </div>
   );
 }
