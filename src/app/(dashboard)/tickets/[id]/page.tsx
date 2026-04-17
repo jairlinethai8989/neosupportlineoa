@@ -44,6 +44,8 @@ export default function StaffTicketDetailPage() {
   const [selectedModule, setSelectedModule] = useState('');
   const [availableModules, setAvailableModules] = useState<string[]>([]);
   const [availableTemplates, setAvailableTemplates] = useState<string[]>([]);
+  const [isManagingTemplates, setIsManagingTemplates] = useState(false);
+  const [companySettingsId, setCompanySettingsId] = useState<string | null>(null);
   const [newMessage, setNewMessage] = useState('');
   const [sending, setSending] = useState(false);
   
@@ -107,12 +109,13 @@ export default function StaffTicketDetailPage() {
         }
       }
 
-      const { data: companyData } = await supabase.from('company_settings').select('departments, modules, resolution_templates').limit(1).single();
+      const { data: companyData } = await supabase.from('company_settings').select('id, departments, modules, resolution_templates').limit(1).single();
       const defaultModules = [
          "ห้องทำงานแพทย์", "ห้องพยาบาล", "ห้องยาผู้ป่วยใน", "ห้องเวชระเบียน", "ห้องผ่าตัด", "ห้องวิสัญญี", "ห้อง Consult", "All"
       ];
 
       if (companyData) {
+         setCompanySettingsId(companyData.id);
          if (companyData.departments) setAvailableDepts(companyData.departments);
          if (companyData.modules && companyData.modules.length > 0) setAvailableModules(companyData.modules);
          else setAvailableModules(defaultModules);
@@ -131,6 +134,24 @@ export default function StaffTicketDetailPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const saveResTemplates = async (list: string[]) => {
+     setAvailableTemplates(list);
+     if (companySettingsId) {
+       await supabase.from('company_settings').update({ resolution_templates: list }).eq('id', companySettingsId);
+     }
+  };
+
+  const addResTemplate = (text: string) => {
+     if (!text.trim()) return;
+     if (availableTemplates.includes(text.trim())) return;
+     saveResTemplates([...availableTemplates, text.trim()]);
+  };
+
+  const removeResTemplate = (index: number) => {
+     const next = availableTemplates.filter((_, i) => i !== index);
+     saveResTemplates(next);
   };
 
   useEffect(() => {
@@ -460,68 +481,106 @@ export default function StaffTicketDetailPage() {
 
        <input type="file" ref={adminFileRef} onChange={handleAdminFile} style={{ display: 'none' }} />
        
-       {showResolveModal && (
-          <div className="animate-fade-in" style={{ position: 'fixed', inset: 0, zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(15, 23, 42, 0.4)', padding: '20px' }}>
-             <div style={{ width: '100%', maxWidth: '440px', padding: '32px', borderRadius: '24px', background: 'white', boxShadow: '0 20px 60px rgba(0,0,0,0.15)', border: '1px solid #e2e8f0' }}>
-                <div style={{ textAlign: 'center', marginBottom: '24px' }}>
-                   <div style={{ width: '56px', height: '56px', borderRadius: '16px', background: '#f0fdf4', color: '#22c55e', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px' }}><CheckCircle size={28} /></div>
-                   <h3 style={{ fontSize: '22px', fontWeight: '800', color: '#0f172a', marginBottom: '6px' }}>ปิดงานใบงาน #{ticket?.ticket_no}</h3>
-                   <p style={{ fontSize: '13px', color: '#64748b' }}>กรุณาสรุปผลการแก้ไขปัญหา เพื่อบันทึกเป็นประวัติและแจ้งลูกค้าครับ</p>
-                </div>
+        {showResolveModal && (
+           <div className="animate-fade-in" style={{ position: 'fixed', inset: 0, zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(15, 23, 42, 0.4)', padding: '20px', backdropFilter: 'blur(8px)' }}>
+              <div className="glass" style={{ width: '100%', maxWidth: '440px', padding: '32px', borderRadius: '32px', background: 'var(--bg-card)', boxShadow: '0 40px 100px rgba(0,0,0,0.6)', border: '1px solid var(--border)' }}>
+                 <div style={{ textAlign: 'center', marginBottom: '24px' }}>
+                    <div style={{ width: '56px', height: '56px', borderRadius: '16px', background: 'rgba(54, 153, 255, 0.1)', color: 'var(--primary)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px' }}><CheckCircle size={28} /></div>
+                    <h3 style={{ fontSize: '22px', fontWeight: '900', color: 'var(--text-main)', marginBottom: '6px' }}>ปิดงานใบงาน #{ticket?.ticket_no}</h3>
+                    <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>กรุณาสรุปผลการแก้ไขปัญหา เพื่อบันทึกเป็นประวัติและแจ้งลูกค้าครับ</p>
+                 </div>
 
-                <div style={{ marginBottom: '20px' }}>
-                   <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', marginBottom: '12px' }}>เทมเพลตสรุปงาน (Quick Summary)</label>
-                   <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '16px' }}>
-                      {availableTemplates.map(t => (
-                        <button key={t} type="button" onClick={() => setResSummary(t)} style={{ padding: '8px 14px', borderRadius: '10px', border: '1px solid #e2e8f0', background: '#f8fafc', fontSize: '12px', color: '#475569', cursor: 'pointer', transition: 'all 0.2s' }}>{t}</button>
-                      ))}
-                      {availableTemplates.length === 0 && <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>ยังไม่ได้ตั้งค่าเทมเพลต</p>}
-                   </div>
-
-                   <div style={{ marginBottom: '20px' }}>
-                       <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', marginBottom: '8px' }}>Module ที่เกี่ยวข้อง <span style={{ color: '#ef4444' }}>*</span></label>
-                       <div style={{ position: 'relative' }}>
-                          <select 
-                            value={selectedModule} 
-                            onChange={(e) => setSelectedModule(e.target.value)}
-                            style={{ 
-                               width: '100%', 
-                               padding: '14px 40px 14px 16px', 
-                               borderRadius: '12px', 
-                               border: 'none', 
-                               background: 'var(--secondary)', 
-                               color: 'white', 
-                               fontSize: '14px', 
-                               fontWeight: '700', 
-                               outline: 'none',
-                               appearance: 'none',
-                               cursor: 'pointer',
-                               boxShadow: '0 4px 12px rgba(139, 92, 246, 0.25)',
-                               backgroundImage: `url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e")`,
-                               backgroundRepeat: 'no-repeat',
-                               backgroundPosition: 'right 16px center',
-                               backgroundSize: '16px'
+                 <div style={{ marginBottom: '24px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                       <label style={{ fontSize: '11px', fontWeight: '800', color: 'var(--primary)', textTransform: 'uppercase', letterSpacing: '1px' }}>เทมเพลตด่วน (Templates)</label>
+                       <button 
+                          onClick={() => setIsManagingTemplates(!isManagingTemplates)}
+                          style={{ fontSize: '10px', color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}
+                       >
+                          {isManagingTemplates ? 'เสร็จสิ้น' : 'จัดการเทมเพลต'}
+                       </button>
+                    </div>
+                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                       {availableTemplates.map((t, idx) => (
+                         <div key={idx} style={{ position: 'relative' }}>
+                            <button 
+                             type="button" 
+                             onClick={() => setResSummary(t)} 
+                             style={{ padding: '8px 14px', borderRadius: '10px', border: '1px solid var(--border)', background: 'rgba(255,255,255,0.03)', fontSize: '12px', color: 'var(--text-muted)', cursor: 'pointer', transition: 'all 0.2s' }}
+                            >
+                               {t}
+                            </button>
+                            {isManagingTemplates && (
+                               <button 
+                                 onClick={() => removeResTemplate(idx)}
+                                 style={{ position: 'absolute', top: '-8px', right: '-8px', width: '20px', height: '20px', borderRadius: '50%', background: 'var(--danger)', color: 'white', border: 'none', fontSize: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                               >
+                                  ×
+                               </button>
+                            )}
+                         </div>
+                       ))}
+                       {availableTemplates.length === 0 && !isManagingTemplates && <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>ยังไม่ได้ตั้งค่าเทมเพลต</p>}
+                       {isManagingTemplates && (
+                          <button 
+                            onClick={() => {
+                               const val = prompt('เพิ่มข้อความเทมเพลตใหม่:');
+                               if (val) addResTemplate(val);
                             }}
+                            style={{ padding: '8px 14px', borderRadius: '10px', border: '1px dashed var(--primary)', background: 'none', fontSize: '12px', color: 'var(--primary)', cursor: 'pointer' }}
                           >
-                             <option value="" style={{ background: 'var(--secondary)', color: 'white' }}>-- เลือกโมดูล --</option>
-                             {availableModules.map(m => (
-                               <option key={m} value={m} style={{ background: 'var(--secondary)', color: 'white' }}>{m}</option>
-                             ))}
-                          </select>
-                       </div>
-                   </div>
+                             + เพิ่ม
+                          </button>
+                       )}
+                    </div>
+                  </div>
 
-                   <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', marginBottom: '8px' }}>สรุปผลการแก้ไขงาน <span style={{ color: '#ef4444' }}>*</span></label>
-                   <textarea value={resSummary} onChange={(e) => setResSummary(e.target.value)} placeholder="ระบุสิ่งที่แอดมินดำเนินการแก้ไข..." style={{ width: '100%', height: '100px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '16px', padding: '16px', color: '#0f172a', fontSize: '14px', resize: 'none', outline: 'none' }} />
-                </div>
-                <div style={{ display: 'flex', gap: '12px' }}>
-                   <button onClick={() => setShowResolveModal(false)} style={{ flex: 1, padding: '16px', borderRadius: '14px', border: '1px solid #e2e8f0', background: 'transparent', color: '#64748b', fontWeight: '800', cursor: 'pointer' }}>ยกเลิก</button>
-                   <button onClick={handleResolve} disabled={updating || !resSummary.trim() || !selectedModule} style={{ flex: 1.5, padding: '16px', borderRadius: '14px', border: 'none', background: '#22c55e', color: '#fff', fontWeight: '900', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', opacity: (!resSummary.trim() || !selectedModule) ? 0.6 : 1 }}>
-                      {updating ? <Loader2 size={24} className="animate-spin" /> : <><CheckCircle size={20} /> ยืนยันปิดงาน</>}
-                   </button>
-                </div>
-             </div>
-          </div>
+                 <div style={{ marginBottom: '20px' }}>
+                    <label style={{ display: 'block', fontSize: '11px', fontWeight: '800', color: 'var(--primary)', textTransform: 'uppercase', marginBottom: '8px' }}>Module ที่เกี่ยวข้อง <span style={{ color: '#ef4444' }}>*</span></label>
+                    <div style={{ position: 'relative' }}>
+                       <select 
+                         value={selectedModule} 
+                         onChange={(e) => setSelectedModule(e.target.value)}
+                         style={{ 
+                            width: '100%', 
+                            padding: '14px 40px 14px 16px', 
+                            borderRadius: '12px', 
+                            border: 'none', 
+                            background: 'var(--primary)', 
+                            color: 'black', 
+                            fontSize: '14px', 
+                            fontWeight: '800', 
+                            outline: 'none',
+                            appearance: 'none',
+                            cursor: 'pointer',
+                            boxShadow: '0 8px 12px var(--primary-glow)',
+                            backgroundImage: `url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e")`,
+                            backgroundRepeat: 'no-repeat',
+                            backgroundPosition: 'right 16px center',
+                            backgroundSize: '16px'
+                         }}
+                       >
+                          <option value="" style={{ background: 'white', color: 'black' }}>-- เลือกโมดูล --</option>
+                          {availableModules.map(m => (
+                            <option key={m} value={m} style={{ background: 'white', color: 'black' }}>{m}</option>
+                          ))}
+                       </select>
+                    </div>
+                 </div>
+
+                 <div style={{ marginBottom: '24px' }}>
+                    <label style={{ display: 'block', fontSize: '11px', fontWeight: '800', color: 'var(--primary)', textTransform: 'uppercase', marginBottom: '8px' }}>สรุปผลการแก้ไขงาน <span style={{ color: '#ef4444' }}>*</span></label>
+                    <textarea value={resSummary} onChange={(e) => setResSummary(e.target.value)} placeholder="ระบุสิ่งที่แอดมินดำเนินการแก้ไข..." style={{ width: '100%', height: '100px', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '16px', padding: '16px', color: 'var(--text-main)', fontSize: '14px', resize: 'none', outline: 'none' }} />
+                 </div>
+
+                 <div style={{ display: 'flex', gap: '12px' }}>
+                    <button onClick={() => setShowResolveModal(false)} style={{ flex: 1, padding: '16px', borderRadius: '14px', border: '1px solid var(--border)', background: 'transparent', color: 'var(--text-muted)', fontWeight: '800', cursor: 'pointer' }}>ยกเลิก</button>
+                    <button onClick={handleResolve} disabled={updating || !resSummary.trim() || !selectedModule} style={{ flex: 1.5, padding: '16px', borderRadius: '14px', border: 'none', background: 'var(--primary)', color: 'black', fontWeight: '900', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', opacity: (!resSummary.trim() || !selectedModule) ? 0.6 : 1, boxShadow: '0 8px 24px var(--primary-glow)' }}>
+                       {updating ? <Loader2 size={24} className="animate-spin" /> : <><CheckCircle size={20} /> ยืนยันปิดงาน</>}
+                    </button>
+                 </div>
+              </div>
+           </div>
         )}
 
        {showViewer && viewingImage && (
