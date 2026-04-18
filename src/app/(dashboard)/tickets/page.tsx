@@ -108,8 +108,8 @@ function TicketsContent() {
   const [resSummary, setResSummary] = useState('');
   const [availableModules, setAvailableModules] = useState<string[]>([]);
   const [availableTemplates, setAvailableTemplates] = useState<string[]>([]);
+  const [personalResTemplates, setPersonalResTemplates] = useState<string[]>([]);
   const [selectedModule, setSelectedModule] = useState('');
-  const [isManagingTemplates, setIsManagingTemplates] = useState(false);
   const [companySettingsId, setCompanySettingsId] = useState<string | null>(null);
 
   // Date Filter State
@@ -249,8 +249,9 @@ function TicketsContent() {
     async function fetchUser() {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
-        const { data: p } = await supabase.from('profiles').select('role, permissions').eq('id', user.id).single();
+        const { data: p } = await supabase.from('profiles').select('role, permissions, resolution_templates').eq('id', user.id).single();
         setUserProfile(p);
+        if (p?.resolution_templates) setPersonalResTemplates(p.resolution_templates);
       }
     }
     fetchUser();
@@ -835,49 +836,24 @@ function TicketsContent() {
                 </div>
 
                 <div style={{ marginBottom: '24px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                       <label style={{ fontSize: '11px', fontWeight: '800', color: 'var(--primary)', textTransform: 'uppercase', letterSpacing: '1px' }}>เทมเพลตด่วน (Templates)</label>
-                       <button 
-                          onClick={() => setIsManagingTemplates(!isManagingTemplates)}
-                          style={{ fontSize: '10px', color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}
-                       >
-                          {isManagingTemplates ? 'เสร็จสิ้น' : 'จัดการเทมเพลต'}
-                       </button>
-                    </div>
-                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                       {availableTemplates.map((t, idx) => (
-                         <div key={idx} style={{ position: 'relative' }}>
-                            <button 
-                             type="button" 
-                             onClick={() => setResSummary(t)} 
-                             style={{ padding: '8px 14px', borderRadius: '10px', border: '1px solid var(--border)', background: 'var(--bg-card)', fontSize: '12px', color: 'var(--text-muted)', cursor: 'pointer', transition: 'all 0.2s' }}
-                            >
-                               {t}
-                            </button>
-                            {isManagingTemplates && (
-                               <button 
-                                 onClick={() => removeResTemplate(idx)}
-                                 style={{ position: 'absolute', top: '-8px', right: '-8px', width: '20px', height: '20px', borderRadius: '50%', background: 'var(--danger)', color: 'white', border: 'none', fontSize: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                               >
-                                  ×
-                               </button>
-                            )}
-                         </div>
-                       ))}
-                       {availableTemplates.length === 0 && !isManagingTemplates && <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>ยังไม่ได้ตั้งค่าเทมเพลต</p>}
-                       {isManagingTemplates && (
-                          <button 
-                            onClick={() => {
-                               const val = prompt('เพิ่มข้อความเทมเพลตใหม่:');
-                               if (val) addResTemplate(val);
-                            }}
-                            style={{ padding: '8px 14px', borderRadius: '10px', border: '1px dashed var(--primary)', background: 'none', fontSize: '12px', color: 'var(--primary)', cursor: 'pointer' }}
-                          >
-                             + เพิ่ม
-                          </button>
-                       )}
-                    </div>
-                  </div>
+                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                        <label style={{ fontSize: '11px', fontWeight: '800', color: 'var(--primary)', textTransform: 'uppercase', letterSpacing: '1px' }}>เทมเพลตสรุปงาน</label>
+                        <a href="/settings/profile" target="_blank" rel="noreferrer" style={{ fontSize: '10px', color: 'var(--text-muted)', textDecoration: 'underline', cursor: 'pointer' }}>จัดการเทมเพลต</a>
+                     </div>
+                     <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                        {personalResTemplates.map((t, idx) => (
+                           <button
+                              key={idx}
+                              type="button"
+                              onClick={() => setResSummary(t)}
+                              style={{ padding: '8px 16px', borderRadius: '12px', border: '1px solid var(--primary)', background: 'rgba(0, 242, 254, 0.08)', fontSize: '13px', color: 'var(--primary)', cursor: 'pointer', transition: 'all 0.2s' }}
+                           >{t}</button>
+                        ))}
+                        {personalResTemplates.length === 0 && (
+                           <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>ยังไม่ได้ตั้งค่าเทมเพลต — <a href="/settings/profile" target="_blank" rel="noreferrer" style={{ color: 'var(--primary)', textDecoration: 'underline' }}>ตั้งค่าที่นี่</a></p>
+                        )}
+                     </div>
+                   </div>
 
                   <div style={{ marginBottom: '24px' }}>
                      <label style={{ display: 'block', fontSize: '11px', fontWeight: '800', color: 'var(--primary)', textTransform: 'uppercase', marginBottom: '12px', letterSpacing: '1px' }}>Module ที่เกี่ยวข้อง <span style={{ color: '#ef4444' }}>*</span></label>
@@ -937,7 +913,7 @@ function TicketsContent() {
                 <div style={{ display: 'flex', gap: '16px' }}>
                    <button 
                      onClick={() => setShowResolveModal(false)}
-                     style={{ flex: 1, padding: '16px', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.1)', background: 'transparent', color: 'rgba(255,255,255,0.5)', fontWeight: '800', cursor: 'pointer' }}
+                     style={{ flex: 1, padding: '16px', borderRadius: '14px', border: '1px solid var(--border)', background: 'var(--bg-input)', color: 'var(--text-muted)', fontWeight: '800', cursor: 'pointer' }}
                    >
                       ยกเลิก
                    </button>
@@ -949,8 +925,8 @@ function TicketsContent() {
                        padding: '16px', 
                        borderRadius: '14px', 
                        border: 'none', 
-                       background: (loading || !resSummary.trim() || !selectedModule) ? 'rgba(255,255,255,0.05)' : 'var(--success)', 
-                       color: (loading || !resSummary.trim() || !selectedModule) ? 'rgba(255,255,255,0.2)' : 'black', 
+                       background: (loading || !resSummary.trim() || !selectedModule) ? 'rgba(16, 185, 129, 0.15)' : 'var(--success)', 
+                       color: (loading || !resSummary.trim() || !selectedModule) ? 'var(--text-muted)' : 'black', 
                        fontWeight: '900', 
                        cursor: 'pointer',
                        display: 'flex',
@@ -959,7 +935,7 @@ function TicketsContent() {
                        gap: '10px'
                      }}
                    >
-                      {loading ? <Loader2 size={18} className="animate-spin" /> : <><CheckCircle size={18} /> ยืนยันสมบูรณ์</>}
+                      {loading ? <Loader2 size={18} className="animate-spin" /> : <><CheckCircle size={18} /> ยืนยันปิดงาน</>}
                    </button>
                 </div>
              </div>
