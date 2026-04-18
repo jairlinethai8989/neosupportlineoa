@@ -9,13 +9,14 @@ import {
   Info,
   X
 } from 'lucide-react';
+import type { InboxAgent, InboxConversation, InboxTicket, InboxViewMode } from '@/types/inbox';
 
 interface TicketSidebarProps {
-  selectedChat: any;
-  currentTicket: any;
-  agent: any;
-  viewMode: 'list' | 'chat' | 'details';
-  setViewMode: (mode: 'list' | 'chat' | 'details') => void;
+  selectedChat: InboxConversation;
+  currentTicket: InboxTicket | null;
+  agent: InboxAgent | null;
+  viewMode: InboxViewMode;
+  setViewMode: (mode: InboxViewMode) => void;
   onFetchGlobalHistory: () => void;
   onResolve: () => void;
   onTransfer: () => void;
@@ -35,13 +36,11 @@ export const TicketSidebar: React.FC<TicketSidebarProps> = ({
   onCloseSession,
   onCopySurvey
 }) => {
-  if (!selectedChat) return null;
-
   const isResolved = currentTicket?.status === 'Resolved' || currentTicket?.status === 'Closed';
   const isOwner = currentTicket?.assigned_agent_id === agent?.id;
   const isAdmin = agent?.role === 'Administrator';
   const isSessionActive = selectedChat.status === 'active' || selectedChat.is_active;
-  const canResolve = currentTicket && !isResolved && (isOwner || isAdmin) && !isSessionActive;
+  const canResolve = Boolean(currentTicket && !isResolved && (isOwner || isAdmin) && !isSessionActive);
 
   return (
     <div className={`glass inbox-details-panel ${viewMode !== 'details' ? 'hidden-mobile' : ''}`} style={{ width: '360px', padding: '24px', display: 'flex', flexDirection: 'column', gap: '24px', overflowY: 'auto' }}>
@@ -122,6 +121,39 @@ export const TicketSidebar: React.FC<TicketSidebarProps> = ({
       >
          <History size={14} /> <u>ดูประวัติสนทนาเก่าทั้งหมด (Global Log)</u>
       </button>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+         <button
+            onClick={onTransfer}
+            className="glass-interactive"
+            style={{
+               padding: '12px',
+               borderRadius: '12px',
+               border: '1px solid var(--border)',
+               background: 'var(--bg-input)',
+               color: 'var(--text-main)',
+               fontWeight: '700',
+               cursor: 'pointer'
+            }}
+         >
+            โอนงาน
+         </button>
+         <button
+            onClick={onCopySurvey}
+            className="glass-interactive"
+            style={{
+               padding: '12px',
+               borderRadius: '12px',
+               border: '1px solid var(--border)',
+               background: 'var(--bg-input)',
+               color: 'var(--text-main)',
+               fontWeight: '700',
+               cursor: 'pointer'
+            }}
+         >
+            คัดลอกแบบประเมิน
+         </button>
+      </div>
 
       <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '12px' }}>
          {isSessionActive ? (

@@ -1,12 +1,13 @@
 'use client';
 import React from 'react';
 import { Search, Mail } from 'lucide-react';
+import type { InboxConversation, InboxViewMode } from '@/types/inbox';
 
 interface InboxSidebarProps {
-  conversations: any[];
-  selectedChat: any;
-  onSelectChat: (chat: any) => void;
-  viewMode: 'list' | 'chat' | 'details';
+  conversations: InboxConversation[];
+  selectedChat: InboxConversation | null;
+  onSelectChat: (chat: InboxConversation) => void;
+  viewMode: InboxViewMode;
 }
 
 export const InboxSidebar: React.FC<InboxSidebarProps> = ({ 

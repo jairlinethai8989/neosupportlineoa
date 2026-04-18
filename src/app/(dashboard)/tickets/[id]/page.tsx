@@ -1,43 +1,76 @@
 'use client';
-import React, { useState, useEffect, useRef } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useParams } from 'next/navigation';
+import { Loader2 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
-import { 
-  ShieldAlert, 
-  Loader2, 
-  CheckCircle,
-  X 
-} from 'lucide-react';
-import { exportToPDF, exportToExcel } from '@/lib/utils/exportUtils';
 import ImageEditorModal from '@/components/modals/ImageEditorModal';
 import ImageViewerModal from '@/components/modals/ImageViewerModal';
 import SummaryExportModal from '@/components/modals/SummaryExportModal';
+import { ResolveTicketModal } from '@/components/inbox/ResolveTicketModal';
 import { ticketService } from '@/lib/services/ticketService';
 import { TicketHeader } from '@/components/tickets/TicketHeader';
 import { TicketChat } from '@/components/tickets/TicketChat';
 import { TicketSidebar } from '@/components/tickets/TicketSidebar';
 import { deleteMessageAction, closeConversationAction } from '@/app/actions/messageActions';
-import Skeleton from '@/components/ui/Skeleton';
 import { useNotificationContext } from '@/contexts/NotificationContext';
+import {
+  getTicketDetailActionFailedToast,
+  getTicketDetailChatMustEndToast,
+  confirmTicketDetailDeleteMessage,
+  confirmTicketDetailEndChat,
+  getTicketDetailResolvedToast,
+  getTicketDetailSystemResolveMessage,
+  getTicketDetailValidationToast,
+} from '@/lib/tickets/detailFeedback';
+import type {
+  TicketDetailLog,
+  TicketDetailMessage,
+  TicketDetailTicket,
+  TicketDetailUser,
+} from '@/types/tickets';
+
+const DEFAULT_MODULES = [
+  'Doctor Office',
+  'Nurse Station',
+  'Inpatient Pharmacy',
+  'Medical Records',
+  'Operating Room',
+  'Anesthesia',
+  'Consultation',
+  'All',
+];
+
+const pageGridStyle: React.CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: '1fr 320px',
+  gap: '24px',
+  alignItems: 'start',
+};
+
+const loadingContainerStyle: React.CSSProperties = { height: '70vh' };
+
+function normalizeRouteId(rawId: string | string[] | undefined): string | null {
+  if (!rawId) return null;
+  return Array.isArray(rawId) ? rawId[0] : rawId;
+}
 
 export default function StaffTicketDetailPage() {
-  const { id } = useParams();
-  const router = useRouter();
-  const adminFileRef = React.useRef<HTMLInputElement>(null);
+  const params = useParams();
+  const ticketId = normalizeRouteId(params.id);
+  const { addToast } = useNotificationContext();
+  const adminFileRef = useRef<HTMLInputElement>(null);
+  const conversationIdRef = useRef<string | null>(null);
 
-  // Core Data State
-  const [ticket, setTicket] = useState<any>(null);
-  const [user, setUser] = useState<any>(null);
+  const [ticket, setTicket] = useState<TicketDetailTicket | null>(null);
+  const [user, setUser] = useState<TicketDetailUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
-  const [logs, setLogs] = useState<any[]>([]);
-  const [messages, setMessages] = useState<any[]>([]);
+  const [logs, setLogs] = useState<TicketDetailLog[]>([]);
+  const [messages, setMessages] = useState<TicketDetailMessage[]>([]);
   const [conversationId, setConversationId] = useState<string | null>(null);
-  const conversationIdRef = useRef<string | null>(null);
   const [isChatActive, setIsChatActive] = useState(false);
-  const { addToast } = useNotificationContext();
 
-  // Edit State
   const [status, setStatus] = useState('');
   const [priority, setPriority] = useState('');
   const [selectedDept, setSelectedDept] = useState('');
@@ -46,13 +79,11 @@ export default function StaffTicketDetailPage() {
   const [selectedIssueType, setSelectedIssueType] = useState('');
   const [availableIssueTypes, setAvailableIssueTypes] = useState<string[]>([]);
   const [availableModules, setAvailableModules] = useState<string[]>([]);
-  const [isManagingTemplates, setIsManagingTemplates] = useState(false);
   const [newMessage, setNewMessage] = useState('');
   const [personalQuickReplies, setPersonalQuickReplies] = useState<string[]>([]);
   const [personalResTemplates, setPersonalResTemplates] = useState<string[]>([]);
   const [sending, setSending] = useState(false);
-  
-  // UI / Modal State
+
   const [showResolveModal, setShowResolveModal] = useState(false);
   const [resSummary, setResSummary] = useState('');
   const [editingImage, setEditingImage] = useState<string | null>(null);
@@ -61,8 +92,9 @@ export default function StaffTicketDetailPage() {
   const [showViewer, setShowViewer] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
 
-  const fetchData = async () => {
-    if (!id) return;
+  const fetchData = useCallback(async () => {
+    if (!ticketId) return;
+
     try {
       const { data: ticketData, error } = await supabase
         .from('tickets')
@@ -71,300 +103,491 @@ export default function StaffTicketDetailPage() {
           customers!tickets_customer_id_fkey (*),
           assigned_agent:profiles!assigned_agent_id(*)
         `)
-        .eq('id', id)
+        .eq('id', ticketId)
         .maybeSingle();
 
       if (error) throw error;
       if (ticketData) {
-        setTicket(ticketData);
-        setStatus(ticketData.status);
-        setPriority(ticketData.priority);
-        setSelectedDept(ticketData.department || '');
-        setSelectedModule(ticketData.module || '');
-        const lRes = await supabase.from('ticket_logs').select('*').eq('ticket_id', id).order('created_at', { ascending: false });
-        if (lRes.data) setLogs(lRes.data);
+        const normalizedTicket = ticketData as TicketDetailTicket;
+        setTicket(normalizedTicket);
+        setStatus(normalizedTicket.status || '');
+        setPriority(String((ticketData as { priority?: string | null }).priority || ''));
+        setSelectedDept(String((ticketData as { department?: string | null }).department || ''));
+        setSelectedModule(String(normalizedTicket.module || ''));
 
-        const { data: conv } = await supabase.from('conversations').select('id, status').eq('customer_id', ticketData.customer_id).eq('status', 'active').maybeSingle();
+        const { data: logData } = await supabase
+          .from('ticket_logs')
+          .select('*')
+          .eq('ticket_id', ticketId)
+          .order('created_at', { ascending: false });
+
+        if (logData) setLogs(logData as TicketDetailLog[]);
+
+        const { data: conv } = await supabase
+          .from('conversations')
+          .select('id, status')
+          .eq('customer_id', normalizedTicket.customer_id)
+          .eq('status', 'active')
+          .maybeSingle();
+
         if (conv) {
           setConversationId(conv.id);
           conversationIdRef.current = conv.id;
           setIsChatActive(true);
         } else {
+          setConversationId(null);
+          conversationIdRef.current = null;
           setIsChatActive(false);
         }
 
         const cid = conversationIdRef.current;
-        const { data: msgData } = await (cid
-          ? supabase.from('messages').select('*').or(`ticket_id.eq.${id},conversation_id.eq.${cid}`)
-          : supabase.from('messages').select('*').eq('ticket_id', id)
-        ).order('created_at', { ascending: true });
-        if (msgData) setMessages(msgData);
+        const query = cid
+          ? supabase
+              .from('messages')
+              .select('*')
+              .or(`ticket_id.eq.${ticketId},conversation_id.eq.${cid}`)
+          : supabase.from('messages').select('*').eq('ticket_id', ticketId);
+        const { data: msgData } = await query.order('created_at', { ascending: true });
+        if (msgData) setMessages(msgData as TicketDetailMessage[]);
       }
 
-      const { data: companyData } = await supabase.from('company_settings').select('id, departments, modules, issue_types').limit(1).single();
-      const defaultModules = ["ห้องทำงานแพทย์", "ห้องพยาบาล", "ห้องยาผู้ป่วยใน", "ห้องเวชระเบียน", "ห้องผ่าตัด", "ห้องวิสัญญี", "ห้อง Consult", "All"];
-      if (companyData) {
-         if (companyData.departments) setAvailableDepts(companyData.departments);
-         if (companyData.modules && companyData.modules.length > 0) setAvailableModules(companyData.modules);
-         else setAvailableModules(defaultModules);
-         if (companyData.issue_types && companyData.issue_types.length > 0) setAvailableIssueTypes(companyData.issue_types);
-      } else { setAvailableModules(defaultModules); }
+      const { data: companyData } = await supabase
+        .from('company_settings')
+        .select('id, departments, modules, issue_types')
+        .limit(1)
+        .single();
 
-      const { data: { user: authUser } } = await supabase.auth.getUser();
+      if (companyData?.departments) setAvailableDepts(companyData.departments);
+      setAvailableModules(
+        companyData?.modules && companyData.modules.length > 0
+          ? companyData.modules
+          : DEFAULT_MODULES
+      );
+      setAvailableIssueTypes(
+        companyData?.issue_types && companyData.issue_types.length > 0
+          ? companyData.issue_types
+          : []
+      );
+
+      const {
+        data: { user: authUser },
+      } = await supabase.auth.getUser();
+
       if (authUser) {
-          const { data: profile } = await supabase.from('profiles').select('*').eq('id', authUser.id).single();
-          if (profile) {
-            setUser({ ...authUser, ...profile });
-            if (profile.quick_replies) setPersonalQuickReplies(profile.quick_replies);
-            if (profile.resolution_templates) setPersonalResTemplates(profile.resolution_templates);
-          } else { setUser(authUser); }
+        const { data: profile } = await supabase.from('profiles').select('*').eq('id', authUser.id).single();
+        if (profile) {
+          const mergedUser: TicketDetailUser = {
+            id: authUser.id,
+            role: (profile as { role?: string | null }).role || null,
+          };
+          setUser(mergedUser);
+          setPersonalQuickReplies((profile as { quick_replies?: string[] }).quick_replies || []);
+          setPersonalResTemplates((profile as { resolution_templates?: string[] }).resolution_templates || []);
+        } else {
+          setUser({ id: authUser.id });
+        }
       }
-    } catch (err) { console.error('Fetch error:', err); }
-    finally { setLoading(false); }
-  };
-
-  const addResTemplate = async (text: string) => {
-     if (!text.trim() || !user) return;
-     const updated = [...personalResTemplates, text.trim()];
-     setPersonalResTemplates(updated);
-     await supabase.from('profiles').update({ resolution_templates: updated, updated_at: new Date().toISOString() }).eq('id', user.id);
-  };
-
-  const removeResTemplate = async (index: number) => {
-     if (!user) return;
-     const updated = personalResTemplates.filter((_, i) => i !== index);
-     setPersonalResTemplates(updated);
-     await supabase.from('profiles').update({ resolution_templates: updated, updated_at: new Date().toISOString() }).eq('id', user.id);
-  };
+    } catch (error) {
+      addToast(getTicketDetailActionFailedToast('update ticket', error));
+    } finally {
+      setLoading(false);
+    }
+  }, [addToast, ticketId]);
 
   useEffect(() => {
     fetchData();
-    const chan = supabase.channel(`staff-ticket-${id}`)
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (p: any) => {
-        const msg = p.new; const cid = conversationIdRef.current;
-        if (msg.ticket_id === id || (cid && msg.conversation_id === cid)) {
-          setMessages(prev => prev.some(m => m.id === msg.id) ? prev : [...prev, msg]);
+    if (!ticketId) return;
+
+    const channel = supabase
+      .channel(`staff-ticket-${ticketId}`)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload) => {
+        const message = payload.new as unknown as TicketDetailMessage;
+        const cid = conversationIdRef.current;
+        if (message.ticket_id === ticketId || (cid && message.conversation_id === cid)) {
+          setMessages((prev) => (prev.some((item) => item.id === message.id) ? prev : [...prev, message]));
         }
       })
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'messages' }, (p: any) => {
-        setMessages(prev => prev.map(m => m.id === p.new.id ? p.new : m));
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'messages' }, (payload) => {
+        const updatedMessage = payload.new as unknown as TicketDetailMessage;
+        setMessages((prev) => prev.map((item) => (item.id === updatedMessage.id ? updatedMessage : item)));
       })
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'tickets', filter: `id=eq.${id}` }, (p: any) => {
-        setTicket((prev: any) => prev ? ({ ...prev, ...p.new }) : prev);
-        setStatus(p.new.status);
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'messages' }, (payload) => {
+        setMessages((prev) => prev.filter((item) => item.id !== payload.old.id));
       })
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'tickets', filter: `id=eq.${ticketId}` },
+        (payload) => {
+          const updatedTicket = payload.new as unknown as Partial<TicketDetailTicket>;
+          setTicket((prev) => (prev ? { ...prev, ...updatedTicket } : prev));
+          if (typeof updatedTicket.status === 'string') {
+            setStatus(updatedTicket.status);
+          }
+        }
+      )
       .subscribe();
-    return () => { supabase.removeChannel(chan); conversationIdRef.current = null; };
-  }, [id]);
 
-  const handleSendMessage = async () => {
-    if (!newMessage.trim()) return;
-    const content = newMessage;
-    const optimisticMsg = { id: `temp-${Date.now()}`, content, sender_type: 'agent', staff_id: user?.id, ticket_id: id, conversation_id: conversationId, message_type: 'text', created_at: new Date().toISOString() };
-    setMessages(prev => [...prev, optimisticMsg]);
-    setNewMessage(''); setSending(true);
-    try {
-      const { error } = await supabase.from('messages').insert([{ conversation_id: conversationId, ticket_id: id, sender_type: 'agent', staff_id: user?.id, message_type: 'text', content }]);
-      if (error) throw error;
-      fetchData();
-    } catch (err: any) {
-      setMessages(prev => prev.filter(m => m.id !== optimisticMsg.id));
-      setNewMessage(content); alert('Error: ' + err.message);
-    } finally { setSending(false); }
-  };
+    return () => {
+      supabase.removeChannel(channel);
+      conversationIdRef.current = null;
+    };
+  }, [fetchData, ticketId]);
 
-  const handleAdminFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0) {
-      const file = e.target.files[0]; setSending(true);
+  const updateTicketField = useCallback(
+    async (field: 'status' | 'priority' | 'department' | 'module', value: string) => {
+      if (!ticketId) return;
+
       try {
-        const fileName = `admin_${id}_${Date.now()}.${file.name.split('.').pop()}`;
-        const { error: upErr } = await supabase.storage.from('chat_media').upload(fileName, file);
-        if (upErr) throw upErr;
-        const { data: { publicUrl } } = supabase.storage.from('chat_media').getPublicUrl(fileName);
-        await supabase.from('messages').insert([{ conversation_id: conversationId, ticket_id: id, sender_type: 'agent', staff_id: user?.id, message_type: file.type.startsWith('image/') ? 'image' : 'file', content: publicUrl }]);
-        fetchData();
-      } catch (err: any) { alert('Upload Failed: ' + err.message); }
-      finally { setSending(false); if (adminFileRef.current) adminFileRef.current.value = ''; }
-    }
-  };
+        await supabase.from('tickets').update({ [field]: value }).eq('id', ticketId);
+      } catch (error) {
+        addToast(getTicketDetailActionFailedToast('update ticket', error));
+      }
+    },
+    [addToast, ticketId]
+  );
 
-  const handleScreenCapture = async () => {
+  const handleSendMessage = useCallback(async () => {
+    if (!newMessage.trim() || !ticketId) return;
+
+    const content = newMessage;
+    const optimisticMessage: TicketDetailMessage = {
+      id: `temp-${Date.now()}`,
+      content,
+      sender_type: 'agent',
+      staff_id: user?.id || null,
+      ticket_id: ticketId,
+      conversation_id: conversationId,
+      message_type: 'text',
+      created_at: new Date().toISOString(),
+    };
+
+    setMessages((prev) => [...prev, optimisticMessage]);
+    setNewMessage('');
+    setSending(true);
+
     try {
-      const stream = await navigator.mediaDevices.getDisplayMedia({ video: true } as any);
-      const video = document.createElement('video'); video.srcObject = stream;
-      await new Promise(r => video.onloadedmetadata = () => { video.play(); r(true); });
-      const canvas = document.createElement('canvas'); canvas.width = video.videoWidth; canvas.height = video.videoHeight;
-      canvas.getContext('2d')?.drawImage(video, 0, 0); stream.getTracks().forEach(t => t.stop());
-      setEditingImage(canvas.toDataURL('image/jpeg', 0.9)); setShowEditor(true);
-    } catch (err: any) { if (err.name !== 'NotAllowedError') alert('Failed: ' + err.message); }
-  };
+      const { error } = await supabase.from('messages').insert([
+        {
+          conversation_id: conversationId,
+          ticket_id: ticketId,
+          sender_type: 'agent',
+          staff_id: user?.id,
+          message_type: 'text',
+          content,
+        },
+      ]);
+      if (error) throw error;
+      setMessages((prev) => prev.filter((message) => message.id !== optimisticMessage.id));
+    } catch (error) {
+      setMessages((prev) => prev.filter((message) => message.id !== optimisticMessage.id));
+      setNewMessage(content);
+      addToast(getTicketDetailActionFailedToast('send message', error));
+    } finally {
+      setSending(false);
+    }
+  }, [addToast, conversationId, newMessage, ticketId, user?.id]);
 
-  const handleEditorSave = async (blob: Blob) => {
+  const handleAdminFile = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (!ticketId || !event.target.files?.length) return;
+
+    const file = event.target.files[0];
     setSending(true);
     try {
-      const fileName = `edited_${id}_${Date.now()}.jpg`;
-      const { error: upErr } = await supabase.storage.from('chat_media').upload(fileName, blob, { contentType: 'image/jpeg' });
-      if (upErr) throw upErr;
-      const { data: { publicUrl } } = supabase.storage.from('chat_media').getPublicUrl(fileName);
-      await supabase.from('messages').insert([{ conversation_id: conversationId, ticket_id: id, sender_type: 'agent', staff_id: user?.id, message_type: 'image', content: publicUrl }]);
-      fetchData(); setShowEditor(false); setEditingImage(null);
-    } catch (err: any) { alert('Failed: ' + err.message); }
-    finally { setSending(false); }
-  };
+      const extension = file.name.split('.').pop() || 'dat';
+      const fileName = `admin_${ticketId}_${Date.now()}.${extension}`;
+      const { error: uploadError } = await supabase.storage.from('chat_media').upload(fileName, file);
+      if (uploadError) throw uploadError;
 
-  const handleDeleteMessage = async (mid: string) => {
-    if (!confirm('ยกเลิกส่ง?')) return;
-    try { await deleteMessageAction(mid); fetchData(); } catch (err: any) { alert('Failed: ' + err.message); }
-  };
+      const {
+        data: { publicUrl },
+      } = supabase.storage.from('chat_media').getPublicUrl(fileName);
 
-  const handleEndChat = async () => {
-    if (!conversationId || !confirm('ยืนยันจบการสนทนา?')) return;
-    setUpdating(true);
-    try { await closeConversationAction(conversationId); setIsChatActive(false); fetchData(); }
-    catch (err: any) { alert('Failed: ' + err.message); } finally { setUpdating(false); }
-  };
+      await supabase.from('messages').insert([
+        {
+          conversation_id: conversationId,
+          ticket_id: ticketId,
+          sender_type: 'agent',
+          staff_id: user?.id,
+          message_type: file.type.startsWith('image/') ? 'image' : 'file',
+          content: publicUrl,
+        },
+      ]);
+    } catch (error) {
+      addToast(getTicketDetailActionFailedToast('upload file', error));
+    } finally {
+      setSending(false);
+      if (adminFileRef.current) adminFileRef.current.value = '';
+    }
+  }, [addToast, conversationId, ticketId, user?.id]);
 
-  const handleResolve = async () => {
-    if (!resSummary.trim() || !selectedModule) return;
-    if (isChatActive) { alert('จบการสนทนาก่อนครับ'); return; }
+  const handleScreenCapture = useCallback(async () => {
+    try {
+      const stream = await navigator.mediaDevices.getDisplayMedia({ video: true });
+      const video = document.createElement('video');
+      video.srcObject = stream;
+      await new Promise((resolve) => {
+        video.onloadedmetadata = () => {
+          video.play();
+          resolve(true);
+        };
+      });
+
+      const canvas = document.createElement('canvas');
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      canvas.getContext('2d')?.drawImage(video, 0, 0);
+      stream.getTracks().forEach((track) => track.stop());
+
+      setEditingImage(canvas.toDataURL('image/jpeg', 0.9));
+      setShowEditor(true);
+    } catch (error) {
+      if (error instanceof Error && error.name === 'NotAllowedError') return;
+      addToast(getTicketDetailActionFailedToast('capture image', error));
+    }
+  }, [addToast]);
+
+  const handleEditorSave = useCallback(async (blob: Blob) => {
+    if (!ticketId) return;
+
+    setSending(true);
+    try {
+      const fileName = `edited_${ticketId}_${Date.now()}.jpg`;
+      const { error: uploadError } = await supabase.storage.from('chat_media').upload(fileName, blob, {
+        contentType: 'image/jpeg',
+      });
+      if (uploadError) throw uploadError;
+
+      const {
+        data: { publicUrl },
+      } = supabase.storage.from('chat_media').getPublicUrl(fileName);
+
+      await supabase.from('messages').insert([
+        {
+          conversation_id: conversationId,
+          ticket_id: ticketId,
+          sender_type: 'agent',
+          staff_id: user?.id,
+          message_type: 'image',
+          content: publicUrl,
+        },
+      ]);
+      setShowEditor(false);
+      setEditingImage(null);
+    } catch (error) {
+      addToast(getTicketDetailActionFailedToast('save edited image', error));
+    } finally {
+      setSending(false);
+    }
+  }, [addToast, conversationId, ticketId, user?.id]);
+
+  const handleDeleteMessage = useCallback(async (messageId: string) => {
+    if (!confirmTicketDetailDeleteMessage()) return;
+    try {
+      await deleteMessageAction(messageId);
+    } catch (error) {
+      addToast(getTicketDetailActionFailedToast('delete message', error));
+    }
+  }, [addToast]);
+
+  const handleEndChat = useCallback(async () => {
+    if (!conversationId) return;
+    if (!confirmTicketDetailEndChat()) return;
+
     setUpdating(true);
     try {
-      const up = await ticketService.resolve(id as string, user?.id, resSummary, selectedModule, selectedIssueType);
-      if (conversationId) {
-        const link = `${window.location.origin}/survey/${id}`;
-        await supabase.from('messages').insert([{ conversation_id: conversationId, ticket_id: id, sender_type: 'system', staff_id: user?.id, content: `[SYSTEM] แก้ไขเรียบร้อย: ${resSummary}\nโมดูล: ${selectedModule}\nประเมิน: ${link}` }]);
-      }
-      setShowResolveModal(false); fetchData();
-    } catch (err: any) { alert('Failed: ' + err.message); } finally { setUpdating(false); }
-  };
+      await closeConversationAction(conversationId);
+      setIsChatActive(false);
+      setConversationId(null);
+      conversationIdRef.current = null;
+    } catch (error) {
+      addToast(getTicketDetailActionFailedToast('end chat', error));
+    } finally {
+      setUpdating(false);
+    }
+  }, [addToast, conversationId]);
 
-  if (loading) return <div className="flex-center" style={{ height: '70vh' }}><Loader2 className="animate-spin" /></div>;
-  if (!ticket) return <div className="flex-center" style={{ height: '70vh' }}><h2>Ticket Not Found</h2></div>;
+  const handleResolve = useCallback(async () => {
+    if (!ticketId || !ticket || !user?.id) return;
+    if (!resSummary.trim() || !selectedModule || !selectedIssueType) {
+      addToast(getTicketDetailValidationToast());
+      return;
+    }
+    if (isChatActive) {
+      addToast(getTicketDetailChatMustEndToast());
+      return;
+    }
+
+    setUpdating(true);
+    try {
+      await ticketService.resolve(ticketId, user.id, resSummary, selectedModule, selectedIssueType);
+      if (conversationId) {
+        const surveyLink = `${window.location.origin}/survey/${ticketId}`;
+        await supabase.from('messages').insert([
+          {
+            conversation_id: conversationId,
+            ticket_id: ticketId,
+            sender_type: 'system',
+            staff_id: user.id,
+            content: getTicketDetailSystemResolveMessage(resSummary, selectedModule, surveyLink),
+          },
+        ]);
+      }
+      addToast(getTicketDetailResolvedToast(ticket.ticket_no));
+      setShowResolveModal(false);
+      setTicket((prev) => (prev ? { ...prev, status: 'Resolved' } : prev));
+      setStatus('Resolved');
+    } catch (error) {
+      addToast(getTicketDetailActionFailedToast('resolve ticket', error));
+    } finally {
+      setUpdating(false);
+    }
+  }, [
+    addToast,
+    conversationId,
+    isChatActive,
+    resSummary,
+    selectedIssueType,
+    selectedModule,
+    ticket,
+    ticketId,
+    user?.id,
+  ]);
+
+  if (loading) {
+    return (
+      <div className="flex-center" style={loadingContainerStyle}>
+        <Loader2 className="animate-spin" />
+      </div>
+    );
+  }
+
+  if (!ticket) {
+    return (
+      <div className="flex-center" style={loadingContainerStyle}>
+        <h2>Ticket Not Found</h2>
+      </div>
+    );
+  }
 
   return (
     <div className="animate-page-in">
-      <TicketHeader ticket={ticket} status={status} user={user} updating={updating} isChatActive={isChatActive} onUpdate={() => fetchData()} onResolveClick={() => { setShowResolveModal(true); setResSummary(''); }} onExportClick={() => setShowExportModal(true)} />
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: '24px', alignItems: 'start' }}>
-        <TicketChat messages={messages} ticket={ticket} user={user} newMessage={newMessage} setNewMessage={setNewMessage} sending={sending} onSendMessage={handleSendMessage} onAttachFile={() => adminFileRef.current?.click()} onScreenCapture={handleScreenCapture} onEditImage={(u) => { setViewingImage(u); setShowViewer(true); }} onDeleteMessage={handleDeleteMessage} onEndChat={handleEndChat} isChatActive={isChatActive} quickReplies={personalQuickReplies} isReadOnly={true} />
-        <TicketSidebar 
-          ticket={ticket} user={user} 
-          status={status} setStatus={async (s) => { 
-            setStatus(s); 
-            await supabase.from('tickets').update({ status: s }).eq('id', id);
-            fetchData();
-          }} 
-          priority={priority} setPriority={async (p) => { 
-            setPriority(p); 
-            await supabase.from('tickets').update({ priority: p }).eq('id', id);
-            fetchData();
-          }} 
-          selectedDept={selectedDept} setSelectedDept={async (d) => { 
-            setSelectedDept(d); 
-            await supabase.from('tickets').update({ department: d }).eq('id', id);
-            fetchData();
-          }} 
-          selectedModule={selectedModule} setSelectedModule={async (m) => { 
-            setSelectedModule(m); 
-            await supabase.from('tickets').update({ module: m }).eq('id', id);
-            fetchData();
-          }} 
-          availableDepts={availableDepts} availableModules={availableModules} logs={logs} 
+      <TicketHeader
+        ticket={ticket}
+        status={status}
+        user={user}
+        updating={updating}
+        isChatActive={isChatActive}
+        onUpdate={() => {
+          void fetchData();
+        }}
+        onResolveClick={() => {
+          setShowResolveModal(true);
+          setResSummary('');
+        }}
+        onExportClick={() => setShowExportModal(true)}
+      />
+
+      <div style={pageGridStyle}>
+        <TicketChat
+          messages={messages}
+          ticket={ticket}
+          user={user}
+          newMessage={newMessage}
+          setNewMessage={setNewMessage}
+          sending={sending}
+          onSendMessage={handleSendMessage}
+          onAttachFile={() => adminFileRef.current?.click()}
+          onScreenCapture={handleScreenCapture}
+          onEditImage={(url) => {
+            setViewingImage(url);
+            setShowViewer(true);
+          }}
+          onDeleteMessage={handleDeleteMessage}
+          onEndChat={handleEndChat}
+          isChatActive={isChatActive}
+          quickReplies={personalQuickReplies}
+          isReadOnly={true}
+        />
+
+        <TicketSidebar
+          ticket={ticket}
+          user={user}
+          status={status}
+          setStatus={(value) => {
+            setStatus(value);
+            void updateTicketField('status', value);
+          }}
+          priority={priority}
+          setPriority={(value) => {
+            setPriority(value);
+            void updateTicketField('priority', value);
+          }}
+          selectedDept={selectedDept}
+          setSelectedDept={(value) => {
+            setSelectedDept(value);
+            void updateTicketField('department', value);
+          }}
+          selectedModule={selectedModule}
+          setSelectedModule={(value) => {
+            setSelectedModule(value);
+            void updateTicketField('module', value);
+          }}
+          availableDepts={availableDepts}
+          availableModules={availableModules}
+          logs={logs}
         />
       </div>
 
-      {showResolveModal && (
-          <div style={{ position: 'fixed', inset: 0, zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(15, 23, 42, 0.4)', padding: '20px', backdropFilter: 'blur(8px)' }}>
-            <div className="glass" style={{ width: '100%', maxWidth: '440px', maxHeight: '90vh', overflowY: 'auto', padding: '32px', borderRadius: '32px', background: 'var(--bg-card)', boxShadow: '0 40px 100px rgba(0,0,0,0.6)', border: '1px solid var(--border)', color: 'var(--text-main)', animation: 'scaleIn 0.3s ease-out' }}>
-               <div style={{ textAlign: 'center', marginBottom: '24px' }}>
-                  <div style={{ width: '56px', height: '56px', borderRadius: '16px', background: 'rgba(54, 153, 255, 0.1)', color: 'var(--primary)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px' }}><CheckCircle size={28} /></div>
-                  <h3 style={{ fontSize: '22px', fontWeight: '900', marginBottom: '6px' }}>ปิดงานใบงาน #{ticket?.ticket_no}</h3>
-                  <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>กรุณาสรุปผลการแก้ไขปัญหาเพื่อแจ้งลูกค้าครับ</p>
-               </div>
-
-               {/* 1. Module */}
-               <div style={{ marginBottom: '20px' }}>
-                  <label style={{ display: 'block', fontSize: '11px', fontWeight: '800', color: 'var(--primary)', textTransform: 'uppercase', marginBottom: '8px' }}>Module <span style={{ color: 'var(--danger)' }}>*</span></label>
-                  <select value={selectedModule} onChange={(e) => setSelectedModule(e.target.value)} style={{ width: '100%', padding: '14px', borderRadius: '12px', background: 'var(--bg-input)', color: 'var(--text-main)', border: '1px solid var(--border)', fontWeight: '800' }}>
-                     <option value="">-- เลือกโมดูล --</option>
-                     {availableModules.map(m => <option key={m} value={m}>{m}</option>)}
-                  </select>
-               </div>
-
-               {/* 2. ประเภทงาน */}
-               
-
-               {/* 3. เทมเพลตสรุปงาน */}
-               <div style={{ marginBottom: '20px' }}>
-                  <label style={{ display: 'block', fontSize: '11px', fontWeight: '800', color: 'var(--primary)', textTransform: 'uppercase', marginBottom: '8px' }}>ประเภทงาน <span style={{ color: 'var(--danger)' }}>*</span></label>
-                  <select value={selectedIssueType} onChange={(e) => setSelectedIssueType(e.target.value)} style={{ width: '100%', padding: '14px', borderRadius: '12px', background: 'var(--bg-input)', color: 'var(--text-main)', fontWeight: '700', border: '1px solid var(--border)', appearance: 'none' }}>
-                     <option value="">-- เลือกประเภทงาน (ไม่บังคับ) --</option>
-                     {availableIssueTypes.map(it => <option key={it} value={it}>{it}</option>)}
-                  </select>
-               </div>
-
-                <div style={{ marginBottom: '20px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-                     <label style={{ fontSize: '11px', fontWeight: '800', color: 'var(--primary)', textTransform: 'uppercase' }}>เทมเพลตสรุปงาน</label>
-                     <a href="/settings/profile" target="_blank" rel="noreferrer" style={{ fontSize: '10px', color: 'var(--text-muted)', textDecoration: 'underline', cursor: 'pointer' }}>จัดการเทมเพลต</a>
-                  </div>
-                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                      {personalResTemplates.map((t, idx) => (
-                         <button
-                            key={idx}
-                            onClick={() => setResSummary(t)}
-                            style={{ padding: '8px 16px', borderRadius: '12px', border: '1px solid var(--primary)', background: 'rgba(0, 242, 254, 0.08)', fontSize: '13px', color: 'var(--primary)', cursor: 'pointer', transition: 'all 0.2s' }}
-                         >{t}</button>
-                      ))}
-                      {personalResTemplates.length === 0 && (
-                         <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>ยังไม่ได้ตั้งค่าเทมเพลต — <a href="/settings/profile" target="_blank" rel="noreferrer" style={{ color: 'var(--primary)', textDecoration: 'underline' }}>ตั้งค่าที่นี่</a></p>
-                      )}
-                  </div>
-               </div>
-
-               {/* 4. สรุปผลการแก้ไขงาน */}
-               <div style={{ marginBottom: '24px' }}>
-                  <label style={{ display: 'block', fontSize: '11px', fontWeight: '800', color: 'var(--primary)', textTransform: 'uppercase', marginBottom: '8px' }}>สรุปผลการแก้ไขงาน (RESOLUTION SUMMARY) <span style={{ color: 'var(--danger)' }}>*</span></label>
-                  <textarea value={resSummary} onChange={(e) => setResSummary(e.target.value)} placeholder="ระบุรายละเอียดการแก้ไข เช่น 'แก้ไขส่วนลดให้แล้ว'..." style={{ width: '100%', height: '100px', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '16px', padding: '16px', color: 'var(--text-main)', fontSize: '14px', resize: 'none' }} />
-               </div>
-
-               <div style={{ display: 'flex', gap: '16px', marginTop: 'auto' }}>
-                  <button
-                     onClick={() => setShowResolveModal(false)}
-                     style={{
-                       flex: 1, padding: '16px', borderRadius: '15px',
-                       border: '1px solid var(--border)',
-                       background: 'var(--bg-input)',
-                       color: 'var(--text-muted)',
-                       fontWeight: '800', cursor: 'pointer'
-                     }}
-                  >ยกเลิก</button>
-                  <button
-                     onClick={handleResolve}
-                     disabled={updating  || !resSummary.trim() || !selectedModule || !selectedIssueType}
-                     style={{
-                       flex: 1.5, padding: '16px', borderRadius: '15px', border: 'none',
-                       background: (updating || !resSummary.trim() || !selectedModule)
-                         ? 'rgba(16, 185, 129, 0.15)'
-                         : 'var(--success)',
-                       color: (updating || !resSummary.trim() || !selectedModule)
-                         ? 'var(--text-muted)'
-                         : '#000',
-                       fontWeight: '900', cursor: (updating || !resSummary.trim() || !selectedModule) ? 'not-allowed' : 'pointer',
-                       transition: 'all 0.2s'
-                     }}
-                  >
-                     {updating ? <Loader2 size={18} className="animate-spin" /> : 'ยืนยันปิดงาน'}
-                  </button>
-               </div>
-            </div>
-          </div>
-      )}
+      <ResolveTicketModal
+        open={showResolveModal}
+        currentTicket={ticket}
+        availableModules={availableModules}
+        availableIssueTypes={availableIssueTypes}
+        personalResTemplates={personalResTemplates}
+        resSummary={resSummary}
+        selectedModule={selectedModule}
+        selectedIssueType={selectedIssueType}
+        sending={updating}
+        onClose={() => setShowResolveModal(false)}
+        onConfirm={handleResolve}
+        onChangeSummary={setResSummary}
+        onChangeModule={setSelectedModule}
+        onChangeIssueType={setSelectedIssueType}
+      />
 
       <input type="file" ref={adminFileRef} onChange={handleAdminFile} style={{ display: 'none' }} />
-      {showViewer && viewingImage && <ImageViewerModal imageUrl={viewingImage} onClose={() => { setShowViewer(false); setViewingImage(null); }} onEdit={(u) => { setEditingImage(u); setShowEditor(true); }} />}
-      {showEditor && editingImage && <ImageEditorModal imageUrl={editingImage} onClose={() => { setShowEditor(false); setEditingImage(null); }} onSave={handleEditorSave} />}
-      <SummaryExportModal isOpen={showExportModal} onClose={() => setShowExportModal(false)} onExport={(f) => {}} ticketNo={ticket?.ticket_no || ''} />
-      <style dangerouslySetInnerHTML={{ __html: `@keyframes scaleIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }`}} />
+
+      {showViewer && viewingImage && (
+        <ImageViewerModal
+          imageUrl={viewingImage}
+          onClose={() => {
+            setShowViewer(false);
+            setViewingImage(null);
+          }}
+          onEdit={(imageUrl) => {
+            setEditingImage(imageUrl);
+            setShowEditor(true);
+          }}
+        />
+      )}
+
+      {showEditor && editingImage && (
+        <ImageEditorModal
+          imageUrl={editingImage}
+          onClose={() => {
+            setShowEditor(false);
+            setEditingImage(null);
+          }}
+          onSave={handleEditorSave}
+        />
+      )}
+
+      <SummaryExportModal
+        isOpen={showExportModal}
+        onClose={() => setShowExportModal(false)}
+        onExport={() => {}}
+        ticketNo={ticket.ticket_no || ''}
+      />
     </div>
   );
 }

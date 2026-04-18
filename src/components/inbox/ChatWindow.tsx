@@ -1,5 +1,6 @@
 'use client';
-import React from 'react';
+/* eslint-disable @next/next/no-img-element */
+import React, { type FormEvent, type RefObject } from 'react';
 import { 
   ArrowLeft, 
   Info, 
@@ -13,18 +14,25 @@ import {
   Clock,
   AlertTriangle 
 } from 'lucide-react';
+import type {
+  InboxAgent,
+  InboxConversation,
+  InboxMessage,
+  InboxTicket,
+  InboxViewMode,
+} from '@/types/inbox';
 
 interface ChatWindowProps {
-  selectedChat: any;
-  messages: any[];
+  selectedChat: InboxConversation;
+  messages: InboxMessage[];
   newMessage: string;
   setNewMessage: (msg: string) => void;
   sending: boolean;
-  onSendMessage: (e: React.FormEvent) => void;
-  viewMode: 'list' | 'chat' | 'details';
-  setViewMode: (mode: 'list' | 'chat' | 'details') => void;
-  currentTicket: any;
-  agent: any;
+  onSendMessage: (e: FormEvent<HTMLFormElement>) => void;
+  viewMode: InboxViewMode;
+  setViewMode: (mode: InboxViewMode) => void;
+  currentTicket: InboxTicket | null;
+  agent: InboxAgent | null;
   showCanned: boolean;
   setShowCanned: (show: boolean) => void;
   cannedResponses: string[];
@@ -35,8 +43,11 @@ interface ChatWindowProps {
   onAttachClick: () => void;
   onEditImage: (url: string) => void;
   onClaim: () => void;
-  onDeleteMessage?: (id: string) => void;
-  messagesEndRef: React.RefObject<HTMLDivElement | null>;
+  onDeleteMessage?: (id: string) => void | Promise<void>;
+  hasMoreMessages: boolean;
+  loadingMoreMessages: boolean;
+  onLoadOlderMessages: () => Promise<void>;
+  messagesEndRef: RefObject<HTMLDivElement | null>;
 }
 
 export const ChatWindow: React.FC<ChatWindowProps> = ({
@@ -61,6 +72,9 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
   onEditImage,
   onClaim,
   onDeleteMessage,
+  hasMoreMessages,
+  loadingMoreMessages,
+  onLoadOlderMessages,
   messagesEndRef
 }) => {
   if (!selectedChat) {
@@ -84,6 +98,22 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
   const isViewOnly = agent?.role !== 'Administrator' && agent?.permissions?.inbox === 'view';
   const isUnassigned = currentTicket && !currentTicket.assigned_agent_id;
   const isRestricted = (currentTicket && !currentTicket.assigned_agent_id && agent?.role !== 'Administrator');
+
+  const handleMessagesScroll = async (
+    event: React.UIEvent<HTMLDivElement>
+  ) => {
+    const target = event.currentTarget;
+    if (!hasMoreMessages || loadingMoreMessages || target.scrollTop > 60) return;
+
+    const prevScrollTop = target.scrollTop;
+    const prevScrollHeight = target.scrollHeight;
+    await onLoadOlderMessages();
+
+    requestAnimationFrame(() => {
+      const nextScrollHeight = target.scrollHeight;
+      target.scrollTop = nextScrollHeight - prevScrollHeight + prevScrollTop;
+    });
+  };
 
   return (
     <div className={`glass inbox-chat-panel ${viewMode !== 'chat' ? 'hidden-mobile' : ''}`} style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
@@ -115,22 +145,56 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
         </div>
       </div>
 
-      <div style={{ flex: 1, padding: '24px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '16px' }} className="no-scrollbar">
+      <div
+        style={{ flex: 1, padding: '24px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '16px' }}
+        className="no-scrollbar"
+        onScroll={handleMessagesScroll}
+      >
+        {(hasMoreMessages || loadingMoreMessages) && (
+          <div style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '12px' }}>
+            {loadingMoreMessages ? 'Loading older messages...' : 'Scroll up to load older messages'}
+          </div>
+        )}
+        {hasMoreMessages && (
+          <div className="show-mobile" style={{ justifyContent: 'center' }}>
+            <button
+              type="button"
+              onClick={() => {
+                void onLoadOlderMessages();
+              }}
+              disabled={loadingMoreMessages}
+              className="glass-interactive"
+              style={{
+                padding: '8px 14px',
+                borderRadius: '10px',
+                border: '1px solid var(--border)',
+                background: 'var(--bg-input)',
+                color: 'var(--text-main)',
+                fontSize: '12px',
+                fontWeight: '700',
+                cursor: loadingMoreMessages ? 'not-allowed' : 'pointer',
+                opacity: loadingMoreMessages ? 0.6 : 1,
+              }}
+            >
+              {loadingMoreMessages ? 'Loading...' : 'Load older'}
+            </button>
+          </div>
+        )}
         {messages.length === 0 && (
           <div style={{ margin: 'auto', textAlign: 'center', color: 'var(--text-muted)' }}>
             <p style={{ fontSize: '14px' }}>กำลังรอข้อความใหม่…</p>
           </div>
         )}
-        {messages.filter((m: any) => m.message_type !== 'unsent').map((msg) => {
+        {messages.filter((message) => message.message_type !== 'unsent').map((msg, index) => {
             const isOwn = msg.staff_id === agent?.id;
             const isAdmin = agent?.role === 'Administrator';
-            const canDelete = (isOwn || isAdmin) && msg.sender_type === 'agent' && onDeleteMessage;
+            const canDelete = Boolean((isOwn || isAdmin) && msg.sender_type === 'agent' && onDeleteMessage);
 
             return (
               <div key={msg.id} className="animate-content-slide" style={{ 
                 alignSelf: msg.sender_type === 'agent' ? 'flex-end' : 'flex-start', 
                 maxWidth: '80%',
-                animationDelay: `${Math.min(0.3, (messages.indexOf(msg) % 10) * 0.05)}s` 
+                animationDelay: `${Math.min(0.3, (index % 10) * 0.05)}s` 
               }}>
                  <div style={{ 
                     padding: '12px 18px', 

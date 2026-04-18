@@ -1,40 +1,37 @@
 'use client';
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unused-vars */
 import { useEffect, useState } from 'react';
+import type { RealtimePostgresChangesPayload } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
+import {
+  getInboxConversationById,
+  listInboxConversations,
+  listInboxConversationsFallback,
+} from '@/lib/inbox/queries';
+import type { InboxConversation } from '@/types/inbox';
+
+function sortConversations(items: InboxConversation[]) {
+  return [...items].sort(
+    (left, right) =>
+      new Date(right.last_message_at || 0).getTime() -
+      new Date(left.last_message_at || 0).getTime()
+  );
+}
 
 export function useRealtimeInbox() {
-  const [conversations, setConversations] = useState<any[]>([]);
+  const [conversations, setConversations] = useState<InboxConversation[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function fetchInitial() {
-      // Fetch all conversations to see if status filtering was the issue
-      const { data, error } = await supabase
-        .from('conversations')
-        .select(`
-          id,
-          status,
-          last_message_at,
-          customer_id,
-          customers (id, display_name, line_user_id)
-        `)
-        .order('last_message_at', { ascending: false });
-
-      if (error) {
+      try {
+        setConversations(await listInboxConversations(100));
+      } catch (error) {
         console.error('Fetch Inbox Error:', error);
-        // Pure fallback: no joins, just data
-        const { data: fallbackData } = await supabase
-          .from('conversations')
-          .select('*')
-          .order('last_message_at', { ascending: false });
-        
-        if (fallbackData) {
-          setConversations(fallbackData);
+        try {
+          setConversations(await listInboxConversationsFallback(100));
+        } catch (fallbackError) {
+          console.error('Fallback Inbox Error:', fallbackError);
         }
-      } else if (data) {
-        setConversations(data);
       }
       setLoading(false);
     }
@@ -42,44 +39,71 @@ export function useRealtimeInbox() {
     fetchInitial();
 
     // Set up real-time subscription
+    const pendingConversationIds = new Set<string>();
+    let flushTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const flushPendingConversations = async () => {
+      const ids = Array.from(pendingConversationIds);
+      pendingConversationIds.clear();
+      flushTimer = null;
+      if (ids.length === 0) return;
+
+      const rows = await Promise.all(
+        ids.map(async (id) => {
+          try {
+            return await getInboxConversationById(id);
+          } catch {
+            return null;
+          }
+        })
+      );
+
+      const normalizedRows = rows.filter((row): row is InboxConversation => Boolean(row));
+      if (normalizedRows.length === 0) return;
+
+      setConversations((prev) => {
+        const next = [...prev];
+        for (const conversation of normalizedRows) {
+          const index = next.findIndex((item) => item.id === conversation.id);
+          if (index >= 0) {
+            next[index] = conversation;
+          } else {
+            next.unshift(conversation);
+          }
+        }
+        return sortConversations(next);
+      });
+    };
+
+    const scheduleConversationFlush = (conversationId: string) => {
+      pendingConversationIds.add(conversationId);
+      if (flushTimer) return;
+      flushTimer = setTimeout(() => {
+        void flushPendingConversations();
+      }, 120);
+    };
+
     const channel = supabase
       .channel('public:conversations:v2')
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'conversations' },
-        async (payload) => {
-          console.log('Realtime Inbox Change:', payload.eventType);
-          
+        async (payload: RealtimePostgresChangesPayload<{ id: string }>) => {
           if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
-             // Fetch just this one conversation with its relations
-             const { data: updatedConv } = await supabase
-               .from('conversations')
-               .select(`
-                  id,
-                  status,
-                  last_message_at,
-                  customer_id,
-                  customers (id, display_name, line_user_id)
-               `)
-               .eq('id', (payload.new as any).id)
-               .single();
-             
-             if (updatedConv) {
-                setConversations(prev => {
-                   const filtered = prev.filter(c => c.id !== updatedConv.id);
-                   return [updatedConv, ...filtered].sort((a, b) => 
-                      new Date(b.last_message_at || 0).getTime() - new Date(a.last_message_at || 0).getTime()
-                   );
-                });
-             }
+            scheduleConversationFlush(payload.new.id);
           } else if (payload.eventType === 'DELETE') {
-             setConversations(prev => prev.filter(c => c.id !== (payload.old as any).id));
+            setConversations((prev) =>
+              prev.filter((conversation) => conversation.id !== payload.old.id)
+            );
           }
         }
       )
       .subscribe();
 
     return () => {
+      if (flushTimer) {
+        clearTimeout(flushTimer);
+      }
       supabase.removeChannel(channel);
     };
   }, []);
