@@ -4,7 +4,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/lib/supabase';
 import { 
   Download, Loader2, Table as TableIcon, AlignLeft, Filter, Link as LinkIcon,
-  ArrowUpDown, Search, X
+  ArrowUpDown, Search, X, Calendar, ChevronRight
 } from 'lucide-react';
 import { exportToExcel } from '@/lib/utils/exportUtils';
 import Skeleton from '@/components/ui/Skeleton';
@@ -17,7 +17,11 @@ type SortConfig = {
 export default function DailyReportPage() {
   const [tickets, setTickets] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [dateStr, setDateStr] = useState(new Date().toISOString().split('T')[0]);
+  const [dateRange, setDateRange] = useState({
+    start: new Date().toISOString().split('T')[0],
+    end: new Date().toISOString().split('T')[0],
+  });
+  const [preset, setPreset] = useState('today');
   const [isExporting, setIsExporting] = useState(false);
   
   // Sorting & Filtering State
@@ -25,11 +29,11 @@ export default function DailyReportPage() {
   const [filterText, setFilterText] = useState('');
   const [showFilter, setShowFilter] = useState(false);
 
-  const fetchDailyTickets = async (selectedDate: string) => {
+  const fetchTickets = async (start: string, end: string) => {
     setLoading(true);
     try {
-      const startOfDay = new Date(`${selectedDate}T00:00:00.000Z`).toISOString();
-      const endOfDay = new Date(`${selectedDate}T23:59:59.999Z`).toISOString();
+      const startIso = new Date(`${start}T00:00:00.000Z`).toISOString();
+      const endIso = new Date(`${end}T23:59:59.999Z`).toISOString();
 
       const { data, error } = await supabase
         .from('tickets')
@@ -41,8 +45,8 @@ export default function DailyReportPage() {
           ),
           assigned_agent:profiles!assigned_agent_id( display_name:full_name )
         `)
-        .gte('created_at', startOfDay)
-        .lte('created_at', endOfDay)
+        .gte('created_at', startIso)
+        .lte('created_at', endIso)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -55,8 +59,33 @@ export default function DailyReportPage() {
   };
 
   useEffect(() => {
-    fetchDailyTickets(dateStr);
-  }, [dateStr]);
+    fetchTickets(dateRange.start, dateRange.end);
+  }, [dateRange]);
+
+  const applyPreset = (type: string) => {
+    const now = new Date();
+    let start = new Date();
+    let end = new Date();
+
+    if (type === 'today') {
+      start = now;
+      end = now;
+    } else if (type === 'week') {
+      const day = now.getDay();
+      const diff = now.getDate() - day + (day === 0 ? -6 : 1);
+      start = new Date(now.setDate(diff));
+      end = new Date();
+    } else if (type === 'month') {
+      start = new Date(now.getFullYear(), now.getMonth(), 1);
+      end = new Date();
+    }
+
+    setDateRange({
+      start: start.toISOString().split('T')[0],
+      end: end.toISOString().split('T')[0]
+    });
+    setPreset(type);
+  };
 
   const getDurationMs = (start: string, end: string | null) => {
     if (!end) return 0;
@@ -154,7 +183,8 @@ export default function DailyReportPage() {
            'เวลาที่ใช้ไป': getDurationStr(t.created_at, t.resolved_at)
         };
       });
-      exportToExcel(formatData, `Daily_Issues_${dateStr}`);
+      const rangeStr = dateRange.start === dateRange.end ? dateRange.start : `${dateRange.start}_to_${dateRange.end}`;
+      exportToExcel(formatData, `Daily_Issues_${rangeStr}`);
       setIsExporting(false);
     }, 500);
   };
@@ -200,7 +230,58 @@ export default function DailyReportPage() {
             </div>
          </div>
 
-         <div style={{ display: 'flex', gap: '12px' }}>
+         <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+            {/* Presets */}
+            <div style={{ display: 'flex', background: 'var(--bg-card)', padding: '4px', borderRadius: '12px', border: '1px solid var(--border)' }}>
+              {[
+                { label: 'วันนี้', value: 'today' },
+                { label: 'สัปดาห์นี้', value: 'week' },
+                { label: 'เดือนนี้', value: 'month' }
+              ].map(p => (
+                <button
+                  key={p.value}
+                  onClick={() => applyPreset(p.value)}
+                  style={{
+                    padding: '6px 16px',
+                    borderRadius: '8px',
+                    border: 'none',
+                    background: preset === p.value ? 'var(--primary)' : 'transparent',
+                    color: preset === p.value ? 'black' : 'var(--text-muted)',
+                    fontSize: '13px',
+                    fontWeight: '700',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s'
+                  }}
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Custom Range */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '0 12px', height: '44px', background: 'var(--bg-input)', borderRadius: '12px', border: '1px solid var(--border)' }}>
+              <Calendar size={16} color="var(--primary)" />
+              <input 
+                 type="date" 
+                 value={dateRange.start}
+                 onChange={(e) => {
+                   setDateRange(prev => ({ ...prev, start: e.target.value }));
+                   setPreset('custom');
+                 }}
+                 style={{ background: 'none', border: 'none', color: 'var(--text-main)', fontWeight: '600', fontSize: '13px', outline: 'none' }}
+              />
+              <ChevronRight size={14} color="var(--text-muted)" />
+              <input 
+                 type="date" 
+                 value={dateRange.end}
+                 onChange={(e) => {
+                   setDateRange(prev => ({ ...prev, end: e.target.value }));
+                   setPreset('custom');
+                 }}
+                 style={{ background: 'none', border: 'none', color: 'var(--text-main)', fontWeight: '600', fontSize: '13px', outline: 'none' }}
+              />
+            </div>
+
             {showFilter && (
               <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
                 <Search size={16} style={{ position: 'absolute', left: '12px', color: 'var(--text-muted)' }} />
@@ -211,7 +292,7 @@ export default function DailyReportPage() {
                   onChange={(e) => setFilterText(e.target.value)}
                   className="glass-interactive"
                   autoFocus
-                  style={{ padding: '0 36px', width: '250px', height: '44px', borderRadius: '12px', border: '1px solid var(--primary)', background: 'var(--bg-input)', color: 'var(--text-main)' }}
+                  style={{ padding: '0 36px', width: '200px', height: '44px', borderRadius: '12px', border: '1px solid var(--primary)', background: 'var(--bg-input)', color: 'var(--text-main)' }}
                 />
                 {filterText && (
                   <button onClick={() => setFilterText('')} style={{ position: 'absolute', right: '12px', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
@@ -228,17 +309,17 @@ export default function DailyReportPage() {
             >
               <Filter size={18} />
             </button>
-
-            <input 
-               type="date" 
-               value={dateStr}
-               onChange={(e) => setDateStr(e.target.value)}
-               className="glass-interactive"
-               style={{ padding: '0 16px', borderRadius: '12px', border: '1px solid var(--border)', background: 'var(--bg-input)', color: 'var(--text-main)', fontWeight: '600' }}
-            />
             
             <button 
                onClick={handleExportExcel}
+               disabled={isExporting || processedTickets.length === 0}
+               className="glass-interactive"
+               style={{ height: '44px', padding: '0 20px', borderRadius: '12px', border: 'none', background: 'var(--success)', color: 'white', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 8px 20px rgba(16, 185, 129, 0.25)' }}
+            >
+               {isExporting ? <Loader2 size={18} className="animate-spin" /> : <Download size={18} />}
+               EXPORT
+            </button>
+         </div>      onClick={handleExportExcel}
                disabled={isExporting || processedTickets.length === 0}
                className="glass-interactive"
                style={{ height: '44px', padding: '0 20px', borderRadius: '12px', border: 'none', background: 'var(--success)', color: 'white', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 8px 20px rgba(16, 185, 129, 0.25)' }}
@@ -285,7 +366,7 @@ export default function DailyReportPage() {
                      <tr><td colSpan={13} style={{ textAlign: 'center', padding: '40px' }}><Loader2 className="animate-spin text-primary" style={{ margin: '0 auto' }} /></td></tr>
                   ) : processedTickets.length === 0 ? (
                      <tr><td colSpan={13} style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
-                        {filterText ? 'ไม่พบข้อมูลที่ตรงกับการค้นหา' : 'ไม่พบข้อมูลใบงานในวันที่เลือก'}
+                         {filterText ? 'ไม่พบข้อมูลที่ตรงกับการค้นหา' : 'ไม่พบข้อมูลใบงานในช่วงวันที่เลือก'}
                      </td></tr>
                   ) : (
                      processedTickets.map((t, idx) => (
@@ -321,10 +402,9 @@ export default function DailyReportPage() {
          
          <div style={{ padding: '14px 20px', background: 'var(--bg-card)', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11px', fontWeight: '500', color: 'var(--text-muted)', letterSpacing: '0.3px' }}>
             <span>กำลังแสดงผล {processedTickets.length} รายการ {filterText && `(จากทั้งหมด ${tickets.length} รายการ)`}</span>
-            <span>ข้อมูล Real-time ตามรอบวัน (00:00 - 23:59)</span>
+             <span>ข้อมูลสรุปตามช่วงเวลา ({dateRange.start} ถึง {dateRange.end})</span>
          </div>
       </div>
     </div>
   );
 }
-
