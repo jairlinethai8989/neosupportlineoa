@@ -59,10 +59,9 @@ const Sidebar = ({ onClickLink, isCollapsed = false }: SidebarProps) => {
   const [permissions, setPermissions] = useState<any>(null);
   const [userRole, setUserRole] = useState<string>('');
   const [profile, setProfile] = useState<any>(null);
-  const { unreadCount } = useNotificationContext();
+  const { unreadCount, newTicketsCount } = useNotificationContext();
 
   const [inboxCount, setInboxCount] = useState(0);
-  const [ticketCount, setTicketCount] = useState(0);
   const [openMenus, setOpenMenus] = useState<string[]>(['System Settings', 'Intelligence Dashboard']);
 
   // OPTIMIZATION: Parallel Data Fetching
@@ -84,7 +83,6 @@ const Sidebar = ({ onClickLink, isCollapsed = false }: SidebarProps) => {
         setPermissions(profileRes.data.permissions);
       }
       if (companyRes.data) setCompany(companyRes.data);
-      if (ticketsRes.count !== null) setTicketCount(ticketsRes.count);
       if (conversationsRes.count !== null) setInboxCount(conversationsRes.count);
 
     } catch (err) {
@@ -101,10 +99,6 @@ const Sidebar = ({ onClickLink, isCollapsed = false }: SidebarProps) => {
 
     // Optimized Realtime Channel
     const channel = supabase.channel('sidebar-sync')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'tickets' }, () => {
-         supabase.from('tickets').select('*', { count: 'exact', head: true }).eq('status', 'New')
-           .then(res => res.count !== null && setTicketCount(res.count));
-      })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'conversations' }, () => {
          supabase.from('conversations').select('*', { count: 'exact', head: true }).eq('status', 'active')
            .then(res => res.count !== null && setInboxCount(res.count));
@@ -138,7 +132,7 @@ const Sidebar = ({ onClickLink, isCollapsed = false }: SidebarProps) => {
   const menuItems = useMemo(() => [
     { section: 'Operations', thai: 'ส่วนปฏิบัติการหลัก', items: [
       { name: 'Inbox', thai: 'ห้องแชทลูกค้า', icon: Inbox, path: '/inbox', count: inboxCount },
-      { name: 'Tickets', thai: 'จัดการใบงาน', icon: Ticket, path: '/tickets', count: ticketCount },
+      { name: 'Tickets', thai: 'จัดการใบงาน', icon: Ticket, path: '/tickets', count: newTicketsCount },
       { name: 'Notifications', thai: 'การแจ้งเตือน', icon: Bell, path: '/notifications', count: unreadCount },
     ]},
     { section: 'Intelligence', thai: 'ระบบข้อมูลเชิงลึก', items: [
@@ -172,7 +166,7 @@ const Sidebar = ({ onClickLink, isCollapsed = false }: SidebarProps) => {
         ]
       },
     ]},
-  ], [inboxCount, ticketCount, unreadCount]);
+  ], [inboxCount, newTicketsCount, unreadCount]);
 
   // OPTIMIZATION: Memoized Permission Check
   const hasAccess = useCallback((name: string) => {

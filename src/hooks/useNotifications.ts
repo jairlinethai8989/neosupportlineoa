@@ -21,6 +21,7 @@ export function useNotifications(agentId: string | null) {
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [toasts, setToasts] = useState<ToastNotif[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [newTicketsCount, setNewTicketsCount] = useState(0);
   const isFirstLoad = useRef(true);
 
   // ---------------------------------------------------------------
@@ -96,6 +97,11 @@ export function useNotifications(agentId: string | null) {
 
   const addToast = useCallback((toast: ToastNotif) => {
     setToasts(prev => [toast, ...prev].slice(0, MAX_TOASTS));
+    
+    // Skip browser notification for certain types as requested
+    // Specifically disabling taskbar notification for new messages
+    if (toast.type === 'message') return;
+    
     showBrowserNotification(toast.title, toast.body);
   }, [showBrowserNotification]);
 
@@ -145,6 +151,14 @@ export function useNotifications(agentId: string | null) {
     setNotifications(notifs);
     recalcUnread(notifs);
   }, [agentId, getReadIds, recalcUnread]);
+
+  const fetchNewTicketsCount = useCallback(async () => {
+    const { count } = await supabase
+      .from('tickets')
+      .select('*', { count: 'exact', head: true })
+      .eq('status', 'New');
+    if (count !== null) setNewTicketsCount(count);
+  }, []);
 
   // ---------------------------------------------------------------
   // SLA Monitor — breached + warning (< 30 min)
@@ -268,6 +282,7 @@ export function useNotifications(agentId: string | null) {
 
     fetchLogs();
     fetchSlaBreaches();
+    fetchNewTicketsCount();
 
     // Subscribe: new ticket_logs targeting this agent
     const logChannel = supabase
@@ -324,6 +339,7 @@ export function useNotifications(agentId: string | null) {
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'tickets' },
         async (payload) => {
           const row = payload.new as any;
+          await fetchNewTicketsCount();
           if (row.status !== 'New') return;
           if (isFirstLoad.current) return;
 
@@ -335,6 +351,18 @@ export function useNotifications(agentId: string | null) {
             ticketId: row.id,
             ticketNo: row.ticket_no,
           });
+        }
+      )
+      // Also listen to updates to capture status changes (e.g., ticket claimed)
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'tickets' }, 
+        async () => {
+          await fetchNewTicketsCount();
+        }
+      )
+      // Also listen to deletes
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'tickets' }, 
+        async () => {
+          await fetchNewTicketsCount();
         }
       )
       .subscribe();
@@ -356,5 +384,14 @@ export function useNotifications(agentId: string | null) {
     };
   }, [agentId, fetchLogs, fetchSlaBreaches, addToast]);
 
-  return { notifications, toasts, unreadCount, markAsRead, markAllRead, dismissToast, addToast };
+  return { 
+    notifications, 
+    toasts, 
+    unreadCount, 
+    newTicketsCount,
+    markAsRead, 
+    markAllRead, 
+    dismissToast, 
+    addToast 
+  };
 }

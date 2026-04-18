@@ -17,6 +17,7 @@ interface NotificationContextValue {
   dismissToast: (id: string) => void;
   addToast: (toast: ToastNotif) => void;
   agentId: string | null;
+  newTicketsCount: number;
 }
 
 const NotificationContext = createContext<NotificationContextValue>({
@@ -28,6 +29,7 @@ const NotificationContext = createContext<NotificationContextValue>({
   dismissToast: () => {},
   addToast: () => {},
   agentId: null,
+  newTicketsCount: 0,
 });
 
 export function NotificationProvider({ children }: { children: React.ReactNode }) {
