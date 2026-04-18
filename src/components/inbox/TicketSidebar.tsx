@@ -39,7 +39,7 @@ export const TicketSidebar: React.FC<TicketSidebarProps> = ({
   const isResolved = currentTicket?.status === 'Resolved' || currentTicket?.status === 'Closed';
   const isOwner = currentTicket?.assigned_agent_id === agent?.id;
   const isAdmin = agent?.role === 'Administrator';
-  const isSessionActive = selectedChat.status === 'active' || selectedChat.is_active;
+  const isSessionActive = !!(selectedChat.status === 'active' || selectedChat.is_active);
   const canResolve = Boolean(currentTicket && !isResolved && (isOwner || isAdmin) && !isSessionActive);
 
   return (
