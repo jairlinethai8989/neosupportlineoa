@@ -40,7 +40,12 @@ function TicketsContent() {
       .order('created_at', { ascending: false });
 
     if (error) {
-      addToast('error', 'ไม่สามารถโหลดข้อมูลใบงานได้');
+      addToast({
+         id: 'fetch-error',
+         type: 'error',
+         title: 'Error',
+         body: 'ไม่สามารถโหลดข้อมูลใบงานได้'
+      });
     } else {
       setTickets(data || []);
     }
@@ -75,7 +80,12 @@ function TicketsContent() {
 
   const handleExecuteResolve = async () => {
      if (!resSummary.trim() || !selectedModule || !selectedIssueType) {
-        addToast('warning', 'กรุณาระบุโมดูล ประเภทงาน และสรุปงานให้ครบถ้วน');
+        addToast({
+           id: 'validation-error',
+           type: 'warning',
+           title: 'แจ้งเตือน',
+           body: 'กรุณาระบุโมดูล ประเภทงาน และสรุปงานให้ครบถ้วน'
+        });
         return;
      }
 
@@ -92,7 +102,12 @@ function TicketsContent() {
            selectedIssueType
         );
         if (success) {
-           addToast('success', 'ปิดงานเรียบร้อยแล้ว');
+           addToast({
+              id: 'resolve-success',
+              type: 'success',
+              title: 'ปิดงานสำเร็จ',
+              body: `ใบงาน #${resolvingTicket.ticket_no} ถูกปิดงานเรียบร้อยแล้ว`
+           });
            setShowResolveModal(false);
            setResSummary('');
            setSelectedModule('');
@@ -100,7 +115,12 @@ function TicketsContent() {
            fetchTickets();
         }
      } catch (err) {
-        addToast('error', 'เกิดข้อผิดพลาดในการปิดงาน');
+        addToast({
+           id: 'resolve-error',
+           type: 'error',
+           title: 'เกิดข้อผิดพลาด',
+           body: 'ไม่สามารถปิดงานได้'
+        });
      } finally {
         setLoading(false);
      }
