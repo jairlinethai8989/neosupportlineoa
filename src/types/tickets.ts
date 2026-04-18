@@ -81,18 +81,18 @@ export interface TicketDetailAssignedAgent {
 
 export interface TicketDetailTicket {
   id: string;
-  ticket_no?: string | null;
-  customer_id?: string | null;
-  status?: string | null;
-  subject?: string | null;
-  description?: string | null;
-  priority?: string | null;
-  department?: string | null;
-  module?: string | null;
-  issue_type?: string | null;
-  created_at?: string | null;
-  resolved_at?: string | null;
-  assigned_agent_id?: string | null;
+  ticket_no: string | null;
+  customer_id: string | null;
+  status: string | null;
+  subject: string | null;
+  description: string | null;
+  priority: string | null;
+  department: string | null;
+  module: string | null;
+  issue_type: string | null;
+  created_at: string | null;
+  resolved_at: string | null;
+  assigned_agent_id: string | null;
   customers?: TicketDetailCustomer | null;
   assigned_agent?: TicketDetailAssignedAgent | null;
 }
