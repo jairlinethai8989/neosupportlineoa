@@ -379,8 +379,26 @@ function InboxContent() {
                    <p style={{ fontSize: '14px', color: 'var(--text-muted)' }}>กรุณาสรุปผลการแก้ไขปัญหาลิขสิทธิ์</p>
                 </div>
 
+                {/* 1. Module */}
                 <div style={{ marginBottom: '24px' }}>
-                    <div style={{ marginBottom: '24px' }}>
+                    <label style={{ display: 'block', fontSize: '11px', fontWeight: '800', color: 'var(--primary)', textTransform: 'uppercase', marginBottom: '8px' }}>Module <span style={{ color: 'var(--danger)' }}>*</span></label>
+                    <select value={selectedModule} onChange={(e) => setSelectedModule(e.target.value)} style={{ width: '100%', padding: '14px', borderRadius: '12px', background: 'var(--bg-input)', color: 'var(--text-main)', border: '1px solid var(--border)', fontWeight: '800' }}>
+                       <option value="">-- เลือกโมดูล --</option>
+                       {availableModules.map(m => <option key={m} value={m}>{m}</option>)}
+                    </select>
+                </div>
+
+                {/* 2. ประเภทงาน */}
+                <div style={{ marginBottom: '24px' }}>
+                     <label style={{ display: 'block', fontSize: '11px', fontWeight: '800', color: 'var(--primary)', textTransform: 'uppercase', marginBottom: '8px' }}>ประเภทงาน <span style={{ color: 'var(--danger)' }}>*</span></label>
+                     <select value={selectedIssueType} onChange={(e) => setSelectedIssueType(e.target.value)} style={{ width: '100%', padding: '14px', borderRadius: '12px', background: 'var(--bg-input)', color: 'var(--text-main)', fontWeight: '700', border: '1px solid var(--border)', appearance: 'none' }}>
+                        <option value="">-- เลือกประเภทงาน (ไม่บังคับ) --</option>
+                        {availableIssueTypes.map(it => <option key={it} value={it}>{it}</option>)}
+                     </select>
+                 </div>
+
+                {/* 3. เทมเพลตสรุปงาน */}
+                <div style={{ marginBottom: '24px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
                        <label style={{ fontSize: '11px', fontWeight: '800', color: 'var(--primary)', textTransform: 'uppercase' }}>เทมเพลตสรุปงาน</label>
                        <a href="/settings/profile" target="_blank" rel="noreferrer" style={{ fontSize: '10px', color: 'var(--text-muted)', textDecoration: 'underline', cursor: 'pointer' }}>จัดการเทมเพลต</a>
@@ -399,21 +417,7 @@ function InboxContent() {
                     </div>
                 </div>
 
-                <label style={{ display: 'block', fontSize: '11px', fontWeight: '800', color: 'var(--primary)', textTransform: 'uppercase', marginBottom: '8px' }}>Module <span style={{ color: 'var(--danger)' }}>*</span></label>
-                    <select value={selectedModule} onChange={(e) => setSelectedModule(e.target.value)} style={{ width: '100%', padding: '14px', borderRadius: '12px', background: 'var(--bg-input)', color: 'var(--text-main)', border: '1px solid var(--border)', fontWeight: '800' }}>
-                       <option value="">-- เลือกโมดูล --</option>
-                       {availableModules.map(m => <option key={m} value={m}>{m}</option>)}
-                    </select>
-                </div>
-
-                <div style={{ marginBottom: '24px' }}>
-                     <label style={{ display: 'block', fontSize: '11px', fontWeight: '800', color: 'var(--primary)', textTransform: 'uppercase', marginBottom: '8px' }}>ประเภทงาน <span style={{ color: 'var(--danger)' }}>*</span></label>
-                     <select value={selectedIssueType} onChange={(e) => setSelectedIssueType(e.target.value)} style={{ width: '100%', padding: '14px', borderRadius: '12px', background: 'var(--bg-input)', color: 'var(--text-main)', fontWeight: '700', border: '1px solid var(--border)', appearance: 'none' }}>
-                        <option value="">-- เลือกประเภทงาน (ไม่บังคับ) --</option>
-                        {availableIssueTypes.map(it => <option key={it} value={it}>{it}</option>)}
-                     </select>
-                 </div>
-
+                {/* 4. สรุปผลการแก้ไขงาน */}
                 <div style={{ marginBottom: '32px' }}>
                    <label style={{ display: 'block', fontSize: '11px', fontWeight: '800', color: 'var(--primary)', textTransform: 'uppercase', marginBottom: '8px' }}>สรุปผลการแก้ไขงาน (RESOLUTION SUMMARY) <span style={{ color: 'var(--danger)' }}>*</span></label>
                    <textarea value={resSummary} onChange={(e) => setResSummary(e.target.value)} placeholder="ระบุรายละเอียดการแก้ไข เช่น 'แก้ไขส่วนลดให้แล้ว'..." style={{ width: '100%', height: '100px', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '16px', padding: '16px', color: 'var(--text-main)', fontSize: '14px', resize: 'none' }} />
