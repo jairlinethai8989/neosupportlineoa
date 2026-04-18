@@ -974,9 +974,9 @@ function TicketsContent() {
                     </button>
                  </div>
               </div>
-           </div>
-        
-       <style dangerouslySetInnerHTML={{ __html: `
+         </div>
+       )}
+        <style dangerouslySetInnerHTML={{ __html: `
          @keyframes scaleIn {
             from { opacity: 0; transform: scale(0.95); }
             to { opacity: 1; transform: scale(1); }
