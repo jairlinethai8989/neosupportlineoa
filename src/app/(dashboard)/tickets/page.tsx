@@ -42,7 +42,7 @@ function TicketsContent() {
     if (error) {
       addToast({
          id: 'fetch-error',
-         type: 'error',
+         type: 'ticket',
          title: 'Error',
          body: 'ไม่สามารถโหลดข้อมูลใบงานได้'
       });
@@ -82,7 +82,7 @@ function TicketsContent() {
      if (!resSummary.trim() || !selectedModule || !selectedIssueType) {
         addToast({
            id: 'validation-error',
-           type: 'warning',
+           type: 'ticket',
            title: 'แจ้งเตือน',
            body: 'กรุณาระบุโมดูล ประเภทงาน และสรุปงานให้ครบถ้วน'
         });
@@ -117,7 +117,7 @@ function TicketsContent() {
      } catch (err) {
         addToast({
            id: 'resolve-error',
-           type: 'error',
+           type: 'ticket',
            title: 'เกิดข้อผิดพลาด',
            body: 'ไม่สามารถปิดงานได้'
         });
