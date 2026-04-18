@@ -86,7 +86,7 @@ export async function closeConversationAction(conversationId: string) {
   await verifyAgentRole(user.id);
 
   await supabaseAdmin.from('conversations')
-    .update({ status: 'closed' })
+    .update({ status: 'closed', is_active: false })
     .eq('id', conversationId);
   
   await supabaseAdmin.from('messages').insert([{

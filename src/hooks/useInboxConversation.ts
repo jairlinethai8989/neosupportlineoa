@@ -296,7 +296,7 @@ export function useInboxConversation({
 
     try {
       await closeInboxConversation(selectedChat.id);
-      setSelectedChat((prev) => (prev ? { ...prev, status: 'closed' } : null));
+      setSelectedChat((prev) => (prev ? { ...prev, status: 'closed', is_active: false } : null));
       addToast(getInboxCloseSuccessToast());
     } catch (error: unknown) {
       alert(getInboxActionFailedMessage('Failed', error));
