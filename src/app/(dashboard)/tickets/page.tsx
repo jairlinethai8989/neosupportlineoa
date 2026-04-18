@@ -588,14 +588,14 @@ function TicketsContent() {
                                        exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.2 } }}
                                        whileHover={{ y: -4, boxShadow: '0 20px 40px rgba(0,0,0,0.12)' }}
                                        className="glass-interactive" 
-                                       style={{ padding: '24px', borderRadius: '24px', background: 'var(--bg-card)', border: '1px solid var(--border)', borderLeft: `6px solid ${config.color}`, display: 'flex', flexDirection: 'column', gap: '18px', boxShadow: '0 8px 24px rgba(0,0,0,0.08)' }}
+                                       style={{ padding: '12px 16px', borderRadius: '18px', background: 'var(--bg-card)', border: '1px solid var(--border)', borderLeft: `6px solid ${config.color}`, display: 'flex', flexDirection: 'column', gap: '8px', boxShadow: '0 4px 12px rgba(0,0,0,0.06)' }}
                                    >
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                                      <Link href={`/tickets/${ticket.id}`} style={{ fontSize: '16px', fontWeight: '900', color: 'var(--primary)', textDecoration: 'none' }}>#{ticket.ticket_no}</Link>
+                                      <Link href={`/tickets/${ticket.id}`} style={{ fontSize: '13px', fontWeight: '900', color: 'var(--primary)', textDecoration: 'none' }}>#{ticket.ticket_no}</Link>
                                       <PriorityIndicator priority={ticket.priority} />
                                     </div>
                                     <div>
-                                      <h4 style={{ fontSize: '14px', fontWeight: '700', lineHeight: '1.5', color: 'var(--text-main)', marginBottom: '8px' }}>{ticket.subject}</h4>
+                                      <h4 style={{ fontSize: '13px', fontWeight: '700', lineHeight: '1.4', color: 'var(--text-main)', marginBottom: '4px' }}>{ticket.subject}</h4>
                                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 14px', background: `${config.color}10`, borderRadius: '12px', width: 'fit-content', border: `1px solid ${config.color}20` }}>
                                         <AlertCircle size={12} color={config.color} />
                                         <p style={{ fontSize: '14px', fontWeight: '800', color: config.color, letterSpacing: '0.05em' }}>{hospitalName}</p>
@@ -838,16 +838,7 @@ function TicketsContent() {
                    <p style={{ fontSize: '14px', color: 'var(--text-muted)', lineHeight: '1.6' }}>กรุณาสรุปผลการแก้ไขปัญหา เพื่อบันทึกเป็นประวัติและแจ้งลูกค้าครับ</p>
                 </div>
 
-                  <div style={{ marginBottom: '24px' }}>
-                     
-
                   
-
-                <div style={{ marginBottom: '24px' }}>
-                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                        <label style={{ fontSize: '11px', fontWeight: '800', color: 'var(--primary)', textTransform: 'uppercase', letterSpacing: '1px' }}>เทมเพลตสรุปงาน</label>
-                        <a href="/settings/profile" target="_blank" rel="noreferrer" style={{ fontSize: '10px', color: 'var(--text-muted)', textDecoration: 'underline', cursor: 'pointer' }}>จัดการเทมเพลต</a>
-                     </div>
                      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                         {personalResTemplates.map((t, idx) => (
                            <button
@@ -919,6 +910,17 @@ function TicketsContent() {
                          ))}
                       </select>
                    </div>
+                   <div style={{ marginBottom: '24px' }}>
+                     
+
+                  
+
+                <div style={{ marginBottom: '24px' }}>
+                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                        <label style={{ fontSize: '11px', fontWeight: '800', color: 'var(--primary)', textTransform: 'uppercase', letterSpacing: '1px' }}>เทมเพลตสรุปงาน</label>
+                        <a href="/settings/profile" target="_blank" rel="noreferrer" style={{ fontSize: '10px', color: 'var(--text-muted)', textDecoration: 'underline', cursor: 'pointer' }}>จัดการเทมเพลต</a>
+                     </div>
+
                    <label style={{ display: 'block', fontSize: '11px', fontWeight: '800', color: 'var(--primary)', textTransform: 'uppercase', marginBottom: '12px', letterSpacing: '1px' }}>สรุปผลการแก้ไขงาน (Resolution Summary)</label>
                    <textarea 
                      value={resSummary}
