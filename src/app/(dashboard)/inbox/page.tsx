@@ -409,8 +409,31 @@ function InboxContent() {
                 </div>
 
                 <div style={{ display: 'flex', gap: '16px', marginTop: 'auto' }}>
-                   <button onClick={() => setShowResolveModal(false)} style={{ flex: 1, padding: '16px', borderRadius: '15px', border: '1px solid var(--border)', background: 'var(--bg-input)', color: '#6d727b', fontWeight: '800', cursor: 'pointer' }}>ยกเลิก</button>
-                   <button onClick={handleExecuteResolve} disabled={sending || !resSummary.trim() || !selectedModule} style={{ flex: 1.5, padding: '16px', borderRadius: '15px', border: 'none', background: (sending || !resSummary.trim() || !selectedModule) ? 'rgba(40, 199, 111, 0.2)' : 'var(--success)', color: (sending || !resSummary.trim() || !selectedModule) ? 'rgba(0,0,0,0.3)' : '#000', fontWeight: '900', cursor: 'pointer' }}>
+                   <button
+                      onClick={() => setShowResolveModal(false)}
+                      style={{
+                        flex: 1, padding: '16px', borderRadius: '15px',
+                        border: '1px solid var(--border)',
+                        background: 'var(--bg-input)',
+                        color: 'var(--text-muted)',
+                        fontWeight: '800', cursor: 'pointer'
+                      }}
+                   >ยกเลิก</button>
+                   <button
+                      onClick={handleExecuteResolve}
+                      disabled={sending || !resSummary.trim() || !selectedModule}
+                      style={{
+                        flex: 1.5, padding: '16px', borderRadius: '15px', border: 'none',
+                        background: (sending || !resSummary.trim() || !selectedModule)
+                          ? 'rgba(16, 185, 129, 0.15)'
+                          : 'var(--success)',
+                        color: (sending || !resSummary.trim() || !selectedModule)
+                          ? 'var(--text-muted)'
+                          : '#000',
+                        fontWeight: '900', cursor: (sending || !resSummary.trim() || !selectedModule) ? 'not-allowed' : 'pointer',
+                        transition: 'all 0.2s'
+                      }}
+                   >
                       {sending ? <Loader2 size={18} className="animate-spin" /> : 'ยืนยันปิดงาน'}
                    </button>
                 </div>

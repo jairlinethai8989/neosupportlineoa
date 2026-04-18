@@ -307,8 +307,31 @@ export default function StaffTicketDetailPage() {
                   <textarea value={resSummary} onChange={(e) => setResSummary(e.target.value)} placeholder="ระบุรายละเอียดการแก้ไข เช่น 'แก้ไขส่วนลดให้แล้ว'..." style={{ width: '100%', height: '100px', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '16px', padding: '16px', color: 'var(--text-main)', fontSize: '14px', resize: 'none' }} />
                </div>
                <div style={{ display: 'flex', gap: '16px', marginTop: 'auto' }}>
-                  <button onClick={() => setShowResolveModal(false)} style={{ flex: 1, padding: '16px', borderRadius: '15px', border: '1px solid var(--border)', background: 'var(--bg-card)', color: '#6d727b', fontWeight: '800', cursor: 'pointer' }}>ยกเลิก</button>
-                  <button onClick={handleResolve} disabled={updating || !resSummary.trim() || !selectedModule} style={{ flex: 1.5, padding: '16px', borderRadius: '15px', border: 'none', background: (updating || !resSummary.trim() || !selectedModule) ? 'rgba(40, 199, 111, 0.2)' : 'var(--success)', color: (updating || !resSummary.trim() || !selectedModule) ? 'rgba(0,0,0,0.3)' : '#000', fontWeight: '900', cursor: 'pointer' }}>
+                  <button
+                     onClick={() => setShowResolveModal(false)}
+                     style={{
+                       flex: 1, padding: '16px', borderRadius: '15px',
+                       border: '1px solid var(--border)',
+                       background: 'var(--bg-input)',
+                       color: 'var(--text-muted)',
+                       fontWeight: '800', cursor: 'pointer'
+                     }}
+                  >ยกเลิก</button>
+                  <button
+                     onClick={handleResolve}
+                     disabled={updating || !resSummary.trim() || !selectedModule}
+                     style={{
+                       flex: 1.5, padding: '16px', borderRadius: '15px', border: 'none',
+                       background: (updating || !resSummary.trim() || !selectedModule)
+                         ? 'rgba(16, 185, 129, 0.15)'
+                         : 'var(--success)',
+                       color: (updating || !resSummary.trim() || !selectedModule)
+                         ? 'var(--text-muted)'
+                         : '#000',
+                       fontWeight: '900', cursor: (updating || !resSummary.trim() || !selectedModule) ? 'not-allowed' : 'pointer',
+                       transition: 'all 0.2s'
+                     }}
+                  >
                      {updating ? <Loader2 size={18} className="animate-spin" /> : 'ยืนยันปิดงาน'}
                   </button>
                </div>
