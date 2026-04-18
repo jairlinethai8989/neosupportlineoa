@@ -278,19 +278,21 @@ export default function StaffTicketDetailPage() {
                   <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>กรุณาสรุปผลการแก้ไขปัญหาเพื่อแจ้งลูกค้าครับ</p>
                </div>
                <div style={{ marginBottom: '20px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
-                     <label style={{ fontSize: '11px', fontWeight: '800', color: 'var(--primary)', textTransform: 'uppercase' }}>Efficiency Tools</label>
-                     <button onClick={() => setIsManagingTemplates(!isManagingTemplates)} style={{ fontSize: '10px', color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}>{isManagingTemplates ? 'เสร็จสิ้น' : 'จัดการ'}</button>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                     <label style={{ fontSize: '11px', fontWeight: '800', color: 'var(--primary)', textTransform: 'uppercase' }}>เทมเพลตสรุปงาน</label>
+                     <a href="/settings/profile" target="_blank" rel="noreferrer" style={{ fontSize: '10px', color: 'var(--text-muted)', textDecoration: 'underline', cursor: 'pointer' }}>จัดการเทมเพลต</a>
                   </div>
                   <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                       {personalResTemplates.map((t, idx) => (
-                         <div key={idx} style={{ position: 'relative' }}>
-                            <button onClick={() => setResSummary(t)} style={{ padding: '8px 16px', borderRadius: '12px', border: '1px solid var(--primary)', background: 'rgba(0, 242, 254, 0.08)', fontSize: '13px', color: 'var(--primary)', cursor: 'pointer' }}>{t}</button>
-                            {isManagingTemplates && <button onClick={() => removeResTemplate(idx)} style={{ position: 'absolute', top: '-8px', right: '-8px', width: '20px', height: '20px', borderRadius: '50%', background: 'var(--danger)', color: 'white', border: 'none', cursor: 'pointer' }}>×</button>}
-                         </div>
+                         <button
+                            key={idx}
+                            onClick={() => setResSummary(t)}
+                            style={{ padding: '8px 16px', borderRadius: '12px', border: '1px solid var(--primary)', background: 'rgba(0, 242, 254, 0.08)', fontSize: '13px', color: 'var(--primary)', cursor: 'pointer', transition: 'all 0.2s' }}
+                         >{t}</button>
                       ))}
-                      {isManagingTemplates && <button onClick={() => { const v=prompt('เพิ่มเทมเพลต:'); if(v) addResTemplate(v); }} style={{ padding: '8px 14px', borderRadius: '10px', border: '1px dashed var(--primary)', color: 'var(--primary)', cursor: 'pointer' }}>+ เพิ่มใหม่</button>}
-                      {(personalResTemplates.length === 0 && !isManagingTemplates) && <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>ยังไม่มีข้อมูลใน Efficiency Tools</p>}
+                      {personalResTemplates.length === 0 && (
+                         <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>ยังไม่ได้ตั้งค่าเทมเพลต — <a href="/settings/profile" target="_blank" rel="noreferrer" style={{ color: 'var(--primary)', textDecoration: 'underline' }}>ตั้งค่าที่นี่</a></p>
+                      )}
                   </div>
                </div>
                <div style={{ marginBottom: '20px' }}>
