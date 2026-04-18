@@ -95,9 +95,9 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
   }
 
   const isResolved = currentTicket?.status === 'Resolved' || currentTicket?.status === 'Closed';
-  const isViewOnly = agent?.role !== 'Administrator' && agent?.permissions?.inbox === 'view';
-  const isUnassigned = currentTicket && !currentTicket.assigned_agent_id;
-  const isRestricted = (currentTicket && !currentTicket.assigned_agent_id && agent?.role !== 'Administrator');
+  const isViewOnly = !!(agent?.role !== 'Administrator' && agent?.permissions?.inbox === 'view');
+  const isUnassigned = !!(currentTicket && !currentTicket.assigned_agent_id);
+  const isRestricted = !!(currentTicket && !currentTicket.assigned_agent_id && agent?.role !== 'Administrator');
 
   const handleMessagesScroll = async (
     event: React.UIEvent<HTMLDivElement>
@@ -218,13 +218,13 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
                             src={msg.content} 
                             loading="lazy"
                             style={{ maxWidth: '100%', borderRadius: '10px', display: 'block', cursor: 'pointer' }} 
-                            onClick={() => onEditImage(msg.content)}
+                            onClick={() => onEditImage(msg.content || '')}
                             alt="Chat attachment" 
                             title="คลิกเพื่อทำการแก้ไขภาพ (Edit/Draw)"
                          />
                       </div>
                    ) : msg.message_type === 'file' || (msg.content?.startsWith('http') && msg.message_type !== 'text') ? (
-                      <a href={msg.content} target="_blank" rel="noreferrer" style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--primary)', textDecoration: 'none', fontWeight: 'bold' }}>
+                      <a href={msg.content || ''} target="_blank" rel="noreferrer" style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--primary)', textDecoration: 'none', fontWeight: 'bold' }}>
                          <Clock size={16} /> ดูไฟล์แนบ
                       </a>
                    ) : (

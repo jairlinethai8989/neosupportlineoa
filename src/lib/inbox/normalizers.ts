@@ -30,7 +30,7 @@ function asPermissions(value: unknown): Partial<Record<string, string>> | null {
 
   return Object.fromEntries(
     Object.entries(value).filter(([, permission]) => typeof permission === 'string')
-  );
+  ) as Partial<Record<string, string>>;
 }
 
 export function normalizeInboxCustomer(value: unknown): InboxCustomer | null {

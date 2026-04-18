@@ -4,11 +4,13 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { isSlaBreached, slaMinutesRemaining } from '@/lib/utils/slaUtils';
 
-export type { 
+import type { 
   NotifType, 
   AppNotification, 
   ToastNotif 
 } from '@/types/notifications';
+
+export type { NotifType, AppNotification, ToastNotif };
 
 const STORAGE_KEY = 'neo_notif_read_ids_v1';
 // Track which SLA warnings we've already toasted to avoid repeated firing

@@ -26,7 +26,7 @@ function asPermissions(value: unknown): Partial<Record<string, string>> | null {
   if (!isRecord(value)) return null;
   return Object.fromEntries(
     Object.entries(value).filter(([, permission]) => typeof permission === 'string')
-  );
+  ) as Partial<Record<string, string>>;
 }
 
 function normalizeHospital(value: unknown): TicketWorkspaceHospital | null {

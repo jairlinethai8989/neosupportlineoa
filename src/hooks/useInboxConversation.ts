@@ -80,7 +80,7 @@ export function useInboxConversation({
 
     async function fetchConversationState() {
       const initialPage = await listInboxMessagesPage({
-        conversationId: selectedChat.id,
+        conversationId: selectedChat!.id,
         limit: MESSAGE_PAGE_SIZE,
       });
 
@@ -89,15 +89,15 @@ export function useInboxConversation({
         initialPage.length > 0 ? initialPage[0].created_at : null;
       setHasMoreMessages(initialPage.length === MESSAGE_PAGE_SIZE);
 
-      if (selectedChat.current_ticket_id) {
-        setCurrentTicket(await getInboxTicketById(selectedChat.current_ticket_id));
+      if (selectedChat!.current_ticket_id) {
+        setCurrentTicket(await getInboxTicketById(selectedChat!.current_ticket_id));
         return;
       }
 
-      const recentTicket = await getLatestOpenInboxTicketForCustomer(selectedChat.customer_id);
+      const recentTicket = await getLatestOpenInboxTicketForCustomer(selectedChat!.customer_id);
 
       if (recentTicket) {
-        await linkConversationToTicket(selectedChat.id, recentTicket.id);
+        await linkConversationToTicket(selectedChat!.id, recentTicket.id);
         setCurrentTicket(recentTicket);
       } else {
         setCurrentTicket(null);
@@ -107,14 +107,14 @@ export function useInboxConversation({
     fetchConversationState();
 
     const channel = supabase
-      .channel(`chat_realtime_${selectedChat.id}`)
+      .channel(`chat_realtime_${selectedChat!.id}`)
       .on(
         'postgres_changes',
         {
           event: 'INSERT',
           schema: 'public',
           table: 'messages',
-          filter: `conversation_id=eq.${selectedChat.id}`,
+          filter: `conversation_id=eq.${selectedChat!.id}`,
         },
         (payload: RealtimePostgresChangesPayload<InboxMessage>) => {
           const normalizedMessage = normalizeInboxMessage(payload.new);
@@ -134,7 +134,7 @@ export function useInboxConversation({
           event: 'UPDATE',
           schema: 'public',
           table: 'messages',
-          filter: `conversation_id=eq.${selectedChat.id}`,
+          filter: `conversation_id=eq.${selectedChat!.id}`,
         },
         (payload: RealtimePostgresChangesPayload<InboxMessage>) => {
           const normalizedMessage = normalizeInboxMessage(payload.new);
@@ -153,10 +153,10 @@ export function useInboxConversation({
           event: 'DELETE',
           schema: 'public',
           table: 'messages',
-          filter: `conversation_id=eq.${selectedChat.id}`,
+          filter: `conversation_id=eq.${selectedChat!.id}`,
         },
         (payload: RealtimePostgresChangesPayload<InboxMessage>) => {
-          setMessages((prev) => prev.filter((message) => message.id !== payload.old.id));
+          setMessages((prev) => prev.filter((message) => message.id !== (payload.old as InboxMessage).id));
         }
       )
       .subscribe();

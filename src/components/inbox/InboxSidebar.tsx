@@ -93,7 +93,7 @@ export const InboxSidebar: React.FC<InboxSidebarProps> = ({
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <p className="truncate" style={{ fontSize: '12px', color: 'var(--text-muted)', maxWidth: '180px' }}>
-                  สถานะ: <span style={{ color: chat.status === 'active' ? 'var(--primary)' : 'inherit', fontWeight: '700' }}>{chat.status.toUpperCase()}</span>
+                  สถานะ: <span style={{ color: chat.status === 'active' ? 'var(--primary)' : 'inherit', fontWeight: '700' }}>{(chat.status || '').toUpperCase()}</span>
                 </p>
                 {chat.status === 'active' && <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--primary)', boxShadow: '0 0 12px var(--primary)' }} />}
               </div>

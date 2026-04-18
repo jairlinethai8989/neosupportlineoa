@@ -1,8 +1,9 @@
+import type { NotifType } from '@/types/notifications';
 import type { TicketWorkspaceTicket } from '@/types/tickets';
 
 export interface TicketWorkspaceToastInput {
   id: string;
-  type: string;
+  type: NotifType;
   title: string;
   body: string;
 }
