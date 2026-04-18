@@ -869,7 +869,6 @@ function TicketsContent() {
                              width: '100%', 
                              padding: '14px 40px 14px 16px', 
                              borderRadius: '12px', 
-                             border: 'none', 
                              background: 'var(--bg-input)', color: 'var(--text-main)', border: '1px solid var(--border)', 
                              fontSize: '14px', 
                              fontWeight: '800', 
