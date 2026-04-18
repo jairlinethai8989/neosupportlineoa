@@ -291,6 +291,9 @@ export default function StaffTicketDetailPage() {
                </div>
 
                {/* 2. ประเภทงาน */}
+               
+
+               {/* 3. เทมเพลตสรุปงาน */}
                <div style={{ marginBottom: '20px' }}>
                   <label style={{ display: 'block', fontSize: '11px', fontWeight: '800', color: 'var(--primary)', textTransform: 'uppercase', marginBottom: '8px' }}>ประเภทงาน <span style={{ color: 'var(--danger)' }}>*</span></label>
                   <select value={selectedIssueType} onChange={(e) => setSelectedIssueType(e.target.value)} style={{ width: '100%', padding: '14px', borderRadius: '12px', background: 'var(--bg-input)', color: 'var(--text-main)', fontWeight: '700', border: '1px solid var(--border)', appearance: 'none' }}>
@@ -299,8 +302,7 @@ export default function StaffTicketDetailPage() {
                   </select>
                </div>
 
-               {/* 3. เทมเพลตสรุปงาน */}
-               <div style={{ marginBottom: '20px' }}>
+                <div style={{ marginBottom: '20px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
                      <label style={{ fontSize: '11px', fontWeight: '800', color: 'var(--primary)', textTransform: 'uppercase' }}>เทมเพลตสรุปงาน</label>
                      <a href="/settings/profile" target="_blank" rel="noreferrer" style={{ fontSize: '10px', color: 'var(--text-muted)', textDecoration: 'underline', cursor: 'pointer' }}>จัดการเทมเพลต</a>
