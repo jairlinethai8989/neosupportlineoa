@@ -123,9 +123,60 @@ export const TicketSidebar: React.FC<TicketSidebarProps> = ({
       </button>
 
       <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+         {isSessionActive ? (
+            <button 
+               onClick={onCloseSession}
+               className="glass-interactive"
+               style={{ 
+                  width: '100%', 
+                  padding: '16px', 
+                  borderRadius: '16px', 
+                  border: '1px solid #ef4444', 
+                  background: 'rgba(239, 68, 68, 0.1)', 
+                  color: '#ef4444', 
+                  fontWeight: '800',
+                  fontSize: '14px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  cursor: 'pointer'
+               }}
+            >
+               <X size={18} /> จบการสนทนา (End Chat)
+            </button>
+         ) : canResolve ? (
+            <button 
+               onClick={onResolve}
+               className="glass-interactive"
+               style={{ 
+                  width: '100%', 
+                  padding: '16px', 
+                  borderRadius: '16px', 
+                  border: 'none', 
+                  background: 'var(--success)', 
+                  color: 'black', 
+                  fontWeight: '900',
+                  fontSize: '14px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  cursor: 'pointer',
+                  boxShadow: '0 8px 24px rgba(40, 199, 111, 0.3)'
+               }}
+            >
+               <CheckCircle size={18} /> ปิดงาน (Resolve Ticket)
+            </button>
+         ) : null}
+
          <p style={{ fontSize: '11px', color: 'var(--text-muted)', textAlign: 'center', opacity: 0.6 }}>
             <Info size={11} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '4px' }} />
-            Ticket Actions can be found below
+            {isSessionActive 
+               ? 'ต้องจบการสนทนาก่อนจึงจะสามารถปิดงานได้' 
+               : isResolved 
+                  ? 'ใบงานนี้ได้รับการแก้ไขเรียบร้อยแล้ว'
+                  : 'Ticket Actions can be found above'}
          </p>
       </div>
     </div>
