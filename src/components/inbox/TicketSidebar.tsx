@@ -6,7 +6,8 @@ import {
   History, 
   CheckCircle, 
   ArrowRight,
-  Info 
+  Info,
+  X
 } from 'lucide-react';
 
 interface TicketSidebarProps {
