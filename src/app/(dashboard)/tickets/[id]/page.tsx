@@ -300,7 +300,7 @@ export default function StaffTicketDetailPage() {
                </div>
                <div style={{ marginBottom: '20px' }}>
                   <label style={{ display: 'block', fontSize: '11px', fontWeight: '800', color: 'var(--primary)', textTransform: 'uppercase', marginBottom: '8px' }}>Module <span style={{ color: 'var(--danger)' }}>*</span></label>
-                  <select value={selectedModule} onChange={(e) => setSelectedModule(e.target.value)} style={{ width: '100%', padding: '14px', borderRadius: '12px', background: 'var(--bg-input)', color: 'var(--text-main)', border: '1px solid var(--border)', fontWeight: '800', border: 'none' }}>
+                  <select value={selectedModule} onChange={(e) => setSelectedModule(e.target.value)} style={{ width: '100%', padding: '14px', borderRadius: '12px', background: 'var(--bg-input)', color: 'var(--text-main)', border: '1px solid var(--border)', fontWeight: '800' }}>
                      <option value="">-- เลือกโมดูล --</option>
                      {availableModules.map(m => <option key={m} value={m}>{m}</option>)}
                   </select>
