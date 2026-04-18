@@ -104,7 +104,7 @@ function TicketsContent() {
         if (success) {
            addToast({
               id: 'resolve-success',
-              type: 'success',
+              type: 'ticket',
               title: 'ปิดงานสำเร็จ',
               body: `ใบงาน #${resolvingTicket.ticket_no} ถูกปิดงานเรียบร้อยแล้ว`
            });
