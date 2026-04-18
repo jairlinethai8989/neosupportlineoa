@@ -156,7 +156,7 @@ export const TicketSidebar: React.FC<TicketSidebarProps> = ({
       </div>
 
       <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-         {isSessionActive ? (
+         {isSessionActive && (
             <button 
                onClick={onCloseSession}
                className="glass-interactive"
@@ -178,30 +178,34 @@ export const TicketSidebar: React.FC<TicketSidebarProps> = ({
             >
                <X size={18} /> จบการสนทนา (End Chat)
             </button>
-         ) : canResolve ? (
+         )}
+
+         {currentTicket && !isResolved && (isOwner || isAdmin) && (
             <button 
                onClick={onResolve}
-               className="glass-interactive"
+               disabled={isSessionActive}
+               className={isSessionActive ? "" : "glass-interactive"}
                style={{ 
                   width: '100%', 
                   padding: '16px', 
                   borderRadius: '16px', 
                   border: 'none', 
-                  background: 'var(--success)', 
-                  color: 'black', 
+                  background: isSessionActive ? 'rgba(255,255,255,0.05)' : 'var(--success)', 
+                  color: isSessionActive ? 'var(--text-muted)' : 'black', 
                   fontWeight: '900',
                   fontSize: '14px',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   gap: '8px',
-                  cursor: 'pointer',
-                  boxShadow: '0 8px 24px rgba(40, 199, 111, 0.3)'
+                  cursor: isSessionActive ? 'not-allowed' : 'pointer',
+                  boxShadow: isSessionActive ? 'none' : '0 8px 24px rgba(40, 199, 111, 0.3)',
+                  opacity: isSessionActive ? 0.5 : 1
                }}
             >
                <CheckCircle size={18} /> ปิดงาน (Resolve Ticket)
             </button>
-         ) : null}
+         )}
 
          <p style={{ fontSize: '11px', color: 'var(--text-muted)', textAlign: 'center', opacity: 0.6 }}>
             <Info size={11} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '4px' }} />
