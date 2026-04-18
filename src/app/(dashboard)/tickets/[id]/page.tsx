@@ -111,9 +111,9 @@ export default function StaffTicketDetailPage() {
         const normalizedTicket = ticketData as TicketDetailTicket;
         setTicket(normalizedTicket);
         setStatus(normalizedTicket.status || '');
-        setPriority(String((ticketData as { priority?: string | null }).priority || ''));
-        setSelectedDept(String((ticketData as { department?: string | null }).department || ''));
-        setSelectedModule(String(normalizedTicket.module || ''));
+        setPriority(normalizedTicket.priority || '');
+        setSelectedDept(normalizedTicket.department || '');
+        setSelectedModule(normalizedTicket.module || '');
 
         const { data: logData } = await supabase
           .from('ticket_logs')
