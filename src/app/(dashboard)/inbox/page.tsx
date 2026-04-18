@@ -298,7 +298,7 @@ function InboxContent() {
     try {
       await closeConversationAction(selectedChat.id);
       setSelectedChat((prev: any) => prev ? { ...prev, status: 'closed' } : null);
-      addToast({ id: 'close-success', type: 'chat', title: 'จบการสนทนาแลว', body: 'คุณสามารถกดปิดงาน (Resolve) ได้ทันทีที่แถบด้านขวาครับ' });
+      addToast({ id: 'close-success', type: 'ticket', title: 'จบการสนทนาแลว', body: 'คุณสามารถกดปิดงาน (Resolve) ได้ทันทีที่แถบด้านขวาครับ' });
     } catch (err: any) { alert('Failed: ' + err.message); }
   };
 
