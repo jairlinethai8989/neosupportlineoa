@@ -4,30 +4,11 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { isSlaBreached, slaMinutesRemaining } from '@/lib/utils/slaUtils';
 
-export type NotifType = 'sla' | 'sla_warning' | 'ticket' | 'message';
-
-export interface AppNotification {
-  id: string;
-  type: NotifType;
-  title: string;
-  body: string;
-  ticketNo?: string | number;
-  ticketId?: string;
-  createdAt: string;
-  isRead: boolean;
-  minutesRemaining?: number;
-}
-
-export interface ToastNotif {
-  id: string;
-  type: NotifType;
-  title: string;
-  body: string;
-  ticketNo?: string | number;
-  ticketId?: string;
-  conversationId?: string;
-  duration?: number;
-}
+export type { 
+  NotifType, 
+  AppNotification, 
+  ToastNotif 
+} from '@/types/notifications';
 
 const STORAGE_KEY = 'neo_notif_read_ids_v1';
 // Track which SLA warnings we've already toasted to avoid repeated firing

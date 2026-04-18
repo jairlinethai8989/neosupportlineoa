@@ -1,8 +1,9 @@
+import type { NotifType } from '@/types/notifications';
 import type { InboxTicket } from '@/types/inbox';
 
 export interface InboxToastInput {
   id: string;
-  type: string;
+  type: NotifType;
   title: string;
   body: string;
 }
