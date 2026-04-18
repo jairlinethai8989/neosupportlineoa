@@ -25,7 +25,7 @@ export const ticketService = {
     return transferTicketAction(ticketId, toAgentId, toTeamId, reason);
   },
 
-  async resolve(ticketId: string, agentId?: string, resolutionSummary?: string, module?: string) {
-    return resolveTicketAction(ticketId, resolutionSummary || '', module);
+  async resolve(ticketId: string, agentId?: string, resolutionSummary?: string, module?: string, issueType?: string) {
+    return resolveTicketAction(ticketId, resolutionSummary || '', module, issueType);
   }
 };

@@ -146,7 +146,7 @@ export async function transferTicketAction(ticketId: string, toAgentId?: string,
    return ticket;
 }
 
-export async function resolveTicketAction(ticketId: string, resolutionSummary: string, module?: string) {
+export async function resolveTicketAction(ticketId: string, resolutionSummary: string, module?: string, issueType?: string) {
    const user = await getSessionUser();
    await verifyAgentRole(user.id);
    const agentId = user.id;
@@ -159,6 +159,7 @@ export async function resolveTicketAction(ticketId: string, resolutionSummary: s
    };
 
    if (module) updateData.module = module;
+   if (issueType) updateData.issue_type = issueType;
 
    const { data: ticket, error: resolveError } = await supabaseAdmin
      .from('tickets')

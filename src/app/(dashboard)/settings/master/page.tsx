@@ -16,12 +16,13 @@ import {
   Search,
   ChevronRight,
   Layout,
-  FileText
+  FileText,
+  Tag
 } from 'lucide-react';
 import { useNotificationContext } from '@/contexts/NotificationContext';
 import { auditService } from '@/lib/services/auditService';
 
-type Tab = 'hospitals' | 'departments' | 'positions' | 'modules' | 'templates';
+type Tab = 'hospitals' | 'departments' | 'positions' | 'modules' | 'templates' | 'issue_types';
 
 export default function MasterSettingsPage() {
   const [activeTab, setActiveTab] = useState<Tab>('hospitals');
@@ -43,11 +44,11 @@ export default function MasterSettingsPage() {
     setLoading(true);
     
     // Handle company_settings based tabs
-    if (activeTab === 'modules' || activeTab === 'templates') {
+    if (activeTab === 'modules' || activeTab === 'templates' || activeTab === 'issue_types') {
       const { data } = await supabase.from('company_settings').select('*').limit(1).single();
       setGlobalSettings(data);
       if (data) {
-        const arrayProp = activeTab === 'modules' ? 'modules' : 'resolution_templates';
+        const arrayProp = activeTab === 'modules' ? 'modules' : activeTab === 'templates' ? 'resolution_templates' : 'issue_types';
         const itemsList = (data[arrayProp] || []).map((name: string, index: number) => ({
           id: `item-${index}`,
           name: name,
@@ -85,8 +86,8 @@ export default function MasterSettingsPage() {
     let table = activeTab;
     
     // Handle company_settings based tabs
-    if (activeTab === 'modules' || activeTab === 'templates') {
-      const arrayProp = activeTab === 'modules' ? 'modules' : 'resolution_templates';
+    if (activeTab === 'modules' || activeTab === 'templates' || activeTab === 'issue_types') {
+      const arrayProp = activeTab === 'modules' ? 'modules' : activeTab === 'templates' ? 'resolution_templates' : 'issue_types';
       const currentList = globalSettings?.[arrayProp] || [];
       if (currentList.includes(newItemName)) {
         alert('มีรายการนี้อยู่แล้วครับ');
@@ -153,8 +154,8 @@ export default function MasterSettingsPage() {
     setSubmitting(true);
     let table = activeTab;
 
-    if (activeTab === 'modules' || activeTab === 'templates') {
-        const arrayProp = activeTab === 'modules' ? 'modules' : 'resolution_templates';
+    if (activeTab === 'modules' || activeTab === 'templates' || activeTab === 'issue_types') {
+        const arrayProp = activeTab === 'modules' ? 'modules' : activeTab === 'templates' ? 'resolution_templates' : 'issue_types';
         const currentList = globalSettings?.[arrayProp] || [];
         const itemToUpdate = items.find(i => i.id === id);
         const newList = currentList.map((name: string) => name === itemToUpdate.name ? editItemName : name);
@@ -203,10 +204,10 @@ export default function MasterSettingsPage() {
   const toggleStatus = async (id: string, current: boolean) => {
     let table = activeTab;
     
-    if (activeTab === 'modules' || activeTab === 'templates') {
+    if (activeTab === 'modules' || activeTab === 'templates' || activeTab === 'issue_types') {
         // Simple delete for arrays instead of toggle
         if (!confirm('ยืนยันผลการลบรายการนี้ใช่หรือไม่?')) return;
-        const arrayProp = activeTab === 'modules' ? 'modules' : 'resolution_templates';
+        const arrayProp = activeTab === 'modules' ? 'modules' : activeTab === 'templates' ? 'resolution_templates' : 'issue_types';
         const itemToDelete = items.find(i => i.id === id);
         const newList = (globalSettings?.[arrayProp] || []).filter((name: string) => name !== itemToDelete.name);
         
@@ -250,7 +251,8 @@ export default function MasterSettingsPage() {
     departments: { title: 'แผนก / ฝ่าย', icon: Users, desc: 'จัดการรายชื่อแผนกภายในองค์กร' },
     positions: { title: 'ตำแหน่งงาน', icon: Briefcase, desc: 'จัดการชื่อตำแหน่งสำหรับผู้แจ้งล่วงหน้า' },
     modules: { title: 'ระบบที่เกี่ยวข้อง / Modules', icon: Layout, desc: 'จัดการชื่อโมดูลหรือโปรแกรมต่างๆ' },
-    templates: { title: 'เทมเพลตสรุปงาน', icon: FileText, desc: 'จัดการชุดข้อความด่วนสำหรับสรุปปิดงาน' }
+    templates: { title: 'เทมเพลตสรุปงาน', icon: FileText, desc: 'จัดการชุดข้อความด่วนสำหรับสรุปปิดงาน' },
+    issue_types: { title: 'ประเภทงาน', icon: Tag, desc: 'จัดการประเภทของงาน เช่น REQ, PB, แนะนำ — ใช้ในหน้าสรุปงานและรายงานประจำวัน' }
   };
 
   const ActiveIcon = TAB_CONFIG[activeTab].icon;
@@ -268,7 +270,7 @@ export default function MasterSettingsPage() {
 
       {/* Tabs Selector */}
       <div style={{ display: 'flex', gap: '8px', marginBottom: '32px', background: 'rgba(255,255,255,0.03)', padding: '6px', borderRadius: '16px', border: '1px solid var(--border)', width: 'fit-content', flexWrap: 'wrap' }}>
-        {(['hospitals', 'departments', 'positions', 'modules', 'templates'] as Tab[]).map(t => (
+        {(['hospitals', 'departments', 'positions', 'modules', 'issue_types', 'templates'] as Tab[]).map(t => (
           <button
             key={t}
             onClick={() => setActiveTab(t)}

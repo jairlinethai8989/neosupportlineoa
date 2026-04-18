@@ -110,6 +110,8 @@ function TicketsContent() {
   const [availableTemplates, setAvailableTemplates] = useState<string[]>([]);
   const [personalResTemplates, setPersonalResTemplates] = useState<string[]>([]);
   const [selectedModule, setSelectedModule] = useState('');
+  const [selectedIssueType, setSelectedIssueType] = useState('');
+  const [availableIssueTypes, setAvailableIssueTypes] = useState<string[]>([]);
   const [companySettingsId, setCompanySettingsId] = useState<string | null>(null);
 
   // Date Filter State
@@ -161,7 +163,7 @@ function TicketsContent() {
 
       setTickets(tData || []);
       
-      const { data: companyData } = await supabase.from('company_settings').select('id, modules, resolution_templates').limit(1).single();
+      const { data: companyData } = await supabase.from('company_settings').select('id, modules, resolution_templates, issue_types').limit(1).single();
       const defaultModules = [
          "ห้องทำงานแพทย์", "ห้องพยาบาล", "ห้องยาผู้ป่วยใน", "ห้องเวชระเบียน", "ห้องผ่าตัด", "ห้องวิสัญญี", "ห้อง Consult", "All"
       ];
@@ -170,6 +172,7 @@ function TicketsContent() {
          if (companyData.modules && companyData.modules.length > 0) setAvailableModules(companyData.modules);
          else setAvailableModules(defaultModules);
          if (companyData.resolution_templates) setAvailableTemplates(companyData.resolution_templates);
+         if (companyData.issue_types) setAvailableIssueTypes(companyData.issue_types);
       } else {
          setAvailableModules(defaultModules);
       }
@@ -202,11 +205,12 @@ function TicketsContent() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
       
-      await ticketService.resolve(resolvingTicket.id, user.id, resSummary, selectedModule);
+      await ticketService.resolve(resolvingTicket.id, user.id, resSummary, selectedModule, selectedIssueType);
       setShowResolveModal(false);
       setResolvingTicket(null);
       setResSummary('');
       setSelectedModule('');
+      setSelectedIssueType('');
       fetchData();
       
       addToast({
@@ -889,6 +893,31 @@ function TicketsContent() {
                   </div>
 
                   <div style={{ marginBottom: '32px' }}>
+                   <label style={{ display: 'block', fontSize: '11px', fontWeight: '800', color: 'var(--primary)', textTransform: 'uppercase', marginBottom: '12px', letterSpacing: '1px' }}>ประเภทงาน</label>
+                   <div style={{ position: 'relative', marginBottom: '16px' }}>
+                      <select
+                        value={selectedIssueType}
+                        onChange={(e) => setSelectedIssueType(e.target.value)}
+                        style={{
+                           width: '100%',
+                           padding: '14px 40px 14px 16px',
+                           borderRadius: '12px',
+                           border: '1px solid var(--border)',
+                           background: 'var(--bg-input)',
+                           color: 'var(--text-main)',
+                           fontSize: '14px',
+                           fontWeight: '700',
+                           outline: 'none',
+                           appearance: 'none',
+                           cursor: 'pointer'
+                        }}
+                      >
+                         <option value="">-- เลือกประเภทงาน (ไม่บังคับ) --</option>
+                         {availableIssueTypes.map(it => (
+                           <option key={it} value={it}>{it}</option>
+                         ))}
+                      </select>
+                   </div>
                    <label style={{ display: 'block', fontSize: '11px', fontWeight: '800', color: 'var(--primary)', textTransform: 'uppercase', marginBottom: '12px', letterSpacing: '1px' }}>สรุปผลการแก้ไขงาน (Resolution Summary)</label>
                    <textarea 
                      value={resSummary}

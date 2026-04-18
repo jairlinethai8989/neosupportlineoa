@@ -43,6 +43,8 @@ export default function StaffTicketDetailPage() {
   const [selectedDept, setSelectedDept] = useState('');
   const [availableDepts, setAvailableDepts] = useState<string[]>([]);
   const [selectedModule, setSelectedModule] = useState('');
+  const [selectedIssueType, setSelectedIssueType] = useState('');
+  const [availableIssueTypes, setAvailableIssueTypes] = useState<string[]>([]);
   const [availableModules, setAvailableModules] = useState<string[]>([]);
   const [isManagingTemplates, setIsManagingTemplates] = useState(false);
   const [newMessage, setNewMessage] = useState('');
@@ -99,12 +101,13 @@ export default function StaffTicketDetailPage() {
         if (msgData) setMessages(msgData);
       }
 
-      const { data: companyData } = await supabase.from('company_settings').select('id, departments, modules').limit(1).single();
+      const { data: companyData } = await supabase.from('company_settings').select('id, departments, modules, issue_types').limit(1).single();
       const defaultModules = ["ห้องทำงานแพทย์", "ห้องพยาบาล", "ห้องยาผู้ป่วยใน", "ห้องเวชระเบียน", "ห้องผ่าตัด", "ห้องวิสัญญี", "ห้อง Consult", "All"];
       if (companyData) {
          if (companyData.departments) setAvailableDepts(companyData.departments);
          if (companyData.modules && companyData.modules.length > 0) setAvailableModules(companyData.modules);
          else setAvailableModules(defaultModules);
+         if (companyData.issue_types && companyData.issue_types.length > 0) setAvailableIssueTypes(companyData.issue_types);
       } else { setAvailableModules(defaultModules); }
 
       const { data: { user: authUser } } = await supabase.auth.getUser();
@@ -226,7 +229,7 @@ export default function StaffTicketDetailPage() {
     if (isChatActive) { alert('จบการสนทนาก่อนครับ'); return; }
     setUpdating(true);
     try {
-      const up = await ticketService.resolve(id as string, user?.id, resSummary, selectedModule);
+      const up = await ticketService.resolve(id as string, user?.id, resSummary, selectedModule, selectedIssueType);
       if (conversationId) {
         const link = `${window.location.origin}/survey/${id}`;
         await supabase.from('messages').insert([{ conversation_id: conversationId, ticket_id: id, sender_type: 'system', staff_id: user?.id, content: `[SYSTEM] แก้ไขเรียบร้อย: ${resSummary}\nโมดูล: ${selectedModule}\nประเมิน: ${link}` }]);
@@ -300,6 +303,13 @@ export default function StaffTicketDetailPage() {
                   <select value={selectedModule} onChange={(e) => setSelectedModule(e.target.value)} style={{ width: '100%', padding: '14px', borderRadius: '12px', background: 'var(--primary)', color: '#000', fontWeight: '800', border: 'none' }}>
                      <option value="">-- เลือกโมดูล --</option>
                      {availableModules.map(m => <option key={m} value={m}>{m}</option>)}
+                  </select>
+               </div>
+               <div style={{ marginBottom: '24px' }}>
+                  <label style={{ display: 'block', fontSize: '11px', fontWeight: '800', color: 'var(--primary)', textTransform: 'uppercase', marginBottom: '8px' }}>ประเภทงาน</label>
+                  <select value={selectedIssueType} onChange={(e) => setSelectedIssueType(e.target.value)} style={{ width: '100%', padding: '14px', borderRadius: '12px', background: 'var(--bg-input)', color: 'var(--text-main)', fontWeight: '700', border: '1px solid var(--border)', appearance: 'none' }}>
+                     <option value="">-- เลือกประเภทงาน (ไม่บังคับ) --</option>
+                     {availableIssueTypes.map(it => <option key={it} value={it}>{it}</option>)}
                   </select>
                </div>
                <div style={{ marginBottom: '24px' }}>

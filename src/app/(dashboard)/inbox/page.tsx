@@ -60,6 +60,8 @@ function InboxContent() {
   const [isManagingTemplates, setIsManagingTemplates] = useState<boolean>(false);
   const [personalQuickReplies, setPersonalQuickReplies] = useState<string[]>([]);
   const [personalResTemplates, setPersonalResTemplates] = useState<string[]>([]);
+  const [selectedIssueType, setSelectedIssueType] = useState<string>('');
+  const [availableIssueTypes, setAvailableIssueTypes] = useState<string[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -113,13 +115,14 @@ function InboxContent() {
     getProfile();
     
     async function fetchModules() {
-       const { data: companyData } = await supabase.from('company_settings').select('id, modules').limit(1).single();
+       const { data: companyData } = await supabase.from('company_settings').select('id, modules, issue_types').limit(1).single();
        const defaultModules = [
           "ห้องทำงานแพทย์", "ห้องพยาบาล", "ห้องยาผู้ป่วยใน", "ห้องเวชระเบียน", "ห้องผ่าตัด", "ห้องวิสัญญี", "ห้อง Consult", "All"
        ];
        if (companyData) {
           if (companyData.modules && companyData.modules.length > 0) setAvailableModules(companyData.modules);
           else setAvailableModules(defaultModules);
+          if (companyData.issue_types && companyData.issue_types.length > 0) setAvailableIssueTypes(companyData.issue_types);
        } else {
           setAvailableModules(defaultModules);
        }
@@ -264,7 +267,7 @@ function InboxContent() {
     if (!selectedChat?.current_ticket_id || !selectedModule || !resSummary.trim()) return;
     setSending(true);
     try {
-      await ticketService.resolve(selectedChat.current_ticket_id, agent.id, resSummary, selectedModule);
+      await ticketService.resolve(selectedChat.current_ticket_id, agent.id, resSummary, selectedModule, selectedIssueType);
       const surveyLink = `${window.location.origin}/survey/${selectedChat.current_ticket_id}`;
       const resolutionMsg = `[SYSTEM] งานได้รับการแก้ไขแล้ว: ${resSummary}\nโมดูล: ${selectedModule}\nแบบประเมิน: ${surveyLink}`;
       await sendSystemMessageAction(selectedChat.id, resolutionMsg);
@@ -402,6 +405,14 @@ function InboxContent() {
                        {availableModules.map(m => <option key={m} value={m}>{m}</option>)}
                     </select>
                 </div>
+
+                <div style={{ marginBottom: '24px' }}>
+                     <label style={{ display: 'block', fontSize: '11px', fontWeight: '800', color: 'var(--primary)', textTransform: 'uppercase', marginBottom: '8px' }}>ประเภทงาน</label>
+                     <select value={selectedIssueType} onChange={(e) => setSelectedIssueType(e.target.value)} style={{ width: '100%', padding: '14px', borderRadius: '12px', background: 'var(--bg-input)', color: 'var(--text-main)', fontWeight: '700', border: '1px solid var(--border)', appearance: 'none' }}>
+                        <option value="">-- เลือกประเภทงาน (ไม่บังคับ) --</option>
+                        {availableIssueTypes.map(it => <option key={it} value={it}>{it}</option>)}
+                     </select>
+                 </div>
 
                 <div style={{ marginBottom: '32px' }}>
                    <label style={{ display: 'block', fontSize: '11px', fontWeight: '800', color: 'var(--primary)', textTransform: 'uppercase', marginBottom: '8px' }}>สรุปผลการแก้ไขงาน (RESOLUTION SUMMARY) <span style={{ color: 'var(--danger)' }}>*</span></label>
