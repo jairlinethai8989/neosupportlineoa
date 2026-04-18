@@ -269,7 +269,6 @@ function TicketsContent() {
     return () => { supabase.removeChannel(channel); };
   }, [timeRange, customStart, customEnd, filterCustomerId]);
 
-
   const getConvId = (ticket: any) => {
      const linked = conversations.find(c => c.current_ticket_id === ticket.id);
      if (linked) return linked.id;
@@ -839,7 +838,8 @@ function TicketsContent() {
                    <p style={{ fontSize: '14px', color: 'var(--text-muted)', lineHeight: '1.6' }}>กรุณาสรุปผลการแก้ไขปัญหา เพื่อบันทึกเป็นประวัติและแจ้งลูกค้าครับ</p>
                 </div>
 
-                <div style={{ marginBottom: '24px' }}>
+                  <div style={{ marginBottom: '24px' }}>
+                     <div style={{ marginBottom: '24px' }}>
                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
                         <label style={{ fontSize: '11px', fontWeight: '800', color: 'var(--primary)', textTransform: 'uppercase', letterSpacing: '1px' }}>เทมเพลตสรุปงาน</label>
                         <a href="/settings/profile" target="_blank" rel="noreferrer" style={{ fontSize: '10px', color: 'var(--text-muted)', textDecoration: 'underline', cursor: 'pointer' }}>จัดการเทมเพลต</a>
@@ -859,8 +859,7 @@ function TicketsContent() {
                      </div>
                    </div>
 
-                  <div style={{ marginBottom: '24px' }}>
-                     <label style={{ display: 'block', fontSize: '11px', fontWeight: '800', color: 'var(--primary)', textTransform: 'uppercase', marginBottom: '12px', letterSpacing: '1px' }}>Module ที่เกี่ยวข้อง <span style={{ color: '#ef4444' }}>*</span></label>
+                   <label style={{ display: 'block', fontSize: '11px', fontWeight: '800', color: 'var(--primary)', textTransform: 'uppercase', marginBottom: '12px', letterSpacing: '1px' }}>Module ที่เกี่ยวข้อง <span style={{ color: '#ef4444' }}>*</span></label>
                      <div style={{ position: 'relative' }}>
                         <select 
                           value={selectedModule} 
