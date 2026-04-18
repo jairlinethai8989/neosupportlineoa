@@ -870,30 +870,29 @@ function TicketsContent() {
                              padding: '14px 40px 14px 16px', 
                              borderRadius: '12px', 
                              border: 'none', 
-                             background: 'var(--primary)', 
-                             color: 'black', 
+                             background: 'var(--bg-input)', color: 'var(--text-main)', border: '1px solid var(--border)', 
                              fontSize: '14px', 
                              fontWeight: '800', 
                              outline: 'none',
                              appearance: 'none',
                              cursor: 'pointer',
-                             boxShadow: '0 8px 12px var(--primary-glow)',
-                             backgroundImage: `url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e")`,
+                             
+                             backgroundImage: `url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e")`,
                              backgroundRepeat: 'no-repeat',
                              backgroundPosition: 'right 16px center',
                              backgroundSize: '16px'
                           }}
                         >
-                           <option value="" style={{ background: 'white', color: 'black' }}>-- เลือกโมดูล --</option>
+                           <option value="" >-- เลือกโมดูล --</option>
                            {availableModules.map(m => (
-                             <option key={m} value={m} style={{ background: 'white', color: 'black' }}>{m}</option>
+                             <option key={m} value={m} >{m}</option>
                            ))}
                         </select>
                      </div>
                   </div>
 
                   <div style={{ marginBottom: '32px' }}>
-                   <label style={{ display: 'block', fontSize: '11px', fontWeight: '800', color: 'var(--primary)', textTransform: 'uppercase', marginBottom: '12px', letterSpacing: '1px' }}>ประเภทงาน</label>
+                   <label style={{ display: 'block', fontSize: '11px', fontWeight: '800', color: 'var(--primary)', textTransform: 'uppercase', marginBottom: '12px', letterSpacing: '1px' }}>ประเภทงาน <span style={{ color: 'var(--danger)' }}>*</span></label>
                    <div style={{ position: 'relative', marginBottom: '16px' }}>
                       <select
                         value={selectedIssueType}
@@ -948,7 +947,7 @@ function TicketsContent() {
                    </button>
                    <button 
                      onClick={handleExecuteResolve}
-                     disabled={loading || !resSummary.trim() || !selectedModule}
+                     disabled={loading  || !resSummary.trim() || !selectedModule || !selectedIssueType}
                      style={{ 
                        flex: 1.5, 
                        padding: '16px', 

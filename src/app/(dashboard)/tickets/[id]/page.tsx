@@ -300,13 +300,13 @@ export default function StaffTicketDetailPage() {
                </div>
                <div style={{ marginBottom: '20px' }}>
                   <label style={{ display: 'block', fontSize: '11px', fontWeight: '800', color: 'var(--primary)', textTransform: 'uppercase', marginBottom: '8px' }}>Module <span style={{ color: 'var(--danger)' }}>*</span></label>
-                  <select value={selectedModule} onChange={(e) => setSelectedModule(e.target.value)} style={{ width: '100%', padding: '14px', borderRadius: '12px', background: 'var(--primary)', color: '#000', fontWeight: '800', border: 'none' }}>
+                  <select value={selectedModule} onChange={(e) => setSelectedModule(e.target.value)} style={{ width: '100%', padding: '14px', borderRadius: '12px', background: 'var(--bg-input)', color: 'var(--text-main)', border: '1px solid var(--border)', fontWeight: '800', border: 'none' }}>
                      <option value="">-- เลือกโมดูล --</option>
                      {availableModules.map(m => <option key={m} value={m}>{m}</option>)}
                   </select>
                </div>
                <div style={{ marginBottom: '24px' }}>
-                  <label style={{ display: 'block', fontSize: '11px', fontWeight: '800', color: 'var(--primary)', textTransform: 'uppercase', marginBottom: '8px' }}>ประเภทงาน</label>
+                  <label style={{ display: 'block', fontSize: '11px', fontWeight: '800', color: 'var(--primary)', textTransform: 'uppercase', marginBottom: '8px' }}>ประเภทงาน <span style={{ color: 'var(--danger)' }}>*</span></label>
                   <select value={selectedIssueType} onChange={(e) => setSelectedIssueType(e.target.value)} style={{ width: '100%', padding: '14px', borderRadius: '12px', background: 'var(--bg-input)', color: 'var(--text-main)', fontWeight: '700', border: '1px solid var(--border)', appearance: 'none' }}>
                      <option value="">-- เลือกประเภทงาน (ไม่บังคับ) --</option>
                      {availableIssueTypes.map(it => <option key={it} value={it}>{it}</option>)}
@@ -329,7 +329,7 @@ export default function StaffTicketDetailPage() {
                   >ยกเลิก</button>
                   <button
                      onClick={handleResolve}
-                     disabled={updating || !resSummary.trim() || !selectedModule}
+                     disabled={updating  || !resSummary.trim() || !selectedModule || !selectedIssueType}
                      style={{
                        flex: 1.5, padding: '16px', borderRadius: '15px', border: 'none',
                        background: (updating || !resSummary.trim() || !selectedModule)
