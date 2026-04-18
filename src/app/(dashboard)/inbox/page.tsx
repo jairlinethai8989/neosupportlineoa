@@ -265,10 +265,11 @@ function InboxContent() {
   };
 
   const handleExecuteResolve = async () => {
-    if (!selectedChat?.current_ticket_id || !selectedModule || !selectedIssueType || !resSummary.trim()) return;
+    const tId = selectedChat?.current_ticket_id || currentTicket?.id;
+    if (!tId || !selectedModule || !resSummary.trim()) return;
     setSending(true);
     try {
-      await ticketService.resolve(selectedChat.current_ticket_id, agent.id, resSummary, selectedModule, selectedIssueType);
+      await ticketService.resolve(tId as string, agent?.id, resSummary, selectedModule, selectedIssueType);
       const surveyLink = `${window.location.origin}/survey/${selectedChat.current_ticket_id}`;
       const resolutionMsg = `[SYSTEM] งานได้รับการแก้ไขแล้ว: ${resSummary}\nโมดูล: ${selectedModule}\nแบบประเมิน: ${surveyLink}`;
       await sendSystemMessageAction(selectedChat.id, resolutionMsg);
@@ -529,16 +530,16 @@ function InboxContent() {
                     </button>
                     <button 
                       onClick={handleExecuteResolve}
-                      disabled={sending || !resSummary.trim() || !selectedModule || !selectedIssueType}
+                      disabled={sending || !resSummary.trim() || !selectedModule}
                       style={{ 
                         flex: 1.5, 
                         padding: '16px', 
                         borderRadius: '14px', 
                         border: 'none', 
-                        background: (sending || !resSummary.trim() || !selectedModule || !selectedIssueType) ? 'rgba(16, 185, 129, 0.15)' : 'var(--success)', 
-                        color: (sending || !resSummary.trim() || !selectedModule || !selectedIssueType) ? 'var(--text-muted)' : 'black', 
+                        background: (sending || !resSummary.trim() || !selectedModule) ? 'rgba(16, 185, 129, 0.15)' : 'var(--success)', 
+                        color: (sending || !resSummary.trim() || !selectedModule) ? 'var(--text-muted)' : 'black', 
                         fontWeight: '900', 
-                        cursor: (sending || !resSummary.trim() || !selectedModule || !selectedIssueType) ? 'not-allowed' : 'pointer',
+                        cursor: (sending || !resSummary.trim() || !selectedModule) ? 'not-allowed' : 'pointer',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
