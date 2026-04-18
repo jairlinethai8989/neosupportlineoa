@@ -280,7 +280,9 @@ export default function StaffTicketDetailPage() {
                   <h3 style={{ fontSize: '22px', fontWeight: '900', marginBottom: '6px' }}>ปิดงานใบงาน #{ticket?.ticket_no}</h3>
                   <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>กรุณาสรุปผลการแก้ไขปัญหาเพื่อแจ้งลูกค้าครับ</p>
                </div>
+               
                <div style={{ marginBottom: '20px' }}>
+                  <div style={{ marginBottom: '20px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
                      <label style={{ fontSize: '11px', fontWeight: '800', color: 'var(--primary)', textTransform: 'uppercase' }}>เทมเพลตสรุปงาน</label>
                      <a href="/settings/profile" target="_blank" rel="noreferrer" style={{ fontSize: '10px', color: 'var(--text-muted)', textDecoration: 'underline', cursor: 'pointer' }}>จัดการเทมเพลต</a>
@@ -298,8 +300,8 @@ export default function StaffTicketDetailPage() {
                       )}
                   </div>
                </div>
-               <div style={{ marginBottom: '20px' }}>
-                  <label style={{ display: 'block', fontSize: '11px', fontWeight: '800', color: 'var(--primary)', textTransform: 'uppercase', marginBottom: '8px' }}>Module <span style={{ color: 'var(--danger)' }}>*</span></label>
+
+                <label style={{ display: 'block', fontSize: '11px', fontWeight: '800', color: 'var(--primary)', textTransform: 'uppercase', marginBottom: '8px' }}>Module <span style={{ color: 'var(--danger)' }}>*</span></label>
                   <select value={selectedModule} onChange={(e) => setSelectedModule(e.target.value)} style={{ width: '100%', padding: '14px', borderRadius: '12px', background: 'var(--bg-input)', color: 'var(--text-main)', border: '1px solid var(--border)', fontWeight: '800' }}>
                      <option value="">-- เลือกโมดูล --</option>
                      {availableModules.map(m => <option key={m} value={m}>{m}</option>)}
