@@ -1,80 +1,4 @@
-'use c<div style={{ marginBottom: '24px' }}>
-                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                        <label style={{ fontSize: '11px', fontWeight: '800', color: 'var(--primary)', textTransform: 'uppercase', letterSpacing: '1px' }}>เทมเพลตสรุปงาน</label>
-                        <a href="/settings/profile" target="_blank" rel="noreferrer" style={{ fontSize: '10px', color: 'var(--text-muted)', textDecoration: 'underline', cursor: 'pointer' }}>จัดการเทมเพลต</a>
-                     </div>
-                     <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                        {personalResTemplates.map((t, idx) => (
-                           <button
-                              key={idx}
-                              type="button"
-                              onClick={() => setResSummary(t)}
-                              style={{ padding: '8px 16px', borderRadius: '12px', border: '1px solid var(--primary)', background: 'rgba(0, 242, 254, 0.08)', fontSize: '13px', color: 'var(--primary)', cursor: 'pointer', transition: 'all 0.2s' }}
-                           >{t}</button>
-                        ))}
-                        {personalResTemplates.length === 0 && (
-                           <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>ยังไม่ได้ตั้งค่าเทมเพลต — <a href="/settings/profile" target="_blank" rel="noreferrer" style={{ color: 'var(--primary)', textDecoration: 'underline' }}>ตั้งค่าที่นี่</a></p>
-                        )}
-                     </div>
-                   </div>
-
-                   <label style={{ display: 'block', fontSize: '11px', fontWeight: '800', color: 'var(--primary)', textTransform: 'uppercase', marginBottom: '12px', letterSpacing: '1px' }}>Module ที่เกี่ยวข้อง <span style={{ color: '#ef4444' }}>*</span></label>
-                     <div style={{ position: 'relative' }}>
-                        <select 
-                          value={selectedModule} 
-                          onChange={(e) => setSelectedModule(e.target.value)}
-                          style={{ 
-                             width: '100%', 
-                             padding: '14px 40px 14px 16px', 
-                             borderRadius: '12px', 
-                             background: 'var(--bg-input)', color: 'var(--text-main)', border: '1px solid var(--border)', 
-                             fontSize: '14px', 
-                             fontWeight: '800', 
-                             outline: 'none',
-                             appearance: 'none',
-                             cursor: 'pointer',
-                             
-                             backgroundImage: `url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e")`,
-                             backgroundRepeat: 'no-repeat',
-                             backgroundPosition: 'right 16px center',
-                             backgroundSize: '16px'
-                          }}
-                        >
-                           <option value="" >-- เลือกโมดูล --</option>
-                           {availableModules.map(m => (
-                             <option key={m} value={m} >{m}</option>
-                           ))}
-                        </select>
-                     </div>
-                  </div>
-
-                <div style={{ marginBottom: '32px' }}>
-                   <label style={{ display: 'block', fontSize: '11px', fontWeight: '800', color: 'var(--primary)', textTransform: 'uppercase', marginBottom: '12px', letterSpacing: '1px' }}>ประเภทงาน <span style={{ color: 'var(--danger)' }}>*</span></label>
-                   <div style={{ position: 'relative', marginBottom: '16px' }}>
-                      <select
-                        value={selectedIssueType}
-                        onChange={(e) => setSelectedIssueType(e.target.value)}
-                        style={{
-                           width: '100%',
-                           padding: '14px 40px 14px 16px',
-                           borderRadius: '12px',
-                           border: '1px solid var(--border)',
-                           background: 'var(--bg-input)',
-                           color: 'var(--text-main)',
-                           fontSize: '14px',
-                           fontWeight: '700',
-                           outline: 'none',
-                           appearance: 'none',
-                           cursor: 'pointer'
-                        }}
-                      >
-                         <option value="">-- เลือกประเภทงาน (ไม่บังคับ) --</option>
-                         {availableIssueTypes.map(it => (
-                           <option key={it} value={it}>{it}</option>
-                         ))}
-                      </select>
-                   </div>
-                   lient';
+'use client';
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import React, { useState, useEffect, useMemo, Suspense } from 'react';
@@ -161,7 +85,7 @@ const PriorityIndicator = ({ priority }: { priority: string }) => {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
       <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: color }} />
-      <span style={{ fontSize: '11px' }}>{priority}</span>
+      <span style={{ fontSize: '13px' }}>{priority}</span>
     </div>
   );
 };
@@ -664,15 +588,15 @@ function TicketsContent() {
                                        exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.2 } }}
                                        whileHover={{ y: -4, boxShadow: '0 20px 40px rgba(0,0,0,0.12)' }}
                                        className="glass-interactive" 
-                                       style={{ padding: '14px 16px', borderRadius: '18px', background: 'var(--bg-card)', border: '1px solid var(--border)', borderLeft: `6px solid ${config.color}`, display: 'flex', flexDirection: 'column', gap: '8px', boxShadow: '0 4px 12px rgba(0,0,0,0.06)' }}
+                                       style={{ padding: '24px', borderRadius: '24px', background: 'var(--bg-card)', border: '1px solid var(--border)', borderLeft: `6px solid ${config.color}`, display: 'flex', flexDirection: 'column', gap: '18px', boxShadow: '0 8px 24px rgba(0,0,0,0.08)' }}
                                    >
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                                      <Link href={`/tickets/${ticket.id}`} style={{ fontSize: '13px', fontWeight: '900', color: 'var(--primary)', textDecoration: 'none' }}>#{ticket.ticket_no}</Link>
+                                      <Link href={`/tickets/${ticket.id}`} style={{ fontSize: '16px', fontWeight: '900', color: 'var(--primary)', textDecoration: 'none' }}>#{ticket.ticket_no}</Link>
                                       <PriorityIndicator priority={ticket.priority} />
                                     </div>
                                     <div>
-                                      <h4 style={{ fontSize: '13px', fontWeight: '700', lineHeight: '1.4', color: 'var(--text-main)', marginBottom: '4px' }}>{ticket.subject}</h4>
-                                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '4px 10px', background: `${config.color}10`, borderRadius: '8px', width: 'fit-content', border: `1px solid ${config.color}20`, fontSize: '10px' }}>
+                                      <h4 style={{ fontSize: '14px', fontWeight: '700', lineHeight: '1.5', color: 'var(--text-main)', marginBottom: '8px' }}>{ticket.subject}</h4>
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 14px', background: `${config.color}10`, borderRadius: '12px', width: 'fit-content', border: `1px solid ${config.color}20` }}>
                                         <AlertCircle size={12} color={config.color} />
                                         <p style={{ fontSize: '14px', fontWeight: '800', color: config.color, letterSpacing: '0.05em' }}>{hospitalName}</p>
                                       </div>
@@ -919,8 +843,82 @@ function TicketsContent() {
 
                   
 
-                
+                <div style={{ marginBottom: '24px' }}>
+                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                        <label style={{ fontSize: '11px', fontWeight: '800', color: 'var(--primary)', textTransform: 'uppercase', letterSpacing: '1px' }}>เทมเพลตสรุปงาน</label>
+                        <a href="/settings/profile" target="_blank" rel="noreferrer" style={{ fontSize: '10px', color: 'var(--text-muted)', textDecoration: 'underline', cursor: 'pointer' }}>จัดการเทมเพลต</a>
+                     </div>
+                     <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                        {personalResTemplates.map((t, idx) => (
+                           <button
+                              key={idx}
+                              type="button"
+                              onClick={() => setResSummary(t)}
+                              style={{ padding: '8px 16px', borderRadius: '12px', border: '1px solid var(--primary)', background: 'rgba(0, 242, 254, 0.08)', fontSize: '13px', color: 'var(--primary)', cursor: 'pointer', transition: 'all 0.2s' }}
+                           >{t}</button>
+                        ))}
+                        {personalResTemplates.length === 0 && (
+                           <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>ยังไม่ได้ตั้งค่าเทมเพลต — <a href="/settings/profile" target="_blank" rel="noreferrer" style={{ color: 'var(--primary)', textDecoration: 'underline' }}>ตั้งค่าที่นี่</a></p>
+                        )}
+                     </div>
+                   </div>
 
+                   <label style={{ display: 'block', fontSize: '11px', fontWeight: '800', color: 'var(--primary)', textTransform: 'uppercase', marginBottom: '12px', letterSpacing: '1px' }}>Module ที่เกี่ยวข้อง <span style={{ color: '#ef4444' }}>*</span></label>
+                     <div style={{ position: 'relative' }}>
+                        <select 
+                          value={selectedModule} 
+                          onChange={(e) => setSelectedModule(e.target.value)}
+                          style={{ 
+                             width: '100%', 
+                             padding: '14px 40px 14px 16px', 
+                             borderRadius: '12px', 
+                             background: 'var(--bg-input)', color: 'var(--text-main)', border: '1px solid var(--border)', 
+                             fontSize: '14px', 
+                             fontWeight: '800', 
+                             outline: 'none',
+                             appearance: 'none',
+                             cursor: 'pointer',
+                             
+                             backgroundImage: `url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e")`,
+                             backgroundRepeat: 'no-repeat',
+                             backgroundPosition: 'right 16px center',
+                             backgroundSize: '16px'
+                          }}
+                        >
+                           <option value="" >-- เลือกโมดูล --</option>
+                           {availableModules.map(m => (
+                             <option key={m} value={m} >{m}</option>
+                           ))}
+                        </select>
+                     </div>
+                  </div>
+
+                <div style={{ marginBottom: '32px' }}>
+                   <label style={{ display: 'block', fontSize: '11px', fontWeight: '800', color: 'var(--primary)', textTransform: 'uppercase', marginBottom: '12px', letterSpacing: '1px' }}>ประเภทงาน <span style={{ color: 'var(--danger)' }}>*</span></label>
+                   <div style={{ position: 'relative', marginBottom: '16px' }}>
+                      <select
+                        value={selectedIssueType}
+                        onChange={(e) => setSelectedIssueType(e.target.value)}
+                        style={{
+                           width: '100%',
+                           padding: '14px 40px 14px 16px',
+                           borderRadius: '12px',
+                           border: '1px solid var(--border)',
+                           background: 'var(--bg-input)',
+                           color: 'var(--text-main)',
+                           fontSize: '14px',
+                           fontWeight: '700',
+                           outline: 'none',
+                           appearance: 'none',
+                           cursor: 'pointer'
+                        }}
+                      >
+                         <option value="">-- เลือกประเภทงาน (ไม่บังคับ) --</option>
+                         {availableIssueTypes.map(it => (
+                           <option key={it} value={it}>{it}</option>
+                         ))}
+                      </select>
+                   </div>
                    <label style={{ display: 'block', fontSize: '11px', fontWeight: '800', color: 'var(--primary)', textTransform: 'uppercase', marginBottom: '12px', letterSpacing: '1px' }}>สรุปผลการแก้ไขงาน (Resolution Summary)</label>
                    <textarea 
                      value={resSummary}
