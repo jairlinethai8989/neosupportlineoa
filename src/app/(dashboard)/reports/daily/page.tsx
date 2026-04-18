@@ -317,14 +317,6 @@ export default function DailyReportPage() {
                style={{ height: '44px', padding: '0 20px', borderRadius: '12px', border: 'none', background: 'var(--success)', color: 'white', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 8px 20px rgba(16, 185, 129, 0.25)' }}
             >
                {isExporting ? <Loader2 size={18} className="animate-spin" /> : <Download size={18} />}
-               EXPORT
-            </button>
-         </div>      onClick={handleExportExcel}
-               disabled={isExporting || processedTickets.length === 0}
-               className="glass-interactive"
-               style={{ height: '44px', padding: '0 20px', borderRadius: '12px', border: 'none', background: 'var(--success)', color: 'white', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 8px 20px rgba(16, 185, 129, 0.25)' }}
-            >
-               {isExporting ? <Loader2 size={18} className="animate-spin" /> : <Download size={18} />}
                EXPORT EXCEL
             </button>
          </div>
