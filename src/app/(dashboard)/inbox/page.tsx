@@ -252,14 +252,15 @@ function InboxContent() {
   };
 
   const handleResolve = () => {
-    if (!selectedChat?.current_ticket_id || !agent) return;
-    // Check if chat is still open
-    if (selectedChat.status === 'active' || selectedChat.is_active) {
-       alert('กรุณากด "จบการสนทนา" ก่อนทำการปิดงานครับ');
+    const ticketId = selectedChat?.current_ticket_id || currentTicket?.id;
+    if (!ticketId || !agent) {
+       console.error('Missing ticketId or agent', { ticketId, agent });
        return;
     }
+    
     setResSummary('');
     setSelectedModule(currentTicket?.module || '');
+    setSelectedIssueType(currentTicket?.issue_type || ''); // Sync issue type too
     setShowResolveModal(true);
   };
 
@@ -272,8 +273,8 @@ function InboxContent() {
       const resolutionMsg = `[SYSTEM] งานได้รับการแก้ไขแล้ว: ${resSummary}\nโมดูล: ${selectedModule}\nแบบประเมิน: ${surveyLink}`;
       await sendSystemMessageAction(selectedChat.id, resolutionMsg);
       setShowResolveModal(false);
-      setSelectedChat(null);
-      alert('ปิดงานสำเร็จ!');
+      setSelectedChat(null); // Clear selection after full resolution success
+      addToast({ id: 'resolve-success', type: 'ticket', title: 'ปิดงานสำเร็จ', body: 'ใบงานได้รับการสรุปผลและแจ้งลูกค้าเรียบร้อยแล้ว' });
     } catch (err: any) { alert('Failed: ' + err.message); }
     finally { setSending(false); }
   };
@@ -296,7 +297,8 @@ function InboxContent() {
     if (!selectedChat || !confirm('คุณต้องการจบการสนทนานี้ใช่หรือไม่?')) return;
     try {
       await closeConversationAction(selectedChat.id);
-      setSelectedChat(null);
+      setSelectedChat((prev: any) => prev ? { ...prev, status: 'closed' } : null);
+      addToast({ id: 'close-success', type: 'chat', title: 'จบการสนทนาแลว', body: 'คุณสามารถกดปิดงาน (Resolve) ได้ทันทีที่แถบด้านขวาครับ' });
     } catch (err: any) { alert('Failed: ' + err.message); }
   };
 
