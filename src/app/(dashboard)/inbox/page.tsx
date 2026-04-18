@@ -265,7 +265,7 @@ function InboxContent() {
   };
 
   const handleExecuteResolve = async () => {
-    if (!selectedChat?.current_ticket_id || !selectedModule || !resSummary.trim()) return;
+    if (!selectedChat?.current_ticket_id || !selectedModule || !selectedIssueType || !resSummary.trim()) return;
     setSending(true);
     try {
       await ticketService.resolve(selectedChat.current_ticket_id, agent.id, resSummary, selectedModule, selectedIssueType);
@@ -389,7 +389,7 @@ function InboxContent() {
                 borderRadius: '32px',
                 border: '1px solid var(--border)',
                 background: 'var(--bg-card)',
-                boxShadow: '0 40px 100px rgba(0,0,0,0.6)',
+                boxShadow: '0 40px 100px rgba(0,0,0,0.4)',
                 animation: 'scaleIn 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
                 maxHeight: '90vh',
                 overflowY: 'auto'
@@ -461,10 +461,14 @@ function InboxContent() {
                             fontWeight: '700',
                             outline: 'none',
                             appearance: 'none',
-                            cursor: 'pointer'
+                            cursor: 'pointer',
+                            backgroundImage: `url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e")`,
+                            backgroundRepeat: 'no-repeat',
+                            backgroundPosition: 'right 16px center',
+                            backgroundSize: '16px'
                          }}
                        >
-                          <option value="">-- เลือกประเภทงาน (ไม่บังคับ) --</option>
+                          <option value="">-- เลือกประเภทงาน --</option>
                           {availableIssueTypes.map(it => (
                             <option key={it} value={it}>{it}</option>
                           ))}
@@ -499,7 +503,7 @@ function InboxContent() {
                     <textarea 
                       value={resSummary}
                       onChange={(e) => setResSummary(e.target.value)}
-                      placeholder="ระบุรายละเอียดการแก้ไข เช่น 'แก้ไขส่วนลดให้แล้ว', 'อัปเดตสถานะการจัดส่งสำเร็จ'..."
+                      placeholder="ระบุรายละเอียดการแก้ไข เช่น 'แก้ไขส่วนลดให้แล้ว'..."
                       style={{
                          width: '100%',
                          height: '140px',
@@ -546,8 +550,7 @@ function InboxContent() {
                  </div>
               </div>
           </div>
-        )}
-        {isViewerOpen && viewingImage && <ImageViewerModal imageUrl={viewingImage} onClose={() => setIsViewerOpen(false)} />}
+        )}\n        {isViewerOpen && viewingImage && <ImageViewerModal imageUrl={viewingImage} onClose={() => setIsViewerOpen(false)} />}
        {isEditorOpen && editingImage && (
          <ImageEditorModal 
            imageUrl={editingImage} 
