@@ -25,9 +25,14 @@ function hasSelectedConversationChanged(
   next: InboxConversation
 ) {
   if (!prev) return true;
+
+  // Potential stale data: If we locally closed it, don't revert to active 
+  // until we are sure the server has a real reason (like a new ticket).
+  const isStaleStatusRevert = prev.status === 'closed' && next.status === 'active';
+
   return (
     prev.last_message_at !== next.last_message_at ||
-    prev.status !== next.status ||
+    (prev.status !== next.status && !isStaleStatusRevert) ||
     prev.current_ticket_id !== next.current_ticket_id ||
     prev.is_active !== next.is_active ||
     prev.customers?.display_name !== next.customers?.display_name ||
@@ -103,12 +108,22 @@ function InboxContent() {
   }, [cid, conversations]);
 
   useEffect(() => {
-    if (!selectedChat || conversations.length === 0) return;
+    const updatedConversation = conversations.find((conversation) => conversation.id === selectedChat?.id);
+    if (!updatedConversation || !selectedChat) return;
 
-    const updatedConversation = conversations.find((conversation) => conversation.id === selectedChat.id);
-
-    if (updatedConversation && hasSelectedConversationChanged(selectedChat, updatedConversation)) {
-      setSelectedChat(updatedConversation);
+    if (hasSelectedConversationChanged(selectedChat, updatedConversation)) {
+      // When syncing, preserve local 'closed'/'inactive' state if the incoming data is 'active' (likely stale)
+      setSelectedChat(prev => {
+         if (!prev) return updatedConversation;
+         if (prev.status === 'closed' && updatedConversation.status === 'active') {
+            return {
+               ...updatedConversation,
+               status: 'closed',
+               is_active: false
+            };
+         }
+         return updatedConversation;
+      });
     }
   }, [conversations, selectedChat]);
 
