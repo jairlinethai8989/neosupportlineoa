@@ -51,53 +51,69 @@ export default function CaptureOverlay({ onCapture, onCancel }: CaptureOverlayPr
     if (containerRef.current) containerRef.current.style.visibility = 'hidden';
 
     try {
-      // 1. Give the browser more time to repaint without the overlay
+      // 1. Give time for repaint
       await new Promise(r => setTimeout(r, 400));
       
       const deviceScale = window.devicePixelRatio || 1;
-      const bodyRect = document.body.getBoundingClientRect();
       
-      // 2. Capture the entire body - this is the safest target
+      // 2. Capture with 'onclone' to fix modern CSS issues (like oklch)
       const fullCanvas = await html2canvas(document.body, {
         useCORS: true,
         allowTaint: true,
         logging: false,
         scale: deviceScale,
-        backgroundColor: '#ffffff', // Ensures no transparency issues
+        backgroundColor: '#ffffff',
+        onclone: (clonedDoc) => {
+          // REMOVE oklch colors which crash html2canvas
+          const elements = clonedDoc.getElementsByTagName('*');
+          for (let i = 0; i < elements.length; i++) {
+            const el = elements[i] as HTMLElement;
+            if (el.style) {
+              // Reset problematic styles for the capture
+              if (el.style.color?.includes('oklch')) el.style.color = 'inherit';
+              if (el.style.backgroundColor?.includes('oklch')) el.style.backgroundColor = 'transparent';
+              if (el.style.borderColor?.includes('oklch')) el.style.borderColor = 'transparent';
+            }
+          }
+        }
       });
 
-      // 3. Calculate COORDINATES relative to the body element
-      // This hones in on the EXACT spot the mouse was over
-      const cropX = (x - bodyRect.left) * deviceScale;
-      const cropY = (y - bodyRect.top) * deviceScale;
-      const cropWidth = width * deviceScale;
-      const cropHeight = height * deviceScale;
+      // 3. PRECISION ALIGNMENT: Use client coordinates + scroll for document-space
+      // Use documentElement scroll for best cross-browser reliability
+      const scrollX = window.scrollX || document.documentElement.scrollLeft;
+      const scrollY = window.scrollY || document.documentElement.scrollTop;
+      
+      const absX = (x + scrollX) * deviceScale;
+      const absY = (y + scrollY) * deviceScale;
+      const absWidth = width * deviceScale;
+      const absHeight = height * deviceScale;
 
-      if (cropWidth <= 0 || cropHeight <= 0) throw new Error('Selection area too small');
+      if (absWidth <= 1 || absHeight <= 1) throw new Error('Selection too small');
 
-      // 4. Manual cropping with precision
+      // 4. Manual cropping
       const cropCanvas = document.createElement('canvas');
-      cropCanvas.width = cropWidth;
-      cropCanvas.height = cropHeight;
+      cropCanvas.width = absWidth;
+      cropCanvas.height = absHeight;
 
-      const ctx = cropCanvas.getContext('2d');
-      if (!ctx) throw new Error('Canvas context unavailable');
+      const ctx = cropCanvas.getContext('2d', { alpha: false });
+      if (!ctx) throw new Error('Canvas context failed');
 
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, absWidth, absHeight);
+      
       ctx.drawImage(
         fullCanvas,
-        cropX, cropY, cropWidth, cropHeight,
-        0, 0, cropWidth, cropHeight
+        absX, absY, absWidth, absHeight,
+        0, 0, absWidth, absHeight
       );
 
-      // 5. Use PNG for better compatibility and quality
       const dataUrl = cropCanvas.toDataURL('image/png');
-      
-      if (!dataUrl || dataUrl === 'data:,') throw new Error('Image creation failed');
+      if (!dataUrl || dataUrl === 'data:,') throw new Error('Empty image result');
       
       onCapture(dataUrl);
     } catch (error) {
-      console.error('Precision capture failed:', error);
-      alert('ไม่สามารถบันทึกภาพได้: ' + (error instanceof Error ? error.message : 'โปรดลองอีกครั้ง'));
+      console.error('Final Capture Error:', error);
+      alert('Capture ล้มเหลว: ' + (error instanceof Error ? error.message : 'ปัญหาการประมวลผล CSS'));
       onCancel();
     } finally {
       setIsCapturing(false);
