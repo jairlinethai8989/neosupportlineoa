@@ -3,7 +3,7 @@ import React from 'react';
 import {
   MessageSquare,
   Paperclip,
-  Monitor,
+  Crop,
   Loader2,
   SendHorizontal,
   X,
@@ -391,7 +391,7 @@ export const TicketChat: React.FC<TicketChatProps> = ({
                 onClick={onAttachFile}
                 disabled={sending}
                 className="glass-interactive flex-center"
-                title="Attach image"
+                title="แนบรูปภาพหรือไฟล์"
                 style={{
                   width: '36px',
                   height: '36px',
@@ -407,7 +407,7 @@ export const TicketChat: React.FC<TicketChatProps> = ({
                 onClick={onScreenCapture}
                 disabled={sending}
                 className="glass-interactive flex-center"
-                title="Capture screen (LINE style)"
+                title="Capture หน้าจอ"ิ
                 style={{
                   width: '36px',
                   height: '36px',
@@ -417,7 +417,7 @@ export const TicketChat: React.FC<TicketChatProps> = ({
                   color: 'var(--primary)',
                 }}
               >
-                <Monitor size={18} />
+                <Crop size={18} />
               </button>
               <input
                 type="text"
@@ -444,6 +444,7 @@ export const TicketChat: React.FC<TicketChatProps> = ({
                 onClick={onSendMessage}
                 disabled={sending || !newMessage.trim()}
                 className="glass-interactive flex-center"
+                title="ส่งข้อความ"
                 style={{
                   width: '48px',
                   height: '48px',

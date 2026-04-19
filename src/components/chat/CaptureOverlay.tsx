@@ -9,6 +9,7 @@ interface CaptureOverlayProps {
 
 export default function CaptureOverlay({ onCapture, onCancel }: CaptureOverlayProps) {
   const [isSelecting, setIsSelecting] = useState(false);
+  const [isCapturing, setIsCapturing] = useState(false);
   const [startPos, setStartPos] = useState({ x: 0, y: 0 });
   const [currentPos, setCurrentPos] = useState({ x: 0, y: 0 });
   const containerRef = useRef<HTMLDivElement>(null);
@@ -33,28 +34,35 @@ export default function CaptureOverlay({ onCapture, onCancel }: CaptureOverlayPr
   };
 
   const onMouseUp = async () => {
-    if (!isSelecting) return;
     setIsSelecting(false);
+    setIsCapturing(true);
 
     const x = Math.min(startPos.x, currentPos.x);
     const y = Math.min(startPos.y, currentPos.y);
     const width = Math.abs(startPos.x - currentPos.x);
     const height = Math.abs(startPos.y - currentPos.y);
 
-    if (width < 5 || height < 5) return; // Ignore small clicks
+    if (width < 5 || height < 5) {
+      setIsCapturing(false);
+      return; 
+    }
 
     // Temporarily hide overlay to capture background
     if (containerRef.current) containerRef.current.style.visibility = 'hidden';
 
     try {
-      const canvas = await html2canvas(document.body, {
+      // Small delay to ensure dimming is hidden
+      await new Promise(r => setTimeout(r, 50));
+      
+      const canvas = await html2canvas(document.documentElement, {
         useCORS: true,
         logging: false,
         x: x + window.scrollX,
         y: y + window.scrollY,
         width: width,
         height: height,
-        scale: window.devicePixelRatio || 1,
+        scale: 2,
+        backgroundColor: null
       });
 
       onCapture(canvas.toDataURL('image/jpeg', 0.95));
@@ -62,6 +70,7 @@ export default function CaptureOverlay({ onCapture, onCancel }: CaptureOverlayPr
       console.error('Capture failed:', error);
       onCancel();
     } finally {
+      setIsCapturing(false);
       if (containerRef.current) containerRef.current.style.visibility = 'visible';
     }
   };
@@ -87,7 +96,7 @@ export default function CaptureOverlay({ onCapture, onCancel }: CaptureOverlayPr
       onMouseUp={onMouseUp}
     >
       {/* Help label */}
-      {!isSelecting && (
+      {!isSelecting && !isCapturing && (
         <div style={{
           position: 'absolute',
           top: '20px',
@@ -103,6 +112,29 @@ export default function CaptureOverlay({ onCapture, onCancel }: CaptureOverlayPr
           boxShadow: '0 4px 12px rgba(0,0,0,0.2)'
         }}>
           ลากคลุมพื้นที่ที่ต้องการ Capture (ESC เพื่อยกเลิก)
+        </div>
+      )}
+
+      {isCapturing && (
+        <div style={{
+          position: 'absolute',
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%)',
+          background: 'rgba(54, 153, 255, 0.9)',
+          color: 'black',
+          padding: '12px 24px',
+          borderRadius: '12px',
+          fontSize: '16px',
+          fontWeight: '800',
+          pointerEvents: 'none',
+          boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '12px'
+        }}>
+          <div className="animate-spin" style={{ width: '20px', height: '20px', border: '3px solid black', borderTopColor: 'transparent', borderRadius: '50%' }} />
+          กำลังบันทึกภาพ...
         </div>
       )}
 
