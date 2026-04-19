@@ -779,7 +779,7 @@ export default function StaffTicketDetailPage() {
              <div style={{ background: '#f5f8fa', padding: '24px', borderRadius: '12px', border: '1px solid #e1e3ea' }}>
                 <h3 style={{ margin: '0 0 16px 0', fontSize: '13px', fontWeight: '800', color: '#181c32', textTransform: 'uppercase', letterSpacing: '0.5px', borderBottom: '1px solid #e1e3ea', paddingBottom: '10px' }}>CLIENT INFO</h3>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '14px' }}>
-                   <p style={{ margin: 0 }}><strong>Hospital:</strong> {(ticket?.customers as any)?.hospitals?.name || '-'}</p>
+                   <p style={{ margin: 0 }}><strong>Hospital:</strong> {ticket?.customers?.hospitals?.name || '-'}</p>
                    <p style={{ margin: 0 }}><strong>Department:</strong> {ticket?.department_data?.name || '-'}</p>
                    <p style={{ margin: 0 }}><strong>Reporter:</strong> {ticket?.customers?.display_name || '-'}</p>
                 </div>

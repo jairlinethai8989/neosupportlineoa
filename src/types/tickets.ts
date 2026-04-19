@@ -75,6 +75,7 @@ export interface TicketDetailCustomer {
   id?: string | null;
   display_name?: string | null;
   avatar_url?: string | null;
+  hospitals?: { id: string; name: string } | null;
 }
 
 export interface TicketDetailAssignedAgent {
@@ -99,6 +100,7 @@ export interface TicketDetailTicket {
   current_department_id: string | null;
   hospital_id: string | null;
   resolution_summary?: string | null;
+  department_data?: { id: string; name: string } | null;
   customers?: TicketDetailCustomer | null;
   assigned_agent?: TicketDetailAssignedAgent | null;
 }
