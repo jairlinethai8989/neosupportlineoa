@@ -14,7 +14,7 @@ import {
   FileText,
   SendHorizontal,
   Paperclip,
-  Monitor
+  Crop
 } from 'lucide-react';
 import ChatAttachmentModal from '@/components/chat/ChatAttachmentModal';
 import ImageEditorModal from '@/components/modals/ImageEditorModal';

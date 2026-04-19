@@ -407,7 +407,7 @@ export const TicketChat: React.FC<TicketChatProps> = ({
                 onClick={onScreenCapture}
                 disabled={sending}
                 className="glass-interactive flex-center"
-                title="Capture หน้าจอ"ิ
+                title="Capture หน้าจอ"
                 style={{
                   width: '36px',
                   height: '36px',
