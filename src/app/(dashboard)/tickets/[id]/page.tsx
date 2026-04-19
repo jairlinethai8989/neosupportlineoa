@@ -505,6 +505,46 @@ export default function StaffTicketDetailPage() {
         onExportClick={() => setShowExportModal(true)}
       />
 
+      <div className="glass" style={{ padding: '20px', marginBottom: '24px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '24px', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <Clock size={18} color="var(--primary)" />
+            <span style={{ fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Time Tracking</span>
+          </div>
+
+          <div style={{ display: 'flex', gap: '32px', flex: 1 }}>
+            <div>
+              <label style={{ fontSize: '9px', fontWeight: '800', color: 'var(--text-muted)', display: 'block' }}>REPORTED</label>
+              <p style={{ fontSize: '13px', fontWeight: '700' }}>
+                {ticket.created_at ? new Date(ticket.created_at).toLocaleString('th-TH', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '-'}
+              </p>
+            </div>
+
+            {ticket.resolved_at && (
+              <>
+                <div>
+                  <label style={{ fontSize: '9px', fontWeight: '800', color: 'var(--text-muted)', display: 'block' }}>RESOLVED</label>
+                  <p style={{ fontSize: '13px', fontWeight: '700', color: 'var(--primary)' }}>
+                    {new Date(ticket.resolved_at).toLocaleString('th-TH', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                  </p>
+                </div>
+                <div style={{ paddingLeft: '24px', borderLeft: '1px solid var(--border)' }}>
+                  <label style={{ fontSize: '9px', fontWeight: '800', color: 'var(--primary)', display: 'block' }}>RESOLUTION TIME</label>
+                  <p style={{ fontSize: '18px', fontWeight: '900' }}>{getTicketDuration(ticket.created_at || '', ticket.resolved_at)}</p>
+                </div>
+              </>
+            )}
+
+            {!ticket.resolved_at && (
+              <div style={{ paddingLeft: '24px', borderLeft: '1px solid var(--border)' }}>
+                <label style={{ fontSize: '9px', fontWeight: '800', color: 'orange', display: 'block' }}>CURRENT PENDING</label>
+                <p style={{ fontSize: '18px', fontWeight: '900' }}>{getTicketDuration(ticket.created_at || '')}</p>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
       <div style={pageGridStyle}>
         <TicketChat
           messages={messages}
@@ -553,72 +593,8 @@ export default function StaffTicketDetailPage() {
           availableDepts={availableDepts}
           availableModules={availableModules}
           logs={logs}
-          showActivity={false}
+          showActivity={true}
         />
-      </div>
-
-      <div style={activityGridStyle}>
-        {/* Time Tracking Box */}
-        <div className="glass" style={{ padding: '24px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px' }}>
-            <Clock size={20} color="var(--primary)" />
-            <label style={{ fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase' }}>
-              Time Tracking Metrics
-            </label>
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '20px' }}>
-             <div>
-                <label style={{ fontSize: '10px', fontWeight: '800', color: 'var(--text-muted)', display: 'block', marginBottom: '6px' }}>Reported At</label>
-                <p style={{ fontSize: '13px', fontWeight: '700' }}>
-                   {ticket.created_at ? new Date(ticket.created_at).toLocaleString('th-TH', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '-'}
-                </p>
-             </div>
-
-             {ticket.resolved_at && (
-               <>
-                 <div>
-                    <label style={{ fontSize: '10px', fontWeight: '800', color: 'var(--text-muted)', display: 'block', marginBottom: '6px' }}>Resolved At</label>
-                    <p style={{ fontSize: '13px', fontWeight: '700', color: 'var(--primary)' }}>
-                       {new Date(ticket.resolved_at).toLocaleString('th-TH', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                    </p>
-                 </div>
-                 <div style={{ paddingLeft: '20px', borderLeft: '1px solid var(--border)' }}>
-                    <label style={{ fontSize: '10px', fontWeight: '800', color: 'var(--primary)', display: 'block', marginBottom: '6px' }}>Resolution Duration</label>
-                    <p style={{ fontSize: '18px', fontWeight: '900' }}>{getTicketDuration(ticket.created_at || '', ticket.resolved_at)}</p>
-                 </div>
-               </>
-             )}
-
-             {!ticket.resolved_at && (
-                <div style={{ gridColumn: 'span 2', padding: '12px', background: 'rgba(255,165,0,0.05)', borderRadius: '12px', border: '1px dashed orange', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                   <span style={{ fontSize: '10px', fontWeight: '800', color: 'orange' }}>PENDING DURATION</span>
-                   <span style={{ fontSize: '16px', fontWeight: '900' }}>{getTicketDuration(ticket.created_at || '')}</span>
-                </div>
-             )}
-          </div>
-        </div>
-
-        {/* Recent Activity Box */}
-        <div className="glass" style={{ padding: '24px' }}>
-          <label style={{ fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '20px', display: 'block' }}>
-             Recent Activity Timeline
-          </label>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-             {logs.slice(0, 4).map((log, idx) => (
-                <div key={log.id || idx} className="glass-light" style={{ padding: '12px', borderRadius: '12px', border: '1px solid var(--border)' }}>
-                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                      <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>{new Date(log.created_at).toLocaleDateString()}</span>
-                      <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--primary)' }} />
-                   </div>
-                   <p style={{ fontSize: '12px', fontWeight: '700' }}>
-                      {log.action_type === 'status_change' ? `Status → ${log.to_status}` : log.note || log.action_type}
-                   </p>
-                </div>
-             ))}
-             {logs.length === 0 && <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>No logs recorded</p>}
-          </div>
-        </div>
       </div>
 
       <ResolveTicketModal
