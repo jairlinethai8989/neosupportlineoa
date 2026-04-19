@@ -23,9 +23,10 @@ interface TicketSidebarProps {
   setSelectedModule: (m: string) => void;
   availableModules: string[];
   logs: TicketDetailLog[];
+  showActivity?: boolean; // New prop to control visibility
 }
 
-function getTicketDuration(createdAt: string, resolvedAt?: string | null) {
+export function getTicketDuration(createdAt: string, resolvedAt?: string | null) {
   const start = new Date(createdAt).getTime();
   const end = resolvedAt ? new Date(resolvedAt).getTime() : Date.now();
   const diff = end - start;
@@ -52,6 +53,7 @@ export const TicketSidebar: React.FC<TicketSidebarProps> = ({
   setSelectedModule,
   availableModules,
   logs,
+  showActivity = true, // Default to true for backward compatibility
 }) => {
   if (!ticket) return null;
 
@@ -278,50 +280,25 @@ export const TicketSidebar: React.FC<TicketSidebarProps> = ({
         </div>
       </div>
 
-      <div className="glass" style={{ padding: '20px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
-          <Clock size={16} color="var(--primary)" />
-          <label
-            style={{
-              fontSize: '10px',
-              fontWeight: '800',
-              color: 'var(--text-muted)',
-              textTransform: 'uppercase',
-              marginBottom: '0',
-            }}
-          >
-            Time Tracking
-          </label>
-        </div>
+      {showActivity && (
+        <>
+          <div className="glass" style={{ padding: '20px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
+              <Clock size={16} color="var(--primary)" />
+              <label
+                style={{
+                  fontSize: '10px',
+                  fontWeight: '800',
+                  color: 'var(--text-muted)',
+                  textTransform: 'uppercase',
+                  marginBottom: '0',
+                }}
+              >
+                Time Tracking
+              </label>
+            </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-          <div>
-            <label
-              style={{
-                fontSize: '9px',
-                fontWeight: '800',
-                color: 'var(--text-muted)',
-                display: 'block',
-                marginBottom: '4px',
-              }}
-            >
-              Reported At
-            </label>
-            <p style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text)' }}>
-              {ticket.created_at
-                ? new Date(ticket.created_at).toLocaleString('th-TH', {
-                    year: 'numeric',
-                    month: 'short',
-                    day: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  })
-                : '-'}
-            </p>
-          </div>
-
-          {ticket.resolved_at && ticket.created_at && (
-            <>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
               <div>
                 <label
                   style={{
@@ -332,126 +309,155 @@ export const TicketSidebar: React.FC<TicketSidebarProps> = ({
                     marginBottom: '4px',
                   }}
                 >
-                  Resolved At
+                  Reported At
                 </label>
-                <p style={{ fontSize: '13px', fontWeight: '700', color: 'var(--primary)' }}>
-                  {new Date(ticket.resolved_at).toLocaleString('th-TH', {
-                    year: 'numeric',
-                    month: 'short',
-                    day: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  })}
+                <p style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text)' }}>
+                  {ticket.created_at
+                    ? new Date(ticket.created_at).toLocaleString('th-TH', {
+                        year: 'numeric',
+                        month: 'short',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })
+                    : '-'}
                 </p>
               </div>
 
-              <div
-                style={{
-                  padding: '12px',
-                  background: 'rgba(0,242,254,0.05)',
-                  borderRadius: '10px',
-                  border: '1px dashed var(--primary)',
-                }}
-              >
-                <label
+              {ticket.resolved_at && ticket.created_at && (
+                <>
+                  <div>
+                    <label
+                      style={{
+                        fontSize: '9px',
+                        fontWeight: '800',
+                        color: 'var(--text-muted)',
+                        display: 'block',
+                        marginBottom: '4px',
+                      }}
+                    >
+                      Resolved At
+                    </label>
+                    <p style={{ fontSize: '13px', fontWeight: '700', color: 'var(--primary)' }}>
+                      {new Date(ticket.resolved_at).toLocaleString('th-TH', {
+                        year: 'numeric',
+                        month: 'short',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
+                    </p>
+                  </div>
+
+                  <div
+                    style={{
+                      padding: '12px',
+                      background: 'rgba(0,242,254,0.05)',
+                      borderRadius: '10px',
+                      border: '1px dashed var(--primary)',
+                    }}
+                  >
+                    <label
+                      style={{
+                        fontSize: '9px',
+                        fontWeight: '800',
+                        color: 'var(--primary)',
+                        display: 'block',
+                        marginBottom: '4px',
+                        opacity: 0.7,
+                      }}
+                    >
+                      Resolution Duration
+                    </label>
+                    <p style={{ fontSize: '16px', fontWeight: '900', color: 'var(--text)' }}>
+                      {getTicketDuration(ticket.created_at, ticket.resolved_at)}
+                    </p>
+                  </div>
+                </>
+              )}
+
+              {!ticket.resolved_at && ticket.created_at && (
+                <div
                   style={{
-                    fontSize: '9px',
-                    fontWeight: '800',
-                    color: 'var(--primary)',
-                    display: 'block',
-                    marginBottom: '4px',
-                    opacity: 0.7,
+                    padding: '12px',
+                    background: 'rgba(255,165,0,0.05)',
+                    borderRadius: '10px',
+                    border: '1px dashed orange',
                   }}
                 >
-                  Resolution Duration
-                </label>
-                <p style={{ fontSize: '16px', fontWeight: '900', color: 'var(--text)' }}>
-                  {getTicketDuration(ticket.created_at, ticket.resolved_at)}
-                </p>
-              </div>
-            </>
-          )}
+                  <label
+                    style={{
+                      fontSize: '9px',
+                      fontWeight: '800',
+                      color: 'orange',
+                      display: 'block',
+                      marginBottom: '4px',
+                      opacity: 0.7,
+                    }}
+                  >
+                    Pending Duration
+                  </label>
+                  <p style={{ fontSize: '14px', fontWeight: '800', color: 'var(--text)' }}>
+                    Open for {getTicketDuration(ticket.created_at)}
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
 
-          {!ticket.resolved_at && ticket.created_at && (
-            <div
+          <div className="glass" style={{ padding: '20px' }}>
+            <label
               style={{
-                padding: '12px',
-                background: 'rgba(255,165,0,0.05)',
-                borderRadius: '10px',
-                border: '1px dashed orange',
+                fontSize: '10px',
+                fontWeight: '800',
+                color: 'var(--text-muted)',
+                textTransform: 'uppercase',
+                marginBottom: '16px',
+                display: 'block',
               }}
             >
-              <label
-                style={{
-                  fontSize: '9px',
-                  fontWeight: '800',
-                  color: 'orange',
-                  display: 'block',
-                  marginBottom: '4px',
-                  opacity: 0.7,
-                }}
-              >
-                Pending Duration
-              </label>
-              <p style={{ fontSize: '14px', fontWeight: '800', color: 'var(--text)' }}>
-                Open for {getTicketDuration(ticket.created_at)}
-              </p>
+              Recent Activity
+            </label>
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '12px',
+                borderLeft: '1px solid var(--border)',
+                marginLeft: '6px',
+                paddingLeft: '16px',
+              }}
+            >
+              {logs.slice(0, 3).map((log, idx) => (
+                <div key={log.id || idx} style={{ position: 'relative' }}>
+                  <div
+                    style={{
+                      position: 'absolute',
+                      left: '-19.5px',
+                      top: '4px',
+                      width: '6px',
+                      height: '6px',
+                      borderRadius: '50%',
+                      background: 'var(--primary)',
+                    }}
+                  />
+                  <p style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
+                    {new Date(log.created_at).toLocaleDateString()}
+                  </p>
+                  <p style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text)' }}>
+                    {log.action_type === 'status_change'
+                      ? `Modified to ${log.to_status}`
+                      : log.note || log.action_type}
+                  </p>
+                </div>
+              ))}
+              {logs.length === 0 && (
+                <p style={{ fontSize: '11px', color: 'var(--text-muted)' }}>No logs recorded</p>
+              )}
             </div>
-          )}
-        </div>
-      </div>
-
-      <div className="glass" style={{ padding: '20px' }}>
-        <label
-          style={{
-            fontSize: '10px',
-            fontWeight: '800',
-            color: 'var(--text-muted)',
-            textTransform: 'uppercase',
-            marginBottom: '16px',
-            display: 'block',
-          }}
-        >
-          Recent Activity
-        </label>
-        <div
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '12px',
-            borderLeft: '1px solid var(--border)',
-            marginLeft: '6px',
-            paddingLeft: '16px',
-          }}
-        >
-          {logs.slice(0, 3).map((log, idx) => (
-            <div key={log.id || idx} style={{ position: 'relative' }}>
-              <div
-                style={{
-                  position: 'absolute',
-                  left: '-19.5px',
-                  top: '4px',
-                  width: '6px',
-                  height: '6px',
-                  borderRadius: '50%',
-                  background: 'var(--primary)',
-                }}
-              />
-              <p style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
-                {new Date(log.created_at).toLocaleDateString()}
-              </p>
-              <p style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text)' }}>
-                {log.action_type === 'status_change'
-                  ? `Modified to ${log.to_status}`
-                  : log.note || log.action_type}
-              </p>
-            </div>
-          ))}
-          {logs.length === 0 && (
-            <p style={{ fontSize: '11px', color: 'var(--text-muted)' }}>No logs recorded</p>
-          )}
-        </div>
-      </div>
+          </div>
+        </>
+      )}
     </div>
   );
 };
