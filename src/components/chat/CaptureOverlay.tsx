@@ -51,35 +51,33 @@ export default function CaptureOverlay({ onCapture, onCancel }: CaptureOverlayPr
     if (containerRef.current) containerRef.current.style.visibility = 'hidden';
 
     try {
-      // 1. Give time for repaint
-      await new Promise(r => setTimeout(r, 400));
+      // 1. Wait for 2 animation frames to ensure overlay is fully hidden by the browser
+      await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
       
-      const deviceScale = window.devicePixelRatio || 1;
+      const pixelRatio = window.devicePixelRatio || 1;
       
-      // 2. Capture only the visible viewport - this aligns perfectly with clientX/Y
+      // 2. Capture specifically the current viewport area at native device scale
       const fullCanvas = await html2canvas(document.body, {
         useCORS: true,
         allowTaint: true,
         logging: false,
-        scale: deviceScale,
+        scale: pixelRatio,
         backgroundColor: '#ffffff',
-        // Force capture to match what the user sees
+        // Lock capture to the EXACT viewport coordinates
+        x: window.scrollX,
+        y: window.scrollY,
         width: window.innerWidth,
         height: window.innerHeight,
-        scrollX: -window.scrollX,
-        scrollY: -window.scrollY,
         windowWidth: window.innerWidth,
         windowHeight: window.innerHeight,
         onclone: (clonedDoc) => {
-          // 1. STRIP oklch from ALL stylesheets
+          // SANITIZE: Strip oklch to prevent parser crashes
           const styles = clonedDoc.getElementsByTagName('style');
           for (let i = 0; i < styles.length; i++) {
             try {
               styles[i].innerHTML = styles[i].innerHTML.replace(/oklch\([^)]+\)/g, '#ffffff');
             } catch (e) {}
           }
-          
-          // 2. STRIP oklch from ALL inline styles (Essential for modern React apps)
           const allElements = clonedDoc.getElementsByTagName('*');
           for (let i = 0; i < allElements.length; i++) {
             const el = allElements[i] as HTMLElement;
@@ -91,37 +89,46 @@ export default function CaptureOverlay({ onCapture, onCancel }: CaptureOverlayPr
         }
       });
 
-      // 3. PRECISION ALIGNMENT: x and y are clientX/Y, which now match the canvas origin
-      const cropX = x * deviceScale;
-      const cropY = y * deviceScale;
-      const cropWidth = width * deviceScale;
-      const cropHeight = height * deviceScale;
+      // 3. PIXEL-ACCURATE CALCULATIONS (Axis-specific scaling)
+      const scaleX = fullCanvas.width / window.innerWidth;
+      const scaleY = fullCanvas.height / window.innerHeight;
+      
+      // Normalize selection
+      const left = Math.min(startPos.x, currentPos.x);
+      const top = Math.min(startPos.y, currentPos.y);
+      const selWidth = Math.abs(startPos.x - currentPos.x);
+      const selHeight = Math.abs(startPos.y - currentPos.y);
 
-      if (cropWidth <= 1 || cropHeight <= 1) throw new Error('Selection too small');
+      const sx = left * scaleX;
+      const sy = top * scaleY;
+      const sw = selWidth * scaleX;
+      const sh = selHeight * scaleY;
 
-      // 4. Manual cropping
+      if (sw <= 1 || sh <= 1) throw new Error('Selection area is too small');
+
+      // 4. Create the high-quality final canvas
       const cropCanvas = document.createElement('canvas');
-      cropCanvas.width = cropWidth;
-      cropCanvas.height = cropHeight;
+      cropCanvas.width = sw;
+      cropCanvas.height = sh;
 
       const ctx = cropCanvas.getContext('2d', { alpha: false });
-      if (!ctx) throw new Error('Canvas context failed');
+      if (!ctx) throw new Error('Could not initialize canvas context');
 
       ctx.fillStyle = '#ffffff';
-      ctx.fillRect(0, 0, cropWidth, cropHeight);
+      ctx.fillRect(0, 0, sw, sh);
       
       ctx.drawImage(
         fullCanvas,
-        cropX, cropY, cropWidth, cropHeight,
-        0, 0, cropWidth, cropHeight
+        sx, sy, sw, sh,
+        0, 0, sw, sh
       );
 
       const dataUrl = cropCanvas.toDataURL('image/png');
-      if (!dataUrl || dataUrl === 'data:,') throw new Error('Empty image result');
+      if (!dataUrl || dataUrl === 'data:,') throw new Error('Failed to generate image data');
       
       onCapture(dataUrl);
     } catch (error) {
-      console.error('Final Capture Error:', error);
+      console.error('Expert Capture Error:', error);
       alert('Capture ล้มเหลว: ' + (error instanceof Error ? error.message : 'ปัญหาการประมวลผลพิกัด'));
       onCancel();
     } finally {
