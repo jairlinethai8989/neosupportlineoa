@@ -71,11 +71,22 @@ export default function CaptureOverlay({ onCapture, onCancel }: CaptureOverlayPr
         windowWidth: window.innerWidth,
         windowHeight: window.innerHeight,
         onclone: (clonedDoc) => {
+          // 1. STRIP oklch from ALL stylesheets
           const styles = clonedDoc.getElementsByTagName('style');
           for (let i = 0; i < styles.length; i++) {
             try {
               styles[i].innerHTML = styles[i].innerHTML.replace(/oklch\([^)]+\)/g, '#ffffff');
             } catch (e) {}
+          }
+          
+          // 2. STRIP oklch from ALL inline styles (Essential for modern React apps)
+          const allElements = clonedDoc.getElementsByTagName('*');
+          for (let i = 0; i < allElements.length; i++) {
+            const el = allElements[i] as HTMLElement;
+            const styleAttr = el.getAttribute('style');
+            if (styleAttr && styleAttr.includes('oklch')) {
+              el.setAttribute('style', styleAttr.replace(/oklch\([^)]+\)/g, '#ffffff'));
+            }
           }
         }
       });
