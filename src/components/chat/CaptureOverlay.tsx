@@ -51,50 +51,52 @@ export default function CaptureOverlay({ onCapture, onCancel }: CaptureOverlayPr
     if (containerRef.current) containerRef.current.style.visibility = 'hidden';
 
     try {
-      // Small delay to ensure dimming is hidden
-      await new Promise(r => setTimeout(r, 150));
+      // 1. Give the browser more time to hide the overlay visually
+      await new Promise(r => setTimeout(r, 200));
       
       const deviceScale = window.devicePixelRatio || 1;
       
-      // 1. Capture the entire body (handles internal scrolls better)
+      // 2. Capture ONLY what's visible in the current viewport
+      // This prevents issues with huge documents (e.g. long ticket lists)
       const fullCanvas = await html2canvas(document.body, {
         useCORS: true,
-        allowTaint: false,
+        allowTaint: true, // Allow taints as a fallback
         logging: false,
-        scale: deviceScale,
+        scale: deviceScale > 1 ? 1.5 : 1, // Balanced quality/performance
         backgroundColor: null,
-        scrollX: 0,
-        scrollY: 0,
-        windowWidth: document.documentElement.clientWidth,
-        windowHeight: document.documentElement.clientHeight
+        // Force these settings to focus only on what the user sees
+        width: window.innerWidth,
+        height: window.innerHeight,
+        windowWidth: window.innerWidth,
+        windowHeight: window.innerHeight,
+        x: window.scrollX,
+        y: window.scrollY,
       });
 
-      // 2. Calculate crop coordinates relative to the body
-      // We use getBoundingClientRect of body to normalize offsets
-      const bodyRect = document.body.getBoundingClientRect();
-      const cropX = (x - bodyRect.left) * deviceScale;
-      const cropY = (y - bodyRect.top) * deviceScale;
-      const cropWidth = width * deviceScale;
-      const cropHeight = height * deviceScale;
-
       // 3. Create a temporary canvas for the final cropped image
+      const finalScale = fullCanvas.width / window.innerWidth;
+      const cropWidth = width * finalScale;
+      const cropHeight = height * finalScale;
+      
       const cropCanvas = document.createElement('canvas');
       cropCanvas.width = cropWidth;
       cropCanvas.height = cropHeight;
 
-      const ctx = cropCanvas.width > 0 && cropCanvas.height > 0 ? cropCanvas.getContext('2d') : null;
-      if (!ctx) throw new Error('Invalid capture dimensions');
+      const ctx = cropCanvas.getContext('2d');
+      if (!ctx) throw new Error('Could not get canvas context');
 
+      // Use client coordinates relative to the viewport
       ctx.drawImage(
         fullCanvas,
-        cropX, cropY, cropWidth, cropHeight,
+        x * finalScale, y * finalScale, cropWidth, cropHeight,
         0, 0, cropWidth, cropHeight
       );
 
-      const dataUrl = cropCanvas.toDataURL('image/jpeg', 0.95);
+      const dataUrl = cropCanvas.toDataURL('image/jpeg', 0.9);
       onCapture(dataUrl);
     } catch (error) {
-      console.error('Capture failed:', error);
+      console.error('Capture failed, trying safe fallback:', error);
+      // Fallback: Just return a smaller capture if possible or cancel
       onCancel();
     } finally {
       setIsCapturing(false);
