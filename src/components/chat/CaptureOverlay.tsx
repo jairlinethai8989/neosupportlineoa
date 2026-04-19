@@ -52,20 +52,39 @@ export default function CaptureOverlay({ onCapture, onCancel }: CaptureOverlayPr
 
     try {
       // Small delay to ensure dimming is hidden
-      await new Promise(r => setTimeout(r, 50));
+      await new Promise(r => setTimeout(r, 100));
       
-      const canvas = await html2canvas(document.documentElement, {
+      // 1. Capture the entire visible viewport/body first (More reliable)
+      const fullCanvas = await html2canvas(document.body, {
         useCORS: true,
         logging: false,
-        x: x + window.scrollX,
-        y: y + window.scrollY,
-        width: width,
-        height: height,
-        scale: 2,
+        scale: 2, // Use high scale for crisp image
         backgroundColor: null
       });
 
-      onCapture(canvas.toDataURL('image/jpeg', 0.95));
+      // 2. Create a temporary canvas for the cropped area
+      const cropCanvas = document.createElement('canvas');
+      const ctx = cropCanvas.getContext('2d');
+      if (!ctx) throw new Error('Could not get canvas context');
+
+      // Calculate coordinates and dimensions based on scale
+      const deviceScale = 2;
+      const cropX = (x + window.scrollX) * deviceScale;
+      const cropY = (y + window.scrollY) * deviceScale;
+      const cropWidth = width * deviceScale;
+      const cropHeight = height * deviceScale;
+
+      cropCanvas.width = cropWidth;
+      cropCanvas.height = cropHeight;
+
+      // 3. Draw the cropped portion from the full canvas
+      ctx.drawImage(
+        fullCanvas,
+        cropX, cropY, cropWidth, cropHeight, // Source (x, y, w, h)
+        0, 0, cropWidth, cropHeight          // Destination (x, y, w, h)
+      );
+
+      onCapture(cropCanvas.toDataURL('image/jpeg', 0.9));
     } catch (error) {
       console.error('Capture failed:', error);
       onCancel();
