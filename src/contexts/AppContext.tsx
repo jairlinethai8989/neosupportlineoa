@@ -29,7 +29,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      const promises: Promise<any>[] = [];
+      const promises: any[] = [];
       const fetchActions: string[] = [];
 
       if (type === 'all' || type === 'profile') {
