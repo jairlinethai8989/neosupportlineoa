@@ -346,7 +346,7 @@ export default function TicketDetailPage() {
                  style={{ width: '40px', height: '40px', borderRadius: '12px', border: 'none', background: 'white', color: 'var(--portal-primary)', cursor: 'pointer', boxShadow: '0 2px 5px rgba(0,0,0,0.05)' }} 
                  className="flex-center"
                >
-                  <Monitor size={18} />
+                  <Crop size={18} />
                </button>
                <input 
                  type="text" 
