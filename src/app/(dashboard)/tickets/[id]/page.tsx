@@ -478,12 +478,22 @@ export default function StaffTicketDetailPage() {
 
   const handleExportSummary = async () => {
     if (!reportRef.current || !ticket) {
-      addToast('ข้อมูลไม่พร้อมใช้งานสำหรับการส่งออก', 'error');
+      addToast({
+        id: `pdf-invalid-${Date.now()}`,
+        type: 'sla',
+        title: 'ข้อมูลไม่พร้อมใช้งาน',
+        body: 'ไม่สามารถดึงข้อมูลใบงานมาสร้างรายงานได้ในขณะนี้'
+      });
       return;
     }
 
     try {
-      addToast('กำลังเตรียมไฟล์ PDF...', 'info');
+      addToast({
+        id: `pdf-prep-${Date.now()}`,
+        type: 'ticket',
+        title: 'กำลังเตรียมไฟล์ PDF...',
+        body: 'ระบบกำลังดึงข้อมูลใบงานและจัดแต่งโครงสร้ามรายงาน'
+      });
       
       const canvas = await html2canvas(reportRef.current, {
         scale: 2,
@@ -501,10 +511,21 @@ export default function StaffTicketDetailPage() {
 
       pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height);
       pdf.save(`Service_Report_${ticket.ticket_no}.pdf`);
-      addToast('ส่งออกใบงานสำเร็จ', 'success');
+      
+      addToast({
+        id: `pdf-success-${Date.now()}`,
+        type: 'ticket',
+        title: 'ส่งออกใบงานสำเร็จ',
+        body: `ดาวน์โหลดไฟล์รายงาน #${ticket.ticket_no} เรียบร้อยแล้ว`
+      });
     } catch (error) {
       console.error('PDF Export Error:', error);
-      addToast('ไม่สามารถส่งออกใบงานได้', 'error');
+      addToast({
+        id: `pdf-error-${Date.now()}`,
+        type: 'sla', // Using sla for attention-grabbing red if needed, or stick to ticket
+        title: 'ไม่สามารถส่งออกใบงานได้',
+        body: 'เกิดข้อผิดพลาดในการสร้างไฟล์ PDF กรุณาลองใหม่อีกครั้ง'
+      });
     }
   };
 
