@@ -30,6 +30,8 @@ export const ticketWorkspaceTicketSelect = `
   created_at,
   module,
   issue_type,
+  hospital_id,
+  current_department_id,
   hospitals!tickets_hospital_id_fkey (id, name),
   customers!tickets_customer_id_fkey (id, display_name),
   assigned_agent:profiles!assigned_agent_id (id, display_name:full_name),
