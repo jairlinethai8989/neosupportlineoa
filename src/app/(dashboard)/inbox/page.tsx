@@ -50,6 +50,7 @@ function InboxContent() {
   const [isViewerOpen, setIsViewerOpen] = useState(false);
   const [viewingImage, setViewingImage] = useState('');
   const [editingImage, setEditingImage] = useState('');
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
   const searchParams = useSearchParams();
   const cid = searchParams.get('cid');
 
@@ -94,6 +95,61 @@ function InboxContent() {
     agent,
     addToast,
   });
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !selectedChat) return;
+
+    setSending(true);
+    try {
+      await uploadInboxChatMedia({
+        file,
+        conversationId: selectedChat.id,
+        ticketId: selectedChat.current_ticket_id || null,
+      });
+    } catch (error: unknown) {
+      addToast({
+        id: `upload-fail-${Date.now()}`,
+        type: 'ticket',
+        title: 'อัปโหลดไฟล์ไม่สำเร็จ',
+        body: getInboxUploadFailedMessage(error)
+      });
+    } finally {
+      setSending(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const handleScreenCapture = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getDisplayMedia({ video: true });
+      const video = document.createElement('video');
+      video.srcObject = stream;
+      await new Promise((resolve) => {
+        video.onloadedmetadata = () => {
+          video.play();
+          resolve(true);
+        };
+      });
+
+      const canvas = document.createElement('canvas');
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      canvas.getContext('2d')?.drawImage(video, 0, 0);
+      stream.getTracks().forEach((track) => track.stop());
+
+      setEditingImage(canvas.toDataURL('image/jpeg', 0.9));
+      setIsEditorOpen(true);
+    } catch (error) {
+      if (error instanceof Error && error.name === 'NotAllowedError') return;
+      addToast({
+        id: `capture-fail-${Date.now()}`,
+        type: 'ticket',
+        title: 'Capture หน้าจอไม่สำเร็จ',
+        body: error instanceof Error ? error.message : 'เกิดข้อผิดพลาดในการ Capture'
+      });
+    }
+  };
 
   useEffect(() => {
     if (cid && conversations.length > 0) {
@@ -173,7 +229,8 @@ function InboxContent() {
             agent={agent}
             currentTicket={currentTicket}
             onClaim={handleClaim}
-            onAttachClick={() => alert('ฟีเจอร์แนบไฟล์กำลังอยู่ระหว่างการพัฒนา')}
+            onAttachClick={() => fileInputRef.current?.click()}
+            onScreenCapture={handleScreenCapture}
             onEditImage={(source: string) => {
               setViewingImage(source);
               setEditingImage(source);
@@ -307,6 +364,13 @@ function InboxContent() {
           __html:
             '@keyframes scaleIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }',
         }}
+      />
+      <input 
+        type="file" 
+        ref={fileInputRef} 
+        onChange={handleFileSelect} 
+        style={{ display: 'none' }} 
+        accept="image/*,video/*,.pdf,.doc,.docx,.xls,.xlsx"
       />
     </div>
   );

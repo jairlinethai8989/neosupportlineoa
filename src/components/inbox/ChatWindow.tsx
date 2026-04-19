@@ -12,7 +12,8 @@ import {
   Pencil, 
   Trash2, 
   Clock,
-  AlertTriangle 
+  AlertTriangle,
+  Monitor
 } from 'lucide-react';
 import type {
   InboxAgent,
@@ -47,6 +48,7 @@ interface ChatWindowProps {
   hasMoreMessages: boolean;
   loadingMoreMessages: boolean;
   onLoadOlderMessages: () => Promise<void>;
+  onScreenCapture: () => void;
   messagesEndRef: RefObject<HTMLDivElement | null>;
 }
 
@@ -75,6 +77,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
   hasMoreMessages,
   loadingMoreMessages,
   onLoadOlderMessages,
+  onScreenCapture,
   messagesEndRef
 }) => {
   if (!selectedChat) {
@@ -324,6 +327,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
           <div className="glass" style={{ padding: '6px 14px', display: 'flex', alignItems: 'center', gap: '12px', background: 'var(--bg-input)', borderRadius: '14px', border: '1px solid var(--border)' }}>
              <button type="button" onClick={() => setShowCanned(!showCanned)} aria-label="Quick replies" className="glass-interactive flex-center" style={{ width: '36px', height: '36px', background: 'none', border: 'none', color: showCanned ? 'var(--primary)' : 'var(--text-muted)', cursor: 'pointer' }}><MessageSquare size={19} aria-hidden="true" /></button>
              <button type="button" onClick={onAttachClick} aria-label="Attach file" className="glass-interactive flex-center" style={{ width: '36px', height: '36px', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}><Paperclip size={20} aria-hidden="true" /></button>
+             <button type="button" onClick={onScreenCapture} aria-label="Capture screen" className="glass-interactive flex-center" style={{ width: '36px', height: '36px', background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer' }}><Monitor size={19} aria-hidden="true" /></button>
            <input 
               type="text" 
               value={newMessage}

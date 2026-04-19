@@ -82,15 +82,24 @@ export async function linkConversationToTicket(conversationId: string, ticketId:
 }
 
 export async function uploadInboxChatMedia(input: {
-  blob: Blob;
+  file?: File;
+  blob?: Blob;
   conversationId: string;
   ticketId: string | null;
   filePrefix?: string;
 }) {
-  const fileName = `${input.filePrefix || 'edited_inbox'}_${input.conversationId}_${Date.now()}.jpg`;
+  const media = input.file || input.blob;
+  if (!media) throw new Error('No media provided for upload');
+
+  const fileExt = input.file ? input.file.name.split('.').pop() : 'jpg';
+  const fileName = `${input.filePrefix || 'inbox'}_${input.conversationId}_${Date.now()}.${fileExt}`;
+  
   const { error: uploadError } = await supabase.storage
     .from('chat_media')
-    .upload(fileName, input.blob, { contentType: 'image/jpeg' });
+    .upload(fileName, media, { 
+      contentType: input.file ? input.file.type : 'image/jpeg',
+      upsert: true
+    });
 
   if (uploadError) throw uploadError;
 
@@ -98,11 +107,13 @@ export async function uploadInboxChatMedia(input: {
     data: { publicUrl },
   } = supabase.storage.from('chat_media').getPublicUrl(fileName);
 
+  const messageType = (input.file?.type.startsWith('image/') || input.blob) ? 'image' : 'file';
+
   await sendInboxAgentMessage({
     conversationId: input.conversationId,
     ticketId: input.ticketId,
     content: publicUrl,
-    messageType: 'image',
+    messageType,
   });
 
   return publicUrl;
