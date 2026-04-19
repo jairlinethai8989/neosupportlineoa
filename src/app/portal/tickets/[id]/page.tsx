@@ -19,6 +19,7 @@ import {
 import ChatAttachmentModal from '@/components/chat/ChatAttachmentModal';
 import ImageEditorModal from '@/components/modals/ImageEditorModal';
 import ImageViewerModal from '@/components/modals/ImageViewerModal';
+import CaptureOverlay from '@/components/chat/CaptureOverlay';
 import { useLiff } from '@/hooks/useLiff';
 import { sendPortalMessageAction } from '@/app/actions/portalActions';
 
@@ -35,6 +36,7 @@ export default function TicketDetailPage() {
   const [isAttachModalOpen, setIsAttachModalOpen] = useState<boolean>(false);
   const [isEditorOpen, setIsEditorOpen] = useState<boolean>(false);
   const [isViewerOpen, setIsViewerOpen] = useState<boolean>(false);
+  const [isCapturing, setIsCapturing] = useState<boolean>(false);
   const [editingImage, setEditingImage] = useState<string>('');
   const [viewingImage, setViewingImage] = useState<string>('');
   const [conversationId, setConversationId] = useState<string | null>(null);
@@ -175,29 +177,7 @@ export default function TicketDetailPage() {
   };
 
   const handleScreenCapture = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getDisplayMedia({ video: true });
-      const video = document.createElement('video');
-      video.srcObject = stream;
-      await new Promise((resolve) => {
-        video.onloadedmetadata = () => {
-          video.play();
-          resolve(true);
-        };
-      });
-
-      const canvas = document.createElement('canvas');
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      canvas.getContext('2d')?.drawImage(video, 0, 0);
-      stream.getTracks().forEach((track) => track.stop());
-
-      setEditingImage(canvas.toDataURL('image/jpeg', 0.9));
-      setIsEditorOpen(true);
-    } catch (err: any) {
-      if (err.name === 'NotAllowedError') return;
-      alert('Capture failed: ' + err.message);
-    }
+    setIsCapturing(true);
   };
 
   const handleSendMessage = async () => {
@@ -511,6 +491,17 @@ export default function TicketDetailPage() {
                  setEditingImage(src);
                  setIsEditorOpen(true);
               }}
+           />
+        )}
+
+        {isCapturing && (
+           <CaptureOverlay 
+              onCapture={(url) => {
+                 setEditingImage(url);
+                 setIsEditorOpen(true);
+                 setIsCapturing(false);
+              }}
+              onCancel={() => setIsCapturing(false)}
            />
         )}
     </div>

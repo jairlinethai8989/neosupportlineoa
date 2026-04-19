@@ -7,6 +7,7 @@ import { supabase } from '@/lib/supabase';
 import ImageEditorModal from '@/components/modals/ImageEditorModal';
 import ImageViewerModal from '@/components/modals/ImageViewerModal';
 import SummaryExportModal from '@/components/modals/SummaryExportModal';
+import CaptureOverlay from '@/components/chat/CaptureOverlay';
 import { ResolveTicketModal } from '@/components/inbox/ResolveTicketModal';
 import { ticketService } from '@/lib/services/ticketService';
 import { TicketHeader } from '@/components/tickets/TicketHeader';
@@ -104,6 +105,7 @@ export default function StaffTicketDetailPage() {
   const [viewingImage, setViewingImage] = useState<string | null>(null);
   const [showViewer, setShowViewer] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
+  const [isCapturing, setIsCapturing] = useState(false);
 
   const fetchData = useCallback(async () => {
     if (!ticketId) return;
@@ -344,31 +346,9 @@ export default function StaffTicketDetailPage() {
     }
   }, [addToast, conversationId, ticketId, user?.id]);
 
-  const handleScreenCapture = useCallback(async () => {
-    try {
-      const stream = await navigator.mediaDevices.getDisplayMedia({ video: true });
-      const video = document.createElement('video');
-      video.srcObject = stream;
-      await new Promise((resolve) => {
-        video.onloadedmetadata = () => {
-          video.play();
-          resolve(true);
-        };
-      });
-
-      const canvas = document.createElement('canvas');
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      canvas.getContext('2d')?.drawImage(video, 0, 0);
-      stream.getTracks().forEach((track) => track.stop());
-
-      setEditingImage(canvas.toDataURL('image/jpeg', 0.9));
-      setShowEditor(true);
-    } catch (error) {
-      if (error instanceof Error && error.name === 'NotAllowedError') return;
-      addToast(getTicketDetailActionFailedToast('capture image', error));
-    }
-  }, [addToast]);
+  const handleScreenCapture = useCallback(() => {
+    setIsCapturing(true);
+  }, []);
 
   const handleEditorSave = useCallback(async (blob: Blob) => {
     if (!ticketId) return;
@@ -730,6 +710,17 @@ export default function StaffTicketDetailPage() {
             setEditingImage(null);
           }}
           onSave={handleEditorSave}
+        />
+      )}
+
+      {isCapturing && (
+        <CaptureOverlay 
+          onCapture={(url) => {
+            setEditingImage(url);
+            setShowEditor(true);
+            setIsCapturing(false);
+          }}
+          onCancel={() => setIsCapturing(false)}
         />
       )}
 

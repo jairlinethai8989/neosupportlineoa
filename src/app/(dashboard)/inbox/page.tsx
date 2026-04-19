@@ -11,6 +11,7 @@ import { InboxSidebar } from '@/components/inbox/InboxSidebar';
 import { ChatWindow } from '@/components/inbox/ChatWindow';
 import { TicketSidebar } from '@/components/inbox/TicketSidebar';
 import { ResolveTicketModal } from '@/components/inbox/ResolveTicketModal';
+import CaptureOverlay from '@/components/chat/CaptureOverlay';
 import { useInboxProfileSettings } from '@/hooks/useInboxProfileSettings';
 import { useInboxConversation } from '@/hooks/useInboxConversation';
 import {
@@ -46,6 +47,7 @@ function InboxContent() {
   const [selectedChat, setSelectedChat] = useState<InboxConversation | null>(null);
   const [viewMode, setViewMode] = useState<InboxViewMode>('list');
   const [showCanned, setShowCanned] = useState(false);
+  const [isCapturing, setIsCapturing] = useState(false);
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [isViewerOpen, setIsViewerOpen] = useState(false);
   const [viewingImage, setViewingImage] = useState('');
@@ -121,34 +123,7 @@ function InboxContent() {
   };
 
   const handleScreenCapture = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getDisplayMedia({ video: true });
-      const video = document.createElement('video');
-      video.srcObject = stream;
-      await new Promise((resolve) => {
-        video.onloadedmetadata = () => {
-          video.play();
-          resolve(true);
-        };
-      });
-
-      const canvas = document.createElement('canvas');
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      canvas.getContext('2d')?.drawImage(video, 0, 0);
-      stream.getTracks().forEach((track) => track.stop());
-
-      setEditingImage(canvas.toDataURL('image/jpeg', 0.9));
-      setIsEditorOpen(true);
-    } catch (error) {
-      if (error instanceof Error && error.name === 'NotAllowedError') return;
-      addToast({
-        id: `capture-fail-${Date.now()}`,
-        type: 'ticket',
-        title: 'Capture หน้าจอไม่สำเร็จ',
-        body: error instanceof Error ? error.message : 'เกิดข้อผิดพลาดในการ Capture'
-      });
-    }
+    setIsCapturing(true);
   };
 
   useEffect(() => {
@@ -356,6 +331,17 @@ function InboxContent() {
               setSending(false);
             }
           }}
+        />
+      )}
+
+      {isCapturing && (
+        <CaptureOverlay 
+          onCapture={(url) => {
+            setEditingImage(url);
+            setIsEditorOpen(true);
+            setIsCapturing(false);
+          }}
+          onCancel={() => setIsCapturing(false)}
         />
       )}
 
