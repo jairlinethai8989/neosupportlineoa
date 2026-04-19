@@ -6,10 +6,10 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Prompt:wght@300;400;500;600;700&display=swap');
 
 :root {
-  /* Core Brand - Professional SaaS Blue */
-  --primary: #3b82f6;        /* Blue 500 */
-  --primary-transparent: rgba(59, 130, 246, 0.12);
-  --primary-glow: rgba(59, 130, 246, 0.3);
+  /* Core Brand - Professional Neo Blue (Cyanish) */
+  --primary: #3699FF;        
+  --primary-transparent: rgba(54, 153, 255, 0.12);
+  --primary-glow: rgba(54, 153, 255, 0.3);
   --secondary: #8b5cf6;      /* Violet 500 */
   --accent: #f59e0b;         /* Amber 500 */
   

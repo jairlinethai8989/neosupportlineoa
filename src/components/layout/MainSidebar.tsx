@@ -203,7 +203,7 @@ const Sidebar = ({ onClickLink, isCollapsed = false }: SidebarProps) => {
                   padding: '14px', 
                   borderRadius: '14px', 
                   background: 'linear-gradient(135deg, var(--primary) 0%, var(--border-active) 100%)', 
-                  color: '#0a0e14', 
+                  color: 'white', 
                   border: 'none',
                   fontWeight: '700',
                   display: 'flex',

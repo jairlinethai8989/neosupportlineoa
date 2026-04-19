@@ -147,7 +147,7 @@ export const TicketHeader: React.FC<TicketHeaderProps> = ({
             borderRadius: '12px',
             border: '1px solid var(--primary)',
             background: 'var(--primary)',
-            color: 'black',
+            color: 'white',
             fontWeight: '800',
             gap: '8px',
           }}

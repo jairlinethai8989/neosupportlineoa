@@ -569,7 +569,7 @@ export default function StaffTicketDetailPage() {
           
           {/* Left: Customer Info Mini Card (Moved to Left) */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px', paddingRight: '40px', borderRight: '2px solid var(--border)' }}>
-             <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: 'var(--secondary)', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+             <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: 'var(--primary)', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 {ticket.customers?.avatar_url ? (
                    <Image 
                       src={ticket.customers.avatar_url} 

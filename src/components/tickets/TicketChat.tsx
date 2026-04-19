@@ -181,7 +181,7 @@ export const TicketChat: React.FC<TicketChatProps> = ({
                     borderTopRightRadius: msg.sender_type === 'agent' ? '4px' : '18px',
                     borderTopLeftRadius: msg.sender_type === 'customer' ? '4px' : '18px',
                     background: msg.sender_type === 'agent' ? 'var(--primary)' : 'var(--secondary)',
-                    color: msg.sender_type === 'agent' ? 'black' : 'var(--text)',
+                    color: msg.sender_type === 'agent' ? 'white' : 'var(--text)',
                     boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
                     position: 'relative',
                   }}
