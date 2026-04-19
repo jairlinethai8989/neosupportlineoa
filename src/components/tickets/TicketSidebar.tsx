@@ -170,10 +170,10 @@ export const TicketSidebar: React.FC<TicketSidebarProps> = ({
                 padding: '8px',
                 borderRadius: '8px',
                 fontSize: '12px',
-                background: 'var(--secondary)',
-                border: '1px solid var(--border)',
-                color: 'var(--text)',
-                fontWeight: '700',
+                background: 'rgba(0,242,254,0.05)',
+                border: '1px solid rgba(0,242,254,0.2)',
+                color: 'var(--primary)',
+                fontWeight: '800',
                 opacity: isResolvedOrClosed && !isAdmin ? 0.5 : 1,
               }}
             >
@@ -204,10 +204,10 @@ export const TicketSidebar: React.FC<TicketSidebarProps> = ({
                 padding: '8px',
                 borderRadius: '8px',
                 fontSize: '12px',
-                background: 'var(--secondary)',
-                border: '1px solid var(--border)',
-                color: 'var(--text)',
-                fontWeight: '700',
+                background: 'rgba(0,242,254,0.05)',
+                border: '1px solid rgba(0,242,254,0.2)',
+                color: 'var(--primary)',
+                fontWeight: '800',
               }}
             >
               <option value="Low">Low</option>
@@ -268,10 +268,10 @@ export const TicketSidebar: React.FC<TicketSidebarProps> = ({
                 padding: '8px',
                 borderRadius: '8px',
                 fontSize: '12px',
-                background: 'var(--secondary)',
-                border: '1px solid var(--border)',
-                color: 'var(--text)',
-                fontWeight: '700',
+                background: 'rgba(0,242,254,0.05)',
+                border: '1px solid rgba(0,242,254,0.2)',
+                color: 'var(--primary)',
+                fontWeight: '800',
               }}
             >
               <option value="">-- Not specified --</option>

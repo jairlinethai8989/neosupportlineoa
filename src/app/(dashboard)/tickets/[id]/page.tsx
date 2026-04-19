@@ -540,8 +540,8 @@ export default function StaffTicketDetailPage() {
              </div>
           </div>
 
-          {/* Right: Time Tracking (Moved to Right) */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '32px' }}>
+          {/* Right: Time Tracking (Moved to Right and Pushed to Edge) */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '40px', justifyContent: 'flex-end' }}>
              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <Clock size={20} color="var(--primary)" />
                 <span style={{ fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Time Tracking</span>
