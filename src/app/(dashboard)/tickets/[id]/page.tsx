@@ -740,7 +740,12 @@ export default function StaffTicketDetailPage() {
             await handleExportSummary();
           } else {
             // Future XLSX implementation if needed
-            addToast('ฟังก์ชัน Excel ยังไม่พร้อมใช้งาน', 'info');
+            addToast({
+              id: `pdf-xlsx-future-${Date.now()}`,
+              type: 'ticket',
+              title: 'ฟังก์ชัน Excel ยังไม่พร้อมใช้งาน',
+              body: 'ปัจจุบันระบบรองรับการส่งออกเป็น PDF เท่านั้น'
+            });
           }
         }}
         ticketNo={ticket?.ticket_no || ''}
