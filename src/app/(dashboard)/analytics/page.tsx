@@ -369,34 +369,69 @@ export default function AdvancedAnalyticsPage() {
       return;
     }
 
-    // Professional PDF Export with Charts
+    // Professional PDF Export with Charts & Perfect Thai
     setExporting(true);
     try {
-      const pages: string[] = [];
-      const reportElement = document.getElementById('report-portal');
+      const capturedCharts: { name: string, image: string }[] = [];
       
+      // Step 1: Capture all active charts from screen
+      for (const id of activeWidgets) {
+        const element = document.getElementById(`widget-${id}`);
+        if (element) {
+          // Hide redundant buttons for capture
+          const btn = element.querySelector('button');
+          if (btn) btn.style.visibility = 'hidden';
+          
+          const canvas = await html2canvas(element, { 
+            backgroundColor: '#0a0e14', 
+            scale: 2,
+            useCORS: true 
+          });
+          
+          if (btn) btn.style.visibility = 'visible';
+          
+          const info = CHART_TYPES.find(c => c.id === id);
+          capturedCharts.push({
+            name: info?.name || 'Chart',
+            image: canvas.toDataURL('image/png')
+          });
+        }
+      }
+
+      // Step 2: Inject these images into the Report Portal
+      const reportElement = document.getElementById('report-portal');
       if (reportElement) {
+        // Clear previous charts in portal and add new ones
+        const chartContainer = reportElement.querySelector('#report-charts-grid');
+        if (chartContainer) {
+          chartContainer.innerHTML = capturedCharts.map(c => `
+            <div style="border: 1px solid #eeeeee; padding: 15px; border-radius: 12px; display: flex; flex-direction: column; align-items: center;">
+               <p style="font-weight: 800; margin-bottom: 10px; font-size: 14px; width: 100%; text-align: left;">${c.name}</p>
+               <img src="${c.image}" style="width: 100%; height: auto; border-radius: 4px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);" />
+            </div>
+          `).join('');
+        }
+
         reportElement.style.display = 'block';
         
-        // Use html2canvas to capture the nicely formatted report
-        const canvas = await html2canvas(reportElement, {
-          backgroundColor: '#ffffff', // White background for print
+        // Step 3: Capture the FINAL composite report
+        const finalCanvas = await html2canvas(reportElement, {
+          backgroundColor: '#ffffff',
           scale: 2,
           useCORS: true,
           windowWidth: 1200
         });
         
-        pages.push(canvas.toDataURL('image/png'));
+        await exportDashboardAsPDF(
+          'Executive Intelligence Report',
+          [finalCanvas.toDataURL('image/png')],
+          'NeoSupport_Full_Report'
+        );
+        
         reportElement.style.display = 'none';
       }
-
-      await exportDashboardAsPDF(
-        'Executive Intelligence Report',
-        pages,
-        'NeoSupport_Report'
-      );
     } catch (err) {
-      console.error('Export error:', err);
+      console.error('Final Export error:', err);
       alert('การส่งออกผิดพลาด กรุณาลองใหม่อีกครั้ง');
     } finally {
       setExporting(false);
@@ -463,8 +498,13 @@ export default function AdvancedAnalyticsPage() {
            <p style={{ color: '#666666' }}>สรุปสถิติการดำเนินงาน • NEO SUPPORT DASHBOARD</p>
         </div>
 
+        {/* Dynamic Charts Grid */}
+        <div id="report-charts-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '30px', marginBottom: '40px' }}>
+           {/* Injected via JS */}
+        </div>
+
         <div style={{ marginTop: '40px' }}>
-           <h3 style={{ fontSize: '18px', fontWeight: '800', marginBottom: '20px', color: '#7367f0' }}>ตารางสรุปข้อมูลใบงาน (Ticket Summary)</h3>
+           <h3 style={{ fontSize: '18px', fontWeight: '800', marginBottom: '20px', color: '#7367f0', borderLeft: '5px solid #7367f0', paddingLeft: '15px' }}>ตารางสรุปข้อมูลใบงาน (Ticket Summary)</h3>
            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
               <thead>
                  <tr style={{ background: '#7367f0', color: '#ffffff' }}>
