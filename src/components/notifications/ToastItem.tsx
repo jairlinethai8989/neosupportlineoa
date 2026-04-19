@@ -24,8 +24,8 @@ const TYPE_CONFIG: Record<string, { icon: React.ElementType; color: string; bg: 
   },
   ticket: {
     icon: Ticket,
-    color: '#00f2fe',
-    bg: 'rgba(0, 242, 254, 0.12)',
+    color: '#3699FF',
+    bg: 'rgba(54, 153, 255, 0.12)',
     label: 'ใบงาน',
   },
   message: {

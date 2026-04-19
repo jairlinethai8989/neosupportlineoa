@@ -55,9 +55,9 @@
   --text-main: #0f172a;      /* High contrast black */
   --text-muted: #475569;     /* Legible dark gray */
   --text-dim: #64748b;
-  --primary: #2563eb;        /* Blue 600 */
-  --primary-transparent: rgba(37, 99, 235, 0.1);
-  --primary-glow: rgba(37, 99, 235, 0.2);
+  --primary: #3699FF;        /* Neo Blue */
+  --primary-transparent: rgba(54, 153, 255, 0.1);
+  --primary-glow: rgba(54, 153, 255, 0.2);
 }
 
 [data-theme='blue'] {
@@ -72,9 +72,9 @@
   --text-main: #f0f9ff;
   --text-muted: #7dd3fc;
   --text-dim: #38bdf8;
-  --primary: #0ea5e9;
-  --primary-transparent: rgba(14, 165, 233, 0.15);
-  --primary-glow: rgba(14, 165, 233, 0.3);
+  --primary: #3699FF;
+  --primary-transparent: rgba(54, 153, 255, 0.15);
+  --primary-glow: rgba(54, 153, 255, 0.3);
 }
 
 [data-theme='cyan'] {
@@ -89,9 +89,9 @@
   --text-main: #ecfeff;
   --text-muted: #67e8f9;
   --text-dim: #06b6d4;
-  --primary: #06b6d4;
-  --primary-transparent: rgba(6, 182, 212, 0.15);
-  --primary-glow: rgba(6, 182, 212, 0.3);
+  --primary: #3699FF;
+  --primary-transparent: rgba(54, 153, 255, 0.15);
+  --primary-glow: rgba(54, 153, 255, 0.3);
 }
 
 [data-theme='gray'] {
@@ -106,9 +106,9 @@
   --text-main: #f9fafb;
   --text-muted: #9ca3af;
   --text-dim: #6b7280;
-  --primary: #f3f4f6;
-  --primary-transparent: rgba(243, 244, 246, 0.1);
-  --primary-glow: rgba(243, 244, 246, 0.2);
+  --primary: #3699FF;
+  --primary-transparent: rgba(54, 153, 255, 0.1);
+  --primary-glow: rgba(54, 153, 255, 0.2);
 }
 
 
@@ -202,7 +202,7 @@ input, button, select, textarea, optgroup, option {
 
 .sidebar-btn-premium.active {
   background: var(--primary-transparent) !important;
-  color: var(--primary) !important;
+  color: white !important;
   box-shadow: inset 3px 0 0 var(--primary);
 }
 

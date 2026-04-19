@@ -21,7 +21,7 @@ export const InboxSidebar: React.FC<InboxSidebarProps> = ({
       <div style={{ padding: '24px', borderBottom: '1px solid var(--border)' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
           <h2 style={{ fontSize: '20px', fontWeight: '800' }}>แชททั้งหมด</h2>
-          <div style={{ background: 'var(--primary)', color: 'black', padding: '2px 8px', borderRadius: '12px', fontSize: '11px', fontWeight: '800' }}>
+          <div style={{ background: 'var(--primary)', color: 'white', padding: '2px 8px', borderRadius: '12px', fontSize: '11px', fontWeight: '800' }}>
              {conversations.length} รายการ
           </div>
         </div>

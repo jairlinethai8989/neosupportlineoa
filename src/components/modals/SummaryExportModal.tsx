@@ -102,23 +102,6 @@ export default function SummaryExportModal({ isOpen, onClose, onExport, ticketNo
           </button>
         </div>
 
-        {format === 'pdf' && (
-          <div style={{ 
-            display: 'flex', 
-            gap: '10px', 
-            padding: '12px', 
-            background: 'rgba(255, 159, 67, 0.1)', 
-            borderRadius: '10px', 
-            marginBottom: '24px',
-            border: '1px solid rgba(255, 159, 67, 0.2)'
-          }}>
-            <AlertCircle size={18} style={{ color: '#ff9f43', flexShrink: 0 }} />
-            <p style={{ fontSize: '11px', color: '#ff9f43', lineHeight: '1.4' }}>
-              การส่งออกเป็น PDF อาจแสดงผลภาษาไทยได้ไม่สมบูรณ์ หากต้องการข้อมูลภาษาไทยครบถ้วน แนะนำให้ใช้ Excel
-            </p>
-          </div>
-        )}
-
         <button 
           onClick={handleExport}
           disabled={loading}
@@ -128,7 +111,7 @@ export default function SummaryExportModal({ isOpen, onClose, onExport, ticketNo
             padding: '16px',
             borderRadius: '12px',
             background: format === 'pdf' ? 'var(--primary)' : 'var(--success)',
-            color: '#0a0e14',
+            color: 'white',
             border: 'none',
             fontWeight: '800',
             fontSize: '16px',

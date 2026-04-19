@@ -61,7 +61,7 @@ const actionButtonBaseStyle: React.CSSProperties = {
 const messageActionButtonStyle: React.CSSProperties = {
   ...actionButtonBaseStyle,
   color: 'var(--primary)',
-  background: 'rgba(115, 103, 240, 0.1)',
+  background: 'var(--primary-transparent)',
 };
 
 const detailsActionButtonStyle: React.CSSProperties = {
@@ -72,9 +72,9 @@ const detailsActionButtonStyle: React.CSSProperties = {
 const StatusBadge = ({ status }: { status: string }) => {
   const normalized = String(status || 'New').toLowerCase();
   const configs: Record<string, { color: string; label: string }> = {
-    new: { color: '#4facfe', label: 'New' },
+    new: { color: 'var(--primary)', label: 'New' },
     pending: { color: '#ea5455', label: 'Pending' },
-    assigned: { color: '#7367f0', label: 'Assigned' },
+    assigned: { color: '#3699FF', label: 'Assigned' },
     'in progress': { color: '#ff9f43', label: 'In Progress' },
     resolved: { color: '#28c76f', label: 'Resolved' },
     closed: { color: '#94a3b8', label: 'Closed' },

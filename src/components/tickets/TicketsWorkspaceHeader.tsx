@@ -123,7 +123,7 @@ export function TicketsWorkspaceHeader({
                   border: 'none',
                   cursor: 'pointer',
                   background: timeRange === option.id ? 'var(--primary)' : 'transparent',
-                  color: timeRange === option.id ? '#0a0e14' : 'var(--text-muted)',
+                  color: timeRange === option.id ? 'white' : 'var(--text-muted)',
                   transition: 'all 0.2s',
                 }}
               >
@@ -193,7 +193,7 @@ export function TicketsWorkspaceHeader({
             style={{
               ...viewToggleButtonStyle,
               background: viewMode === 'table' ? 'var(--primary)' : 'transparent',
-              color: viewMode === 'table' ? '#0a0e14' : 'var(--text-muted)',
+              color: viewMode === 'table' ? 'white' : 'var(--text-muted)',
             }}
           >
             <List size={16} /> LIST
@@ -203,7 +203,7 @@ export function TicketsWorkspaceHeader({
             style={{
               ...viewToggleButtonStyle,
               background: viewMode === 'board' ? 'var(--primary)' : 'transparent',
-              color: viewMode === 'board' ? '#0a0e14' : 'var(--text-muted)',
+              color: viewMode === 'board' ? 'white' : 'var(--text-muted)',
             }}
           >
             <LayoutGrid size={16} /> BOARD
