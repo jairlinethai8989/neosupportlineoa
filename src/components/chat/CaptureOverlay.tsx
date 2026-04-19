@@ -51,52 +51,53 @@ export default function CaptureOverlay({ onCapture, onCancel }: CaptureOverlayPr
     if (containerRef.current) containerRef.current.style.visibility = 'hidden';
 
     try {
-      // 1. Give the browser more time to hide the overlay visually
-      await new Promise(r => setTimeout(r, 200));
+      // 1. Give the browser more time to repaint without the overlay
+      await new Promise(r => setTimeout(r, 400));
       
       const deviceScale = window.devicePixelRatio || 1;
+      const bodyRect = document.body.getBoundingClientRect();
       
-      // 2. Capture ONLY what's visible in the current viewport
-      // This prevents issues with huge documents (e.g. long ticket lists)
+      // 2. Capture the entire body - this is the safest target
       const fullCanvas = await html2canvas(document.body, {
         useCORS: true,
-        allowTaint: true, // Allow taints as a fallback
+        allowTaint: true,
         logging: false,
-        scale: deviceScale > 1 ? 1.5 : 1, // Balanced quality/performance
-        backgroundColor: null,
-        // Force these settings to focus only on what the user sees
-        width: window.innerWidth,
-        height: window.innerHeight,
-        windowWidth: window.innerWidth,
-        windowHeight: window.innerHeight,
-        x: window.scrollX,
-        y: window.scrollY,
+        scale: deviceScale,
+        backgroundColor: '#ffffff', // Ensures no transparency issues
       });
 
-      // 3. Create a temporary canvas for the final cropped image
-      const finalScale = fullCanvas.width / window.innerWidth;
-      const cropWidth = width * finalScale;
-      const cropHeight = height * finalScale;
-      
+      // 3. Calculate COORDINATES relative to the body element
+      // This hones in on the EXACT spot the mouse was over
+      const cropX = (x - bodyRect.left) * deviceScale;
+      const cropY = (y - bodyRect.top) * deviceScale;
+      const cropWidth = width * deviceScale;
+      const cropHeight = height * deviceScale;
+
+      if (cropWidth <= 0 || cropHeight <= 0) throw new Error('Selection area too small');
+
+      // 4. Manual cropping with precision
       const cropCanvas = document.createElement('canvas');
       cropCanvas.width = cropWidth;
       cropCanvas.height = cropHeight;
 
       const ctx = cropCanvas.getContext('2d');
-      if (!ctx) throw new Error('Could not get canvas context');
+      if (!ctx) throw new Error('Canvas context unavailable');
 
-      // Use client coordinates relative to the viewport
       ctx.drawImage(
         fullCanvas,
-        x * finalScale, y * finalScale, cropWidth, cropHeight,
+        cropX, cropY, cropWidth, cropHeight,
         0, 0, cropWidth, cropHeight
       );
 
-      const dataUrl = cropCanvas.toDataURL('image/jpeg', 0.9);
+      // 5. Use PNG for better compatibility and quality
+      const dataUrl = cropCanvas.toDataURL('image/png');
+      
+      if (!dataUrl || dataUrl === 'data:,') throw new Error('Image creation failed');
+      
       onCapture(dataUrl);
     } catch (error) {
-      console.error('Capture failed, trying safe fallback:', error);
-      // Fallback: Just return a smaller capture if possible or cancel
+      console.error('Precision capture failed:', error);
+      alert('ไม่สามารถบันทึกภาพได้: ' + (error instanceof Error ? error.message : 'โปรดลองอีกครั้ง'));
       onCancel();
     } finally {
       setIsCapturing(false);
