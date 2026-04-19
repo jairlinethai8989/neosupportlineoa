@@ -51,68 +51,60 @@ export default function CaptureOverlay({ onCapture, onCancel }: CaptureOverlayPr
     if (containerRef.current) containerRef.current.style.visibility = 'hidden';
 
     try {
-      // 1. Wait for 2 animation frames to ensure overlay is fully hidden by the browser
+      // 1. Wait for 2 frames as per Codex
       await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
       
       const pixelRatio = window.devicePixelRatio || 1;
       
-      // 2. Capture specifically the current viewport area at native device scale
+      // 2. Capture FULL body to ensure we get exactly what's under the overlay
+      // We don't limit x/y here to avoid precision issues during the render phase
       const fullCanvas = await html2canvas(document.body, {
         useCORS: true,
         allowTaint: true,
         logging: false,
         scale: pixelRatio,
         backgroundColor: '#ffffff',
-        // Lock capture to the EXACT viewport coordinates
-        x: window.scrollX,
-        y: window.scrollY,
-        width: window.innerWidth,
-        height: window.innerHeight,
-        windowWidth: window.innerWidth,
-        windowHeight: window.innerHeight,
         onclone: (clonedDoc) => {
-          // SANITIZE: Strip oklch to prevent parser crashes
+          // SANITIZE: oklch check
           const styles = clonedDoc.getElementsByTagName('style');
           for (let i = 0; i < styles.length; i++) {
-            try {
-              styles[i].innerHTML = styles[i].innerHTML.replace(/oklch\([^)]+\)/g, '#ffffff');
-            } catch (e) {}
-          }
-          const allElements = clonedDoc.getElementsByTagName('*');
-          for (let i = 0; i < allElements.length; i++) {
-            const el = allElements[i] as HTMLElement;
-            const styleAttr = el.getAttribute('style');
-            if (styleAttr && styleAttr.includes('oklch')) {
-              el.setAttribute('style', styleAttr.replace(/oklch\([^)]+\)/g, '#ffffff'));
-            }
+             try { styles[i].innerHTML = styles[i].innerHTML.replace(/oklch\([^)]+\)/g, '#ffffff'); } catch (e) {}
           }
         }
       });
 
-      // 3. PIXEL-ACCURATE CALCULATIONS (Axis-specific scaling)
-      const scaleX = fullCanvas.width / window.innerWidth;
-      const scaleY = fullCanvas.height / window.innerHeight;
+      // 3. PRECISION CALCULATIONS: Find the body's actual position
+      // This is crucial for dashboards where body might not start at 0,0 
+      // or content is offset by sidebars
+      const bodyRect = document.body.getBoundingClientRect();
       
-      // Normalize selection
+      // Calculate where the mouse is relative to the ACTUAL document body
+      // We used clientX/Y, which is window-relative.
+      // We need to know where the top-left of the window is relative to the body's pixels.
+      const scaleX = fullCanvas.width / bodyRect.width;
+      const scaleY = fullCanvas.height / bodyRect.height;
+      
       const left = Math.min(startPos.x, currentPos.x);
       const top = Math.min(startPos.y, currentPos.y);
       const selWidth = Math.abs(startPos.x - currentPos.x);
       const selHeight = Math.abs(startPos.y - currentPos.y);
 
-      const sx = left * scaleX;
-      const sy = top * scaleY;
+      // Map viewport client coords to body-canvas pixels
+      // Subtracting bodyRect.left/top is the magic that handles sidebars
+      const sx = (left - bodyRect.left) * scaleX;
+      const sy = (top - bodyRect.top) * scaleY;
       const sw = selWidth * scaleX;
       const sh = selHeight * scaleY;
 
-      if (sw <= 1 || sh <= 1) throw new Error('Selection area is too small');
+      if (sw <= 1 || sh <= 1) throw new Error('Selection too small');
 
-      // 4. Create the high-quality final canvas
+      // 4. Crop with axis-specific accuracy
       const cropCanvas = document.createElement('canvas');
       cropCanvas.width = sw;
       cropCanvas.height = sh;
 
       const ctx = cropCanvas.getContext('2d', { alpha: false });
-      if (!ctx) throw new Error('Could not initialize canvas context');
+      if (!ctx) throw new Error('Canvas Fail');
 
       ctx.fillStyle = '#ffffff';
       ctx.fillRect(0, 0, sw, sh);
@@ -124,11 +116,9 @@ export default function CaptureOverlay({ onCapture, onCancel }: CaptureOverlayPr
       );
 
       const dataUrl = cropCanvas.toDataURL('image/png');
-      if (!dataUrl || dataUrl === 'data:,') throw new Error('Failed to generate image data');
-      
       onCapture(dataUrl);
     } catch (error) {
-      console.error('Expert Capture Error:', error);
+      console.error('Expert Precision Error:', error);
       alert('Capture ล้มเหลว: ' + (error instanceof Error ? error.message : 'ปัญหาการประมวลผลพิกัด'));
       onCancel();
     } finally {
