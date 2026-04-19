@@ -12,7 +12,9 @@ import { ticketService } from '@/lib/services/ticketService';
 import { TicketHeader } from '@/components/tickets/TicketHeader';
 import { TicketChat } from '@/components/tickets/TicketChat';
 import { TicketSidebar, getTicketDuration } from '@/components/tickets/TicketSidebar';
-import { Clock } from 'lucide-react';
+import Link from 'next/link';
+import Image from 'next/image';
+import { User, Clock, ChevronRight } from 'lucide-react';
 import { deleteMessageAction, closeConversationAction } from '@/app/actions/messageActions';
 import { useNotificationContext } from '@/contexts/NotificationContext';
 import {
@@ -548,7 +550,13 @@ export default function StaffTicketDetailPage() {
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px', paddingLeft: '40px', borderLeft: '2px solid var(--border)' }}>
              <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: 'var(--secondary)', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 {ticket.customers?.avatar_url ? (
-                   <Image src={ticket.customers.avatar_url} alt="avatar" width={44} height={44} unoptimized style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                   <Image 
+                      src={ticket.customers.avatar_url} 
+                      alt="avatar" 
+                      width={44} 
+                      height={44} 
+                      style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                   />
                 ) : (
                    <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>
                       <User size={20} />
