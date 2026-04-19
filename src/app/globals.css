@@ -202,7 +202,7 @@ input, button, select, textarea, optgroup, option {
 
 .sidebar-btn-premium.active {
   background: var(--primary-transparent) !important;
-  color: white !important;
+  color: var(--primary) !important;
   box-shadow: inset 3px 0 0 var(--primary);
 }
 
