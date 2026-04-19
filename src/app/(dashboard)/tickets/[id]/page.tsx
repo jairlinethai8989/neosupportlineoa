@@ -742,7 +742,7 @@ export default function StaffTicketDetailPage() {
                 <h1 style={{ color: '#3699FF', margin: 0, fontSize: '32px', fontWeight: '900', letterSpacing: '1px' }}>NEO SUPPORT</h1>
                 <p style={{ color: '#5e6278', margin: '4px 0 0 0', fontSize: '14px', fontWeight: '600' }}>Service Report & Technical Summary</p>
              </div>
-             <div style={{ text-align: 'right' }}>
+             <div style={{ textAlign: 'right' }}>
                 <p style={{ margin: 0, fontWeight: '800', fontSize: '18px' }}>Ticket: {ticket?.ticket_no}</p>
                 <p style={{ margin: '4px 0 0 0', color: '#5e6278', fontSize: '14px' }}>Date: {new Date().toLocaleDateString('th-TH')}</p>
              </div>
@@ -795,7 +795,7 @@ export default function StaffTicketDetailPage() {
                 <div style={{ width: '4px', height: '20px', background: '#3699FF', borderRadius: '2px' }}></div>
                 <h3 style={{ margin: 0, fontSize: '15px', fontWeight: '800', color: '#3699FF', textTransform: 'uppercase' }}>AI ANALYSIS & SATISFACTION</h3>
              </div>
-             <div style={{ padding: '20px', borderRadius: '12px', border: '1px solid #e1e3ea', fontSize: '14px', color: '#5e6278', italic: true }}>
+             <div style={{ padding: '20px', borderRadius: '12px', border: '1px solid #e1e3ea', fontSize: '14px', color: '#5e6278', fontStyle: 'italic' }}>
                 N/A
              </div>
           </div>
