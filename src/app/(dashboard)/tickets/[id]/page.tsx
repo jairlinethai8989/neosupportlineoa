@@ -199,6 +199,7 @@ export default function StaffTicketDetailPage() {
         if (profile) {
           const mergedUser: TicketDetailUser = {
             id: authUser.id,
+            display_name: (profile as { display_name?: string | null }).display_name || null,
             role: (profile as { role?: string | null }).role || null,
           };
           setUser(mergedUser);

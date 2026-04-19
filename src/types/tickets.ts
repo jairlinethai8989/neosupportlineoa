@@ -68,6 +68,7 @@ export type TicketDetailRole = 'Administrator' | string;
 
 export interface TicketDetailUser {
   id?: string | null;
+  display_name?: string | null;
   role?: TicketDetailRole | null;
 }
 
