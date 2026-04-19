@@ -34,7 +34,7 @@ import { arrayMove, SortableContext, sortableKeyboardCoordinates, rectSortingStr
 import { CSS } from '@dnd-kit/utilities';
 import { DateTime } from 'luxon';
 import { supabase } from '@/lib/supabase';
-import { exportToExcel, exportToPDF, exportAnalyticsWithCharts } from '@/lib/utils/exportUtils';
+import { exportToExcel, exportToPDF, exportDashboardAsPDF } from '@/lib/utils/exportUtils';
 import Skeleton from '@/components/ui/Skeleton';
 import html2canvas from 'html2canvas';
 
@@ -372,42 +372,31 @@ export default function AdvancedAnalyticsPage() {
     // Professional PDF Export with Charts
     setExporting(true);
     try {
-      const chartImages: any[] = [];
+      const pages: string[] = [];
+      const reportElement = document.getElementById('report-portal');
       
-      // Capture each active widget
-      for (const id of activeWidgets) {
-        const element = document.getElementById(`widget-${id}`);
-        if (element) {
-          // Temporarily hide remove button for clean capture
-          const removeBtn = element.querySelector('button') as HTMLElement;
-          if (removeBtn) removeBtn.style.visibility = 'hidden';
-          
-          const canvas = await html2canvas(element, {
-            backgroundColor: '#0a0e14', // Match theme
-            scale: 2, // High resolution
-            logging: false,
-            useCORS: true
-          });
-          
-          if (removeBtn) removeBtn.style.visibility = 'visible';
-          
-          const chartInfo = CHART_TYPES.find(c => c.id === id);
-          chartImages.push({
-            id,
-            name: chartInfo?.name || 'Chart',
-            image: canvas.toDataURL('image/png')
-          });
-        }
+      if (reportElement) {
+        reportElement.style.display = 'block';
+        
+        // Use html2canvas to capture the nicely formatted report
+        const canvas = await html2canvas(reportElement, {
+          backgroundColor: '#ffffff', // White background for print
+          scale: 2,
+          useCORS: true,
+          windowWidth: 1200
+        });
+        
+        pages.push(canvas.toDataURL('image/png'));
+        reportElement.style.display = 'none';
       }
 
-      await exportAnalyticsWithCharts(
-        'Executive Analytics Report',
-        chartImages,
-        dataToExport,
-        'NeoSupport_Intelligence_Report'
+      await exportDashboardAsPDF(
+        'Executive Intelligence Report',
+        pages,
+        'NeoSupport_Report'
       );
     } catch (err) {
-      console.error('Export failed:', err);
+      console.error('Export error:', err);
       alert('การส่งออกผิดพลาด กรุณาลองใหม่อีกครั้ง');
     } finally {
       setExporting(false);
@@ -459,6 +448,48 @@ export default function AdvancedAnalyticsPage() {
 
   return (
     <div className="animate-page-in">
+      {/* Hidden Report Template for PDF Capture */}
+      <div id="report-portal" style={{ 
+        display: 'none', 
+        width: '1000px', 
+        background: '#ffffff', 
+        padding: '60px', 
+        color: '#000000',
+        position: 'absolute',
+        left: '-9999px'
+      }}>
+        <div style={{ borderBottom: '4px solid #7367f0', paddingBottom: '20px', marginBottom: '40px' }}>
+           <h1 style={{ fontSize: '32px', color: '#000000', marginBottom: '8px' }}>Executive Intelligence Report</h1>
+           <p style={{ color: '#666666' }}>สรุปสถิติการดำเนินงาน • NEO SUPPORT DASHBOARD</p>
+        </div>
+
+        <div style={{ marginTop: '40px' }}>
+           <h3 style={{ fontSize: '18px', fontWeight: '800', marginBottom: '20px', color: '#7367f0' }}>ตารางสรุปข้อมูลใบงาน (Ticket Summary)</h3>
+           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+              <thead>
+                 <tr style={{ background: '#7367f0', color: '#ffffff' }}>
+                    <th style={{ padding: '12px', textAlign: 'left', border: '1px solid #7367f0' }}>No.</th>
+                    <th style={{ padding: '12px', textAlign: 'left', border: '1px solid #7367f0' }}>Subject</th>
+                    <th style={{ padding: '12px', textAlign: 'left', border: '1px solid #7367f0' }}>Status</th>
+                    <th style={{ padding: '12px', textAlign: 'left', border: '1px solid #7367f0' }}>Priority</th>
+                    <th style={{ padding: '12px', textAlign: 'left', border: '1px solid #7367f0' }}>Created</th>
+                 </tr>
+              </thead>
+              <tbody>
+                 {tickets.slice(0, 50).map((t, idx) => (
+                    <tr key={idx} style={{ background: idx % 2 === 0 ? '#fafafa' : '#ffffff' }}>
+                       <td style={{ padding: '10px', border: '1px solid #eeeeee' }}>{t.ticket_no}</td>
+                       <td style={{ padding: '10px', border: '1px solid #eeeeee' }}>{t.subject}</td>
+                       <td style={{ padding: '10px', border: '1px solid #eeeeee' }}>{t.status}</td>
+                       <td style={{ padding: '10px', border: '1px solid #eeeeee' }}>{t.priority}</td>
+                       <td style={{ padding: '10px', border: '1px solid #eeeeee' }}>{DateTime.fromISO(t.created_at).toFormat('dd/MM/yyyy')}</td>
+                    </tr>
+                 ))}
+              </tbody>
+           </table>
+        </div>
+      </div>
+
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '24px', marginBottom: '32px' }}>
         <div style={{ flex: '1', minWidth: '300px' }}>
           <h1 style={{ fontSize: '32px', fontWeight: '800', marginBottom: '4px' }}>ศูนย์บริหารสถิติอัจฉริยะ</h1>
