@@ -407,14 +407,14 @@ export const TicketChat: React.FC<TicketChatProps> = ({
                 onClick={onScreenCapture}
                 disabled={sending}
                 className="glass-interactive flex-center"
-                title="Capture screen"
+                title="Capture screen (LINE style)"
                 style={{
                   width: '36px',
                   height: '36px',
                   borderRadius: '50%',
                   border: 'none',
                   background: 'transparent',
-                  color: 'var(--text-muted)',
+                  color: 'var(--primary)',
                 }}
               >
                 <Monitor size={18} />

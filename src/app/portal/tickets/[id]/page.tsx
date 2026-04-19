@@ -13,7 +13,8 @@ import {
   AlertCircle,
   FileText,
   SendHorizontal,
-  Paperclip
+  Paperclip,
+  Monitor
 } from 'lucide-react';
 import ChatAttachmentModal from '@/components/chat/ChatAttachmentModal';
 import ImageEditorModal from '@/components/modals/ImageEditorModal';
@@ -173,6 +174,32 @@ export default function TicketDetailPage() {
     setIsViewerOpen(true);
   };
 
+  const handleScreenCapture = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getDisplayMedia({ video: true });
+      const video = document.createElement('video');
+      video.srcObject = stream;
+      await new Promise((resolve) => {
+        video.onloadedmetadata = () => {
+          video.play();
+          resolve(true);
+        };
+      });
+
+      const canvas = document.createElement('canvas');
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      canvas.getContext('2d')?.drawImage(video, 0, 0);
+      stream.getTracks().forEach((track) => track.stop());
+
+      setEditingImage(canvas.toDataURL('image/jpeg', 0.9));
+      setIsEditorOpen(true);
+    } catch (err: any) {
+      if (err.name === 'NotAllowedError') return;
+      alert('Capture failed: ' + err.message);
+    }
+  };
+
   const handleSendMessage = async () => {
     if (!newMessage.trim()) return;
     
@@ -327,10 +354,19 @@ export default function TicketDetailPage() {
             <div style={{ display: 'flex', gap: '10px', alignItems: 'center', background: '#f8fafc', padding: '8px', borderRadius: '16px' }}>
                <button 
                  onClick={() => setIsAttachModalOpen(true)} 
+                 title="แนบไฟล์หรือรูปภาพ"
                  style={{ width: '40px', height: '40px', borderRadius: '12px', border: 'none', background: 'white', color: '#64748b', cursor: 'pointer', boxShadow: '0 2px 5px rgba(0,0,0,0.05)' }} 
                  className="flex-center"
                >
                   <Paperclip size={18} />
+               </button>
+               <button 
+                 onClick={handleScreenCapture} 
+                 title="Capture หน้าจอ"
+                 style={{ width: '40px', height: '40px', borderRadius: '12px', border: 'none', background: 'white', color: 'var(--portal-primary)', cursor: 'pointer', boxShadow: '0 2px 5px rgba(0,0,0,0.05)' }} 
+                 className="flex-center"
+               >
+                  <Monitor size={18} />
                </button>
                <input 
                  type="text" 
