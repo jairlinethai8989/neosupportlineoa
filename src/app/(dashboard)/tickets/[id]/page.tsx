@@ -15,6 +15,8 @@ import { TicketSidebar, getTicketDuration } from '@/components/tickets/TicketSid
 import Link from 'next/link';
 import Image from 'next/image';
 import { User, Clock, ChevronRight } from 'lucide-react';
+import html2canvas from 'html2canvas';
+import { jsPDF } from 'jspdf';
 import { deleteMessageAction, closeConversationAction } from '@/app/actions/messageActions';
 import { useNotificationContext } from '@/contexts/NotificationContext';
 import {
@@ -71,6 +73,7 @@ export default function StaffTicketDetailPage() {
   const { addToast } = useNotificationContext();
   const adminFileRef = useRef<HTMLInputElement>(null);
   const conversationIdRef = useRef<string | null>(null);
+  const reportRef = useRef<HTMLDivElement>(null);
 
   const [ticket, setTicket] = useState<TicketDetailTicket | null>(null);
   const [user, setUser] = useState<TicketDetailUser | null>(null);
@@ -110,7 +113,7 @@ export default function StaffTicketDetailPage() {
         .from('tickets')
         .select(`
           *,
-          customers!tickets_customer_id_fkey (*),
+          customers!tickets_customer_id_fkey (*, hospitals:hospitals(*)),
           assigned_agent:profiles!assigned_agent_id(*),
           department_data:departments!current_department_id(id, name)
         `)
@@ -473,6 +476,38 @@ export default function StaffTicketDetailPage() {
     user?.id,
   ]);
 
+  const handleExportSummary = async () => {
+    if (!reportRef.current || !ticket) {
+      addToast('ข้อมูลไม่พร้อมใช้งานสำหรับการส่งออก', 'error');
+      return;
+    }
+
+    try {
+      addToast('กำลังเตรียมไฟล์ PDF...', 'info');
+      
+      const canvas = await html2canvas(reportRef.current, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        backgroundColor: '#ffffff'
+      });
+      
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'px',
+        format: [canvas.width, canvas.height]
+      });
+
+      pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height);
+      pdf.save(`Service_Report_${ticket.ticket_no}.pdf`);
+      addToast('ส่งออกใบงานสำเร็จ', 'success');
+    } catch (error) {
+      console.error('PDF Export Error:', error);
+      addToast('ไม่สามารถส่งออกใบงานได้', 'error');
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex-center" style={loadingContainerStyle}>
@@ -679,9 +714,103 @@ export default function StaffTicketDetailPage() {
       <SummaryExportModal
         isOpen={showExportModal}
         onClose={() => setShowExportModal(false)}
-        onExport={() => {}}
-        ticketNo={ticket.ticket_no || ''}
+        onExport={async (format) => {
+          if (format === 'pdf') {
+            await handleExportSummary();
+          } else {
+            // Future XLSX implementation if needed
+            addToast('ฟังก์ชัน Excel ยังไม่พร้อมใช้งาน', 'info');
+          }
+        }}
+        ticketNo={ticket?.ticket_no || ''}
       />
+
+      {/* Hidden Report Template (for PDF Export) */}
+      <div style={{ position: 'absolute', left: '-9999px', top: '-9999px' }}>
+        <div ref={reportRef} style={{ 
+          width: '800px', 
+          padding: '60px', 
+          background: 'white', 
+          color: 'black', 
+          fontFamily: "'Inter', 'Sarabun', sans-serif",
+          display: 'flex',
+          flexDirection: 'column'
+        }}>
+          {/* Header */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '2px solid #3699FF', paddingBottom: '24px', marginBottom: '40px' }}>
+             <div>
+                <h1 style={{ color: '#3699FF', margin: 0, fontSize: '32px', fontWeight: '900', letterSpacing: '1px' }}>NEO SUPPORT</h1>
+                <p style={{ color: '#5e6278', margin: '4px 0 0 0', fontSize: '14px', fontWeight: '600' }}>Service Report & Technical Summary</p>
+             </div>
+             <div style={{ text-align: 'right' }}>
+                <p style={{ margin: 0, fontWeight: '800', fontSize: '18px' }}>Ticket: {ticket?.ticket_no}</p>
+                <p style={{ margin: '4px 0 0 0', color: '#5e6278', fontSize: '14px' }}>Date: {new Date().toLocaleDateString('th-TH')}</p>
+             </div>
+          </div>
+
+          {/* Info Boxes */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', marginBottom: '40px' }}>
+             <div style={{ background: '#f5f8fa', padding: '24px', borderRadius: '12px', border: '1px solid #e1e3ea' }}>
+                <h3 style={{ margin: '0 0 16px 0', fontSize: '13px', fontWeight: '800', color: '#181c32', textTransform: 'uppercase', letterSpacing: '0.5px', borderBottom: '1px solid #e1e3ea', paddingBottom: '10px' }}>CLIENT INFO</h3>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '14px' }}>
+                   <p style={{ margin: 0 }}><strong>Hospital:</strong> {(ticket?.customers as any)?.hospitals?.name || '-'}</p>
+                   <p style={{ margin: 0 }}><strong>Department:</strong> {ticket?.department_data?.name || '-'}</p>
+                   <p style={{ margin: 0 }}><strong>Reporter:</strong> {ticket?.customers?.display_name || '-'}</p>
+                </div>
+             </div>
+             <div style={{ background: '#f5f8fa', padding: '24px', borderRadius: '12px', border: '1px solid #e1e3ea' }}>
+                <h3 style={{ margin: '0 0 16px 0', fontSize: '13px', fontWeight: '800', color: '#181c32', textTransform: 'uppercase', letterSpacing: '0.5px', borderBottom: '1px solid #e1e3ea', paddingBottom: '10px' }}>ISSUE DETAILS</h3>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '14px' }}>
+                   <p style={{ margin: 0 }}><strong>Type:</strong> {ticket?.issue_type || '-'}</p>
+                   <p style={{ margin: 0 }}><strong>Module:</strong> {ticket?.module || '-'}</p>
+                   <p style={{ margin: 0 }}><strong>Status:</strong> {ticket?.status || '-'}</p>
+                </div>
+             </div>
+          </div>
+
+          {/* Content Sections */}
+          <div style={{ marginBottom: '32px' }}>
+             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
+                <div style={{ width: '4px', height: '20px', background: '#3699FF', borderRadius: '2px' }}></div>
+                <h3 style={{ margin: 0, fontSize: '15px', fontWeight: '800', color: '#3699FF', textTransform: 'uppercase' }}>PROBLEM DESCRIPTION</h3>
+             </div>
+             <div style={{ padding: '20px', borderRadius: '12px', border: '1px solid #e1e3ea', minHeight: '100px', fontSize: '14px', lineHeight: '1.6', background: 'white' }}>
+                {ticket?.subject || ticket?.description || '-'}
+             </div>
+          </div>
+
+          <div style={{ marginBottom: '32px' }}>
+             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
+                <div style={{ width: '4px', height: '20px', background: '#28C76F', borderRadius: '2px' }}></div>
+                <h3 style={{ margin: 0, fontSize: '15px', fontWeight: '800', color: '#28C76F', textTransform: 'uppercase' }}>RESOLUTION & NOTES</h3>
+             </div>
+             <div style={{ padding: '20px', borderRadius: '12px', border: '1px solid #c3ebce', background: '#f0fff4', minHeight: '120px', fontSize: '14px', lineHeight: '1.6' }}>
+                <p style={{ margin: 0, fontWeight: '700', marginBottom: '8px' }}>วิธีแก้ไข:</p>
+                {ticket?.resolution_summary || '-'}
+             </div>
+          </div>
+
+          <div style={{ marginBottom: '80px' }}>
+             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
+                <div style={{ width: '4px', height: '20px', background: '#3699FF', borderRadius: '2px' }}></div>
+                <h3 style={{ margin: 0, fontSize: '15px', fontWeight: '800', color: '#3699FF', textTransform: 'uppercase' }}>AI ANALYSIS & SATISFACTION</h3>
+             </div>
+             <div style={{ padding: '20px', borderRadius: '12px', border: '1px solid #e1e3ea', fontSize: '14px', color: '#5e6278', italic: true }}>
+                N/A
+             </div>
+          </div>
+
+          {/* Footer Signature */}
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 'auto' }}>
+             <div style={{ width: '280px', textAlign: 'center' }}>
+                <div style={{ height: '60px' }}></div>
+                <div style={{ borderBottom: '1px solid #181c32', marginBottom: '8px' }}></div>
+                <p style={{ margin: 0, fontSize: '15px', fontWeight: '800' }}>({user?.display_name || 'IT Support'})</p>
+                <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: '#5e6278' }}>Responsible Engineer</p>
+             </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

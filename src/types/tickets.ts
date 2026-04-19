@@ -98,6 +98,7 @@ export interface TicketDetailTicket {
   assigned_agent_id: string | null;
   current_department_id: string | null;
   hospital_id: string | null;
+  resolution_summary?: string | null;
   customers?: TicketDetailCustomer | null;
   assigned_agent?: TicketDetailAssignedAgent | null;
 }
