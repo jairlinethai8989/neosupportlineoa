@@ -88,6 +88,7 @@ export function normalizeTicketWorkspaceTicket(value: unknown): TicketWorkspaceT
     hospitals: normalizeHospital(value.hospitals),
     customers: normalizeCustomer(value.customers),
     assigned_agent: normalizeAssignedAgent(value.assigned_agent),
+    department_data: value.department_data as any,
   };
 }
 

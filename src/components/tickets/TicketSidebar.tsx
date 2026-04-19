@@ -18,7 +18,7 @@ interface TicketSidebarProps {
   setPriority: (p: string) => void;
   selectedDept: string;
   setSelectedDept: (d: string) => void;
-  availableDepts: string[];
+  availableDepts: any[];
   selectedModule: string;
   setSelectedModule: (m: string) => void;
   availableModules: string[];
@@ -234,9 +234,9 @@ export const TicketSidebar: React.FC<TicketSidebarProps> = ({
                 fontWeight: '800',
               }}
             >
-              {availableDepts.map((department) => (
-                <option key={department} value={department}>
-                  {department}
+              {availableDepts.map((dept) => (
+                <option key={dept.value} value={dept.value}>
+                  {dept.label}
                 </option>
               ))}
             </select>

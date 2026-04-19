@@ -22,7 +22,7 @@ import {
 import { useNotificationContext } from '@/contexts/NotificationContext';
 import { auditService } from '@/lib/services/auditService';
 
-type Tab = 'hospitals' | 'departments' | 'positions' | 'modules' | 'issue_types';
+type Tab = 'hospitals' | 'departments' | 'hospital_depts' | 'positions' | 'modules' | 'issue_types';
 
 export default function MasterSettingsPage() {
   const [activeTab, setActiveTab] = useState<Tab>('hospitals');
@@ -30,6 +30,7 @@ export default function MasterSettingsPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [globalSettings, setGlobalSettings] = useState<any>(null);
+  const [hospitals, setHospitals] = useState<any[]>([]);
   const { addToast } = useNotificationContext();
   
   // Form State
@@ -37,12 +38,19 @@ export default function MasterSettingsPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [newItemName, setNewItemName] = useState('');
   const [newItemAbbr, setNewItemAbbr] = useState('');
+  const [selectedHospitalId, setSelectedHospitalId] = useState<string>('');
   const [editItemName, setEditItemName] = useState('');
   const [submitting, setSubmitting] = useState(false);
-
+  
   const fetchData = async () => {
     setLoading(true);
     
+    // Fetch hospitals for dropdowns if needed
+    if (activeTab === 'hospital_depts' || hospitals.length === 0) {
+      const { data: hData } = await supabase.from('hospitals').select('id, name').order('name');
+      setHospitals(hData || []);
+    }
+
     // Handle company_settings based tabs
     if (activeTab === 'modules' || activeTab === 'issue_types') {
       const { data } = await supabase.from('company_settings').select('*').limit(1).single();
@@ -61,14 +69,23 @@ export default function MasterSettingsPage() {
     }
 
     let table = '';
+    let query = null;
+
     if (activeTab === 'hospitals') table = 'hospitals';
     else if (activeTab === 'departments') table = 'departments';
+    else if (activeTab === 'hospital_depts') table = 'departments';
     else if (activeTab === 'positions') table = 'positions';
 
-    const { data } = await supabase
-      .from(table)
-      .select('*')
-      .order('name');
+    query = supabase.from(table).select('*').order('name');
+
+    // Separation Logic
+    if (activeTab === 'departments') {
+      query = query.is('hospital_id', null);
+    } else if (activeTab === 'hospital_depts') {
+      query = query.not('hospital_id', 'is', null);
+    }
+
+    const { data } = await query;
     
     setItems(data || []);
     setLoading(false);
@@ -78,12 +95,14 @@ export default function MasterSettingsPage() {
     fetchData();
     setIsAdding(false);
     setEditingId(null);
+    setNewItemName('');
+    setSelectedHospitalId('');
   }, [activeTab]);
 
   const handleAdd = async () => {
     if (!newItemName.trim()) return;
     setSubmitting(true);
-    let table = activeTab;
+    let table = activeTab === 'hospital_depts' ? 'departments' : activeTab;
     
     // Handle company_settings based tabs
     if (activeTab === 'modules' || activeTab === 'issue_types') {
@@ -114,9 +133,20 @@ export default function MasterSettingsPage() {
       is_active: true 
     };
 
-    if (table === 'hospitals') {
+    if (activeTab === 'hospitals') {
       payload.abbreviation = newItemAbbr.trim() || newItemName.slice(0, 10).toUpperCase();
       payload.ticket_prefix = `SRS_${payload.abbreviation}_`;
+    }
+
+    if (activeTab === 'hospital_depts') {
+      if (!selectedHospitalId) {
+        alert('กรุณาเลือกโรงพยาบาลด้วยครับ');
+        setSubmitting(false);
+        return;
+      }
+      payload.hospital_id = selectedHospitalId;
+    } else if (activeTab === 'departments') {
+      payload.hospital_id = null;
     }
 
     const { error } = await supabase.from(table).insert([payload]);
@@ -127,6 +157,7 @@ export default function MasterSettingsPage() {
     } else {
       setNewItemName('');
       setNewItemAbbr('');
+      setSelectedHospitalId('');
       setIsAdding(false);
       fetchData();
 
@@ -152,7 +183,7 @@ export default function MasterSettingsPage() {
   const handleUpdate = async (id: string) => {
     if (!editItemName.trim()) return;
     setSubmitting(true);
-    let table = activeTab;
+    let table = activeTab === 'hospital_depts' ? 'departments' : activeTab;
 
     if (activeTab === 'modules' || activeTab === 'issue_types') {
         const arrayProp = activeTab === 'modules' ? 'modules' : 'issue_types';
@@ -202,7 +233,7 @@ export default function MasterSettingsPage() {
   };
 
   const toggleStatus = async (id: string, current: boolean) => {
-    let table = activeTab;
+    let table = activeTab === 'hospital_depts' ? 'departments' : activeTab;
     
     if (activeTab === 'modules' || activeTab === 'issue_types') {
         // Simple delete for arrays instead of toggle
@@ -248,10 +279,11 @@ export default function MasterSettingsPage() {
 
   const TAB_CONFIG = {
     hospitals: { title: 'โรงพยาบาล / หน่วยงาน', icon: Building2, desc: 'จัดการรายชื่อสถานพยาบาลที่รองรับในระบบ' },
-    departments: { title: 'แผนก / ฝ่าย', icon: Users, desc: 'จัดการรายชื่อแผนกภายในองค์กร' },
+    departments: { title: 'แผนกในองค์กร', icon: Users, desc: 'ชุดแผนกส่วนกลางสำหรับแผนกประจำการและหน้าใบงาน' },
+    hospital_depts: { title: 'แผนกใน รพ.', icon: Layout, desc: 'ชุดแผนกที่สังกัดรพ.ต่างๆ สำหรับระบุตำแหน่งที่ตั้งอุปกรณ์หรือผู้แจ้ง' },
     positions: { title: 'ตำแหน่งงาน', icon: Briefcase, desc: 'จัดการชื่อตำแหน่งสำหรับผู้แจ้งล่วงหน้า' },
-    modules: { title: 'ระบบที่เกี่ยวข้อง / Modules', icon: Layout, desc: 'จัดการชื่อโมดูลหรือโปรแกรมต่างๆ' },
-    issue_types: { title: 'ประเภทงาน', icon: Tag, desc: 'จัดการประเภทของงาน เช่น REQ, PB, แนะนำ — ใช้ในหน้าสรุปงานและรายงานประจำวัน' }
+    modules: { title: 'Modules', icon: FileText, desc: 'จัดการชื่อโมดูลหรือโปรแกรมต่างๆ' },
+    issue_types: { title: 'ประเภทงาน', icon: Tag, desc: 'จัดการประเภทของงาน เช่น REQ, PB, แนะนำ' }
   };
 
   const ActiveIcon = TAB_CONFIG[activeTab].icon;
@@ -269,7 +301,7 @@ export default function MasterSettingsPage() {
 
       {/* Tabs Selector */}
       <div style={{ display: 'flex', gap: '8px', marginBottom: '32px', background: 'rgba(255,255,255,0.03)', padding: '6px', borderRadius: '16px', border: '1px solid var(--border)', width: 'fit-content', flexWrap: 'wrap' }}>
-        {(['hospitals', 'departments', 'positions', 'modules', 'issue_types'] as Tab[]).map(t => (
+        {(['hospitals', 'departments', 'hospital_depts', 'positions', 'modules', 'issue_types'] as Tab[]).map(t => (
           <button
             key={t}
             onClick={() => setActiveTab(t)}
@@ -320,14 +352,14 @@ export default function MasterSettingsPage() {
          {/* Add Form (Expandable) */}
          {isAdding && (
            <div style={{ padding: '24px', background: 'rgba(0, 242, 254, 0.03)', borderBottom: '1px solid var(--border)', animation: 'slideInRight 0.3s ease-out' }}>
-              <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+              <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
                  <input 
                    autoFocus
                    type="text" 
                    placeholder={`ระบุชื่อ${TAB_CONFIG[activeTab].title.split(' / ')[0]}...`}
                    value={newItemName}
                    onChange={e => setNewItemName(e.target.value)}
-                   style={{ flex: 2, background: 'rgba(255,255,255,0.1)', border: '1px solid var(--primary)', borderRadius: '12px', padding: '14px 20px', color: 'var(--text-main)', fontSize: '15px', outline: 'none' }}
+                   style={{ flex: 2, minWidth: '200px', background: 'rgba(255,255,255,0.1)', border: '1px solid var(--primary)', borderRadius: '12px', padding: '14px 20px', color: 'var(--text-main)', fontSize: '15px', outline: 'none' }}
                    onKeyDown={e => e.key === 'Enter' && handleAdd()}
                  />
                  
@@ -337,8 +369,19 @@ export default function MasterSettingsPage() {
                      placeholder="ชื่อย่อ (ABBR)" 
                      value={newItemAbbr}
                      onChange={e => setNewItemAbbr(e.target.value)}
-                     style={{ flex: 1, background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', borderRadius: '12px', padding: '14px 20px', color: 'var(--text-main)', fontSize: '15px', outline: 'none' }}
+                     style={{ flex: 1, minWidth: '120px', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', borderRadius: '12px', padding: '14px 20px', color: 'var(--text-main)', fontSize: '15px', outline: 'none' }}
                    />
+                 )}
+
+                 {activeTab === 'hospital_depts' && (
+                   <select
+                     value={selectedHospitalId}
+                     onChange={e => setSelectedHospitalId(e.target.value)}
+                     style={{ flex: 1, minWidth: '150px', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', borderRadius: '12px', padding: '14px 20px', color: 'var(--text-main)', fontSize: '15px', outline: 'none', cursor: 'pointer' }}
+                   >
+                     <option value="">เลือกโรงพยาบาล...</option>
+                     {hospitals.map(h => <option key={h.id} value={h.id}>{h.name}</option>)}
+                   </select>
                  )}
 
                  <button onClick={handleAdd} disabled={submitting} style={{ background: 'var(--primary)', border: 'none', width: '48px', minWidth: '48px', height: '48px', borderRadius: '12px', cursor: 'pointer', color: 'black' }} className="flex-center">

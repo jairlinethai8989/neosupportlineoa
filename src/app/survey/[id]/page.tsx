@@ -46,7 +46,7 @@ export default function SurveyPage() {
     setSubmitting(true);
     try {
       await supabase.from('csat_surveys').update({
-        score: rating,
+        rating: rating,
         comment: comment,
         responded_at: new Date().toISOString()
       }).eq('ticket_id', id);

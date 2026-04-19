@@ -74,7 +74,7 @@ export default function StaffTicketDetailPage() {
   const [status, setStatus] = useState('');
   const [priority, setPriority] = useState('');
   const [selectedDept, setSelectedDept] = useState('');
-  const [availableDepts, setAvailableDepts] = useState<string[]>([]);
+  const [availableDepts, setAvailableDepts] = useState<any[]>([]);
   const [selectedModule, setSelectedModule] = useState('');
   const [selectedIssueType, setSelectedIssueType] = useState('');
   const [availableIssueTypes, setAvailableIssueTypes] = useState<string[]>([]);
@@ -101,7 +101,8 @@ export default function StaffTicketDetailPage() {
         .select(`
           *,
           customers!tickets_customer_id_fkey (*),
-          assigned_agent:profiles!assigned_agent_id(*)
+          assigned_agent:profiles!assigned_agent_id(*),
+          department_data:departments!current_department_id(id, name)
         `)
         .eq('id', ticketId)
         .maybeSingle();
@@ -112,7 +113,7 @@ export default function StaffTicketDetailPage() {
         setTicket(normalizedTicket);
         setStatus(normalizedTicket.status || '');
         setPriority(normalizedTicket.priority || '');
-        setSelectedDept(normalizedTicket.department || '');
+        setSelectedDept(normalizedTicket.current_department_id || '');
         setSelectedModule(normalizedTicket.module || '');
 
         const { data: logData } = await supabase
@@ -151,13 +152,20 @@ export default function StaffTicketDetailPage() {
         if (msgData) setMessages(msgData as TicketDetailMessage[]);
       }
 
+      const { data: deptData } = await supabase
+        .from('departments')
+        .select('id, name')
+        .is('hospital_id', null)
+        .eq('is_active', true)
+        .order('name');
+
+      if (deptData) setAvailableDepts(deptData.map(d => ({ label: d.name, value: d.id })));
+
       const { data: companyData } = await supabase
         .from('company_settings')
-        .select('id, departments, modules, issue_types')
+        .select('id, modules, issue_types')
         .limit(1)
         .single();
-
-      if (companyData?.departments) setAvailableDepts(companyData.departments);
       setAvailableModules(
         companyData?.modules && companyData.modules.length > 0
           ? companyData.modules
@@ -237,8 +245,10 @@ export default function StaffTicketDetailPage() {
     async (field: 'status' | 'priority' | 'department' | 'module', value: string) => {
       if (!ticketId) return;
 
+      const dbField = field === 'department' ? 'current_department_id' : field;
+
       try {
-        await supabase.from('tickets').update({ [field]: value }).eq('id', ticketId);
+        await supabase.from('tickets').update({ [dbField]: value }).eq('id', ticketId);
       } catch (error) {
         addToast(getTicketDetailActionFailedToast('update ticket', error));
       }

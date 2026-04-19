@@ -46,6 +46,7 @@ export interface TicketWorkspaceTicket {
   hospitals?: TicketWorkspaceHospital | null;
   customers?: TicketWorkspaceCustomer | null;
   assigned_agent?: TicketWorkspaceAssignedAgent | null;
+  department_data?: { id: string; name: string } | null;
 }
 
 export interface TicketWorkspaceProfile {

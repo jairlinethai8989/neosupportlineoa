@@ -121,7 +121,7 @@ export async function POST(req: Request) {
                 subject: `LINE Support: ${messageText?.substring(0, 30)}${messageText?.length > 30 ? '...' : ''}`,
                 status: 'New',
                 priority: 'Medium',
-                department: 'Customer Service'
+                current_department_id: '2ebdd410-7f71-4924-8dde-1a923fcf72b2' // แผนกเทคโนโลยีสารสนเทศ (IT Department)
               }])
               .select()
               .single();

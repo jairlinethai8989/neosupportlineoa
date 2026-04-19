@@ -75,11 +75,12 @@ export default function StaffManagementPage() {
       if (!isMounted) return;
       await fetchStaff();
       
-      // Fetch dynamic departments
-      const { data: company } = await supabase.from('company_settings').select('departments').limit(1).single();
-      if (company?.departments) {
-        setDepartments(company.departments);
-        setForm(prev => ({ ...prev, department: company.departments[0] || '' }));
+      // Fetch dynamic organization departments from normalized table
+      const { data: depts } = await supabase.from('departments').select('name').eq('is_active', true).is('hospital_id', null).order('name');
+      if (depts) {
+        const deptNames = depts.map(d => d.name);
+        setDepartments(deptNames);
+        setForm(prev => ({ ...prev, department: deptNames[0] || '' }));
       }
     };
     fetchStaffAsync();

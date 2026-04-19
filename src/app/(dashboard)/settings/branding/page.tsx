@@ -25,7 +25,6 @@ export default function BrandingSettingsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const [newDeptName, setNewDeptName] = useState('');
   const { addToast } = useNotificationContext();
 
   useEffect(() => {
@@ -80,33 +79,34 @@ export default function BrandingSettingsPage() {
          const { error } = await supabase.from('company_settings').update({
             company_name: company.company_name,
             logo_url: company.logo_url,
-            departments: company.departments || [],
-            modules: company.modules || [],
             updated_at: new Date().toISOString()
           }).eq('id', company.id);
          if (error) throw error;
       } else {
          const { error } = await supabase.from('company_settings').insert([{
             company_name: company.company_name,
-            logo_url: company.logo_url,
-            departments: company.departments || [],
-            modules: company.modules || []
+            logo_url: company.logo_url
           }]);
          if (error) throw error;
       }
-      // Log the update
-      const { auditService } = await import('@/lib/services/auditService');
-      await auditService.log({
-        performer_id: (await supabase.auth.getUser()).data.user?.id,
-        action_type: 'BRANDING_UPDATE',
-        entity_type: 'COMPANY',
-        entity_id: company.id,
-        new_data: { 
-          company_name: company.company_name, 
-          logo_url: company.logo_url 
-        },
-        note: `Updated corporate branding and logo`
-      });
+      // Log the update (Secondary operation, don't let it block success)
+      try {
+        const { auditService } = await import('@/lib/services/auditService');
+        const { data: { user } } = await supabase.auth.getUser();
+        await auditService.log({
+          performer_id: user?.id,
+          action_type: 'BRANDING_UPDATE',
+          entity_type: 'COMPANY',
+          entity_id: company?.id,
+          new_data: { 
+            company_name: company?.company_name, 
+            logo_url: company?.logo_url 
+          },
+          note: `Updated corporate branding and logo`
+        });
+      } catch (logErr) {
+        console.error('Logging failed:', logErr);
+      }
 
       addToast({
         id: 'branding-save',
@@ -114,62 +114,14 @@ export default function BrandingSettingsPage() {
         title: 'Success! ✅',
         body: 'บันทึกข้อมูลองค์กรเรียบร้อยแล้ว'
       });
-    } catch (err) {
-      alert('Save failed');
+    } catch (err: any) {
+      console.error('Save failed details:', err);
+      // Detailed error for better debugging
+      const errorMsg = err.message || err.details || 'Unknown database error';
+      alert(`บันทึกไม่สำเร็จ: ${errorMsg}\n\n(หากคุณเห็นข้อความนี้ทันทีหลังจากทำ Migration กรุณากด Refresh หน้าเว็บหนึ่งครั้งครับ)`);
     } finally {
       setSaving(false);
     }
-  };
-
-  const handleAddDepartment = async () => {
-    if (!newDeptName.trim()) return;
-    const updatedDepts = [...(company?.departments || []), newDeptName.trim()];
-    setCompany({ ...(company || {}), departments: updatedDepts });
-    setNewDeptName('');
-    
-    try {
-      await supabase.from('company_settings').update({ 
-        departments: updatedDepts,
-        updated_at: new Date().toISOString() 
-      }).eq('id', company.id);
-      
-      // Log the addition
-      const { auditService } = await import('@/lib/services/auditService');
-      await auditService.log({
-        performer_id: (await supabase.auth.getUser()).data.user?.id,
-        action_type: 'DEPT_CREATE',
-        entity_type: 'DEPARTMENT',
-        new_data: { department: newDeptName.trim() },
-        note: `Added new department: ${newDeptName.trim()}`
-      });
-
-      addToast({
-        id: 'dept-add',
-        type: 'ticket',
-        title: 'Added! ✨',
-        body: `เพิ่มแผนก "${newDeptName.trim()}" เรียบร้อย`
-      });
-    } catch (err) { alert('Failed to add department'); }
-  };
-
-  const handleDeleteDepartment = async (name: string) => {
-    if (!confirm(`ยืนยันการลบแผนก "${name}"?`)) return;
-    const updatedDepts = (company?.departments || []).filter((d: string) => d !== name);
-    setCompany({ ...(company || {}), departments: updatedDepts });
-
-    try {
-      await supabase.from('company_settings').update({ 
-        departments: updatedDepts,
-        updated_at: new Date().toISOString() 
-      }).eq('id', company.id);
-      
-      addToast({
-        id: 'dept-delete',
-        type: 'ticket',
-        title: 'Deleted! 🗑️',
-        body: 'ลบแผนกเรียบร้อยแล้ว'
-      });
-    } catch (err) { alert('Failed to delete department'); }
   };
 
   if (loading) {
@@ -208,7 +160,7 @@ export default function BrandingSettingsPage() {
          <h1 style={{ fontSize: '28px', fontWeight: '900', letterSpacing: '-0.5px' }}>ตราสินค้าองค์กร</h1>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '32px' }}>
+     <div style={{ display: 'grid', gridTemplateColumns: 'minmax(400px, 600px)', gap: '32px', justifyContent: 'center' }}>
          {/* 1. Company Branding */}
          <div className="glass" style={{ padding: '32px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '32px' }}>
@@ -283,68 +235,21 @@ export default function BrandingSettingsPage() {
             <div style={{ padding: '16px', marginTop: '24px', background: 'rgba(54, 153, 255, 0.05)', borderRadius: '12px', border: '1px solid rgba(54, 153, 255, 0.1)' }}>
                <div style={{ display: 'flex', gap: '12px' }}>
                   <ShieldCheck size={18} color="var(--primary)" />
-                  <p style={{ fontSize: '13px', color: 'var(--text-muted)', lineHeight: '1.5' }}>
-                     ข้อมูลเหล่านี้จะถูกนำไปใช้ในหน้า **Dashboard**, **Sidebar** และ **เอกสารรายงาน** ทั่วทั้งระบบแบบเรียลไทม์
-                  </p>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <p style={{ fontSize: '13px', color: 'var(--text-main)', fontWeight: '700' }}>
+                       โหมดจัดการการแสดงผลแบรนด์
+                    </p>
+                    <p style={{ fontSize: '12px', color: 'var(--text-muted)', lineHeight: '1.5' }}>
+                       ข้อมูลเหล่านี้จะถูกนำไปใช้ในหน้า Dashboard, Sidebar และเอกสารรายงาน ทั่วทั้งระบบแบบเรียลไทม์
+                    </p>
+                    <Link href="/settings/master" style={{ color: 'var(--primary)', fontSize: '12px', fontWeight: '800', marginTop: '8px', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                       จัดการโครงสร้างแผนกและหน่วยงานแทน →
+                    </Link>
+                  </div>
                </div>
             </div>
          </div>
-
-         {/* 2. Department Management */}
-         <div className="glass" style={{ padding: '32px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '32px' }}>
-               <div style={{ background: 'rgba(54, 153, 255, 0.1)', padding: '10px', borderRadius: '12px' }}>
-                  <Building size={24} color="var(--primary)" />
-               </div>
-               <div>
-                 <h2 style={{ fontSize: '20px', fontWeight: '700', lineHeight: '1.2' }}>จัดการแผนก</h2>
-                 <p style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Department Structures</p>
-               </div>
-            </div>
-
-            <div style={{ marginBottom: '24px' }}>
-               <label style={{ display: 'block', fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '12px' }}>เพิ่มประเภทแผนก (ADD DEPARTMENT)</label>
-               <div style={{ display: 'flex', gap: '8px' }}>
-                  <input 
-                    type="text" 
-                    placeholder="ระบุชื่อแผนกที่ต้องการ..." 
-                    value={newDeptName}
-                    onChange={e => setNewDeptName(e.target.value)}
-                    onKeyDown={e => e.key === 'Enter' && handleAddDepartment()}
-                    style={{ flex: 1, background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '10px', padding: '14px', color: 'var(--text-main)', outline: 'none', fontWeight: '600' }}
-                  />
-                  <button 
-                    onClick={handleAddDepartment}
-                    className="glass-interactive flex-center"
-                    style={{ width: '52px', height: '52px', borderRadius: '10px', background: 'var(--primary)', color: 'black', border: 'none' }}>
-                    <Plus size={24} />
-                  </button>
-               </div>
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxHeight: '430px', overflowY: 'auto', paddingRight: '8px' }} className="no-scrollbar">
-               <label style={{ fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '6px' }}>หมวดหมู่แผนกที่เปิดใช้งาน ({company?.departments?.length || 0})</label>
-               {company?.departments?.map((dept: string, idx: number) => (
-                  <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 20px', background: 'rgba(255,255,255,0.02)', borderRadius: '12px', border: '1px solid var(--border)' }}>
-                     <span style={{ fontSize: '14px', fontWeight: '700', color: 'var(--text-main)' }}>{dept}</span>
-                     <button 
-                       onClick={() => handleDeleteDepartment(dept)}
-                       style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                       <Trash2 size={16} />
-                       <span style={{ fontSize: '11px', fontWeight: '800' }}>ลบ</span>
-                     </button>
-                  </div>
-               ))}
-               {(!company?.departments || company.departments.length === 0) && (
-                  <div style={{ textAlign: 'center', padding: '40px', background: 'rgba(255,255,255,0.01)', borderRadius: '16px', border: '1px dashed var(--border)' }}>
-                     <p style={{ color: 'var(--text-muted)', fontSize: '13px' }}>ยังไม่มีการกำหนดแผนกในระบบ</p>
-                  </div>
-               )}
-            </div>
-         </div>
-
       </div>
-       
     </div>
   );
 }

@@ -242,7 +242,7 @@ export default function AdvancedAnalyticsPage() {
       const [ticketsRes, csatRes] = await Promise.all([
         supabase
           .from('tickets')
-          .select('*')
+          .select('*, department_data:departments!current_department_id(name)')
           .gte('created_at', dateRange.start)
           .lte('created_at', dateRange.end),
         supabase
@@ -278,7 +278,7 @@ export default function AdvancedAnalyticsPage() {
     const statusCounts = tickets.reduce((acc: any, t) => { acc[t.status] = (acc[t.status] || 0) + 1; return acc; }, {});
     const priorityCounts = tickets.reduce((acc: any, t) => { acc[t.priority] = (acc[t.priority] || 0) + 1; return acc; }, {});
     const categoryCounts = tickets.reduce((acc: any, t) => { 
-      const cat = t.department || 'Unassigned';
+      const cat = (t as any).department_data?.name || 'Unassigned';
       acc[cat] = (acc[cat] || 0) + 1; 
       return acc; 
     }, {});

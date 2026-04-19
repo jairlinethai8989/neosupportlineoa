@@ -62,9 +62,9 @@ export default function ProfileSettingsPage() {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         const { data: p } = await supabase.from('profiles').select('*').eq('id', user.id).single();
-        const { data: c } = await supabase.from('company_settings').select('departments').limit(1).single();
+        const { data: depts } = await supabase.from('departments').select('name').eq('is_active', true).is('hospital_id', null).order('name');
         setProfile(p);
-        if (c?.departments) setCompanyDepts(c.departments);
+        if (depts) setCompanyDepts(depts.map(d => d.name));
       }
       setLoading(false);
     }
