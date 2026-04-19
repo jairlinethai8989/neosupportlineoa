@@ -76,7 +76,7 @@ export default function StaffManagementPage() {
       await fetchStaff();
       
       // Fetch dynamic organization departments from normalized table
-      const { data: depts } = await supabase.from('departments').select('name').eq('is_active', true).is('hospital_id', null).order('name');
+      const { data: depts } = await supabase.from('departments').select('name').eq('is_active', true).eq('dept_type', 'organization').order('name');
       if (depts) {
         const deptNames = depts.map(d => d.name);
         setDepartments(deptNames);

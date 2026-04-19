@@ -38,15 +38,14 @@ export default function MasterSettingsPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [newItemName, setNewItemName] = useState('');
   const [newItemAbbr, setNewItemAbbr] = useState('');
-  const [selectedHospitalId, setSelectedHospitalId] = useState<string>('');
   const [editItemName, setEditItemName] = useState('');
   const [submitting, setSubmitting] = useState(false);
   
   const fetchData = async () => {
     setLoading(true);
     
-    // Fetch hospitals for dropdowns if needed
-    if (activeTab === 'hospital_depts' || hospitals.length === 0) {
+    // Fetch hospitals for other tabs if needed
+    if (activeTab === 'hospitals' || hospitals.length === 0) {
       const { data: hData } = await supabase.from('hospitals').select('id, name').order('name');
       setHospitals(hData || []);
     }
@@ -78,11 +77,11 @@ export default function MasterSettingsPage() {
 
     query = supabase.from(table).select('*').order('name');
 
-    // Separation Logic
+    // Separation Logic using dept_type
     if (activeTab === 'departments') {
-      query = query.is('hospital_id', null);
+      query = query.eq('dept_type', 'organization');
     } else if (activeTab === 'hospital_depts') {
-      query = query.not('hospital_id', 'is', null);
+      query = query.eq('dept_type', 'hospital');
     }
 
     const { data } = await query;
@@ -96,13 +95,12 @@ export default function MasterSettingsPage() {
     setIsAdding(false);
     setEditingId(null);
     setNewItemName('');
-    setSelectedHospitalId('');
   }, [activeTab]);
 
   const handleAdd = async () => {
     if (!newItemName.trim()) return;
     setSubmitting(true);
-    let table = activeTab === 'hospital_depts' ? 'departments' : activeTab;
+    let table = (activeTab === 'departments' || activeTab === 'hospital_depts') ? 'departments' : activeTab;
     
     // Handle company_settings based tabs
     if (activeTab === 'modules' || activeTab === 'issue_types') {
@@ -139,25 +137,19 @@ export default function MasterSettingsPage() {
     }
 
     if (activeTab === 'hospital_depts') {
-      if (!selectedHospitalId) {
-        alert('กรุณาเลือกโรงพยาบาลด้วยครับ');
-        setSubmitting(false);
-        return;
-      }
-      payload.hospital_id = selectedHospitalId;
+      payload.dept_type = 'hospital';
     } else if (activeTab === 'departments') {
-      payload.hospital_id = null;
+      payload.dept_type = 'organization';
     }
 
     const { error } = await supabase.from(table).insert([payload]);
     
     if (error) {
       console.error('Add Error:', error);
-      alert(`บันทึกไม่สำเร็จ: ${error.message}`);
+      alert(`บันทึกไม่สำเร็จ: ${error.message} (ตรวจสอบว่ารัน SQL เพิ่มคอลัมน์ dept_type แล้วหรือยังครับ)`);
     } else {
       setNewItemName('');
       setNewItemAbbr('');
-      setSelectedHospitalId('');
       setIsAdding(false);
       fetchData();
 
@@ -167,7 +159,7 @@ export default function MasterSettingsPage() {
         action_type: 'MASTER_CREATE',
         entity_type: table.toUpperCase(),
         new_data: payload,
-        note: `Created new ${table}: ${newItemName}`
+        note: `Created new ${table}: ${newItemName} (${activeTab})`
       });
 
       addToast({
@@ -183,7 +175,7 @@ export default function MasterSettingsPage() {
   const handleUpdate = async (id: string) => {
     if (!editItemName.trim()) return;
     setSubmitting(true);
-    let table = activeTab === 'hospital_depts' ? 'departments' : activeTab;
+    let table = (activeTab === 'departments' || activeTab === 'hospital_depts') ? 'departments' : activeTab;
 
     if (activeTab === 'modules' || activeTab === 'issue_types') {
         const arrayProp = activeTab === 'modules' ? 'modules' : 'issue_types';
@@ -233,7 +225,7 @@ export default function MasterSettingsPage() {
   };
 
   const toggleStatus = async (id: string, current: boolean) => {
-    let table = activeTab === 'hospital_depts' ? 'departments' : activeTab;
+    let table = (activeTab === 'departments' || activeTab === 'hospital_depts') ? 'departments' : activeTab;
     
     if (activeTab === 'modules' || activeTab === 'issue_types') {
         // Simple delete for arrays instead of toggle
@@ -279,8 +271,8 @@ export default function MasterSettingsPage() {
 
   const TAB_CONFIG = {
     hospitals: { title: 'โรงพยาบาล / หน่วยงาน', icon: Building2, desc: 'จัดการรายชื่อสถานพยาบาลที่รองรับในระบบ' },
-    departments: { title: 'แผนกในองค์กร', icon: Users, desc: 'ชุดแผนกส่วนกลางสำหรับแผนกประจำการและหน้าใบงาน' },
-    hospital_depts: { title: 'แผนกใน รพ.', icon: Layout, desc: 'ชุดแผนกที่สังกัดรพ.ต่างๆ สำหรับระบุตำแหน่งที่ตั้งอุปกรณ์หรือผู้แจ้ง' },
+    departments: { title: 'แผนกในองค์กร', icon: Users, desc: 'ชุดแผนกส่วนกลางสำหรับทีมสนับสนุนและธุรการ' },
+    hospital_depts: { title: 'แผนกที่ให้บริการใน รพ.', icon: Layout, desc: 'ชุดแผนกที่ให้บริการเหมือนกันทุก รพ. (เช่น OPD, ER, การเงิน) เพื่อให้ลูกค้าเลือกได้รวดเร็ว' },
     positions: { title: 'ตำแหน่งงาน', icon: Briefcase, desc: 'จัดการชื่อตำแหน่งสำหรับผู้แจ้งล่วงหน้า' },
     modules: { title: 'Modules', icon: FileText, desc: 'จัดการชื่อโมดูลหรือโปรแกรมต่างๆ' },
     issue_types: { title: 'ประเภทงาน', icon: Tag, desc: 'จัดการประเภทของงาน เช่น REQ, PB, แนะนำ' }

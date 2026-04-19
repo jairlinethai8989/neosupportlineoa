@@ -155,7 +155,7 @@ export default function StaffTicketDetailPage() {
       const { data: deptData } = await supabase
         .from('departments')
         .select('id, name')
-        .is('hospital_id', null)
+        .eq('dept_type', 'organization')
         .eq('is_active', true)
         .order('name');
 

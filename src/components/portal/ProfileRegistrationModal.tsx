@@ -49,7 +49,7 @@ export default function ProfileRegistrationModal({ isOpen, profile, existingCust
         console.log('Loading master data...');
         const [hRes, dRes, pRes] = await Promise.all([
           supabase.from('hospitals').select('*').order('name'),
-          supabase.from('departments').select('*').order('name'),
+          supabase.from('departments').select('*').eq('dept_type', 'hospital').eq('is_active', true).order('name'),
           supabase.from('positions').select('*').order('name')
         ]);
 
