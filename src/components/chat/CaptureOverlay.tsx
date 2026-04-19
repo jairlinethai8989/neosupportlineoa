@@ -56,7 +56,7 @@ export default function CaptureOverlay({ onCapture, onCancel }: CaptureOverlayPr
       
       const deviceScale = window.devicePixelRatio || 1;
       
-      // 2. Capture with 'onclone' to fix modern CSS issues (like oklch)
+      // 2. Capture with 'onclone' to sanitise CSS
       const fullCanvas = await html2canvas(document.body, {
         useCORS: true,
         allowTaint: true,
@@ -64,15 +64,23 @@ export default function CaptureOverlay({ onCapture, onCancel }: CaptureOverlayPr
         scale: deviceScale,
         backgroundColor: '#ffffff',
         onclone: (clonedDoc) => {
-          // REMOVE oklch colors which crash html2canvas
+          // STRIP oklch from ALL stylesheets to prevent parser crash
+          const styles = clonedDoc.getElementsByTagName('style');
+          for (let i = 0; i < styles.length; i++) {
+            try {
+              // Replace any oklch(...) occurrences with a safe fallback color
+              styles[i].innerHTML = styles[i].innerHTML.replace(/oklch\([^)]+\)/g, '#ffffff');
+            } catch (e) {
+              console.warn('Could not sanitize style tag:', e);
+            }
+          }
+          
+          // Also check inline styles for good measure
           const elements = clonedDoc.getElementsByTagName('*');
           for (let i = 0; i < elements.length; i++) {
             const el = elements[i] as HTMLElement;
-            if (el.style) {
-              // Reset problematic styles for the capture
-              if (el.style.color?.includes('oklch')) el.style.color = 'inherit';
-              if (el.style.backgroundColor?.includes('oklch')) el.style.backgroundColor = 'transparent';
-              if (el.style.borderColor?.includes('oklch')) el.style.borderColor = 'transparent';
+            if (el.style && el.getAttribute('style')?.includes('oklch')) {
+              el.setAttribute('style', el.getAttribute('style')!.replace(/oklch\([^)]+\)/g, '#ffffff'));
             }
           }
         }
