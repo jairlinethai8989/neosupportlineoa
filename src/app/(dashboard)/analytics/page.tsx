@@ -34,8 +34,9 @@ import { arrayMove, SortableContext, sortableKeyboardCoordinates, rectSortingStr
 import { CSS } from '@dnd-kit/utilities';
 import { DateTime } from 'luxon';
 import { supabase } from '@/lib/supabase';
-import { exportToExcel, exportToPDF } from '@/lib/utils/exportUtils';
+import { exportToExcel, exportToPDF, exportAnalyticsWithCharts } from '@/lib/utils/exportUtils';
 import Skeleton from '@/components/ui/Skeleton';
+import html2canvas from 'html2canvas';
 
 /**
  * 1. Define Chart Types & Mock Logic for 16 variations
@@ -184,7 +185,7 @@ const SortableWidget = ({ id, chart, data, onRemove }: any) => {
   };
 
   return (
-    <div ref={setNodeRef} style={style} className="glass">
+    <div id={`widget-${id}`} ref={setNodeRef} style={style} className="glass">
       <div style={{ padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
         <div {...attributes} {...listeners} style={{ cursor: 'grab', display: 'flex', alignItems: 'center', gap: '10px' }}>
           <div style={{ background: 'linear-gradient(135deg, rgba(0,242,254,0.1), rgba(0,98,255,0.1))', padding: '8px', borderRadius: '10px', color: 'var(--primary)', border: '1px solid var(--border-active)' }}>
@@ -228,6 +229,7 @@ export default function AdvancedAnalyticsPage() {
     end: DateTime.now().toISODate()
   });
   const [loading, setLoading] = useState(true);
+  const [exporting, setExporting] = useState(false);
   const [tickets, setTickets] = useState<any[]>([]);
   const [showWidgetSelector, setShowWidgetSelector] = useState(false);
 
@@ -353,19 +355,62 @@ export default function AdvancedAnalyticsPage() {
     }
   };
 
-  const handleExport = (format: 'excel' | 'pdf') => {
+  const handleExport = async (format: 'excel' | 'pdf') => {
     const dataToExport = tickets.map(t => ({
-      'ID': t.ticket_no,
+      'No.': t.ticket_no,
       'Subject': t.subject,
       'Status': t.status,
       'Priority': t.priority,
-      'Created At': DateTime.fromISO(t.created_at).toFormat('dd/MM/yyyy HH:mm:ss')
+      'Created': DateTime.fromISO(t.created_at).toFormat('dd/MM/yyyy')
     }));
 
     if (format === 'excel') {
       exportToExcel(dataToExport, 'Analytics_Report');
-    } else {
-      exportToPDF(dataToExport, 'Analytics_Report', 'Executive Intelligence Report');
+      return;
+    }
+
+    // Professional PDF Export with Charts
+    setExporting(true);
+    try {
+      const chartImages: any[] = [];
+      
+      // Capture each active widget
+      for (const id of activeWidgets) {
+        const element = document.getElementById(`widget-${id}`);
+        if (element) {
+          // Temporarily hide remove button for clean capture
+          const removeBtn = element.querySelector('button') as HTMLElement;
+          if (removeBtn) removeBtn.style.visibility = 'hidden';
+          
+          const canvas = await html2canvas(element, {
+            backgroundColor: '#0a0e14', // Match theme
+            scale: 2, // High resolution
+            logging: false,
+            useCORS: true
+          });
+          
+          if (removeBtn) removeBtn.style.visibility = 'visible';
+          
+          const chartInfo = CHART_TYPES.find(c => c.id === id);
+          chartImages.push({
+            id,
+            name: chartInfo?.name || 'Chart',
+            image: canvas.toDataURL('image/png')
+          });
+        }
+      }
+
+      await exportAnalyticsWithCharts(
+        'Executive Analytics Report',
+        chartImages,
+        dataToExport,
+        'NeoSupport_Intelligence_Report'
+      );
+    } catch (err) {
+      console.error('Export failed:', err);
+      alert('การส่งออกผิดพลาด กรุณาลองใหม่อีกครั้ง');
+    } finally {
+      setExporting(false);
     }
   };
 
@@ -439,11 +484,22 @@ export default function AdvancedAnalyticsPage() {
            </div>
 
            <div style={{ display: 'flex', gap: '8px' }}>
-              <button onClick={() => handleExport('excel')} className="glass-interactive flex-center" style={{ height: '42px', padding: '0 16px', borderRadius: '12px', border: '1px solid var(--border)', color: 'var(--success)', gap: '8px', fontWeight: 'bold', fontSize: '13px' }}>
+              <button 
+                onClick={() => handleExport('excel')} 
+                disabled={exporting}
+                className="glass-interactive flex-center" 
+                style={{ height: '42px', padding: '0 16px', borderRadius: '12px', border: '1px solid var(--border)', color: 'var(--success)', gap: '8px', fontWeight: 'bold', fontSize: '13px', opacity: exporting ? 0.5 : 1 }}
+              >
                  <FileSpreadsheet size={18} /> EXCEL
               </button>
-              <button onClick={() => handleExport('pdf')} className="glass-interactive flex-center" style={{ height: '42px', padding: '0 16px', borderRadius: '12px', border: '1px solid var(--border)', color: 'var(--danger)', gap: '8px', fontWeight: 'bold', fontSize: '13px' }}>
-                 <Download size={18} /> PDF
+              <button 
+                onClick={() => handleExport('pdf')} 
+                disabled={exporting}
+                className="glass-interactive flex-center" 
+                style={{ height: '42px', padding: '0 16px', borderRadius: '12px', border: '1px solid var(--border)', color: 'var(--danger)', gap: '8px', fontWeight: 'bold', fontSize: '13px', opacity: exporting ? 0.5 : 1 }}
+              >
+                 {exporting ? <RefreshCw size={18} className="animate-spin" /> : <Download size={18} />}
+                 {exporting ? 'EXPORTING...' : 'PDF REPORT'}
               </button>
            </div>
         </div>
