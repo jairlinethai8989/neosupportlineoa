@@ -1,10 +1,22 @@
 'use client';
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import html2canvas from 'html2canvas';
 
 interface CaptureOverlayProps {
   onCapture: (dataUrl: string) => void;
   onCancel: () => void;
+}
+
+function normalizeSelection(
+  start: { x: number; y: number },
+  end: { x: number; y: number }
+) {
+  return {
+    left: Math.min(start.x, end.x),
+    top: Math.min(start.y, end.y),
+    width: Math.abs(start.x - end.x),
+    height: Math.abs(start.y - end.y),
+  };
 }
 
 export default function CaptureOverlay({ onCapture, onCancel }: CaptureOverlayProps) {
@@ -33,16 +45,15 @@ export default function CaptureOverlay({ onCapture, onCancel }: CaptureOverlayPr
     setCurrentPos({ x: e.clientX, y: e.clientY });
   };
 
-  const onMouseUp = async () => {
+  const onMouseUp = async (e: React.MouseEvent) => {
+    const endPos = { x: e.clientX, y: e.clientY };
+    const selection = normalizeSelection(startPos, endPos);
+
+    setCurrentPos(endPos);
     setIsSelecting(false);
     setIsCapturing(true);
 
-    const x = Math.min(startPos.x, currentPos.x);
-    const y = Math.min(startPos.y, currentPos.y);
-    const width = Math.abs(startPos.x - currentPos.x);
-    const height = Math.abs(startPos.y - currentPos.y);
-
-    if (width < 5 || height < 5) {
+    if (selection.width < 5 || selection.height < 5) {
       setIsCapturing(false);
       return; 
     }
@@ -56,19 +67,23 @@ export default function CaptureOverlay({ onCapture, onCancel }: CaptureOverlayPr
       
       const pixelRatio = window.devicePixelRatio || 1;
       
-      // 2. Capture FULL body to ensure we get exactly what's under the overlay
-      // We don't limit x/y here to avoid precision issues during the render phase
       const fullCanvas = await html2canvas(document.body, {
         useCORS: true,
         allowTaint: true,
         logging: false,
         scale: pixelRatio,
         backgroundColor: '#ffffff',
+        x: window.scrollX,
+        y: window.scrollY,
+        width: window.innerWidth,
+        height: window.innerHeight,
+        windowWidth: window.innerWidth,
+        windowHeight: window.innerHeight,
         onclone: (clonedDoc) => {
           // 1. STRIP oklch from ALL stylesheets
           const styles = clonedDoc.getElementsByTagName('style');
           for (let i = 0; i < styles.length; i++) {
-             try { styles[i].innerHTML = styles[i].innerHTML.replace(/oklch\([^)]+\)/g, '#ffffff'); } catch (e) {}
+             try { styles[i].innerHTML = styles[i].innerHTML.replace(/oklch\([^)]+\)/g, '#ffffff'); } catch {}
           }
           
           // 2. STRIP oklch from ALL inline styles (Critical for React/Tailwind)
@@ -83,28 +98,12 @@ export default function CaptureOverlay({ onCapture, onCancel }: CaptureOverlayPr
         }
       });
 
-      // 3. PRECISION CALCULATIONS: Find the body's actual position
-      // This is crucial for dashboards where body might not start at 0,0 
-      // or content is offset by sidebars
-      const bodyRect = document.body.getBoundingClientRect();
-      
-      // Calculate where the mouse is relative to the ACTUAL document body
-      // We used clientX/Y, which is window-relative.
-      // We need to know where the top-left of the window is relative to the body's pixels.
-      const scaleX = fullCanvas.width / bodyRect.width;
-      const scaleY = fullCanvas.height / bodyRect.height;
-      
-      const left = Math.min(startPos.x, currentPos.x);
-      const top = Math.min(startPos.y, currentPos.y);
-      const selWidth = Math.abs(startPos.x - currentPos.x);
-      const selHeight = Math.abs(startPos.y - currentPos.y);
-
-      // Map viewport client coords to body-canvas pixels
-      // Subtracting bodyRect.left/top is the magic that handles sidebars
-      const sx = (left - bodyRect.left) * scaleX;
-      const sy = (top - bodyRect.top) * scaleY;
-      const sw = selWidth * scaleX;
-      const sh = selHeight * scaleY;
+      const scaleX = fullCanvas.width / window.innerWidth;
+      const scaleY = fullCanvas.height / window.innerHeight;
+      const sx = Math.round(selection.left * scaleX);
+      const sy = Math.round(selection.top * scaleY);
+      const sw = Math.round(selection.width * scaleX);
+      const sh = Math.round(selection.height * scaleY);
 
       if (sw <= 1 || sh <= 1) throw new Error('Selection too small');
 
@@ -137,10 +136,7 @@ export default function CaptureOverlay({ onCapture, onCancel }: CaptureOverlayPr
     }
   };
 
-  const left = Math.min(startPos.x, currentPos.x);
-  const top = Math.min(startPos.y, currentPos.y);
-  const width = Math.abs(startPos.x - currentPos.x);
-  const height = Math.abs(startPos.y - currentPos.y);
+  const { left, top, width, height } = normalizeSelection(startPos, currentPos);
 
   return (
     <div 
