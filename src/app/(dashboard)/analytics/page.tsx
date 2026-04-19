@@ -369,69 +369,94 @@ export default function AdvancedAnalyticsPage() {
       return;
     }
 
-    // Professional PDF Export with Charts & Perfect Thai
+    // Professional Multi-Page PDF Export
     setExporting(true);
     try {
-      const capturedCharts: { name: string, image: string }[] = [];
+      const pages: string[] = [];
+      const reportElement = document.getElementById('report-portal');
+      const chartContainer = reportElement?.querySelector('#report-charts-grid');
+      const tableContainer = reportElement?.querySelector('#report-table-container');
       
-      // Step 1: Capture all active charts from screen
+      if (!reportElement || !chartContainer || !tableContainer) return;
+
+      // Prepare Chart Snapshots
+      const capturedCharts: { name: string, image: string }[] = [];
       for (const id of activeWidgets) {
         const element = document.getElementById(`widget-${id}`);
         if (element) {
-          // Hide redundant buttons for capture
           const btn = element.querySelector('button');
           if (btn) btn.style.visibility = 'hidden';
-          
-          const canvas = await html2canvas(element, { 
-            backgroundColor: '#0a0e14', 
-            scale: 2,
-            useCORS: true 
-          });
-          
+          const canvas = await html2canvas(element, { backgroundColor: '#0a0e14', scale: 2, useCORS: true });
           if (btn) btn.style.visibility = 'visible';
-          
           const info = CHART_TYPES.find(c => c.id === id);
-          capturedCharts.push({
-            name: info?.name || 'Chart',
-            image: canvas.toDataURL('image/png')
-          });
+          capturedCharts.push({ name: info?.name || 'Chart', image: canvas.toDataURL('image/png') });
         }
       }
 
-      // Step 2: Inject these images into the Report Portal
-      const reportElement = document.getElementById('report-portal');
-      if (reportElement) {
-        // Clear previous charts in portal and add new ones
-        const chartContainer = reportElement.querySelector('#report-charts-grid');
-        if (chartContainer) {
-          chartContainer.innerHTML = capturedCharts.map(c => `
-            <div style="border: 1px solid #eeeeee; padding: 15px; border-radius: 12px; display: flex; flex-direction: column; align-items: center;">
-               <p style="font-weight: 800; margin-bottom: 10px; font-size: 14px; width: 100%; text-align: left;">${c.name}</p>
-               <img src="${c.image}" style="width: 100%; height: auto; border-radius: 4px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);" />
-            </div>
-          `).join('');
-        }
+      reportElement.style.display = 'block';
 
-        reportElement.style.display = 'block';
-        
-        // Step 3: Capture the FINAL composite report
-        const finalCanvas = await html2canvas(reportElement, {
-          backgroundColor: '#ffffff',
-          scale: 2,
-          useCORS: true,
-          windowWidth: 1200
-        });
-        
-        await exportDashboardAsPDF(
-          'Executive Intelligence Report',
-          [finalCanvas.toDataURL('image/png')],
-          'NeoSupport_Full_Report'
-        );
-        
-        reportElement.style.display = 'none';
+      // --- PAGE 1: Intro + First 4 Charts ---
+      chartContainer.innerHTML = capturedCharts.slice(0, 4).map(c => `
+        <div style="border: 1px solid #eeeeee; padding: 15px; border-radius: 12px; height: 100%; display: flex; flex-direction: column;">
+           <p style="font-weight: 800; margin-bottom: 10px; font-size: 14px;">${c.name}</p>
+           <img src="${c.image}" style="width: 100%; height: auto; border-radius: 4px;" />
+        </div>
+      `).join('');
+      tableContainer.innerHTML = ''; 
+      
+      const canvas1 = await html2canvas(reportElement, { backgroundColor: '#ffffff', scale: 2, windowWidth: 1000 });
+      pages.push(canvas1.toDataURL('image/png'));
+
+      // --- PAGE 2: Next Charts (if any) ---
+      if (capturedCharts.length > 4) {
+        chartContainer.innerHTML = capturedCharts.slice(4, 10).map(c => `
+          <div style="border: 1px solid #eeeeee; padding: 15px; border-radius: 12px;">
+             <p style="font-weight: 800; margin-bottom: 10px; font-size: 14px;">${c.name}</p>
+             <img src="${c.image}" style="width: 100%; height: auto; border-radius: 4px;" />
+          </div>
+        `).join('');
+        const canvas2 = await html2canvas(reportElement, { backgroundColor: '#ffffff', scale: 2, windowWidth: 1000 });
+        pages.push(canvas2.toDataURL('image/png'));
       }
+
+      // --- PAGE 3+: Paginated Table ---
+      const rowsPerPage = 22;
+      for (let i = 0; i < tickets.length; i += rowsPerPage) {
+        chartContainer.innerHTML = ''; 
+        const chunk = tickets.slice(i, i + rowsPerPage);
+        tableContainer.innerHTML = `
+          <h3 style="font-size: 18px; font-weight: 800; margin-bottom: 25px; color: #7367f0; border-left: 5px solid #7367f0; padding-left: 15px;">ตารางสรุปข้อมูล (หน้าที่ ${Math.floor(i/rowsPerPage) + 1})</h3>
+          <table style="width: 100%; border-collapse: collapse; font-size: 12px; margin-bottom: 40px;">
+            <thead>
+               <tr style="background: #7367f0; color: #ffffff;">
+                  <th style="padding: 12px; text-align: left; border: 1px solid #7367f0;">No.</th>
+                  <th style="padding: 12px; text-align: left; border: 1px solid #7367f0;">Subject</th>
+                  <th style="padding: 12px; text-align: left; border: 1px solid #7367f0;">Status</th>
+                  <th style="padding: 12px; text-align: left; border: 1px solid #7367f0;">Priority</th>
+                  <th style="padding: 12px; text-align: left; border: 1px solid #7367f0;">Created</th>
+               </tr>
+            </thead>
+            <tbody>
+               ${chunk.map((t, idx) => `
+                  <tr style="background: ${idx % 2 === 0 ? '#fafafa' : '#ffffff'}">
+                     <td style="padding: 10px; border: 1px solid #eeeeee">${t.ticket_no}</td>
+                     <td style="padding: 10px; border: 1px solid #eeeeee">${t.subject}</td>
+                     <td style="padding: 10px; border: 1px solid #eeeeee">${t.status}</td>
+                     <td style="padding: 10px; border: 1px solid #eeeeee">${t.priority}</td>
+                     <td style="padding: 10px; border: 1px solid #eeeeee">${DateTime.fromISO(t.created_at).toFormat('dd/MM/yyyy')}</td>
+                  </tr>
+               `).join('')}
+            </tbody>
+          </table>
+        `;
+        const canvasTable = await html2canvas(reportElement, { backgroundColor: '#ffffff', scale: 2, windowWidth: 1000 });
+        pages.push(canvasTable.toDataURL('image/png'));
+      }
+
+      await exportDashboardAsPDF('Executive Intelligence Report', pages, 'NeoSupport_Full_Report');
+      reportElement.style.display = 'none';
     } catch (err) {
-      console.error('Final Export error:', err);
+      console.error('Multi-page Export error:', err);
       alert('การส่งออกผิดพลาด กรุณาลองใหม่อีกครั้ง');
     } finally {
       setExporting(false);
@@ -487,10 +512,12 @@ export default function AdvancedAnalyticsPage() {
       <div id="report-portal" style={{ 
         display: 'none', 
         width: '1000px', 
+        minHeight: '1410px',
         background: '#ffffff', 
         padding: '60px', 
         color: '#000000',
         position: 'absolute',
+        top: 0,
         left: '-9999px'
       }}>
         <div style={{ borderBottom: '4px solid #7367f0', paddingBottom: '20px', marginBottom: '40px' }}>
@@ -498,35 +525,12 @@ export default function AdvancedAnalyticsPage() {
            <p style={{ color: '#666666' }}>สรุปสถิติการดำเนินงาน • NEO SUPPORT DASHBOARD</p>
         </div>
 
-        {/* Dynamic Charts Grid */}
-        <div id="report-charts-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '30px', marginBottom: '40px' }}>
-           {/* Injected via JS */}
+        <div id="report-charts-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '30px', marginBottom: '20px' }}>
+           {/* Injected JS */}
         </div>
 
-        <div style={{ marginTop: '40px' }}>
-           <h3 style={{ fontSize: '18px', fontWeight: '800', marginBottom: '20px', color: '#7367f0', borderLeft: '5px solid #7367f0', paddingLeft: '15px' }}>ตารางสรุปข้อมูลใบงาน (Ticket Summary)</h3>
-           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
-              <thead>
-                 <tr style={{ background: '#7367f0', color: '#ffffff' }}>
-                    <th style={{ padding: '12px', textAlign: 'left', border: '1px solid #7367f0' }}>No.</th>
-                    <th style={{ padding: '12px', textAlign: 'left', border: '1px solid #7367f0' }}>Subject</th>
-                    <th style={{ padding: '12px', textAlign: 'left', border: '1px solid #7367f0' }}>Status</th>
-                    <th style={{ padding: '12px', textAlign: 'left', border: '1px solid #7367f0' }}>Priority</th>
-                    <th style={{ padding: '12px', textAlign: 'left', border: '1px solid #7367f0' }}>Created</th>
-                 </tr>
-              </thead>
-              <tbody>
-                 {tickets.slice(0, 50).map((t, idx) => (
-                    <tr key={idx} style={{ background: idx % 2 === 0 ? '#fafafa' : '#ffffff' }}>
-                       <td style={{ padding: '10px', border: '1px solid #eeeeee' }}>{t.ticket_no}</td>
-                       <td style={{ padding: '10px', border: '1px solid #eeeeee' }}>{t.subject}</td>
-                       <td style={{ padding: '10px', border: '1px solid #eeeeee' }}>{t.status}</td>
-                       <td style={{ padding: '10px', border: '1px solid #eeeeee' }}>{t.priority}</td>
-                       <td style={{ padding: '10px', border: '1px solid #eeeeee' }}>{DateTime.fromISO(t.created_at).toFormat('dd/MM/yyyy')}</td>
-                    </tr>
-                 ))}
-              </tbody>
-           </table>
+        <div id="report-table-container">
+           {/* Injected JS */}
         </div>
       </div>
 
