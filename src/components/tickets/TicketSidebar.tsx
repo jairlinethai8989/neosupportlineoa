@@ -23,7 +23,8 @@ interface TicketSidebarProps {
   setSelectedModule: (m: string) => void;
   availableModules: string[];
   logs: TicketDetailLog[];
-  showActivity?: boolean; // New prop to control visibility
+  showActivity?: boolean;
+  showProfile?: boolean; // New prop for profile visibility
 }
 
 export function getTicketDuration(createdAt: string, resolvedAt?: string | null) {
@@ -53,7 +54,8 @@ export const TicketSidebar: React.FC<TicketSidebarProps> = ({
   setSelectedModule,
   availableModules,
   logs,
-  showActivity = true, // Default to true for backward compatibility
+  showActivity = true,
+  showProfile = true, // Default to true
 }) => {
   if (!ticket) return null;
 
@@ -63,68 +65,71 @@ export const TicketSidebar: React.FC<TicketSidebarProps> = ({
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-      <div className="glass" style={{ padding: '24px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '16px' }}>
-          <div
-            style={{
-              width: '52px',
-              height: '52px',
-              borderRadius: '16px',
-              background: 'var(--secondary)',
-              overflow: 'hidden',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            {ticket.customers?.avatar_url ? (
-              <Image
-                src={ticket.customers.avatar_url}
-                alt="avatar"
-                width={52}
-                height={52}
-                unoptimized
-                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-              />
-            ) : (
-              <User size={24} />
-            )}
-          </div>
-          <div>
-            <h4 style={{ fontSize: '16px', fontWeight: '800', color: 'var(--text)' }}>
-              {ticket.customers?.display_name || 'Customer'}
-            </h4>
-            <span
+      {showProfile && (
+        <div className="glass" style={{ padding: '24px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '16px' }}>
+            <div
               style={{
-                fontSize: '10px',
-                padding: '2px 8px',
-                background: 'rgba(0,242,254,0.1)',
-                color: 'var(--primary)',
-                borderRadius: '4px',
-                fontWeight: '800',
+                width: '52px',
+                height: '52px',
+                borderRadius: '16px',
+                background: 'var(--secondary)',
+                overflow: 'hidden',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
               }}
             >
-              CUSTOMER
-            </span>
+              {ticket.customers?.avatar_url ? (
+                <Image
+                  src={ticket.customers.avatar_url}
+                  alt="avatar"
+                  width={52}
+                  height={52}
+                  unoptimized
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                />
+              ) : (
+                <User size={24} />
+              )}
+            </div>
+            <div>
+              <h4 style={{ fontSize: '16px', fontWeight: '800', color: 'var(--text)' }}>
+                {ticket.customers?.display_name || 'Customer'}
+              </h4>
+              <span
+                style={{
+                  fontSize: '10px',
+                  padding: '2px 8px',
+                  background: 'rgba(0,242,254,0.1)',
+                  color: 'var(--primary)',
+                  borderRadius: '4px',
+                  fontWeight: '800',
+                }}
+              >
+                CUSTOMER
+              </span>
+            </div>
           </div>
+          <Link
+            href={`/tickets?customerId=${ticket.customer_id}`}
+            className="glass-interactive flex-center"
+            style={{
+              width: '100%',
+              padding: '10px',
+              borderRadius: '10px',
+              fontSize: '12px',
+              fontWeight: '800',
+              border: '1px solid var(--border)',
+              textDecoration: 'none',
+              color: 'var(--text-main)',
+            }}
+          >
+            View customer ticket history
+          </Link>
         </div>
-        <Link
-          href={`/tickets?customerId=${ticket.customer_id}`}
-          className="glass-interactive flex-center"
-          style={{
-            width: '100%',
-            padding: '10px',
-            borderRadius: '10px',
-            fontSize: '12px',
-            fontWeight: '800',
-            border: '1px solid var(--border)',
-            textDecoration: 'none',
-            color: 'var(--text-main)',
-          }}
-        >
-          View customer ticket history
-        </Link>
-      </div>
+      )}
+
 
       <div className="glass" style={{ padding: '20px' }}>
         <label

@@ -506,41 +506,66 @@ export default function StaffTicketDetailPage() {
       />
 
       <div className="glass" style={{ padding: '20px', marginBottom: '24px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '24px', flexWrap: 'wrap' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <Clock size={18} color="var(--primary)" />
-            <span style={{ fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Time Tracking</span>
-          </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: '40px', alignItems: 'center' }}>
+          {/* Left: Time Tracking */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '32px' }}>
+             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <Clock size={20} color="var(--primary)" />
+                <span style={{ fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Time Tracking</span>
+             </div>
 
-          <div style={{ display: 'flex', gap: '32px', flex: 1 }}>
-            <div>
-              <label style={{ fontSize: '9px', fontWeight: '800', color: 'var(--text-muted)', display: 'block' }}>REPORTED</label>
-              <p style={{ fontSize: '13px', fontWeight: '700' }}>
-                {ticket.created_at ? new Date(ticket.created_at).toLocaleString('th-TH', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '-'}
-              </p>
-            </div>
-
-            {ticket.resolved_at && (
-              <>
+             <div style={{ display: 'flex', gap: '40px' }}>
                 <div>
-                  <label style={{ fontSize: '9px', fontWeight: '800', color: 'var(--text-muted)', display: 'block' }}>RESOLVED</label>
-                  <p style={{ fontSize: '13px', fontWeight: '700', color: 'var(--primary)' }}>
-                    {new Date(ticket.resolved_at).toLocaleString('th-TH', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                  <label style={{ fontSize: '9px', fontWeight: '800', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>REPORTED</label>
+                  <p style={{ fontSize: '13px', fontWeight: '700' }}>
+                    {ticket.created_at ? new Date(ticket.created_at).toLocaleString('th-TH', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '-'}
                   </p>
                 </div>
-                <div style={{ paddingLeft: '24px', borderLeft: '1px solid var(--border)' }}>
-                  <label style={{ fontSize: '9px', fontWeight: '800', color: 'var(--primary)', display: 'block' }}>RESOLUTION TIME</label>
-                  <p style={{ fontSize: '18px', fontWeight: '900' }}>{getTicketDuration(ticket.created_at || '', ticket.resolved_at)}</p>
-                </div>
-              </>
-            )}
 
-            {!ticket.resolved_at && (
-              <div style={{ paddingLeft: '24px', borderLeft: '1px solid var(--border)' }}>
-                <label style={{ fontSize: '9px', fontWeight: '800', color: 'orange', display: 'block' }}>CURRENT PENDING</label>
-                <p style={{ fontSize: '18px', fontWeight: '900' }}>{getTicketDuration(ticket.created_at || '')}</p>
-              </div>
-            )}
+                {ticket.resolved_at ? (
+                  <>
+                    <div>
+                      <label style={{ fontSize: '9px', fontWeight: '800', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>RESOLVED</label>
+                      <p style={{ fontSize: '13px', fontWeight: '700', color: 'var(--primary)' }}>
+                        {new Date(ticket.resolved_at).toLocaleString('th-TH', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                      </p>
+                    </div>
+                    <div style={{ paddingLeft: '24px', borderLeft: '1px solid var(--border)' }}>
+                      <label style={{ fontSize: '9px', fontWeight: '800', color: 'var(--primary)', display: 'block', marginBottom: '4px' }}>DURATION</label>
+                      <p style={{ fontSize: '18px', fontWeight: '900' }}>{getTicketDuration(ticket.created_at || '', ticket.resolved_at)}</p>
+                    </div>
+                  </>
+                ) : (
+                  <div style={{ paddingLeft: '24px', borderLeft: '1px solid var(--border)' }}>
+                    <label style={{ fontSize: '9px', fontWeight: '800', color: 'orange', display: 'block', marginBottom: '4px' }}>PENDING</label>
+                    <p style={{ fontSize: '18px', fontWeight: '900' }}>{getTicketDuration(ticket.created_at || '')}</p>
+                  </div>
+                )}
+             </div>
+          </div>
+
+          {/* Right: Customer Info Mini Card */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px', paddingLeft: '40px', borderLeft: '2px solid var(--border)' }}>
+             <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: 'var(--secondary)', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                {ticket.customers?.avatar_url ? (
+                   <Image src={ticket.customers.avatar_url} alt="avatar" width={44} height={44} unoptimized style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                ) : (
+                   <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>
+                      <User size={20} />
+                   </div>
+                )}
+             </div>
+             <div style={{ flex: 1, minWidth: 0 }}>
+                <h4 style={{ fontSize: '14px', fontWeight: '800', color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                   {ticket.customers?.display_name || 'Customer'}
+                </h4>
+                <Link 
+                   href={`/tickets?customerId=${ticket.customer_id}`} 
+                   style={{ fontSize: '11px', color: 'var(--primary)', fontWeight: '700', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '2px' }}
+                >
+                   View History <ChevronRight size={12} />
+                </Link>
+             </div>
           </div>
         </div>
       </div>
@@ -594,6 +619,7 @@ export default function StaffTicketDetailPage() {
           availableModules={availableModules}
           logs={logs}
           showActivity={true}
+          showProfile={false}
         />
       </div>
 
