@@ -508,8 +508,39 @@ export default function StaffTicketDetailPage() {
       />
 
       <div className="glass" style={{ padding: '20px', marginBottom: '24px' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: '40px', alignItems: 'center' }}>
-          {/* Left: Time Tracking */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(300px, 340px) 1fr', gap: '40px', alignItems: 'center' }}>
+          
+          {/* Left: Customer Info Mini Card (Moved to Left) */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px', paddingRight: '40px', borderRight: '2px solid var(--border)' }}>
+             <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: 'var(--secondary)', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                {ticket.customers?.avatar_url ? (
+                   <Image 
+                      src={ticket.customers.avatar_url} 
+                      alt="avatar" 
+                      width={44} 
+                      height={44} 
+                      style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                   />
+                ) : (
+                   <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>
+                      <User size={20} />
+                   </div>
+                )}
+             </div>
+             <div style={{ flex: 1, minWidth: 0 }}>
+                <h4 style={{ fontSize: '14px', fontWeight: '800', color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                   {ticket.customers?.display_name || 'Customer'}
+                </h4>
+                <Link 
+                   href={`/tickets?customerId=${ticket.customer_id}`} 
+                   style={{ fontSize: '11px', color: 'var(--primary)', fontWeight: '700', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '2px' }}
+                >
+                   View History <ChevronRight size={12} />
+                </Link>
+             </div>
+          </div>
+
+          {/* Right: Time Tracking (Moved to Right) */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '32px' }}>
              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <Clock size={20} color="var(--primary)" />
@@ -543,36 +574,6 @@ export default function StaffTicketDetailPage() {
                     <p style={{ fontSize: '18px', fontWeight: '900' }}>{getTicketDuration(ticket.created_at || '')}</p>
                   </div>
                 )}
-             </div>
-          </div>
-
-          {/* Right: Customer Info Mini Card */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '16px', paddingLeft: '40px', borderLeft: '2px solid var(--border)' }}>
-             <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: 'var(--secondary)', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                {ticket.customers?.avatar_url ? (
-                   <Image 
-                      src={ticket.customers.avatar_url} 
-                      alt="avatar" 
-                      width={44} 
-                      height={44} 
-                      style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
-                   />
-                ) : (
-                   <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>
-                      <User size={20} />
-                   </div>
-                )}
-             </div>
-             <div style={{ flex: 1, minWidth: 0 }}>
-                <h4 style={{ fontSize: '14px', fontWeight: '800', color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                   {ticket.customers?.display_name || 'Customer'}
-                </h4>
-                <Link 
-                   href={`/tickets?customerId=${ticket.customer_id}`} 
-                   style={{ fontSize: '11px', color: 'var(--primary)', fontWeight: '700', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '2px' }}
-                >
-                   View History <ChevronRight size={12} />
-                </Link>
              </div>
           </div>
         </div>
