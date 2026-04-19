@@ -52,7 +52,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         fetchActions.push('departments');
       }
 
-      const results = await Promise.all(promises);
+      const results = await Promise.all(promises as any[]);
 
       results.forEach((res, index) => {
         const action = fetchActions[index];
