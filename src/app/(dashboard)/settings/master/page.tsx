@@ -21,17 +21,26 @@ import {
 } from 'lucide-react';
 import { useNotificationContext } from '@/contexts/NotificationContext';
 import { auditService } from '@/lib/services/auditService';
+import { useAppContext } from '@/contexts/AppContext';
 
 type Tab = 'hospitals' | 'departments' | 'hospital_depts' | 'positions' | 'modules' | 'issue_types';
 
 export default function MasterSettingsPage() {
+  const { 
+    hospitals: ctxHospitals, 
+    departments: ctxDepartments, 
+    companySettings: ctxGlobalSettings, 
+    refreshData,
+    loading: ctxLoading 
+  } = useAppContext();
+
   const [activeTab, setActiveTab] = useState<Tab>('hospitals');
   const [items, setItems] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
-  const [globalSettings, setGlobalSettings] = useState<any>(null);
-  const [hospitals, setHospitals] = useState<any[]>([]);
-  const { addToast } = useNotificationContext();
+  
+  const [hospitals, setHospitals] = useState<any[]>(ctxHospitals);
+  const [globalSettings, setGlobalSettings] = useState<any>(ctxGlobalSettings);
   
   // Form State
   const [isAdding, setIsAdding] = useState(false);
@@ -40,23 +49,36 @@ export default function MasterSettingsPage() {
   const [newItemAbbr, setNewItemAbbr] = useState('');
   const [editItemName, setEditItemName] = useState('');
   const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    setHospitals(ctxHospitals);
+  }, [ctxHospitals]);
+
+  useEffect(() => {
+    setGlobalSettings(ctxGlobalSettings);
+  }, [ctxGlobalSettings]);
   
   const fetchData = async () => {
-    setLoading(true);
-    
-    // Fetch hospitals for other tabs if needed
-    if (activeTab === 'hospitals' || hospitals.length === 0) {
-      const { data: hData } = await supabase.from('hospitals').select('id, name').order('name');
-      setHospitals(hData || []);
+    if (activeTab === 'hospitals') {
+      setItems(ctxHospitals);
+      return;
     }
+
+    if (activeTab === 'departments' || activeTab === 'hospital_depts') {
+      const filtered = activeTab === 'departments' 
+        ? ctxDepartments.filter(d => d.dept_type === 'organization')
+        : ctxDepartments.filter(d => d.dept_type === 'hospital');
+      setItems(filtered);
+      return;
+    }
+
+    setLoading(true);
 
     // Handle company_settings based tabs
     if (activeTab === 'modules' || activeTab === 'issue_types') {
-      const { data } = await supabase.from('company_settings').select('*').limit(1).single();
-      setGlobalSettings(data);
-      if (data) {
+      if (ctxGlobalSettings) {
         const arrayProp = activeTab === 'modules' ? 'modules' : 'issue_types';
-        const itemsList = (data[arrayProp] || []).map((name: string, index: number) => ({
+        const itemsList = (ctxGlobalSettings[arrayProp] || []).map((name: string, index: number) => ({
           id: `item-${index}`,
           name: name,
           is_active: true
@@ -68,25 +90,12 @@ export default function MasterSettingsPage() {
     }
 
     let table = '';
-    let query = null;
+    if (activeTab === 'positions') table = 'positions';
 
-    if (activeTab === 'hospitals') table = 'hospitals';
-    else if (activeTab === 'departments') table = 'departments';
-    else if (activeTab === 'hospital_depts') table = 'departments';
-    else if (activeTab === 'positions') table = 'positions';
-
-    query = supabase.from(table).select('*').order('name');
-
-    // Separation Logic using dept_type
-    if (activeTab === 'departments') {
-      query = query.eq('dept_type', 'organization');
-    } else if (activeTab === 'hospital_depts') {
-      query = query.eq('dept_type', 'hospital');
+    if (table) {
+      const { data } = await supabase.from(table).select('*').order('name');
+      setItems(data || []);
     }
-
-    const { data } = await query;
-    
-    setItems(data || []);
     setLoading(false);
   };
 
@@ -95,7 +104,7 @@ export default function MasterSettingsPage() {
     setIsAdding(false);
     setEditingId(null);
     setNewItemName('');
-  }, [activeTab]);
+  }, [activeTab, ctxHospitals, ctxDepartments, ctxGlobalSettings]);
 
   const handleAdd = async () => {
     if (!newItemName.trim()) return;
@@ -117,7 +126,7 @@ export default function MasterSettingsPage() {
       if (!error) {
         setNewItemName('');
         setIsAdding(false);
-        fetchData();
+        await refreshData('settings');
         addToast({ id: `master-add-${Date.now()}`, type: 'ticket', title: 'Successfully Added! ✨', body: `เพิ่มรายการ "${newItemName}" เรียบร้อยแล้ว` });
       } else {
         alert('บันทึกไม่สำเร็จ');
@@ -151,7 +160,10 @@ export default function MasterSettingsPage() {
       setNewItemName('');
       setNewItemAbbr('');
       setIsAdding(false);
-      fetchData();
+      
+      if (activeTab === 'hospitals') await refreshData('hospitals');
+      else if (table === 'departments') await refreshData('departments');
+      else fetchData();
 
       const { data: { user } } = await supabase.auth.getUser();
       await auditService.log({

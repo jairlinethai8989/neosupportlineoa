@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { NotificationProvider, useNotificationContext } from '@/contexts/NotificationContext';
+import { AppProvider, useAppContext } from '@/contexts/AppContext';
 import ToastContainer from '@/components/notifications/ToastContainer';
 import type { AppNotification } from '@/hooks/useNotifications';
 
@@ -70,22 +71,13 @@ function timeAgo(dateStr: string): string {
 function DashboardInner({ children }: { children: React.ReactNode }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
-  const [agent, setAgent] = useState<any>(null);
   const [showNotifications, setShowNotifications] = useState(false);
   const [activeTab, setActiveTab] = useState<NotifTab>('all');
   const notifRef = useRef<HTMLDivElement>(null);
 
   const router = useRouter();
   const { notifications, unreadCount, markAllRead, markAsRead } = useNotificationContext();
-
-  useEffect(() => {
-    supabase.auth.getUser().then(async ({ data }) => {
-      if (data.user) {
-        const { data: p } = await supabase.from('profiles').select('*').eq('id', data.user.id).single();
-        setAgent(p || data.user);
-      }
-    });
-  }, []);
+  const { userProfile: agent, loading: appLoading } = useAppContext();
 
   // Click outside to close
   useEffect(() => {
@@ -119,6 +111,14 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
     if (activeTab === 'sla') return n.type === 'sla' || n.type === 'sla_warning';
     return true;
   });
+
+  if (appLoading) {
+    return (
+      <div className="flex-center" style={{ height: '100vh', background: 'var(--bg-main)' }}>
+        <Loader2 className="animate-spin" color="var(--primary)" size={40} />
+      </div>
+    );
+  }
 
   return (
     <div className="main-layout">
@@ -371,9 +371,11 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
 
 export default function DashboardLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <NotificationProvider>
-      <DashboardInner>{children}</DashboardInner>
-    </NotificationProvider>
+    <AppProvider>
+      <NotificationProvider>
+        <DashboardInner>{children}</DashboardInner>
+      </NotificationProvider>
+    </AppProvider>
   );
 }
 

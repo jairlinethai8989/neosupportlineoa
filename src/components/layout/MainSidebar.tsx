@@ -24,6 +24,7 @@ import {
   Send,
 } from 'lucide-react';
 import { useNotificationContext } from '@/contexts/NotificationContext';
+import { useAppContext } from '@/contexts/AppContext';
 
 const DEPT_BADGES: Record<string, string> = {
   'IT Support': '💻',
@@ -54,50 +55,26 @@ const THEMES = [
 const Sidebar = ({ onClickLink, isCollapsed = false }: SidebarProps) => {
   const pathname = usePathname();
   const router = useRouter();
-  const [company, setCompany] = useState<any>(null);
+  const { companySettings: company, userProfile: profile } = useAppContext();
   const [theme, setTheme] = useState('dark');
-  const [permissions, setPermissions] = useState<any>(null);
-  const [userRole, setUserRole] = useState<string>('');
-  const [profile, setProfile] = useState<any>(null);
+  
+  const userRole = profile?.role || '';
+  const permissions = profile?.permissions || null;
   const { unreadCount, newTicketsCount } = useNotificationContext();
 
   const [inboxCount, setInboxCount] = useState(0);
   const [openMenus, setOpenMenus] = useState<string[]>(['System Settings', 'Intelligence Dashboard']);
 
-  // OPTIMIZATION: Parallel Data Fetching
-  const fetchAllInitialData = useCallback(async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const [profileRes, companyRes, ticketsRes, conversationsRes] = await Promise.all([
-        supabase.from('profiles').select('*').eq('id', user.id).single(),
-        supabase.from('company_settings').select('*').limit(1).single(),
-        supabase.from('tickets').select('*', { count: 'exact', head: true }).eq('status', 'New'),
-        supabase.from('conversations').select('*', { count: 'exact', head: true }).eq('status', 'active')
-      ]);
-
-      if (profileRes.data) {
-        setProfile(profileRes.data);
-        setUserRole(profileRes.data.role);
-        setPermissions(profileRes.data.permissions);
-      }
-      if (companyRes.data) setCompany(companyRes.data);
-      if (conversationsRes.count !== null) setInboxCount(conversationsRes.count);
-
-    } catch (err) {
-      console.error('Sidebar fetch error:', err);
-    }
-  }, []);
-
   useEffect(() => {
-    fetchAllInitialData();
+    // Initial fetch for counters only
+    supabase.from('conversations').select('*', { count: 'exact', head: true }).eq('status', 'active')
+      .then(res => res.count !== null && setInboxCount(res.count));
 
     const savedTheme = localStorage.getItem('theme') || 'dark';
     setTheme(savedTheme);
     document.documentElement.setAttribute('data-theme', savedTheme);
 
-    // Optimized Realtime Channel
+    // Optimized Realtime Channel for counter updates
     const channel = supabase.channel('sidebar-sync')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'conversations' }, () => {
          supabase.from('conversations').select('*', { count: 'exact', head: true }).eq('status', 'active')
@@ -108,7 +85,7 @@ const Sidebar = ({ onClickLink, isCollapsed = false }: SidebarProps) => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [fetchAllInitialData]);
+  }, []);
 
   const changeTheme = useCallback((newTheme: string) => {
     setTheme(newTheme);
