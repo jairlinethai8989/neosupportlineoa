@@ -367,8 +367,8 @@ export default function MasterSettingsPage() {
 
                  {activeTab === 'hospital_depts' && (
                    <select
-                     value={selectedHospitalId}
-                     onChange={e => setSelectedHospitalId(e.target.value)}
+                     value=""
+                     onChange={e => () => {}}
                      style={{ flex: 1, minWidth: '150px', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', borderRadius: '12px', padding: '14px 20px', color: 'var(--text-main)', fontSize: '15px', outline: 'none', cursor: 'pointer' }}
                    >
                      <option value="">เลือกโรงพยาบาล...</option>
