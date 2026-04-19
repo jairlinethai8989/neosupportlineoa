@@ -34,6 +34,8 @@ export default function MasterSettingsPage() {
     loading: ctxLoading 
   } = useAppContext();
 
+  const { addToast } = useNotificationContext();
+
   const [activeTab, setActiveTab] = useState<Tab>('hospitals');
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
