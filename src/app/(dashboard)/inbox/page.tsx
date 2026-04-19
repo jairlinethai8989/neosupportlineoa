@@ -318,14 +318,22 @@ function InboxContent() {
 
             setSending(true);
             try {
+              // 1. Convert Blob to File as per Codex protocol
+              const file = new File([blob], `edited_inbox_${Date.now()}.jpg`, { type: 'image/jpeg' });
+              
+              // 2. Upload and wait for completion
               await uploadInboxChatMedia({
-                blob,
+                file, // Pass the new File object
                 conversationId: selectedChat.id,
                 ticketId: selectedChat.current_ticket_id || null,
+                filePrefix: 'edited'
               });
 
+              // 3. Success! Close modal and cleanup
               setIsEditorOpen(false);
+              setEditingImage('');
             } catch (error: unknown) {
+              console.error('Inbox editor save failed:', error);
               alert(getInboxUploadFailedMessage(error));
             } finally {
               setSending(false);

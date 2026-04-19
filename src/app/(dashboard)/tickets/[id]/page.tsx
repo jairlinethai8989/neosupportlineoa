@@ -351,13 +351,19 @@ export default function StaffTicketDetailPage() {
   }, []);
 
   const handleEditorSave = useCallback(async (blob: Blob) => {
-    if (!ticketId) return;
+    if (!ticketId || !conversationId) return;
 
     setSending(true);
     try {
-      const fileName = `edited_${ticketId}_${Date.now()}.jpg`;
-      const { error: uploadError } = await supabase.storage.from('chat_media').upload(fileName, blob, {
-        contentType: 'image/jpeg',
+      // 1. Convert Blob to File object as per Codex recommendation
+      const file = new File([blob], `edited_${ticketId}_${Date.now()}.jpg`, { type: 'image/jpeg' });
+      
+      const fileName = `${Date.now()}_${file.name}`;
+      
+      // 2. Upload the new File object (edited version)
+      const { error: uploadError } = await supabase.storage.from('chat_media').upload(fileName, file, {
+        cacheControl: '3600',
+        upsert: false
       });
       if (uploadError) throw uploadError;
 
@@ -365,7 +371,8 @@ export default function StaffTicketDetailPage() {
         data: { publicUrl },
       } = supabase.storage.from('chat_media').getPublicUrl(fileName);
 
-      await supabase.from('messages').insert([
+      // 3. Insert message only after confirmed upload
+      const { error: messageError } = await supabase.from('messages').insert([
         {
           conversation_id: conversationId,
           ticket_id: ticketId,
@@ -375,9 +382,14 @@ export default function StaffTicketDetailPage() {
           content: publicUrl,
         },
       ]);
+      
+      if (messageError) throw messageError;
+
+      // 4. Close modal only after success
       setShowEditor(false);
       setEditingImage(null);
     } catch (error) {
+      console.error('Editor save failed:', error);
       addToast(getTicketDetailActionFailedToast('save edited image', error));
     } finally {
       setSending(false);

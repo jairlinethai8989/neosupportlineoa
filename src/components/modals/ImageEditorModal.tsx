@@ -178,17 +178,33 @@ export default function ImageEditorModal({ imageUrl, onClose, onSave }: ImageEdi
     saveToHistory();
   };
 
+  const exportToBlob = (): Promise<Blob | null> => {
+    return new Promise((resolve) => {
+      const canvas = canvasRef.current;
+      if (!canvas) {
+        resolve(null);
+        return;
+      }
+      canvas.toBlob((blob) => resolve(blob), 'image/jpeg', 0.9);
+    });
+  };
+
   const handleSave = async () => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
+    if (isSaving) return;
     
     setIsSaving(true);
-    canvas.toBlob(async (blob) => {
-      if (blob) {
-        await onSave(blob);
-      }
+    try {
+      const blob = await exportToBlob();
+      if (!blob) throw new Error('ไม่สามารถสร้างไฟล์ภาพได้');
+      
+      // Ensure onSave is awaited so modal stays open during upload
+      await onSave(blob);
+    } catch (error) {
+       console.error('Save failed:', error);
+       alert('การบันทึกล้มเหลว: ' + (error instanceof Error ? error.message : 'เกิดข้อผิดพลาดในการประมวลผล'));
+    } finally {
       setIsSaving(false);
-    }, 'image/jpeg', 0.9);
+    }
   };
 
   return (
