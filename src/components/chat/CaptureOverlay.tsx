@@ -56,63 +56,53 @@ export default function CaptureOverlay({ onCapture, onCancel }: CaptureOverlayPr
       
       const deviceScale = window.devicePixelRatio || 1;
       
-      // 2. Capture with 'onclone' to sanitise CSS
+      // 2. Capture only the visible viewport - this aligns perfectly with clientX/Y
       const fullCanvas = await html2canvas(document.body, {
         useCORS: true,
         allowTaint: true,
         logging: false,
         scale: deviceScale,
         backgroundColor: '#ffffff',
+        // Force capture to match what the user sees
+        width: window.innerWidth,
+        height: window.innerHeight,
+        scrollX: -window.scrollX,
+        scrollY: -window.scrollY,
+        windowWidth: window.innerWidth,
+        windowHeight: window.innerHeight,
         onclone: (clonedDoc) => {
-          // STRIP oklch from ALL stylesheets to prevent parser crash
           const styles = clonedDoc.getElementsByTagName('style');
           for (let i = 0; i < styles.length; i++) {
             try {
-              // Replace any oklch(...) occurrences with a safe fallback color
               styles[i].innerHTML = styles[i].innerHTML.replace(/oklch\([^)]+\)/g, '#ffffff');
-            } catch (e) {
-              console.warn('Could not sanitize style tag:', e);
-            }
-          }
-          
-          // Also check inline styles for good measure
-          const elements = clonedDoc.getElementsByTagName('*');
-          for (let i = 0; i < elements.length; i++) {
-            const el = elements[i] as HTMLElement;
-            if (el.style && el.getAttribute('style')?.includes('oklch')) {
-              el.setAttribute('style', el.getAttribute('style')!.replace(/oklch\([^)]+\)/g, '#ffffff'));
-            }
+            } catch (e) {}
           }
         }
       });
 
-      // 3. PRECISION ALIGNMENT: Use client coordinates + scroll for document-space
-      // Use documentElement scroll for best cross-browser reliability
-      const scrollX = window.scrollX || document.documentElement.scrollLeft;
-      const scrollY = window.scrollY || document.documentElement.scrollTop;
-      
-      const absX = (x + scrollX) * deviceScale;
-      const absY = (y + scrollY) * deviceScale;
-      const absWidth = width * deviceScale;
-      const absHeight = height * deviceScale;
+      // 3. PRECISION ALIGNMENT: x and y are clientX/Y, which now match the canvas origin
+      const cropX = x * deviceScale;
+      const cropY = y * deviceScale;
+      const cropWidth = width * deviceScale;
+      const cropHeight = height * deviceScale;
 
-      if (absWidth <= 1 || absHeight <= 1) throw new Error('Selection too small');
+      if (cropWidth <= 1 || cropHeight <= 1) throw new Error('Selection too small');
 
       // 4. Manual cropping
       const cropCanvas = document.createElement('canvas');
-      cropCanvas.width = absWidth;
-      cropCanvas.height = absHeight;
+      cropCanvas.width = cropWidth;
+      cropCanvas.height = cropHeight;
 
       const ctx = cropCanvas.getContext('2d', { alpha: false });
       if (!ctx) throw new Error('Canvas context failed');
 
       ctx.fillStyle = '#ffffff';
-      ctx.fillRect(0, 0, absWidth, absHeight);
+      ctx.fillRect(0, 0, cropWidth, cropHeight);
       
       ctx.drawImage(
         fullCanvas,
-        absX, absY, absWidth, absHeight,
-        0, 0, absWidth, absHeight
+        cropX, cropY, cropWidth, cropHeight,
+        0, 0, cropWidth, cropHeight
       );
 
       const dataUrl = cropCanvas.toDataURL('image/png');
@@ -121,7 +111,7 @@ export default function CaptureOverlay({ onCapture, onCancel }: CaptureOverlayPr
       onCapture(dataUrl);
     } catch (error) {
       console.error('Final Capture Error:', error);
-      alert('Capture ล้มเหลว: ' + (error instanceof Error ? error.message : 'ปัญหาการประมวลผล CSS'));
+      alert('Capture ล้มเหลว: ' + (error instanceof Error ? error.message : 'ปัญหาการประมวลผลพิกัด'));
       onCancel();
     } finally {
       setIsCapturing(false);
