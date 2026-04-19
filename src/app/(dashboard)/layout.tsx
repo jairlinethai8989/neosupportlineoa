@@ -18,7 +18,8 @@ import {
   MessageSquare,
   AlertTriangle,
   CheckCircle2,
-  Clock
+  Clock,
+  Loader2
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { NotificationProvider, useNotificationContext } from '@/contexts/NotificationContext';
