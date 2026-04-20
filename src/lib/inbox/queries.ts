@@ -21,8 +21,7 @@ export const inboxConversationSelect = `
   last_message_at,
   customer_id,
   current_ticket_id,
-  is_active,
-  customers (id, display_name, line_user_id, avatar_url)
+  is_active
 `;
 
 export const inboxMessageSelect = `
@@ -112,7 +111,7 @@ export async function listInboxConversationsV2({
   } else {
     query = query.eq('status', 'closed');
     
-    // Apply date filters if provided
+    // Apply date filters ONLY for archive
     if (startDate) query = query.gte('last_message_at', startDate);
     if (endDate) query = query.lte('last_message_at', endDate);
   }

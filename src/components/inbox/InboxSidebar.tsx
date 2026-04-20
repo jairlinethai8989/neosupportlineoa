@@ -32,12 +32,19 @@ export const InboxSidebar: React.FC<InboxSidebarProps> = ({
 
   // Trigger initial filter on mount if in closed tab
   React.useEffect(() => {
-    if (currentTab === 'closed' && activeDateFilter === 'today') {
+    if (currentTab === 'closed') {
       const now = new Date();
-      const start = new Date(now.setHours(0, 0, 0, 0));
-      onDateFilterChange(start.toISOString(), null);
+      if (activeDateFilter === 'today') {
+        const start = new Date(now.setHours(0, 0, 0, 0));
+        onDateFilterChange(start.toISOString(), null);
+      } else if (activeDateFilter === 'week') {
+        const start = new Date(now.setDate(now.getDate() - 7));
+        onDateFilterChange(start.toISOString(), null);
+      } else if (activeDateFilter === 'all') {
+        onDateFilterChange(null, null);
+      }
     }
-  }, [currentTab]);
+  }, [currentTab, activeDateFilter]);
   const [showCustomRange, setShowCustomRange] = useState(false);
   const [customStart, setCustomStart] = useState('');
   const [customEnd, setCustomEnd] = useState('');
