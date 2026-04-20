@@ -12,7 +12,6 @@ import {
   Pencil, 
   Trash2, 
   Clock,
-  Clock,
   AlertTriangle,
   Crop
 } from 'lucide-react';
