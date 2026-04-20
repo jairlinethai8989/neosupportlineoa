@@ -51,7 +51,7 @@ export const InboxSidebar: React.FC<InboxSidebarProps> = ({
       start = new Date(now.setMonth(now.getMonth() - 1));
     }
 
-    onDateFilterChange(start?.toISOString() || null, end?.toISOString() || null);
+    onDateFilterChange(start?.toISOString() || null, null);
   };
 
   const applyCustomRange = () => {
