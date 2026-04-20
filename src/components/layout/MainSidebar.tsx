@@ -148,37 +148,37 @@ const Sidebar = ({ onClickLink, isCollapsed = false }: SidebarProps) => {
   // OPTIMIZATION: Memoized Permission Check
   const hasAccess = useCallback((name: string, path?: string) => {
     if (userRole === 'Administrator') return true;
-    if (!permissions) return true;
+    if (!permissions) return false;
     
     const key = name.toLowerCase();
     const p = path?.toLowerCase() || '';
 
     // Main Sections
     if (key.includes('analytics') || key.includes('performance') || key.includes('dashboard') || p.includes('analytics')) 
-      return permissions.analytics !== 'none';
+      return permissions.analytics === 'view' || permissions.analytics === 'edit';
     if (key.includes('inbox') || p.includes('inbox')) 
-      return permissions.inbox !== 'none';
+      return permissions.inbox === 'view' || permissions.inbox === 'edit';
     if (key.includes('ticket') || p === '/tickets' || p.includes('tickets/')) 
-      return permissions.tickets !== 'none';
+      return permissions.tickets === 'view' || permissions.tickets === 'edit';
     if (key.includes('notification')) 
-      return permissions.notifications !== 'none';
+      return permissions.notifications === 'view' || permissions.notifications === 'edit';
     if (key.includes('customer')) 
-      return permissions.customers !== 'none';
+      return permissions.customers === 'view' || permissions.customers === 'edit';
     if (key.includes('report')) 
-      return permissions.reports !== 'none';
+      return permissions.reports === 'view' || permissions.reports === 'edit';
     
     // Granular Settings
-    if (p.includes('/settings/profile')) return permissions.settings_profile !== 'none';
-    if (p.includes('/settings/branding')) return permissions.settings_branding !== 'none';
-    if (p.includes('/settings/staff')) return permissions.settings_staff !== 'none';
-    if (p.includes('/settings/sla')) return permissions.settings_sla !== 'none';
-    if (p.includes('/settings/master')) return permissions.settings_master !== 'none';
-    if (p.includes('/settings/audit')) return permissions.settings_audit !== 'none';
+    if (p.includes('/settings/profile')) return permissions.settings_profile === 'view' || permissions.settings_profile === 'edit';
+    if (p.includes('/settings/branding')) return permissions.settings_branding === 'view' || permissions.settings_branding === 'edit';
+    if (p.includes('/settings/staff')) return permissions.settings_staff === 'view' || permissions.settings_staff === 'edit';
+    if (p.includes('/settings/sla')) return permissions.settings_sla === 'view' || permissions.settings_sla === 'edit';
+    if (p.includes('/settings/master')) return permissions.settings_master === 'view' || permissions.settings_master === 'edit';
+    if (p.includes('/settings/audit')) return permissions.settings_audit === 'view' || permissions.settings_audit === 'edit';
 
     // Catch-all for general Settings menu or other paths
-    if (key.includes('settings')) return true; // Parent menu logic below handles children
+    if (key.includes('settings')) return true; 
     
-    return true;
+    return false;
   }, [userRole, permissions]);
 
   const filteredMenuItems = useMemo(() => 

@@ -440,3 +440,7 @@ input, button, select, textarea, optgroup, option {
 ::-webkit-scrollbar-thumb:hover {
   background: var(--primary);
 }
+
+[data-theme='light'] input[type='date']::-webkit-calendar-picker-indicator { filter: invert(0); }
+input[type='date']::-webkit-calendar-picker-indicator { filter: invert(1); cursor: pointer; }
+[data-theme='light'] input[type='date']::-webkit-calendar-picker-indicator { filter: invert(0); }

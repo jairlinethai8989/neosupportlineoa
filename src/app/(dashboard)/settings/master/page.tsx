@@ -31,8 +31,14 @@ export default function MasterSettingsPage() {
     departments: ctxDepartments, 
     companySettings: ctxGlobalSettings, 
     refreshData,
+    userProfile,
     loading: ctxLoading 
   } = useAppContext();
+
+  const canEdit = React.useMemo(() => {
+    if (userProfile?.role === 'Administrator') return true;
+    return userProfile?.permissions?.settings_master === 'edit';
+  }, [userProfile]);
 
   const { addToast } = useNotificationContext();
 
@@ -349,7 +355,8 @@ export default function MasterSettingsPage() {
 
             <button 
               onClick={() => setIsAdding(true)}
-              style={{ background: 'var(--primary)', color: 'black', border: 'none', padding: '12px 20px', borderRadius: '12px', fontWeight: '900', fontSize: '14px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}
+              disabled={!canEdit}
+              style={{ background: 'var(--primary)', color: 'black', border: 'none', padding: '12px 20px', borderRadius: '12px', fontWeight: '900', fontSize: '14px', cursor: !canEdit ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: '8px', opacity: !canEdit ? 0.5 : 1 }}
             >
                <Plus size={18} /> เพิ่มรายการใหม่
             </button>
@@ -440,12 +447,27 @@ export default function MasterSettingsPage() {
 
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                          {/* Status Badge */}
-                         <button 
-                           onClick={() => toggleStatus(item.id, item.is_active)}
-                           style={{ padding: '6px 12px', borderRadius: '20px', fontSize: '10px', fontWeight: '800', background: item.is_active ? 'rgba(40, 199, 111, 0.1)' : 'rgba(255,255,255,0.05)', color: item.is_active ? 'var(--success)' : 'var(--text-muted)', border: 'none', cursor: 'pointer', marginRight: '16px' }}
-                         >
-                            {item.is_active ? 'เปิดใช้งาน' : 'ปิดใช้งาน'}
-                         </button>
+                          <button 
+                            onClick={() => {
+                              if (!canEdit) return;
+                              toggleStatus(item.id, item.is_active);
+                            }}
+                            disabled={!canEdit}
+                            style={{ 
+                              padding: '6px 12px', 
+                              borderRadius: '20px', 
+                              fontSize: '10px', 
+                              fontWeight: '800', 
+                              background: item.is_active ? 'rgba(40, 199, 111, 0.1)' : 'rgba(255,255,255,0.05)', 
+                              color: item.is_active ? 'var(--success)' : 'var(--text-muted)', 
+                              border: 'none', 
+                              cursor: canEdit ? 'pointer' : 'not-allowed', 
+                              marginRight: '16px',
+                              opacity: canEdit ? 1 : 0.5
+                            }}
+                          >
+                             {item.is_active ? 'เปิดใช้งาน' : 'ปิดใช้งาน'}
+                          </button>
 
                          {/* Actions */}
                          {editingId === item.id ? (
@@ -459,16 +481,18 @@ export default function MasterSettingsPage() {
                            </>
                          ) : (
                            <>
-                              <button 
-                                onClick={() => {
-                                  setEditingId(item.id);
-                                  setEditItemName(item.name);
-                                }}
-                                style={{ color: 'var(--text-muted)' }} 
-                                className="glass-interactive p-2 rounded-lg"
-                              >
-                                 <Edit3 size={18} />
-                              </button>
+                               <button 
+                                 onClick={() => {
+                                   if (!canEdit) return;
+                                   setEditingId(item.id);
+                                   setEditItemName(item.name);
+                                 }}
+                                 disabled={!canEdit}
+                                 style={{ color: 'var(--text-muted)', cursor: canEdit ? 'pointer' : 'not-allowed', opacity: canEdit ? 1 : 0.5 }} 
+                                 className="glass-interactive p-2 rounded-lg"
+                               >
+                                  <Edit3 size={18} />
+                               </button>
                            </>
                          )}
                       </div>

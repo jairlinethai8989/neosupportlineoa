@@ -19,13 +19,20 @@ import Link from 'next/link';
 import Skeleton from '@/components/ui/Skeleton';
 import { useNotificationContext } from '@/contexts/NotificationContext';
 import { auditService } from '@/lib/services/auditService';
+import { useAppContext } from '@/contexts/AppContext';
 
 export default function BrandingSettingsPage() {
+  const { userProfile } = useAppContext();
   const [company, setCompany] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const { addToast } = useNotificationContext();
+
+  const canEdit = React.useMemo(() => {
+    if (userProfile?.role === 'Administrator') return true;
+    return userProfile?.permissions?.settings_branding === 'edit';
+  }, [userProfile]);
 
   useEffect(() => {
     async function fetchData() {
@@ -202,12 +209,13 @@ export default function BrandingSettingsPage() {
                      style={{ 
                       position: 'absolute', bottom: '12px', right: '12px', 
                       background: 'var(--primary)', padding: '0 20px', height: '40px', borderRadius: '10px', 
-                      cursor: 'pointer', boxShadow: '0 8px 20px rgba(0, 242, 254, 0.3)',
-                      gap: '8px', fontSize: '13px', fontWeight: '850', border: 'none', color: 'black'
+                      cursor: !canEdit ? 'not-allowed' : 'pointer', boxShadow: '0 8px 20px rgba(0, 242, 254, 0.3)',
+                      gap: '8px', fontSize: '13px', fontWeight: '850', border: 'none', color: 'black',
+                      opacity: !canEdit ? 0.5 : 1
                    }}>
                      {uploading ? <Loader2 size={16} className="animate-spin" /> : <Camera size={18} />}
                      <span>{uploading ? 'UPLOADING...' : 'CHANGE LOGO'}</span>
-                     <input type="file" hidden accept="image/*" onChange={handleFileUpload} disabled={uploading} />
+                     <input type="file" hidden accept="image/*" onChange={handleFileUpload} disabled={uploading || !canEdit} />
                   </label>
                </div>
             </div>
@@ -225,9 +233,9 @@ export default function BrandingSettingsPage() {
                </div>
                <button 
                 onClick={handleSaveCompany}
-                disabled={saving || uploading}
+                disabled={saving || uploading || !canEdit}
                 className="glass-interactive" 
-                style={{ width: '100%', height: '56px', borderRadius: '14px', background: 'var(--primary)', border: 'none', color: '#0a0e14', fontWeight: '900', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', marginTop: '12px', boxShadow: '0 8px 30px rgba(0, 242, 254, 0.2)' }}>
+                style={{ width: '100%', height: '56px', borderRadius: '14px', background: 'var(--primary)', border: 'none', color: '#0a0e14', fontWeight: '900', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', marginTop: '12px', boxShadow: '0 8px 30px rgba(0, 242, 254, 0.2)', opacity: !canEdit ? 0.5 : 1, cursor: !canEdit ? 'not-allowed' : 'pointer' }}>
                   {saving ? <Loader2 className="animate-spin" /> : <><Save size={20} /> ยืนยันข้อมูลองค์กร (SAVE BRANDING)</>}
                </button>
             </div>

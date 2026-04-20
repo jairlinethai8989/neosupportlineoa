@@ -31,9 +31,16 @@ import {
 import Link from 'next/link';
 import { useNotificationContext } from '@/contexts/NotificationContext';
 import { auditService } from '@/lib/services/auditService';
+import { useAppContext } from '@/contexts/AppContext';
 
 export default function StaffManagementPage() {
+  const { userProfile } = useAppContext();
   const [staff, setStaff] = useState<any[]>([]);
+  
+  const canEdit = useMemo(() => {
+    if (userProfile?.role === 'Administrator') return true;
+    return userProfile?.permissions?.settings_staff === 'edit';
+  }, [userProfile]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -49,7 +56,7 @@ export default function StaffManagementPage() {
   const { addToast } = useNotificationContext();
   const [permissionModalOpen, setPermissionModalOpen] = useState(false);
   const [selectedStaff, setSelectedStaff] = useState<any>(null);
-  const [permissions, setPermissions] = useState<any>({
+  const DEFAULT_PERMISSIONS = {
     analytics: 'view',
     inbox: 'edit',
     tickets: 'edit',
@@ -61,8 +68,16 @@ export default function StaffManagementPage() {
     settings_staff: 'none',
     settings_sla: 'none',
     settings_master: 'none',
-    settings_audit: 'none'
-  });
+    settings_audit: 'none',
+    module_doctor: 'none',
+    module_nurse: 'none',
+    module_pharmacy: 'none',
+    module_records: 'none',
+    module_surgery: 'none',
+    module_anesthesia: 'none',
+    module_consult: 'none'
+  };
+  const [permissions, setPermissions] = useState<any>(DEFAULT_PERMISSIONS);
   const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' }>({ key: 'full_name', direction: 'asc' });
 
   const fetchStaff = async () => {
@@ -151,23 +166,8 @@ export default function StaffManagementPage() {
 
   const handleOpenPermissions = (staffMember: any) => {
     setSelectedStaff(staffMember);
-    const defaults = {
-      analytics: 'view',
-      inbox: 'edit',
-      tickets: 'edit',
-      notifications: 'view',
-      customers: 'view',
-      reports: 'none',
-      settings_profile: 'edit',
-      settings_branding: 'none',
-      settings_staff: 'none',
-      settings_sla: 'none',
-      settings_master: 'none',
-      settings_audit: 'none'
-    };
-    
     setPermissions({
-      ...defaults,
+      ...DEFAULT_PERMISSIONS,
       ...(staffMember.permissions || {})
     });
     setPermissionModalOpen(true);
@@ -276,6 +276,7 @@ export default function StaffManagementPage() {
         
         <button 
           onClick={() => setIsModalOpen(true)}
+          disabled={!canEdit}
           className="glass-interactive" 
           style={{ 
             padding: '12px 24px', 
@@ -287,7 +288,9 @@ export default function StaffManagementPage() {
             display: 'flex',
             alignItems: 'center',
             gap: '10px',
-            boxShadow: '0 4px 15px rgba(0, 242, 254, 0.3)'
+            boxShadow: '0 4px 15px rgba(0, 242, 254, 0.3)',
+            opacity: !canEdit ? 0.5 : 1,
+            cursor: !canEdit ? 'not-allowed' : 'pointer'
           }}
         >
           <UserPlus size={20} />
@@ -416,20 +419,28 @@ export default function StaffManagementPage() {
                 </td>
                 <td style={{ padding: '16px 24px', textAlign: 'right' }}>
                   <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
-                     <button 
-                       onClick={() => handleOpenPermissions(member)}
-                       title="จัดการสิทธิ์"
-                       style={{ padding: '8px', borderRadius: '8px', background: 'rgba(54, 153, 255, 0.1)', border: 'none', color: 'var(--primary)', cursor: 'pointer' }}
-                     >
-                       <Shield size={16} />
-                     </button>
+                      <button 
+                        onClick={() => {
+                          if (!canEdit) return;
+                          handleOpenPermissions(member);
+                        }}
+                        disabled={!canEdit}
+                        title={canEdit ? "จัดการสิทธิ์" : "ไม่มีสิทธิ์แก้ไข"}
+                        style={{ padding: '8px', borderRadius: '8px', background: 'rgba(54, 153, 255, 0.1)', border: 'none', color: 'var(--primary)', cursor: canEdit ? 'pointer' : 'not-allowed', opacity: canEdit ? 1 : 0.5 }}
+                      >
+                        <Shield size={16} />
+                      </button>
                      <button style={{ padding: '8px', borderRadius: '8px', background: 'rgba(255,255,255,0.05)', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}><Mail size={16} /></button>
-                     <button 
-                       onClick={() => handleDeleteStaff(member.id, member.full_name)}
-                       style={{ padding: '8px', borderRadius: '8px', background: 'rgba(234, 84, 85, 0.1)', border: 'none', color: 'var(--danger)', cursor: 'pointer' }}
-                     >
-                       <Trash2 size={16} />
-                     </button>
+                      <button 
+                        onClick={() => {
+                          if (!canEdit) return;
+                          handleDeleteStaff(member.id, member.full_name);
+                        }}
+                        disabled={!canEdit}
+                        style={{ padding: '8px', borderRadius: '8px', background: 'rgba(234, 84, 85, 0.1)', border: 'none', color: 'var(--danger)', cursor: canEdit ? 'pointer' : 'not-allowed', opacity: canEdit ? 1 : 0.5 }}
+                      >
+                        <Trash2 size={16} />
+                      </button>
                   </div>
                 </td>
               </tr>
@@ -525,8 +536,8 @@ export default function StaffManagementPage() {
                 <button type="button" onClick={() => setIsModalOpen(false)} style={{ flex: 1, padding: '14px', borderRadius: '10px', background: 'transparent', border: '1px solid var(--border)', color: 'var(--text-main)', cursor: 'pointer' }}>ยกเลิก</button>
                 <button 
                   type="submit" 
-                  disabled={submitting}
-                  style={{ flex: 1, padding: '14px', borderRadius: '10px', background: 'var(--primary)', border: 'none', color: '#0a0e14', fontWeight: '800', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+                  disabled={submitting || !canEdit}
+                  style={{ flex: 1, padding: '14px', borderRadius: '10px', background: 'var(--primary)', border: 'none', color: '#0a0e14', fontWeight: '800', cursor: canEdit ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', opacity: !canEdit ? 0.5 : 1 }}
                 >
                   {submitting ? <Loader2 size={18} className="animate-spin" /> : <><CheckCircle size={18} /> ยืนยันเพิ่มพนักงาน</>}
                 </button>
@@ -574,6 +585,13 @@ export default function StaffManagementPage() {
                 { key: 'notifications', label: 'การแจ้งเตือน (Notifications)', icon: Bell },
                 { key: 'customers', label: 'ฐานข้อมูลลูกค้า (Customers)', icon: Users },
                 { key: 'reports', label: 'การส่งรายงาน (LINE Reports)', icon: Send },
+                { key: 'module_doctor', label: 'โมดูล: ห้องทำงานแพทย์', icon: LayoutGrid },
+                { key: 'module_nurse', label: 'โมดูล: ห้องพยาบาล', icon: LayoutGrid },
+                { key: 'module_pharmacy', label: 'โมดูล: ห้องยาผู้ป่วยใน', icon: LayoutGrid },
+                { key: 'module_records', label: 'โมดูล: ห้องเวชระเบียน', icon: LayoutGrid },
+                { key: 'module_surgery', label: 'โมดูล: ห้องผ่าตัด', icon: LayoutGrid },
+                { key: 'module_anesthesia', label: 'โมดูล: ห้องวิสัญญี', icon: LayoutGrid },
+                { key: 'module_consult', label: 'โมดูล: ห้อง Consult', icon: LayoutGrid },
                 { key: 'settings_profile', label: 'ตั้งค่า: ข้อมูลส่วนตัว', icon: User },
                 { key: 'settings_branding', label: 'ตั้งค่า: ข้อมูลองค์กร', icon: Building },
                 { key: 'settings_staff', label: 'ตั้งค่า: จัดการทีมงาน', icon: UserPlus },
@@ -590,14 +608,18 @@ export default function StaffManagementPage() {
                     {['none', 'view', 'edit'].map((level) => (
                       <button
                         key={level}
-                        onClick={() => setPermissions({ ...permissions, [module.key]: level })}
+                        onClick={() => {
+                          if (!canEdit) return;
+                          setPermissions({ ...permissions, [module.key]: level });
+                        }}
+                        disabled={!canEdit}
                         style={{
                           padding: '6px 14px',
                           borderRadius: '8px',
                           fontSize: '11px',
                           fontWeight: '800',
                           border: 'none',
-                          cursor: 'pointer',
+                          cursor: canEdit ? 'pointer' : 'not-allowed',
                           textTransform: 'uppercase',
                           background: permissions[module.key] === level 
                             ? (level === 'edit' ? 'var(--primary)' : level === 'view' ? 'var(--secondary)' : 'var(--danger)') 
@@ -621,9 +643,9 @@ export default function StaffManagementPage() {
               <button onClick={() => setPermissionModalOpen(false)} style={{ flex: 1, padding: '16px', borderRadius: '14px', background: 'transparent', border: '1px solid var(--border)', color: 'var(--text-main)', fontWeight: '700', cursor: 'pointer' }}>ยกเลิก</button>
               <button 
                 onClick={handleSavePermissions}
-                disabled={submitting}
+                disabled={submitting || !canEdit}
                 className="glass-interactive"
-                style={{ flex: 1, padding: '16px', borderRadius: '14px', background: 'var(--primary)', border: 'none', color: '#0a0e14', fontWeight: '900', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+                style={{ flex: 1, padding: '16px', borderRadius: '14px', background: 'var(--primary)', border: 'none', color: '#0a0e14', fontWeight: '900', cursor: canEdit ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', opacity: !canEdit ? 0.5 : 1 }}
               >
                 {submitting ? <Loader2 size={20} className="animate-spin" /> : 'บันทึกสิทธิ์พนักงาน'}
               </button>

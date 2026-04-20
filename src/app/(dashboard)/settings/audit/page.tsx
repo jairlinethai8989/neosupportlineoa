@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { auditService } from '@/lib/services/auditService';
+import { useAppContext } from '@/contexts/AppContext';
 
 // Export utils
 import * as XLSX from 'xlsx';
@@ -29,7 +30,13 @@ import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 
 export default function AuditLogPage() {
+  const { userProfile } = useAppContext();
   const router = useRouter();
+
+  const canEdit = React.useMemo(() => {
+    if (userProfile?.role === 'Administrator') return true;
+    return userProfile?.permissions?.settings_audit === 'edit';
+  }, [userProfile]);
   const [activeTab, setActiveTab] = useState<'ticket' | 'system'>('ticket');
   const [logs, setLogs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -201,11 +208,21 @@ export default function AuditLogPage() {
         </div>
 
         <div style={{ display: 'flex', gap: '12px' }}>
-           <button onClick={handleExportExcel} className="glass-interactive" style={{ padding: '12px 20px', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '10px', background: 'rgba(40, 199, 111, 0.1)', color: '#28c76f', border: '1px solid rgba(40, 199, 111, 0.2)', cursor: 'pointer', fontWeight: '800', fontSize: '13px' }}>
+           <button 
+             onClick={handleExportExcel} 
+             disabled={!canEdit}
+             className="glass-interactive" 
+             style={{ padding: '12px 20px', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '10px', background: 'rgba(40, 199, 111, 0.1)', color: '#28c76f', border: '1px solid rgba(40, 199, 111, 0.2)', cursor: !canEdit ? 'not-allowed' : 'pointer', fontWeight: '800', fontSize: '13px', opacity: !canEdit ? 0.5 : 1 }}
+           >
              <FileSpreadsheet size={18} />
              Excel
            </button>
-           <button onClick={handleExportPDF} className="glass-interactive" style={{ padding: '12px 20px', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '10px', background: 'rgba(234, 84, 85, 0.1)', color: '#ea5455', border: '1px solid rgba(234, 84, 85, 0.2)', cursor: 'pointer', fontWeight: '800', fontSize: '13px' }}>
+           <button 
+             onClick={handleExportPDF} 
+             disabled={!canEdit}
+             className="glass-interactive" 
+             style={{ padding: '12px 20px', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '10px', background: 'rgba(234, 84, 85, 0.1)', color: '#ea5455', border: '1px solid rgba(234, 84, 85, 0.2)', cursor: !canEdit ? 'not-allowed' : 'pointer', fontWeight: '800', fontSize: '13px', opacity: !canEdit ? 0.5 : 1 }}
+           >
              <FileText size={18} />
              PDF
            </button>
