@@ -28,7 +28,16 @@ export const InboxSidebar: React.FC<InboxSidebarProps> = ({
   onPageChange,
   onDateFilterChange
 }) => {
-  const [activeDateFilter, setActiveDateFilter] = useState('all');
+  const [activeDateFilter, setActiveDateFilter] = useState('today');
+
+  // Trigger initial filter on mount if in closed tab
+  React.useEffect(() => {
+    if (currentTab === 'closed' && activeDateFilter === 'today') {
+      const now = new Date();
+      const start = new Date(now.setHours(0, 0, 0, 0));
+      onDateFilterChange(start.toISOString(), null);
+    }
+  }, [currentTab]);
   const [showCustomRange, setShowCustomRange] = useState(false);
   const [customStart, setCustomStart] = useState('');
   const [customEnd, setCustomEnd] = useState('');

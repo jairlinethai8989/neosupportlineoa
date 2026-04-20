@@ -104,17 +104,21 @@ export async function listInboxConversationsV2({
 
   let query = supabase
     .from('conversations')
-    .select('*', { count: 'exact' });
+    .select(inboxConversationSelect, { count: 'exact' });
 
-  // Status Filter - Matching the working badge logic
+  // Status Filter
   if (status === 'active') {
     query = query.eq('status', 'active');
   } else {
     query = query.eq('status', 'closed');
+    
+    // Apply date filters if provided
+    if (startDate) query = query.gte('last_message_at', startDate);
+    if (endDate) query = query.lte('last_message_at', endDate);
   }
 
   const { data, error, count } = await query
-    .order('id', { ascending: false }) // Use ID as fallback order if last_message_at is null
+    .order('last_message_at', { ascending: false, nullsFirst: false })
     .range(from, to);
 
   if (error) {
