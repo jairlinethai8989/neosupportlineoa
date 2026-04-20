@@ -20,8 +20,7 @@ export const inboxConversationSelect = `
   status,
   last_message_at,
   customer_id,
-  current_ticket_id,
-  is_active
+  customers (id, display_name, avatar_url)
 `;
 
 export const inboxMessageSelect = `
@@ -103,15 +102,14 @@ export async function listInboxConversationsV2({
 
   let query = supabase
     .from('conversations')
-    .select(inboxConversationSelect, { count: 'exact' });
+    .select('*, customers(*)', { count: 'exact' });
 
-  // Status Filter
+  // Status Filter - Basic equality
   if (status === 'active') {
     query = query.eq('status', 'active');
   } else {
     query = query.eq('status', 'closed');
-    
-    // Apply date filters ONLY for archive
+    // Date filters
     if (startDate) query = query.gte('last_message_at', startDate);
     if (endDate) query = query.lte('last_message_at', endDate);
   }
