@@ -8,12 +8,9 @@ interface InboxSidebarProps {
   selectedChat: InboxConversation | null;
   onSelectChat: (chat: InboxConversation) => void;
   viewMode: InboxViewMode;
-  currentTab: 'active' | 'closed';
-  onTabChange: (tab: 'active' | 'closed') => void;
   currentPage: number;
   totalPages: number;
   onPageChange: (page: number) => void;
-  onDateFilterChange: (start: string | null, end: string | null) => void;
 }
 
 export const InboxSidebar: React.FC<InboxSidebarProps> = ({ 
@@ -60,7 +57,7 @@ export const InboxSidebar: React.FC<InboxSidebarProps> = ({
         {conversations.length === 0 ? (
            <div style={{ padding: '60px 20px', textAlign: 'center', color: 'var(--text-muted)' }}>
               <Mail size={40} style={{ marginBottom: '16px', opacity: 0.2 }} />
-              <p style={{ fontSize: '13px' }}>{currentTab === 'active' ? 'ยังไม่มีข้อความส่งเข้ามา' : 'ไม่พบประวัติการสนทนา'}</p>
+              <p style={{ fontSize: '13px' }}>ยังไม่มีข้อความส่งเข้ามา</p>
            </div>
         ) : conversations.map((chat) => (
           <div 
@@ -104,13 +101,9 @@ export const InboxSidebar: React.FC<InboxSidebarProps> = ({
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <p className="truncate" style={{ fontSize: '11px', color: 'var(--text-muted)', maxWidth: '180px' }}>
-                  {currentTab === 'active' ? (
-                     <>สถานะ: <span style={{ color: 'var(--primary)', fontWeight: '700' }}>ACTIVE</span></>
-                  ) : (
-                     <>สรุปเมื่อ: {chat.last_message_at ? new Date(chat.last_message_at).toLocaleDateString('th-TH', { day: 'numeric', month: 'short' }) : '-'}</>
-                  )}
+                  สถานะ: <span style={{ color: 'var(--primary)', fontWeight: '700' }}>ACTIVE</span>
                 </p>
-                {currentTab === 'active' && <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--primary)', boxShadow: '0 0 10px var(--primary)' }} />}
+                <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--primary)', boxShadow: '0 0 10px var(--primary)' }} />
               </div>
             </div>
           </div>
