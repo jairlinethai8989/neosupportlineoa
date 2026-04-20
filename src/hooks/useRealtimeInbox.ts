@@ -90,7 +90,7 @@ export function useRealtimeInbox(options: {
 
         for (const conversation of normalizedRows) {
           // If we are in 'active' tab and item is 'closed', remove it
-          if (status === 'active' && conversation.status === 'closed') {
+          if (status === 'active' && conversation.is_active === false) {
              const idx = next.findIndex(item => item.id === conversation.id);
              if (idx >= 0) {
                next.splice(idx, 1);
@@ -100,7 +100,7 @@ export function useRealtimeInbox(options: {
           }
 
           // If we are in 'active' tab and item is 'active', upsert it
-          if (status === 'active' && conversation.status === 'active') {
+          if (status === 'active' && conversation.is_active === true) {
             const index = next.findIndex((item) => item.id === conversation.id);
             if (index >= 0) {
               next[index] = conversation;

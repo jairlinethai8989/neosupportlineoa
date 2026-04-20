@@ -108,9 +108,9 @@ export async function listInboxConversationsV2({
 
   // Status Filter
   if (status === 'active') {
-    query = query.eq('status', 'active');
+    query = query.eq('is_active', true);
   } else {
-    query = query.eq('status', 'closed');
+    query = query.eq('is_active', false);
   }
 
   // Date Filter (for closed/archive)
