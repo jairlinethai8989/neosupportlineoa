@@ -114,7 +114,7 @@ export function useTicketWorkspace(filterCustomerId: string | null) {
   const [selectedModule, setSelectedModule] = useState('');
   const [selectedIssueType, setSelectedIssueType] = useState('');
   const [availableIssueTypes, setAvailableIssueTypes] = useState<string[]>([]);
-  const [timeRange, setTimeRange] = useState<TicketWorkspaceTimeRange>('all');
+  const [timeRange, setTimeRange] = useState<TicketWorkspaceTimeRange>('today');
   const [customStart, setCustomStart] = useState('');
   const [customEnd, setCustomEnd] = useState('');
   const [settingsLoaded, setSettingsLoaded] = useState(false);

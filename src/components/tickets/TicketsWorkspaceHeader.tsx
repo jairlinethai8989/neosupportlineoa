@@ -157,7 +157,7 @@ export function TicketsWorkspaceHeader({
                   border: '1px solid var(--border)',
                   borderRadius: '8px',
                   padding: '4px 8px',
-                  color: 'white',
+                  color: 'var(--text-main)',
                   fontSize: '11px',
                 }}
               />
@@ -171,7 +171,7 @@ export function TicketsWorkspaceHeader({
                   border: '1px solid var(--border)',
                   borderRadius: '8px',
                   padding: '4px 8px',
-                  color: 'white',
+                  color: 'var(--text-main)',
                   fontSize: '11px',
                 }}
               />
