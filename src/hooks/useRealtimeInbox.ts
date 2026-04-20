@@ -6,6 +6,7 @@ import {
   getInboxConversationById,
   listInboxConversations,
   listInboxConversationsFallback,
+  listInboxConversationsV2
 } from '@/lib/inbox/queries';
 import type { InboxConversation } from '@/types/inbox';
 
