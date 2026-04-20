@@ -100,29 +100,16 @@ export async function listInboxConversationsV2({
   const from = (page - 1) * pageSize;
   const to = from + pageSize - 1;
 
-  let query = supabase
+  // Simple focused query for active conversations
+  const { data, error, count } = await supabase
     .from('conversations')
-    .select('*, customers(*)', { count: 'exact' });
-
-  // Status Filter
-  if (status === 'active') {
-    query = query.eq('status', 'active');
-  } else {
-    // Show anything that is NOT active in the history tab
-    query = query.neq('status', 'active');
-    
-    // Apply date filters ONLY for non-active tab and when dates are provided
-    if (startDate) query = query.gte('last_message_at', startDate);
-    if (endDate) query = query.lte('last_message_at', endDate);
-  }
-
-  const { data, error, count } = await query
+    .select('*, customers(*)', { count: 'exact' })
+    .eq('status', 'active')
     .order('last_message_at', { ascending: false, nullsFirst: false })
-    .order('id', { ascending: false }) // Robust fallback sorting
     .range(from, to);
 
   if (error) {
-    console.error('Inbox V2 Query Error:', error);
+    console.error('Inbox Query Error:', error);
     return { data: [], count: 0 };
   }
   

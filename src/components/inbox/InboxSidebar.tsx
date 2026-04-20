@@ -21,163 +21,20 @@ export const InboxSidebar: React.FC<InboxSidebarProps> = ({
   selectedChat, 
   onSelectChat, 
   viewMode,
-  currentTab,
-  onTabChange,
   currentPage,
   totalPages,
-  onPageChange,
-  onDateFilterChange
+  onPageChange
 }) => {
-  const [activeDateFilter, setActiveDateFilter] = useState('today');
-
-  // Trigger initial filter on mount if in closed tab
-  React.useEffect(() => {
-    if (currentTab === 'closed') {
-      const now = new Date();
-      now.setHours(0, 0, 0, 0); // Start of today
-      
-      if (activeDateFilter === 'today') {
-        onDateFilterChange(now.toISOString(), null);
-      } else if (activeDateFilter === 'week') {
-        const start = new Date(now);
-        start.setDate(now.getDate() - 7);
-        onDateFilterChange(start.toISOString(), null);
-      } else if (activeDateFilter === 'all') {
-        onDateFilterChange(null, null);
-      }
-    }
-  }, [currentTab, activeDateFilter]);
-  const [showCustomRange, setShowCustomRange] = useState(false);
-  const [customStart, setCustomStart] = useState('');
-  const [customEnd, setCustomEnd] = useState('');
-
-  const handleDateFilter = (type: string) => {
-    setActiveDateFilter(type);
-    setShowCustomRange(type === 'custom');
-    
-    if (type === 'custom') return;
-
-    const now = new Date();
-    now.setHours(0, 0, 0, 0); // Start of today
-    let start: Date | null = null;
-
-    if (type === 'today') {
-      start = now;
-    } else if (type === 'week') {
-      start = new Date(now);
-      start.setDate(now.getDate() - 7);
-    } else if (type === 'month') {
-      start = new Date(now);
-      start.setMonth(now.getMonth() - 1);
-    }
-
-    onDateFilterChange(start?.toISOString() || null, null);
-  };
-
-  const applyCustomRange = () => {
-    onDateFilterChange(
-      customStart ? new Date(customStart).toISOString() : null,
-      customEnd ? new Date(customEnd).toISOString() : null
-    );
-  };
-
   return (
     <div className={`glass inbox-list-panel ${viewMode !== 'list' ? 'hidden-mobile' : ''}`} style={{ width: '360px', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
       
-      {/* Tabs Header */}
-      <div style={{ display: 'flex', borderBottom: '1px solid var(--border)', background: 'rgba(255,255,255,0.02)' }}>
-        <button 
-          onClick={() => onTabChange('active')}
-          style={{ 
-            flex: 1, 
-            padding: '16px', 
-            border: 'none', 
-            background: 'transparent', 
-            color: currentTab === 'active' ? 'var(--primary)' : 'var(--text-dim)',
-            fontWeight: '800',
-            fontSize: '14px',
-            borderBottom: currentTab === 'active' ? '2px solid var(--primary)' : '2px solid transparent',
-            cursor: 'pointer',
-            transition: 'all 0.2s'
-          }}
-        >
-          แชทปัจจุบัน
-        </button>
-        <button 
-          onClick={() => onTabChange('closed')}
-          style={{ 
-            flex: 1, 
-            padding: '16px', 
-            border: 'none', 
-            background: 'transparent', 
-            color: currentTab === 'closed' ? 'var(--primary)' : 'var(--text-dim)',
-            fontWeight: '800',
-            fontSize: '14px',
-            borderBottom: currentTab === 'closed' ? '2px solid var(--primary)' : '2px solid transparent',
-            cursor: 'pointer',
-            transition: 'all 0.2s'
-          }}
-        >
-          ประวัติใบงาน
-        </button>
+      {/* Header */}
+      <div style={{ padding: '24px', borderBottom: '1px solid var(--border)', background: 'linear-gradient(to right, rgba(255,255,255,0.03), transparent)' }}>
+        <h2 style={{ fontSize: '18px', fontWeight: '900', color: 'var(--primary)', margin: 0, letterSpacing: '-0.5px' }}>แชทที่กำลังดำเนินการ</h2>
+        <p style={{ fontSize: '12px', color: 'var(--text-dim)', marginTop: '4px' }}>จัดการคิวสนทนาแบบ Real-time</p>
       </div>
 
       <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--border)' }}>
-        {currentTab === 'closed' && (
-          <div style={{ marginBottom: '16px' }}>
-            <div style={{ display: 'flex', gap: '6px', marginBottom: '12px', overflowX: 'auto' }} className="no-scrollbar">
-              {[
-                { id: 'all', label: 'ทั้งหมด' },
-                { id: 'today', label: 'วันนี้' },
-                { id: 'week', label: '7 วันล่าสุด' },
-                { id: 'custom', label: 'ระบุวันที่' }
-              ].map(f => (
-                <button 
-                  key={f.id}
-                  onClick={() => handleDateFilter(f.id)}
-                  style={{
-                    padding: '6px 12px',
-                    borderRadius: '16px',
-                    fontSize: '11px',
-                    fontWeight: '700',
-                    border: '1px solid var(--border)',
-                    background: activeDateFilter === f.id ? 'var(--primary)' : 'transparent',
-                    color: activeDateFilter === f.id ? 'black' : 'var(--text-muted)',
-                    whiteSpace: 'nowrap',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s'
-                  }}
-                >
-                  {f.label}
-                </button>
-              ))}
-            </div>
-
-            {showCustomRange && (
-              <div style={{ display: 'flex', gap: '8px', alignItems: 'center', animation: 'fadeIn 0.2s ease-out' }}>
-                <input 
-                  type="date" 
-                  value={customStart}
-                  onChange={(e) => setCustomStart(e.target.value)}
-                  style={{ flex: 1, background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '8px', padding: '6px 8px', color: 'var(--text-main)', fontSize: '11px', colorScheme: 'inherit' }}
-                />
-                <span style={{ color: 'var(--text-dim)', fontSize: '11px' }}>-</span>
-                <input 
-                  type="date" 
-                  value={customEnd}
-                  onChange={(e) => setCustomEnd(e.target.value)}
-                  style={{ flex: 1, background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '8px', padding: '6px 8px', color: 'var(--text-main)', fontSize: '11px', colorScheme: 'inherit' }}
-                />
-                <button 
-                  onClick={applyCustomRange}
-                  style={{ background: 'var(--primary)', border: 'none', borderRadius: '8px', padding: '6px 10px', fontSize: '10px', fontWeight: '900', cursor: 'pointer', color: 'black' }}
-                >
-                  ค้นหา
-                </button>
-              </div>
-            )}
-          </div>
-        )}
 
         <div style={{ position: 'relative' }}>
           <Search style={{ position: 'absolute', left: '12px', top: '12px', color: 'var(--text-muted)' }} size={16} aria-hidden="true" />

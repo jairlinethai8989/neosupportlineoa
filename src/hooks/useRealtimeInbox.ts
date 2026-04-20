@@ -19,18 +19,12 @@ function sortConversations(items: InboxConversation[]) {
 }
 
 export function useRealtimeInbox(options: {
-  status?: 'active' | 'closed';
   page?: number;
   pageSize?: number;
-  startDate?: string | null;
-  endDate?: string | null;
 } = {}) {
   const { 
-    status = 'active', 
     page = 1, 
-    pageSize = 20, 
-    startDate = null, 
-    endDate = null 
+    pageSize = 20 
   } = options;
 
   const [conversations, setConversations] = useState<InboxConversation[]>([]);
@@ -41,16 +35,14 @@ export function useRealtimeInbox(options: {
     setLoading(true);
     try {
       const { data, count } = await listInboxConversationsV2({
-        status,
+        status: 'active',
         page,
-        pageSize,
-        startDate,
-        endDate
+        pageSize
       });
       setConversations(data);
       setTotalCount(count);
     } catch (error) {
-      console.error('Fetch Inbox V2 Error:', error);
+      console.error('Fetch Inbox Error:', error);
     } finally {
       setLoading(false);
     }
@@ -58,7 +50,7 @@ export function useRealtimeInbox(options: {
 
   useEffect(() => {
     fetchConversations();
-  }, [status, page, pageSize, startDate, endDate]);
+  }, [page, pageSize]);
 
   useEffect(() => {
     const channel = supabase
@@ -76,7 +68,7 @@ export function useRealtimeInbox(options: {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [status, page, pageSize]); // Add page to deps to ensure subscription interacts with current page state correctly
+  }, [page, pageSize]); // Add page to deps to ensure subscription interacts with current page state correctly
 
   return { 
     conversations, 
