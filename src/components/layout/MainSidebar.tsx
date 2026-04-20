@@ -146,17 +146,37 @@ const Sidebar = ({ onClickLink, isCollapsed = false }: SidebarProps) => {
   ], [inboxCount, newTicketsCount, unreadCount]);
 
   // OPTIMIZATION: Memoized Permission Check
-  const hasAccess = useCallback((name: string) => {
+  const hasAccess = useCallback((name: string, path?: string) => {
     if (userRole === 'Administrator') return true;
     if (!permissions) return true;
     
     const key = name.toLowerCase();
-    if (key.includes('analytics') || key.includes('performance') || key.includes('dashboard')) return permissions.analytics !== 'none';
-    if (key.includes('inbox')) return permissions.inbox !== 'none';
-    if (key.includes('ticket') || key.includes('create')) return permissions.tickets !== 'none';
-    if (key.includes('customer')) return permissions.customers !== 'none';
-    if (key.includes('report')) return permissions.reports !== 'none';
-    if (key.includes('settings')) return permissions.settings !== 'none';
+    const p = path?.toLowerCase() || '';
+
+    // Main Sections
+    if (key.includes('analytics') || key.includes('performance') || key.includes('dashboard') || p.includes('analytics')) 
+      return permissions.analytics !== 'none';
+    if (key.includes('inbox') || p.includes('inbox')) 
+      return permissions.inbox !== 'none';
+    if (key.includes('ticket') || p === '/tickets' || p.includes('tickets/')) 
+      return permissions.tickets !== 'none';
+    if (key.includes('notification')) 
+      return permissions.notifications !== 'none';
+    if (key.includes('customer')) 
+      return permissions.customers !== 'none';
+    if (key.includes('report')) 
+      return permissions.reports !== 'none';
+    
+    // Granular Settings
+    if (p.includes('/settings/profile')) return permissions.settings_profile !== 'none';
+    if (p.includes('/settings/branding')) return permissions.settings_branding !== 'none';
+    if (p.includes('/settings/staff')) return permissions.settings_staff !== 'none';
+    if (p.includes('/settings/sla')) return permissions.settings_sla !== 'none';
+    if (p.includes('/settings/master')) return permissions.settings_master !== 'none';
+    if (p.includes('/settings/audit')) return permissions.settings_audit !== 'none';
+
+    // Catch-all for general Settings menu or other paths
+    if (key.includes('settings')) return true; // Parent menu logic below handles children
     
     return true;
   }, [userRole, permissions]);
@@ -164,7 +184,18 @@ const Sidebar = ({ onClickLink, isCollapsed = false }: SidebarProps) => {
   const filteredMenuItems = useMemo(() => 
     menuItems.map((section: any) => ({
       ...section,
-      items: section.items.filter((item: any) => hasAccess(item.name))
+      items: section.items.filter((item: any) => {
+        const canAccessParent = hasAccess(item.name, item.path);
+        if (!canAccessParent) return false;
+        
+        // If it has children, filter children too
+        if (item.children) {
+          item.children = item.children.filter((child: any) => hasAccess(child.name, child.path));
+          return item.children.length > 0;
+        }
+        
+        return true;
+      })
     })).filter((section: any) => section.items.length > 0)
   , [menuItems, hasAccess]);
 

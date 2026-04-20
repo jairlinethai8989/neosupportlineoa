@@ -20,7 +20,13 @@ import {
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
-  Send
+  Send,
+  BarChart2,
+  Bell,
+  User,
+  Building,
+  ShieldCheck,
+  Settings2
 } from 'lucide-react';
 import Link from 'next/link';
 import { useNotificationContext } from '@/contexts/NotificationContext';
@@ -44,12 +50,18 @@ export default function StaffManagementPage() {
   const [permissionModalOpen, setPermissionModalOpen] = useState(false);
   const [selectedStaff, setSelectedStaff] = useState<any>(null);
   const [permissions, setPermissions] = useState<any>({
-    analytics: 'edit',
+    analytics: 'view',
     inbox: 'edit',
     tickets: 'edit',
+    notifications: 'view',
+    customers: 'view',
     reports: 'none',
-    customers: 'edit',
-    settings: 'view'
+    settings_profile: 'edit',
+    settings_branding: 'none',
+    settings_staff: 'none',
+    settings_sla: 'none',
+    settings_master: 'none',
+    settings_audit: 'none'
   });
   const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' }>({ key: 'full_name', direction: 'asc' });
 
@@ -139,13 +151,24 @@ export default function StaffManagementPage() {
 
   const handleOpenPermissions = (staffMember: any) => {
     setSelectedStaff(staffMember);
-    setPermissions(staffMember.permissions || {
+    const defaults = {
       analytics: 'view',
       inbox: 'edit',
       tickets: 'edit',
-      reports: 'none',
+      notifications: 'view',
       customers: 'view',
-      settings: 'none'
+      reports: 'none',
+      settings_profile: 'edit',
+      settings_branding: 'none',
+      settings_staff: 'none',
+      settings_sla: 'none',
+      settings_master: 'none',
+      settings_audit: 'none'
+    };
+    
+    setPermissions({
+      ...defaults,
+      ...(staffMember.permissions || {})
     });
     setPermissionModalOpen(true);
   };
@@ -537,19 +560,25 @@ export default function StaffManagementPage() {
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '32px' }}>
               {[
-                { key: 'analytics', label: 'ภาพรวม & สถิติ (Analytics)', icon: CheckCircle },
+                { key: 'analytics', label: 'ภาพรวม & สถิติ (Analytics)', icon: BarChart2 },
                 { key: 'inbox', label: 'ระบบแชท (Inbox)', icon: Mail },
                 { key: 'tickets', label: 'จัดการตั๋ว (Tickets)', icon: Shield },
-                { key: 'reports', label: 'การส่งรายงาน (LINE Reports)', icon: Send },
+                { key: 'notifications', label: 'การแจ้งเตือน (Notifications)', icon: Bell },
                 { key: 'customers', label: 'ฐานข้อมูลลูกค้า (Customers)', icon: Users },
-                { key: 'settings', label: 'ตั้งค่าระบบ (Settings)', icon: Shield },
+                { key: 'reports', label: 'การส่งรายงาน (LINE Reports)', icon: Send },
+                { key: 'settings_profile', label: 'ตั้งค่า: ข้อมูลส่วนตัว', icon: User },
+                { key: 'settings_branding', label: 'ตั้งค่า: ข้อมูลองค์กร', icon: Building },
+                { key: 'settings_staff', label: 'ตั้งค่า: จัดการทีมงาน', icon: UserPlus },
+                { key: 'settings_sla', label: 'ตั้งค่า: ระดับการบริการ (SLA)', icon: ShieldCheck },
+                { key: 'settings_master', label: 'ตั้งค่า: ข้อมูลพื้นฐาน', icon: Settings2 },
+                { key: 'settings_audit', label: 'ตั้งค่า: ตรวจสอบความปลอดภัย (Audit)', icon: Shield },
               ].map((module) => (
                 <div key={module.key} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', background: 'rgba(255,255,255,0.03)', borderRadius: '14px', border: '1px solid var(--border)' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                     <module.icon size={18} color="var(--text-muted)" />
                     <span style={{ fontSize: '14px', fontWeight: '700' }}>{module.label}</span>
                   </div>
-                  <div style={{ display: 'flex', gap: '4px', background: 'rgba(0,0,0,0.2)', padding: '4px', borderRadius: '10px' }}>
+                  <div style={{ display: 'flex', gap: '4px', background: 'rgba(0,0,0,0.1)', padding: '4px', borderRadius: '10px', border: '1px solid var(--border)' }}>
                     {['none', 'view', 'edit'].map((level) => (
                       <button
                         key={level}
@@ -564,8 +593,11 @@ export default function StaffManagementPage() {
                           textTransform: 'uppercase',
                           background: permissions[module.key] === level 
                             ? (level === 'edit' ? 'var(--primary)' : level === 'view' ? 'var(--secondary)' : 'var(--danger)') 
-                            : 'transparent',
-                          color: permissions[module.key] === level ? '#0a0e14' : 'var(--text-dim)',
+                            : 'rgba(255,255,255,0.05)',
+                          color: permissions[module.key] === level 
+                            ? '#0a0e14' 
+                            : 'var(--text-main)',
+                          opacity: permissions[module.key] === level ? 1 : 0.4,
                           transition: 'all 0.2s'
                         }}
                       >
