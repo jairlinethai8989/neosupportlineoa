@@ -110,7 +110,6 @@ export const InboxSidebar: React.FC<InboxSidebarProps> = ({
                 { id: 'all', label: 'ทั้งหมด' },
                 { id: 'today', label: 'วันนี้' },
                 { id: 'week', label: '7 วันล่าสุด' },
-                { id: 'month', label: '30 วันล่าสุด' },
                 { id: 'custom', label: 'ระบุวันที่' }
               ].map(f => (
                 <button 
