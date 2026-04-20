@@ -41,7 +41,6 @@ function hasSelectedConversationChanged(
 }
 
 function InboxContent() {
-  const { conversations, loading: inboxLoading } = useRealtimeInbox();
   const { addToast } = useNotificationContext();
   const [selectedChat, setSelectedChat] = useState<InboxConversation | null>(null);
   const [viewMode, setViewMode] = useState<InboxViewMode>('list');
@@ -50,6 +49,18 @@ function InboxContent() {
   const [isViewerOpen, setIsViewerOpen] = useState(false);
   const [viewingImage, setViewingImage] = useState('');
   const [editingImage, setEditingImage] = useState('');
+  const [inboxTab, setInboxTab] = useState<'active' | 'closed'>('active');
+  const [page, setPage] = useState(1);
+  const [startDate, setStartDate] = useState<string | null>(null);
+  const [endDate, setEndDate] = useState<string | null>(null);
+
+  const { conversations, totalPages, loading: inboxLoading } = useRealtimeInbox({
+    status: inboxTab,
+    page,
+    pageSize: 20,
+    startDate,
+    endDate
+  });
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const searchParams = useSearchParams();
   const cid = searchParams.get('cid');
@@ -210,6 +221,19 @@ function InboxContent() {
           setViewMode('chat');
         }}
         viewMode={viewMode}
+        currentTab={inboxTab}
+        onTabChange={(tab) => {
+          setInboxTab(tab);
+          setPage(1);
+        }}
+        currentPage={page}
+        totalPages={totalPages}
+        onPageChange={setPage}
+        onDateFilterChange={(start, end) => {
+          setStartDate(start);
+          setEndDate(end);
+          setPage(1);
+        }}
       />
 
       <div

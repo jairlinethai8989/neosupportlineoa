@@ -84,6 +84,59 @@ export async function listInboxConversationsFallback(limit = 100): Promise<Inbox
   return normalizeInboxConversations(data || []);
 }
 
+export async function listInboxConversationsV2({
+  status = 'active',
+  page = 1,
+  pageSize = 20,
+  startDate,
+  endDate,
+  search
+}: {
+  status?: 'active' | 'closed';
+  page?: number;
+  pageSize?: number;
+  startDate?: string | null;
+  endDate?: string | null;
+  search?: string;
+}): Promise<{ data: InboxConversation[]; count: number }> {
+  const from = (page - 1) * pageSize;
+  const to = from + pageSize - 1;
+
+  let query = supabase
+    .from('conversations')
+    .select(inboxConversationSelect, { count: 'exact' });
+
+  // Status Filter
+  if (status === 'active') {
+    query = query.eq('status', 'active');
+  } else {
+    query = query.eq('status', 'closed');
+  }
+
+  // Date Filter (for closed/archive)
+  if (startDate) {
+    query = query.gte('last_message_at', startDate);
+  }
+  if (endDate) {
+    query = query.lte('last_message_at', endDate);
+  }
+
+  // Search Filter (by customer name if possible, or ID)
+  // Note: Searching nested customers is hard in basic Supabase query, 
+  // we might need a join or RPC if search is critical. 
+  // For now, let's focus on basic status/pagination.
+
+  const { data, error, count } = await query
+    .order('last_message_at', { ascending: false })
+    .range(from, to);
+
+  if (error) throw error;
+  return {
+    data: normalizeInboxConversations(data || []),
+    count: count || 0
+  };
+}
+
 export async function getInboxConversationById(id: string): Promise<InboxConversation | null> {
   const { data, error } = await supabase
     .from('conversations')
