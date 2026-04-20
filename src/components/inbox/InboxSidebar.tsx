@@ -140,14 +140,14 @@ export const InboxSidebar: React.FC<InboxSidebarProps> = ({
                   type="date" 
                   value={customStart}
                   onChange={(e) => setCustomStart(e.target.value)}
-                  style={{ flex: 1, background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '8px', padding: '6px 8px', color: 'white', fontSize: '11px' }}
+                  style={{ flex: 1, background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '8px', padding: '6px 8px', color: 'var(--text-main)', fontSize: '11px', colorScheme: 'inherit' }}
                 />
                 <span style={{ color: 'var(--text-dim)', fontSize: '11px' }}>-</span>
                 <input 
                   type="date" 
                   value={customEnd}
                   onChange={(e) => setCustomEnd(e.target.value)}
-                  style={{ flex: 1, background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '8px', padding: '6px 8px', color: 'white', fontSize: '11px' }}
+                  style={{ flex: 1, background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '8px', padding: '6px 8px', color: 'var(--text-main)', fontSize: '11px', colorScheme: 'inherit' }}
                 />
                 <button 
                   onClick={applyCustomRange}
@@ -172,7 +172,7 @@ export const InboxSidebar: React.FC<InboxSidebarProps> = ({
               border: '1px solid var(--border)',
               borderRadius: '10px',
               padding: '10px 12px 10px 40px',
-              color: 'white',
+              color: 'var(--text-main)',
               fontSize: '13px',
               outline: 'none'
             }}

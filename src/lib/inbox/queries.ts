@@ -106,34 +106,30 @@ export async function listInboxConversationsV2({
     .from('conversations')
     .select(inboxConversationSelect, { count: 'exact' });
 
-  // Status Filter
+  // Status Filter - Most inclusive logic: Active = not is_active:false
   if (status === 'active') {
-    query = query.eq('is_active', true);
+    query = query.or('is_active.eq.true,is_active.is.null');
   } else {
     query = query.eq('is_active', false);
   }
 
-  // Date Filter (for closed/archive)
-  if (startDate) {
-    query = query.gte('last_message_at', startDate);
-  }
-  if (endDate) {
-    query = query.lte('last_message_at', endDate);
-  }
+  // Apply filters only if provided
+  if (startDate) query = query.gte('last_message_at', startDate);
+  if (endDate) query = query.lte('last_message_at', endDate);
 
-  // Search Filter (by customer name if possible, or ID)
-  // Note: Searching nested customers is hard in basic Supabase query, 
-  // we might need a join or RPC if search is critical. 
-  // For now, let's focus on basic status/pagination.
-
+  // Simplified and more robust query execution
   const { data, error, count } = await query
-    .order('last_message_at', { ascending: false })
+    .order('last_message_at', { ascending: false, nullsFirst: false })
     .range(from, to);
 
-  if (error) throw error;
+  if (error) {
+    console.error('Supabase Query Error:', error);
+    throw error;
+  }
+  
   return {
     data: normalizeInboxConversations(data || []),
-    count: count || 0
+    count: count ?? (data?.length || 0)
   };
 }
 
