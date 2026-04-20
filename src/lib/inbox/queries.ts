@@ -104,12 +104,14 @@ export async function listInboxConversationsV2({
     .from('conversations')
     .select('*, customers(*)', { count: 'exact' });
 
-  // Status Filter - Basic equality
+  // Status Filter
   if (status === 'active') {
     query = query.eq('status', 'active');
   } else {
-    query = query.eq('status', 'closed');
-    // Date filters
+    // Show anything that is NOT active in the history tab
+    query = query.neq('status', 'active');
+    
+    // Apply date filters ONLY for non-active tab and when dates are provided
     if (startDate) query = query.gte('last_message_at', startDate);
     if (endDate) query = query.lte('last_message_at', endDate);
   }
