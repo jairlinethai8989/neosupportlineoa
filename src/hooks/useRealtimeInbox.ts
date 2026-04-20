@@ -60,6 +60,7 @@ export function useRealtimeInbox(options: {
     fetchConversations();
   }, [status, page, pageSize, startDate, endDate]);
 
+  useEffect(() => {
     const channel = supabase
       .channel('inbox-realtime-v5')
       .on(
