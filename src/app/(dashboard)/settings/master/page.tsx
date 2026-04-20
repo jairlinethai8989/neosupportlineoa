@@ -464,7 +464,8 @@ export default function MasterSettingsPage() {
                                   setEditingId(item.id);
                                   setEditItemName(item.name);
                                 }}
-                                style={{ color: 'white', opacity: 0.5 }} className="glass-interactive p-2 rounded-lg"
+                                style={{ color: 'var(--text-muted)' }} 
+                                className="glass-interactive p-2 rounded-lg"
                               >
                                  <Edit3 size={18} />
                               </button>
