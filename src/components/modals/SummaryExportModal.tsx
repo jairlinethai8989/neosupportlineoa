@@ -10,13 +10,12 @@ interface SummaryExportModalProps {
 }
 
 export default function SummaryExportModal({ isOpen, onClose, onExport, ticketNo }: SummaryExportModalProps) {
-  const [format, setFormat] = useState<'pdf' | 'xlsx'>('pdf');
   const [loading, setLoading] = useState(false);
 
   const handleExport = async () => {
     setLoading(true);
     try {
-      await onExport(format);
+      await onExport('pdf');
       setTimeout(() => {
         setLoading(false);
         onClose();
@@ -34,103 +33,92 @@ export default function SummaryExportModal({ isOpen, onClose, onExport, ticketNo
       position: 'fixed',
       inset: 0,
       background: 'rgba(0, 0, 0, 0.7)',
-      backdropFilter: 'blur(8px)',
+      backdropFilter: 'blur(12px)',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      zIndex: 100,
+      zIndex: 1000,
       animation: 'fadeIn 0.3s ease-out'
     }}>
-      <div className="glass" style={{ width: '420px', padding: '32px', boxShadow: '0 20px 50px rgba(0,0,0,0.5)', position: 'relative' }}>
-        <button onClick={onClose} style={{ position: 'absolute', top: '20px', right: '20px', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}>
+      <div className="glass" style={{ width: '400px', padding: '40px', boxShadow: '0 25px 80px rgba(0,0,0,0.6)', position: 'relative', border: '1px solid rgba(255,255,255,0.1)' }}>
+        <button 
+          onClick={onClose} 
+          className="glass-interactive"
+          style={{ position: 'absolute', top: '24px', right: '24px', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', width: '32px', height: '32px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+        >
           <X size={20} />
         </button>
 
-        <div style={{ textAlign: 'center', marginBottom: '24px' }}>
-          <div style={{ width: '60px', height: '60px', background: 'rgba(54, 153, 255, 0.1)', color: 'var(--primary)', borderRadius: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
-            <Download size={28} />
+        <div style={{ textAlign: 'center', marginBottom: '32px' }}>
+          <div style={{ 
+            width: '72px', 
+            height: '72px', 
+            background: 'var(--primary-transparent)', 
+            color: 'var(--primary)', 
+            borderRadius: '24px', 
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'center', 
+            margin: '0 auto 20px',
+            boxShadow: '0 10px 25px var(--primary-glow)'
+          }}>
+            <FileText size={32} />
           </div>
-          <h2 style={{ fontSize: '20px', fontWeight: '800', marginBottom: '4px' }}>สรุปใบงานใหม่</h2>
-          <p style={{ fontSize: '14px', color: 'var(--text-muted)' }}>เลือกรูปแบบไฟล์สำหรับใบงาน #{ticketNo}</p>
+          <h2 style={{ fontSize: '24px', fontWeight: '900', marginBottom: '8px', letterSpacing: '-0.5px' }}>ยืนยันการสรุปใบงาน</h2>
+          <p style={{ fontSize: '14px', color: 'var(--text-muted)', lineHeight: '1.6' }}>
+            คุณกำลังจะสร้างไฟล์เอกสารสรุป <strong style={{ color: 'var(--text-main)' }}>PDF</strong> สำหรับใบงาน <span style={{ color: 'var(--primary)', fontWeight: '800' }}>#{ticketNo}</span>
+          </p>
         </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '24px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           <button 
-            onClick={() => setFormat('pdf')}
+            onClick={handleExport}
+            disabled={loading}
+            className="glass-interactive"
             style={{
-              padding: '16px',
-              borderRadius: '12px',
-              border: `2px solid ${format === 'pdf' ? 'var(--primary)' : 'var(--border)'}`,
-              background: format === 'pdf' ? 'rgba(54, 153, 255, 0.1)' : 'transparent',
+              width: '100%',
+              padding: '18px',
+              borderRadius: '16px',
+              background: 'linear-gradient(135deg, var(--primary) 0%, oklch(60% 0.15 280) 100%)',
+              color: 'white',
+              border: 'none',
+              fontWeight: '900',
+              fontSize: '16px',
               display: 'flex',
               alignItems: 'center',
-              gap: '16px',
-              cursor: 'pointer',
-              transition: 'all 0.2s'
+              justifyContent: 'center',
+              gap: '12px',
+              boxShadow: '0 10px 30px var(--primary-transparent)',
+              opacity: loading ? 0.7 : 1,
+              transition: 'all 0.3s'
             }}
           >
-            <div style={{ color: format === 'pdf' ? 'var(--primary)' : 'var(--text-muted)' }}>
-              <FileText size={24} />
-            </div>
-            <div style={{ textAlign: 'left' }}>
-              <p style={{ fontWeight: '700', fontSize: '15px', color: format === 'pdf' ? 'white' : 'var(--text-muted)' }}>PDF Document</p>
-              <p style={{ fontSize: '12px', color: 'var(--text-dim)' }}>เหมาะสำหรับพิมพ์ หรือส่งให้ลูกค้า</p>
-            </div>
+            {loading ? (
+              <Loader2 size={24} className="animate-spin" />
+            ) : (
+              <>
+                <Download size={20} />
+                ตกลง (Export Now)
+              </>
+            )}
           </button>
-
+          
           <button 
-            onClick={() => setFormat('xlsx')}
+            onClick={onClose}
+            disabled={loading}
             style={{
-              padding: '16px',
-              borderRadius: '12px',
-              border: `2px solid ${format === 'xlsx' ? 'var(--success)' : 'var(--border)'}`,
-              background: format === 'xlsx' ? 'rgba(40, 199, 111, 0.1)' : 'transparent',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '16px',
+              background: 'none',
+              border: 'none',
+              color: 'var(--text-muted)',
+              fontSize: '14px',
+              fontWeight: '700',
               cursor: 'pointer',
-              transition: 'all 0.2s'
+              padding: '8px'
             }}
           >
-            <div style={{ color: format === 'xlsx' ? 'var(--success)' : 'var(--text-muted)' }}>
-              <Table size={24} />
-            </div>
-            <div style={{ textAlign: 'left' }}>
-              <p style={{ fontWeight: '700', fontSize: '15px', color: format === 'xlsx' ? 'white' : 'var(--text-muted)' }}>Excel Spreadsheet</p>
-              <p style={{ fontSize: '12px', color: 'var(--text-dim)' }}>เหมาะสำหรับนำไปคำนวณ หรือเก็บข้อมูล</p>
-            </div>
+            ยกเลิก
           </button>
         </div>
-
-        <button 
-          onClick={handleExport}
-          disabled={loading}
-          className="glass-interactive"
-          style={{
-            width: '100%',
-            padding: '16px',
-            borderRadius: '12px',
-            background: format === 'pdf' ? 'var(--primary)' : 'var(--success)',
-            color: 'white',
-            border: 'none',
-            fontWeight: '800',
-            fontSize: '16px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '12px',
-            opacity: loading ? 0.7 : 1
-          }}
-        >
-          {loading ? (
-            <Loader2 size={22} className="animate-spin" />
-          ) : (
-            <>
-              <Download size={20} />
-              ตกลง (Export Now)
-            </>
-          )}
-        </button>
       </div>
     </div>
   );
