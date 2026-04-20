@@ -26,7 +26,8 @@ import {
   User,
   Building,
   ShieldCheck,
-  Settings2
+  Settings2,
+  LayoutGrid
 } from 'lucide-react';
 import Link from 'next/link';
 import { useNotificationContext } from '@/contexts/NotificationContext';
