@@ -47,11 +47,11 @@ function InboxContent() {
   const [selectedChat, setSelectedChat] = useState<InboxConversation | null>(null);
   const [viewMode, setViewMode] = useState<InboxViewMode>('list');
   const [showCanned, setShowCanned] = useState(false);
-  const [isCapturing, setIsCapturing] = useState(false);
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [isViewerOpen, setIsViewerOpen] = useState(false);
   const [viewingImage, setViewingImage] = useState('');
   const [editingImage, setEditingImage] = useState('');
+  const [isCapturing, setIsCapturing] = useState(false);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const searchParams = useSearchParams();
   const cid = searchParams.get('cid');
@@ -98,6 +98,8 @@ function InboxContent() {
     addToast,
   });
 
+  const handleScreenCapture = () => setIsCapturing(true);
+
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !selectedChat) return;
@@ -122,8 +124,18 @@ function InboxContent() {
     }
   };
 
-  const handleScreenCapture = async () => {
-    setIsCapturing(true);
+  const openImageInEditor = (file: File) => {
+    if (!file.type.startsWith('image/')) return;
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result;
+      if (typeof result !== 'string') return;
+      setEditingImage(result);
+      setIsEditorOpen(true);
+      setIsViewerOpen(false);
+    };
+    reader.readAsDataURL(file);
   };
 
   useEffect(() => {
@@ -157,6 +169,27 @@ function InboxContent() {
       });
     }
   }, [conversations, selectedChat]);
+
+  useEffect(() => {
+    const handlePaste = (event: ClipboardEvent) => {
+      if (!selectedChat) return;
+
+      const imageItem = Array.from(event.clipboardData?.items || []).find((item) =>
+        item.type.startsWith('image/')
+      );
+
+      if (!imageItem) return;
+
+      const file = imageItem.getAsFile();
+      if (!file) return;
+
+      event.preventDefault();
+      openImageInEditor(file);
+    };
+
+    window.addEventListener('paste', handlePaste);
+    return () => window.removeEventListener('paste', handlePaste);
+  }, [selectedChat]);
 
   if (inboxLoading) {
     return (
@@ -339,17 +372,6 @@ function InboxContent() {
               setSending(false);
             }
           }}
-        />
-      )}
-
-      {isCapturing && (
-        <CaptureOverlay 
-          onCapture={(url) => {
-            setEditingImage(url);
-            setIsEditorOpen(true);
-            setIsCapturing(false);
-          }}
-          onCancel={() => setIsCapturing(false)}
         />
       )}
 

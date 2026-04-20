@@ -12,6 +12,7 @@ import {
   Pencil, 
   Trash2, 
   Clock,
+  Clock,
   AlertTriangle,
   Crop
 } from 'lucide-react';
@@ -43,12 +44,12 @@ interface ChatWindowProps {
   onUseCanned: (text: string) => void;
   onAttachClick: () => void;
   onEditImage: (url: string) => void;
+  onScreenCapture: () => void;
   onClaim: () => void;
   onDeleteMessage?: (id: string) => void | Promise<void>;
   hasMoreMessages: boolean;
   loadingMoreMessages: boolean;
   onLoadOlderMessages: () => Promise<void>;
-  onScreenCapture: () => void;
   messagesEndRef: RefObject<HTMLDivElement | null>;
 }
 
@@ -72,12 +73,12 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
   onUseCanned,
   onAttachClick,
   onEditImage,
+  onScreenCapture,
   onClaim,
   onDeleteMessage,
   hasMoreMessages,
   loadingMoreMessages,
   onLoadOlderMessages,
-  onScreenCapture,
   messagesEndRef
 }) => {
   if (!selectedChat) {
@@ -119,7 +120,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
   };
 
   return (
-    <div className={`glass inbox-chat-panel ${viewMode !== 'chat' ? 'hidden-mobile' : ''}`} style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+    <div data-capture-root="true" className={`glass inbox-chat-panel ${viewMode !== 'chat' ? 'hidden-mobile' : ''}`} style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
       <div style={{ padding: '16px 24px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg-topbar)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
            <button 
@@ -326,7 +327,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
          <form onSubmit={onSendMessage}>
           <div className="glass" style={{ padding: '6px 14px', display: 'flex', alignItems: 'center', gap: '12px', background: 'var(--bg-input)', borderRadius: '14px', border: '1px solid var(--border)' }}>
              <button type="button" onClick={() => setShowCanned(!showCanned)} title="ข้อความสำเร็จรูป" aria-label="Quick replies" className="glass-interactive flex-center" style={{ width: '36px', height: '36px', background: 'none', border: 'none', color: showCanned ? 'var(--primary)' : 'var(--text-muted)', cursor: 'pointer' }}><MessageSquare size={19} aria-hidden="true" /></button>
-             <button type="button" onClick={onAttachClick} title="แนบรูปภาพหรือไฟล์" aria-label="Attach file" className="glass-interactive flex-center" style={{ width: '36px', height: '36px', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}><Paperclip size={20} aria-hidden="true" /></button>
+             <button type="button" onClick={onAttachClick} title="แนบไฟล์หรือวางรูปภาพ (Ctrl+V)" aria-label="Attach file or paste image" className="glass-interactive flex-center" style={{ width: '36px', height: '36px', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}><Paperclip size={20} aria-hidden="true" /></button>
              <button type="button" onClick={onScreenCapture} title="Capture หน้าจอ" aria-label="Capture screen" className="glass-interactive flex-center" style={{ width: '36px', height: '36px', background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer' }}><Crop size={19} aria-hidden="true" /></button>
            <input 
               type="text" 
@@ -339,7 +340,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
                      ? "คุณมีสิทธิ์อ่านเท่านั้น (View Only)" 
                      : isRestricted
                        ? "กรุณากดรับงานก่อนเริ่มการสนทนา"
-                       : "พิมพ์ข้อความตอบกลับ..."
+                       : "พิมพ์ข้อความ หรือวางรูปภาพ Ctrl+V..."
                } 
               disabled={isResolved || isViewOnly || isRestricted}
               style={{ flex: 1, background: 'none', border: 'none', outline: 'none', color: 'var(--text-main)', padding: '12px 0', fontSize: '14px', opacity: (isResolved || isRestricted) ? 0.4 : 1 }}
@@ -369,3 +370,4 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
   </div>
   );
 };
+

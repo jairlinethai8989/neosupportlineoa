@@ -7,12 +7,12 @@ import { supabase } from '@/lib/supabase';
 import ImageEditorModal from '@/components/modals/ImageEditorModal';
 import ImageViewerModal from '@/components/modals/ImageViewerModal';
 import SummaryExportModal from '@/components/modals/SummaryExportModal';
-import CaptureOverlay from '@/components/chat/CaptureOverlay';
 import { ResolveTicketModal } from '@/components/inbox/ResolveTicketModal';
 import { ticketService } from '@/lib/services/ticketService';
 import { TicketHeader } from '@/components/tickets/TicketHeader';
 import { TicketChat } from '@/components/tickets/TicketChat';
 import { TicketSidebar, getTicketDuration } from '@/components/tickets/TicketSidebar';
+import CaptureOverlay from '@/components/chat/CaptureOverlay';
 import Link from 'next/link';
 import Image from 'next/image';
 import { User, Clock, ChevronRight } from 'lucide-react';
@@ -55,12 +55,6 @@ const pageGridStyle: React.CSSProperties = {
   marginBottom: '24px',
 };
 
-const activityGridStyle: React.CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: '1fr 1fr',
-  gap: '24px',
-};
-
 const loadingContainerStyle: React.CSSProperties = { height: '70vh' };
 
 function normalizeRouteId(rawId: string | string[] | undefined): string | null {
@@ -88,7 +82,7 @@ export default function StaffTicketDetailPage() {
   const [status, setStatus] = useState('');
   const [priority, setPriority] = useState('');
   const [selectedDept, setSelectedDept] = useState('');
-  const [availableDepts, setAvailableDepts] = useState<any[]>([]);
+  const [availableDepts, setAvailableDepts] = useState<Array<{ label: string; value: string }>>([]);
   const [selectedModule, setSelectedModule] = useState('');
   const [selectedIssueType, setSelectedIssueType] = useState('');
   const [availableIssueTypes, setAvailableIssueTypes] = useState<string[]>([]);
@@ -257,6 +251,27 @@ export default function StaffTicketDetailPage() {
     };
   }, [fetchData, ticketId]);
 
+  useEffect(() => {
+    const handlePaste = (event: ClipboardEvent) => {
+      if (!ticketId) return;
+
+      const imageItem = Array.from(event.clipboardData?.items || []).find((item) =>
+        item.type.startsWith('image/')
+      );
+
+      if (!imageItem) return;
+
+      const file = imageItem.getAsFile();
+      if (!file) return;
+
+      event.preventDefault();
+      openImageInEditor(file);
+    };
+
+    window.addEventListener('paste', handlePaste);
+    return () => window.removeEventListener('paste', handlePaste);
+  }, [openImageInEditor, ticketId]);
+
   const updateTicketField = useCallback(
     async (field: 'status' | 'priority' | 'department' | 'module', value: string) => {
       if (!ticketId) return;
@@ -313,6 +328,8 @@ export default function StaffTicketDetailPage() {
     }
   }, [addToast, conversationId, newMessage, ticketId, user?.id]);
 
+  const handleScreenCapture = useCallback(() => setIsCapturing(true), []);
+
   const handleAdminFile = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
     if (!ticketId || !event.target.files?.length) return;
 
@@ -346,8 +363,18 @@ export default function StaffTicketDetailPage() {
     }
   }, [addToast, conversationId, ticketId, user?.id]);
 
-  const handleScreenCapture = useCallback(() => {
-    setIsCapturing(true);
+  const openImageInEditor = useCallback((file: File) => {
+    if (!file.type.startsWith('image/')) return;
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result;
+      if (typeof result !== 'string') return;
+      setEditingImage(result);
+      setShowEditor(true);
+      setShowViewer(false);
+    };
+    reader.readAsDataURL(file);
   }, []);
 
   const handleEditorSave = useCallback(async (blob: Blob) => {
@@ -638,11 +665,11 @@ export default function StaffTicketDetailPage() {
           sending={sending}
           onSendMessage={handleSendMessage}
           onAttachFile={() => adminFileRef.current?.click()}
-          onScreenCapture={handleScreenCapture}
           onEditImage={(url) => {
             setViewingImage(url);
             setShowViewer(true);
           }}
+          onScreenCapture={handleScreenCapture}
           onDeleteMessage={handleDeleteMessage}
           onEndChat={handleEndChat}
           isChatActive={isChatActive}

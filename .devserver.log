@@ -1,0 +1,821 @@
+
+> neo_line_oa@1.1.2 dev
+> next dev --port 3000
+
+▲ Next.js 16.2.1 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://192.168.1.18:3000
+- Environments: .env.local
+✓ Ready in 10.9s
+⚠ Slow filesystem detected. The benchmark took 237ms. If D:\Project APP\AntiGravity\neo_line_oa\.next/dev is a network drive, consider moving it to a local folder.
+See more: https://nextjs.org/docs/app/guides/local-development
+○ Compiling middleware ...
+
+ GET / 200 in 9.9s (next.js: 7.6s, application-code: 2.3s)
+○ Compiling /inbox ...
+ GET /(dashboard)/inbox 404 in 906ms (next.js: 791ms, application-code: 115ms)
+ GET /dashboard/inbox 404 in 120ms (next.js: 8ms, application-code: 112ms)
+ GET / 200 in 156ms (next.js: 29ms, application-code: 127ms)
+ GET /inbox 200 in 47ms (next.js: 4ms, application-code: 43ms)
+[browser] Fetch Inbox Error: {
+  code: [32m'42703'[39m,
+  details: [1mnull[22m,
+  hint: [1mnull[22m,
+  message: [32m'column customers_1.avatar_url does not exist'[39m
+} 
+    at fetchInitial (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/src_11fvlcp._.js:294:29) (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/src_11fvlcp._.js:294:29)
+[browser] Fetch Inbox Error: {
+  code: [32m'42703'[39m,
+  details: [1mnull[22m,
+  hint: [1mnull[22m,
+  message: [32m'column customers_1.avatar_url does not exist'[39m
+} 
+    at fetchInitial (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/src_11fvlcp._.js:294:29) (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/src_11fvlcp._.js:294:29)
+ GET /customer/e1deffbe-d691-4096-aa39-329b1f3f226b/610148346308591983_1776508066233.jpg 404 in 110ms (next.js: 34ms, application-code: 76ms)
+ GET /customer/e1deffbe-d691-4096-aa39-329b1f3f226b/610148346308591983_1776508066233.jpg 404 in 110ms (next.js: 9ms, application-code: 100ms)
+ GET /customer/e1deffbe-d691-4096-aa39-329b1f3f226b/610148346308591983_1776508066233.jpg 404 in 93ms (next.js: 6ms, application-code: 86ms)
+ GET /customer/e1deffbe-d691-4096-aa39-329b1f3f226b/610148346308591983_1776508066233.jpg 404 in 80ms (next.js: 7ms, application-code: 73ms)
+ GET /customer/e1deffbe-d691-4096-aa39-329b1f3f226b/610148346308591983_1776508066233.jpg 404 in 125ms (next.js: 7ms, application-code: 119ms)
+ GET /customer/e1deffbe-d691-4096-aa39-329b1f3f226b/610148346308591983_1776508066233.jpg 404 in 103ms (next.js: 10ms, application-code: 93ms)
+ GET /customer/e1deffbe-d691-4096-aa39-329b1f3f226b/610148346308591983_1776508066233.jpg 404 in 171ms (next.js: 16ms, application-code: 155ms)
+ GET /customer/e1deffbe-d691-4096-aa39-329b1f3f226b/610148346308591983_1776508066233.jpg 404 in 65ms (next.js: 7ms, application-code: 58ms)
+ GET /customer/e1deffbe-d691-4096-aa39-329b1f3f226b/610148346308591983_1776508066233.jpg 404 in 115ms (next.js: 13ms, application-code: 102ms)
+ GET /customer/e1deffbe-d691-4096-aa39-329b1f3f226b/610148346308591983_1776508066233.jpg 404 in 99ms (next.js: 9ms, application-code: 90ms)
+ GET /customer/e1deffbe-d691-4096-aa39-329b1f3f226b/610148346308591983_1776508066233.jpg 404 in 128ms (next.js: 5ms, application-code: 123ms)
+○ Compiling /tickets ...
+ GET /tickets 200 in 12.7s (next.js: 12.6s, application-code: 111ms)
+ GET /tickets 200 in 43ms (next.js: 10ms, application-code: 32ms)
+✓ Finished filesystem cache database compaction in 16.9s
+✓ Compiled in 1262ms
+[browser] ⨯ unhandledRejection: AuthSessionMissingError: Auth session missing!
+    at <unknown> (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/node_modules_04ekgm~._.js:21810:32)
+    at SupabaseAuthClient._useSession (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/node_modules_04ekgm~._.js:21613:26)
+    at async SupabaseAuthClient._getUser (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/node_modules_04ekgm~._.js:21798:20)
+    at async (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/node_modules_04ekgm~._.js:21782:20)
+[browser] ⨯ unhandledRejection: AuthSessionMissingError: Auth session missing!
+    at <unknown> (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/node_modules_04ekgm~._.js:21810:32)
+    at SupabaseAuthClient._useSession (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/node_modules_04ekgm~._.js:21613:26)
+    at async SupabaseAuthClient._getUser (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/node_modules_04ekgm~._.js:21798:20)
+    at async (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/node_modules_04ekgm~._.js:21782:20)
+[browser] ⨯ unhandledRejection: AuthSessionMissingError: Auth session missing!
+    at <unknown> (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/node_modules_04ekgm~._.js:21810:32)
+    at SupabaseAuthClient._useSession (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/node_modules_04ekgm~._.js:21613:26)
+    at async SupabaseAuthClient._getUser (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/node_modules_04ekgm~._.js:21798:20)
+    at async (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/node_modules_04ekgm~._.js:21782:20)
+ GET /tickets 200 in 801ms (next.js: 69ms, application-code: 732ms)
+[browser] ⨯ unhandledRejection: AuthSessionMissingError: Auth session missing!
+    at <unknown> (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/node_modules_04ekgm~._.js:21810:32)
+    at SupabaseAuthClient._useSession (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/node_modules_04ekgm~._.js:21613:26)
+    at async SupabaseAuthClient._getUser (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/node_modules_04ekgm~._.js:21798:20)
+    at async (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/node_modules_04ekgm~._.js:21782:20)
+[browser] ⨯ unhandledRejection: AuthSessionMissingError: Auth session missing!
+    at <unknown> (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/node_modules_04ekgm~._.js:21810:32)
+    at SupabaseAuthClient._useSession (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/node_modules_04ekgm~._.js:21613:26)
+    at async SupabaseAuthClient._getUser (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/node_modules_04ekgm~._.js:21798:20)
+    at async (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/node_modules_04ekgm~._.js:21782:20)
+[browser] ⨯ unhandledRejection: AuthSessionMissingError: Auth session missing!
+    at <unknown> (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/node_modules_04ekgm~._.js:21810:32)
+    at SupabaseAuthClient._useSession (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/node_modules_04ekgm~._.js:21613:26)
+    at async SupabaseAuthClient._getUser (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/node_modules_04ekgm~._.js:21798:20)
+    at async (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/node_modules_04ekgm~._.js:21782:20)
+ GET /inbox?cid=2a474a57-67bf-4d94-b9c9-f7dbc7303186 200 in 1088ms (next.js: 820ms, application-code: 269ms)
+[browser] Fetch Inbox Error: {
+  code: [32m'42703'[39m,
+  details: [1mnull[22m,
+  hint: [1mnull[22m,
+  message: [32m'column customers_1.avatar_url does not exist'[39m
+} 
+    at fetchInitial (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/src_11fvlcp._.js:294:29) (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/src_11fvlcp._.js:294:29)
+[browser] Fetch Inbox Error: {
+  code: [32m'42703'[39m,
+  details: [1mnull[22m,
+  hint: [1mnull[22m,
+  message: [32m'column customers_1.avatar_url does not exist'[39m
+} 
+    at fetchInitial (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/src_11fvlcp._.js:294:29) (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/src_11fvlcp._.js:294:29)
+✓ Compiled in 237ms
+ GET /inbox?cid=2a474a57-67bf-4d94-b9c9-f7dbc7303186 200 in 1060ms (next.js: 191ms, application-code: 868ms)
+[browser] Fetch Inbox Error: {
+  code: [32m'42703'[39m,
+  details: [1mnull[22m,
+  hint: [1mnull[22m,
+  message: [32m'column customers_1.avatar_url does not exist'[39m
+} 
+    at fetchInitial (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/src_11fvlcp._.js:294:29) (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/src_11fvlcp._.js:294:29)
+[browser] Fetch Inbox Error: {
+  code: [32m'42703'[39m,
+  details: [1mnull[22m,
+  hint: [1mnull[22m,
+  message: [32m'column customers_1.avatar_url does not exist'[39m
+} 
+    at fetchInitial (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/src_11fvlcp._.js:294:29) (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/src_11fvlcp._.js:294:29)
+✓ Compiled in 152ms
+ GET /inbox?cid=2a474a57-67bf-4d94-b9c9-f7dbc7303186 200 in 519ms (next.js: 187ms, application-code: 331ms)
+[browser] Fetch Inbox Error: {
+  code: [32m'42703'[39m,
+  details: [1mnull[22m,
+  hint: [1mnull[22m,
+  message: [32m'column customers_1.avatar_url does not exist'[39m
+} 
+    at fetchInitial (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/src_11fvlcp._.js:294:29) (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/src_11fvlcp._.js:294:29)
+[browser] Fetch Inbox Error: {
+  code: [32m'42703'[39m,
+  details: [1mnull[22m,
+  hint: [1mnull[22m,
+  message: [32m'column customers_1.avatar_url does not exist'[39m
+} 
+    at fetchInitial (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/src_11fvlcp._.js:294:29) (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/src_11fvlcp._.js:294:29)
+✓ Compiled in 92ms
+ GET /inbox?cid=2a474a57-67bf-4d94-b9c9-f7dbc7303186 200 in 526ms (next.js: 184ms, application-code: 342ms)
+[browser] Fetch Inbox Error: {
+  code: [32m'42703'[39m,
+  details: [1mnull[22m,
+  hint: [1mnull[22m,
+  message: [32m'column customers_1.avatar_url does not exist'[39m
+} 
+    at fetchInitial (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/src_11fvlcp._.js:294:29) (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/src_11fvlcp._.js:294:29)
+[browser] Fetch Inbox Error: {
+  code: [32m'42703'[39m,
+  details: [1mnull[22m,
+  hint: [1mnull[22m,
+  message: [32m'column customers_1.avatar_url does not exist'[39m
+} 
+    at fetchInitial (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/src_11fvlcp._.js:294:29) (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/src_11fvlcp._.js:294:29)
+✓ Compiled in 36ms
+ GET /inbox?cid=2a474a57-67bf-4d94-b9c9-f7dbc7303186 200 in 553ms (next.js: 212ms, application-code: 341ms)
+[browser] Fetch Inbox Error: {
+  code: [32m'42703'[39m,
+  details: [1mnull[22m,
+  hint: [1mnull[22m,
+  message: [32m'column customers_1.avatar_url does not exist'[39m
+} 
+    at fetchInitial (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/src_11fvlcp._.js:294:29) (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/src_11fvlcp._.js:294:29)
+ GET /tickets 200 in 38ms (next.js: 5ms, application-code: 33ms)
+[browser] Fetch Inbox Error: {
+  code: [32m'42703'[39m,
+  details: [1mnull[22m,
+  hint: [1mnull[22m,
+  message: [32m'column customers_1.avatar_url does not exist'[39m
+} 
+    at fetchInitial (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/src_11fvlcp._.js:294:29) (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/src_11fvlcp._.js:294:29)
+[browser] ⨯ unhandledRejection: AuthSessionMissingError: Auth session missing!
+    at <unknown> (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/node_modules_04ekgm~._.js:21810:32)
+    at SupabaseAuthClient._useSession (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/node_modules_04ekgm~._.js:21613:26)
+    at async SupabaseAuthClient._getUser (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/node_modules_04ekgm~._.js:21798:20)
+    at async (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/node_modules_04ekgm~._.js:21782:20)
+[browser] ⨯ unhandledRejection: AuthSessionMissingError: Auth session missing!
+    at <unknown> (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/node_modules_04ekgm~._.js:21810:32)
+    at SupabaseAuthClient._useSession (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/node_modules_04ekgm~._.js:21613:26)
+    at async SupabaseAuthClient._getUser (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/node_modules_04ekgm~._.js:21798:20)
+    at async (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/node_modules_04ekgm~._.js:21782:20)
+[browser] ⨯ unhandledRejection: AuthSessionMissingError: Auth session missing!
+    at <unknown> (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/node_modules_04ekgm~._.js:21810:32)
+    at SupabaseAuthClient._useSession (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/node_modules_04ekgm~._.js:21613:26)
+    at async SupabaseAuthClient._getUser (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/node_modules_04ekgm~._.js:21798:20)
+    at async (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/node_modules_04ekgm~._.js:21782:20)
+ GET /inbox?cid=2a474a57-67bf-4d94-b9c9-f7dbc7303186 200 in 44ms (next.js: 4ms, application-code: 40ms)
+[browser] Fetch Inbox Error: {
+  code: [32m'42703'[39m,
+  details: [1mnull[22m,
+  hint: [1mnull[22m,
+  message: [32m'column customers_1.avatar_url does not exist'[39m
+} 
+    at fetchInitial (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/src_11fvlcp._.js:294:29) (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/src_11fvlcp._.js:294:29)
+[browser] Fetch Inbox Error: {
+  code: [32m'42703'[39m,
+  details: [1mnull[22m,
+  hint: [1mnull[22m,
+  message: [32m'column customers_1.avatar_url does not exist'[39m
+} 
+    at fetchInitial (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/src_11fvlcp._.js:294:29) (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/src_11fvlcp._.js:294:29)
+✓ Compiled in 200ms
+ GET /inbox?cid=2a474a57-67bf-4d94-b9c9-f7dbc7303186 200 in 594ms (next.js: 192ms, application-code: 402ms)
+[browser] Fetch Inbox Error: {
+  code: [32m'42703'[39m,
+  details: [1mnull[22m,
+  hint: [1mnull[22m,
+  message: [32m'column customers_1.avatar_url does not exist'[39m
+} 
+    at fetchInitial (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/src_11fvlcp._.js:294:29) (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/src_11fvlcp._.js:294:29)
+[browser] Fetch Inbox Error: {
+  code: [32m'42703'[39m,
+  details: [1mnull[22m,
+  hint: [1mnull[22m,
+  message: [32m'column customers_1.avatar_url does not exist'[39m
+} 
+    at fetchInitial (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/src_11fvlcp._.js:294:29) (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/src_11fvlcp._.js:294:29)
+ GET /customer/e1deffbe-d691-4096-aa39-329b1f3f226b/610148346308591983_1776508066233.jpg 404 in 107ms (next.js: 32ms, application-code: 74ms)
+ GET /customer/e1deffbe-d691-4096-aa39-329b1f3f226b/610148346308591983_1776508066233.jpg 404 in 71ms (next.js: 22ms, application-code: 49ms)
+ GET /customer/e1deffbe-d691-4096-aa39-329b1f3f226b/610148346308591983_1776508066233.jpg 404 in 92ms (next.js: 7ms, application-code: 85ms)
+✓ Compiled in 171ms
+✓ Compiled in 813ms
+ GET /inbox?cid=2a474a57-67bf-4d94-b9c9-f7dbc7303186 200 in 2.6s (next.js: 1246ms, application-code: 1365ms)
+[browser] Fetch Inbox Error: {
+  code: [32m'42703'[39m,
+  details: [1mnull[22m,
+  hint: [1mnull[22m,
+  message: [32m'column customers_1.avatar_url does not exist'[39m
+} 
+    at fetchInitial (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/src_11fvlcp._.js:294:29) (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/src_11fvlcp._.js:294:29)
+[browser] Fetch Inbox Error: {
+  code: [32m'42703'[39m,
+  details: [1mnull[22m,
+  hint: [1mnull[22m,
+  message: [32m'column customers_1.avatar_url does not exist'[39m
+} 
+    at fetchInitial (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/src_11fvlcp._.js:294:29) (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/src_11fvlcp._.js:294:29)
+ GET /customer/e1deffbe-d691-4096-aa39-329b1f3f226b/610148346308591983_1776508066233.jpg 404 in 126ms (next.js: 31ms, application-code: 95ms)
+ GET /customer/e1deffbe-d691-4096-aa39-329b1f3f226b/610148346308591983_1776508066233.jpg 404 in 115ms (next.js: 8ms, application-code: 106ms)
+ GET /customer/e1deffbe-d691-4096-aa39-329b1f3f226b/610148346308591983_1776508066233.jpg 404 in 77ms (next.js: 5ms, application-code: 72ms)
+ GET /customer/e1deffbe-d691-4096-aa39-329b1f3f226b/610148346308591983_1776508066233.jpg 404 in 68ms (next.js: 7ms, application-code: 61ms)
+ GET /customer/e1deffbe-d691-4096-aa39-329b1f3f226b/610148346308591983_1776508066233.jpg 404 in 91ms (next.js: 6ms, application-code: 86ms)
+⨯ ./src/app/(dashboard)/inbox/page.tsx:14:1
+Module not found: Can't resolve '@/components/chat/CaptureOverlay'
+  [90m12 |[0m [36mimport[0m { [33mTicketSidebar[0m } [36mfrom[0m [32m'@/components/inbox/TicketSidebar'[0m;
+  [90m13 |[0m [36mimport[0m { [33mResolveTicketModal[0m } [36mfrom[0m [32m'@/components/inbox/ResolveTicketModal'[0m;
+[31m[1m>[0m [90m14 |[0m [36mimport[0m [33mCaptureOverlay[0m [36mfrom[0m [32m'@/components/chat/CaptureOverlay'[0m;
+  [90m   |[0m [31m[1m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+  [90m15 |[0m [36mimport[0m { useInboxProfileSettings } [36mfrom[0m [32m'@/hooks/useInboxProfileSettings'[0m;
+  [90m16 |[0m [36mimport[0m { useInboxConversation } [36mfrom[0m [32m'@/hooks/useInboxConversation'[0m;
+  [90m17 |[0m [36mimport[0m {
+
+Import map: aliased to relative './src/components/chat/CaptureOverlay' inside of [project]/
+
+
+Import traces:
+  Client Component Browser:
+    ./src/app/(dashboard)/inbox/page.tsx [Client Component Browser]
+    ./src/app/(dashboard)/inbox/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/app/(dashboard)/inbox/page.tsx [Client Component SSR]
+    ./src/app/(dashboard)/inbox/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+⨯ ./src/app/(dashboard)/inbox/page.tsx:14:1
+Module not found: Can't resolve '@/components/chat/CaptureOverlay'
+  [90m12 |[0m [36mimport[0m { [33mTicketSidebar[0m } [36mfrom[0m [32m'@/components/inbox/TicketSidebar'[0m;
+  [90m13 |[0m [36mimport[0m { [33mResolveTicketModal[0m } [36mfrom[0m [32m'@/components/inbox/ResolveTicketModal'[0m;
+[31m[1m>[0m [90m14 |[0m [36mimport[0m [33mCaptureOverlay[0m [36mfrom[0m [32m'@/components/chat/CaptureOverlay'[0m;
+  [90m   |[0m [31m[1m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+  [90m15 |[0m [36mimport[0m { useInboxProfileSettings } [36mfrom[0m [32m'@/hooks/useInboxProfileSettings'[0m;
+  [90m16 |[0m [36mimport[0m { useInboxConversation } [36mfrom[0m [32m'@/hooks/useInboxConversation'[0m;
+  [90m17 |[0m [36mimport[0m {
+
+Import map: aliased to relative './src/components/chat/CaptureOverlay' inside of [project]/
+
+
+Import traces:
+  Client Component Browser:
+    ./src/app/(dashboard)/inbox/page.tsx [Client Component Browser]
+    ./src/app/(dashboard)/inbox/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/app/(dashboard)/inbox/page.tsx [Client Component SSR]
+    ./src/app/(dashboard)/inbox/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+⨯ ./src/app/(dashboard)/inbox/page.tsx:14:1
+Module not found: Can't resolve '@/components/chat/CaptureOverlay'
+  [90m12 |[0m [36mimport[0m { [33mTicketSidebar[0m } [36mfrom[0m [32m'@/components/inbox/TicketSidebar'[0m;
+  [90m13 |[0m [36mimport[0m { [33mResolveTicketModal[0m } [36mfrom[0m [32m'@/components/inbox/ResolveTicketModal'[0m;
+[31m[1m>[0m [90m14 |[0m [36mimport[0m [33mCaptureOverlay[0m [36mfrom[0m [32m'@/components/chat/CaptureOverlay'[0m;
+  [90m   |[0m [31m[1m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+  [90m15 |[0m [36mimport[0m { useInboxProfileSettings } [36mfrom[0m [32m'@/hooks/useInboxProfileSettings'[0m;
+  [90m16 |[0m [36mimport[0m { useInboxConversation } [36mfrom[0m [32m'@/hooks/useInboxConversation'[0m;
+  [90m17 |[0m [36mimport[0m {
+
+Import map: aliased to relative './src/components/chat/CaptureOverlay' inside of [project]/
+
+
+Import traces:
+  Client Component Browser:
+    ./src/app/(dashboard)/inbox/page.tsx [Client Component Browser]
+    ./src/app/(dashboard)/inbox/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/app/(dashboard)/inbox/page.tsx [Client Component SSR]
+    ./src/app/(dashboard)/inbox/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+⨯ ./src/app/(dashboard)/inbox/page.tsx:14:1
+Module not found: Can't resolve '@/components/chat/CaptureOverlay'
+  [90m12 |[0m [36mimport[0m { [33mTicketSidebar[0m } [36mfrom[0m [32m'@/components/inbox/TicketSidebar'[0m;
+  [90m13 |[0m [36mimport[0m { [33mResolveTicketModal[0m } [36mfrom[0m [32m'@/components/inbox/ResolveTicketModal'[0m;
+[31m[1m>[0m [90m14 |[0m [36mimport[0m [33mCaptureOverlay[0m [36mfrom[0m [32m'@/components/chat/CaptureOverlay'[0m;
+  [90m   |[0m [31m[1m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+  [90m15 |[0m [36mimport[0m { useInboxProfileSettings } [36mfrom[0m [32m'@/hooks/useInboxProfileSettings'[0m;
+  [90m16 |[0m [36mimport[0m { useInboxConversation } [36mfrom[0m [32m'@/hooks/useInboxConversation'[0m;
+  [90m17 |[0m [36mimport[0m {
+
+Import map: aliased to relative './src/components/chat/CaptureOverlay' inside of [project]/
+
+
+Import traces:
+  Client Component Browser:
+    ./src/app/(dashboard)/inbox/page.tsx [Client Component Browser]
+    ./src/app/(dashboard)/inbox/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/app/(dashboard)/inbox/page.tsx [Client Component SSR]
+    ./src/app/(dashboard)/inbox/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+⨯ ./src/app/(dashboard)/inbox/page.tsx:14:1
+Module not found: Can't resolve '@/components/chat/CaptureOverlay'
+  [90m12 |[0m [36mimport[0m { [33mTicketSidebar[0m } [36mfrom[0m [32m'@/components/inbox/TicketSidebar'[0m;
+  [90m13 |[0m [36mimport[0m { [33mResolveTicketModal[0m } [36mfrom[0m [32m'@/components/inbox/ResolveTicketModal'[0m;
+[31m[1m>[0m [90m14 |[0m [36mimport[0m [33mCaptureOverlay[0m [36mfrom[0m [32m'@/components/chat/CaptureOverlay'[0m;
+  [90m   |[0m [31m[1m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+  [90m15 |[0m [36mimport[0m { useInboxProfileSettings } [36mfrom[0m [32m'@/hooks/useInboxProfileSettings'[0m;
+  [90m16 |[0m [36mimport[0m { useInboxConversation } [36mfrom[0m [32m'@/hooks/useInboxConversation'[0m;
+  [90m17 |[0m [36mimport[0m {
+
+Import map: aliased to relative './src/components/chat/CaptureOverlay' inside of [project]/
+
+
+Import traces:
+  Client Component Browser:
+    ./src/app/(dashboard)/inbox/page.tsx [Client Component Browser]
+    ./src/app/(dashboard)/inbox/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/app/(dashboard)/inbox/page.tsx [Client Component SSR]
+    ./src/app/(dashboard)/inbox/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+⨯ ./src/app/(dashboard)/inbox/page.tsx:14:1
+Module not found: Can't resolve '@/components/chat/CaptureOverlay'
+  [90m12 |[0m [36mimport[0m { [33mTicketSidebar[0m } [36mfrom[0m [32m'@/components/inbox/TicketSidebar'[0m;
+  [90m13 |[0m [36mimport[0m { [33mResolveTicketModal[0m } [36mfrom[0m [32m'@/components/inbox/ResolveTicketModal'[0m;
+[31m[1m>[0m [90m14 |[0m [36mimport[0m [33mCaptureOverlay[0m [36mfrom[0m [32m'@/components/chat/CaptureOverlay'[0m;
+  [90m   |[0m [31m[1m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+  [90m15 |[0m [36mimport[0m { useInboxProfileSettings } [36mfrom[0m [32m'@/hooks/useInboxProfileSettings'[0m;
+  [90m16 |[0m [36mimport[0m { useInboxConversation } [36mfrom[0m [32m'@/hooks/useInboxConversation'[0m;
+  [90m17 |[0m [36mimport[0m {
+
+Import map: aliased to relative './src/components/chat/CaptureOverlay' inside of [project]/
+
+
+Import traces:
+  Client Component Browser:
+    ./src/app/(dashboard)/inbox/page.tsx [Client Component Browser]
+    ./src/app/(dashboard)/inbox/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/app/(dashboard)/inbox/page.tsx [Client Component SSR]
+    ./src/app/(dashboard)/inbox/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+⨯ ./src/app/(dashboard)/inbox/page.tsx:14:1
+Module not found: Can't resolve '@/components/chat/CaptureOverlay'
+  [90m12 |[0m [36mimport[0m { [33mTicketSidebar[0m } [36mfrom[0m [32m'@/components/inbox/TicketSidebar'[0m;
+  [90m13 |[0m [36mimport[0m { [33mResolveTicketModal[0m } [36mfrom[0m [32m'@/components/inbox/ResolveTicketModal'[0m;
+[31m[1m>[0m [90m14 |[0m [36mimport[0m [33mCaptureOverlay[0m [36mfrom[0m [32m'@/components/chat/CaptureOverlay'[0m;
+  [90m   |[0m [31m[1m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+  [90m15 |[0m [36mimport[0m { useInboxProfileSettings } [36mfrom[0m [32m'@/hooks/useInboxProfileSettings'[0m;
+  [90m16 |[0m [36mimport[0m { useInboxConversation } [36mfrom[0m [32m'@/hooks/useInboxConversation'[0m;
+  [90m17 |[0m [36mimport[0m {
+
+Import map: aliased to relative './src/components/chat/CaptureOverlay' inside of [project]/
+
+
+Import traces:
+  Client Component Browser:
+    ./src/app/(dashboard)/inbox/page.tsx [Client Component Browser]
+    ./src/app/(dashboard)/inbox/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/app/(dashboard)/inbox/page.tsx [Client Component SSR]
+    ./src/app/(dashboard)/inbox/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+⨯ ./src/app/(dashboard)/inbox/page.tsx:14:1
+Module not found: Can't resolve '@/components/chat/CaptureOverlay'
+  [90m12 |[0m [36mimport[0m { [33mTicketSidebar[0m } [36mfrom[0m [32m'@/components/inbox/TicketSidebar'[0m;
+  [90m13 |[0m [36mimport[0m { [33mResolveTicketModal[0m } [36mfrom[0m [32m'@/components/inbox/ResolveTicketModal'[0m;
+[31m[1m>[0m [90m14 |[0m [36mimport[0m [33mCaptureOverlay[0m [36mfrom[0m [32m'@/components/chat/CaptureOverlay'[0m;
+  [90m   |[0m [31m[1m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+  [90m15 |[0m [36mimport[0m { useInboxProfileSettings } [36mfrom[0m [32m'@/hooks/useInboxProfileSettings'[0m;
+  [90m16 |[0m [36mimport[0m { useInboxConversation } [36mfrom[0m [32m'@/hooks/useInboxConversation'[0m;
+  [90m17 |[0m [36mimport[0m {
+
+Import map: aliased to relative './src/components/chat/CaptureOverlay' inside of [project]/
+
+
+Import traces:
+  Client Component Browser:
+    ./src/app/(dashboard)/inbox/page.tsx [Client Component Browser]
+    ./src/app/(dashboard)/inbox/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/app/(dashboard)/inbox/page.tsx [Client Component SSR]
+    ./src/app/(dashboard)/inbox/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+⨯ ./src/app/(dashboard)/inbox/page.tsx:14:1
+Module not found: Can't resolve '@/components/chat/CaptureOverlay'
+  [90m12 |[0m [36mimport[0m { [33mTicketSidebar[0m } [36mfrom[0m [32m'@/components/inbox/TicketSidebar'[0m;
+  [90m13 |[0m [36mimport[0m { [33mResolveTicketModal[0m } [36mfrom[0m [32m'@/components/inbox/ResolveTicketModal'[0m;
+[31m[1m>[0m [90m14 |[0m [36mimport[0m [33mCaptureOverlay[0m [36mfrom[0m [32m'@/components/chat/CaptureOverlay'[0m;
+  [90m   |[0m [31m[1m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+  [90m15 |[0m [36mimport[0m { useInboxProfileSettings } [36mfrom[0m [32m'@/hooks/useInboxProfileSettings'[0m;
+  [90m16 |[0m [36mimport[0m { useInboxConversation } [36mfrom[0m [32m'@/hooks/useInboxConversation'[0m;
+  [90m17 |[0m [36mimport[0m {
+
+Import map: aliased to relative './src/components/chat/CaptureOverlay' inside of [project]/
+
+
+Import traces:
+  Client Component Browser:
+    ./src/app/(dashboard)/inbox/page.tsx [Client Component Browser]
+    ./src/app/(dashboard)/inbox/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/app/(dashboard)/inbox/page.tsx [Client Component SSR]
+    ./src/app/(dashboard)/inbox/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+⨯ ./src/app/(dashboard)/inbox/page.tsx:14:1
+Module not found: Can't resolve '@/components/chat/CaptureOverlay'
+  [90m12 |[0m [36mimport[0m { [33mTicketSidebar[0m } [36mfrom[0m [32m'@/components/inbox/TicketSidebar'[0m;
+  [90m13 |[0m [36mimport[0m { [33mResolveTicketModal[0m } [36mfrom[0m [32m'@/components/inbox/ResolveTicketModal'[0m;
+[31m[1m>[0m [90m14 |[0m [36mimport[0m [33mCaptureOverlay[0m [36mfrom[0m [32m'@/components/chat/CaptureOverlay'[0m;
+  [90m   |[0m [31m[1m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+  [90m15 |[0m [36mimport[0m { useInboxProfileSettings } [36mfrom[0m [32m'@/hooks/useInboxProfileSettings'[0m;
+  [90m16 |[0m [36mimport[0m { useInboxConversation } [36mfrom[0m [32m'@/hooks/useInboxConversation'[0m;
+  [90m17 |[0m [36mimport[0m {
+
+Import map: aliased to relative './src/components/chat/CaptureOverlay' inside of [project]/
+
+
+Import traces:
+  Client Component Browser:
+    ./src/app/(dashboard)/inbox/page.tsx [Client Component Browser]
+    ./src/app/(dashboard)/inbox/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/app/(dashboard)/inbox/page.tsx [Client Component SSR]
+    ./src/app/(dashboard)/inbox/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+⨯ ./src/app/(dashboard)/inbox/page.tsx:14:1
+Module not found: Can't resolve '@/components/chat/CaptureOverlay'
+  [90m12 |[0m [36mimport[0m { [33mTicketSidebar[0m } [36mfrom[0m [32m'@/components/inbox/TicketSidebar'[0m;
+  [90m13 |[0m [36mimport[0m { [33mResolveTicketModal[0m } [36mfrom[0m [32m'@/components/inbox/ResolveTicketModal'[0m;
+[31m[1m>[0m [90m14 |[0m [36mimport[0m [33mCaptureOverlay[0m [36mfrom[0m [32m'@/components/chat/CaptureOverlay'[0m;
+  [90m   |[0m [31m[1m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+  [90m15 |[0m [36mimport[0m { useInboxProfileSettings } [36mfrom[0m [32m'@/hooks/useInboxProfileSettings'[0m;
+  [90m16 |[0m [36mimport[0m { useInboxConversation } [36mfrom[0m [32m'@/hooks/useInboxConversation'[0m;
+  [90m17 |[0m [36mimport[0m {
+
+Import map: aliased to relative './src/components/chat/CaptureOverlay' inside of [project]/
+
+
+Import traces:
+  Client Component Browser:
+    ./src/app/(dashboard)/inbox/page.tsx [Client Component Browser]
+    ./src/app/(dashboard)/inbox/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/app/(dashboard)/inbox/page.tsx [Client Component SSR]
+    ./src/app/(dashboard)/inbox/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+⨯ ./src/app/(dashboard)/inbox/page.tsx:14:1
+Module not found: Can't resolve '@/components/chat/CaptureOverlay'
+  [90m12 |[0m [36mimport[0m { [33mTicketSidebar[0m } [36mfrom[0m [32m'@/components/inbox/TicketSidebar'[0m;
+  [90m13 |[0m [36mimport[0m { [33mResolveTicketModal[0m } [36mfrom[0m [32m'@/components/inbox/ResolveTicketModal'[0m;
+[31m[1m>[0m [90m14 |[0m [36mimport[0m [33mCaptureOverlay[0m [36mfrom[0m [32m'@/components/chat/CaptureOverlay'[0m;
+  [90m   |[0m [31m[1m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+  [90m15 |[0m [36mimport[0m { useInboxProfileSettings } [36mfrom[0m [32m'@/hooks/useInboxProfileSettings'[0m;
+  [90m16 |[0m [36mimport[0m { useInboxConversation } [36mfrom[0m [32m'@/hooks/useInboxConversation'[0m;
+  [90m17 |[0m [36mimport[0m {
+
+Import map: aliased to relative './src/components/chat/CaptureOverlay' inside of [project]/
+
+
+Import traces:
+  Client Component Browser:
+    ./src/app/(dashboard)/inbox/page.tsx [Client Component Browser]
+    ./src/app/(dashboard)/inbox/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/app/(dashboard)/inbox/page.tsx [Client Component SSR]
+    ./src/app/(dashboard)/inbox/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+✓ Compiled in 18s
+⨯ ./src/app/(dashboard)/inbox/page.tsx:14:1
+Module not found: Can't resolve '@/components/chat/CaptureOverlay'
+  [90m12 |[0m [36mimport[0m { [33mTicketSidebar[0m } [36mfrom[0m [32m'@/components/inbox/TicketSidebar'[0m;
+  [90m13 |[0m [36mimport[0m { [33mResolveTicketModal[0m } [36mfrom[0m [32m'@/components/inbox/ResolveTicketModal'[0m;
+[31m[1m>[0m [90m14 |[0m [36mimport[0m [33mCaptureOverlay[0m [36mfrom[0m [32m'@/components/chat/CaptureOverlay'[0m;
+  [90m   |[0m [31m[1m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+  [90m15 |[0m [36mimport[0m { useInboxProfileSettings } [36mfrom[0m [32m'@/hooks/useInboxProfileSettings'[0m;
+  [90m16 |[0m [36mimport[0m { useInboxConversation } [36mfrom[0m [32m'@/hooks/useInboxConversation'[0m;
+  [90m17 |[0m [36mimport[0m {
+
+Import map: aliased to relative './src/components/chat/CaptureOverlay' inside of [project]/
+
+
+Import traces:
+  Client Component Browser:
+    ./src/app/(dashboard)/inbox/page.tsx [Client Component Browser]
+    ./src/app/(dashboard)/inbox/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/app/(dashboard)/inbox/page.tsx [Client Component SSR]
+    ./src/app/(dashboard)/inbox/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+ GET /inbox?cid=2a474a57-67bf-4d94-b9c9-f7dbc7303186 500 in 10.6s (next.js: 4.5s, application-code: 6.1s)
+⨯ ./src/app/(dashboard)/inbox/page.tsx:14:1
+Module not found: Can't resolve '@/components/chat/CaptureOverlay'
+  [90m12 |[0m [36mimport[0m { [33mTicketSidebar[0m } [36mfrom[0m [32m'@/components/inbox/TicketSidebar'[0m;
+  [90m13 |[0m [36mimport[0m { [33mResolveTicketModal[0m } [36mfrom[0m [32m'@/components/inbox/ResolveTicketModal'[0m;
+[31m[1m>[0m [90m14 |[0m [36mimport[0m [33mCaptureOverlay[0m [36mfrom[0m [32m'@/components/chat/CaptureOverlay'[0m;
+  [90m   |[0m [31m[1m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+  [90m15 |[0m [36mimport[0m { useInboxProfileSettings } [36mfrom[0m [32m'@/hooks/useInboxProfileSettings'[0m;
+  [90m16 |[0m [36mimport[0m { useInboxConversation } [36mfrom[0m [32m'@/hooks/useInboxConversation'[0m;
+  [90m17 |[0m [36mimport[0m {
+
+Import map: aliased to relative './src/components/chat/CaptureOverlay' inside of [project]/
+
+
+Import traces:
+  Client Component Browser:
+    ./src/app/(dashboard)/inbox/page.tsx [Client Component Browser]
+    ./src/app/(dashboard)/inbox/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/app/(dashboard)/inbox/page.tsx [Client Component SSR]
+    ./src/app/(dashboard)/inbox/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+ GET /inbox?cid=2a474a57-67bf-4d94-b9c9-f7dbc7303186 500 in 51ms (next.js: 35ms, application-code: 16ms)
+⨯ ./src/app/(dashboard)/inbox/page.tsx:14:1
+Module not found: Can't resolve '@/components/chat/CaptureOverlay'
+  [90m12 |[0m [36mimport[0m { [33mTicketSidebar[0m } [36mfrom[0m [32m'@/components/inbox/TicketSidebar'[0m;
+  [90m13 |[0m [36mimport[0m { [33mResolveTicketModal[0m } [36mfrom[0m [32m'@/components/inbox/ResolveTicketModal'[0m;
+[31m[1m>[0m [90m14 |[0m [36mimport[0m [33mCaptureOverlay[0m [36mfrom[0m [32m'@/components/chat/CaptureOverlay'[0m;
+  [90m   |[0m [31m[1m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+  [90m15 |[0m [36mimport[0m { useInboxProfileSettings } [36mfrom[0m [32m'@/hooks/useInboxProfileSettings'[0m;
+  [90m16 |[0m [36mimport[0m { useInboxConversation } [36mfrom[0m [32m'@/hooks/useInboxConversation'[0m;
+  [90m17 |[0m [36mimport[0m {
+
+Import map: aliased to relative './src/components/chat/CaptureOverlay' inside of [project]/
+
+
+Import traces:
+  Client Component Browser:
+    ./src/app/(dashboard)/inbox/page.tsx [Client Component Browser]
+    ./src/app/(dashboard)/inbox/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/app/(dashboard)/inbox/page.tsx [Client Component SSR]
+    ./src/app/(dashboard)/inbox/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+ GET /inbox?cid=2a474a57-67bf-4d94-b9c9-f7dbc7303186 500 in 23ms (next.js: 9ms, application-code: 14ms)
+⨯ ./src/app/(dashboard)/inbox/page.tsx:14:1
+Module not found: Can't resolve '@/components/chat/CaptureOverlay'
+  [90m12 |[0m [36mimport[0m { [33mTicketSidebar[0m } [36mfrom[0m [32m'@/components/inbox/TicketSidebar'[0m;
+  [90m13 |[0m [36mimport[0m { [33mResolveTicketModal[0m } [36mfrom[0m [32m'@/components/inbox/ResolveTicketModal'[0m;
+[31m[1m>[0m [90m14 |[0m [36mimport[0m [33mCaptureOverlay[0m [36mfrom[0m [32m'@/components/chat/CaptureOverlay'[0m;
+  [90m   |[0m [31m[1m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+  [90m15 |[0m [36mimport[0m { useInboxProfileSettings } [36mfrom[0m [32m'@/hooks/useInboxProfileSettings'[0m;
+  [90m16 |[0m [36mimport[0m { useInboxConversation } [36mfrom[0m [32m'@/hooks/useInboxConversation'[0m;
+  [90m17 |[0m [36mimport[0m {
+
+Import map: aliased to relative './src/components/chat/CaptureOverlay' inside of [project]/
+
+
+Import traces:
+  Client Component Browser:
+    ./src/app/(dashboard)/inbox/page.tsx [Client Component Browser]
+    ./src/app/(dashboard)/inbox/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/app/(dashboard)/inbox/page.tsx [Client Component SSR]
+    ./src/app/(dashboard)/inbox/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+ GET /inbox?cid=2a474a57-67bf-4d94-b9c9-f7dbc7303186 500 in 100ms (next.js: 62ms, application-code: 38ms)
+[browser] Uncaught Error: ./src/app/(dashboard)/inbox/page.tsx:14:1
+Module not found: Can't resolve '@/components/chat/CaptureOverlay'
+  12 | import { TicketSidebar } from '@/components/inbox/TicketSidebar';
+  13 | import { ResolveTicketModal } from '@/components/inbox/ResolveTicketModal';
+> 14 | import CaptureOverlay from '@/components/chat/CaptureOverlay';
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  15 | import { useInboxProfileSettings } from '@/hooks/useInboxProfileSettings';
+  16 | import { useInboxConversation } from '@/hooks/useInboxConversation';
+  17 | import {
+
+Import map: aliased to relative './src/components/chat/CaptureOverlay' inside of [project]/
+
+
+Import traces:
+  Client Component Browser:
+    ./src/app/(dashboard)/inbox/page.tsx [Client Component Browser]
+    ./src/app/(dashboard)/inbox/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/app/(dashboard)/inbox/page.tsx [Client Component SSR]
+    ./src/app/(dashboard)/inbox/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+    at <unknown> (Error: ./src/app/(dashboard)/inbox/page.tsx:14:1)
+    at <unknown> (https://nextjs.org/docs/messages/module-not-found)
+    at <unknown> (Error: (./src/app/(dashboard)/inbox/page.tsx:14:1)
+    at <unknown> (https://nextjs.org/docs/messages/module-not-found)
+ GET /inbox?cid=2a474a57-67bf-4d94-b9c9-f7dbc7303186 200 in 2.2s (next.js: 1140ms, application-code: 1078ms)
+ GET /inbox?cid=2a474a57-67bf-4d94-b9c9-f7dbc7303186 200 in 336ms (next.js: 173ms, application-code: 163ms)
+✓ Compiled in 21s
+ GET /inbox?cid=2a474a57-67bf-4d94-b9c9-f7dbc7303186 200 in 2.3s (next.js: 1800ms, application-code: 458ms)
+ GET /inbox?cid=2a474a57-67bf-4d94-b9c9-f7dbc7303186 200 in 244ms (next.js: 98ms, application-code: 146ms)
+ GET /inbox?cid=2a474a57-67bf-4d94-b9c9-f7dbc7303186 200 in 93ms (next.js: 10ms, application-code: 83ms)
+[browser] Fetch Inbox Error: {
+  code: [32m'42703'[39m,
+  details: [1mnull[22m,
+  hint: [1mnull[22m,
+  message: [32m'column customers_1.avatar_url does not exist'[39m
+} 
+    at fetchInitial (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/src_11fvlcp._.js:294:29) (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/src_11fvlcp._.js:294:29)
+[browser] Fetch Inbox Error: {
+  code: [32m'42703'[39m,
+  details: [1mnull[22m,
+  hint: [1mnull[22m,
+  message: [32m'column customers_1.avatar_url does not exist'[39m
+} 
+    at fetchInitial (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/src_11fvlcp._.js:294:29) (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/src_11fvlcp._.js:294:29)
+ GET / 200 in 3.9s (next.js: 469ms, application-code: 3.4s)
+ GET /inbox 200 in 86ms (next.js: 26ms, application-code: 60ms)
+[browser] Fetch Inbox Error: {
+  code: [32m'42703'[39m,
+  details: [1mnull[22m,
+  hint: [1mnull[22m,
+  message: [32m'column customers_1.avatar_url does not exist'[39m
+} 
+    at fetchInitial (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/src_11fvlcp._.js:294:29) (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/src_11fvlcp._.js:294:29)
+[browser] Fetch Inbox Error: {
+  code: [32m'42703'[39m,
+  details: [1mnull[22m,
+  hint: [1mnull[22m,
+  message: [32m'column customers_1.avatar_url does not exist'[39m
+} 
+    at fetchInitial (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/src_11fvlcp._.js:294:29) (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/src_11fvlcp._.js:294:29)
+ GET /customer/e1deffbe-d691-4096-aa39-329b1f3f226b/610148346308591983_1776508066233.jpg 404 in 396ms (next.js: 313ms, application-code: 82ms)
+✓ Compiled in 4.6s
+ GET /inbox 200 in 3.1s (next.js: 2.8s, application-code: 317ms)
+ GET /inbox 200 in 179ms (next.js: 9ms, application-code: 170ms)
+ GET /inbox 200 in 117ms (next.js: 10ms, application-code: 107ms)
+ GET /inbox 200 in 117ms (next.js: 54ms, application-code: 63ms)
+✓ Compiled in 154ms
+[browser] Fetch Inbox Error: {
+  code: [32m'42703'[39m,
+  details: [1mnull[22m,
+  hint: [1mnull[22m,
+  message: [32m'column customers_1.avatar_url does not exist'[39m
+} 
+    at fetchInitial (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/src_11fvlcp._.js:294:29) (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/src_11fvlcp._.js:294:29)
+ GET / 200 in 1241ms (next.js: 75ms, application-code: 1166ms)
+ GET /inbox 200 in 934ms (next.js: 820ms, application-code: 114ms)
+[browser] Fetch Inbox Error: {
+  code: [32m'42703'[39m,
+  details: [1mnull[22m,
+  hint: [1mnull[22m,
+  message: [32m'column customers_1.avatar_url does not exist'[39m
+} 
+    at fetchInitial (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/src_0glog5u._.js:294:29) (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/src_0glog5u._.js:294:29)
+[browser] Fetch Inbox Error: {
+  code: [32m'42703'[39m,
+  details: [1mnull[22m,
+  hint: [1mnull[22m,
+  message: [32m'column customers_1.avatar_url does not exist'[39m
+} 
+    at fetchInitial (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/src_0glog5u._.js:294:29) (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/src_0glog5u._.js:294:29)
+ GET /customer/e1deffbe-d691-4096-aa39-329b1f3f226b/610148346308591983_1776508066233.jpg 404 in 277ms (next.js: 95ms, application-code: 182ms)
+⨯ Error: Unauthorized Access. Invalid Session.
+    at getSessionUser (src\app\actions\messageActions.ts:25:29)
+    at async sendAgentMessageAction (src\app\actions\messageActions.ts:48:16)
+  23 |   
+  24 |   const { data: { user }, error } = await supabaseAuth.auth.getUser();
+> 25 |   if (error || !user) throw new Error('Unauthorized Access. Invalid Session.');
+     |                             ^
+  26 |   return user;
+  27 | }
+  28 | {
+  digest: '1377975470'
+}
+ POST /inbox 500 in 912ms (next.js: 4ms, application-code: 908ms)
+  └─ ƒ sendAgentMessageAction("cb81777a-c8ac-4199-a04e-1c5202a0c06a", null, "https://luddlewsxlppgaidsbyt.supabase.co/storage/v1/object/public/chat_media/edited_cb81777a-c8ac-4199-a04e-1c5202a0c06a_1776663999041.jpg", "image") in 11ms src/app/actions/messageActions.ts
+[browser] Inbox editor save failed: Error: Unauthorized Access. Invalid Session.
+    at getSessionUser (src\app\actions\messageActions.ts:25:29)
+    at  sendAgentMessageAction (src\app\actions\messageActions.ts:48:16)
+    at resolveErrorDev (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/node_modules_next_dist_compiled_react-server-dom-turbopack_0p3wegg._.js:1919:105)
+    at processFullStringRow (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/node_modules_next_dist_compiled_react-server-dom-turbopack_0p3wegg._.js:2434:29)
+    at processFullBinaryRow (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/node_modules_next_dist_compiled_react-server-dom-turbopack_0p3wegg._.js:2393:9)
+    at processBinaryChunk (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/node_modules_next_dist_compiled_react-server-dom-turbopack_0p3wegg._.js:2502:221)
+    at progress (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/node_modules_next_dist_compiled_react-server-dom-turbopack_0p3wegg._.js:2689:13)
+  23 |   
+  24 |   const { data: { user }, error } = await supabaseAuth.auth.getUser();
+> 25 |   if (error || !user) throw new Error('Unauthorized Access. Invalid Session.');
+     |                             ^
+  26 |   return user;
+  27 | }
+  28 | (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/src_0glog5u._.js:5002:33)
+✓ Finished filesystem cache database compaction in 12.8s
+⨯ Error: Unauthorized Access. Invalid Session.
+    at getSessionUser (src\app\actions\messageActions.ts:25:29)
+    at async sendAgentMessageAction (src\app\actions\messageActions.ts:48:16)
+  23 |   
+  24 |   const { data: { user }, error } = await supabaseAuth.auth.getUser();
+> 25 |   if (error || !user) throw new Error('Unauthorized Access. Invalid Session.');
+     |                             ^
+  26 |   return user;
+  27 | }
+  28 | {
+  digest: '358615712'
+}
+ POST /inbox 500 in 521ms (next.js: 5ms, application-code: 516ms)
+  └─ ƒ sendAgentMessageAction("cb81777a-c8ac-4199-a04e-1c5202a0c06a", null, "https://luddlewsxlppgaidsbyt.supabase.co/storage/v1/object/public/chat_media/edited_cb81777a-c8ac-4199-a04e-1c5202a0c06a_1776664019841.jpg", "image") in 5ms src/app/actions/messageActions.ts
+[browser] Inbox editor save failed: Error: Unauthorized Access. Invalid Session.
+    at getSessionUser (src\app\actions\messageActions.ts:25:29)
+    at  sendAgentMessageAction (src\app\actions\messageActions.ts:48:16)
+    at resolveErrorDev (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/node_modules_next_dist_compiled_react-server-dom-turbopack_0p3wegg._.js:1919:105)
+    at processFullStringRow (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/node_modules_next_dist_compiled_react-server-dom-turbopack_0p3wegg._.js:2434:29)
+    at processFullBinaryRow (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/node_modules_next_dist_compiled_react-server-dom-turbopack_0p3wegg._.js:2393:9)
+    at processBinaryChunk (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/node_modules_next_dist_compiled_react-server-dom-turbopack_0p3wegg._.js:2502:221)
+    at progress (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/node_modules_next_dist_compiled_react-server-dom-turbopack_0p3wegg._.js:2689:13)
+  23 |   
+  24 |   const { data: { user }, error } = await supabaseAuth.auth.getUser();
+> 25 |   if (error || !user) throw new Error('Unauthorized Access. Invalid Session.');
+     |                             ^
+  26 |   return user;
+  27 | }
+  28 | (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/src_0glog5u._.js:5002:33)
+✓ Finished filesystem cache database compaction in 15.0s
+✓ Compiled in 2.7s
+ GET /inbox 200 in 1355ms (next.js: 1163ms, application-code: 192ms)
+ GET /inbox 200 in 108ms (next.js: 4ms, application-code: 105ms)
+✓ Compiled in 460ms
+✓ Compiled in 65ms
+✓ Compiled in 158ms
+[browser] Fetch Inbox Error: {
+  code: [32m'42703'[39m,
+  details: [1mnull[22m,
+  hint: [1mnull[22m,
+  message: [32m'column customers_1.avatar_url does not exist'[39m
+} 
+    at fetchInitial (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/src_0glog5u._.js:294:29) (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/src_0glog5u._.js:294:29)
+ GET /inbox 200 in 1300ms (next.js: 604ms, application-code: 696ms)
+[browser] Fetch Inbox Error: {
+  code: [32m'42703'[39m,
+  details: [1mnull[22m,
+  hint: [1mnull[22m,
+  message: [32m'column customers_1.avatar_url does not exist'[39m
+} 
+    at fetchInitial (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/src_0glog5u._.js:294:29) (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/src_0glog5u._.js:294:29)
+[browser] Fetch Inbox Error: {
+  code: [32m'42703'[39m,
+  details: [1mnull[22m,
+  hint: [1mnull[22m,
+  message: [32m'column customers_1.avatar_url does not exist'[39m
+} 
+    at fetchInitial (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/src_0glog5u._.js:294:29) (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/src_0glog5u._.js:294:29)
+ GET /customer/e1deffbe-d691-4096-aa39-329b1f3f226b/610148346308591983_1776508066233.jpg 404 in 172ms (next.js: 72ms, application-code: 99ms)

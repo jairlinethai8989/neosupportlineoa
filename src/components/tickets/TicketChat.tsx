@@ -3,10 +3,10 @@ import React from 'react';
 import {
   MessageSquare,
   Paperclip,
-  Crop,
   Loader2,
   SendHorizontal,
   X,
+  Crop
 } from 'lucide-react';
 import Image from 'next/image';
 import type {
@@ -24,8 +24,8 @@ interface TicketChatProps {
   sending: boolean;
   onSendMessage: () => void;
   onAttachFile: () => void;
-  onScreenCapture: () => void;
   onEditImage: (url: string) => void;
+  onScreenCapture: () => void;
   onDeleteMessage?: (id: string) => void;
   onEndChat?: () => void;
   isChatActive?: boolean;
@@ -42,8 +42,8 @@ export const TicketChat: React.FC<TicketChatProps> = ({
   sending,
   onSendMessage,
   onAttachFile,
-  onScreenCapture,
   onEditImage,
+  onScreenCapture,
   onDeleteMessage,
   onEndChat,
   isChatActive = false,
@@ -63,6 +63,7 @@ export const TicketChat: React.FC<TicketChatProps> = ({
 
   return (
     <div
+      data-capture-root="true"
       className="glass"
       style={{
         padding: '32px',
@@ -391,7 +392,8 @@ export const TicketChat: React.FC<TicketChatProps> = ({
                 onClick={onAttachFile}
                 disabled={sending}
                 className="glass-interactive flex-center"
-                title="แนบรูปภาพหรือไฟล์"
+                title="แนบรูปภาพหรือไฟล์ (Ctrl+V)"
+                aria-label="Attach file or paste image"
                 style={{
                   width: '36px',
                   height: '36px',
@@ -424,7 +426,7 @@ export const TicketChat: React.FC<TicketChatProps> = ({
                 placeholder={
                   isResolvedOrClosed
                     ? 'Ticket is closed (admin reopen mode)'
-                    : 'Type your response or select a template...'
+                    : 'Type your response, choose a template, or paste an image with Ctrl+V...'
                 }
                 value={newMessage}
                 onChange={(event) => setNewMessage(event.target.value)}
@@ -464,3 +466,4 @@ export const TicketChat: React.FC<TicketChatProps> = ({
     </div>
   );
 };
+
