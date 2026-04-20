@@ -558,7 +558,15 @@ export default function StaffManagementPage() {
               </button>
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '32px' }}>
+            <div className="no-scrollbar" style={{ 
+              display: 'flex', 
+              flexDirection: 'column', 
+              gap: '12px', 
+              marginBottom: '32px', 
+              maxHeight: 'calc(80vh - 200px)', 
+              overflowY: 'auto',
+              paddingRight: '4px'
+            }}>
               {[
                 { key: 'analytics', label: 'ภาพรวม & สถิติ (Analytics)', icon: BarChart2 },
                 { key: 'inbox', label: 'ระบบแชท (Inbox)', icon: Mail },
