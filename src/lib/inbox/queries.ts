@@ -116,6 +116,7 @@ export async function listInboxConversationsV2({
 
   const { data, error, count } = await query
     .order('last_message_at', { ascending: false, nullsFirst: false })
+    .order('id', { ascending: false }) // Robust fallback sorting
     .range(from, to);
 
   if (error) {

@@ -34,11 +34,13 @@ export const InboxSidebar: React.FC<InboxSidebarProps> = ({
   React.useEffect(() => {
     if (currentTab === 'closed') {
       const now = new Date();
+      now.setHours(0, 0, 0, 0); // Start of today
+      
       if (activeDateFilter === 'today') {
-        const start = new Date(now.setHours(0, 0, 0, 0));
-        onDateFilterChange(start.toISOString(), null);
+        onDateFilterChange(now.toISOString(), null);
       } else if (activeDateFilter === 'week') {
-        const start = new Date(now.setDate(now.getDate() - 7));
+        const start = new Date(now);
+        start.setDate(now.getDate() - 7);
         onDateFilterChange(start.toISOString(), null);
       } else if (activeDateFilter === 'all') {
         onDateFilterChange(null, null);
@@ -56,15 +58,17 @@ export const InboxSidebar: React.FC<InboxSidebarProps> = ({
     if (type === 'custom') return;
 
     const now = new Date();
+    now.setHours(0, 0, 0, 0); // Start of today
     let start: Date | null = null;
-    let end: Date | null = null;
 
     if (type === 'today') {
-      start = new Date(now.setHours(0, 0, 0, 0));
+      start = now;
     } else if (type === 'week') {
-      start = new Date(now.setDate(now.getDate() - 7));
+      start = new Date(now);
+      start.setDate(now.getDate() - 7);
     } else if (type === 'month') {
-      start = new Date(now.setMonth(now.getMonth() - 1));
+      start = new Date(now);
+      start.setMonth(now.getMonth() - 1);
     }
 
     onDateFilterChange(start?.toISOString() || null, null);
