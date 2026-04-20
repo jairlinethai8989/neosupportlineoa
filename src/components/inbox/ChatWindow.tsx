@@ -11,6 +11,7 @@ import {
   Plus, 
   Pencil, 
   Trash2, 
+  Clock,
   AlertTriangle
 } from 'lucide-react';
 import type {
