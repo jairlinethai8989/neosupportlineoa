@@ -106,31 +106,32 @@ export async function listInboxConversationsV2({
     .from('conversations')
     .select(inboxConversationSelect, { count: 'exact' });
 
-  // Status Filter - Aligning with the working sidebar badge
+  // Status Filter - Extremely stable logic
   if (status === 'active') {
+    // Show what the sidebar shows: status = 'active'
     query = query.eq('status', 'active');
   } else {
-    // For archive, we look for 'closed' status or inactive flag
-    query = query.or('status.eq.closed,is_active.eq.false');
+    // Show closed items
+    query = query.eq('status', 'closed');
   }
 
-  // Apply filters only if provided
-  if (startDate) query = query.gte('last_message_at', startDate);
-  if (endDate) query = query.lte('last_message_at', endDate);
+  // Date filters (only for archive)
+  if (status === 'closed') {
+    if (startDate) query = query.gte('last_message_at', startDate);
+    if (endDate) query = query.lte('last_message_at', endDate);
+  }
 
   const { data, error, count } = await query
-    .order('last_message_at', { ascending: false, nullsFirst: false })
+    .order('last_message_at', { ascending: false })
     .range(from, to);
 
   if (error) {
     console.error('Inbox V2 Query Error:', error);
-    throw error;
+    return { data: [], count: 0 };
   }
   
-  const normalized = normalizeInboxConversations(data || []);
-  
   return {
-    data: normalized,
+    data: normalizeInboxConversations(data || []),
     count: count || (data?.length || 0)
   };
 }
