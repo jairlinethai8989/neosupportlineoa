@@ -1235,3 +1235,66 @@ Import traces:
     at WebSocket.handleMessage (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/node_modules_next_dist_client_0pe1dg-._.js:2324:17) (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/node_modules_next_dist_client_0pe1dg-._.js:2773:21)
 ✓ Compiled in 1543ms
  GET /inbox 200 in 15.5s (next.js: 10.9s, application-code: 4.6s)
+[browser] Fetch Inbox Error: {
+  code: [32m'42703'[39m,
+  details: [1mnull[22m,
+  hint: [1mnull[22m,
+  message: [32m'column customers_1.avatar_url does not exist'[39m
+} 
+    at fetchInitial (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/src_0glog5u._.js:294:29) (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/src_0glog5u._.js:294:29)
+[browser] Fetch Inbox Error: {
+  code: [32m'42703'[39m,
+  details: [1mnull[22m,
+  hint: [1mnull[22m,
+  message: [32m'column customers_1.avatar_url does not exist'[39m
+} 
+    at fetchInitial (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/src_0glog5u._.js:294:29) (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/src_0glog5u._.js:294:29)
+ GET /customer/e1deffbe-d691-4096-aa39-329b1f3f226b/610148346308591983_1776508066233.jpg 404 in 520ms (next.js: 246ms, application-code: 274ms)
+⨯ Error: Unauthorized Access. Invalid Session.
+    at getSessionUser (src\app\actions\messageActions.ts:25:29)
+    at async sendAgentMessageAction (src\app\actions\messageActions.ts:48:16)
+  23 |   
+  24 |   const { data: { user }, error } = await supabaseAuth.auth.getUser();
+> 25 |   if (error || !user) throw new Error('Unauthorized Access. Invalid Session.');
+     |                             ^
+  26 |   return user;
+  27 | }
+  28 | {
+  digest: '1377975470'
+}
+ POST /inbox 500 in 1447ms (next.js: 83ms, application-code: 1364ms)
+  └─ ƒ sendAgentMessageAction("cb81777a-c8ac-4199-a04e-1c5202a0c06a", null, "https://luddlewsxlppgaidsbyt.supabase.co/storage/v1/object/public/chat_media/edited_cb81777a-c8ac-4199-a04e-1c5202a0c06a_1776667403697.jpg", "image") in 35ms src/app/actions/messageActions.ts
+[browser] Inbox editor save failed: Error: Unauthorized Access. Invalid Session.
+    at getSessionUser (src\app\actions\messageActions.ts:25:29)
+    at  sendAgentMessageAction (src\app\actions\messageActions.ts:48:16)
+    at resolveErrorDev (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/node_modules_next_dist_compiled_react-server-dom-turbopack_0p3wegg._.js:1919:105)
+    at processFullStringRow (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/node_modules_next_dist_compiled_react-server-dom-turbopack_0p3wegg._.js:2434:29)
+    at processFullBinaryRow (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/node_modules_next_dist_compiled_react-server-dom-turbopack_0p3wegg._.js:2393:9)
+    at processBinaryChunk (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/node_modules_next_dist_compiled_react-server-dom-turbopack_0p3wegg._.js:2502:221)
+    at progress (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/node_modules_next_dist_compiled_react-server-dom-turbopack_0p3wegg._.js:2689:13)
+  23 |   
+  24 |   const { data: { user }, error } = await supabaseAuth.auth.getUser();
+> 25 |   if (error || !user) throw new Error('Unauthorized Access. Invalid Session.');
+     |                             ^
+  26 |   return user;
+  27 | }
+  28 | (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/src_0glog5u._.js:4992:33)
+✓ Compiled in 43.7s
+✓ Compiled in 5.3s
+ GET /inbox 200 in 1132ms (next.js: 963ms, application-code: 169ms)
+ GET /inbox 200 in 247ms (next.js: 42ms, application-code: 206ms)
+✓ Compiled in 771ms
+✓ Compiled in 9.3s
+✓ Compiled in 3.2s
+✓ Compiled in 1721ms
+✓ Compiled in 5.2s
+✓ Compiled in 2.2s
+✓ Compiled in 10.5s
+✓ Finished filesystem cache database compaction in 17.3s
+✓ Finished filesystem cache database compaction in 19.2s
+✓ Compiled in 3.9s
+[Server HMR] Update failed, full reload needed: SyntaxError: Identifier 'query' has already been declared
+    at eval (<anonymous>)
+[Server HMR] Listener error: SyntaxError: Identifier 'query' has already been declared
+    at eval (<anonymous>)
+✓ Compiled in 240ms

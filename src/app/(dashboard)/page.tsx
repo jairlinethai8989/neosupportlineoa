@@ -379,14 +379,14 @@ export default function Home() {
                   type="date" 
                   value={customStart} 
                   onChange={e => setCustomStart(e.target.value)}
-                  style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '8px', padding: '4px 8px', color: 'white', fontSize: '11px' }}
+                  style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '8px', padding: '4px 8px', color: 'var(--text-main)', fontSize: '11px' }}
                 />
                 <span style={{ color: 'var(--text-muted)', fontSize: '11px' }}>—</span>
                 <input 
                   type="date" 
                   value={customEnd} 
                   onChange={e => setCustomEnd(e.target.value)}
-                  style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '8px', padding: '4px 8px', color: 'white', fontSize: '11px' }}
+                  style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '8px', padding: '4px 8px', color: 'var(--text-main)', fontSize: '11px' }}
                 />
               </div>
             )}

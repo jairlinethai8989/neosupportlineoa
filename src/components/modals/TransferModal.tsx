@@ -82,7 +82,7 @@ export default function TransferModal({ isOpen, onClose, ticketId, fromAgentId, 
                  <select 
                   value={selectedTeam}
                   onChange={(e) => setSelectedTeam(e.target.value)}
-                  style={{ width: '100%', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '8px', padding: '12px 12px 12px 40px', color: 'white', fontSize: '14px' }}>
+                  style={{ width: '100%', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '8px', padding: '12px 12px 12px 40px', color: 'var(--text-main)', fontSize: '14px' }}>
                     <option value="">Select Team</option>
                     {teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
                  </select>
@@ -98,7 +98,7 @@ export default function TransferModal({ isOpen, onClose, ticketId, fromAgentId, 
                  <select 
                   value={selectedAgent}
                   onChange={(e) => setSelectedAgent(e.target.value)}
-                  style={{ width: '100%', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '8px', padding: '12px 12px 12px 40px', color: 'white', fontSize: '14px' }}>
+                  style={{ width: '100%', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '8px', padding: '12px 12px 12px 40px', color: 'var(--text-main)', fontSize: '14px' }}>
                     <option value="">Select Agent</option>
                     {agents.map(a => <option key={a.id} value={a.id}>{a.full_name || a.username}</option>)}
                  </select>
@@ -111,20 +111,20 @@ export default function TransferModal({ isOpen, onClose, ticketId, fromAgentId, 
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
                 placeholder="Explain why you are transferring this case..."
-                style={{ width: '100%', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '8px', padding: '12px', color: 'white', fontSize: '14px', minHeight: '100px' }} 
+                style={{ width: '100%', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '8px', padding: '12px', color: 'var(--text-main)', fontSize: '14px', minHeight: '100px' }} 
               />
            </div>
 
            <div style={{ display: 'flex', gap: '12px', marginTop: '12px' }}>
               <button 
                onClick={onClose}
-               style={{ flex: 1, padding: '14px', borderRadius: '10px', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', color: 'white', fontWeight: '700', cursor: 'pointer' }}>
+               style={{ flex: 1, padding: '14px', borderRadius: '10px', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', color: 'var(--text-main)', fontWeight: '700', cursor: 'pointer' }}>
                  Cancel
               </button>
               <button 
                 onClick={handleTransfer}
                 disabled={loading}
-                style={{ flex: 2, padding: '14px', borderRadius: '10px', background: 'var(--secondary)', border: 'none', color: 'white', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', opacity: loading ? 0.7 : 1 }}>
+                style={{ flex: 2, padding: '14px', borderRadius: '10px', background: 'var(--secondary)', border: 'none', color: 'var(--text-main)', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', opacity: loading ? 0.7 : 1 }}>
                  {loading ? <Loader2 className="animate-spin" size={20} /> : (
                    <>
                     Transfer Now <ArrowRight size={18} />

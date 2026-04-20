@@ -141,7 +141,7 @@ export default function ReportsPage() {
             value={targetDate}
             onChange={(e) => setTargetDate(e.target.value)}
             style={{ 
-              background: 'transparent', border: 'none', color: 'white', 
+              background: 'transparent', border: 'none', color: 'var(--text-main)', 
               fontSize: '14px', fontWeight: '700', outline: 'none', cursor: 'pointer' 
             }}
           />

@@ -337,7 +337,7 @@ export default function StaffManagementPage() {
               placeholder="ค้นหาชื่อ หรืออีเมล..." 
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
-              style={{ width: '100%', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '10px', padding: '10px 10px 10px 40px', color: 'white', outline: 'none', fontSize: '14px' }}
+              style={{ width: '100%', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '10px', padding: '10px 10px 10px 40px', color: 'var(--text-main)', outline: 'none', fontSize: '14px' }}
             />
           </div>
         </div>
@@ -469,7 +469,7 @@ export default function StaffManagementPage() {
                   placeholder="เช่น somchai_neo"
                   value={form.username}
                   onChange={e => setForm({...form, username: e.target.value})}
-                  style={{ width: '100%', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '10px', padding: '12px', color: 'white' }}
+                  style={{ width: '100%', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '10px', padding: '12px', color: 'var(--text-main)' }}
                 />
               </div>
               <div>
@@ -480,7 +480,7 @@ export default function StaffManagementPage() {
                   placeholder="ส้มชาย รักดี"
                   value={form.full_name}
                   onChange={e => setForm({...form, full_name: e.target.value})}
-                  style={{ width: '100%', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '10px', padding: '12px', color: 'white' }}
+                  style={{ width: '100%', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '10px', padding: '12px', color: 'var(--text-main)' }}
                 />
               </div>
               <div>
@@ -491,7 +491,7 @@ export default function StaffManagementPage() {
                   placeholder="รหัสผ่านสำหรับพนักงาน..."
                   value={form.password}
                   onChange={e => setForm({...form, password: e.target.value})}
-                  style={{ width: '100%', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '10px', padding: '12px', color: 'white' }}
+                  style={{ width: '100%', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '10px', padding: '12px', color: 'var(--text-main)' }}
                 />
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
@@ -500,7 +500,7 @@ export default function StaffManagementPage() {
                   <select 
                     value={form.role}
                     onChange={e => setForm({...form, role: e.target.value})}
-                    style={{ width: '100%', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '10px', padding: '12px', color: 'white' }}
+                    style={{ width: '100%', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '10px', padding: '12px', color: 'var(--text-main)' }}
                   >
                     <option value="Agent">พนักงาน (Agent)</option>
                     <option value="Administrator">ผู้ดูแลระบบ (Admin)</option>
@@ -511,7 +511,7 @@ export default function StaffManagementPage() {
                   <select 
                     value={form.department}
                     onChange={e => setForm({...form, department: e.target.value})}
-                    style={{ width: '100%', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '10px', padding: '12px', color: 'white' }}
+                    style={{ width: '100%', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '10px', padding: '12px', color: 'var(--text-main)' }}
                   >
                     {departments.map((dept, idx) => (
                       <option key={idx} value={dept}>{dept}</option>
@@ -522,7 +522,7 @@ export default function StaffManagementPage() {
               </div>
 
               <div style={{ marginTop: '12px', display: 'flex', gap: '12px' }}>
-                <button type="button" onClick={() => setIsModalOpen(false)} style={{ flex: 1, padding: '14px', borderRadius: '10px', background: 'transparent', border: '1px solid var(--border)', color: 'white', cursor: 'pointer' }}>ยกเลิก</button>
+                <button type="button" onClick={() => setIsModalOpen(false)} style={{ flex: 1, padding: '14px', borderRadius: '10px', background: 'transparent', border: '1px solid var(--border)', color: 'var(--text-main)', cursor: 'pointer' }}>ยกเลิก</button>
                 <button 
                   type="submit" 
                   disabled={submitting}
@@ -552,7 +552,7 @@ export default function StaffManagementPage() {
               </div>
               <button 
                 onClick={() => setPermissionModalOpen(false)} 
-                style={{ background: 'rgba(255,255,255,0.05)', border: 'none', color: 'white', cursor: 'pointer', width: '36px', height: '36px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                style={{ background: 'rgba(255,255,255,0.05)', border: 'none', color: 'var(--text-main)', cursor: 'pointer', width: '36px', height: '36px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
               >
                 <XCircle size={20} />
               </button>
@@ -618,7 +618,7 @@ export default function StaffManagementPage() {
             </div>
 
             <div style={{ display: 'flex', gap: '12px' }}>
-              <button onClick={() => setPermissionModalOpen(false)} style={{ flex: 1, padding: '16px', borderRadius: '14px', background: 'transparent', border: '1px solid var(--border)', color: 'white', fontWeight: '700', cursor: 'pointer' }}>ยกเลิก</button>
+              <button onClick={() => setPermissionModalOpen(false)} style={{ flex: 1, padding: '16px', borderRadius: '14px', background: 'transparent', border: '1px solid var(--border)', color: 'var(--text-main)', fontWeight: '700', cursor: 'pointer' }}>ยกเลิก</button>
               <button 
                 onClick={handleSavePermissions}
                 disabled={submitting}

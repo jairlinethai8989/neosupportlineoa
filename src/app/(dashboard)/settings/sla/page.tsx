@@ -101,7 +101,7 @@ export default function SLASettingsPage() {
          <div className="glass" style={{ padding: '32px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '32px' }}>
                <h2 style={{ fontSize: '18px', fontWeight: '700' }}>Matrix Rules</h2>
-               <button onClick={addRule} className="glass-interactive flex-center" style={{ padding: '8px 16px', borderRadius: '8px', background: 'rgba(255,255,255,0.05)', color: 'white', border: '1px solid var(--border)', gap: '8px' }}>
+               <button onClick={addRule} className="glass-interactive flex-center" style={{ padding: '8px 16px', borderRadius: '8px', background: 'rgba(255,255,255,0.05)', color: 'var(--text-main)', border: '1px solid var(--border)', gap: '8px' }}>
                   <Plus size={16} /> Add Rule
                </button>
             </div>
@@ -114,7 +114,7 @@ export default function SLASettingsPage() {
                         <select 
                            value={rule.priority}
                            onChange={(e) => updateRule(idx, 'priority', e.target.value)}
-                           style={{ width: '100%', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '6px', padding: '10px', color: 'white', fontSize: '14px' }}>
+                           style={{ width: '100%', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '6px', padding: '10px', color: 'var(--text-main)', fontSize: '14px' }}>
                            <option value="Critical">Critical</option>
                            <option value="High">High</option>
                            <option value="Medium">Medium</option>
@@ -127,7 +127,7 @@ export default function SLASettingsPage() {
                            type="number"
                            value={rule.response_time_minutes}
                            onChange={(e) => updateRule(idx, 'response_time_minutes', parseInt(e.target.value))}
-                           style={{ width: '100%', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '6px', padding: '10px', color: 'white', fontSize: '14px' }} 
+                           style={{ width: '100%', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '6px', padding: '10px', color: 'var(--text-main)', fontSize: '14px' }} 
                         />
                      </div>
                      <div style={{ flex: 1 }}>
@@ -136,7 +136,7 @@ export default function SLASettingsPage() {
                            type="number"
                            value={rule.resolution_time_minutes}
                            onChange={(e) => updateRule(idx, 'resolution_time_minutes', parseInt(e.target.value))}
-                           style={{ width: '100%', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '6px', padding: '10px', color: 'white', fontSize: '14px' }} 
+                           style={{ width: '100%', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '6px', padding: '10px', color: 'var(--text-main)', fontSize: '14px' }} 
                         />
                      </div>
                      <button onClick={() => deleteRule(idx)} className="glass-interactive flex-center" style={{ padding: '10px', borderRadius: '6px', border: 'none', background: 'rgba(234, 84, 85, 0.1)', color: 'var(--danger)' }}>
