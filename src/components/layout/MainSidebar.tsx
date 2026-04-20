@@ -108,8 +108,8 @@ const Sidebar = ({ onClickLink, isCollapsed = false }: SidebarProps) => {
   // OPTIMIZATION: Memoized Menu Items
   const menuItems = useMemo(() => [
     { section: 'Operations', thai: 'ส่วนปฏิบัติการหลัก', items: [
-      { name: 'Inbox', thai: 'ห้องแชทลูกค้า', icon: Inbox, path: '/inbox', count: inboxCount },
       { name: 'Tickets', thai: 'จัดการใบงาน', icon: Ticket, path: '/tickets', count: newTicketsCount },
+      { name: 'Inbox', thai: 'ห้องแชทลูกค้า', icon: Inbox, path: '/inbox', count: inboxCount },
       { name: 'Notifications', thai: 'การแจ้งเตือน', icon: Bell, path: '/notifications', count: unreadCount },
     ]},
     { section: 'Intelligence', thai: 'ระบบข้อมูลเชิงลึก', items: [
