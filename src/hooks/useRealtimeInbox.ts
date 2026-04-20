@@ -80,11 +80,11 @@ export function useRealtimeInbox() {
       if (flushTimer) return;
       flushTimer = setTimeout(() => {
         void flushPendingConversations();
-      }, 120);
+      }, 200); // Increased slightly for better reliability in distant regions
     };
 
     const channel = supabase
-      .channel('public:conversations:v2')
+      .channel('inbox-realtime-v3')
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'conversations' },
@@ -98,7 +98,11 @@ export function useRealtimeInbox() {
           }
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          console.log('Realtime Inbox subscribed successfully');
+        }
+      });
 
     return () => {
       if (flushTimer) {

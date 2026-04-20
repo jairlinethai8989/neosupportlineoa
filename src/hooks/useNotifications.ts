@@ -156,7 +156,7 @@ export function useNotifications(agentId: string | null) {
     const { count } = await supabase
       .from('tickets')
       .select('*', { count: 'exact', head: true })
-      .eq('status', 'New');
+      .or('status.ilike.new,status.ilike.New');
     if (count !== null) setNewTicketsCount(count);
   }, []);
 
@@ -340,7 +340,8 @@ export function useNotifications(agentId: string | null) {
         async (payload) => {
           const row = payload.new as any;
           await fetchNewTicketsCount();
-          if (row.status !== 'New') return;
+          const normalizedStatus = (row.status || '').toLowerCase();
+          if (normalizedStatus !== 'new') return;
           if (isFirstLoad.current) return;
 
           addToast({
