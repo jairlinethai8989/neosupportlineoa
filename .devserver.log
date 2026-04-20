@@ -1077,3 +1077,161 @@ Import traces:
     at processMessage (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/node_modules_next_dist_client_0pe1dg-._.js:2834:28)
     at <unknown> (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/node_modules_next_dist_client_0pe1dg-._.js:2679:13)
     at WebSocket.handleMessage (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/node_modules_next_dist_client_0pe1dg-._.js:2324:17) (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/node_modules_next_dist_client_0pe1dg-._.js:2773:21)
+[browser] ./src/components/inbox/ChatWindow.tsx:15:3
+the name `Clock` is defined multiple times
+  13 |   Trash2, 
+  14 |   Clock,
+> 15 |   Clock,
+     |   ^^^^^
+  16 |   AlertTriangle,
+  17 |   Crop
+  18 | } from 'lucide-react';
+
+Ecmascript file had an error
+
+Import traces:
+  Client Component Browser:
+    ./src/components/inbox/ChatWindow.tsx [Client Component Browser]
+    ./src/app/(dashboard)/inbox/page.tsx [Client Component Browser]
+    ./src/app/(dashboard)/inbox/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/inbox/ChatWindow.tsx [Client Component SSR]
+    ./src/app/(dashboard)/inbox/page.tsx [Client Component SSR]
+    ./src/app/(dashboard)/inbox/page.tsx [Server Component] 
+    at handleErrors (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/node_modules_next_dist_client_0pe1dg-._.js:2773:21)
+    at processMessage (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/node_modules_next_dist_client_0pe1dg-._.js:2834:28)
+    at <unknown> (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/node_modules_next_dist_client_0pe1dg-._.js:2679:13)
+    at WebSocket.handleMessage (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/node_modules_next_dist_client_0pe1dg-._.js:2324:17) (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/node_modules_next_dist_client_0pe1dg-._.js:2773:21)
+[browser] ./src/components/inbox/ChatWindow.tsx:15:3
+the name `Clock` is defined multiple times
+  13 |   Trash2, 
+  14 |   Clock,
+> 15 |   Clock,
+     |   ^^^^^
+  16 |   AlertTriangle,
+  17 |   Crop
+  18 | } from 'lucide-react';
+
+Ecmascript file had an error
+
+Import traces:
+  Client Component Browser:
+    ./src/components/inbox/ChatWindow.tsx [Client Component Browser]
+    ./src/app/(dashboard)/inbox/page.tsx [Client Component Browser]
+    ./src/app/(dashboard)/inbox/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/inbox/ChatWindow.tsx [Client Component SSR]
+    ./src/app/(dashboard)/inbox/page.tsx [Client Component SSR]
+    ./src/app/(dashboard)/inbox/page.tsx [Server Component] 
+    at handleErrors (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/node_modules_next_dist_client_0pe1dg-._.js:2773:21)
+    at processMessage (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/node_modules_next_dist_client_0pe1dg-._.js:2834:28)
+    at <unknown> (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/node_modules_next_dist_client_0pe1dg-._.js:2679:13)
+    at WebSocket.handleMessage (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/node_modules_next_dist_client_0pe1dg-._.js:2324:17) (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/node_modules_next_dist_client_0pe1dg-._.js:2773:21)
+[browser] ./src/components/inbox/ChatWindow.tsx:15:3
+the name `Clock` is defined multiple times
+  13 |   Trash2, 
+  14 |   Clock,
+> 15 |   Clock,
+     |   ^^^^^
+  16 |   AlertTriangle,
+  17 |   Crop
+  18 | } from 'lucide-react';
+
+Ecmascript file had an error
+
+Import traces:
+  Client Component Browser:
+    ./src/components/inbox/ChatWindow.tsx [Client Component Browser]
+    ./src/app/(dashboard)/inbox/page.tsx [Client Component Browser]
+    ./src/app/(dashboard)/inbox/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/inbox/ChatWindow.tsx [Client Component SSR]
+    ./src/app/(dashboard)/inbox/page.tsx [Client Component SSR]
+    ./src/app/(dashboard)/inbox/page.tsx [Server Component] 
+    at handleErrors (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/node_modules_next_dist_client_0pe1dg-._.js:2773:21)
+    at processMessage (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/node_modules_next_dist_client_0pe1dg-._.js:2834:28)
+    at <unknown> (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/node_modules_next_dist_client_0pe1dg-._.js:2679:13)
+    at WebSocket.handleMessage (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/node_modules_next_dist_client_0pe1dg-._.js:2324:17) (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/node_modules_next_dist_client_0pe1dg-._.js:2773:21)
+[browser] ./src/components/inbox/ChatWindow.tsx:15:3
+the name `Clock` is defined multiple times
+  13 |   Trash2, 
+  14 |   Clock,
+> 15 |   Clock,
+     |   ^^^^^
+  16 |   AlertTriangle,
+  17 |   Crop
+  18 | } from 'lucide-react';
+
+Ecmascript file had an error
+
+Import traces:
+  Client Component Browser:
+    ./src/components/inbox/ChatWindow.tsx [Client Component Browser]
+    ./src/app/(dashboard)/inbox/page.tsx [Client Component Browser]
+    ./src/app/(dashboard)/inbox/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/inbox/ChatWindow.tsx [Client Component SSR]
+    ./src/app/(dashboard)/inbox/page.tsx [Client Component SSR]
+    ./src/app/(dashboard)/inbox/page.tsx [Server Component] 
+    at handleErrors (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/node_modules_next_dist_client_0pe1dg-._.js:2773:21)
+    at processMessage (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/node_modules_next_dist_client_0pe1dg-._.js:2834:28)
+    at <unknown> (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/node_modules_next_dist_client_0pe1dg-._.js:2679:13)
+    at WebSocket.handleMessage (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/node_modules_next_dist_client_0pe1dg-._.js:2324:17) (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/node_modules_next_dist_client_0pe1dg-._.js:2773:21)
+[browser] ./src/components/inbox/ChatWindow.tsx:15:3
+the name `Clock` is defined multiple times
+  13 |   Trash2, 
+  14 |   Clock,
+> 15 |   Clock,
+     |   ^^^^^
+  16 |   AlertTriangle,
+  17 |   Crop
+  18 | } from 'lucide-react';
+
+Ecmascript file had an error
+
+Import traces:
+  Client Component Browser:
+    ./src/components/inbox/ChatWindow.tsx [Client Component Browser]
+    ./src/app/(dashboard)/inbox/page.tsx [Client Component Browser]
+    ./src/app/(dashboard)/inbox/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/inbox/ChatWindow.tsx [Client Component SSR]
+    ./src/app/(dashboard)/inbox/page.tsx [Client Component SSR]
+    ./src/app/(dashboard)/inbox/page.tsx [Server Component] 
+    at handleErrors (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/node_modules_next_dist_client_0pe1dg-._.js:2773:21)
+    at processMessage (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/node_modules_next_dist_client_0pe1dg-._.js:2834:28)
+    at <unknown> (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/node_modules_next_dist_client_0pe1dg-._.js:2679:13)
+    at WebSocket.handleMessage (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/node_modules_next_dist_client_0pe1dg-._.js:2324:17) (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/node_modules_next_dist_client_0pe1dg-._.js:2773:21)
+[browser] ./src/components/inbox/ChatWindow.tsx:15:3
+the name `Clock` is defined multiple times
+  13 |   Trash2, 
+  14 |   Clock,
+> 15 |   Clock,
+     |   ^^^^^
+  16 |   AlertTriangle,
+  17 |   Crop
+  18 | } from 'lucide-react';
+
+Ecmascript file had an error
+
+Import traces:
+  Client Component Browser:
+    ./src/components/inbox/ChatWindow.tsx [Client Component Browser]
+    ./src/app/(dashboard)/inbox/page.tsx [Client Component Browser]
+    ./src/app/(dashboard)/inbox/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/inbox/ChatWindow.tsx [Client Component SSR]
+    ./src/app/(dashboard)/inbox/page.tsx [Client Component SSR]
+    ./src/app/(dashboard)/inbox/page.tsx [Server Component] 
+    at handleErrors (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/node_modules_next_dist_client_0pe1dg-._.js:2773:21)
+    at processMessage (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/node_modules_next_dist_client_0pe1dg-._.js:2834:28)
+    at <unknown> (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/node_modules_next_dist_client_0pe1dg-._.js:2679:13)
+    at WebSocket.handleMessage (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/node_modules_next_dist_client_0pe1dg-._.js:2324:17) (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/node_modules_next_dist_client_0pe1dg-._.js:2773:21)
+✓ Compiled in 1543ms
+ GET /inbox 200 in 15.5s (next.js: 10.9s, application-code: 4.6s)

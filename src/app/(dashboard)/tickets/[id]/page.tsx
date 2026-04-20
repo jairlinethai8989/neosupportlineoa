@@ -250,6 +250,19 @@ export default function StaffTicketDetailPage() {
       conversationIdRef.current = null;
     };
   }, [fetchData, ticketId]);
+  const openImageInEditor = useCallback((file: File) => {
+    if (!file.type.startsWith('image/')) return;
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result;
+      if (typeof result !== 'string') return;
+      setEditingImage(result);
+      setShowEditor(true);
+      setShowViewer(false);
+    };
+    reader.readAsDataURL(file);
+  }, []);
 
   useEffect(() => {
     const handlePaste = (event: ClipboardEvent) => {
@@ -363,19 +376,7 @@ export default function StaffTicketDetailPage() {
     }
   }, [addToast, conversationId, ticketId, user?.id]);
 
-  const openImageInEditor = useCallback((file: File) => {
-    if (!file.type.startsWith('image/')) return;
 
-    const reader = new FileReader();
-    reader.onload = () => {
-      const result = reader.result;
-      if (typeof result !== 'string') return;
-      setEditingImage(result);
-      setShowEditor(true);
-      setShowViewer(false);
-    };
-    reader.readAsDataURL(file);
-  }, []);
 
   const handleEditorSave = useCallback(async (blob: Blob) => {
     if (!ticketId || !conversationId) return;
