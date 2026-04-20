@@ -11,7 +11,6 @@ import { InboxSidebar } from '@/components/inbox/InboxSidebar';
 import { ChatWindow } from '@/components/inbox/ChatWindow';
 import { TicketSidebar } from '@/components/inbox/TicketSidebar';
 import { ResolveTicketModal } from '@/components/inbox/ResolveTicketModal';
-import CaptureOverlay from '@/components/chat/CaptureOverlay';
 import { useInboxProfileSettings } from '@/hooks/useInboxProfileSettings';
 import { useInboxConversation } from '@/hooks/useInboxConversation';
 import {
@@ -51,7 +50,6 @@ function InboxContent() {
   const [isViewerOpen, setIsViewerOpen] = useState(false);
   const [viewingImage, setViewingImage] = useState('');
   const [editingImage, setEditingImage] = useState('');
-  const [isCapturing, setIsCapturing] = useState(false);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const searchParams = useSearchParams();
   const cid = searchParams.get('cid');
@@ -98,7 +96,7 @@ function InboxContent() {
     addToast,
   });
 
-  const handleScreenCapture = () => setIsCapturing(true);
+
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -238,7 +236,7 @@ function InboxContent() {
             currentTicket={currentTicket}
             onClaim={handleClaim}
             onAttachClick={() => fileInputRef.current?.click()}
-            onScreenCapture={handleScreenCapture}
+
             onEditImage={(source: string) => {
               setViewingImage(source);
               setEditingImage(source);

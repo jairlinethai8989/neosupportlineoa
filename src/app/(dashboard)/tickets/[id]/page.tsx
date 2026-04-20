@@ -12,7 +12,6 @@ import { ticketService } from '@/lib/services/ticketService';
 import { TicketHeader } from '@/components/tickets/TicketHeader';
 import { TicketChat } from '@/components/tickets/TicketChat';
 import { TicketSidebar, getTicketDuration } from '@/components/tickets/TicketSidebar';
-import CaptureOverlay from '@/components/chat/CaptureOverlay';
 import Link from 'next/link';
 import Image from 'next/image';
 import { User, Clock, ChevronRight } from 'lucide-react';
@@ -99,7 +98,6 @@ export default function StaffTicketDetailPage() {
   const [viewingImage, setViewingImage] = useState<string | null>(null);
   const [showViewer, setShowViewer] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
-  const [isCapturing, setIsCapturing] = useState(false);
 
   const fetchData = useCallback(async () => {
     if (!ticketId) return;
@@ -341,7 +339,7 @@ export default function StaffTicketDetailPage() {
     }
   }, [addToast, conversationId, newMessage, ticketId, user?.id]);
 
-  const handleScreenCapture = useCallback(() => setIsCapturing(true), []);
+
 
   const handleAdminFile = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
     if (!ticketId || !event.target.files?.length) return;
@@ -670,7 +668,7 @@ export default function StaffTicketDetailPage() {
             setViewingImage(url);
             setShowViewer(true);
           }}
-          onScreenCapture={handleScreenCapture}
+
           onDeleteMessage={handleDeleteMessage}
           onEndChat={handleEndChat}
           isChatActive={isChatActive}
@@ -753,16 +751,7 @@ export default function StaffTicketDetailPage() {
         />
       )}
 
-      {isCapturing && (
-        <CaptureOverlay 
-          onCapture={(url) => {
-            setEditingImage(url);
-            setShowEditor(true);
-            setIsCapturing(false);
-          }}
-          onCancel={() => setIsCapturing(false)}
-        />
-      )}
+
 
       <SummaryExportModal
         isOpen={showExportModal}

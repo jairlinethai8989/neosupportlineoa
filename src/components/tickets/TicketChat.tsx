@@ -5,8 +5,7 @@ import {
   Paperclip,
   Loader2,
   SendHorizontal,
-  X,
-  Crop
+  X
 } from 'lucide-react';
 import Image from 'next/image';
 import type {
@@ -25,7 +24,6 @@ interface TicketChatProps {
   onSendMessage: () => void;
   onAttachFile: () => void;
   onEditImage: (url: string) => void;
-  onScreenCapture: () => void;
   onDeleteMessage?: (id: string) => void;
   onEndChat?: () => void;
   isChatActive?: boolean;
@@ -43,7 +41,6 @@ export const TicketChat: React.FC<TicketChatProps> = ({
   onSendMessage,
   onAttachFile,
   onEditImage,
-  onScreenCapture,
   onDeleteMessage,
   onEndChat,
   isChatActive = false,
@@ -405,22 +402,7 @@ export const TicketChat: React.FC<TicketChatProps> = ({
               >
                 <Paperclip size={18} />
               </button>
-              <button
-                onClick={onScreenCapture}
-                disabled={sending}
-                className="glass-interactive flex-center"
-                title="Capture หน้าจอ"
-                style={{
-                  width: '36px',
-                  height: '36px',
-                  borderRadius: '50%',
-                  border: 'none',
-                  background: 'transparent',
-                  color: 'var(--primary)',
-                }}
-              >
-                <Crop size={18} />
-              </button>
+
               <input
                 type="text"
                 placeholder={
