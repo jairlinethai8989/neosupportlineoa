@@ -52,7 +52,6 @@ function InboxContent() {
   const [page, setPage] = useState(1);
 
   const { conversations, totalPages, loading: inboxLoading } = useRealtimeInbox({
-    status: 'active',
     page,
     pageSize: 20
   });
