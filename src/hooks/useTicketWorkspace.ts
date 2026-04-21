@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNotificationContext } from '@/contexts/NotificationContext';
 import { supabase } from '@/lib/supabase';
+import { normalizeTicketWorkspaceTicket } from '@/lib/tickets/normalizers';
 import {
   getTicketWorkspaceActiveConversationToast,
   getTicketWorkspaceClaimFailToast,
@@ -14,7 +15,6 @@ import {
 } from '@/lib/tickets/feedback';
 import { claimWorkspaceTicket, resolveWorkspaceTicket } from '@/lib/tickets/mutations';
 import {
-  getTicketWorkspaceConversationById,
   getTicketWorkspaceCompanySettings,
   getTicketWorkspaceProfile,
   getTicketWorkspaceTicketById,
@@ -41,6 +41,38 @@ const DEFAULT_MODULES = [
   'Consultation',
   'All',
 ];
+
+function isTicketWithinWorkspaceRange(
+  ticket: Pick<TicketWorkspaceTicket, 'created_at'>,
+  timeRange: TicketWorkspaceTimeRange,
+  customStart: string,
+  customEnd: string
+) {
+  if (!ticket.created_at) return false;
+
+  const createdAtMs = new Date(ticket.created_at).getTime();
+  if (Number.isNaN(createdAtMs)) return false;
+
+  const { fromIso, toIso } = getTicketWorkspaceDateRange(timeRange, customStart, customEnd);
+  const fromMs = new Date(fromIso).getTime();
+  const toMs = new Date(toIso).getTime();
+
+  return createdAtMs >= fromMs && createdAtMs <= toMs;
+}
+
+function upsertWorkspaceTicket(
+  previousTickets: TicketWorkspaceTicket[],
+  nextTicket: TicketWorkspaceTicket
+) {
+  const existingIndex = previousTickets.findIndex((ticket) => ticket.id === nextTicket.id);
+  if (existingIndex === -1) {
+    return [nextTicket, ...previousTickets];
+  }
+
+  return previousTickets.map((ticket, index) =>
+    index === existingIndex ? nextTicket : ticket
+  );
+}
 
 function getTicketWorkspaceDateRange(
   timeRange: TicketWorkspaceTimeRange,
@@ -129,23 +161,73 @@ export function useTicketWorkspace(filterCustomerId: string | null) {
 
   const fetchData = useCallback(async () => {
     setDebugError(null);
+    setLoading(true);
 
-    try {
-      const { fromIso, toIso } = getTicketWorkspaceDateRange(timeRange, customStart, customEnd);
-      const [conversationData, ticketData] = await Promise.all([
-        listTicketWorkspaceConversations(),
-        listTicketWorkspaceTickets({ fromIso, toIso, limit: 300 }),
-      ]);
+    const { fromIso, toIso } = getTicketWorkspaceDateRange(timeRange, customStart, customEnd);
+    const [conversationResult, ticketResult] = await Promise.allSettled([
+      listTicketWorkspaceConversations(),
+      listTicketWorkspaceTickets({ fromIso, toIso, limit: 300 }),
+    ]);
 
-      setTickets(ticketData);
-      setConversations(conversationData);
-    } catch (error) {
-      console.error('Fetch tickets error:', error);
-      setDebugError(error instanceof Error ? error.message : 'Unknown error');
-    } finally {
-      setLoading(false);
+    const errors: string[] = [];
+
+    if (conversationResult.status === 'fulfilled') {
+      setConversations(conversationResult.value);
+    } else {
+      console.error('Fetch conversations error:', conversationResult.reason);
+      errors.push(
+        conversationResult.reason instanceof Error
+          ? conversationResult.reason.message
+          : 'Failed to load conversations'
+      );
     }
+
+    if (ticketResult.status === 'fulfilled') {
+      setTickets(ticketResult.value);
+    } else {
+      console.error('Fetch tickets error:', ticketResult.reason);
+      errors.push(
+        ticketResult.reason instanceof Error
+          ? ticketResult.reason.message
+          : 'Failed to load tickets'
+      );
+    }
+
+    if (errors.length > 0) {
+      setDebugError(errors.join(' | '));
+    }
+
+    setLoading(false);
   }, [customEnd, customStart, timeRange]);
+
+  const syncTicketFromRealtime = useCallback(
+    async (ticketId: string, fallbackValue?: unknown) => {
+      try {
+        const latestTicket = await getTicketWorkspaceTicketById(ticketId);
+        if (latestTicket && isTicketWithinWorkspaceRange(latestTicket, timeRange, customStart, customEnd)) {
+          setTickets((previousTickets) => upsertWorkspaceTicket(previousTickets, latestTicket));
+          return;
+        }
+
+        setTickets((previousTickets) =>
+          previousTickets.filter((ticket) => ticket.id !== ticketId)
+        );
+      } catch (error) {
+        console.error('Realtime ticket sync error:', error);
+
+        const fallbackTicket = normalizeTicketWorkspaceTicket(fallbackValue);
+        if (
+          fallbackTicket &&
+          isTicketWithinWorkspaceRange(fallbackTicket, timeRange, customStart, customEnd)
+        ) {
+          setTickets((previousTickets) => upsertWorkspaceTicket(previousTickets, fallbackTicket));
+        }
+
+        setDebugError(error instanceof Error ? error.message : 'Realtime ticket sync failed');
+      }
+    },
+    [customEnd, customStart, timeRange]
+  );
 
   const loadSettings = useCallback(async () => {
     if (settingsLoaded) return;
@@ -184,24 +266,48 @@ export function useTicketWorkspace(filterCustomerId: string | null) {
       if (realtimeTimer) clearTimeout(realtimeTimer);
       realtimeTimer = setTimeout(() => {
         void fetchData();
-      }, 500); // 500ms debounce to allow relations and DB replicas to settle
+      }, 1200);
     };
 
     const channel = supabase
       .channel('workspace-realtime')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'tickets' }, () => {
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'tickets' }, (payload) => {
+        const ticketId = String(payload.new.id || '');
+        if (!ticketId) return;
+
+        void syncTicketFromRealtime(ticketId, payload.new);
+        scheduleDataRefresh();
+      })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'tickets' }, (payload) => {
+        const ticketId = String(payload.new.id || payload.old.id || '');
+        if (!ticketId) return;
+
+        void syncTicketFromRealtime(ticketId, payload.new);
+        scheduleDataRefresh();
+      })
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'tickets' }, (payload) => {
+        const ticketId = String(payload.old.id || '');
+        if (!ticketId) return;
+
+        setTickets((previousTickets) =>
+          previousTickets.filter((ticket) => ticket.id !== ticketId)
+        );
         scheduleDataRefresh();
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'conversations' }, () => {
         scheduleDataRefresh();
       })
-      .subscribe();
+      .subscribe((status) => {
+        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          setDebugError(`Workspace realtime ${status.toLowerCase()}`);
+        }
+      });
 
     return () => {
       if (realtimeTimer) clearTimeout(realtimeTimer);
       supabase.removeChannel(channel);
     };
-  }, [fetchData, loadSettings]);
+  }, [fetchData, loadSettings, syncTicketFromRealtime]);
 
   const filteredTickets = useMemo(() => {
     let result = [...tickets];
