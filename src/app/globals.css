@@ -6,20 +6,20 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Prompt:wght@300;400;500;600;700&display=swap');
 
 :root {
-  /* Core Brand - Professional Neo Blue (Cyanish) */
-  --primary: #3699FF;        
-  --primary-transparent: rgba(54, 153, 255, 0.12);
-  --primary-glow: rgba(54, 153, 255, 0.3);
+  /* Core Brand - Neo-Medical Teal */
+  --primary: #0891b2;        /* Cyan 600 */
+  --primary-transparent: rgba(8, 145, 178, 0.12);
+  --primary-glow: rgba(8, 145, 178, 0.15);
   --secondary: #8b5cf6;      /* Violet 500 */
   --accent: #f59e0b;         /* Amber 500 */
   
   /* Background Layers - Deep Focus */
   --bg-deep: #0f172a;        /* Slate 900 */
   --bg-sidebar: #1e293b;     /* Slate 800 */
-  --bg-card: rgba(30, 41, 59, 0.7);
-  --bg-card-hover: rgba(51, 65, 85, 0.8);
-  --bg-input: rgba(15, 23, 42, 0.8);
-  --bg-topbar: rgba(30, 41, 59, 0.85);
+  --bg-card: rgba(30, 41, 59, 0.85); /* 85% opacity for solid readability */
+  --bg-card-hover: rgba(51, 65, 85, 0.95);
+  --bg-input: rgba(15, 23, 42, 0.9);
+  --bg-topbar: rgba(30, 41, 59, 0.9);
   
   /* Borders & Dividers */
   --border: rgba(255, 255, 255, 0.1);
@@ -55,9 +55,9 @@
   --text-main: #0f172a;      /* High contrast black */
   --text-muted: #475569;     /* Legible dark gray */
   --text-dim: #64748b;
-  --primary: #3699FF;        /* Neo Blue */
-  --primary-transparent: rgba(54, 153, 255, 0.1);
-  --primary-glow: rgba(54, 153, 255, 0.2);
+  --primary: #0891b2;        /* Neo-Medical Teal */
+  --primary-transparent: rgba(8, 145, 178, 0.1);
+  --primary-glow: rgba(8, 145, 178, 0.15);
 }
 
 [data-theme='blue'] {
@@ -163,8 +163,8 @@ input, button, select, textarea, optgroup, option {
 .glass-interactive:hover {
   background: var(--bg-card-hover);
   border-color: var(--primary);
-  transform: translateY(-4px) scale(1.01);
-  box-shadow: 0 12px 40px -10px var(--primary-glow), 
+  transform: translateY(-2px); /* Softer lift */
+  box-shadow: 0 8px 25px -8px var(--primary-glow), 
               0 0 0 1px var(--primary);
 }
 
