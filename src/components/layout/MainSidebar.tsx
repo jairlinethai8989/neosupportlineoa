@@ -122,11 +122,11 @@ const Sidebar = ({ onClickLink, isCollapsed = false }: SidebarProps) => {
           { name: 'Performance', thai: 'สถิติการทำงาน', path: '/analytics' },
         ]
       },
-      { name: 'Customers', thai: 'ฐานข้อมูลลูกค้า', icon: Users, path: '/customers' },
       { name: 'Reports', thai: 'รายงาน & Broadcast', icon: Send, children: [
           { name: 'Daily Report', thai: 'สรุปปัญหาประจำวัน', path: '/reports/daily' },
           { name: 'Report Hub', thai: 'ศูนย์ควบคุมการส่งรายงาน', path: '/reports/hub' }
       ] },
+      { name: 'Customers', thai: 'ฐานข้อมูลลูกค้า', icon: Users, path: '/customers' },
     ]},
     { section: 'System', thai: 'การตั้งค่าระบบ', items: [
       { 
