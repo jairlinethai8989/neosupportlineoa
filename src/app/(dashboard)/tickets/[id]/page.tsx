@@ -124,11 +124,17 @@ export default function StaffTicketDetailPage() {
         setSelectedDept(normalizedTicket.current_department_id || '');
         setSelectedModule(normalizedTicket.module || '');
 
+        const { data: logData } = await supabase
+          .from('ticket_logs')
+          .select('*')
+          .eq('ticket_id', ticketId)
+          .order('created_at', { ascending: false });
+
         if (logData) {
           setLogs(logData as TicketDetailLog[]);
           
           // Find resolver profile
-          const resolveLog = logData.find(l => l.action_type === 'resolve');
+          const resolveLog = (logData as any[]).find(l => l.action_type === 'resolve');
           if (resolveLog) {
             const { data: resolver } = await supabase
               .from('profiles')
