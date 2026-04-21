@@ -52,20 +52,20 @@ export default function ImageEditorModal({ imageUrl, onClose, onSave }: ImageEdi
     img.src = imageUrl;
     
     img.onload = () => {
-      // Scale canvas to fit image while keeping aspect ratio
-      const maxWidth = window.innerWidth * 0.8;
-      const maxHeight = window.innerHeight * 0.7;
-      
+      // 1. High-Res Strategy: Keep original resolution but cap it at a reasonable high limit (e.g. 2048px)
+      // to maintain sharpness while managing memory.
+      const MAX_RESOLUTION = 2048;
       let width = img.width;
       let height = img.height;
       
-      if (width > maxWidth) {
-        height = (maxWidth / width) * height;
-        width = maxWidth;
-      }
-      if (height > maxHeight) {
-        width = (maxHeight / height) * width;
-        height = maxHeight;
+      if (width > MAX_RESOLUTION || height > MAX_RESOLUTION) {
+        if (width > height) {
+          height = (MAX_RESOLUTION / width) * height;
+          width = MAX_RESOLUTION;
+        } else {
+          width = (MAX_RESOLUTION / height) * width;
+          height = MAX_RESOLUTION;
+        }
       }
       
       canvas.width = width;
@@ -73,7 +73,7 @@ export default function ImageEditorModal({ imageUrl, onClose, onSave }: ImageEdi
       ctx.drawImage(img, 0, 0, width, height);
       
       // Save initial state to history
-      setHistory([canvas.toDataURL()]);
+      setHistory([canvas.toDataURL('image/jpeg', 0.9)]);
     };
   }, [imageUrl]);
 
@@ -112,8 +112,10 @@ export default function ImageEditorModal({ imageUrl, onClose, onSave }: ImageEdi
     if (!ctx) return;
 
     const rect = canvas.getBoundingClientRect();
-    const x = (e as any).clientX ? (e as any).clientX - rect.left : (e as any).touches[0].clientX - rect.left;
-    const y = (e as any).clientY ? (e as any).clientY - rect.top : (e as any).touches[0].clientY - rect.top;
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    const x = ((e as any).clientX ? (e as any).clientX - rect.left : (e as any).touches[0].clientX - rect.left) * scaleX;
+    const y = ((e as any).clientY ? (e as any).clientY - rect.top : (e as any).touches[0].clientY - rect.top) * scaleY;
 
     setIsDrawing(true);
     setStartX(x);
@@ -149,8 +151,10 @@ export default function ImageEditorModal({ imageUrl, onClose, onSave }: ImageEdi
     if (!ctx || !snapshot) return;
 
     const rect = canvas.getBoundingClientRect();
-    const x = (e as any).clientX ? (e as any).clientX - rect.left : (e as any).touches[0].clientX - rect.left;
-    const y = (e as any).clientY ? (e as any).clientY - rect.top : (e as any).touches[0].clientY - rect.top;
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    const x = ((e as any).clientX ? (e as any).clientX - rect.left : (e as any).touches[0].clientX - rect.left) * scaleX;
+    const y = ((e as any).clientY ? (e as any).clientY - rect.top : (e as any).touches[0].clientY - rect.top) * scaleY;
 
     if (tool === 'pencil') {
       ctx.lineTo(x, y);
@@ -185,7 +189,7 @@ export default function ImageEditorModal({ imageUrl, onClose, onSave }: ImageEdi
         resolve(null);
         return;
       }
-      canvas.toBlob((blob) => resolve(blob), 'image/jpeg', 0.9);
+      canvas.toBlob((blob) => resolve(blob), 'image/jpeg', 0.95);
     });
   };
 
@@ -282,8 +286,15 @@ export default function ImageEditorModal({ imageUrl, onClose, onSave }: ImageEdi
           onTouchMove={draw}
           onTouchEnd={stopDrawing}
           style={{ 
-            boxShadow: '0 20px 60px rgba(0,0,0,0.5)', cursor: tool === 'text' ? 'text' : 'crosshair',
-            background: 'white', borderRadius: '8px'
+            boxShadow: '0 20px 60px rgba(0,0,0,0.5)', 
+            cursor: tool === 'text' ? 'text' : 'crosshair',
+            background: 'white', 
+            borderRadius: '8px',
+            maxWidth: '100%',
+            maxHeight: '70vh',
+            width: 'auto',
+            height: 'auto',
+            objectFit: 'contain'
           }}
         />
       </div>

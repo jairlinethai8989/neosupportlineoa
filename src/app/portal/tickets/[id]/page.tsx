@@ -13,13 +13,11 @@ import {
   AlertCircle,
   FileText,
   SendHorizontal,
-  Paperclip,
-  Crop
+  Paperclip
 } from 'lucide-react';
 import ChatAttachmentModal from '@/components/chat/ChatAttachmentModal';
 import ImageEditorModal from '@/components/modals/ImageEditorModal';
 import ImageViewerModal from '@/components/modals/ImageViewerModal';
-import CaptureOverlay from '@/components/chat/CaptureOverlay';
 import { useLiff } from '@/hooks/useLiff';
 import { sendPortalMessageAction } from '@/app/actions/portalActions';
 
@@ -36,7 +34,6 @@ export default function TicketDetailPage() {
   const [isAttachModalOpen, setIsAttachModalOpen] = useState<boolean>(false);
   const [isEditorOpen, setIsEditorOpen] = useState<boolean>(false);
   const [isViewerOpen, setIsViewerOpen] = useState<boolean>(false);
-  const [isCapturing, setIsCapturing] = useState<boolean>(false);
   const [editingImage, setEditingImage] = useState<string>('');
   const [viewingImage, setViewingImage] = useState<string>('');
   const [conversationId, setConversationId] = useState<string | null>(null);
@@ -176,9 +173,6 @@ export default function TicketDetailPage() {
     setIsViewerOpen(true);
   };
 
-  const handleScreenCapture = async () => {
-    setIsCapturing(true);
-  };
 
   const handleSendMessage = async () => {
     if (!newMessage.trim()) return;
@@ -340,14 +334,6 @@ export default function TicketDetailPage() {
                >
                   <Paperclip size={18} />
                </button>
-               <button 
-                 onClick={handleScreenCapture} 
-                 title="Capture หน้าจอ"
-                 style={{ width: '40px', height: '40px', borderRadius: '12px', border: 'none', background: 'white', color: 'var(--portal-primary)', cursor: 'pointer', boxShadow: '0 2px 5px rgba(0,0,0,0.05)' }} 
-                 className="flex-center"
-               >
-                  <Crop size={18} />
-               </button>
                <input 
                  type="text" 
                  placeholder="เขียนข้อความถึงเจ้าหน้าที่..." 
@@ -494,16 +480,6 @@ export default function TicketDetailPage() {
            />
         )}
 
-        {isCapturing && (
-           <CaptureOverlay 
-              onCapture={(url) => {
-                 setEditingImage(url);
-                 setIsEditorOpen(true);
-                 setIsCapturing(false);
-              }}
-              onCancel={() => setIsCapturing(false)}
-           />
-        )}
     </div>
   );
 }

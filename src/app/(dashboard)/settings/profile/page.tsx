@@ -22,6 +22,7 @@ import {
   CheckCircle
 } from 'lucide-react';
 import Link from 'next/link';
+import { auditService } from '@/lib/services/auditService';
 
 const AVATAR_SEEDS = [
   'Ariel', 'Willow', 'Casper', 'Sasha', 'Jasper', 'Zoey', 'Felix', 'Luna',
@@ -113,6 +114,21 @@ export default function ProfileSettingsPage() {
       }).eq('id', profile.id);
       
       if (error) throw error;
+
+      // Log activity
+      await auditService.log({
+        performer_id: profile.id,
+        action_type: 'PROFILE_UPDATE',
+        entity_type: 'PROFILE',
+        entity_id: profile.id,
+        new_data: { 
+          full_name: profile.full_name, 
+          department: profile.department,
+          avatar_url: profile.avatar_url
+        },
+        note: `Updated own profile information`
+      });
+
       setToastMsg('บันทึกข้อมูลและเทมเพลตเรียบร้อย! ✅');
       setShowToast(true);
       setTimeout(() => setShowToast(false), 3000);
@@ -141,6 +157,15 @@ export default function ProfileSettingsPage() {
       }).eq('id', profile.id);
       
       if (!error) {
+        // Log template addition
+        await auditService.log({
+          performer_id: profile.id,
+          action_type: 'TEMPLATE_ADD',
+          entity_type: 'PROFILE_TEMPLATE',
+          new_data: { type, text },
+          note: `Added new ${type === 'quick' ? 'Quick Reply' : 'Resolution Template'}`
+        });
+
         setToastMsg('บันทึกเทมเพลตอัตโนมัติสำเร็จ! ✨');
         setShowToast(true);
         setTimeout(() => setShowToast(false), 2000);

@@ -67,6 +67,13 @@ export async function POST(req: Request) {
     }
 
     if (event.type === 'message') {
+      // 1. SECURITY/UX FILTER: Only process 1-on-1 private messages for the Inbox
+      // This prevents group chat pollution and "ghost" messages from reports
+      if (event.source.type !== 'user') {
+        console.log(`Webhook: Ignoring non-user message from ${event.source.type}: ${event.source.groupId || event.source.roomId}`);
+        continue;
+      }
+
       const lineUserId = event.source.userId;
       if (!lineUserId) continue; // Safety check
       

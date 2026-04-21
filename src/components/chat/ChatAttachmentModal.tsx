@@ -1,7 +1,5 @@
 'use client';
-/* eslint-disable react-hooks/exhaustive-deps */
-/* eslint-disable @typescript-eslint/no-unused-vars */
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef } from 'react';
 import { Camera, FileUp, X, Loader2 } from 'lucide-react';
 
 interface ChatAttachmentModalProps {
@@ -12,63 +10,8 @@ interface ChatAttachmentModalProps {
 }
 
 export default function ChatAttachmentModal({ isOpen, onClose, onConfirm, onImageSelect }: ChatAttachmentModalProps) {
-  const [mode, setMode] = useState<'select' | 'camera'>('select');
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    if (isOpen) {
-       setMode('select');
-       setLoading(false);
-    } else {
-       stopCamera();
-    }
-  }, [isOpen]);
-
-  const stopCamera = () => {
-    if (videoRef.current && videoRef.current.srcObject) {
-      const tracks = (videoRef.current.srcObject as MediaStream).getTracks();
-      tracks.forEach(track => track.stop());
-    }
-  };
-
-  const startCamera = async () => {
-    setMode('camera');
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-      }
-    } catch (err) {
-      alert('Camera access denied or unavailable.');
-      setMode('select');
-    }
-  };
-
-  const captureCamera = () => {
-    if (videoRef.current) {
-      const canvas = document.createElement('canvas');
-      canvas.width = videoRef.current.videoWidth;
-      canvas.height = videoRef.current.videoHeight;
-      const ctx = canvas.getContext('2d');
-      ctx?.drawImage(videoRef.current, 0, 0);
-      const dataUrl = canvas.toDataURL('image/jpeg', 0.95);
-      stopCamera();
-      
-      if (onImageSelect) {
-         onImageSelect(dataUrl);
-         onClose();
-      } else {
-         canvas.toBlob((blob) => {
-           if (blob) {
-              const file = new File([blob], `cam_${Date.now()}.jpg`, { type: 'image/jpeg' });
-              onConfirm(file, 'image');
-              onClose();
-           }
-         }, 'image/jpeg');
-      }
-    }
-  };
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const uploadedFile = e.target.files?.[0];
@@ -106,7 +49,7 @@ export default function ChatAttachmentModal({ isOpen, onClose, onConfirm, onImag
         
         {/* Header */}
         <div style={{ padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #f1f5f9' }}>
-           <h2 style={{ fontSize: '15px', fontWeight: '800', color: '#0f172a' }}>Attach File</h2>
+           <h2 style={{ fontSize: '15px', fontWeight: '800', color: '#0f172a' }}>แนบไฟล์ / ถ่ายรูป</h2>
            <button onClick={onClose} style={{ border: 'none', background: 'none', color: '#94a3b8', cursor: 'pointer' }}>
               <X size={20} />
            </button>
@@ -114,60 +57,62 @@ export default function ChatAttachmentModal({ isOpen, onClose, onConfirm, onImag
 
         {/* Content */}
         <div style={{ padding: '24px' }}>
-            {mode === 'select' && (
-              <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
-                 <button 
-                  onClick={startCamera} 
-                  style={{ 
-                    flex: 1, 
-                    padding: '24px 16px', 
-                    borderRadius: '12px', 
-                    display: 'flex', 
-                    flexDirection: 'column', 
-                    alignItems: 'center', 
-                    gap: '10px', 
-                    background: '#f8fafc', 
-                    color: '#0f172a', 
-                    border: '1px solid #e2e8f0',
-                    cursor: 'pointer'
-                  }}>
-                    <Camera size={32} color="var(--portal-primary)" />
-                    <span style={{ fontWeight: '700', fontSize: '13px' }}>Take Photo</span>
-                 </button>
-                 <label 
-                  style={{ 
-                    flex: 1, 
-                    padding: '24px 16px', 
-                    borderRadius: '12px', 
-                    display: 'flex', 
-                    flexDirection: 'column', 
-                    alignItems: 'center', 
-                    gap: '10px', 
-                    background: '#f8fafc', 
-                    color: '#0f172a', 
-                    border: '1px solid #e2e8f0', 
-                    cursor: 'pointer' 
-                  }}>
-                    <FileUp size={32} color="#8b5cf6" />
-                    <span style={{ fontWeight: '700', fontSize: '13px' }}>Upload File</span>
-                    <input type="file" hidden onChange={handleFileUpload} accept="image/*, .pdf, .docx, .doc, .xlsx" />
-                 </label>
-              </div>
-            )}
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
+                {/* 1. NATIVE CAMERA BUTTON */}
+                <button 
+                onClick={() => cameraInputRef.current?.click()} 
+                style={{ 
+                  flex: 1, 
+                  padding: '24px 16px', 
+                  borderRadius: '12px', 
+                  display: 'flex', 
+                  flexDirection: 'column', 
+                  alignItems: 'center', 
+                  gap: '10px', 
+                  background: 'var(--portal-bg)', 
+                  color: '#0f172a', 
+                  border: '1px solid #e2e8f0',
+                  cursor: 'pointer'
+                }}>
+                  <Camera size={32} color="var(--portal-primary)" />
+                  <span style={{ fontWeight: '700', fontSize: '13px' }}>ถ่ายรูป (Camera)</span>
+                  <input 
+                    type="file" 
+                    hidden 
+                    ref={cameraInputRef} 
+                    onChange={handleFileUpload} 
+                    accept="image/*" 
+                    capture="environment" 
+                  />
+                </button>
 
-           {mode === 'camera' && (
-             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px' }}>
-                <div style={{ width: '100%', borderRadius: '12px', overflow: 'hidden', background: '#000' }}>
-                   <video ref={videoRef} autoPlay playsInline style={{ width: '100%', maxHeight: '50vh', objectFit: 'cover' }} />
-                </div>
-                <div style={{ display: 'flex', gap: '16px', width: '100%', justifyContent: 'center' }}>
-                    <button onClick={() => setMode('select')} style={{ padding: '12px 24px', borderRadius: '12px', border: '1px solid #e2e8f0', background: 'white', fontWeight: '700', cursor: 'pointer' }}>Cancel</button>
-                    <button onClick={captureCamera} style={{ width: '56px', height: '56px', borderRadius: '50%', background: 'var(--portal-primary)', color: 'white', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
-                       <Camera size={24} />
-                    </button>
-                </div>
-             </div>
-           )}
+                {/* 2. FILE/GALLERY BUTTON */}
+                <button 
+                onClick={() => fileInputRef.current?.click()} 
+                style={{ 
+                  flex: 1, 
+                  padding: '24px 16px', 
+                  borderRadius: '12px', 
+                  display: 'flex', 
+                  flexDirection: 'column', 
+                  alignItems: 'center', 
+                  gap: '10px', 
+                  background: 'var(--portal-bg)', 
+                  color: '#0f172a', 
+                  border: '1px solid #e2e8f0', 
+                  cursor: 'pointer' 
+                }}>
+                  <FileUp size={32} color="#8b5cf6" />
+                  <span style={{ fontWeight: '700', fontSize: '13px' }}>ไฟล์ / อัลบั้ม</span>
+                  <input 
+                    type="file" 
+                    hidden 
+                    ref={fileInputRef} 
+                    onChange={handleFileUpload} 
+                    accept="image/*, .pdf, .docx, .doc, .xlsx" 
+                  />
+                </button>
+            </div>
         </div>
       </div>
     </div>
