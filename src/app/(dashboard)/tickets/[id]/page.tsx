@@ -729,6 +729,7 @@ export default function StaffTicketDetailPage() {
         onChangeSummary={setResSummary}
         onChangeModule={setSelectedModule}
         onChangeIssueType={setSelectedIssueType}
+        isChatActive={isChatActive}
       />
 
       <input type="file" ref={adminFileRef} onChange={handleAdminFile} style={{ display: 'none' }} />

@@ -22,6 +22,7 @@ interface ResolveTicketModalProps {
   onChangeSummary: (value: string) => void;
   onChangeModule: (value: string) => void;
   onChangeIssueType: (value: string) => void;
+  isChatActive?: boolean;
 }
 
 export function ResolveTicketModal({
@@ -39,11 +40,12 @@ export function ResolveTicketModal({
   onChangeSummary,
   onChangeModule,
   onChangeIssueType,
+  isChatActive = false,
 }: ResolveTicketModalProps) {
   if (!open) return null;
 
   const isDisabled =
-    sending || !resSummary.trim() || !selectedModule || !selectedIssueType;
+    sending || !resSummary.trim() || !selectedModule || !selectedIssueType || isChatActive;
 
   return (
     <div
@@ -54,8 +56,8 @@ export function ResolveTicketModal({
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        background: 'rgba(5, 8, 12, 0.85)',
-        backdropFilter: 'blur(20px)',
+        background: 'rgba(5, 8, 12, 0.75)',
+        backdropFilter: 'blur(10px)',
         padding: '20px',
       }}
     >
@@ -103,6 +105,27 @@ export function ResolveTicketModal({
           <p style={{ fontSize: '14px', color: 'var(--text-muted)', lineHeight: '1.6' }}>
             Add resolution details for internal tracking and customer communication.
           </p>
+
+          {isChatActive && (
+            <div 
+              style={{ 
+                marginTop: '16px', 
+                padding: '12px', 
+                background: 'rgba(239, 68, 68, 0.1)', 
+                border: '1px solid rgba(239, 68, 68, 0.2)', 
+                borderRadius: '12px',
+                color: '#ef4444',
+                fontSize: '13px',
+                fontWeight: '700',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px'
+              }}
+            >
+              ⚠️ กรุณากด "จบการสนทนา" ที่หน้าหลักก่อนปิดใบงาน
+            </div>
+          )}
         </div>
 
         <div style={{ marginBottom: '24px' }}>
