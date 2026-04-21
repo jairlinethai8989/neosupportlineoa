@@ -1,33 +1,37 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { 
   Ticket, 
-  User, 
   Search, 
   Loader2, 
   AlertCircle, 
-  SendHorizontal, 
   ShieldCheck,
   Building,
-  ArrowLeft
+  ArrowLeft,
+  Paperclip,
+  Image as ImageIcon,
+  X,
+  File
 } from 'lucide-react';
 import Link from 'next/link';
 
 export default function CreateInternalTicketPage() {
   const router = useRouter();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   // Form State
-  const [selectedCustomerId, setSelectedCustomerId] = useState('');
+  const [selectedHospitalId, setSelectedHospitalId] = useState('');
   const [subject, setSubject] = useState('');
   const [description, setDescription] = useState('');
   const [priority, setPriority] = useState('Medium');
+  const [attachments, setAttachments] = useState<any[]>([]);
   
   // UI State
-  const [customers, setCustomers] = useState<any[]>([]);
-  const [loadingCustomers, setLoadingCustomers] = useState(true);
+  const [hospitals, setHospitals] = useState<any[]>([]);
+  const [loadingHospitals, setLoadingHospitals] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -42,29 +46,46 @@ export default function CreateInternalTicketPage() {
         setStaffProfile(p);
       }
 
-      // 2. Fetch Customers for Selection
+      // 2. Fetch Hospitals for Selection
       const { data, error: fetchErr } = await supabase
-        .from('customers')
-        .select('id, display_name, hospital_id, hospitals(name, abbreviation)')
-        .order('display_name', { ascending: true });
+        .from('hospitals')
+        .select('*')
+        .eq('is_active', true)
+        .order('name', { ascending: true });
       
       if (!fetchErr) {
-        setCustomers(data || []);
+        setHospitals(data || []);
       }
-      setLoadingCustomers(false);
+      setLoadingHospitals(false);
     }
     init();
   }, []);
 
-  const filteredCustomers = customers.filter(c => 
-    c.display_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    c.hospitals?.name?.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredHospitals = hospitals.filter(h => 
+    h.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    h.abbreviation?.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (files) {
+      const newAttachments = Array.from(files).map(file => ({
+        id: Math.random().toString(36).substr(2, 9),
+        file,
+        preview: file.type.startsWith('image/') ? URL.createObjectURL(file) : null
+      }));
+      setAttachments(prev => [...prev, ...newAttachments]);
+    }
+  };
+
+  const removeAttachment = (id: string) => {
+    setAttachments(prev => prev.filter(a => a.id !== id));
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedCustomerId) {
-      setError('กรุณาเลือกชื่อลูกค้า (Please select a customer)');
+    if (!selectedHospitalId) {
+      setError('กรุณาเลือกโรงพยาบาล (Please select a hospital)');
       return;
     }
     if (!subject.trim()) {
@@ -76,21 +97,48 @@ export default function CreateInternalTicketPage() {
     setError(null);
 
     try {
-      const customer = customers.find(c => c.id === selectedCustomerId);
-      if (!customer) throw new Error('Customer not found');
+      // 0. Find first customer of this hospital to act as anchor
+      // In tickets table customer_id is mandatory.
+      const { data: hospitalCustomers } = await supabase
+        .from('customers')
+        .select('id')
+        .eq('hospital_id', selectedHospitalId)
+        .limit(1);
 
-      // 1. Create Internal Ticket
-      // Use "👷‍♂️ [Internal/Private]" prefix for "สั่งส่วนตัว" feel and easy tracking
-      const finalSubject = `👷‍♂️ [Private] ${subject}`;
-      
+      if (!hospitalCustomers || hospitalCustomers.length === 0) {
+        throw new Error('ไม่พบข้อมูลลูกค้าที่สังกัดโรงพยาบาลนี้ กรุณาสร้างลูกค้าในโรงพยาบาลนี้ก่อนอย่างน้อย 1 ท่าน');
+      }
+      const anchorCustomerId = hospitalCustomers[0].id;
+
+      // 1. Upload Attachments if any
+      const uploadedUrls: string[] = [];
+      for (const att of attachments) {
+        const fileName = `${Date.now()}_${att.file.name}`;
+        const { error: uploadError } = await supabase.storage
+          .from('chat_media')
+          .upload(fileName, att.file);
+        
+        if (!uploadError) {
+          const { data: { publicUrl } } = supabase.storage.from('chat_media').getPublicUrl(fileName);
+          uploadedUrls.push(publicUrl);
+        }
+      }
+
+      // 2. Generate a temporary Ticket No (if DB trigger is not yet active)
+      // TIC-YYYYMMDD-RAND
+      const datePart = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+      const tempNo = `TIC-${datePart}-${Math.floor(1000 + Math.random() * 9000)}`;
+
+      // 3. Create Internal Ticket
       const ticketPayload = {
-        customer_id: selectedCustomerId,
-        hospital_id: customer.hospital_id || null, 
-        subject: finalSubject,
+        ticket_no: tempNo, // Sending temp ID to fix NULL constraint for now
+        customer_id: anchorCustomerId,
+        hospital_id: selectedHospitalId, 
+        subject: `👷‍♂️ [Private] ${subject}`,
         description: description || subject,
         status: 'New',
         priority: priority,
-        assigned_agent_id: staffProfile?.id, // Auto-assign to the creator as it's a private order
+        assigned_agent_id: staffProfile?.id,
         source: 'Internal'
       };
 
@@ -100,30 +148,36 @@ export default function CreateInternalTicketPage() {
         .select()
         .single();
 
-      if (ticketError) {
-        console.error('Ticket Insert Error:', ticketError);
-        throw new Error(`สร้างใบงานไม่สำเร็จ: ${ticketError.message}`);
+      if (ticketError) throw new Error(`สร้างใบงานไม่สำเร็จ: ${ticketError.message}`);
+
+      // 4. Record attachments as a system message/log if needed
+      if (uploadedUrls.length > 0) {
+        // Option A: Add to first log
+        await supabase.from('ticket_logs').insert([{
+           ticket_id: newTicket.id,
+           action_type: 'create',
+           performer_id: staffProfile?.id,
+           note: `Internal Ticket created with ${uploadedUrls.length} attachments.\nURLs: ${uploadedUrls.join('\n')}`
+        }]);
+
+        // Option B: Add as system messages so they show in chat
+        for (const url of uploadedUrls) {
+          await supabase.from('messages').insert([{
+            ticket_id: newTicket.id,
+            sender_type: 'system',
+            content: url,
+            message_type: 'image'
+          }]);
+        }
+      } else {
+        await supabase.from('ticket_logs').insert([{
+          ticket_id: newTicket.id,
+          action_type: 'create',
+          performer_id: staffProfile?.id,
+          note: `Internal Ticket created by ${staffProfile?.full_name}`
+        }]);
       }
 
-      // 2. Initialize Conversation if needed 
-      // (Optional: Internal tickets might not need the same chat flow, but let's keep it consistent)
-      const { data: newConv } = await supabase.from('conversations').insert([{
-        customer_id: selectedCustomerId,
-        status: 'active',
-        current_ticket_id: newTicket.id,
-        last_message_at: new Date().toISOString()
-      }]).select().single();
-
-      // 3. Log the action
-      await supabase.from('ticket_logs').insert([{
-        ticket_id: newTicket.id,
-        action_type: 'create',
-        performer_id: staffProfile?.id,
-        note: `Internal Ticket created by ${staffProfile?.full_name}`
-      }]);
-
-      // 4. Send Notification (REMOVED - User requested no LINE notification for new tickets)
-      
       router.push(`/tickets/${newTicket.id}`);
     } catch (err: any) {
       setError(err.message);
@@ -132,15 +186,15 @@ export default function CreateInternalTicketPage() {
   };
 
   return (
-    <div style={{ animation: 'fadeIn 0.5s ease-out', maxWidth: '800px', margin: '0 auto' }}>
+    <div style={{ animation: 'fadeIn 0.5s ease-out', maxWidth: '800px', margin: '0 auto', paddingBottom: '100px' }}>
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '32px' }}>
         <Link href="/tickets" className="glass-interactive flex-center" style={{ width: '40px', height: '40px', borderRadius: '12px', border: '1px solid var(--border)', color: 'var(--text-main)' }}>
           <ArrowLeft size={20} />
         </Link>
         <div>
-          <h1 style={{ fontSize: '28px', fontWeight: '900', color: 'var(--text-main)', letterSpacing: '-1px' }}>สร้างใบงานใหม่ (เจ้าหน้าที่)</h1>
-          <p style={{ color: 'var(--text-muted)', fontSize: '14px' }}>การสร้างใบงานแทนลูกค้า (Internal / Private Ticket)</p>
+          <h1 style={{ fontSize: '28px', fontWeight: '900', color: 'var(--text-main)', letterSpacing: '-1px' }}>สร้างใบงานใหม่ (สำหรับโรงพยาบาล)</h1>
+          <p style={{ color: 'var(--text-muted)', fontSize: '14px' }}>การสร้างใบงานระบุเจาะจงกลุ่มเป้าหมาย (Hospital Private Ticket)</p>
         </div>
       </div>
 
@@ -153,14 +207,14 @@ export default function CreateInternalTicketPage() {
             </div>
           )}
 
-          {/* 1. Customer Selection */}
+          {/* 1. Hospital Selection (Replaced Customer) */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            <label style={{ fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px' }}>เลือกชื่อลูกค้า (Select Customer)</label>
+            <label style={{ fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px' }}>เลือกโรงพยาบาล (Select Hospital)</label>
             <div style={{ position: 'relative' }}>
               <Search style={{ position: 'absolute', left: '16px', top: '16px', color: 'var(--text-muted)' }} size={18} />
               <input 
                 type="text" 
-                placeholder="พิมพ์ชื่อเพื่อค้นหา..." 
+                placeholder="พิมพ์ชื่อโรงพยาบาล หรือ ตัวย่อ..." 
                 value={searchTerm}
                 onChange={e => setSearchTerm(e.target.value)}
                 style={{ 
@@ -176,33 +230,33 @@ export default function CreateInternalTicketPage() {
               />
             </div>
             
-            {loadingCustomers ? (
+            {loadingHospitals ? (
               <div className="flex-center" style={{ padding: '20px' }}><Loader2 className="animate-spin" size={20} color="var(--primary)" /></div>
             ) : (
               <div className="no-scrollbar" style={{ maxHeight: '200px', overflowY: 'auto', border: '1px solid var(--border)', borderRadius: '16px', background: 'rgba(0,0,0,0.1)' }}>
-                {filteredCustomers.length > 0 ? filteredCustomers.map(c => (
+                {filteredHospitals.length > 0 ? filteredHospitals.map(h => (
                   <div 
-                    key={c.id} 
-                    onClick={() => { setSelectedCustomerId(c.id); setSearchTerm(c.display_name); }}
+                    key={h.id} 
+                    onClick={() => { setSelectedHospitalId(h.id); setSearchTerm(h.name); }}
                     style={{ 
                       padding: '12px 16px', 
                       cursor: 'pointer', 
                       display: 'flex', 
                       justifyContent: 'space-between',
                       alignItems: 'center',
-                      background: selectedCustomerId === c.id ? 'rgba(54, 153, 255, 0.1)' : 'transparent',
+                      background: selectedHospitalId === h.id ? 'rgba(54, 153, 255, 0.1)' : 'transparent',
                       borderBottom: '1px solid rgba(255,255,255,0.05)',
                       transition: 'all 0.2s'
                     }}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <User size={16} style={{ color: selectedCustomerId === c.id ? 'var(--primary)' : 'var(--text-muted)' }} />
-                      <span style={{ fontSize: '14px', fontWeight: selectedCustomerId === c.id ? '800' : '600' }}>{c.display_name}</span>
+                      <Building size={16} style={{ color: selectedHospitalId === h.id ? 'var(--primary)' : 'var(--text-muted)' }} />
+                      <span style={{ fontSize: '14px', fontWeight: selectedHospitalId === h.id ? '800' : '600' }}>{h.name}</span>
                     </div>
-                    {c.hospitals?.name && <span style={{ fontSize: '10px', color: 'var(--text-muted)', background: 'rgba(255,255,255,0.05)', padding: '2px 8px', borderRadius: '6px' }}>{c.hospitals.name}</span>}
+                    {h.abbreviation && <span style={{ fontSize: '10px', color: 'var(--text-muted)', background: 'rgba(255,255,255,0.05)', padding: '2px 8px', borderRadius: '6px' }}>{h.abbreviation}</span>}
                   </div>
                 )) : (
-                  <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>ไม่พบรายชื่อลูกค้ายืนยันแล้ว</div>
+                  <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>ไม่พบรายชื่อโรงพยาบาล</div>
                 )}
               </div>
             )}
@@ -224,14 +278,53 @@ export default function CreateInternalTicketPage() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
             <label style={{ fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px' }}>รายละเอียด (Description)</label>
             <textarea 
-              placeholder="ระบุรายละเอียดที่ทางลูกค้าแจ้งมาเป็นพิเศษ..." 
+              placeholder="ระบุรายละเอียดที่พนักงานตรวจสอบ หรือรายละเอียดงาน..." 
               value={description}
               onChange={e => setDescription(e.target.value)}
-              style={{ height: '150px', padding: '16px', borderRadius: '16px', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border)', color: 'var(--text-main)', fontSize: '15px', outline: 'none', resize: 'none' }}
+              style={{ height: '120px', padding: '16px', borderRadius: '16px', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border)', color: 'var(--text-main)', fontSize: '15px', outline: 'none', resize: 'none' }}
             />
           </div>
 
-          {/* 4. Priority */}
+          {/* 4. Attachments (New Feature) */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <label style={{ fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px' }}>แนบภาพหรือไฟล์ (Attachments)</label>
+            <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+               {attachments.map(att => (
+                 <div key={att.id} style={{ position: 'relative', width: '80px', height: '80px', borderRadius: '12px', overflow: 'hidden', border: '1px solid var(--border)', background: 'rgba(255,255,255,0.05)' }}>
+                    {att.preview ? (
+                      <img src={att.preview} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="preview" />
+                    ) : (
+                      <div className="flex-center" style={{ height: '100%', color: 'var(--text-muted)' }}><File size={24} /></div>
+                    )}
+                    <button 
+                      type="button" 
+                      onClick={() => removeAttachment(att.id)}
+                      style={{ position: 'absolute', top: '2px', right: '2px', background: 'rgba(0,0,0,0.5)', color: 'white', border: 'none', borderRadius: '50%', width: '18px', height: '18px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <X size={12} />
+                    </button>
+                 </div>
+               ))}
+               <button 
+                 type="button"
+                 onClick={() => fileInputRef.current?.click()}
+                 className="glass-interactive"
+                 style={{ width: '80px', height: '80px', borderRadius: '12px', border: '2px dashed var(--border)', color: 'var(--text-muted)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '4px', cursor: 'pointer' }}
+               >
+                 <Paperclip size={20} />
+                 <span style={{ fontSize: '10px' }}>เพิ่มไฟล์</span>
+               </button>
+               <input 
+                 type="file" 
+                 ref={fileInputRef} 
+                 onChange={handleFileChange} 
+                 multiple 
+                 style={{ display: 'none' }} 
+                 accept="image/*, application/pdf, .doc, .docx, .xls, .xlsx"
+               />
+            </div>
+          </div>
+
+          {/* 5. Priority */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
             <label style={{ fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px' }}>ความสำคัญ (Priority)</label>
             <div style={{ display: 'flex', gap: '12px' }}>
@@ -276,7 +369,8 @@ export default function CreateInternalTicketPage() {
               justifyContent: 'center', 
               gap: '12px',
               border: 'none',
-              opacity: submitting ? 0.7 : 1
+              opacity: submitting ? 0.7 : 1,
+              cursor: submitting ? 'not-allowed' : 'pointer'
             }}
           >
             {submitting ? <Loader2 className="animate-spin" size={24} /> : (
