@@ -131,17 +131,24 @@ export default function StaffTicketDetailPage() {
 
         if (logData) setLogs(logData as TicketDetailLog[]);
 
-        const { data: conv } = await supabase
-          .from('conversations')
-          .select('id, status')
-          .eq('customer_id', normalizedTicket.customer_id)
-          .eq('status', 'active')
-          .maybeSingle();
+        // Only check active chat if a customer exists
+        if (normalizedTicket.customer_id) {
+          const { data: conv } = await supabase
+            .from('conversations')
+            .select('id, status')
+            .eq('customer_id', normalizedTicket.customer_id)
+            .eq('status', 'active')
+            .maybeSingle();
 
-        if (conv) {
-          setConversationId(conv.id);
-          conversationIdRef.current = conv.id;
-          setIsChatActive(true);
+          if (conv) {
+            setConversationId(conv.id);
+            conversationIdRef.current = conv.id;
+            setIsChatActive(true);
+          } else {
+            setConversationId(null);
+            conversationIdRef.current = null;
+            setIsChatActive(false);
+          }
         } else {
           setConversationId(null);
           conversationIdRef.current = null;

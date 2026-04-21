@@ -178,12 +178,15 @@ export async function resolveTicketAction(ticketId: string, resolutionSummary: s
      note: resolutionSummary
    }]);
 
-   await supabaseAdmin.from('csat_surveys').insert([{
-      ticket_id: ticketId,
-      sent_at: new Date().toISOString()
-   }]);
-
+   // Only handle CSAT and Conversations if there is a customer linked
    if (ticket?.customer_id) {
+      // 1. Send CSAT Survey (Upsert to avoid UNIQUE constraint error if already exists)
+      await supabaseAdmin.from('csat_surveys').upsert({
+         ticket_id: ticketId,
+         sent_at: new Date().toISOString()
+      }, { onConflict: 'ticket_id' });
+
+      // 2. Close active conversation
       await supabaseAdmin.from('conversations')
        .update({ 
          status: 'closed',
