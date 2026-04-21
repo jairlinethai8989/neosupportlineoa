@@ -97,19 +97,6 @@ export default function CreateInternalTicketPage() {
     setError(null);
 
     try {
-      // 0. Find first customer of this hospital to act as anchor
-      // In tickets table customer_id is mandatory.
-      const { data: hospitalCustomers } = await supabase
-        .from('customers')
-        .select('id')
-        .eq('hospital_id', selectedHospitalId)
-        .limit(1);
-
-      if (!hospitalCustomers || hospitalCustomers.length === 0) {
-        throw new Error('ไม่พบข้อมูลลูกค้าที่สังกัดโรงพยาบาลนี้ กรุณาสร้างลูกค้าในโรงพยาบาลนี้ก่อนอย่างน้อย 1 ท่าน');
-      }
-      const anchorCustomerId = hospitalCustomers[0].id;
-
       // 1. Upload Attachments if any
       const uploadedUrls: string[] = [];
       for (const att of attachments) {
@@ -131,8 +118,8 @@ export default function CreateInternalTicketPage() {
 
       // 3. Create Internal Ticket
       const ticketPayload = {
-        ticket_no: tempNo, // Sending temp ID to fix NULL constraint for now
-        customer_id: anchorCustomerId,
+        ticket_no: tempNo, 
+        customer_id: null, // Allow null for staff-created tickets
         hospital_id: selectedHospitalId, 
         subject: `👷‍♂️ [Private] ${subject}`,
         description: description || subject,

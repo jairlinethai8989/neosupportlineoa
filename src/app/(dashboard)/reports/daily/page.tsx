@@ -39,6 +39,7 @@ export default function DailyReportPage() {
         .from('tickets')
         .select(`
           *,
+          hospitals!tickets_hospital_id_fkey ( name ),
           customers!tickets_customer_id_fkey (
             display_name,
             hospitals!hospital_id ( name )
@@ -113,6 +114,7 @@ export default function DailyReportPage() {
         (t.subject?.toLowerCase().includes(lower)) ||
         (t.description?.toLowerCase().includes(lower)) ||
         (t.customers?.display_name?.toLowerCase().includes(lower)) ||
+        (t.hospitals?.name?.toLowerCase().includes(lower)) ||
         (t.customers?.hospitals?.name?.toLowerCase().includes(lower)) ||
         (t.assigned_agent?.display_name?.toLowerCase().includes(lower)) ||
         (t.status?.toLowerCase().includes(lower)) ||
@@ -129,8 +131,8 @@ export default function DailyReportPage() {
         switch (sortConfig.key) {
           case 'status': valA = a.status; valB = b.status; break;
           case 'date': valA = a.created_at; valB = b.created_at; break;
-          case 'hospital': valA = a.customers?.hospitals?.name; valB = b.customers?.hospitals?.name; break;
-          case 'customer': valA = a.customers?.display_name; valB = b.customers?.display_name; break;
+          case 'hospital': valA = a.hospitals?.name || a.customers?.hospitals?.name; valB = b.hospitals?.name || b.customers?.hospitals?.name; break;
+          case 'customer': valA = a.customers?.display_name || a.assigned_agent?.display_name; valB = b.customers?.display_name || b.assigned_agent?.display_name; break;
           case 'subject': valA = a.subject || a.description; valB = b.subject || b.description; break;
           case 'resolution': valA = a.resolution_summary; valB = b.resolution_summary; break;
           case 'agent': valA = a.assigned_agent?.display_name; valB = b.assigned_agent?.display_name; break;
@@ -170,8 +172,8 @@ export default function DailyReportPage() {
         return {
            'สถานะ': t.status === 'Resolved' || t.status === 'Closed' ? '✅' : (t.status === 'New' ? '⚪' : '🔄'),
            'วันที่แจ้ง': d.toLocaleDateString('th-TH'),
-           'โรงพยาบาล': t.customers?.hospitals?.name || '-',
-           'ผู้แจ้ง': t.customers?.display_name || '-',
+           'โรงพยาบาล': t.hospitals?.name || t.customers?.hospitals?.name || '-',
+           'ผู้แจ้ง': t.customers?.display_name || (t.assigned_agent ? `👷‍♂️ ${t.assigned_agent.display_name}` : '-'),
            'รายละเอียดงาน': t.subject || t.description || '-',
            'วิธีการแก้ไข': t.resolution_summary || '-',
            'ผู้รับงาน': t.assigned_agent?.display_name || '-',
@@ -367,8 +369,8 @@ export default function DailyReportPage() {
                               {t.status === 'Resolved' || t.status === 'Closed' ? '✅' : (t.status === 'New' ? '⚪' : '🔄')}
                            </td>
                            <td style={{ padding: '12px 16px' }}>{new Date(t.created_at).toLocaleDateString('th-TH')}</td>
-                           <td style={{ padding: '12px 16px', fontWeight: '700', color: 'var(--text-main)' }}>{t.customers?.hospitals?.name || '-'}</td>
-                           <td style={{ padding: '12px 16px' }}>{t.customers?.display_name || '-'}</td>
+                           <td style={{ padding: '12px 16px', fontWeight: '700', color: 'var(--text-main)' }}>{t.hospitals?.name || t.customers?.hospitals?.name || '-'}</td>
+                           <td style={{ padding: '12px 16px' }}>{t.customers?.display_name || (t.assigned_agent ? `👷‍♂️ ${t.assigned_agent.display_name}` : '-')}</td>
                            <td style={{ padding: '12px 16px', maxWidth: '300px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                               <AlignLeft size={12} style={{ display: 'inline', marginRight: '6px', opacity: 0.5 }} />
                               {t.subject || t.description || '-'}

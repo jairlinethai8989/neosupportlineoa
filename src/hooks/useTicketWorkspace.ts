@@ -84,7 +84,7 @@ function getTicketWorkspaceSortValue(ticket: TicketWorkspaceTicket, key: string)
     case 'hospital':
       return ticket.hospitals?.name || '';
     case 'customer':
-      return ticket.customers?.display_name || '';
+      return ticket.customers?.display_name || (ticket.assigned_agent ? `👷‍♂️ ${ticket.assigned_agent.display_name}` : '');
     case 'agent':
       return ticket.assigned_agent?.display_name || '';
     case 'status':

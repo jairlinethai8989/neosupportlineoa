@@ -159,7 +159,9 @@ export function TicketsTable({
                 </td>
                 <td style={subjectCellStyle}>{ticket.subject}</td>
                 <td style={hospitalCellStyle}>{hospitalName}</td>
-                <td style={cellStyle}>{ticket.customers?.display_name || '-'}</td>
+                <td style={cellStyle}>
+                  {ticket.customers?.display_name || (ticket.assigned_agent ? `👷‍♂️ ${ticket.assigned_agent.display_name}` : '-')}
+                </td>
                 <td style={cellStyle}>
                   {ticket.assigned_agent ? (
                     <span style={{ color: 'var(--primary)', fontWeight: '800' }}>
