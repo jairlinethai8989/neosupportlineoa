@@ -230,6 +230,7 @@ export const TicketSidebar: React.FC<TicketSidebarProps> = ({
             <select
               value={selectedDept}
               onChange={(event) => setSelectedDept(event.target.value)}
+              disabled={isResolvedOrClosed && !isAdmin}
               style={{
                 width: '100%',
                 padding: '8px',
@@ -239,6 +240,7 @@ export const TicketSidebar: React.FC<TicketSidebarProps> = ({
                 border: '1px solid rgba(0,242,254,0.2)',
                 color: 'var(--primary)',
                 fontWeight: '800',
+                opacity: isResolvedOrClosed && !isAdmin ? 0.5 : 1,
               }}
             >
               {availableDepts.map((dept) => (
@@ -263,6 +265,7 @@ export const TicketSidebar: React.FC<TicketSidebarProps> = ({
             <select
               value={selectedModule}
               onChange={(event) => setSelectedModule(event.target.value)}
+              disabled={isResolvedOrClosed && !isAdmin}
               style={{
                 width: '100%',
                 padding: '8px',
@@ -272,6 +275,7 @@ export const TicketSidebar: React.FC<TicketSidebarProps> = ({
                 border: '1px solid rgba(0,242,254,0.2)',
                 color: 'var(--primary)',
                 fontWeight: '800',
+                opacity: isResolvedOrClosed && !isAdmin ? 0.5 : 1,
               }}
             >
               <option value="">-- Not specified --</option>
@@ -287,128 +291,7 @@ export const TicketSidebar: React.FC<TicketSidebarProps> = ({
 
       {showActivity && (
         <>
-          <div className="glass" style={{ padding: '20px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
-              <Clock size={16} color="var(--primary)" />
-              <label
-                style={{
-                  fontSize: '10px',
-                  fontWeight: '800',
-                  color: 'var(--text-muted)',
-                  textTransform: 'uppercase',
-                  marginBottom: '0',
-                }}
-              >
-                Time Tracking
-              </label>
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-              <div>
-                <label
-                  style={{
-                    fontSize: '9px',
-                    fontWeight: '800',
-                    color: 'var(--text-muted)',
-                    display: 'block',
-                    marginBottom: '4px',
-                  }}
-                >
-                  Reported At
-                </label>
-                <p style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text)' }}>
-                  {ticket.created_at
-                    ? new Date(ticket.created_at).toLocaleString('th-TH', {
-                        year: 'numeric',
-                        month: 'short',
-                        day: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })
-                    : '-'}
-                </p>
-              </div>
-
-              {ticket.resolved_at && ticket.created_at && (
-                <>
-                  <div>
-                    <label
-                      style={{
-                        fontSize: '9px',
-                        fontWeight: '800',
-                        color: 'var(--text-muted)',
-                        display: 'block',
-                        marginBottom: '4px',
-                      }}
-                    >
-                      Resolved At
-                    </label>
-                    <p style={{ fontSize: '13px', fontWeight: '700', color: 'var(--primary)' }}>
-                      {new Date(ticket.resolved_at).toLocaleString('th-TH', {
-                        year: 'numeric',
-                        month: 'short',
-                        day: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })}
-                    </p>
-                  </div>
-
-                  <div
-                    style={{
-                      padding: '12px',
-                      background: 'rgba(0,242,254,0.05)',
-                      borderRadius: '10px',
-                      border: '1px dashed var(--primary)',
-                    }}
-                  >
-                    <label
-                      style={{
-                        fontSize: '9px',
-                        fontWeight: '800',
-                        color: 'var(--primary)',
-                        display: 'block',
-                        marginBottom: '4px',
-                        opacity: 0.7,
-                      }}
-                    >
-                      Resolution Duration
-                    </label>
-                    <p style={{ fontSize: '16px', fontWeight: '900', color: 'var(--text)' }}>
-                      {getTicketDuration(ticket.created_at, ticket.resolved_at)}
-                    </p>
-                  </div>
-                </>
-              )}
-
-              {!ticket.resolved_at && ticket.created_at && (
-                <div
-                  style={{
-                    padding: '12px',
-                    background: 'rgba(255,165,0,0.05)',
-                    borderRadius: '10px',
-                    border: '1px dashed orange',
-                  }}
-                >
-                  <label
-                    style={{
-                      fontSize: '9px',
-                      fontWeight: '800',
-                      color: 'orange',
-                      display: 'block',
-                      marginBottom: '4px',
-                      opacity: 0.7,
-                    }}
-                  >
-                    Pending Duration
-                  </label>
-                  <p style={{ fontSize: '14px', fontWeight: '800', color: 'var(--text)' }}>
-                    Open for {getTicketDuration(ticket.created_at)}
-                  </p>
-                </div>
-              )}
-            </div>
-          </div>
+          {/* Time Tracking section removed to avoid redundancy with header stats */}
 
           <div className="glass" style={{ padding: '20px' }}>
             <label
