@@ -204,10 +204,9 @@ export function useTicketWorkspace(filterCustomerId: string | null) {
     async (ticketId: string, fallbackValue?: unknown) => {
       // 1. Optimistic Update for instant UI feedback
       const fallbackTicket = normalizeTicketWorkspaceTicket(fallbackValue);
-      if (
-        fallbackTicket &&
-        isTicketWithinWorkspaceRange(fallbackTicket, timeRange, customStart, customEnd)
-      ) {
+      // Guarantee any new realtime ticket defaults to 'New' if status is mysteriously missing
+      if (fallbackTicket) {
+        if (!fallbackTicket.status) fallbackTicket.status = 'New';
         setTickets((previousTickets) => upsertWorkspaceTicket(previousTickets, fallbackTicket));
       }
 
