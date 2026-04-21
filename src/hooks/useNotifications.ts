@@ -22,6 +22,7 @@ export function useNotifications(agentId: string | null) {
   const [toasts, setToasts] = useState<ToastNotif[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [newTicketsCount, setNewTicketsCount] = useState(0);
+  const [isMuted, setIsMuted] = useState(true); // Default to muted (browser policy friendly)
   const isFirstLoad = useRef(true);
 
   // ---------------------------------------------------------------
@@ -104,6 +105,16 @@ export function useNotifications(agentId: string | null) {
     
     showBrowserNotification(toast.title, toast.body);
   }, [showBrowserNotification]);
+
+  const playNewTicketSound = useCallback(() => {
+    if (isMuted || typeof window === 'undefined') return;
+    
+    const utterance = new SpeechSynthesisUtterance('มีใบงานใหม่');
+    utterance.lang = 'th-TH';
+    utterance.rate = 1.2; // Slightly faster for responsiveness
+    utterance.pitch = 1.1; 
+    window.speechSynthesis.speak(utterance);
+  }, [isMuted]);
 
   // ---------------------------------------------------------------
   // Fetch ticket_logs for this agent
@@ -284,6 +295,12 @@ export function useNotifications(agentId: string | null) {
     fetchSlaBreaches();
     fetchNewTicketsCount();
 
+    // Load mute state
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('neo_notif_muted');
+      if (stored !== null) setIsMuted(stored === 'true');
+    }
+
     // Subscribe: new ticket_logs targeting this agent
     const logChannel = supabase
       .channel(`notif-logs-${agentId}`)
@@ -352,6 +369,8 @@ export function useNotifications(agentId: string | null) {
             ticketId: row.id,
             ticketNo: row.ticket_no,
           });
+
+          playNewTicketSound();
         }
       )
       // Also listen to updates to capture status changes (e.g., ticket claimed)
@@ -383,13 +402,23 @@ export function useNotifications(agentId: string | null) {
       clearInterval(slaInterval);
       clearTimeout(firstLoadTimer);
     };
-  }, [agentId, fetchLogs, fetchSlaBreaches, addToast]);
+  }, [agentId, fetchLogs, fetchSlaBreaches, addToast, playNewTicketSound]);
+
+  const toggleMute = useCallback(() => {
+    setIsMuted(prev => {
+      const next = !prev;
+      localStorage.setItem('neo_notif_muted', String(next));
+      return next;
+    });
+  }, []);
 
   return { 
     notifications, 
     toasts, 
     unreadCount, 
     newTicketsCount,
+    isMuted,
+    toggleMute,
     markAsRead, 
     markAllRead, 
     dismissToast, 

@@ -19,7 +19,9 @@ import {
   AlertTriangle,
   CheckCircle2,
   Clock,
-  Loader2
+  Loader2,
+  Volume2,
+  VolumeX
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { NotificationProvider, useNotificationContext } from '@/contexts/NotificationContext';
@@ -77,7 +79,14 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
   const notifRef = useRef<HTMLDivElement>(null);
 
   const router = useRouter();
-  const { notifications, unreadCount, markAllRead, markAsRead } = useNotificationContext();
+  const { 
+    notifications, 
+    unreadCount, 
+    markAllRead, 
+    markAsRead, 
+    isMuted, 
+    toggleMute 
+  } = useNotificationContext();
   const { userProfile: agent, loading: appLoading } = useAppContext();
 
   // Click outside to close
@@ -168,6 +177,27 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            {/* Audio Notification Toggle */}
+            <button
+              onClick={toggleMute}
+              className="glass-interactive"
+              title={isMuted ? "เปิดเสียงแจ้งเตือน" : "ปิดเสียงแจ้งเตือน"}
+              style={{
+                padding: '8px',
+                borderRadius: '8px',
+                border: 'none',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: isMuted ? 'var(--text-muted)' : 'var(--primary)',
+                background: isMuted ? 'transparent' : 'var(--primary-transparent)',
+                transition: 'all 0.2s'
+              }}
+            >
+              {isMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
+            </button>
+
             {/* Notification Bell */}
             <div ref={notifRef} style={{ position: 'relative' }}>
               <button

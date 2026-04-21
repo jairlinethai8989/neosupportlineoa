@@ -18,6 +18,8 @@ interface NotificationContextValue {
   addToast: (toast: ToastNotif) => void;
   agentId: string | null;
   newTicketsCount: number;
+  isMuted: boolean;
+  toggleMute: () => void;
 }
 
 const NotificationContext = createContext<NotificationContextValue>({
@@ -30,6 +32,8 @@ const NotificationContext = createContext<NotificationContextValue>({
   addToast: () => {},
   agentId: null,
   newTicketsCount: 0,
+  isMuted: true,
+  toggleMute: () => {},
 });
 
 export function NotificationProvider({ children }: { children: React.ReactNode }) {
