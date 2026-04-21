@@ -15,11 +15,11 @@ const WORKFLOW = [
 ] as const;
 
 const STATUS_CONFIG: Record<string, { color: string; glow: string }> = {
-  New: { color: 'var(--primary)', glow: 'rgba(0, 242, 254, 0.4)' },
+  New: { color: 'var(--primary)', glow: 'rgba(8, 145, 178, 0.4)' },
   'In Progress': { color: 'var(--warning, #ff9f43)', glow: 'rgba(255, 159, 67, 0.4)' },
   Resolved: { color: 'var(--success, #28c76f)', glow: 'rgba(40, 199, 111, 0.4)' },
-  Escalated: { color: 'var(--primary)', glow: 'var(--primary-glow)' },
-  Pending: { color: 'var(--danger, #ea5455)', glow: 'rgba(234, 84, 85, 0.4)' },
+  Escalated: { color: 'var(--secondary, #8b5cf6)', glow: 'rgba(139, 92, 246, 0.4)' },
+  Pending: { color: '#ef4444', glow: 'rgba(239, 68, 68, 0.4)' },
 };
 
 const FALLBACK_STATUS_CONFIG = { color: 'var(--text-muted)', glow: 'rgba(0,0,0,0.1)' };

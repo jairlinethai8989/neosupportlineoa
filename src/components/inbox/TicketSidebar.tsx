@@ -10,6 +10,7 @@ import {
   X
 } from 'lucide-react';
 import type { InboxAgent, InboxConversation, InboxTicket, InboxViewMode } from '@/types/inbox';
+import { ticketService } from '@/lib/services/ticketService';
 
 interface TicketSidebarProps {
   selectedChat: InboxConversation;
@@ -153,6 +154,64 @@ export const TicketSidebar: React.FC<TicketSidebarProps> = ({
          >
             คัดลอกแบบประเมิน
          </button>
+      </div>
+
+      <div style={{ marginTop: '12px', background: 'rgba(255,255,255,0.02)', borderRadius: '16px', padding: '16px' }}>
+         <h4 style={{ fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', marginBottom: '12px', textTransform: 'uppercase' }}>
+            Ticket Hand-off (ส่งต่องาน/รอช่าง)
+         </h4>
+         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+            <button
+               onClick={async () => {
+                 if (!currentTicket?.id) return;
+                 try {
+                    await ticketService.updateStatus(currentTicket.id, 'Escalated');
+                    navigator.clipboard.writeText(`${window.location.origin}/escalate/${currentTicket.id}`);
+                    alert('✅ เปลี่ยนสถานะเป็น Escalated และคัดลอกลิงก์ให้ช่างแล้ว\nPIN เพื่อเข้าสู่ระบบคือ: 1234');
+                 } catch (err: any) {
+                    alert('Error: ' + err.message);
+                 }
+               }}
+               className="glass-interactive"
+               style={{
+                  padding: '10px',
+                  borderRadius: '12px',
+                  border: '1px solid var(--secondary, #8b5cf6)',
+                  background: 'rgba(139, 92, 246, 0.1)',
+                  color: 'var(--secondary, #8b5cf6)',
+                  fontWeight: '800',
+                  fontSize: '12px',
+                  cursor: 'pointer',
+               }}
+            >
+               🚨 Escalate
+            </button>
+            <button
+               onClick={async () => {
+                 if (!currentTicket?.id) return;
+                 try {
+                    await ticketService.updateStatus(currentTicket.id, 'Pending');
+                    navigator.clipboard.writeText(`${window.location.origin}/escalate/${currentTicket.id}`);
+                    alert('⏳ เปลี่ยนสถานะเป็น Pending (รอข้อมูล) และคัดลอกลิงก์แล้ว\nPIN: 1234');
+                 } catch (err: any) {
+                    alert('Error: ' + err.message);
+                 }
+               }}
+               className="glass-interactive"
+               style={{
+                  padding: '10px',
+                  borderRadius: '12px',
+                  border: '1px solid #ef4444',
+                  background: 'rgba(239, 68, 68, 0.1)',
+                  color: '#ef4444',
+                  fontWeight: '800',
+                  fontSize: '12px',
+                  cursor: 'pointer',
+               }}
+            >
+               ⏳ Pending
+            </button>
+         </div>
       </div>
 
       <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '12px' }}>
