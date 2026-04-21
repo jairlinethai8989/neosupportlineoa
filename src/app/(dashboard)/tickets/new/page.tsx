@@ -206,14 +206,17 @@ export default function CreateInternalTicketPage() {
                 onChange={e => setSearchTerm(e.target.value)}
                 style={{ 
                   width: '100%', 
-                  background: 'rgba(255, 255, 255, 0.03)', 
-                  border: '1px solid var(--border)', 
+                  background: 'var(--bg-card)', 
+                  border: '1.5px solid var(--border)', 
                   borderRadius: '16px', 
                   padding: '16px 16px 16px 48px', 
                   color: 'var(--text-main)',
                   outline: 'none',
-                  fontSize: '15px'
+                  fontSize: '15px',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.02)',
+                  transition: 'all 0.2s'
                 }}
+                className="focus-ring"
               />
             </div>
             
@@ -257,7 +260,18 @@ export default function CreateInternalTicketPage() {
               placeholder="สรุปสั้นๆ เช่น ตรวจสอบระบบด่วน, สั่งสินค้าเพิ่มเติม..." 
               value={subject}
               onChange={e => setSubject(e.target.value)}
-              style={{ padding: '16px', borderRadius: '16px', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border)', color: 'var(--text-main)', fontSize: '15px', outline: 'none' }}
+              className="focus-ring"
+              style={{ 
+                padding: '16px', 
+                borderRadius: '16px', 
+                background: 'var(--bg-card)', 
+                border: '1.5px solid var(--border)', 
+                color: 'var(--text-main)', 
+                fontSize: '15px', 
+                outline: 'none',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.02)',
+                transition: 'all 0.2s'
+              }}
             />
           </div>
 
@@ -268,7 +282,20 @@ export default function CreateInternalTicketPage() {
               placeholder="ระบุรายละเอียดที่พนักงานตรวจสอบ หรือรายละเอียดงาน..." 
               value={description}
               onChange={e => setDescription(e.target.value)}
-              style={{ height: '120px', padding: '16px', borderRadius: '16px', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border)', color: 'var(--text-main)', fontSize: '15px', outline: 'none', resize: 'none' }}
+              className="focus-ring"
+              style={{ 
+                height: '120px', 
+                padding: '16px', 
+                borderRadius: '16px', 
+                background: 'var(--bg-card)', 
+                border: '1.5px solid var(--border)', 
+                color: 'var(--text-main)', 
+                fontSize: '15px', 
+                outline: 'none', 
+                resize: 'none',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.02)',
+                transition: 'all 0.2s'
+              }}
             />
           </div>
 
@@ -373,6 +400,11 @@ export default function CreateInternalTicketPage() {
         @keyframes fadeIn {
           from { opacity: 0; transform: translateY(20px); }
           to { opacity: 1; transform: translateY(0); }
+        }
+        .focus-ring:focus {
+          border-color: var(--primary) !important;
+          box-shadow: 0 0 0 4px var(--primary-transparent) !important;
+          background: white !important;
         }
       `}} />
     </div>
