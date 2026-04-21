@@ -109,27 +109,24 @@ export function ResolveTicketModal({
         {isChatActive && (
           <div 
             style={{ 
-              marginBottom: '24px', 
-              padding: '16px', 
+              marginBottom: '28px', 
+              padding: '14px 20px', 
               background: '#ef4444', 
-              borderRadius: '16px',
+              borderRadius: '14px',
               color: 'white',
-              fontSize: '15px',
+              fontSize: '14px',
               fontWeight: '900',
               display: 'flex',
-              flexDirection: 'column',
               alignItems: 'center',
-              textAlign: 'center',
-              gap: '8px',
-              boxShadow: '0 10px 20px rgba(239, 68, 68, 0.3)',
-              animation: 'pulse 2s infinite'
+              justifyContent: 'center',
+              gap: '12px',
+              boxShadow: '0 8px 16px rgba(239, 68, 68, 0.4)',
+              animation: 'pulse 2s infinite',
+              border: '2px solid rgba(255,255,255,0.2)'
             }}
           >
-            <div style={{ fontSize: '24px' }}>⚠️</div>
-            <div>กรุณากด "จบการสนทนา" ที่หน้าหลักก่อนปิดใบงาน</div>
-            <div style={{ fontSize: '11px', fontWeight: '400', opacity: 0.9 }}>
-              (เพื่อยืนยันว่าการแก้ไขปัญหาให้กับลูกค้าเสร็จสิ้นสมบูรณ์แล้ว)
-            </div>
+            <span style={{ fontSize: '18px' }}>⚠️</span>
+            <span>ต้องกด "จบการสนทนา" ที่หน้าหลักก่อนถึงจะปิดใบงานได้</span>
           </div>
         )}
 

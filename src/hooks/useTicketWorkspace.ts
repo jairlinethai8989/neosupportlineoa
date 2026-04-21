@@ -447,6 +447,16 @@ export function useTicketWorkspace(filterCustomerId: string | null) {
     [sortConfig.direction, sortConfig.key]
   );
 
+  const isChatActive = useMemo(() => {
+    if (!resolvingTicket || !conversations.length) return false;
+    return conversations.some(
+      (conversation) =>
+        (conversation.current_ticket_id === resolvingTicket.id ||
+          conversation.customer_id === resolvingTicket.customer_id) &&
+        conversation.status === 'active'
+    );
+  }, [resolvingTicket, conversations]);
+
   return {
     availableIssueTypes,
     availableModules,
@@ -482,5 +492,6 @@ export function useTicketWorkspace(filterCustomerId: string | null) {
     timeRange,
     userProfile,
     viewMode,
+    isChatActive,
   };
 }
