@@ -404,7 +404,7 @@ export function useTicketWorkspace(filterCustomerId: string | null) {
       }
 
       const resolvedTicket = resolvingTicket;
-      await resolveWorkspaceTicket({
+      const updatedTicket = await resolveWorkspaceTicket({
         ticketId: resolvedTicket.id,
         agentId: user.id,
         resolutionSummary: resSummary,
@@ -417,7 +417,9 @@ export function useTicketWorkspace(filterCustomerId: string | null) {
       setResSummary('');
       setSelectedModule('');
       setSelectedIssueType('');
-      await fetchData();
+      
+      setTickets((prev) => upsertWorkspaceTicket(prev, updatedTicket));
+      
       addToast(getTicketWorkspaceResolveSuccessToast(resolvedTicket));
     } catch (error) {
       addToast(getTicketWorkspaceResolveFailToast(error));
@@ -449,8 +451,10 @@ export function useTicketWorkspace(filterCustomerId: string | null) {
           return;
         }
 
-        await claimWorkspaceTicket(ticketId, user.id);
-        await fetchData();
+        const updatedTicket = await claimWorkspaceTicket(ticketId, user.id);
+        
+        setTickets((prev) => upsertWorkspaceTicket(prev, updatedTicket));
+        
         addToast(getTicketWorkspaceClaimSuccessToast(ticketId));
       } catch (error) {
         console.error('Claim Error:', error);
