@@ -56,8 +56,7 @@ export function ResolveTicketModal({
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        background: 'rgba(5, 8, 12, 0.75)',
-        backdropFilter: 'blur(10px)',
+        background: 'rgba(0, 0, 0, 0.8)',
         padding: '20px',
       }}
     >
@@ -105,28 +104,34 @@ export function ResolveTicketModal({
           <p style={{ fontSize: '14px', color: 'var(--text-muted)', lineHeight: '1.6' }}>
             Add resolution details for internal tracking and customer communication.
           </p>
-
-          {isChatActive && (
-            <div 
-              style={{ 
-                marginTop: '16px', 
-                padding: '12px', 
-                background: 'rgba(239, 68, 68, 0.1)', 
-                border: '1px solid rgba(239, 68, 68, 0.2)', 
-                borderRadius: '12px',
-                color: '#ef4444',
-                fontSize: '13px',
-                fontWeight: '700',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '8px'
-              }}
-            >
-              ⚠️ กรุณากด "จบการสนทนา" ที่หน้าหลักก่อนปิดใบงาน
-            </div>
-          )}
         </div>
+
+        {isChatActive && (
+          <div 
+            style={{ 
+              marginBottom: '24px', 
+              padding: '16px', 
+              background: '#ef4444', 
+              borderRadius: '16px',
+              color: 'white',
+              fontSize: '15px',
+              fontWeight: '900',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              textAlign: 'center',
+              gap: '8px',
+              boxShadow: '0 10px 20px rgba(239, 68, 68, 0.3)',
+              animation: 'pulse 2s infinite'
+            }}
+          >
+            <div style={{ fontSize: '24px' }}>⚠️</div>
+            <div>กรุณากด "จบการสนทนา" ที่หน้าหลักก่อนปิดใบงาน</div>
+            <div style={{ fontSize: '11px', fontWeight: '400', opacity: 0.9 }}>
+              (เพื่อยืนยันว่าการแก้ไขปัญหาให้กับลูกค้าเสร็จสิ้นสมบูรณ์แล้ว)
+            </div>
+          </div>
+        )}
 
         <div style={{ marginBottom: '24px' }}>
           <label
