@@ -19,7 +19,8 @@ import {
   Trash2,
   Edit2,
   CheckCircle,
-  PenTool
+  PenTool,
+  Plus
 } from 'lucide-react';
 import Link from 'next/link';
 import { auditService } from '@/lib/services/auditService';
