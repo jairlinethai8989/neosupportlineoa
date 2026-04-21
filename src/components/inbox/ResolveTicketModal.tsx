@@ -45,7 +45,7 @@ export function ResolveTicketModal({
   if (!open) return null;
 
   const isDisabled =
-    sending || !resSummary.trim() || !selectedModule || !selectedIssueType || isChatActive;
+    sending || !resSummary.trim() || !selectedModule || !selectedIssueType;
 
   return (
     <div

@@ -386,7 +386,7 @@ export function useTicketWorkspace(filterCustomerId: string | null) {
       (conversation) =>
         (conversation.current_ticket_id === resolvingTicket.id ||
           conversation.customer_id === resolvingTicket.customer_id) &&
-        conversation.status === 'active'
+        ['active', 'open', 'new', 'pending'].includes((conversation.status || '').toLowerCase())
     );
 
     if (activeConv) {
@@ -482,7 +482,7 @@ export function useTicketWorkspace(filterCustomerId: string | null) {
       (conversation) =>
         (conversation.current_ticket_id === resolvingTicket.id ||
           conversation.customer_id === resolvingTicket.customer_id) &&
-        conversation.status === 'active'
+        ['active', 'open', 'new', 'pending'].includes((conversation.status || '').toLowerCase())
     );
   }, [resolvingTicket, conversations]);
 

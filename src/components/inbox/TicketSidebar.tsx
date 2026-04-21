@@ -182,8 +182,13 @@ export const TicketSidebar: React.FC<TicketSidebarProps> = ({
 
          {currentTicket && !isResolved && (isOwner || isAdmin) && (
             <button 
-               onClick={onResolve}
-               disabled={isSessionActive}
+               onClick={() => {
+                  if (isSessionActive) {
+                     alert('ต้องจบการสนทนาก่อนจึงจะสามารถปิดงานได้ (Cannot resolve while chat is active)');
+                     return;
+                  }
+                  onResolve();
+               }}
                className={isSessionActive ? "" : "glass-interactive"}
                style={{ 
                   width: '100%', 
@@ -198,9 +203,9 @@ export const TicketSidebar: React.FC<TicketSidebarProps> = ({
                   alignItems: 'center',
                   justifyContent: 'center',
                   gap: '8px',
-                  cursor: isSessionActive ? 'not-allowed' : 'pointer',
+                  cursor: isSessionActive ? 'pointer' : 'pointer',
                   boxShadow: isSessionActive ? 'none' : '0 8px 24px rgba(40, 199, 111, 0.3)',
-                  opacity: isSessionActive ? 0.5 : 1
+                  opacity: isSessionActive ? 0.7 : 1
                }}
             >
                <CheckCircle size={18} /> ปิดงาน (Resolve Ticket)
