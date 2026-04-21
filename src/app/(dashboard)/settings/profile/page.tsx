@@ -324,58 +324,63 @@ export default function ProfileSettingsPage() {
       </div>
 
       {activeTab === 'profile' ? (
-        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(350px, 450px) 1fr', gap: '32px', animation: 'slideUp 0.4s ease-out' }}>
+        <div style={{ 
+          display: 'grid', 
+          gridTemplateColumns: '380px 380px 1fr', 
+          gap: '24px', 
+          animation: 'slideUp 0.4s ease-out',
+          alignItems: 'start'
+        }}>
           
-          {/* Identity & Global Save (Law of Proximity) */}
-          <div className="glass" style={{ padding: '32px', height: 'fit-content', position: 'sticky', top: '24px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '32px' }}>
-               <div style={{ background: 'var(--secondary)', padding: '10px', borderRadius: '12px' }}>
-                   <User size={24} color="var(--primary)" />
+          {/* 1. Identity Column */}
+          <div className="glass" style={{ padding: '24px', height: 'fit-content' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px' }}>
+               <div style={{ background: 'var(--secondary)', padding: '8px', borderRadius: '10px' }}>
+                   <User size={20} color="var(--primary)" />
                </div>
-               <h2 style={{ fontSize: '20px', fontWeight: '700' }}>ข้อมูลโปรไฟล์</h2>
+               <h2 style={{ fontSize: '18px', fontWeight: '700' }}>ข้อมูลโปรไฟล์</h2>
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: '32px' }}>
-              <div style={{ position: 'relative', marginBottom: '24px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: '24px' }}>
+              <div style={{ position: 'relative', marginBottom: '20px' }}>
                  <img 
                    src={profile?.avatar_url || 'https://ui-avatars.com/api/?name=' + profile?.full_name} 
-                   style={{ width: '130px', height: '130px', borderRadius: '50%', objectFit: 'cover', border: '5px solid var(--border)', background: 'var(--bg-deep)' }} 
+                   style={{ width: '110px', height: '110px', borderRadius: '50%', objectFit: 'cover', border: '4px solid var(--border)', background: 'var(--bg-deep)' }} 
                  />
-                 <label style={{ position: 'absolute', bottom: '0', right: '0', background: 'var(--primary)', padding: '10px', borderRadius: '50%', cursor: 'pointer', boxShadow: '0 8px 24px rgba(0,242,254,0.4)', border: '4px solid var(--bg-card)' }}>
-                    {uploading ? <Loader2 size={16} className="animate-spin" /> : <Camera size={16} color="#000" />}
+                 <label style={{ position: 'absolute', bottom: '0', right: '0', background: 'var(--primary)', padding: '8px', borderRadius: '50%', cursor: 'pointer', boxShadow: '0 6px 20px rgba(0,242,254,0.4)', border: '3px solid var(--bg-card)' }}>
+                    {uploading ? <Loader2 size={14} className="animate-spin" /> : <Camera size={14} color="#000" />}
                     <input type="file" hidden accept="image/*" onChange={handleFileUpload} disabled={uploading} />
                  </label>
               </div>
 
               <div style={{ 
                 display: 'grid', 
-                gridTemplateColumns: 'repeat(8, 1fr)', 
-                gap: '8px', 
-                justifyContent: 'center', 
-                padding: '16px', 
-                borderRadius: '20px', 
+                gridTemplateColumns: 'repeat(6, 1fr)', 
+                gap: '6px', 
+                padding: '12px', 
+                borderRadius: '16px', 
                 border: '1px solid var(--border)', 
                 background: 'rgba(255,255,255,0.01)',
-                maxHeight: '140px',
+                maxHeight: '100px',
                 overflowY: 'auto'
               }}>
                 {AVATAR_OPTIONS.map((url, idx) => (
-                   <button key={idx} onClick={() => setProfile({...profile, avatar_url: url})} style={{ width: '32px', height: '32px', borderRadius: '8px', overflow: 'hidden', border: profile?.avatar_url === url ? '2px solid var(--primary)' : '1px solid transparent', padding: 0, cursor: 'pointer', flexShrink: 0 }}>
+                   <button key={idx} onClick={() => setProfile({...profile, avatar_url: url})} style={{ width: '28px', height: '28px', borderRadius: '6px', overflow: 'hidden', border: profile?.avatar_url === url ? '2px solid var(--primary)' : '1px solid transparent', padding: 0, cursor: 'pointer' }}>
                      <img src={url} style={{ width: '100%', height: '100%' }} />
                    </button>
                 ))}
               </div>
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                <div>
-                  <label style={{ display: 'block', fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '8px' }}>ชื่อ-นามสกุล (Full Name)</label>
-                  <input type="text" value={profile?.full_name || ''} onChange={e => setProfile({...profile, full_name: e.target.value})} style={{ width: '100%', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '14px', padding: '14px', color: 'var(--text-main)', outline: 'none', fontWeight: '700' }} />
+                  <label style={{ display: 'block', fontSize: '10px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '6px' }}>ชื่อ-นามสกุล</label>
+                  <input type="text" value={profile?.full_name || ''} onChange={e => setProfile({...profile, full_name: e.target.value})} style={{ width: '100%', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '12px', padding: '12px', color: 'var(--text-main)', outline: 'none', fontWeight: '700', fontSize: '14px' }} />
                </div>
                <div>
-                  <label style={{ display: 'block', fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '8px' }}>แผนกประจำการ (Department)</label>
-                  <select value={profile?.department || ''} onChange={e => setProfile({...profile, department: e.target.value})} style={{ width: '100%', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '14px', padding: '14px', color: 'var(--text-main)', outline: 'none', fontWeight: '700' }}>
-                    <option value="">เลือกแผนกหลัก...</option>
+                  <label style={{ display: 'block', fontSize: '10px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '6px' }}>แผนกประจำการ</label>
+                  <select value={profile?.department || ''} onChange={e => setProfile({...profile, department: e.target.value})} style={{ width: '100%', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '12px', padding: '12px', color: 'var(--text-main)', outline: 'none', fontWeight: '700', fontSize: '14px' }}>
+                    <option value="">เลือกแผนก...</option>
                     {companyDepts.map((d: string) => (<option key={d} value={d}>{d}</option>))}
                   </select>
                </div>
@@ -384,80 +389,74 @@ export default function ProfileSettingsPage() {
                 onClick={handleSaveProfile}
                 disabled={saving || uploading}
                 className="glass-interactive" 
-                style={{ width: '100%', padding: '16px', borderRadius: '16px', background: 'var(--primary)', border: 'none', color: '#000', fontWeight: '900', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', marginTop: '16px', boxShadow: '0 8px 30px rgba(0, 242, 254, 0.3)' }}>
-                  {saving ? <Loader2 className="animate-spin" /> : <><Save size={20} /> บันทึกข้อมูลโปรไฟล์</>}
+                style={{ width: '100%', padding: '14px', borderRadius: '14px', background: 'var(--primary)', border: 'none', color: '#000', fontWeight: '900', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginTop: '8px', fontSize: '14px' }}>
+                  {saving ? <Loader2 className="animate-spin" size={18} /> : <><Save size={18} /> บันทึกโปรไฟล์</>}
                </button>
-            </div>
-
-            {/* Digital Signature Hook (Chunking) */}
-            <div style={{ marginTop: '32px', paddingTop: '32px', borderTop: '1px solid var(--border)' }}>
-               <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
-                  <div style={{ background: 'rgba(0, 242, 254, 0.1)', padding: '8px', borderRadius: '10px' }}>
-                     <PenTool size={20} color="var(--primary)" />
-                  </div>
-                  <h3 style={{ fontSize: '16px', fontWeight: '800' }}>ลายเซ็นดิจิทัล (Signature)</h3>
-               </div>
-               <SignaturePad 
-                  initialValue={profile?.signature_url} 
-                  onSave={handleSignatureSave} 
-                  onUpload={handleSignatureUpload} 
-               />
             </div>
           </div>
 
-          {/* Workflow Tools (Chuncking) */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
-            {/* Quick Replies */}
-            <div className="glass" style={{ padding: '32px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-                 <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                    <div style={{ background: 'rgba(0, 242, 254, 0.1)', padding: '10px', borderRadius: '12px' }}>
-                       <MessageSquarePlus size={24} color="var(--primary)" />
+          {/* 2. Digital Signature Column */}
+          <div className="glass" style={{ padding: '24px', height: 'fit-content' }}>
+             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px' }}>
+                <div style={{ background: 'rgba(0, 242, 254, 0.1)', padding: '8px', borderRadius: '10px' }}>
+                   <PenTool size={20} color="var(--primary)" />
+                </div>
+                <h2 style={{ fontSize: '18px', fontWeight: '700' }}>ลายเซ็นดิจิทัล (Signature)</h2>
+             </div>
+             <SignaturePad 
+                initialValue={profile?.signature_url} 
+                onSave={handleSignatureSave} 
+                onUpload={handleSignatureUpload} 
+             />
+          </div>
+
+          {/* 3. Workflow Column */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+            {/* Compact Quick Replies */}
+            <div className="glass" style={{ padding: '24px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <div style={{ background: 'rgba(0, 242, 254, 0.1)', padding: '8px', borderRadius: '10px' }}>
+                       <MessageSquarePlus size={20} color="var(--primary)" />
                     </div>
-                    <div>
-                      <h2 style={{ fontSize: '20px', fontWeight: '700' }}>ข้อความตอบด่วน</h2>
-                      <p style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Workflow Automation</p>
-                    </div>
+                    <h2 style={{ fontSize: '16px', fontWeight: '700' }}>ข้อความตอบด่วน</h2>
                  </div>
-                 <button onClick={() => { const val = prompt('ใส่ข้อความตอบด่วนใหม่:'); if (val) addTemplate('quick', val); }} className="glass-interactive" style={{ padding: '10px 20px', borderRadius: '12px', background: 'var(--primary)', border: 'none', color: '#000', fontSize: '12px', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <Plus size={16} /> เพิ่มใหม่
+                 <button onClick={() => { const val = prompt('ใส่ข้อความตอบด่วนใหม่:'); if (val) addTemplate('quick', val); }} className="glass-interactive" style={{ padding: '6px 14px', borderRadius: '10px', background: 'var(--primary)', border: 'none', color: '#000', fontSize: '11px', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <Plus size={14} /> เพิ่ม
                  </button>
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '200px', overflowY: 'auto', paddingRight: '4px' }}>
                  {(profile?.quick_replies || []).map((text: string, idx: number) => (
-                    <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', padding: '16px', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '16px' }}>
-                       <p style={{ fontSize: '14px', flex: 1, fontWeight: '500' }}>{text}</p>
-                       <button onClick={() => removeTemplate('quick', idx)} style={{ padding: '8px', color: 'var(--danger)', background: 'transparent', border: 'none', cursor: 'pointer' }}><Trash2 size={18} /></button>
+                    <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', padding: '10px 14px', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '12px' }}>
+                       <p style={{ fontSize: '13px', flex: 1, fontWeight: '500', margin: 0 }}>{text}</p>
+                       <button onClick={() => removeTemplate('quick', idx)} style={{ padding: '4px', color: 'var(--danger)', background: 'transparent', border: 'none', cursor: 'pointer' }}><Trash2 size={16} /></button>
                     </div>
                  ))}
-                 {(profile?.quick_replies || []).length === 0 && <div style={{ padding: '40px', textAlign: 'center', border: '1px dashed var(--border)', borderRadius: '16px', color: 'var(--text-muted)' }}>ยังไม่มีเทมเพลตส่วนตัว</div>}
+                 {(profile?.quick_replies || []).length === 0 && <div style={{ padding: '20px', textAlign: 'center', border: '1px dashed var(--border)', borderRadius: '12px', color: 'var(--text-muted)', fontSize: '12px' }}>ไม่มีข้อมูล</div>}
               </div>
             </div>
 
-            {/* Resolution Templates */}
-            <div className="glass" style={{ padding: '32px' }}>
-               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                     <div style={{ background: 'rgba(40, 199, 111, 0.1)', padding: '10px', borderRadius: '12px' }}>
-                        <ClipboardCheck size={24} color="#28c76f" />
+            {/* Compact Resolution Templates */}
+            <div className="glass" style={{ padding: '24px' }}>
+               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                     <div style={{ background: 'rgba(40, 199, 111, 0.1)', padding: '8px', borderRadius: '10px' }}>
+                        <ClipboardCheck size={20} color="#28c76f" />
                      </div>
-                     <div>
-                        <h2 style={{ fontSize: '20px', fontWeight: '700' }}>เทมเพลตสรุปงาน</h2>
-                        <p style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Efficiency Tools</p>
-                     </div>
+                     <h2 style={{ fontSize: '16px', fontWeight: '700' }}>เทมเพลตสรุปงาน</h2>
                   </div>
-                  <button onClick={() => { const val = prompt('ใส่ข้อความสรุปงานใหม่:'); if (val) addTemplate('res', val); }} className="glass-interactive" style={{ padding: '10px 20px', borderRadius: '12px', background: '#28c76f', border: 'none', color: '#fff', fontSize: '12px', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                     <Plus size={16} /> เพิ่มใหม่
+                  <button onClick={() => { const val = prompt('ใส่ข้อความสรุปงานใหม่:'); if (val) addTemplate('res', val); }} className="glass-interactive" style={{ padding: '6px 14px', borderRadius: '10px', background: '#28c76f', border: 'none', color: '#fff', fontSize: '11px', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                     <Plus size={14} /> เพิ่ม
                   </button>
                </div>
-               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '200px', overflowY: 'auto', paddingRight: '4px' }}>
                   {(profile?.resolution_templates || []).map((text: string, idx: number) => (
-                     <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', padding: '16px', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '16px' }}>
-                        <p style={{ fontSize: '14px', flex: 1, fontWeight: '500' }}>{text}</p>
-                        <button onClick={() => removeTemplate('res', idx)} style={{ padding: '8px', color: 'var(--danger)', background: 'transparent', border: 'none', cursor: 'pointer' }}><Trash2 size={18} /></button>
+                     <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', padding: '10px 14px', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '12px' }}>
+                        <p style={{ fontSize: '13px', flex: 1, fontWeight: '500', margin: 0 }}>{text}</p>
+                        <button onClick={() => removeTemplate('res', idx)} style={{ padding: '4px', color: 'var(--danger)', background: 'transparent', border: 'none', cursor: 'pointer' }}><Trash2 size={16} /></button>
                      </div>
                   ))}
-                  {(profile?.resolution_templates || []).length === 0 && <div style={{ padding: '40px', textAlign: 'center', border: '1px dashed var(--border)', borderRadius: '16px', color: 'var(--text-muted)' }}>ยังไม่มีเทมเพลตส่วนตัว</div>}
+                  {(profile?.resolution_templates || []).length === 0 && <div style={{ padding: '20px', textAlign: 'center', border: '1px dashed var(--border)', borderRadius: '12px', color: 'var(--text-muted)', fontSize: '12px' }}>ไม่มีข้อมูล</div>}
                </div>
             </div>
           </div>
