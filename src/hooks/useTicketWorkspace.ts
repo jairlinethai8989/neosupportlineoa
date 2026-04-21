@@ -159,9 +159,9 @@ export function useTicketWorkspace(filterCustomerId: string | null) {
     userProfile?.role !== 'Administrator' &&
     userProfile?.permissions?.tickets === 'view';
 
-  const fetchData = useCallback(async () => {
+  const fetchData = useCallback(async (isSilent = false) => {
     setDebugError(null);
-    setLoading(true);
+    if (!isSilent) setLoading(true);
 
     const { fromIso, toIso } = getTicketWorkspaceDateRange(timeRange, customStart, customEnd);
     const [conversationResult, ticketResult] = await Promise.allSettled([
@@ -197,32 +197,43 @@ export function useTicketWorkspace(filterCustomerId: string | null) {
       setDebugError(errors.join(' | '));
     }
 
-    setLoading(false);
+    if (!isSilent) setLoading(false);
   }, [customEnd, customStart, timeRange]);
 
   const syncTicketFromRealtime = useCallback(
     async (ticketId: string, fallbackValue?: unknown) => {
+      // 1. Optimistic Update for instant UI feedback
+      const fallbackTicket = normalizeTicketWorkspaceTicket(fallbackValue);
+      if (
+        fallbackTicket &&
+        isTicketWithinWorkspaceRange(fallbackTicket, timeRange, customStart, customEnd)
+      ) {
+        setTickets((previousTickets) => upsertWorkspaceTicket(previousTickets, fallbackTicket));
+      }
+
+      // 2. Fetch full data (with relations) and retry logic for replica delays
       try {
-        const latestTicket = await getTicketWorkspaceTicketById(ticketId);
+        let latestTicket = null;
+        for (let i = 0; i < 3; i++) {
+          try {
+            latestTicket = await getTicketWorkspaceTicketById(ticketId);
+            if (latestTicket) break;
+          } catch (err) {
+            if (i === 2) throw err;
+            await new Promise((resume) => setTimeout(resume, 1000));
+          }
+        }
+
         if (latestTicket && isTicketWithinWorkspaceRange(latestTicket, timeRange, customStart, customEnd)) {
           setTickets((previousTickets) => upsertWorkspaceTicket(previousTickets, latestTicket));
-          return;
+        } else if (latestTicket && !isTicketWithinWorkspaceRange(latestTicket, timeRange, customStart, customEnd)) {
+          // If the real ticket is somehow out of range, remove the optimistic one
+          setTickets((previousTickets) =>
+            previousTickets.filter((ticket) => ticket.id !== ticketId)
+          );
         }
-
-        setTickets((previousTickets) =>
-          previousTickets.filter((ticket) => ticket.id !== ticketId)
-        );
       } catch (error) {
         console.error('Realtime ticket sync error:', error);
-
-        const fallbackTicket = normalizeTicketWorkspaceTicket(fallbackValue);
-        if (
-          fallbackTicket &&
-          isTicketWithinWorkspaceRange(fallbackTicket, timeRange, customStart, customEnd)
-        ) {
-          setTickets((previousTickets) => upsertWorkspaceTicket(previousTickets, fallbackTicket));
-        }
-
         setDebugError(error instanceof Error ? error.message : 'Realtime ticket sync failed');
       }
     },
@@ -265,8 +276,8 @@ export function useTicketWorkspace(filterCustomerId: string | null) {
     const scheduleDataRefresh = () => {
       if (realtimeTimer) clearTimeout(realtimeTimer);
       realtimeTimer = setTimeout(() => {
-        void fetchData();
-      }, 1200);
+        void fetchData(true);
+      }, 4000);
     };
 
     const channel = supabase
