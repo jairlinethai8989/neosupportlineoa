@@ -461,6 +461,10 @@ export default function StaffTicketDetailPage() {
       addToast(getTicketDetailValidationToast());
       return;
     }
+    if (isChatActive) {
+      addToast(getTicketDetailChatMustEndToast());
+      return;
+    }
 
     setUpdating(true);
     try {
