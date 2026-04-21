@@ -77,6 +77,7 @@ export default function StaffTicketDetailPage() {
   const [messages, setMessages] = useState<TicketDetailMessage[]>([]);
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [isChatActive, setIsChatActive] = useState(false);
+  const [resolverProfile, setResolverProfile] = useState<any>(null);
 
   const [status, setStatus] = useState('');
   const [priority, setPriority] = useState('');
@@ -123,13 +124,20 @@ export default function StaffTicketDetailPage() {
         setSelectedDept(normalizedTicket.current_department_id || '');
         setSelectedModule(normalizedTicket.module || '');
 
-        const { data: logData } = await supabase
-          .from('ticket_logs')
-          .select('*')
-          .eq('ticket_id', ticketId)
-          .order('created_at', { ascending: false });
-
-        if (logData) setLogs(logData as TicketDetailLog[]);
+        if (logData) {
+          setLogs(logData as TicketDetailLog[]);
+          
+          // Find resolver profile
+          const resolveLog = logData.find(l => l.action_type === 'resolve');
+          if (resolveLog) {
+            const { data: resolver } = await supabase
+              .from('profiles')
+              .select('full_name, signature_url')
+              .eq('id', resolveLog.performer_id)
+              .single();
+            if (resolver) setResolverProfile(resolver);
+          }
+        }
 
         // Only check active chat if a customer exists
         if (normalizedTicket.customer_id) {
@@ -856,14 +864,27 @@ export default function StaffTicketDetailPage() {
           </div>
 
           {/* Footer Signature */}
-          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 'auto' }}>
-             <div style={{ width: '280px', textAlign: 'center' }}>
-                <div style={{ height: '60px' }}></div>
-                <div style={{ borderBottom: '1px solid #181c32', marginBottom: '8px' }}></div>
-                <p style={{ margin: 0, fontSize: '15px', fontWeight: '800' }}>({user?.display_name || 'IT Support'})</p>
-                <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: '#5e6278' }}>Responsible Engineer</p>
-             </div>
-          </div>
+          {ticket?.status === 'Resolved' && (
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 'auto' }}>
+               <div style={{ width: '280px', textAlign: 'center' }}>
+                  <div style={{ height: '80px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '8px' }}>
+                    {resolverProfile?.signature_url ? (
+                      <img 
+                        src={resolverProfile.signature_url} 
+                        style={{ maxHeight: '70px', maxWidth: '200px' }} 
+                        alt="Signature" 
+                      />
+                    ) : (
+                      <div style={{ height: '40px' }}></div>
+                    )}
+                  </div>
+                  <div style={{ borderBottom: '1px solid #181c32', marginBottom: '8px' }}></div>
+                  <p style={{ margin: 0, fontSize: '15px', fontWeight: '800' }}>
+                    {resolverProfile?.full_name || user?.display_name || 'Engineer'}
+                  </p>
+               </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

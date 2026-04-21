@@ -16,13 +16,14 @@ import {
   Mail,
   MessageSquarePlus,
   ClipboardCheck,
-  Plus,
   Trash2,
   Edit2,
-  CheckCircle
+  CheckCircle,
+  PenTool
 } from 'lucide-react';
 import Link from 'next/link';
 import { auditService } from '@/lib/services/auditService';
+import { SignaturePad } from '@/components/profile/SignaturePad';
 
 const AVATAR_SEEDS = [
   'Ariel', 'Willow', 'Casper', 'Sasha', 'Jasper', 'Zoey', 'Felix', 'Luna',
@@ -101,6 +102,67 @@ export default function ProfileSettingsPage() {
      }
   };
 
+  const handleSignatureSave = async (dataUrl: string) => {
+    setSaving(true);
+    try {
+      const res = await fetch(dataUrl);
+      const blob = await res.blob();
+      const file = new File([blob], `signature_${profile.id}.png`, { type: 'image/png' });
+      
+      const filePath = `signatures/${profile.id}_${Date.now()}.png`;
+      const { error: uploadError } = await supabase.storage
+        .from('chat_media')
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+      const { data: { publicUrl } } = supabase.storage.from('chat_media').getPublicUrl(filePath);
+      
+      const { error } = await supabase.from('profiles').update({
+        signature_url: publicUrl,
+        updated_at: new Date().toISOString()
+      }).eq('id', profile.id);
+
+      if (error) throw error;
+      setProfile({ ...profile, signature_url: publicUrl });
+      setToastMsg('บันทึกลายเซ็นใหม่เรียบร้อย! ✍️');
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 3000);
+    } catch (err: any) {
+      alert('บันทึกลายเซ็นล้มเหลว: ' + err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSignatureUpload = async (file: File) => {
+    setSaving(true);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const filePath = `signatures/${profile.id}_${Date.now()}.${fileExt}`;
+      const { error: uploadError } = await supabase.storage
+        .from('chat_media')
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+      const { data: { publicUrl } } = supabase.storage.from('chat_media').getPublicUrl(filePath);
+      
+      const { error } = await supabase.from('profiles').update({
+        signature_url: publicUrl,
+        updated_at: new Date().toISOString()
+      }).eq('id', profile.id);
+
+      if (error) throw error;
+      setProfile({ ...profile, signature_url: publicUrl });
+      setToastMsg('อัปโหลดลายเซ็นใหม่เรียบร้อย! ✍️');
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 3000);
+    } catch (err: any) {
+      alert('อัปโหลดลายเซ็นล้มเหลว: ' + err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const handleSaveProfile = async () => {
     setSaving(true);
     try {
@@ -108,14 +170,13 @@ export default function ProfileSettingsPage() {
         full_name: profile.full_name,
         avatar_url: profile.avatar_url,
         department: profile.department,
+        signature_url: profile.signature_url,
         quick_replies: profile.quick_replies || [],
         resolution_templates: profile.resolution_templates || [],
         updated_at: new Date().toISOString()
       }).eq('id', profile.id);
       
       if (error) throw error;
-
-      // Log activity
       await auditService.log({
         performer_id: profile.id,
         action_type: 'PROFILE_UPDATE',
@@ -124,11 +185,11 @@ export default function ProfileSettingsPage() {
         new_data: { 
           full_name: profile.full_name, 
           department: profile.department,
-          avatar_url: profile.avatar_url
+          avatar_url: profile.avatar_url,
+          signature_url: profile.signature_url
         },
         note: `Updated own profile information`
       });
-
       setToastMsg('บันทึกข้อมูลและเทมเพลตเรียบร้อย! ✅');
       setShowToast(true);
       setTimeout(() => setShowToast(false), 3000);
@@ -149,7 +210,6 @@ export default function ProfileSettingsPage() {
     const updatedProfile = { ...profile, [key]: updatedList };
     setProfile(updatedProfile);
 
-    // Auto-save to Supabase immediately for better UX
     try {
       const { error } = await supabase.from('profiles').update({
         [key]: updatedList,
@@ -157,7 +217,6 @@ export default function ProfileSettingsPage() {
       }).eq('id', profile.id);
       
       if (!error) {
-        // Log template addition
         await auditService.log({
           performer_id: profile.id,
           action_type: 'TEMPLATE_ADD',
@@ -165,7 +224,6 @@ export default function ProfileSettingsPage() {
           new_data: { type, text },
           note: `Added new ${type === 'quick' ? 'Quick Reply' : 'Resolution Template'}`
         });
-
         setToastMsg('บันทึกเทมเพลตอัตโนมัติสำเร็จ! ✨');
         setShowToast(true);
         setTimeout(() => setShowToast(false), 2000);
@@ -180,11 +238,9 @@ export default function ProfileSettingsPage() {
     const key = type === 'quick' ? 'quick_replies' : 'resolution_templates';
     const current = profile[key] || [];
     const next = current.filter((_: any, i: number) => i !== index);
-    
     const updatedProfile = { ...profile, [key]: next };
     setProfile(updatedProfile);
 
-    // Auto-save to Supabase immediately
     try {
       const { error } = await supabase.from('profiles').update({
         [key]: next,
@@ -220,6 +276,72 @@ export default function ProfileSettingsPage() {
       alert('ล้มเหลว: ' + err.message);
     } finally {
       setUpdatingPassword(false);
+    }
+  };
+
+  const handleSignatureSave = async (dataUrl: string) => {
+    setSaving(true);
+    try {
+      // Convert DataURL to Blob
+      const res = await fetch(dataUrl);
+      const blob = await res.blob();
+      const file = new File([blob], `signature_${profile.id}.png`, { type: 'image/png' });
+      
+      const filePath = `signatures/${profile.id}_${Date.now()}.png`;
+      const { error: uploadError } = await supabase.storage
+        .from('chat_media')
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage.from('chat_media').getPublicUrl(filePath);
+      
+      const { error } = await supabase.from('profiles').update({
+        signature_url: publicUrl,
+        updated_at: new Date().toISOString()
+      }).eq('id', profile.id);
+
+      if (error) throw error;
+
+      setProfile({ ...profile, signature_url: publicUrl });
+      setToastMsg('บันทึกลายเซ็นใหม่เรียบร้อย! ✍️');
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 3000);
+    } catch (err: any) {
+      alert('บันทึกลายเซ็นล้มเหลว: ' + err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSignatureUpload = async (file: File) => {
+    setSaving(true);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const filePath = `signatures/${profile.id}_${Date.now()}.${fileExt}`;
+      const { error: uploadError } = await supabase.storage
+        .from('chat_media')
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage.from('chat_media').getPublicUrl(filePath);
+      
+      const { error } = await supabase.from('profiles').update({
+        signature_url: publicUrl,
+        updated_at: new Date().toISOString()
+      }).eq('id', profile.id);
+
+      if (error) throw error;
+
+      setProfile({ ...profile, signature_url: publicUrl });
+      setToastMsg('อัปโหลดลายเซ็นใหม่เรียบร้อย! ✍️');
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 3000);
+    } catch (err: any) {
+      alert('อัปโหลดลายเซ็นล้มเหลว: ' + err.message);
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -330,6 +452,21 @@ export default function ProfileSettingsPage() {
                 style={{ width: '100%', padding: '16px', borderRadius: '16px', background: 'var(--primary)', border: 'none', color: '#000', fontWeight: '900', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', marginTop: '16px', boxShadow: '0 8px 30px rgba(0, 242, 254, 0.3)' }}>
                   {saving ? <Loader2 className="animate-spin" /> : <><Save size={20} /> บันทึกข้อมูลโปรไฟล์</>}
                </button>
+            </div>
+
+            {/* Digital Signature Hook (Chunking) */}
+            <div style={{ marginTop: '32px', paddingTop: '32px', borderTop: '1px solid var(--border)' }}>
+               <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
+                  <div style={{ background: 'rgba(0, 242, 254, 0.1)', padding: '8px', borderRadius: '10px' }}>
+                     <PenTool size={20} color="var(--primary)" />
+                  </div>
+                  <h3 style={{ fontSize: '16px', fontWeight: '800' }}>ลายเซ็นดิจิทัล (Signature)</h3>
+               </div>
+               <SignaturePad 
+                  initialValue={profile?.signature_url} 
+                  onSave={handleSignatureSave} 
+                  onUpload={handleSignatureUpload} 
+               />
             </div>
           </div>
 
