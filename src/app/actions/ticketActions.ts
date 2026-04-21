@@ -154,10 +154,8 @@ export async function resolveTicketAction(
    conversationId?: string,
    surveyLink?: string
 ) {
-   const { data: { user } } = await supabaseAdmin.auth.getUser();
-   const agentId = user?.id;
-
-   if (!agentId) throw new Error('Unauthorized');
+   const user = await getSessionUser();
+   const agentId = user.id;
 
    const updateData: any = { 
      status: 'Resolved',
