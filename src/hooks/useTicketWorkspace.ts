@@ -178,118 +178,27 @@ export function useTicketWorkspace(filterCustomerId: string | null) {
     fetchData();
     loadSettings();
 
-    const pendingTicketIds = new Set<string>();
-    const pendingConversationIds = new Set<string>();
-    let ticketFlushTimer: ReturnType<typeof setTimeout> | null = null;
-    let conversationFlushTimer: ReturnType<typeof setTimeout> | null = null;
+    let realtimeTimer: ReturnType<typeof setTimeout> | null = null;
 
-    const flushTickets = async () => {
-      const ids = Array.from(pendingTicketIds);
-      pendingTicketIds.clear();
-      ticketFlushTimer = null;
-      if (ids.length === 0) return;
-
-      const updatedRows = await Promise.all(
-        ids.map(async (id) => {
-          try {
-            return await getTicketWorkspaceTicketById(id);
-          } catch {
-            return null;
-          }
-        })
-      );
-
-      const normalizedRows = updatedRows.filter((row): row is TicketWorkspaceTicket => Boolean(row));
-      if (normalizedRows.length === 0) return;
-
-      setTickets((prev) => {
-        const next = [...prev];
-        for (const row of normalizedRows) {
-          const index = next.findIndex((item) => item.id === row.id);
-          if (index >= 0) {
-            next[index] = row;
-          } else {
-            next.unshift(row);
-          }
-        }
-        return next;
-      });
-    };
-
-    const flushConversations = async () => {
-      const ids = Array.from(pendingConversationIds);
-      pendingConversationIds.clear();
-      conversationFlushTimer = null;
-      if (ids.length === 0) return;
-
-      const updatedRows = await Promise.all(
-        ids.map(async (id) => {
-          try {
-            return await getTicketWorkspaceConversationById(id);
-          } catch {
-            return null;
-          }
-        })
-      );
-
-      const normalizedRows = updatedRows.filter(
-        (row): row is TicketWorkspaceConversation => Boolean(row)
-      );
-      if (normalizedRows.length === 0) return;
-
-      setConversations((prev) => {
-        const next = [...prev];
-        for (const row of normalizedRows) {
-          const index = next.findIndex((item) => item.id === row.id);
-          if (index >= 0) {
-            next[index] = row;
-          } else {
-            next.unshift(row);
-          }
-        }
-        return next;
-      });
-    };
-
-    const scheduleTicketFlush = (id: string) => {
-      pendingTicketIds.add(id);
-      if (ticketFlushTimer) return;
-      ticketFlushTimer = setTimeout(() => {
-        void flushTickets();
-      }, 120);
-    };
-
-    const scheduleConversationFlush = (id: string) => {
-      pendingConversationIds.add(id);
-      if (conversationFlushTimer) return;
-      conversationFlushTimer = setTimeout(() => {
-        void flushConversations();
-      }, 120);
+    const scheduleDataRefresh = () => {
+      if (realtimeTimer) clearTimeout(realtimeTimer);
+      realtimeTimer = setTimeout(() => {
+        void fetchData();
+      }, 500); // 500ms debounce to allow relations and DB replicas to settle
     };
 
     const channel = supabase
       .channel('workspace-realtime')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'tickets' }, (payload) => {
-        if (payload.eventType === 'DELETE') {
-          setTickets((prev) => prev.filter((ticket) => ticket.id !== payload.old.id));
-          return;
-        }
-        scheduleTicketFlush(payload.new.id);
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'tickets' }, () => {
+        scheduleDataRefresh();
       })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'conversations' }, (payload) => {
-        if (payload.eventType === 'DELETE') {
-          setConversations((prev) =>
-            prev.filter((conversation) => conversation.id !== payload.old.id)
-          );
-          return;
-        }
-        scheduleConversationFlush(payload.new.id);
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'conversations' }, () => {
+        scheduleDataRefresh();
       })
       .subscribe();
 
     return () => {
-      if (ticketFlushTimer) clearTimeout(ticketFlushTimer);
-      if (conversationFlushTimer) clearTimeout(conversationFlushTimer);
+      if (realtimeTimer) clearTimeout(realtimeTimer);
       supabase.removeChannel(channel);
     };
   }, [fetchData, loadSettings]);
