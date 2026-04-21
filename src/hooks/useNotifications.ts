@@ -107,14 +107,27 @@ export function useNotifications(agentId: string | null) {
   }, [showBrowserNotification]);
 
   const playNewTicketSound = useCallback(() => {
-    if (isMuted || typeof window === 'undefined') return;
+    if (isMuted || typeof window === 'undefined' || !window.speechSynthesis) return;
     
+    // Cancel any ongoing speech to prevent overlap or getting stuck
+    window.speechSynthesis.cancel();
+
     const utterance = new SpeechSynthesisUtterance('มีใบงานใหม่');
     utterance.lang = 'th-TH';
-    utterance.rate = 1.2; // Slightly faster for responsiveness
-    utterance.pitch = 1.1; 
+    utterance.rate = 1.1;
+    utterance.pitch = 1.0; 
     window.speechSynthesis.speak(utterance);
   }, [isMuted]);
+
+  const announceMuteState = useCallback((muted: boolean) => {
+    if (muted || typeof window === 'undefined' || !window.speechSynthesis) return;
+    
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance('เปิดเสียงแจ้งเตือนแล้ว');
+    utterance.lang = 'th-TH';
+    utterance.rate = 1.1;
+    window.speechSynthesis.speak(utterance);
+  }, []);
 
   // ---------------------------------------------------------------
   // Fetch ticket_logs for this agent
@@ -408,9 +421,13 @@ export function useNotifications(agentId: string | null) {
     setIsMuted(prev => {
       const next = !prev;
       localStorage.setItem('neo_notif_muted', String(next));
+      if (!next) {
+        // Delay slightly to ensure state is processed
+        setTimeout(() => announceMuteState(false), 100);
+      }
       return next;
     });
-  }, []);
+  }, [announceMuteState]);
 
   return { 
     notifications, 
