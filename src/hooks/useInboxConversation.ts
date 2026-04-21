@@ -266,19 +266,17 @@ export function useInboxConversation({
     setSending(true);
 
     try {
+      const surveyLink = `${window.location.origin}/survey/${ticketId}`;
+      
       const resolvedTicket = await resolveInboxTicket({
         ticketId,
         agentId: agent?.id,
         resolutionSummary: resSummary,
         module: selectedModule,
         issueType: selectedIssueType,
+        conversationId: selectedChat.id,
+        surveyLink
       });
-
-      const surveyLink = `${window.location.origin}/survey/${ticketId}`;
-      await sendInboxSystemMessage(
-        selectedChat.id,
-        `[SYSTEM] งานได้รับการแก้ไขแล้ว: ${resSummary}\nโมดูล: ${selectedModule}\nแบบประเมิน: ${surveyLink}`
-      );
 
       setCurrentTicket(resolvedTicket);
       setShowResolveModal(false);

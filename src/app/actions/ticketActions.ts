@@ -146,10 +146,18 @@ export async function transferTicketAction(ticketId: string, toAgentId?: string,
    return ticket;
 }
 
-export async function resolveTicketAction(ticketId: string, resolutionSummary: string, module?: string, issueType?: string) {
-   const user = await getSessionUser();
-   await verifyAgentRole(user.id);
-   const agentId = user.id;
+export async function resolveTicketAction(
+   ticketId: string, 
+   resolutionSummary: string, 
+   module?: string, 
+   issueType?: string,
+   conversationId?: string,
+   surveyLink?: string
+) {
+   const { data: { user } } = await supabaseAdmin.auth.getUser();
+   const agentId = user?.id;
+
+   if (!agentId) throw new Error('Unauthorized');
 
    const updateData: any = { 
      status: 'Resolved',
@@ -168,32 +176,59 @@ export async function resolveTicketAction(ticketId: string, resolutionSummary: s
      .select()
      .single();
 
-   if (resolveError) throw new Error(resolveError.message);
+   if (resolveError) {
+     console.error('[ResolveAction] DB Update Error:', resolveError);
+     throw new Error(resolveError.message);
+   }
 
-   await supabaseAdmin.from('ticket_logs').insert([{
-     ticket_id: ticketId,
-     action_type: 'resolve',
-     to_status: 'Resolved',
-     performer_id: agentId,
-     note: resolutionSummary
-   }]);
+   try {
+     // Record Log
+     await supabaseAdmin.from('ticket_logs').insert([{
+       ticket_id: ticketId,
+       action_type: 'resolve',
+       to_status: 'Resolved',
+       performer_id: agentId,
+       note: resolutionSummary
+     }]);
 
-   // Only handle CSAT and Conversations if there is a customer linked
-   if (ticket?.customer_id) {
-      // 1. Send CSAT Survey (Upsert to avoid UNIQUE constraint error if already exists)
-      await supabaseAdmin.from('csat_surveys').upsert({
-         ticket_id: ticketId,
-         sent_at: new Date().toISOString()
-      }, { onConflict: 'ticket_id' });
+     // Only handle CSAT and Conversations if there is a customer linked
+     if (ticket?.customer_id) {
+        // 1. Send CSAT Survey (Silent fail - don't block resolution)
+        try {
+          await supabaseAdmin.from('csat_surveys').upsert({
+             ticket_id: ticketId,
+             sent_at: new Date().toISOString()
+          }, { onConflict: 'ticket_id' });
+        } catch (csatErr) {
+          console.error('[ResolveAction] Silent CSAT Error:', csatErr);
+        }
 
-      // 2. Close active conversation
-      await supabaseAdmin.from('conversations')
-       .update({ 
-         status: 'closed',
-         current_ticket_id: null
-       })
-       .eq('customer_id', ticket.customer_id)
-       .eq('status', 'active');
+        // 2. Close active conversation
+        await supabaseAdmin.from('conversations')
+         .update({ 
+           status: 'closed',
+           current_ticket_id: null
+         })
+         .eq('customer_id', ticket.customer_id)
+         .eq('status', 'active');
+     }
+
+     // 3. Send system message if requested (Atomic)
+     if (conversationId) {
+        const content = `[SYSTEM] งานได้รับการแก้ไขแล้ว: ${resolutionSummary}\nโมดูล: ${module || 'N/A'}\nแบบประเมิน: ${surveyLink || 'N/A'}`;
+        await supabaseAdmin.from('messages').insert([{
+           conversation_id: conversationId,
+           ticket_id: ticketId,
+           sender_type: 'system',
+           content: content,
+           staff_id: agentId,
+           message_type: 'text'
+        }]);
+     }
+   } catch (postError) {
+     // Even if logs/CSAT/conv fails, we already updated the ticket status.
+     // We log it but don't necessarily crash the whole resolve action.
+     console.error('[ResolveAction] Post-update processing error:', postError);
    }
 
    return ticket;

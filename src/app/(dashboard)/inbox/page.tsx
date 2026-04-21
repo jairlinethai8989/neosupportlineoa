@@ -330,6 +330,7 @@ function InboxContent() {
         selectedModule={selectedModule}
         selectedIssueType={selectedIssueType}
         sending={sending}
+        isChatActive={selectedChat?.status === 'active'}
         onClose={() => setShowResolveModal(false)}
         onConfirm={handleExecuteResolve}
         onChangeSummary={setResSummary}
