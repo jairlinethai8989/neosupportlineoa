@@ -2,7 +2,13 @@ export type StaffLocale = 'th' | 'en';
 
 export const STAFF_LOCALE_STORAGE_KEY = 'neo_staff_locale_v1';
 
-const messages = {
+type MessageValue = string | MessageDictionary;
+
+interface MessageDictionary {
+  [key: string]: MessageValue;
+}
+
+const messages: Record<StaffLocale, MessageDictionary> = {
   th: {
     common: {
       language: 'ภาษา',
@@ -229,11 +235,9 @@ const messages = {
       },
     },
   },
-} as const;
+};
 
-type MessageTree = typeof messages.th;
-
-function readMessage(tree: MessageTree, key: string): string | undefined {
+function readMessage(tree: MessageDictionary, key: string): string | undefined {
   return key.split('.').reduce<unknown>((value, segment) => {
     if (value && typeof value === 'object' && segment in (value as Record<string, unknown>)) {
       return (value as Record<string, unknown>)[segment];
