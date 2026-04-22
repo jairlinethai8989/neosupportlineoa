@@ -13,34 +13,34 @@ const getSupabaseAdmin = () => {
 export async function verifyEscalationPin(ticketId: string, pin: string) {
   try {
     const supabaseAdmin = getSupabaseAdmin();
+    console.log('[Verify] Attempting ID:', ticketId);
+
     if (pin !== '1234') {
       return { error: 'รหัส PIN ไม่ถูกต้อง (Invalid PIN)' };
     }
     
-    // Selecting expanded info
+    // Simplifed select - remove joins to confirm record existence first
     const { data: ticket, error } = await supabaseAdmin
       .from('tickets')
-      .select(`
-        id, 
-        ticket_no, 
-        subject, 
-        description, 
-        status, 
-        module, 
-        issue_type, 
-        created_at, 
-        customer_id,
-        customers (display_name),
-        hospitals (name)
-      `)
+      .select('*')
       .eq('id', ticketId)
       .maybeSingle();
       
-    if (error || !ticket) {
-      return { error: 'ไม่พบข้อมูลใบงานหรือคำขอนี้หมดอายุแล้ว' };
+    if (error) {
+       console.error('[Verify] Supabase Error:', error);
+       return { error: 'Database Error: ' + error.message };
     }
 
-    // Also fetch recent logs to show progress/instructions better
+    if (!ticket) {
+      console.log('[Verify] Ticket NOT FOUND for ID:', ticketId);
+      return { error: `ไม่พบข้อมูลใบงาน (Ticket Not Found: ${ticketId.substring(0, 8)}...)` };
+    }
+
+    // If found, we can try to fetch the joined data separately or use a safer join
+    // Safely fetch join data
+    const { data: customer } = await supabaseAdmin.from('customers').select('display_name').eq('id', ticket.customer_id).maybeSingle();
+    const { data: hospital } = ticket.hospital_id ? await supabaseAdmin.from('hospitals').select('name').eq('id', ticket.hospital_id).maybeSingle() : { data: null };
+    
     const { data: logs } = await supabaseAdmin
       .from('ticket_logs')
       .select('action_type, note, created_at')
@@ -48,8 +48,9 @@ export async function verifyEscalationPin(ticketId: string, pin: string) {
       .order('created_at', { ascending: false })
       .limit(5);
     
-    return { data: { ...ticket, logs } };
+    return { data: { ...ticket, customers: customer, hospitals: hospital, logs } };
   } catch (err: any) {
+    console.error('[Verify] Catch Block Error:', err);
     return { error: 'เกิดข้อผิดพลาดในการตรวจสอบสิทธิ์: ' + err.message };
   }
 }
@@ -144,8 +145,7 @@ export async function updateEscalatedTicketStatus(
       note: reportText
     }]);
 
-    // Send Notification to the internal agent
-    // We add a specific 'source' or 'category' to the notification if possible, but the current schema uses discrete fields.
+    // Send Notification
     if (ticket.assigned_agent_id) {
       try {
         await supabaseAdmin.from('notifications').insert([{
