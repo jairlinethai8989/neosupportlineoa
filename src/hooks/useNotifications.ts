@@ -24,7 +24,6 @@ export type SoundTestFailureCode =
   | 'NO_AUDIO_CONTEXT'
   | 'AUDIO_RESUME_BLOCKED'
   | 'VOICE_UNAVAILABLE'
-  | 'THAI_VOICE_MISSING'
   | 'TTS_START_TIMEOUT';
 
 export type SoundTestResult =
@@ -132,7 +131,13 @@ export function useNotifications(agentId: string | null) {
   }, []);
 
   const trySpeakChecked = useCallback(
-    async (text: string, startTimeoutMs: number): Promise<{ ok: true } | { ok: false; code: SoundTestFailureCode; detail: string }> => {
+    async (
+      text: string,
+      startTimeoutMs: number
+    ): Promise<
+      | { ok: true; usedFallbackVoice: boolean; voiceLang: string | null }
+      | { ok: false; code: SoundTestFailureCode; detail: string }
+    > => {
       if (typeof window === 'undefined' || !window.speechSynthesis) {
         return { ok: false, code: 'VOICE_UNAVAILABLE', detail: 'เบราว์เซอร์ไม่รองรับเสียงพูด (speechSynthesis)' };
       }
@@ -143,15 +148,18 @@ export function useNotifications(agentId: string | null) {
 
         const voices = await waitForVoices(800);
         const thaiVoice = voices.find((voice) => voice.lang?.toLowerCase().startsWith('th'));
-        if (!thaiVoice) {
-          return { ok: false, code: 'THAI_VOICE_MISSING', detail: 'ไม่พบเสียงพูดภาษาไทยในเครื่อง (Thai TTS voice)' };
+        const selectedVoice = thaiVoice ?? voices[0] ?? null;
+        const usedFallbackVoice = !thaiVoice;
+        const voiceLang = selectedVoice?.lang ?? null;
+        if (!selectedVoice) {
+          return { ok: false, code: 'VOICE_UNAVAILABLE', detail: 'ไม่พบเสียงพูดที่ใช้งานได้ในเบราว์เซอร์ (voices ว่างเปล่า)' };
         }
 
         const utterance = new SpeechSynthesisUtterance(text);
         utterance.lang = 'th-TH';
         utterance.rate = 1.05;
         utterance.pitch = 1.0;
-        utterance.voice = thaiVoice;
+        utterance.voice = selectedVoice;
 
         const started = await new Promise<boolean>((resolve) => {
           let done = false;
@@ -173,7 +181,7 @@ export function useNotifications(agentId: string | null) {
           return { ok: false, code: 'TTS_START_TIMEOUT', detail: 'สั่งพูดแล้วแต่ระบบไม่เริ่มเล่นเสียงพูด (อาจถูกบล็อก/เงียบ)' };
         }
 
-        return { ok: true };
+        return { ok: true, usedFallbackVoice, voiceLang };
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
         return { ok: false, code: 'VOICE_UNAVAILABLE', detail: `ไม่สามารถเริ่มเสียงพูดได้ (${msg})` };
@@ -301,12 +309,14 @@ export function useNotifications(agentId: string | null) {
 
     if (soundMode === 'voice') {
       const res = await trySpeakChecked('มีใบงานใหม่', 1200);
-      if (res.ok) return { ok: true, hint };
-      const voiceHint =
-        res.code === 'THAI_VOICE_MISSING'
-          ? 'ติดตั้งเสียงพูดภาษาไทยในระบบปฏิบัติการ (Thai TTS voice) แล้วลองใหม่ หรือเปลี่ยนเป็นโหมด Beep'
-          : hint;
-      return { ok: false, code: res.code, detail: res.detail, hint: voiceHint };
+      if (res.ok) {
+        const voiceNote = res.usedFallbackVoice
+          ? 'ไม่พบเสียงไทยในเบราว์เซอร์ จึงใช้เสียงเริ่มต้นของเครื่องแทน (ยังควรได้ยินเสียงพูด)'
+          : 'ใช้เสียงไทยของเครื่อง';
+        const extraHint = `${voiceNote} • ถ้าเพิ่งติดตั้งเสียง แนะนำปิดและเปิดเบราว์เซอร์ใหม่ 1 ครั้ง`;
+        return { ok: true, hint: `${extraHint} • ${hint}` };
+      }
+      return { ok: false, code: res.code, detail: res.detail, hint };
     }
 
     const ctx = getAudioContext();
