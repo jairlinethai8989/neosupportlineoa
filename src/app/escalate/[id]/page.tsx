@@ -38,7 +38,7 @@ export default function EscalationPortalPage() {
         setError(res.error);
       } else {
         setTicketData(res.data);
-        setNewStatus(res.data.status || 'Resolved');
+        setNewStatus(res.data?.status || 'Resolved');
         setIsUnlocked(true);
       }
     } catch (err: any) {
