@@ -22,6 +22,7 @@ import {
   Loader2,
   Volume2,
   VolumeX,
+  Languages,
   Palette,
   LogOut,
   ChevronDown,
@@ -30,6 +31,7 @@ import {
 import { supabase } from '@/lib/supabase';
 import { NotificationProvider, useNotificationContext } from '@/contexts/NotificationContext';
 import { AppProvider, useAppContext } from '@/contexts/AppContext';
+import { StaffLocaleProvider, useStaffLocale } from '@/contexts/StaffLocaleContext';
 import ToastContainer from '@/components/notifications/ToastContainer';
 import type { AppNotification } from '@/hooks/useNotifications';
 
@@ -83,7 +85,10 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showThemes, setShowThemes] = useState(false);
   const [activeTab, setActiveTab] = useState<NotifTab>('all');
-  const [theme, setTheme] = useState('dark');
+  const [theme, setTheme] = useState(() => {
+    if (typeof window === 'undefined') return 'dark';
+    return localStorage.getItem('theme') || 'dark';
+  });
   const notifRef = useRef<HTMLDivElement>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
 
@@ -96,6 +101,7 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
     isMuted, 
     toggleMute 
   } = useNotificationContext();
+  const { locale, toggleLocale } = useStaffLocale();
   const { userProfile: agent, loading: appLoading } = useAppContext();
 
   // Click outside to close
@@ -110,11 +116,6 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
     }
     document.addEventListener('mousedown', handleClick);
     return () => document.removeEventListener('mousedown', handleClick);
-  }, []);
-
-  useEffect(() => {
-    const savedTheme = localStorage.getItem('theme') || 'dark';
-    setTheme(savedTheme);
   }, []);
 
   const changeTheme = (newTheme: string) => {
@@ -206,6 +207,28 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <button
+              onClick={toggleLocale}
+              className="glass-interactive"
+              title={locale === 'th' ? 'Switch to English' : 'เปลี่ยนเป็นภาษาไทย'}
+              style={{
+                padding: '8px 10px',
+                borderRadius: '8px',
+                border: '1px solid var(--border)',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                color: 'var(--text-main)',
+                background: 'transparent',
+                fontWeight: '800',
+                fontSize: '11px',
+              }}
+            >
+              <Languages size={16} />
+              <span>{locale.toUpperCase()}</span>
+            </button>
+
             {/* Audio Notification Toggle */}
             <button
               onClick={toggleMute}
@@ -519,10 +542,11 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
 export default function DashboardLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <AppProvider>
-      <NotificationProvider>
-        <DashboardInner>{children}</DashboardInner>
-      </NotificationProvider>
+      <StaffLocaleProvider>
+        <NotificationProvider>
+          <DashboardInner>{children}</DashboardInner>
+        </NotificationProvider>
+      </StaffLocaleProvider>
     </AppProvider>
   );
 }
-

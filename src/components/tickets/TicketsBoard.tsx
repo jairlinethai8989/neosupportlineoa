@@ -1,18 +1,14 @@
 'use client';
 
 import React from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { CheckCircle, AlertCircle, MessageCircle, User, Zap, ExternalLink, Loader2 } from 'lucide-react';
+import { AnimatePresence, motion } from 'framer-motion';
+import { CheckCircle, ExternalLink, Loader2, MessageCircle, User, Zap } from 'lucide-react';
 import Link from 'next/link';
+import { useStaffLocale } from '@/contexts/StaffLocaleContext';
+import { translateTicketPriority, translateTicketStatus } from '@/lib/i18n/staff';
 import type { TicketWorkspaceTicket } from '@/types/tickets';
 
-const WORKFLOW = [
-  { id: 'New', label: 'New Ticket' },
-  { id: 'In Progress', label: 'In Progress' },
-  { id: 'Resolved', label: 'Resolved' },
-  { id: 'Escalated', label: 'Escalated' },
-  { id: 'Pending', label: 'Pending' },
-] as const;
+const WORKFLOW = ['New', 'In Progress', 'Resolved', 'Escalated', 'Pending'] as const;
 
 const STATUS_CONFIG: Record<string, { color: string; glow: string }> = {
   New: { color: 'var(--primary)', glow: 'rgba(8, 145, 178, 0.4)' },
@@ -163,17 +159,20 @@ const emptyColumnStyle: React.CSSProperties = {
   alignItems: 'center',
   justifyContent: 'center',
   opacity: 0.5,
+  textAlign: 'center',
+  padding: '16px',
 };
 
-function getClaimActionState(ticketId: string, claimingId: string | null, isViewOnly: boolean) {
+function getClaimActionState(
+  ticketId: string,
+  claimingId: string | null,
+  isViewOnly: boolean,
+  labels: { viewOnly: string; claiming: string; claim: string }
+) {
   const isClaiming = claimingId === ticketId;
   const isDisabled = isClaiming || isViewOnly;
 
-  const label = isViewOnly
-    ? 'View only access'
-    : isClaiming
-      ? 'Claiming...'
-      : 'Claim ticket';
+  const label = isViewOnly ? labels.viewOnly : isClaiming ? labels.claiming : labels.claim;
 
   const style: React.CSSProperties = {
     ...actionButtonBaseStyle,
@@ -189,7 +188,7 @@ function getClaimActionState(ticketId: string, claimingId: string | null, isView
   return { isClaiming, isDisabled, label, style };
 }
 
-function getResolveActionState(isViewOnly: boolean) {
+function getResolveActionState(isViewOnly: boolean, labels: { viewOnly: string; resolve: string }) {
   const style: React.CSSProperties = {
     ...actionButtonBaseStyle,
     background: isViewOnly ? 'var(--bg-input)' : 'var(--success)',
@@ -200,21 +199,21 @@ function getResolveActionState(isViewOnly: boolean) {
 
   return {
     isDisabled: isViewOnly,
-    label: isViewOnly ? 'View only access' : 'Resolve ticket',
+    label: isViewOnly ? labels.viewOnly : labels.resolve,
     style,
   };
 }
 
-const PriorityIndicator = ({ priority }: { priority: string }) => {
+function PriorityIndicator({ priority, locale }: { priority: string; locale: 'th' | 'en' }) {
   const colors: Record<string, string> = { High: '#ea5455', Medium: '#ff9f43', Low: '#00cfe8' };
   const color = colors[priority] || 'gray';
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
       <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: color }} />
-      <span style={{ fontSize: '13px' }}>{priority}</span>
+      <span style={{ fontSize: '13px' }}>{translateTicketPriority(priority, locale)}</span>
     </div>
   );
-};
+}
 
 interface TicketsBoardProps {
   claimingId: string | null;
@@ -233,17 +232,19 @@ export function TicketsBoard({
   isViewOnly,
   openResolveModal,
 }: TicketsBoardProps) {
+  const { locale, t } = useStaffLocale();
+
   return (
     <div className="board-scroll-container glass" style={boardContainerStyle}>
       <div style={boardColumnsWrapStyle}>
-        {WORKFLOW.map((column) => {
+        {WORKFLOW.map((columnId) => {
           const columnTickets = filteredTickets.filter(
-            (ticket) => (ticket.status || '').toLowerCase() === column.id.toLowerCase()
+            (ticket) => (ticket.status || '').toLowerCase() === columnId.toLowerCase()
           );
-          const config = STATUS_CONFIG[column.id] || FALLBACK_STATUS_CONFIG;
+          const config = STATUS_CONFIG[columnId] || FALLBACK_STATUS_CONFIG;
 
           return (
-            <div key={column.id} style={columnStyle}>
+            <div key={columnId} style={columnStyle}>
               <div
                 style={{
                   display: 'flex',
@@ -267,7 +268,7 @@ export function TicketsBoard({
                   }}
                 >
                   <span style={{ width: '12px', height: '12px', borderRadius: '50%', background: config.color }} />
-                  {column.label}
+                  {translateTicketStatus(columnId, locale)}
                 </h3>
                 <span
                   style={{
@@ -290,9 +291,16 @@ export function TicketsBoard({
                     const normalizedStatus = String(ticket.status || '').toLowerCase();
                     const isNew = normalizedStatus === 'new';
                     const isInProgress = normalizedStatus === 'in progress';
-                    const hospitalName = ticket.hospitals?.name || 'Unspecified hospital';
-                    const claimAction = getClaimActionState(ticket.id, claimingId, isViewOnly);
-                    const resolveAction = getResolveActionState(isViewOnly);
+                    const hospitalName = ticket.hospitals?.name || t('tickets.noHospital');
+                    const claimAction = getClaimActionState(ticket.id, claimingId, isViewOnly, {
+                      viewOnly: t('tickets.viewOnlyAccess'),
+                      claiming: t('tickets.claiming'),
+                      claim: t('tickets.claimTicket'),
+                    });
+                    const resolveAction = getResolveActionState(isViewOnly, {
+                      viewOnly: t('tickets.viewOnlyAccess'),
+                      resolve: t('tickets.resolveTicket'),
+                    });
 
                     return (
                       <motion.div
@@ -309,70 +317,55 @@ export function TicketsBoard({
                           <Link href={`/tickets/${ticket.id}`} style={ticketLinkStyle}>
                             #{ticket.ticket_no}
                           </Link>
-                          <PriorityIndicator priority={ticket.priority || ''} />
+                          <PriorityIndicator priority={ticket.priority || ''} locale={locale} />
                         </div>
+
                         <div>
                           <h4 style={subjectStyle}>{ticket.subject}</h4>
-                          <div
-                            style={{
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '8px',
-                              padding: '6px 14px',
-                              background: `${config.color}10`,
-                              borderRadius: '12px',
-                              width: 'fit-content',
-                              border: `1px solid ${config.color}20`,
-                            }}
-                          >
-                            <AlertCircle size={12} color={config.color} />
-                            <p
-                              style={{
-                                fontSize: '14px',
-                                fontWeight: '800',
-                                color: config.color,
-                                letterSpacing: '0.05em',
-                              }}
-                            >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-muted)' }}>
+                            <span style={{ fontSize: '14px' }}>◌</span>
+                            <span style={{ fontSize: '13px', fontWeight: '700', color: 'var(--warning, #ff9f43)' }}>
                               {hospitalName}
-                            </p>
+                            </span>
                           </div>
                         </div>
+
                         <div style={cardFooterStyle}>
                           <div style={entityRowWrapStyle}>
                             <div style={entityRowStyle}>
                               <div style={customerAvatarStyle}>
-                                <User size={12} color="var(--primary)" />
+                                <User size={14} color="var(--text-muted)" />
                               </div>
-                              <p style={customerTextStyle}>{ticket.customers?.display_name || 'Customer'}</p>
+                              <span style={customerTextStyle}>{ticket.customers?.display_name || t('tickets.noData')}</span>
                             </div>
-                            {ticket.assigned_agent && (
-                              <div style={{ ...entityRowStyle, opacity: 0.8 }}>
-                                <div style={agentAvatarStyle}>
-                                  <CheckCircle size={12} color="var(--primary)" />
-                                </div>
-                                <p style={agentTextStyle}>{ticket.assigned_agent.display_name}</p>
+                            <div style={entityRowStyle}>
+                              <div style={agentAvatarStyle}>
+                                <CheckCircle size={14} color="var(--primary)" />
                               </div>
-                            )}
+                              <span style={agentTextStyle}>
+                                {ticket.assigned_agent?.display_name || t('tickets.noData')}
+                              </span>
+                            </div>
                           </div>
+
                           <div style={actionLinksWrapStyle}>
                             {convId && (
                               <Link
                                 href={`/inbox?cid=${convId}`}
-                                title="Open inbox chat"
+                                title={t('tickets.openInboxChat')}
                                 className="glass-interactive flex-center"
                                 style={messageButtonStyle}
                               >
-                                <MessageCircle size={18} />
+                                <MessageCircle size={16} />
                               </Link>
                             )}
                             <Link
                               href={`/tickets/${ticket.id}`}
-                              title="Open ticket details"
+                              title={t('tickets.openTicketDetails')}
                               className="glass-interactive flex-center"
                               style={detailsButtonStyle}
                             >
-                              <ExternalLink size={18} />
+                              <ExternalLink size={16} />
                             </Link>
                           </div>
                         </div>
@@ -383,7 +376,7 @@ export function TicketsBoard({
                             onClick={() => handleClaim(ticket.id)}
                             style={claimAction.style}
                           >
-                            {claimAction.isClaiming ? <Loader2 size={14} className="animate-spin" /> : <Zap size={14} />}
+                            {claimAction.isClaiming ? <Loader2 className="animate-spin" size={16} /> : <Zap size={16} />}
                             {claimAction.label}
                           </button>
                         )}
@@ -391,13 +384,10 @@ export function TicketsBoard({
                         {isInProgress && (
                           <button
                             disabled={resolveAction.isDisabled}
-                            onClick={() => {
-                              if (resolveAction.isDisabled) return;
-                              openResolveModal(ticket);
-                            }}
+                            onClick={() => openResolveModal(ticket)}
                             style={resolveAction.style}
                           >
-                            <CheckCircle size={14} />
+                            <CheckCircle size={16} />
                             {resolveAction.label}
                           </button>
                         )}
@@ -405,9 +395,12 @@ export function TicketsBoard({
                     );
                   })}
                 </AnimatePresence>
+
                 {columnTickets.length === 0 && (
                   <div style={emptyColumnStyle}>
-                    <p style={{ fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)' }}>Empty Column</p>
+                    <span style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-muted)' }}>
+                      {t('tickets.emptyColumn')}
+                    </span>
                   </div>
                 )}
               </div>

@@ -3,6 +3,8 @@
 import React from 'react';
 import { ArrowDown, ArrowUp, ArrowUpDown, ExternalLink, MessageCircle } from 'lucide-react';
 import Link from 'next/link';
+import { useStaffLocale } from '@/contexts/StaffLocaleContext';
+import { translateTicketStatus } from '@/lib/i18n/staff';
 import type { TicketWorkspaceSortConfig, TicketWorkspaceTicket } from '@/types/tickets';
 
 type SortableColumnKey = 'ticket_no' | 'subject' | 'hospital' | 'customer' | 'agent' | 'status';
@@ -11,16 +13,6 @@ type TableColumn = {
   label: string;
   noSort?: boolean;
 };
-
-const TABLE_COLUMNS: TableColumn[] = [
-  { key: 'ticket_no', label: 'Ticket ID' },
-  { key: 'subject', label: 'Subject' },
-  { key: 'hospital', label: 'Hospital' },
-  { key: 'customer', label: 'Customer' },
-  { key: 'agent', label: 'Agent' },
-  { key: 'status', label: 'Status' },
-  { key: 'actions', label: 'Actions', noSort: true },
-];
 
 const tableWrapStyle: React.CSSProperties = { overflowX: 'auto', padding: '1px' };
 const tableStyle: React.CSSProperties = { width: '100%', borderCollapse: 'collapse', textAlign: 'left' };
@@ -69,16 +61,23 @@ const detailsActionButtonStyle: React.CSSProperties = {
   color: 'var(--text-muted)',
 };
 
-const StatusBadge = ({ status }: { status: string }) => {
+function renderSortIcon(columnKey: SortableColumnKey, sortConfig: TicketWorkspaceSortConfig) {
+  if (sortConfig.key !== columnKey) {
+    return <ArrowUpDown size={12} style={{ opacity: 0.3 }} />;
+  }
+  return sortConfig.direction === 'asc' ? <ArrowUp size={12} /> : <ArrowDown size={12} />;
+}
+
+function StatusBadge({ status, locale }: { status: string; locale: 'th' | 'en' }) {
   const normalized = String(status || 'New').toLowerCase();
   const configs: Record<string, { color: string; label: string }> = {
-    new: { color: 'var(--primary)', label: 'New' },
-    pending: { color: '#ea5455', label: 'Pending' },
-    assigned: { color: '#3699FF', label: 'Assigned' },
-    'in progress': { color: '#ff9f43', label: 'In Progress' },
-    resolved: { color: '#28c76f', label: 'Resolved' },
-    closed: { color: '#94a3b8', label: 'Closed' },
-    escalated: { color: '#7367f0', label: 'Escalated' },
+    new: { color: 'var(--primary)', label: translateTicketStatus('New', locale) },
+    pending: { color: '#ea5455', label: translateTicketStatus('Pending', locale) },
+    assigned: { color: '#3699FF', label: translateTicketStatus('Assigned', locale) },
+    'in progress': { color: '#ff9f43', label: translateTicketStatus('In Progress', locale) },
+    resolved: { color: '#28c76f', label: translateTicketStatus('Resolved', locale) },
+    closed: { color: '#94a3b8', label: translateTicketStatus('Closed', locale) },
+    escalated: { color: '#7367f0', label: translateTicketStatus('Escalated', locale) },
   };
   const config = configs[normalized] || { color: 'gray', label: status };
   return (
@@ -97,13 +96,6 @@ const StatusBadge = ({ status }: { status: string }) => {
       {config.label}
     </span>
   );
-};
-
-function renderSortIcon(columnKey: SortableColumnKey, sortConfig: TicketWorkspaceSortConfig) {
-  if (sortConfig.key !== columnKey) {
-    return <ArrowUpDown size={12} style={{ opacity: 0.3 }} />;
-  }
-  return sortConfig.direction === 'asc' ? <ArrowUp size={12} /> : <ArrowDown size={12} />;
 }
 
 interface TicketsTableProps {
@@ -119,12 +111,24 @@ export function TicketsTable({
   handleSort,
   sortConfig,
 }: TicketsTableProps) {
+  const { locale, t } = useStaffLocale();
+
+  const columns: TableColumn[] = [
+    { key: 'ticket_no', label: t('tickets.ticketId') },
+    { key: 'subject', label: t('tickets.subject') },
+    { key: 'hospital', label: t('tickets.hospital') },
+    { key: 'customer', label: t('tickets.customer') },
+    { key: 'agent', label: t('tickets.agent') },
+    { key: 'status', label: t('tickets.status') },
+    { key: 'actions', label: t('tickets.actions'), noSort: true },
+  ];
+
   return (
     <div className="glass board-scroll-container" style={tableWrapStyle}>
       <table style={tableStyle}>
         <thead style={tableHeadStyle}>
           <tr>
-            {TABLE_COLUMNS.map((column) => (
+            {columns.map((column) => (
               <th
                 key={column.key}
                 onClick={() => !column.noSort && handleSort(column.key)}
@@ -148,7 +152,11 @@ export function TicketsTable({
         <tbody>
           {filteredTickets.map((ticket) => {
             const convId = getConvId(ticket);
-            const hospitalName = ticket.hospitals?.name || '-';
+            const hospitalName = ticket.hospitals?.name || t('tickets.noData');
+            const customerName =
+              ticket.customers?.display_name ||
+              ticket.assigned_agent?.display_name ||
+              t('tickets.noData');
 
             return (
               <tr key={ticket.id} style={rowStyle}>
@@ -159,27 +167,25 @@ export function TicketsTable({
                 </td>
                 <td style={subjectCellStyle}>{ticket.subject}</td>
                 <td style={hospitalCellStyle}>{hospitalName}</td>
-                <td style={cellStyle}>
-                  {ticket.customers?.display_name || (ticket.assigned_agent ? `👷‍♂️ ${ticket.assigned_agent.display_name}` : '-')}
-                </td>
+                <td style={cellStyle}>{customerName}</td>
                 <td style={cellStyle}>
                   {ticket.assigned_agent ? (
                     <span style={{ color: 'var(--primary)', fontWeight: '800' }}>
                       {ticket.assigned_agent.display_name}
                     </span>
                   ) : (
-                    <span style={{ opacity: 0.3 }}>-</span>
+                    <span style={{ opacity: 0.3 }}>{t('tickets.noData')}</span>
                   )}
                 </td>
                 <td style={cellStyle}>
-                  <StatusBadge status={ticket.status || ''} />
+                  <StatusBadge status={ticket.status || ''} locale={locale} />
                 </td>
                 <td style={cellStyle}>
                   <div style={actionWrapStyle}>
                     {convId && (
                       <Link
                         href={`/inbox?cid=${convId}`}
-                        title="Open inbox chat"
+                        title={t('tickets.openInboxChat')}
                         className="glass-interactive flex-center"
                         style={messageActionButtonStyle}
                       >
@@ -188,7 +194,7 @@ export function TicketsTable({
                     )}
                     <Link
                       href={`/tickets/${ticket.id}`}
-                      title="Open ticket details"
+                      title={t('tickets.openTicketDetails')}
                       className="glass-interactive flex-center"
                       style={detailsActionButtonStyle}
                     >

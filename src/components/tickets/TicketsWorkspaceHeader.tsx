@@ -3,15 +3,8 @@
 import React from 'react';
 import Link from 'next/link';
 import { LayoutGrid, List, Search } from 'lucide-react';
+import { useStaffLocale } from '@/contexts/StaffLocaleContext';
 import type { TicketWorkspaceTimeRange, TicketsViewMode } from '@/types/tickets';
-
-const TIME_RANGE_OPTIONS: Array<{ id: TicketWorkspaceTimeRange; label: string }> = [
-  { id: 'all', label: 'All time' },
-  { id: 'today', label: 'Today' },
-  { id: 'week', label: 'Last 7 days' },
-  { id: 'month', label: 'Last 31 days' },
-  { id: 'custom', label: 'Custom range' },
-];
 
 const wrapperStyle: React.CSSProperties = {
   display: 'flex',
@@ -93,25 +86,35 @@ export function TicketsWorkspaceHeader({
   timeRange,
   viewMode,
 }: TicketsWorkspaceHeaderProps) {
+  const { t } = useStaffLocale();
+
+  const timeRangeOptions: Array<{ id: TicketWorkspaceTimeRange; label: string }> = [
+    { id: 'all', label: t('tickets.allTime') },
+    { id: 'today', label: t('tickets.today') },
+    { id: 'week', label: t('tickets.last7Days') },
+    { id: 'month', label: t('tickets.last31Days') },
+    { id: 'custom', label: t('tickets.customRange') },
+  ];
+
   return (
     <div className="workspace-header" style={wrapperStyle}>
       <div style={{ flex: 1 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '8px' }}>
           <h1 style={titleStyle}>
-            {filterCustomerId ? 'Filtered Workspace' : 'Ticket Workspace'}{' '}
+            {filterCustomerId ? t('tickets.filteredWorkspaceTitle') : t('tickets.workspaceTitle')}{' '}
             <span style={{ color: 'var(--primary)', opacity: 0.8 }}>({resultCount})</span>
             {filterCustomerId && (
               <Link
                 href="/tickets"
                 style={{ fontSize: '12px', marginLeft: '16px', color: 'var(--danger)', fontWeight: '800' }}
               >
-                [Clear Filter]
+                [{t('tickets.clearFilter')}]
               </Link>
             )}
           </h1>
 
           <div style={timeRangeToggleStyle}>
-            {TIME_RANGE_OPTIONS.map((option) => (
+            {timeRangeOptions.map((option) => (
               <button
                 key={option.id}
                 onClick={() => setTimeRange(option.id)}
@@ -135,9 +138,7 @@ export function TicketsWorkspaceHeader({
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <p style={{ color: 'var(--text-muted)', fontSize: '14px', fontWeight: '500', margin: 0 }}>
-            {filterCustomerId
-              ? 'Viewing tickets for a specific customer'
-              : 'Monitor and manage support tickets in real time'}
+            {filterCustomerId ? t('tickets.filteredWorkspaceDescription') : t('tickets.workspaceDescription')}
           </p>
           {timeRange === 'custom' && (
             <div
@@ -161,7 +162,7 @@ export function TicketsWorkspaceHeader({
                   fontSize: '11px',
                 }}
               />
-              <span style={{ color: 'var(--text-muted)', fontSize: '11px' }}>to</span>
+              <span style={{ color: 'var(--text-muted)', fontSize: '11px' }}>{t('tickets.to')}</span>
               <input
                 type="date"
                 value={customEnd}
@@ -181,7 +182,7 @@ export function TicketsWorkspaceHeader({
 
         {debugError && (
           <div style={{ color: '#ea5455', fontSize: '12px', marginTop: '8px' }}>
-            Error: {debugError}
+            {t('tickets.debugError')}: {debugError}
           </div>
         )}
       </div>
@@ -196,7 +197,8 @@ export function TicketsWorkspaceHeader({
               color: viewMode === 'table' ? '#0a0e14' : 'var(--text-muted)',
             }}
           >
-            <List size={16} /> LIST
+            <List size={16} />
+            {t('tickets.list').toUpperCase()}
           </button>
           <button
             onClick={() => setViewMode('board')}
@@ -206,7 +208,8 @@ export function TicketsWorkspaceHeader({
               color: viewMode === 'board' ? '#0a0e14' : 'var(--text-muted)',
             }}
           >
-            <LayoutGrid size={16} /> BOARD
+            <LayoutGrid size={16} />
+            {t('tickets.board').toUpperCase()}
           </button>
         </div>
 
@@ -223,7 +226,7 @@ export function TicketsWorkspaceHeader({
           />
           <input
             type="text"
-            placeholder="Search ticket number, subject, or customer..."
+            placeholder={t('tickets.searchPlaceholder')}
             value={searchTerm}
             onChange={(event) => setSearchTerm(event.target.value)}
             style={{

@@ -6,6 +6,7 @@ import { ResolveTicketModal } from '@/components/inbox/ResolveTicketModal';
 import { TicketsBoard } from '@/components/tickets/TicketsBoard';
 import { TicketsTable } from '@/components/tickets/TicketsTable';
 import { TicketsWorkspaceHeader } from '@/components/tickets/TicketsWorkspaceHeader';
+import { useStaffLocale } from '@/contexts/StaffLocaleContext';
 import { useTicketWorkspace } from '@/hooks/useTicketWorkspace';
 import styles from './tickets-workspace.module.css';
 
@@ -31,6 +32,7 @@ const pageContainerStyle: React.CSSProperties = {
 };
 
 function TicketsContent() {
+  const { t } = useStaffLocale();
   const searchParams = useSearchParams();
   const filterCustomerId = searchParams.get('customerId');
 
@@ -75,7 +77,7 @@ function TicketsContent() {
     return (
       <div style={loadingContainerWithMessageStyle}>
         <Loader2 className="animate-spin" size={32} color="var(--primary)" />
-        <p style={{ color: 'var(--text-muted)' }}>Refreshing workspace...</p>
+        <p style={{ color: 'var(--text-muted)' }}>{t('tickets.loadingWorkspace')}</p>
       </div>
     );
   }

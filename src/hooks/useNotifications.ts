@@ -52,6 +52,7 @@ export function useNotifications(agentId: string | null) {
   const [soundVoice, setSoundVoiceState] = useState<NotificationVoiceOption>('female');
   const isFirstLoad = useRef(true);
   const audioContextRef = useRef<AudioContext | null>(null);
+  const audioPrimedRef = useRef(false);
   const voiceAudioRef = useRef<Record<NotificationVoiceOption, HTMLAudioElement | null>>({
     female: null,
     male: null,
@@ -91,6 +92,28 @@ export function useNotifications(agentId: string | null) {
         }
       });
     }
+
+    if (audioPrimedRef.current) return;
+
+    const primeVoiceClip = async (voice: NotificationVoiceOption) => {
+      const audio = voiceAudioRef.current[voice];
+      if (!audio) return;
+
+      try {
+        audio.muted = true;
+        audio.currentTime = 0;
+        await audio.play();
+        audio.pause();
+      } catch {
+        // Ignore: some browsers may still block until a stronger user gesture.
+      } finally {
+        audio.currentTime = 0;
+        audio.muted = false;
+      }
+    };
+
+    await Promise.all((Object.keys(VOICE_AUDIO_SRC) as NotificationVoiceOption[]).map(primeVoiceClip));
+    audioPrimedRef.current = true;
   }, [getAudioContext]);
 
   const playBeep = useCallback(
@@ -169,10 +192,10 @@ export function useNotifications(agentId: string | null) {
       voiceAudioRef.current[voice] = template;
     }
 
-    const audio = template.cloneNode(true) as HTMLAudioElement;
-    audio.currentTime = 0;
-    audio.volume = 1;
-    await audio.play();
+    template.pause();
+    template.currentTime = 0;
+    template.volume = 1;
+    await template.play();
   }, []);
 
   // ---------------------------------------------------------------
@@ -622,6 +645,22 @@ export function useNotifications(agentId: string | null) {
       clearTimeout(firstLoadTimer);
     };
   }, [agentId, fetchLogs, fetchNewTicketsCount, fetchSlaBreaches, addToast, playNewTicketSound]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const unlockAudio = () => {
+      void primeAudio().catch(() => {});
+    };
+
+    window.addEventListener('pointerdown', unlockAudio, { passive: true });
+    window.addEventListener('keydown', unlockAudio);
+
+    return () => {
+      window.removeEventListener('pointerdown', unlockAudio);
+      window.removeEventListener('keydown', unlockAudio);
+    };
+  }, [primeAudio]);
 
   const toggleMute = useCallback(() => {
     setIsMuted(prev => {
