@@ -1,7 +1,7 @@
 'use client';
 import React, { useState, useEffect } from 'react';
 import { verifyEscalationPin, claimEscalatedTicket, updateEscalatedTicketStatus } from '@/app/actions/escalationActions';
-import { Lock, Unlock, AlertCircle, CheckCircle, FileText, Send, Loader2, Camera, Trash2, ClipboardCheck } from 'lucide-react';
+import { Lock, Unlock, AlertCircle, CheckCircle, FileText, Send, Loader2, Camera, Trash2, ClipboardCheck, History, User, Building2, Calendar } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useParams } from 'next/navigation';
 
@@ -38,7 +38,7 @@ export default function EscalationPortalPage() {
         setError(res.error);
       } else {
         setTicketData(res.data);
-        setNewStatus(res.data?.status || 'Resolved');
+        setNewStatus(res.data?.status === 'Escalated' ? 'Resolved' : res.data?.status || 'Resolved');
         setIsUnlocked(true);
       }
     } catch (err: any) {
@@ -212,30 +212,71 @@ export default function EscalationPortalPage() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
       
-      {/* Ticket Info Card */}
+      {/* Ticket Header Card */}
       <div className="glass" style={{ padding: '24px', background: '#ffffff', borderRadius: '24px', border: '1px solid #e2e8f0' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px' }}>
           <div>
             <p style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 800, textTransform: 'uppercase' }}>Ticket NO.</p>
             <h2 style={{ fontSize: '20px', fontWeight: 900, color: 'var(--primary)' }}>#{ticketData?.ticket_no}</h2>
           </div>
-          <span style={{ background: 'var(--primary-transparent)', color: 'var(--primary)', padding: '4px 12px', borderRadius: '20px', fontSize: '12px', fontWeight: 800 }}>
-             Escalated
+          <span style={{ background: ticketData?.status === 'Resolved' ? '#d1fae5' : '#fef3c7', color: ticketData?.status === 'Resolved' ? '#065f46' : '#92400e', padding: '6px 16px', borderRadius: '20px', fontSize: '12px', fontWeight: 800 }}>
+             {ticketData?.status}
           </span>
         </div>
 
-        <div style={{ marginBottom: '16px' }}>
-          <p style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 800, textTransform: 'uppercase' }}>Subject / หัวข้อ</p>
-          <p style={{ fontSize: '15px', fontWeight: 700, lineHeight: 1.5 }}>{ticketData?.subject}</p>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '24px' }}>
+           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <div style={{ padding: '8px', background: '#f1f5f9', borderRadius: '10px', color: '#64748b' }}><User size={16} /></div>
+              <div>
+                 <p style={{ fontSize: '10px', color: '#94a3b8', fontWeight: 800, textTransform: 'uppercase' }}>เจ้าของงาน</p>
+                 <p style={{ fontSize: '14px', fontWeight: 700 }}>{ticketData?.customers?.display_name || 'N/A'}</p>
+              </div>
+           </div>
+           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <div style={{ padding: '8px', background: '#f1f5f9', borderRadius: '10px', color: '#64748b' }}><Building2 size={16} /></div>
+              <div>
+                 <p style={{ fontSize: '10px', color: '#94a3b8', fontWeight: 800, textTransform: 'uppercase' }}>แผนก/รพ.</p>
+                 <p style={{ fontSize: '14px', fontWeight: 700 }}>{ticketData?.hospitals?.name || 'N/A'}</p>
+              </div>
+           </div>
         </div>
 
-        <div style={{ padding: '16px', background: '#f0f9ff', borderRadius: '12px', border: '1px solid #bae6fd' }}>
-          <p style={{ fontSize: '11px', color: '#0369a1', fontWeight: 800, textTransform: 'uppercase', marginBottom: '8px' }}>📝 คำสั่งงานจากแอดมิน</p>
-          <p style={{ fontSize: '14px', lineHeight: 1.6, color: '#0c4a6e' }}>
+        <div style={{ marginBottom: '20px' }}>
+          <p style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 800, textTransform: 'uppercase', marginBottom: '4px' }}>Subject / หัวข้อ</p>
+          <p style={{ fontSize: '16px', fontWeight: 800, lineHeight: 1.5 }}>{ticketData?.subject}</p>
+        </div>
+
+        <div style={{ padding: '20px', background: '#f8fafc', borderRadius: '16px', border: '1px solid #e2e8f0' }}>
+          <p style={{ fontSize: '11px', color: '#64748b', fontWeight: 800, textTransform: 'uppercase', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+             📝 รายละเอียดปัญหาต้นฉบับ
+          </p>
+          <p style={{ fontSize: '14px', lineHeight: 1.7, color: '#334155', whiteSpace: 'pre-wrap' }}>
              {ticketData?.description || 'ไม่มีรายละเอียดเพิ่มเติม'}
           </p>
         </div>
       </div>
+
+      {/* History Card */}
+      {ticketData?.logs && ticketData.logs.length > 0 && (
+        <div className="glass" style={{ padding: '24px', background: '#ffffff', borderRadius: '24px', border: '1px solid #e2e8f0' }}>
+          <h3 style={{ fontSize: '15px', fontWeight: 800, marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <History size={18} color="var(--primary)" /> ประวัติการประสานงานล่าสุด
+          </h3>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            {ticketData.logs.map((log: any, idx: number) => (
+              <div key={idx} style={{ display: 'flex', gap: '12px' }}>
+                <div style={{ marginTop: '4px', width: '8px', height: '8px', borderRadius: '50%', background: log.action_type === 'claim' ? '#0891b2' : '#10b981', flexShrink: 0 }} />
+                <div>
+                  <p style={{ fontSize: '13px', fontWeight: 700, color: '#1e293b' }}>{log.note}</p>
+                  <p style={{ fontSize: '11px', color: '#94a3b8', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <Calendar size={12} /> {new Date(log.created_at).toLocaleString('th-TH')}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Action Card */}
       <div className="glass" style={{ padding: '24px', background: '#ffffff', borderRadius: '24px', border: '1px solid #e2e8f0' }}>
@@ -253,6 +294,7 @@ export default function EscalationPortalPage() {
               <select value={newStatus} onChange={(e) => setNewStatus(e.target.value)} style={{ width: '100%', padding: '14px', borderRadius: '12px', border: '1px solid #e2e8f0', background: '#f8fafc', fontSize: '14px', fontWeight: 700, outline: 'none' }}>
                 <option value="Resolved">ซ่อมเสร็จสิ้น (Resolved)</option>
                 <option value="In Progress">ยังติดปัญหา (In Progress)</option>
+                <option value="Pending">รออะไหล่/รออุปกรณ์ (Pending)</option>
               </select>
             </div>
             <div>
