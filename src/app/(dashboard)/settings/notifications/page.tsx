@@ -1,13 +1,20 @@
 'use client';
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { ChevronLeft, Volume2, VolumeX, Bell, Play } from 'lucide-react';
 import { useNotificationContext } from '@/contexts/NotificationContext';
 
-export default function NotificationSettingsPage() {
-  const { isMuted, toggleMute, soundMode, setSoundMode, testSound } = useNotificationContext();
+type NotifPermission = 'unsupported' | NotificationPermission;
 
+export default function NotificationSettingsPage() {
+  const { isMuted, toggleMute, soundMode, setSoundMode, testSound, addToast } = useNotificationContext();
+
+  const [permission, setPermission] = useState<NotifPermission>(() => {
+    if (typeof window === 'undefined') return 'unsupported';
+    if (!('Notification' in window)) return 'unsupported';
+    return Notification.permission;
+  });
   const isSoundEnabled = !isMuted;
 
   const setSoundEnabled = (enabled: boolean) => {
@@ -19,6 +26,85 @@ export default function NotificationSettingsPage() {
     if (soundMode === 'voice') return 'เสียงพูด: "มีใบงานใหม่"';
     return 'เสียง Beep';
   }, [soundMode]);
+
+  const toastSoundHint = (hint: string) => {
+    addToast({
+      id: `sound-hint-${Date.now()}`,
+      type: 'ticket',
+      title: 'ทดสอบเสียงแล้ว',
+      body: hint,
+      duration: 9000,
+    });
+  };
+
+  const toastSoundError = (detail: string, hint: string) => {
+    addToast({
+      id: `sound-error-${Date.now()}`,
+      type: 'ticket',
+      title: 'เล่นเสียงไม่สำเร็จ',
+      body: `${detail} • ${hint}`,
+      duration: 12000,
+    });
+  };
+
+  const onTestSound = async () => {
+    const result = await testSound();
+    if (result.ok) toastSoundHint(result.hint);
+    else toastSoundError(result.detail, result.hint);
+  };
+
+  const requestNotificationPermission = async () => {
+    if (typeof window === 'undefined' || !('Notification' in window)) {
+      addToast({
+        id: `notif-perm-unsupported-${Date.now()}`,
+        type: 'ticket',
+        title: 'อุปกรณ์นี้ไม่รองรับ Notification',
+        body: 'เบราว์เซอร์/อุปกรณ์นี้ไม่รองรับการแจ้งเตือนของระบบ',
+        duration: 9000,
+      });
+      return;
+    }
+
+    try {
+      const next = await Notification.requestPermission();
+      setPermission(next);
+
+      if (next === 'granted') {
+        addToast({
+          id: `notif-perm-granted-${Date.now()}`,
+          type: 'ticket',
+          title: 'อนุญาต Notification แล้ว',
+          body: 'ระบบสามารถแสดงการแจ้งเตือนของระบบ (เด้งมุมจอ) ได้',
+          duration: 8000,
+        });
+      } else if (next === 'denied') {
+        addToast({
+          id: `notif-perm-denied-${Date.now()}`,
+          type: 'ticket',
+          title: 'ถูกปฏิเสธ Notification',
+          body: 'ถ้าต้องการเปิด ให้ไปที่ Site settings ของเบราว์เซอร์แล้วตั้งเป็น Allow',
+          duration: 12000,
+        });
+      } else {
+        addToast({
+          id: `notif-perm-default-${Date.now()}`,
+          type: 'ticket',
+          title: 'ยังไม่ได้อนุญาต Notification',
+          body: 'คุณสามารถกดขออนุญาตอีกครั้งได้ภายหลัง หรือเปิดจาก Site settings',
+          duration: 10000,
+        });
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      addToast({
+        id: `notif-perm-error-${Date.now()}`,
+        type: 'ticket',
+        title: 'ขออนุญาต Notification ไม่สำเร็จ',
+        body: msg,
+        duration: 12000,
+      });
+    }
+  };
 
   return (
     <div style={{ animation: 'fadeIn 0.5s ease-out' }}>
@@ -49,7 +135,7 @@ export default function NotificationSettingsPage() {
               <div>
                 <h2 style={{ fontSize: '18px', fontWeight: '850', margin: 0 }}>เสียงแจ้งเตือนใบงานใหม่</h2>
                 <p style={{ color: 'var(--text-muted)', fontSize: '13px', margin: '4px 0 0 0' }}>
-                  เปิดหรือปิดเสียง และเลือกประเภทเสียงที่ต้องการ
+                  เปิดหรือปิดเสียง เลือกประเภทเสียง และทดสอบเสียงได้ทันที
                 </p>
               </div>
             </div>
@@ -122,7 +208,7 @@ export default function NotificationSettingsPage() {
               </div>
             </div>
             <button
-              onClick={testSound}
+              onClick={onTestSound}
               disabled={!isSoundEnabled}
               className="glass-interactive flex-center"
               style={{
@@ -142,12 +228,45 @@ export default function NotificationSettingsPage() {
           </div>
         </div>
 
-        <div className="glass" style={{ padding: '24px', height: 'fit-content' }}>
-          <h3 style={{ fontSize: '14px', fontWeight: '900', marginTop: 0 }}>หมายเหตุ</h3>
-          <p style={{ color: 'var(--text-muted)', fontSize: '12px', lineHeight: '1.7', marginBottom: 0 }}>
-            บางเบราว์เซอร์จะไม่อนุญาตให้เล่นเสียงหรือพูดจนกว่าผู้ใช้จะกดเปิดเสียงอย่างน้อย 1 ครั้ง
-            หากเลือกเสียงพูดแล้วเครื่องไม่รองรับ ระบบจะใช้เสียง beep แทนโดยอัตโนมัติ
-          </p>
+        <div className="glass" style={{ padding: '24px', height: 'fit-content', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div>
+            <h3 style={{ fontSize: '14px', fontWeight: '900', marginTop: 0, marginBottom: '6px' }}>Notification ของระบบ</h3>
+            <p style={{ color: 'var(--text-muted)', fontSize: '12px', lineHeight: '1.7', margin: 0 }}>
+              ใช้สำหรับการเด้งแจ้งเตือนของระบบ (เช่น มุมขวาล่าง) ไม่จำเป็นสำหรับ “เสียง”
+            </p>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
+            <div style={{ fontSize: '12px' }}>
+              <div style={{ fontWeight: '900' }}>สถานะสิทธิ์</div>
+              <div style={{ color: 'var(--text-muted)', marginTop: '4px' }}>
+                {permission === 'unsupported' ? 'ไม่รองรับ' : permission}
+              </div>
+            </div>
+            <button
+              onClick={requestNotificationPermission}
+              className="glass-interactive"
+              style={{
+                padding: '10px 14px',
+                borderRadius: '12px',
+                border: '1px solid var(--border)',
+                background: 'var(--bg-input)',
+                color: 'var(--text-main)',
+                cursor: 'pointer',
+                fontWeight: '800',
+              }}
+              title="ขออนุญาต Notification"
+            >
+              ขออนุญาต
+            </button>
+          </div>
+
+          <div style={{ borderTop: '1px solid var(--border)', paddingTop: '14px' }}>
+            <h3 style={{ fontSize: '14px', fontWeight: '900', marginTop: 0 }}>หมายเหตุ</h3>
+            <p style={{ color: 'var(--text-muted)', fontSize: '12px', lineHeight: '1.7', marginBottom: 0 }}>
+              ถ้าทดสอบเสียงแล้วยังไม่ได้ยิน ให้ตรวจว่าเว็บไม่ถูก Mute, Site settings &gt; Sound เป็น Allow และตรวจ output device/volume mixer ของเครื่อง
+            </p>
+          </div>
         </div>
       </div>
     </div>

@@ -20,6 +20,12 @@ const MAX_TOASTS = 4;
 
 export type NotificationSoundMode = 'beep' | 'voice';
 
+export type SoundTestFailureCode = 'NO_AUDIO_CONTEXT' | 'AUDIO_RESUME_BLOCKED' | 'VOICE_UNAVAILABLE';
+
+export type SoundTestResult =
+  | { ok: true; hint: string }
+  | { ok: false; code: SoundTestFailureCode; detail: string; hint: string };
+
 export function useNotifications(agentId: string | null) {
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [toasts, setToasts] = useState<ToastNotif[]>([]);
@@ -222,13 +228,44 @@ export function useNotifications(agentId: string | null) {
     void playBeep('confirm');
   }, [playBeep, soundMode, trySpeak]);
 
-  const testSound = useCallback(() => {
+  const testSound = useCallback(async (): Promise<SoundTestResult> => {
+    const hint =
+      'ถ้าไม่ได้ยิน ให้ตรวจว่าแท็บ/เว็บไม่ถูก Mute และ Site settings > Sound เป็น Allow รวมถึงเสียงของเครื่อง (Volume mixer / output device)';
+
     if (soundMode === 'voice') {
       const spoken = trySpeak('มีใบงานใหม่');
-      if (spoken) return;
+      if (spoken) return { ok: true, hint };
+      return {
+        ok: false,
+        code: 'VOICE_UNAVAILABLE',
+        detail: 'เสียงพูด (speechSynthesis) ไม่พร้อมหรือถูกบล็อก',
+        hint,
+      };
     }
-    void playBeep('newTicket');
-  }, [playBeep, soundMode, trySpeak]);
+
+    const ctx = getAudioContext();
+    if (!ctx) {
+      return {
+        ok: false,
+        code: 'NO_AUDIO_CONTEXT',
+        detail: 'เบราว์เซอร์/อุปกรณ์นี้ไม่รองรับการเล่นเสียงผ่าน WebAudio',
+        hint,
+      };
+    }
+
+    try {
+      await playBeep('newTicket');
+      return { ok: true, hint };
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      return {
+        ok: false,
+        code: 'AUDIO_RESUME_BLOCKED',
+        detail: `เบราว์เซอร์บล็อกการเล่นเสียงชั่วคราว (${msg})`,
+        hint,
+      };
+    }
+  }, [getAudioContext, playBeep, soundMode, trySpeak]);
 
   // ---------------------------------------------------------------
   // Fetch ticket_logs for this agent

@@ -6,6 +6,7 @@ import {
   AppNotification,
   ToastNotif,
   NotificationSoundMode,
+  SoundTestResult,
 } from '@/hooks/useNotifications';
 
 interface NotificationContextValue {
@@ -21,7 +22,7 @@ interface NotificationContextValue {
   isMuted: boolean;
   soundMode: NotificationSoundMode;
   setSoundMode: (mode: NotificationSoundMode) => void;
-  testSound: () => void;
+  testSound: () => Promise<SoundTestResult>;
   toggleMute: () => void;
 }
 
@@ -38,7 +39,7 @@ const NotificationContext = createContext<NotificationContextValue>({
   isMuted: true,
   soundMode: 'beep',
   setSoundMode: () => {},
-  testSound: () => {},
+  testSound: async () => ({ ok: false, code: 'NO_AUDIO_CONTEXT', detail: 'Not initialized', hint: '' }),
   toggleMute: () => {},
 });
 
