@@ -35,11 +35,18 @@ export type SoundTestResult =
   | { ok: true; hint: string }
   | { ok: false; code: SoundTestFailureCode; detail: string; hint: string };
 
+export interface LatestTicketRealtimeEvent {
+  ticketId: string;
+  payload: unknown;
+  occurredAt: number;
+}
+
 export function useNotifications(agentId: string | null) {
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [toasts, setToasts] = useState<ToastNotif[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [newTicketsCount, setNewTicketsCount] = useState(0);
+  const [latestTicketRealtimeEvent, setLatestTicketRealtimeEvent] = useState<LatestTicketRealtimeEvent | null>(null);
   const [isMuted, setIsMuted] = useState(true); // Default to muted (browser policy friendly)
   const [soundMode, setSoundModeState] = useState<NotificationSoundMode>('beep');
   const [soundVoice, setSoundVoiceState] = useState<NotificationVoiceOption>('female');
@@ -567,6 +574,12 @@ export function useNotifications(agentId: string | null) {
           if (normalizedStatus !== 'new') return;
           if (isFirstLoad.current) return;
 
+          setLatestTicketRealtimeEvent({
+            ticketId: String(row.id || ''),
+            payload: row,
+            occurredAt: Date.now(),
+          });
+
           addToast({
             id: `toast-ticket-${Date.now()}`,
             type: 'ticket',
@@ -626,6 +639,7 @@ export function useNotifications(agentId: string | null) {
     toasts, 
     unreadCount, 
     newTicketsCount,
+    latestTicketRealtimeEvent,
     isMuted,
     soundMode,
     soundVoice,

@@ -152,7 +152,7 @@ function getTicketWorkspaceSortValue(ticket: TicketWorkspaceTicket, key: string)
 }
 
 export function useTicketWorkspace(filterCustomerId: string | null) {
-  const { addToast } = useNotificationContext();
+  const { addToast, latestTicketRealtimeEvent } = useNotificationContext();
   const [tickets, setTickets] = useState<TicketWorkspaceTicket[]>([]);
   const [conversations, setConversations] = useState<TicketWorkspaceConversation[]>([]);
   const [loading, setLoading] = useState(true);
@@ -367,6 +367,14 @@ export function useTicketWorkspace(filterCustomerId: string | null) {
       supabase.removeChannel(channel);
     };
   }, [fetchData, loadSettings, syncTicketFromRealtime]);
+
+  useEffect(() => {
+    if (!latestTicketRealtimeEvent?.ticketId) return;
+    void syncTicketFromRealtime(
+      latestTicketRealtimeEvent.ticketId,
+      latestTicketRealtimeEvent.payload
+    );
+  }, [latestTicketRealtimeEvent, syncTicketFromRealtime]);
 
   const filteredTickets = useMemo(() => {
     let result = [...tickets];

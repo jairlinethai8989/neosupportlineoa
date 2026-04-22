@@ -8,6 +8,7 @@ import {
   NotificationSoundMode,
   NotificationVoiceOption,
   SoundTestResult,
+  LatestTicketRealtimeEvent,
 } from '@/hooks/useNotifications';
 
 interface NotificationContextValue {
@@ -20,6 +21,7 @@ interface NotificationContextValue {
   addToast: (toast: ToastNotif) => void;
   agentId: string | null;
   newTicketsCount: number;
+  latestTicketRealtimeEvent: LatestTicketRealtimeEvent | null;
   isMuted: boolean;
   soundMode: NotificationSoundMode;
   soundVoice: NotificationVoiceOption;
@@ -39,6 +41,7 @@ const NotificationContext = createContext<NotificationContextValue>({
   addToast: () => {},
   agentId: null,
   newTicketsCount: 0,
+  latestTicketRealtimeEvent: null,
   isMuted: true,
   soundMode: 'beep',
   soundVoice: 'female',
