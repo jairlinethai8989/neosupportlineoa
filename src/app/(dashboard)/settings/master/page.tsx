@@ -17,7 +17,8 @@ import {
   ChevronRight,
   Layout,
   FileText,
-  Tag
+  Tag,
+  MessageSquare
 } from 'lucide-react';
 import { useNotificationContext } from '@/contexts/NotificationContext';
 import { auditService } from '@/lib/services/auditService';
