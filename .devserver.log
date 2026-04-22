@@ -102,3 +102,4 @@
 ✓ Compiled in 24.7s
  GET /tickets 200 in 3.3s (next.js: 504ms, application-code: 2.8s)
  GET /settings/notifications 200 in 6.8s (next.js: 3.5s, application-code: 3.2s)
+✓ Finished writing to filesystem cache in 25.8s

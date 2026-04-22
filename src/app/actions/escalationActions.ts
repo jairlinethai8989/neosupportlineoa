@@ -32,7 +32,9 @@ export async function updateEscalatedTicketStatus(
   ticketId: string, 
   pin: string, 
   newStatus: string, 
-  notes: string
+  notes: string,
+  receiverName?: string,
+  attachmentUrls?: string[]
 ) {
   if (pin !== '1234') {
     throw new Error('รหัส PIN ไม่ถูกต้อง (Invalid PIN)');
@@ -46,10 +48,17 @@ export async function updateEscalatedTicketStatus(
     .single();
     
   let newNotes = existingTicket?.internal_notes || '';
-  if (notes) {
-    const timestamp = new Date().toLocaleString('th-TH');
-    newNotes = `${newNotes}\n\n[${timestamp} - External Dept]: ${notes}`.trim();
+  
+  const timestamp = new Date().toLocaleString('th-TH');
+  let logEntry = `\n\n--- [${timestamp} - External Feedback] ---`;
+  if (receiverName) logEntry += `\nผู้รับช่วงงาน: ${receiverName}`;
+  logEntry += `\nสถานะใหม่: ${newStatus}`;
+  if (notes) logEntry += `\nบันทึก: ${notes}`;
+  if (attachmentUrls && attachmentUrls.length > 0) {
+    logEntry += `\nไฟล์แนบ: ${attachmentUrls.join(', ')}`;
   }
+
+  newNotes = `${newNotes}${logEntry}`.trim();
 
   const { data, error } = await supabaseAdmin
     .from('tickets')
