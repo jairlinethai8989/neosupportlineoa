@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNotificationContext } from '@/contexts/NotificationContext';
 import { supabase } from '@/lib/supabase';
 import { normalizeTicketWorkspaceTicket } from '@/lib/tickets/normalizers';
@@ -72,6 +72,29 @@ function upsertWorkspaceTicket(
   return previousTickets.map((ticket, index) =>
     index === existingIndex ? nextTicket : ticket
   );
+}
+
+function mergeWorkspaceTicketsForSilentRefresh(
+  previousTickets: TicketWorkspaceTicket[],
+  fetchedTickets: TicketWorkspaceTicket[],
+  pendingRealtimeTicketIds: Set<string>,
+  timeRange: TicketWorkspaceTimeRange,
+  customStart: string,
+  customEnd: string
+) {
+  if (pendingRealtimeTicketIds.size === 0) return fetchedTickets;
+
+  const mergedTickets = [...fetchedTickets];
+  const fetchedIds = new Set(fetchedTickets.map((ticket) => ticket.id));
+
+  previousTickets.forEach((ticket) => {
+    if (!pendingRealtimeTicketIds.has(ticket.id)) return;
+    if (fetchedIds.has(ticket.id)) return;
+    if (!isTicketWithinWorkspaceRange(ticket, timeRange, customStart, customEnd)) return;
+    mergedTickets.unshift(ticket);
+  });
+
+  return mergedTickets;
 }
 
 function getTicketWorkspaceDateRange(
@@ -154,6 +177,7 @@ export function useTicketWorkspace(filterCustomerId: string | null) {
     key: 'created_at',
     direction: 'desc',
   });
+  const pendingRealtimeTicketIdsRef = useRef<Map<string, number>>(new Map());
 
   const isViewOnly =
     userProfile?.role !== 'Administrator' &&
@@ -183,7 +207,28 @@ export function useTicketWorkspace(filterCustomerId: string | null) {
     }
 
     if (ticketResult.status === 'fulfilled') {
-      setTickets(ticketResult.value);
+      const now = Date.now();
+      for (const [ticketId, expiresAt] of pendingRealtimeTicketIdsRef.current.entries()) {
+        if (expiresAt <= now) {
+          pendingRealtimeTicketIdsRef.current.delete(ticketId);
+        }
+      }
+
+      if (isSilent) {
+        const pendingRealtimeTicketIds = new Set(pendingRealtimeTicketIdsRef.current.keys());
+        setTickets((previousTickets) =>
+          mergeWorkspaceTicketsForSilentRefresh(
+            previousTickets,
+            ticketResult.value,
+            pendingRealtimeTicketIds,
+            timeRange,
+            customStart,
+            customEnd
+          )
+        );
+      } else {
+        setTickets(ticketResult.value);
+      }
     } else {
       console.error('Fetch tickets error:', ticketResult.reason);
       errors.push(
@@ -204,6 +249,7 @@ export function useTicketWorkspace(filterCustomerId: string | null) {
     async (ticketId: string, fallbackValue?: unknown) => {
       // 1. Optimistic Update for instant UI feedback
       const fallbackTicket = normalizeTicketWorkspaceTicket(fallbackValue);
+      pendingRealtimeTicketIdsRef.current.set(ticketId, Date.now() + 15000);
       // Guarantee any new realtime ticket defaults to 'New' if status is mysteriously missing
       if (fallbackTicket) {
         if (!fallbackTicket.status) fallbackTicket.status = 'New';
@@ -224,9 +270,11 @@ export function useTicketWorkspace(filterCustomerId: string | null) {
         }
 
         if (latestTicket && isTicketWithinWorkspaceRange(latestTicket, timeRange, customStart, customEnd)) {
+          pendingRealtimeTicketIdsRef.current.delete(ticketId);
           setTickets((previousTickets) => upsertWorkspaceTicket(previousTickets, latestTicket));
         } else if (latestTicket && !isTicketWithinWorkspaceRange(latestTicket, timeRange, customStart, customEnd)) {
           // If the real ticket is somehow out of range, remove the optimistic one
+          pendingRealtimeTicketIdsRef.current.delete(ticketId);
           setTickets((previousTickets) =>
             previousTickets.filter((ticket) => ticket.id !== ticketId)
           );
@@ -299,6 +347,7 @@ export function useTicketWorkspace(filterCustomerId: string | null) {
         const ticketId = String(payload.old.id || '');
         if (!ticketId) return;
 
+        pendingRealtimeTicketIdsRef.current.delete(ticketId);
         setTickets((previousTickets) =>
           previousTickets.filter((ticket) => ticket.id !== ticketId)
         );
@@ -428,7 +477,6 @@ export function useTicketWorkspace(filterCustomerId: string | null) {
   }, [
     addToast,
     conversations,
-    fetchData,
     resSummary,
     resolvingTicket,
     selectedIssueType,
@@ -462,7 +510,7 @@ export function useTicketWorkspace(filterCustomerId: string | null) {
         setClaimingId(null);
       }
     },
-    [addToast, fetchData, isViewOnly]
+    [addToast, isViewOnly]
   );
 
   const handleSort = useCallback(
