@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
@@ -15,7 +15,10 @@ export type { NotifType, AppNotification, ToastNotif };
 const STORAGE_KEY = 'neo_notif_read_ids_v1';
 // Track which SLA warnings we've already toasted to avoid repeated firing
 const WARNED_SLA_KEY = 'neo_sla_warned_ids_v1';
+const SOUND_MODE_KEY = 'neo_notif_sound_mode_v1';
 const MAX_TOASTS = 4;
+
+export type NotificationSoundMode = 'beep' | 'voice';
 
 export function useNotifications(agentId: string | null) {
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
@@ -23,7 +26,102 @@ export function useNotifications(agentId: string | null) {
   const [unreadCount, setUnreadCount] = useState(0);
   const [newTicketsCount, setNewTicketsCount] = useState(0);
   const [isMuted, setIsMuted] = useState(true); // Default to muted (browser policy friendly)
+  const [soundMode, setSoundModeState] = useState<NotificationSoundMode>('beep');
   const isFirstLoad = useRef(true);
+  const audioContextRef = useRef<AudioContext | null>(null);
+
+  const getAudioContext = useCallback((): AudioContext | null => {
+    if (typeof window === 'undefined') return null;
+
+    const AnyWindow = window as unknown as {
+      AudioContext?: typeof AudioContext;
+      webkitAudioContext?: typeof AudioContext;
+    };
+
+    const Ctx = AnyWindow.AudioContext ?? AnyWindow.webkitAudioContext;
+    if (!Ctx) return null;
+
+    if (!audioContextRef.current) {
+      audioContextRef.current = new Ctx();
+    }
+
+    return audioContextRef.current;
+  }, []);
+
+  const primeAudio = useCallback(async () => {
+    const ctx = getAudioContext();
+    if (!ctx) return;
+    if (ctx.state !== 'running') {
+      await ctx.resume();
+    }
+  }, [getAudioContext]);
+
+  const playBeep = useCallback(
+    async (pattern: 'confirm' | 'newTicket') => {
+      const ctx = getAudioContext();
+      if (!ctx) return;
+      if (ctx.state !== 'running') {
+        await ctx.resume();
+      }
+
+      const now = ctx.currentTime;
+      const gain = ctx.createGain();
+      gain.gain.setValueAtTime(0.0001, now);
+      gain.connect(ctx.destination);
+
+      const beepOnce = (start: number, duration: number, frequency: number) => {
+        const osc = ctx.createOscillator();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(frequency, start);
+        osc.connect(gain);
+
+        gain.gain.setValueAtTime(0.0001, start);
+        gain.gain.exponentialRampToValueAtTime(0.12, start + 0.01);
+        gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
+
+        osc.start(start);
+        osc.stop(start + duration + 0.02);
+      };
+
+      if (pattern === 'confirm') {
+        beepOnce(now + 0.02, 0.10, 880);
+        return;
+      }
+
+      beepOnce(now + 0.02, 0.12, 784);
+      beepOnce(now + 0.20, 0.12, 988);
+    },
+    [getAudioContext]
+  );
+
+  const trySpeak = useCallback((text: string): boolean => {
+    if (typeof window === 'undefined' || !window.speechSynthesis) return false;
+    try {
+      const synth = window.speechSynthesis;
+      synth.cancel();
+
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = 'th-TH';
+      utterance.rate = 1.05;
+      utterance.pitch = 1.0;
+
+      const voices = synth.getVoices();
+      const thaiVoice = voices.find((voice) => voice.lang?.toLowerCase().startsWith('th'));
+      if (thaiVoice) utterance.voice = thaiVoice;
+
+      synth.speak(utterance);
+      return true;
+    } catch {
+      return false;
+    }
+  }, []);
+
+  const setSoundMode = useCallback((next: NotificationSoundMode) => {
+    setSoundModeState(next);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(SOUND_MODE_KEY, next);
+    }
+  }, []);
 
   // ---------------------------------------------------------------
   // Helpers
@@ -107,27 +205,30 @@ export function useNotifications(agentId: string | null) {
   }, [showBrowserNotification]);
 
   const playNewTicketSound = useCallback(() => {
-    if (isMuted || typeof window === 'undefined' || !window.speechSynthesis) return;
-    
-    // Cancel any ongoing speech to prevent overlap or getting stuck
-    window.speechSynthesis.cancel();
-
-    const utterance = new SpeechSynthesisUtterance('มีใบงานใหม่');
-    utterance.lang = 'th-TH';
-    utterance.rate = 1.1;
-    utterance.pitch = 1.0; 
-    window.speechSynthesis.speak(utterance);
-  }, [isMuted]);
+    if (isMuted) return;
+    if (soundMode === 'voice') {
+      const spoken = trySpeak('มีใบงานใหม่');
+      if (spoken) return;
+    }
+    void playBeep('newTicket');
+  }, [isMuted, playBeep, soundMode, trySpeak]);
 
   const announceMuteState = useCallback((muted: boolean) => {
-    if (muted || typeof window === 'undefined' || !window.speechSynthesis) return;
-    
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance('เปิดเสียงแจ้งเตือนแล้ว');
-    utterance.lang = 'th-TH';
-    utterance.rate = 1.1;
-    window.speechSynthesis.speak(utterance);
-  }, []);
+    if (muted) return;
+    if (soundMode === 'voice') {
+      const spoken = trySpeak('เปิดเสียงแจ้งเตือนแล้ว');
+      if (spoken) return;
+    }
+    void playBeep('confirm');
+  }, [playBeep, soundMode, trySpeak]);
+
+  const testSound = useCallback(() => {
+    if (soundMode === 'voice') {
+      const spoken = trySpeak('มีใบงานใหม่');
+      if (spoken) return;
+    }
+    void playBeep('newTicket');
+  }, [playBeep, soundMode, trySpeak]);
 
   // ---------------------------------------------------------------
   // Fetch ticket_logs for this agent
@@ -149,15 +250,15 @@ export function useNotifications(agentId: string | null) {
       const id = row.id?.toString() ?? `${row.ticket_id}-${row.created_at}`;
       const isRead = readIds.includes(id);
 
-      let title = 'อัปเดตใบงาน';
-      let type: NotifType = 'ticket';
+      let title = 'à¸­à¸±à¸›à¹€à¸”à¸•à¹ƒà¸šà¸‡à¸²à¸™';
+      const type: NotifType = 'ticket';
 
       if (row.action_type === 'transfer' && row.to_user_id === agentId) {
-        title = `โอนงานมาให้คุณ — #${row.tickets?.ticket_no ?? ''}`;
+        title = `à¹‚à¸­à¸™à¸‡à¸²à¸™à¸¡à¸²à¹ƒà¸«à¹‰à¸„à¸¸à¸“ â€” #${row.tickets?.ticket_no ?? ''}`;
       } else if (row.action_type === 'claim') {
-        title = `รับงานแล้ว — #${row.tickets?.ticket_no ?? ''}`;
+        title = `à¸£à¸±à¸šà¸‡à¸²à¸™à¹à¸¥à¹‰à¸§ â€” #${row.tickets?.ticket_no ?? ''}`;
       } else if (row.action_type === 'resolve') {
-        title = `ปิดงาน — #${row.tickets?.ticket_no ?? ''}`;
+        title = `à¸›à¸´à¸”à¸‡à¸²à¸™ â€” #${row.tickets?.ticket_no ?? ''}`;
       }
 
       return {
@@ -185,7 +286,7 @@ export function useNotifications(agentId: string | null) {
   }, []);
 
   // ---------------------------------------------------------------
-  // SLA Monitor — breached + warning (< 30 min)
+  // SLA Monitor â€” breached + warning (< 30 min)
   // ---------------------------------------------------------------
   const fetchSlaBreaches = useCallback(async () => {
     if (!agentId) return;
@@ -218,8 +319,8 @@ export function useNotifications(agentId: string | null) {
         slaNotifs.push({
           id,
           type: 'sla',
-          title: `🚨 SLA เกินกำหนดแล้ว — #${t.ticket_no}`,
-          body: t.subject ?? 'ใบงานนี้เกิน SLA แล้ว กรุณาจัดการด่วน',
+          title: `ðŸš¨ SLA à¹€à¸à¸´à¸™à¸à¸³à¸«à¸™à¸”à¹à¸¥à¹‰à¸§ â€” #${t.ticket_no}`,
+          body: t.subject ?? 'à¹ƒà¸šà¸‡à¸²à¸™à¸™à¸µà¹‰à¹€à¸à¸´à¸™ SLA à¹à¸¥à¹‰à¸§ à¸à¸£à¸¸à¸“à¸²à¸ˆà¸±à¸”à¸à¸²à¸£à¸”à¹ˆà¸§à¸™',
           ticketNo: t.ticket_no,
           ticketId: t.id,
           createdAt: t.sla_due_at,
@@ -232,8 +333,8 @@ export function useNotifications(agentId: string | null) {
           addToast({
             id: `toast-${id}-${Date.now()}`,
             type: 'sla',
-            title: `🚨 SLA หลุดกำหนด — #${t.ticket_no}`,
-            body: t.subject ?? 'กรุณาจัดการด่วน',
+            title: `ðŸš¨ SLA à¸«à¸¥à¸¸à¸”à¸à¸³à¸«à¸™à¸” â€” #${t.ticket_no}`,
+            body: t.subject ?? 'à¸à¸£à¸¸à¸“à¸²à¸ˆà¸±à¸”à¸à¸²à¸£à¸”à¹ˆà¸§à¸™',
             ticketId: t.id,
             ticketNo: t.ticket_no,
             duration: 8000,
@@ -241,13 +342,13 @@ export function useNotifications(agentId: string | null) {
           saveWarnedId(id);
         }
       } else if (mins <= 30) {
-        // --- SLA Warning (≤ 30 min remaining) ---
+        // --- SLA Warning (â‰¤ 30 min remaining) ---
         const id = `sla-warn-${t.id}`;
         slaNotifs.push({
           id,
           type: 'sla_warning',
-          title: `⚠️ SLA ใกล้หมด (${mins} นาที) — #${t.ticket_no}`,
-          body: t.subject ?? `เหลือเวลาอีก ${mins} นาที`,
+          title: `âš ï¸ SLA à¹ƒà¸à¸¥à¹‰à¸«à¸¡à¸” (${mins} à¸™à¸²à¸—à¸µ) â€” #${t.ticket_no}`,
+          body: t.subject ?? `à¹€à¸«à¸¥à¸·à¸­à¹€à¸§à¸¥à¸²à¸­à¸µà¸ ${mins} à¸™à¸²à¸—à¸µ`,
           ticketNo: t.ticket_no,
           ticketId: t.id,
           createdAt: t.sla_due_at,
@@ -260,8 +361,8 @@ export function useNotifications(agentId: string | null) {
           addToast({
             id: `toast-${id}-${Date.now()}`,
             type: 'sla_warning',
-            title: `⚠️ SLA ใกล้หมด เหลือ ${mins} นาที`,
-            body: `#${t.ticket_no} · ${t.subject ?? ''}`,
+            title: `âš ï¸ SLA à¹ƒà¸à¸¥à¹‰à¸«à¸¡à¸” à¹€à¸«à¸¥à¸·à¸­ ${mins} à¸™à¸²à¸—à¸µ`,
+            body: `#${t.ticket_no} Â· ${t.subject ?? ''}`,
             ticketId: t.id,
             ticketNo: t.ticket_no,
             duration: 6000,
@@ -269,13 +370,13 @@ export function useNotifications(agentId: string | null) {
           saveWarnedId(id);
         }
       } else if (mins <= 60) {
-        // --- SLA Upcoming (≤ 60 min) — add to notification list only, no toast ---
+        // --- SLA Upcoming (â‰¤ 60 min) â€” add to notification list only, no toast ---
         const id = `sla-upcoming-${t.id}`;
         slaNotifs.push({
           id,
           type: 'sla_warning',
-          title: `🕐 SLA เหลือ ${mins} นาที — #${t.ticket_no}`,
-          body: t.subject ?? `โปรดเตรียมดำเนินการก่อน SLA หมด`,
+          title: `ðŸ• SLA à¹€à¸«à¸¥à¸·à¸­ ${mins} à¸™à¸²à¸—à¸µ â€” #${t.ticket_no}`,
+          body: t.subject ?? `à¹‚à¸›à¸£à¸”à¹€à¸•à¸£à¸µà¸¢à¸¡à¸”à¸³à¹€à¸™à¸´à¸™à¸à¸²à¸£à¸à¹ˆà¸­à¸™ SLA à¸«à¸¡à¸”`,
           ticketNo: t.ticket_no,
           ticketId: t.id,
           createdAt: t.sla_due_at,
@@ -287,10 +388,8 @@ export function useNotifications(agentId: string | null) {
 
     if (slaNotifs.length > 0) {
       setNotifications(prev => {
-        const existingIds = new Set(prev.map(n => n.id));
         // Replace existing SLA notifs + add new ones at top
         const withoutOldSla = prev.filter(n => !n.id.startsWith('sla-'));
-        const newOnes = slaNotifs.filter(n => !existingIds.has(n.id));
         const merged = [...slaNotifs, ...withoutOldSla.filter(n => !slaNotifs.find(s => s.id === n.id))];
         recalcUnread(merged);
         return merged;
@@ -304,14 +403,24 @@ export function useNotifications(agentId: string | null) {
   useEffect(() => {
     if (!agentId) return;
 
-    fetchLogs();
-    fetchSlaBreaches();
-    fetchNewTicketsCount();
+    // Defer initial state updates to avoid setState-in-effect lint rule.
+    setTimeout(() => {
+      void fetchLogs();
+      void fetchSlaBreaches();
+      void fetchNewTicketsCount();
+    }, 0);
 
     // Load mute state
     if (typeof window !== 'undefined') {
       const stored = localStorage.getItem('neo_notif_muted');
-      if (stored !== null) setIsMuted(stored === 'true');
+      if (stored !== null) {
+        setTimeout(() => setIsMuted(stored === 'true'), 0);
+      }
+
+      const storedMode = localStorage.getItem(SOUND_MODE_KEY);
+      if (storedMode === 'beep' || storedMode === 'voice') {
+        setTimeout(() => setSoundModeState(storedMode), 0);
+      }
     }
 
     // Subscribe: new ticket_logs targeting this agent
@@ -324,18 +433,18 @@ export function useNotifications(agentId: string | null) {
           await fetchLogs();
           if (isFirstLoad.current) return;
 
-          let title = 'ใบงานได้รับการอัปเดต';
+          let title = 'à¹ƒà¸šà¸‡à¸²à¸™à¹„à¸”à¹‰à¸£à¸±à¸šà¸à¸²à¸£à¸­à¸±à¸›à¹€à¸”à¸•';
           if (row.action_type === 'transfer' && row.to_user_id === agentId) {
-            title = '📨 มีใบงานโอนมาให้คุณ';
+            title = 'ðŸ“¨ à¸¡à¸µà¹ƒà¸šà¸‡à¸²à¸™à¹‚à¸­à¸™à¸¡à¸²à¹ƒà¸«à¹‰à¸„à¸¸à¸“';
           } else if (row.action_type === 'resolve') {
-            title = '✅ ใบงานได้รับการปิดแล้ว';
+            title = 'âœ… à¹ƒà¸šà¸‡à¸²à¸™à¹„à¸”à¹‰à¸£à¸±à¸šà¸à¸²à¸£à¸›à¸´à¸”à¹à¸¥à¹‰à¸§';
           }
 
           addToast({
             id: `toast-log-${Date.now()}`,
             type: 'ticket',
             title,
-            body: row.note || 'ดูรายละเอียดในกล่องข้อความ',
+            body: row.note || 'à¸”à¸¹à¸£à¸²à¸¢à¸¥à¸°à¹€à¸­à¸µà¸¢à¸”à¹ƒà¸™à¸à¸¥à¹ˆà¸­à¸‡à¸‚à¹‰à¸­à¸„à¸§à¸²à¸¡',
             ticketId: row.ticket_id,
           });
         }
@@ -355,8 +464,8 @@ export function useNotifications(agentId: string | null) {
           addToast({
             id: `toast-msg-${Date.now()}`,
             type: 'message',
-            title: '💬 ข้อความใหม่จากลูกค้า',
-            body: (row.content as string)?.slice(0, 60) ?? 'มีข้อความใหม่',
+            title: 'ðŸ’¬ à¸‚à¹‰à¸­à¸„à¸§à¸²à¸¡à¹ƒà¸«à¸¡à¹ˆà¸ˆà¸²à¸à¸¥à¸¹à¸à¸„à¹‰à¸²',
+            body: (row.content as string)?.slice(0, 60) ?? 'à¸¡à¸µà¸‚à¹‰à¸­à¸„à¸§à¸²à¸¡à¹ƒà¸«à¸¡à¹ˆ',
             conversationId: row.conversation_id,
           });
         }
@@ -377,8 +486,8 @@ export function useNotifications(agentId: string | null) {
           addToast({
             id: `toast-ticket-${Date.now()}`,
             type: 'ticket',
-            title: '🆕 มีใบงานใหม่เข้าสู่ระบบ',
-            body: row.subject || `ใบงาน #${row.ticket_no} กำลังรอการรับงาน`,
+            title: 'ðŸ†• à¸¡à¸µà¹ƒà¸šà¸‡à¸²à¸™à¹ƒà¸«à¸¡à¹ˆà¹€à¸‚à¹‰à¸²à¸ªà¸¹à¹ˆà¸£à¸°à¸šà¸š',
+            body: row.subject || `à¹ƒà¸šà¸‡à¸²à¸™ #${row.ticket_no} à¸à¸³à¸¥à¸±à¸‡à¸£à¸­à¸à¸²à¸£à¸£à¸±à¸šà¸‡à¸²à¸™`,
             ticketId: row.id,
             ticketNo: row.ticket_no,
           });
@@ -415,19 +524,18 @@ export function useNotifications(agentId: string | null) {
       clearInterval(slaInterval);
       clearTimeout(firstLoadTimer);
     };
-  }, [agentId, fetchLogs, fetchSlaBreaches, addToast, playNewTicketSound]);
+  }, [agentId, fetchLogs, fetchNewTicketsCount, fetchSlaBreaches, addToast, playNewTicketSound]);
 
   const toggleMute = useCallback(() => {
     setIsMuted(prev => {
       const next = !prev;
       localStorage.setItem('neo_notif_muted', String(next));
       if (!next) {
-        // Delay slightly to ensure state is processed
-        setTimeout(() => announceMuteState(false), 100);
+        void primeAudio().then(() => announceMuteState(false)).catch(() => {});
       }
       return next;
     });
-  }, [announceMuteState]);
+  }, [announceMuteState, primeAudio]);
 
   return { 
     notifications, 
@@ -435,6 +543,9 @@ export function useNotifications(agentId: string | null) {
     unreadCount, 
     newTicketsCount,
     isMuted,
+    soundMode,
+    setSoundMode,
+    testSound,
     toggleMute,
     markAsRead, 
     markAllRead, 
@@ -442,3 +553,4 @@ export function useNotifications(agentId: string | null) {
     addToast 
   };
 }
+

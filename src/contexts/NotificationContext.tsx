@@ -1,11 +1,11 @@
 'use client';
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import {
   useNotifications,
   AppNotification,
   ToastNotif,
+  NotificationSoundMode,
 } from '@/hooks/useNotifications';
 
 interface NotificationContextValue {
@@ -19,6 +19,9 @@ interface NotificationContextValue {
   agentId: string | null;
   newTicketsCount: number;
   isMuted: boolean;
+  soundMode: NotificationSoundMode;
+  setSoundMode: (mode: NotificationSoundMode) => void;
+  testSound: () => void;
   toggleMute: () => void;
 }
 
@@ -33,6 +36,9 @@ const NotificationContext = createContext<NotificationContextValue>({
   agentId: null,
   newTicketsCount: 0,
   isMuted: true,
+  soundMode: 'beep',
+  setSoundMode: () => {},
+  testSound: () => {},
   toggleMute: () => {},
 });
 
