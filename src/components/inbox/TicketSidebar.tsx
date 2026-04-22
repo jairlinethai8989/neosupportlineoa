@@ -1,5 +1,5 @@
 'use client';
-import React from 'react';
+import React, { useState } from 'react';
 import { 
   User, 
   Layout, 
@@ -7,7 +7,10 @@ import {
   CheckCircle, 
   ArrowRight,
   Info,
-  X
+  X,
+  Copy,
+  CheckCircle2,
+  AlertCircle
 } from 'lucide-react';
 import type { InboxAgent, InboxConversation, InboxTicket, InboxViewMode } from '@/types/inbox';
 import { ticketService } from '@/lib/services/ticketService';
@@ -42,6 +45,15 @@ export const TicketSidebar: React.FC<TicketSidebarProps> = ({
   const isAdmin = agent?.role === 'Administrator';
   const isSessionActive = !!(selectedChat.status === 'active' || selectedChat.is_active);
   const canResolve = Boolean(currentTicket && !isResolved && (isOwner || isAdmin) && !isSessionActive);
+
+  const [copied, setCopied] = useState(false);
+  const [magicLink, setMagicLink] = useState<string | null>(null);
+
+  const handleCopyLink = (link: string) => {
+    navigator.clipboard.writeText(link);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   return (
     <div className={`glass inbox-details-panel ${viewMode !== 'details' ? 'hidden-mobile' : ''}`} style={{ width: '360px', padding: '24px', display: 'flex', flexDirection: 'column', gap: '24px', overflowY: 'auto' }}>
@@ -123,65 +135,38 @@ export const TicketSidebar: React.FC<TicketSidebarProps> = ({
          <History size={14} /> <u>ดูประวัติสนทนาเก่าทั้งหมด (Global Log)</u>
       </button>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-         <button
-            onClick={onTransfer}
-            className="glass-interactive"
-            style={{
-               padding: '12px',
-               borderRadius: '12px',
-               border: '1px solid var(--border)',
-               background: 'var(--bg-input)',
-               color: 'var(--text-main)',
-               fontWeight: '700',
-               cursor: 'pointer'
-            }}
-         >
-            โอนงาน
-         </button>
-         <button
-            onClick={onCopySurvey}
-            className="glass-interactive"
-            style={{
-               padding: '12px',
-               borderRadius: '12px',
-               border: '1px solid var(--border)',
-               background: 'var(--bg-input)',
-               color: 'var(--text-main)',
-               fontWeight: '700',
-               cursor: 'pointer'
-            }}
-         >
-            คัดลอกแบบประเมิน
-         </button>
-      </div>
-
-      <div style={{ marginTop: '12px', background: 'rgba(255,255,255,0.02)', borderRadius: '16px', padding: '16px' }}>
-         <h4 style={{ fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', marginBottom: '12px', textTransform: 'uppercase' }}>
-            Ticket Hand-off (ส่งต่องาน/รอช่าง)
+      <div style={{ marginTop: '12px', background: 'rgba(255,255,255,0.02)', borderRadius: '24px', padding: '20px', border: '1px solid var(--border)' }}>
+         <h4 style={{ fontSize: '11px', fontWeight: '900', color: 'var(--text-muted)', marginBottom: '16px', textTransform: 'uppercase', letterSpacing: '1.5px', textAlign: 'center' }}>
+            Ticket Hand-off
          </h4>
-         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
             <button
                onClick={async () => {
                  if (!currentTicket?.id) return;
                  try {
                     await ticketService.updateStatus(currentTicket.id, 'Escalated');
-                    navigator.clipboard.writeText(`${window.location.origin}/escalate/${currentTicket.id}`);
-                    alert('✅ เปลี่ยนสถานะเป็น Escalated และคัดลอกลิงก์ให้ช่างแล้ว\nPIN เพื่อเข้าสู่ระบบคือ: 1234');
+                    const link = `${window.location.origin}/escalate/${currentTicket.id}`;
+                    setMagicLink(link);
+                    handleCopyLink(link);
                  } catch (err: any) {
                     alert('Error: ' + err.message);
                  }
                }}
                className="glass-interactive"
                style={{
-                  padding: '10px',
-                  borderRadius: '12px',
+                  height: '54px',
+                  borderRadius: '16px',
                   border: '1px solid var(--secondary, #8b5cf6)',
-                  background: 'rgba(139, 92, 246, 0.1)',
+                  background: 'rgba(139, 92, 246, 0.08)',
                   color: 'var(--secondary, #8b5cf6)',
-                  fontWeight: '800',
-                  fontSize: '12px',
+                  fontWeight: '900',
+                  fontSize: '13px',
                   cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  boxShadow: '0 4px 15px rgba(139, 92, 246, 0.15)'
                }}
             >
                🚨 Escalate
@@ -191,27 +176,57 @@ export const TicketSidebar: React.FC<TicketSidebarProps> = ({
                  if (!currentTicket?.id) return;
                  try {
                     await ticketService.updateStatus(currentTicket.id, 'Pending');
-                    navigator.clipboard.writeText(`${window.location.origin}/escalate/${currentTicket.id}`);
-                    alert('⏳ เปลี่ยนสถานะเป็น Pending (รอข้อมูล) และคัดลอกลิงก์แล้ว\nPIN: 1234');
+                    const link = `${window.location.origin}/escalate/${currentTicket.id}`;
+                    setMagicLink(link);
+                    handleCopyLink(link);
                  } catch (err: any) {
                     alert('Error: ' + err.message);
                  }
                }}
                className="glass-interactive"
                style={{
-                  padding: '10px',
-                  borderRadius: '12px',
+                  height: '54px',
+                  borderRadius: '16px',
                   border: '1px solid #ef4444',
-                  background: 'rgba(239, 68, 68, 0.1)',
+                  background: 'rgba(239, 68, 68, 0.08)',
                   color: '#ef4444',
-                  fontWeight: '800',
-                  fontSize: '12px',
+                  fontWeight: '900',
+                  fontSize: '13px',
                   cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  boxShadow: '0 4px 15px rgba(239, 68, 68, 0.15)'
                }}
             >
                ⏳ Pending
             </button>
          </div>
+
+         {magicLink && (
+           <div className="animate-fade-in" style={{ marginTop: '20px', padding: '16px', background: 'var(--bg-input)', borderRadius: '16px', border: '1px dashed var(--primary)' }}>
+              <p style={{ fontSize: '10px', color: 'var(--primary)', fontWeight: '900', marginBottom: '8px', textTransform: 'uppercase' }}>Magic Link Ready!</p>
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                 <input 
+                    readOnly 
+                    value={magicLink} 
+                    style={{ flex: 1, background: 'transparent', border: 'none', color: 'var(--text-muted)', fontSize: '11px', outline: 'none' }} 
+                 />
+                 <button 
+                    onClick={() => handleCopyLink(magicLink)}
+                    style={{ background: 'var(--primary)', border: 'none', borderRadius: '8px', padding: '6px 10px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+                 >
+                    {copied ? <CheckCircle2 size={14} color="#000" /> : <Copy size={14} color="#000" />}
+                    <span style={{ fontSize: '10px', fontWeight: '900', color: '#000' }}>{copied ? 'Copied' : 'Copy'}</span>
+                 </button>
+              </div>
+              <p style={{ fontSize: '10px', color: 'var(--text-dim)', marginTop: '8px' }}>
+                <Info size={10} style={{ verticalAlign: 'middle', marginRight: '4px' }} />
+                PIN Code: 1234
+              </p>
+           </div>
+         )}
       </div>
 
       <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '12px' }}>

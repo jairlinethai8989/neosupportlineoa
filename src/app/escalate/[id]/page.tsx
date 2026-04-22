@@ -1,0 +1,268 @@
+'use client';
+import React, { useState, useEffect } from 'react';
+import { verifyEscalationPin, updateEscalatedTicketStatus } from '@/app/actions/escalationActions';
+import { Lock, Unlock, AlertCircle, CheckCircle, FileText, Send, Loader2 } from 'lucide-react';
+import { useParams } from 'next/navigation';
+
+export default function EscalationPortalPage() {
+  const params = useParams();
+  const ticketId = params.id as string;
+  
+  const [pin, setPin] = useState('');
+  const [isUnlocked, setIsUnlocked] = useState(false);
+  const [ticketData, setTicketData] = useState<any>(null);
+  
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+
+  // Form State
+  const [newStatus, setNewStatus] = useState('');
+  const [notes, setNotes] = useState('');
+
+  const handleUnlock = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+    
+    try {
+      const data = await verifyEscalationPin(ticketId, pin);
+      setTicketData(data);
+      setNewStatus(data.status);
+      setIsUnlocked(true);
+    } catch (err: any) {
+      setError(err.message || 'รหัสผ่านไม่ถูกต้อง หรือคำขอนี้หมดอายุแล้ว');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleUpdate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newStatus) return;
+    
+    setError('');
+    setSuccess('');
+    setLoading(true);
+    
+    try {
+      await updateEscalatedTicketStatus(ticketId, pin, newStatus, notes);
+      setSuccess('อัปเดตสถานะสำเร็จ!');
+      setNotes(''); // Clear notes after successful append
+    } catch (err: any) {
+      setError(err.message || 'เกิดข้อผิดพลาดในการอัปเดต');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (!isUnlocked) {
+    return (
+      <div className="glass" style={{
+        marginTop: '10vh',
+        padding: '32px',
+        borderRadius: '24px',
+        textAlign: 'center',
+        background: '#ffffff',
+        border: '1px solid #e2e8f0',
+        boxShadow: '0 10px 25px -5px rgba(0,0,0,0.05)'
+      }}>
+        <div style={{
+          width: '64px',
+          height: '64px',
+          borderRadius: '50%',
+          background: 'rgba(8, 145, 178, 0.1)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          margin: '0 auto 24px',
+          color: 'var(--primary)'
+        }}>
+          <Lock size={32} />
+        </div>
+        
+        <h2 style={{ fontSize: '20px', fontWeight: 800, marginBottom: '8px' }}>เข้าสู่ระบบ (แผนกรับช่วงต่อ)</h2>
+        <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '24px' }}>
+          กรุณากรอกรหัส PIN 4 หลัก เพื่อตรวจสอบรายละเอียดใบงาน
+          <br/>(ทดสอบ: 1234)
+        </p>
+
+        {error && (
+          <div style={{ padding: '12px', background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', borderRadius: '12px', marginBottom: '20px', fontSize: '13px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+            <AlertCircle size={16} /> {error}
+          </div>
+        )}
+
+        <form onSubmit={handleUnlock} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <input 
+            type="password" 
+            maxLength={4}
+            value={pin}
+            onChange={(e) => setPin(e.target.value.replace(/[^0-9]/g, ''))}
+            placeholder="รหัส PIN 4 หลัก"
+            style={{
+              padding: '16px',
+              borderRadius: '12px',
+              border: '2px solid #e2e8f0',
+              textAlign: 'center',
+              fontSize: '24px',
+              letterSpacing: '8px',
+              fontWeight: 800,
+              outline: 'none',
+              transition: 'all 0.3s'
+            }}
+            onFocus={(e) => e.target.style.borderColor = 'var(--primary)'}
+            onBlur={(e) => e.target.style.borderColor = '#e2e8f0'}
+            disabled={loading}
+          />
+          <button 
+            disabled={loading || pin.length < 4}
+            type="submit"
+            style={{
+              background: 'var(--primary)',
+              color: 'white',
+              border: 'none',
+              padding: '16px',
+              borderRadius: '12px',
+              fontWeight: 800,
+              cursor: (loading || pin.length < 4) ? 'not-allowed' : 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px',
+              opacity: (loading || pin.length < 4) ? 0.7 : 1
+            }}
+          >
+            {loading ? <Loader2 className="animate-spin" size={18} /> : <><Unlock size={18} /> ปลดล็อคใบงาน</>}
+          </button>
+        </form>
+      </div>
+    );
+  }
+
+  // UNLOCKED STATE
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+      
+      {/* Ticket Info Card */}
+      <div className="glass" style={{ padding: '24px', background: '#ffffff', borderRadius: '24px', border: '1px solid #e2e8f0' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
+          <div>
+            <p style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 800, textTransform: 'uppercase' }}>Ticket NO.</p>
+            <h2 style={{ fontSize: '20px', fontWeight: 900, color: 'var(--primary)' }}>#{ticketData?.ticket_no}</h2>
+          </div>
+          <span style={{
+            background: 'var(--primary-transparent)',
+            color: 'var(--primary)',
+            padding: '4px 12px',
+            borderRadius: '20px',
+            fontSize: '12px',
+            fontWeight: 800
+          }}>
+            {ticketData?.status}
+          </span>
+        </div>
+
+        <div style={{ marginBottom: '16px' }}>
+          <p style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 800, textTransform: 'uppercase' }}>Subject / หัวข้อ</p>
+          <p style={{ fontSize: '15px', fontWeight: 700, lineHeight: 1.5 }}>{ticketData?.subject}</p>
+        </div>
+
+        <div style={{ padding: '16px', background: '#f8fafc', borderRadius: '12px', fontSize: '14px', lineHeight: 1.6 }}>
+          {ticketData?.description || 'ไม่มีรายละเอียดเพิ่มเติม...'}
+        </div>
+      </div>
+
+      {/* Action Card */}
+      <div className="glass" style={{ padding: '24px', background: '#ffffff', borderRadius: '24px', border: '1px solid #e2e8f0' }}>
+        <h3 style={{ fontSize: '16px', fontWeight: 800, marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <FileText size={18} color="var(--primary)" /> รายงานการประสานงาน
+        </h3>
+        
+        {success && (
+          <div style={{ padding: '12px', background: 'rgba(16, 185, 129, 0.1)', color: '#10b981', borderRadius: '12px', marginBottom: '20px', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <CheckCircle size={16} /> {success}
+          </div>
+        )}
+        
+        {error && (
+          <div style={{ padding: '12px', background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', borderRadius: '12px', marginBottom: '20px', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <AlertCircle size={16} /> {error}
+          </div>
+        )}
+
+        <form onSubmit={handleUpdate} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          <div>
+            <label style={{ display: 'block', fontSize: '12px', fontWeight: 800, color: '#64748b', marginBottom: '8px' }}>
+              อัปเดตสถานะงาน (Status)
+            </label>
+            <select 
+              value={newStatus}
+              onChange={(e) => setNewStatus(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '16px',
+                borderRadius: '12px',
+                border: '1px solid #e2e8f0',
+                background: '#f8fafc',
+                fontSize: '14px',
+                fontWeight: 700,
+                outline: 'none'
+              }}
+            >
+              <option value="New">รอรับงาน (New)</option>
+              <option value="In Progress">กำลังดำเนินการ (In Progress)</option>
+              <option value="Resolved">ซ่อมเสร็จสิ้น (Resolved)</option>
+            </select>
+          </div>
+
+          <div>
+            <label style={{ display: 'block', fontSize: '12px', fontWeight: 800, color: '#64748b', marginBottom: '8px' }}>
+              บันทึกการดำเนินการ (Notes)
+            </label>
+            <textarea 
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="พิมพ์รายละเอียดการซ่อม หรือสาเหตุ เพื่อส่งกลับให้แอดมินทราบ..."
+              style={{
+                width: '100%',
+                height: '100px',
+                padding: '16px',
+                borderRadius: '12px',
+                border: '1px solid #e2e8f0',
+                background: '#f8fafc',
+                fontSize: '14px',
+                resize: 'none',
+                outline: 'none',
+                fontFamily: 'inherit'
+              }}
+            />
+          </div>
+
+          <button 
+            type="submit"
+            disabled={loading}
+            style={{
+              background: '#10b981', // Success Emerald
+              color: 'white',
+              border: 'none',
+              padding: '16px',
+              borderRadius: '12px',
+              fontWeight: 800,
+              cursor: loading ? 'not-allowed' : 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px',
+              boxShadow: '0 8px 24px rgba(16, 185, 129, 0.25)',
+              transition: 'all 0.3s'
+            }}
+          >
+            {loading ? <Loader2 className="animate-spin" size={18} /> : <><Send size={18} /> บันทึกและส่งข้อมูลกลับ</>}
+          </button>
+        </form>
+      </div>
+
+    </div>
+  );
+}
