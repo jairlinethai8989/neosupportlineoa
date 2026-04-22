@@ -94,7 +94,7 @@ export default function EscalationPortalPage() {
       setNotes(''); 
       setReceiverName('');
       setAttachments([]);
-      setError(null);
+      setError('');
     } catch (err: any) {
       console.error('Update failed:', err);
       const msg = err.message || (typeof err === 'string' ? err : 'เกิดข้อผิดพลาดในการอัปเดต');
