@@ -41,15 +41,19 @@ export async function claimEscalatedTicket(
   const logEntry = `\n\n--- [${timestamp} - Job Claimed] ---\nผู้รับเรื่อง: ${receiverName}\nสถานะ: กำลังดำเนินการโดยแผนกภายนอก`.trim();
 
   // Fetch existing notes
-  const { data: ticket } = await supabaseAdmin
+  const { data: ticket, error: fetchError } = await supabaseAdmin
     .from('tickets')
     .select('internal_notes')
     .eq('id', ticketId)
     .single();
 
-  const newNotes = `${ticket?.internal_notes || ''}\n\n${logEntry}`.trim();
+  if (fetchError || !ticket) {
+    throw new Error('ไม่พบข้อมูลใบงาน (Ticket not found)');
+  }
 
-  const { data, error } = await supabaseAdmin
+  const newNotes = `${ticket.internal_notes || ''}\n\n${logEntry}`.trim();
+
+  const { data, error: updateError } = await supabaseAdmin
     .from('tickets')
     .update({ 
       internal_notes: newNotes,
@@ -59,8 +63,11 @@ export async function claimEscalatedTicket(
     .select()
     .single();
 
-  if (error) throw new Error(error.message);
-  return { success: true, id: data.id };
+  if (updateError || !data) {
+    throw new Error(updateError?.message || 'บันทึกข้อมูลไม่สำเร็จ');
+  }
+
+  return { success: true, id: ticketId };
 }
 
 export async function updateEscalatedTicketStatus(
