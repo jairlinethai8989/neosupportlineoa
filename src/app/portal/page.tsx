@@ -47,10 +47,14 @@ export default function PortalPage() {
         setCustomerData(customer);
         if (customer.hospital_id) {
           setNeedsRegistration(false);
+          const thirtyDaysAgo = new Date();
+          thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
           const query = supabase
             .from('tickets')
             .select('*, assigned_agent:profiles!assigned_agent_id (id, full_name)', { count: 'exact' })
             .eq('customer_id', customer.id)
+            .or(`status.not.in.(Resolved,Closed,Canceled,Canceled),created_at.gte.${thirtyDaysAgo.toISOString()}`)
             .order('created_at', { ascending: false });
 
           // Final limit depends on how many pages the user has seen
@@ -231,24 +235,23 @@ export default function PortalPage() {
                           </div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                              <span style={{ 
-                                background: '#f1f5f9',
-                                color: '#475569',
-                                padding: '4px 10px',
-                                fontSize: '10px',
-                                fontWeight: '700',
-                                borderRadius: '6px'
+                                background: 
+                                  String(ticket.status).toLowerCase() === 'in progress' ? '#dbeafe' :
+                                  String(ticket.status).toLowerCase() === 'pending' ? '#fef3c7' :
+                                  String(ticket.status).toLowerCase() === 'escalated' ? '#fee2e2' :
+                                  '#f1f5f9',
+                                color: 
+                                  String(ticket.status).toLowerCase() === 'in progress' ? '#1e40af' :
+                                  String(ticket.status).toLowerCase() === 'pending' ? '#92400e' :
+                                  String(ticket.status).toLowerCase() === 'escalated' ? '#991b1b' :
+                                  '#475569',
+                                padding: '6px 12px',
+                                fontSize: '11px',
+                                fontWeight: '800',
+                                borderRadius: '8px',
+                                border: '1px solid currentColor',
+                                borderOpacity: 0.1
                              }}>{ticket.status}</span>
-                             {String(ticket.status).toLowerCase() === 'resolved' && (
-                                <span style={{ 
-                                   background: '#dcfce7',
-                                   color: '#166534',
-                                   padding: '4px 10px',
-                                   fontSize: '10px',
-                                   fontWeight: '800',
-                                   borderRadius: '6px',
-                                   marginLeft: '6px'
-                                }}>รอปิดงาน</span>
-                             )}
                              <ArrowRight size={14} color="#94a3b8" />
                           </div>
                        </div>
@@ -278,7 +281,17 @@ export default function PortalPage() {
                      <div className="portal-glass" style={{ padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'white', border: '1px solid rgba(0,0,0,0.02)' }}>
                         <div>
                            <p style={{ fontSize: '14px', fontWeight: '800', color: '#1e293b' }}>#{ticket.ticket_no}</p>
-                           <p style={{ fontSize: '11px', color: 'var(--portal-text-muted)', marginTop: '2px' }}>{new Date(ticket.resolved_at || ticket.created_at).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: '2-digit' })} • {ticket.status}</p>
+                           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '4px' }}>
+                              <span style={{ 
+                                 background: '#dcfce7', 
+                                 color: '#166534', 
+                                 padding: '2px 8px', 
+                                 borderRadius: '6px', 
+                                 fontSize: '10px', 
+                                 fontWeight: '800' 
+                              }}>สำเร็จ</span>
+                              <p style={{ fontSize: '11px', color: 'var(--portal-text-muted)' }}>{new Date(ticket.resolved_at || ticket.created_at).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: '2-digit' })}</p>
+                           </div>
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                            <CheckCircle size={16} color="#22c55e" />
