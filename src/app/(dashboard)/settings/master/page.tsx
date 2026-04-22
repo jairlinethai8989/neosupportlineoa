@@ -218,8 +218,8 @@ export default function MasterSettingsPage() {
         
         const { error } = await supabase.from('company_settings').update({ [arrayProp]: newList }).eq('id', globalSettings.id);
         if (!error) {
+          await refreshData('settings');
           setEditingId(null);
-          fetchData();
           addToast({ id: `master-upd-${Date.now()}`, type: 'ticket', title: 'Successfully Updated! ✅', body: `แก้ไขเป็น "${editItemName}" เรียบร้อย` });
         } else {
           alert('อัปเดตไม่สำเร็จ');
@@ -273,7 +273,7 @@ export default function MasterSettingsPage() {
         
         const { error } = await supabase.from('company_settings').update({ [arrayProp]: newList }).eq('id', globalSettings.id);
         if (!error) {
-           fetchData();
+           await refreshData('settings');
            addToast({ id: `master-del-${id}`, type: 'ticket', title: 'Deleted! 🗑️', body: `ลบรายการเรียบร้อยแล้ว` });
         }
         return;
