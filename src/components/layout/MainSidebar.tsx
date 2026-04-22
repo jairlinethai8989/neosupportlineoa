@@ -26,16 +26,16 @@ import { useNotificationContext } from '@/contexts/NotificationContext';
 import { useAppContext } from '@/contexts/AppContext';
 
 const DEPT_BADGES: Record<string, string> = {
-  'IT Support': 'ðŸ’»',
-  'Customer Service': 'ðŸŽ§',
-  'Billing': 'ðŸ’µ',
-  'Accounting': 'ðŸ“Š',
-  'Management': 'ðŸ›¡ï¸',
-  'Sales': 'ðŸš€',
-  'Marketing': 'ðŸ“¢',
-  'Operations': 'âš™ï¸',
-  'Human Resources': 'ðŸ‘¥',
-  'Administration': 'ðŸ¢'
+  'IT Support': '💻',
+  'Customer Service': '🎧',
+  'Billing': '💵',
+  'Accounting': '📊',
+  'Management': '🛡️',
+  'Sales': '🚀',
+  'Marketing': '📢',
+  'Operations': '⚙️',
+  'Human Resources': '👥',
+  'Administration': '🏢'
 };
 
 interface SidebarProps {
@@ -44,11 +44,11 @@ interface SidebarProps {
 }
 
 const THEMES = [
-  { id: 'dark', name: 'Dark', thai: 'à¸˜à¸µà¸¡à¹€à¸‚à¹‰à¸¡', color: '#0a0e14', iconColor: '#7367f0' },
-  { id: 'light', name: 'Light', thai: 'à¸˜à¸µà¸¡à¸ªà¸§à¹ˆà¸²à¸‡', color: '#ffffff', iconColor: '#ffcd3c' },
-  { id: 'blue', name: 'Blue', thai: 'à¸˜à¸µà¸¡à¸Ÿà¹‰à¸²', color: '#0f172a', iconColor: '#38bdf8' },
-  { id: 'cyan', name: 'Cyan', thai: 'à¸˜à¸µà¸¡à¹„à¸‹à¹à¸­à¸™à¸”à¹Œ', color: '#081a26', iconColor: '#06b6d4' },
-  { id: 'gray', name: 'Gray', thai: 'à¸˜à¸µà¸¡à¹€à¸—à¸²', color: '#111827', iconColor: '#f3f4f6' },
+  { id: 'dark', name: 'Dark', thai: 'ธีมเข้ม', color: '#0a0e14', iconColor: '#7367f0' },
+  { id: 'light', name: 'Light', thai: 'ธีมสว่าง', color: '#ffffff', iconColor: '#ffcd3c' },
+  { id: 'blue', name: 'Blue', thai: 'ธีมฟ้า', color: '#0f172a', iconColor: '#38bdf8' },
+  { id: 'cyan', name: 'Cyan', thai: 'ธีมไซแอน', color: '#081a26', iconColor: '#06b6d4' },
+  { id: 'gray', name: 'Gray', thai: 'ธีมเทา', color: '#111827', iconColor: '#f3f4f6' },
 ];
 
 const Sidebar = ({ onClickLink, isCollapsed = false }: SidebarProps) => {
@@ -106,39 +106,40 @@ const Sidebar = ({ onClickLink, isCollapsed = false }: SidebarProps) => {
 
   // OPTIMIZATION: Memoized Menu Items
   const menuItems = useMemo(() => [
-    { section: 'Operations', thai: 'à¸ªà¹ˆà¸§à¸™à¸›à¸à¸´à¸šà¸±à¸•à¸´à¸à¸²à¸£à¸«à¸¥à¸±à¸', items: [
-      { name: 'Tickets', thai: 'à¸ˆà¸±à¸”à¸à¸²à¸£à¹ƒà¸šà¸‡à¸²à¸™', icon: Ticket, path: '/tickets', count: newTicketsCount },
-      { name: 'Inbox', thai: 'à¸«à¹‰à¸­à¸‡à¹à¸Šà¸—à¸¥à¸¹à¸à¸„à¹‰à¸²', icon: Inbox, path: '/inbox', count: inboxCount },
-      { name: 'Notifications', thai: 'à¸à¸²à¸£à¹à¸ˆà¹‰à¸‡à¹€à¸•à¸·à¸­à¸™', icon: Bell, path: '/notifications', count: unreadCount },
+    { section: 'Operations', thai: 'Operations', items: [
+      { name: 'Tickets', thai: 'จัดการใบงาน', icon: Ticket, path: '/tickets', count: newTicketsCount },
+      { name: 'Inbox', thai: 'ห้องแชทลูกค้า', icon: Inbox, path: '/inbox', count: inboxCount },
+      { name: 'Notifications', thai: 'การแจ้งเตือน', icon: Bell, path: '/notifications', count: unreadCount },
     ]},
-    { section: 'Intelligence', thai: 'à¸£à¸°à¸šà¸šà¸‚à¹‰à¸­à¸¡à¸¹à¸¥à¹€à¸Šà¸´à¸‡à¸¥à¸¶à¸', items: [
-      { 
-        name: 'Dashboard', 
-        thai: 'à¸§à¸´à¹€à¸„à¸£à¸²à¸°à¸«à¹Œà¹à¸¥à¸°à¸ªà¸–à¸´à¸•à¸´', 
-        icon: LayoutDashboard, 
+    { section: 'Intelligence', thai: 'Intelligence', items: [
+      {
+        name: 'Dashboard',
+        thai: 'แดชบอร์ดและสถิติ',
+        icon: LayoutDashboard,
         children: [
-          { name: 'Overview', thai: 'à¸ à¸²à¸žà¸£à¸§à¸¡à¸£à¸°à¸šà¸š', path: '/' },
-          { name: 'Performance', thai: 'à¸ªà¸–à¸´à¸•à¸´à¸à¸²à¸£à¸—à¸³à¸‡à¸²à¸™', path: '/analytics' },
+          { name: 'Overview', thai: 'ภาพรวมระบบ', path: '/' },
+          { name: 'Performance', thai: 'สถิติการทำงาน', path: '/analytics' },
         ]
       },
-      { name: 'Reports', thai: 'à¸£à¸²à¸¢à¸‡à¸²à¸™ & Broadcast', icon: Send, children: [
-          { name: 'Daily Report', thai: 'à¸ªà¸£à¸¸à¸›à¸›à¸±à¸à¸«à¸²à¸›à¸£à¸°à¸ˆà¸³à¸§à¸±à¸™', path: '/reports/daily' },
-          { name: 'Report Hub', thai: 'à¸¨à¸¹à¸™à¸¢à¹Œà¸„à¸§à¸šà¸„à¸¸à¸¡à¸à¸²à¸£à¸ªà¹ˆà¸‡à¸£à¸²à¸¢à¸‡à¸²à¸™', path: '/reports/hub' }
+      { name: 'Reports', thai: 'รายงานและ Broadcast', icon: Send, children: [
+          { name: 'Daily Report', thai: 'สรุปรายงานประจำวัน', path: '/reports/daily' },
+          { name: 'Report Hub', thai: 'ศูนย์รวมรายงาน', path: '/reports/hub' }
       ] },
-      { name: 'Customers', thai: 'à¸à¸²à¸™à¸‚à¹‰à¸­à¸¡à¸¹à¸¥à¸¥à¸¹à¸à¸„à¹‰à¸²', icon: Users, path: '/customers' },
+      { name: 'Customers', thai: 'ฐานข้อมูลลูกค้า', icon: Users, path: '/customers' },
     ]},
-    { section: 'System', thai: 'à¸à¸²à¸£à¸•à¸±à¹‰à¸‡à¸„à¹ˆà¸²à¸£à¸°à¸šà¸š', items: [
-      { 
-        name: 'Settings', 
-        thai: 'à¸à¸²à¸£à¸•à¸±à¹‰à¸‡à¸„à¹ˆà¸² (Settings)', 
-        icon: Settings, 
+    { section: 'System', thai: 'System', items: [
+      {
+        name: 'Settings',
+        thai: 'การตั้งค่า',
+        icon: Settings,
         children: [
-          { name: 'Profile', thai: 'à¸‚à¹‰à¸­à¸¡à¸¹à¸¥à¸ªà¹ˆà¸§à¸™à¸•à¸±à¸§', path: '/settings/profile' },
-          { name: 'Branding', thai: 'à¸‚à¹‰à¸­à¸¡à¸¹à¸¥à¸­à¸‡à¸„à¹Œà¸à¸£', path: '/settings/branding' },
-          { name: 'Staff', thai: 'à¸ˆà¸±à¸”à¸à¸²à¸£à¸—à¸µà¸¡à¸‡à¸²à¸™', path: '/settings/staff' },
-          { name: 'SLA', thai: 'à¸•à¸±à¹‰à¸‡à¸„à¹ˆà¸² SLA', path: '/settings/sla' },
-          { name: 'Master', thai: 'à¸‚à¹‰à¸­à¸¡à¸¹à¸¥à¸žà¸·à¹‰à¸™à¸à¸²à¸™', path: '/settings/master' },
-          { name: 'Security', thai: 'Audit Logs', path: '/settings/audit' },
+          { name: 'Profile', thai: 'ข้อมูลส่วนตัว', path: '/settings/profile' },
+          { name: 'Notifications Settings', thai: 'ตั้งค่าการแจ้งเตือน', path: '/settings/notifications' },
+          { name: 'Branding', thai: 'ข้อมูลองค์กร', path: '/settings/branding' },
+          { name: 'Staff', thai: 'จัดการทีมงาน', path: '/settings/staff' },
+          { name: 'SLA', thai: 'ตั้งค่า SLA', path: '/settings/sla' },
+          { name: 'Master', thai: 'ข้อมูลพื้นฐาน', path: '/settings/master' },
+          { name: 'Security', thai: 'บันทึกการใช้งาน', path: '/settings/audit' },
         ]
       },
     ]},
@@ -159,6 +160,8 @@ const Sidebar = ({ onClickLink, isCollapsed = false }: SidebarProps) => {
       return permissions.inbox === 'view' || permissions.inbox === 'edit';
     if (key.includes('ticket') || p === '/tickets' || p.includes('tickets/')) 
       return permissions.tickets === 'view' || permissions.tickets === 'edit';
+    if (p.includes('/settings/notifications')) 
+      return permissions.notifications === 'view' || permissions.notifications === 'edit';
     if (key.includes('notification')) 
       return permissions.notifications === 'view' || permissions.notifications === 'edit';
     if (key.includes('customer')) 
@@ -243,7 +246,7 @@ const Sidebar = ({ onClickLink, isCollapsed = false }: SidebarProps) => {
                   boxShadow: '0 10px 25px var(--primary-transparent)',
                   cursor: 'pointer'
                }}>
-                  <Plus size={18} /> à¸ªà¸£à¹‰à¸²à¸‡à¹ƒà¸šà¸‡à¸²à¸™à¹ƒà¸«à¸¡à¹ˆ
+                  <Plus size={18} /> สร้างใบงานใหม่
                </button>
             </Link>
          </div>
@@ -290,7 +293,7 @@ const Sidebar = ({ onClickLink, isCollapsed = false }: SidebarProps) => {
                       {!isCollapsed && (
                         <>
                           <span style={{ fontWeight: '500', fontSize: '13px', flex: 1, textAlign: 'left' }}>{item.thai}</span>
-                          <div style={{ opacity: 0.5, fontSize: '10px' }}>{isOpen ? 'â–¼' : 'â–¶'}</div>
+                          <div style={{ opacity: 0.5, fontSize: '10px' }}>{isOpen ? '▼' : '▶'}</div>
                         </>
                       )}
                     </button>
@@ -369,7 +372,7 @@ const Sidebar = ({ onClickLink, isCollapsed = false }: SidebarProps) => {
                    />
                    {profile?.department && (
                       <div style={{ position: 'absolute', top: '-5px', right: '-5px', fontSize: '10px', background: 'var(--bg-sidebar)', width: '16px', height: '16px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid var(--border)', boxShadow: '0 2px 5px rgba(0,0,0,0.5)' }}>
-                         {DEPT_BADGES[profile.department] || 'ðŸ’¼'}
+                         {DEPT_BADGES[profile.department] || '💼'}
                       </div>
                    )}
                 </div>
@@ -384,7 +387,7 @@ const Sidebar = ({ onClickLink, isCollapsed = false }: SidebarProps) => {
 
         {!isCollapsed && (
            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-             <span style={{ fontSize: '10px', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px' }}>à¸ªà¸¥à¸±à¸šà¸˜à¸µà¸¡à¸žà¸£à¸µà¹€à¸¡à¸µà¸¢à¸¡</span>
+             <span style={{ fontSize: '10px', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px' }}>สลับธีม</span>
              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                 {THEMES.map(t => (
                   <button 
@@ -417,7 +420,7 @@ const Sidebar = ({ onClickLink, isCollapsed = false }: SidebarProps) => {
         <button 
           onClick={handleLogout}
           className="glass-interactive"
-          title={isCollapsed ? 'à¸­à¸­à¸à¸ˆà¸²à¸à¸£à¸°à¸šà¸š' : ''}
+          title={isCollapsed ? 'ออกจากระบบ' : ''}
           style={{
             width: '100%',
             display: 'flex',
@@ -438,7 +441,7 @@ const Sidebar = ({ onClickLink, isCollapsed = false }: SidebarProps) => {
           <LogOut size={18} style={{ flexShrink: 0 }} />
           {!isCollapsed && (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
-              <span style={{ fontWeight: '700', fontSize: '13px' }}>à¸­à¸­à¸à¸ˆà¸²à¸à¸£à¸°à¸šà¸š</span>
+              <span style={{ fontWeight: '700', fontSize: '13px' }}>ออกจากระบบ</span>
               <span style={{ fontSize: '9px', opacity: 0.6, fontWeight: '700' }}>LOGOUT</span>
             </div>
           )}

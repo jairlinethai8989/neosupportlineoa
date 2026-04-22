@@ -1,4 +1,5 @@
 'use client';
+
 import React, { useMemo } from 'react';
 import Link from 'next/link';
 import { ChevronLeft, Volume2, VolumeX, Bell, Play } from 'lucide-react';
@@ -48,7 +49,7 @@ export default function NotificationSettingsPage() {
               <div>
                 <h2 style={{ fontSize: '18px', fontWeight: '850', margin: 0 }}>เสียงแจ้งเตือนใบงานใหม่</h2>
                 <p style={{ color: 'var(--text-muted)', fontSize: '13px', margin: '4px 0 0 0' }}>
-                  เปิด/ปิดเสียง และเลือกประเภทเสียงที่ต้องการ
+                  เปิดหรือปิดเสียง และเลือกประเภทเสียงที่ต้องการ
                 </p>
               </div>
             </div>
@@ -108,7 +109,7 @@ export default function NotificationSettingsPage() {
             >
               <div style={{ fontSize: '13px', fontWeight: '900', marginBottom: '6px' }}>เสียงพูด</div>
               <div style={{ color: 'var(--text-muted)', fontSize: '12px', lineHeight: '1.5' }}>
-                พูดว่า &quot;มีใบงานใหม่&quot; (ถ้าระบบไม่รองรับจะ fallback เป็น beep)
+                พูดว่า &quot;มีใบงานใหม่&quot; และถ้าระบบไม่รองรับจะ fallback เป็น beep
               </div>
             </button>
           </div>
@@ -144,7 +145,7 @@ export default function NotificationSettingsPage() {
         <div className="glass" style={{ padding: '24px', height: 'fit-content' }}>
           <h3 style={{ fontSize: '14px', fontWeight: '900', marginTop: 0 }}>หมายเหตุ</h3>
           <p style={{ color: 'var(--text-muted)', fontSize: '12px', lineHeight: '1.7', marginBottom: 0 }}>
-            บางเบราว์เซอร์จะไม่อนุญาตให้เล่นเสียง/พูดจนกว่าผู้ใช้จะกดปุ่มเปิดเสียงอย่างน้อย 1 ครั้ง
+            บางเบราว์เซอร์จะไม่อนุญาตให้เล่นเสียงหรือพูดจนกว่าผู้ใช้จะกดเปิดเสียงอย่างน้อย 1 ครั้ง
             หากเลือกเสียงพูดแล้วเครื่องไม่รองรับ ระบบจะใช้เสียง beep แทนโดยอัตโนมัติ
           </p>
         </div>
