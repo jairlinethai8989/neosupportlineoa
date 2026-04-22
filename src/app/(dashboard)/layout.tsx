@@ -49,6 +49,7 @@ const ACTION_ICONS: Record<string, any> = {
   'message': MessageSquare,
 };
 
+const ACTION_COLORS: Record<string, string> = {
   'ticket': 'var(--primary)',
   'message': 'var(--success)',
 };
