@@ -28,6 +28,41 @@ export async function verifyEscalationPin(ticketId: string, pin: string) {
   return ticket;
 }
 
+export async function claimEscalatedTicket(
+  ticketId: string,
+  pin: string,
+  receiverName: string
+) {
+  if (pin !== '1234') {
+    throw new Error('รหัส PIN ไม่ถูกต้อง (Invalid PIN)');
+  }
+
+  const timestamp = new Date().toLocaleString('th-TH');
+  const logEntry = `\n\n--- [${timestamp} - Job Claimed] ---\nผู้รับเรื่อง: ${receiverName}\nสถานะ: กำลังดำเนินการโดยแผนกภายนอก`.trim();
+
+  // Fetch existing notes
+  const { data: ticket } = await supabaseAdmin
+    .from('tickets')
+    .select('internal_notes')
+    .eq('id', ticketId)
+    .single();
+
+  const newNotes = `${ticket?.internal_notes || ''}\n\n${logEntry}`.trim();
+
+  const { data, error } = await supabaseAdmin
+    .from('tickets')
+    .update({ 
+      internal_notes: newNotes,
+      updated_at: new Date().toISOString()
+    })
+    .eq('id', ticketId)
+    .select()
+    .single();
+
+  if (error) throw new Error(error.message);
+  return { success: true, id: data.id };
+}
+
 export async function updateEscalatedTicketStatus(
   ticketId: string, 
   pin: string, 
@@ -43,19 +78,19 @@ export async function updateEscalatedTicketStatus(
   // First, fetch existing internal notes to append to
   const { data: existingTicket } = await supabaseAdmin
     .from('tickets')
-    .select('internal_notes, status')
+    .select('internal_notes, status, assigned_agent_id')
     .eq('id', ticketId)
     .single();
     
   let newNotes = existingTicket?.internal_notes || '';
   
   const timestamp = new Date().toLocaleString('th-TH');
-  let logEntry = `\n\n--- [${timestamp} - External Feedback] ---`;
-  if (receiverName) logEntry += `\nผู้รับช่วงงาน: ${receiverName}`;
-  logEntry += `\nสถานะใหม่: ${newStatus}`;
-  if (notes) logEntry += `\nบันทึก: ${notes}`;
+  let logEntry = `\n\n--- [${timestamp} - Work Completed] ---`;
+  if (receiverName) logEntry += `\nผู้ส่งมอบงาน: ${receiverName}`;
+  logEntry += `\nผลการดำเนินการ: ${newStatus}`;
+  if (notes) logEntry += `\nรายละเอียด: ${notes}`;
   if (attachmentUrls && attachmentUrls.length > 0) {
-    logEntry += `\nไฟล์แนบ: ${attachmentUrls.join(', ')}`;
+    logEntry += `\nหลักฐานแนบ: ${attachmentUrls.join(', ')}`;
   }
 
   newNotes = `${newNotes}${logEntry}`.trim();
@@ -74,6 +109,21 @@ export async function updateEscalatedTicketStatus(
   if (error) {
     console.error('[EscalationAction] DB Update Error:', error);
     throw new Error(error.message);
+  }
+
+  // Add a notification for the internal agent
+  if (existingTicket?.assigned_agent_id) {
+    try {
+      await supabaseAdmin.from('notifications').insert([{
+        user_id: existingTicket.assigned_agent_id,
+        title: `✅ งานส่งต่อได้รับการแก้ไขแล้ว — #${data.ticket_no}`,
+        body: `ผู้รับช่วงงาน (${receiverName || 'External'}) ได้อัปเดตสถานะเป็น ${newStatus}`,
+        type: 'ticket',
+        metadata: { ticket_id: ticketId, ticket_no: data.ticket_no }
+      }]);
+    } catch (notifErr) {
+      console.error('[EscalationAction] Notification Error:', notifErr);
+    }
   }
 
   // Ensure we return a plain object to avoid serialization issues

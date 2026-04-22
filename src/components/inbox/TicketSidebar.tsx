@@ -50,6 +50,8 @@ export const TicketSidebar: React.FC<TicketSidebarProps> = ({
   const [copied, setCopied] = useState(false);
   const [magicLink, setMagicLink] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [showEscalateModal, setShowEscalateModal] = useState(false);
+  const [escalationNote, setEscalationNote] = useState('');
 
   const handleCopyLink = (link: string) => {
     navigator.clipboard.writeText(link);
@@ -136,7 +138,83 @@ export const TicketSidebar: React.FC<TicketSidebarProps> = ({
       >
          <History size={14} /> <u>ดูประวัติสนทนาเก่าทั้งหมด (Global Log)</u>
       </button>
+      {/* Escalation Modal */}
+      {showEscalateModal && (
+         <div style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+            <div className="glass animate-in zoom-in" style={{ width: '100%', maxWidth: '400px', background: 'white', borderRadius: '24px', overflow: 'hidden', padding: '24px', boxShadow: '0 20px 50px rgba(0,0,0,0.2)' }}>
+               <h3 style={{ fontSize: '18px', fontWeight: '900', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <AlertCircle color="#8b5cf6" /> ส่งต่องาน (Escalate)
+               </h3>
+               <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '20px' }}>
+                  กรุณาระบุรายละเอียดหรือสิ่งที่ต้องการให้แผนกอื่นตรวจสอบเพิ่มเติม
+               </p>
 
+               <textarea 
+                  value={escalationNote}
+                  onChange={(e) => setEscalationNote(e.target.value)}
+                  placeholder="เช่น ตรวจสอบความถูกต้องของใบเสนอราคา, รบกวนช่างเข้าหน้างานตรวจสอบ..."
+                  style={{
+                     width: '100%',
+                     height: '120px',
+                     padding: '12px',
+                     borderRadius: '12px',
+                     border: '1px solid var(--border)',
+                     fontSize: '14px',
+                     marginBottom: '20px',
+                     outline: 'none',
+                     resize: 'none'
+                  }}
+               />
+
+               <div style={{ display: 'flex', gap: '12px' }}>
+                  <button 
+                     onClick={() => setShowEscalateModal(false)}
+                     style={{ flex: 1, padding: '12px', borderRadius: '12px', border: '1px solid var(--border)', background: 'none', fontWeight: '700', cursor: 'pointer' }}
+                  >
+                     ยกเลิก
+                  </button>
+                  <button 
+                     disabled={!escalationNote.trim() || isProcessing}
+                     onClick={async () => {
+                        if (!currentTicket?.id) return;
+                        setIsProcessing(true);
+                        try {
+                           await ticketService.updateStatus(currentTicket.id, 'Escalated', undefined, `[ESCALATION INSTRUCTIONS]: ${escalationNote}`);
+                           const link = `${window.location.origin}/escalate/${currentTicket.id}`;
+                           setMagicLink(link);
+                           handleCopyLink(link);
+                           setShowEscalateModal(false);
+                           setEscalationNote('');
+                        } catch (err: any) {
+                           alert('Error: ' + err.message);
+                        } finally {
+                           setIsProcessing(false);
+                        }
+                     }}
+                     style={{ 
+                        flex: 2, 
+                        padding: '12px', 
+                        borderRadius: '12px', 
+                        border: 'none', 
+                        background: '#8b5cf6', 
+                        color: 'white', 
+                        fontWeight: '800', 
+                        cursor: (!escalationNote.trim() || isProcessing) ? 'not-allowed' : 'pointer',
+                        opacity: (!escalationNote.trim() || isProcessing) ? 0.7 : 1,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '8px'
+                     }}
+                  >
+                     {isProcessing ? <Loader2 size={16} className="animate-spin" /> : 'ยืนยันการส่งต่องาน'}
+                  </button>
+               </div>
+            </div>
+         </div>
+      )}
+
+      {/* Ticket Hand-off Display */}
       <div style={{ marginTop: '12px', background: 'rgba(255,255,255,0.02)', borderRadius: '24px', padding: '20px', border: '1px solid var(--border)' }}>
          <h4 style={{ fontSize: '11px', fontWeight: '900', color: 'var(--text-muted)', marginBottom: '16px', textTransform: 'uppercase', letterSpacing: '1.5px', textAlign: 'center' }}>
             Ticket Hand-off
@@ -144,20 +222,7 @@ export const TicketSidebar: React.FC<TicketSidebarProps> = ({
          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
             <button
                disabled={isProcessing}
-               onClick={async () => {
-                 if (!currentTicket?.id) return;
-                 setIsProcessing(true);
-                 try {
-                    await ticketService.updateStatus(currentTicket.id, 'Escalated');
-                    const link = `${window.location.origin}/escalate/${currentTicket.id}`;
-                    setMagicLink(link);
-                    handleCopyLink(link);
-                 } catch (err: any) {
-                    alert('Error: ' + err.message);
-                 } finally {
-                    setIsProcessing(false);
-                 }
-               }}
+               onClick={() => setShowEscalateModal(true)}
                className="glass-interactive"
                style={{
                   height: '54px',
