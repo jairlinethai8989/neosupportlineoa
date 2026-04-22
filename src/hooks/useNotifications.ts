@@ -16,15 +16,20 @@ const STORAGE_KEY = 'neo_notif_read_ids_v1';
 // Track which SLA warnings we've already toasted to avoid repeated firing
 const WARNED_SLA_KEY = 'neo_sla_warned_ids_v1';
 const SOUND_MODE_KEY = 'neo_notif_sound_mode_v1';
+const SOUND_VOICE_KEY = 'neo_notif_voice_v1';
 const MAX_TOASTS = 4;
+const VOICE_AUDIO_SRC = {
+  female: '/audio/new-ticket-female.mp3',
+  male: '/audio/new-ticket-male.mp3',
+} as const;
 
 export type NotificationSoundMode = 'beep' | 'voice';
+export type NotificationVoiceOption = 'female' | 'male';
 
 export type SoundTestFailureCode =
   | 'NO_AUDIO_CONTEXT'
   | 'AUDIO_RESUME_BLOCKED'
-  | 'VOICE_UNAVAILABLE'
-  | 'TTS_START_TIMEOUT';
+  | 'AUDIO_PLAYBACK_FAILED';
 
 export type SoundTestResult =
   | { ok: true; hint: string }
@@ -37,8 +42,13 @@ export function useNotifications(agentId: string | null) {
   const [newTicketsCount, setNewTicketsCount] = useState(0);
   const [isMuted, setIsMuted] = useState(true); // Default to muted (browser policy friendly)
   const [soundMode, setSoundModeState] = useState<NotificationSoundMode>('beep');
+  const [soundVoice, setSoundVoiceState] = useState<NotificationVoiceOption>('female');
   const isFirstLoad = useRef(true);
   const audioContextRef = useRef<AudioContext | null>(null);
+  const voiceAudioRef = useRef<Record<NotificationVoiceOption, HTMLAudioElement | null>>({
+    female: null,
+    male: null,
+  });
 
   const getAudioContext = useCallback((): AudioContext | null => {
     if (typeof window === 'undefined') return null;
@@ -64,6 +74,16 @@ export function useNotifications(agentId: string | null) {
     if (ctx.state !== 'running') {
       await ctx.resume();
     }
+
+    if (typeof window !== 'undefined') {
+      (Object.keys(VOICE_AUDIO_SRC) as NotificationVoiceOption[]).forEach((voice) => {
+        if (!voiceAudioRef.current[voice]) {
+          const audio = new Audio(VOICE_AUDIO_SRC[voice]);
+          audio.preload = 'auto';
+          voiceAudioRef.current[voice] = audio;
+        }
+      });
+    }
   }, [getAudioContext]);
 
   const playBeep = useCallback(
@@ -75,119 +95,45 @@ export function useNotifications(agentId: string | null) {
       }
 
       const now = ctx.currentTime;
-      const gain = ctx.createGain();
-      gain.gain.setValueAtTime(0.0001, now);
-      gain.connect(ctx.destination);
+      const masterGain = ctx.createGain();
+      masterGain.gain.setValueAtTime(1, now);
+      masterGain.connect(ctx.destination);
 
-      const beepOnce = (start: number, duration: number, frequency: number) => {
+      const playTone = (
+        start: number,
+        duration: number,
+        frequency: number,
+        type: OscillatorType,
+        peakGain: number
+      ) => {
         const osc = ctx.createOscillator();
-        osc.type = 'sine';
+        const toneGain = ctx.createGain();
+        osc.type = type;
         osc.frequency.setValueAtTime(frequency, start);
-        osc.connect(gain);
+        osc.connect(toneGain);
+        toneGain.connect(masterGain);
 
-        gain.gain.setValueAtTime(0.0001, start);
-        gain.gain.exponentialRampToValueAtTime(0.12, start + 0.01);
-        gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
+        toneGain.gain.setValueAtTime(0.0001, start);
+        toneGain.gain.exponentialRampToValueAtTime(peakGain, start + 0.015);
+        toneGain.gain.exponentialRampToValueAtTime(peakGain * 0.65, start + duration * 0.45);
+        toneGain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
 
         osc.start(start);
         osc.stop(start + duration + 0.02);
       };
 
       if (pattern === 'confirm') {
-        beepOnce(now + 0.02, 0.10, 880);
+        playTone(now + 0.02, 0.22, 987.77, 'triangle', 0.1);
+        playTone(now + 0.035, 0.18, 1975.53, 'sine', 0.035);
         return;
       }
 
-      beepOnce(now + 0.02, 0.12, 784);
-      beepOnce(now + 0.20, 0.12, 988);
+      playTone(now + 0.02, 0.24, 1046.5, 'triangle', 0.12);
+      playTone(now + 0.035, 0.2, 2093, 'sine', 0.04);
+      playTone(now + 0.28, 0.34, 783.99, 'triangle', 0.11);
+      playTone(now + 0.3, 0.26, 1567.98, 'sine', 0.03);
     },
     [getAudioContext]
-  );
-
-  const waitForVoices = useCallback(async (timeoutMs: number) => {
-    if (typeof window === 'undefined' || !window.speechSynthesis) return [];
-    const synth = window.speechSynthesis;
-
-    const initial = synth.getVoices();
-    if (initial.length > 0) return initial;
-
-    // Some browsers populate voices asynchronously; wait for voiceschanged or timeout.
-    return await new Promise<SpeechSynthesisVoice[]>((resolve) => {
-      let done = false;
-      const finish = (voices: SpeechSynthesisVoice[]) => {
-        if (done) return;
-        done = true;
-        resolve(voices);
-      };
-
-      const onVoicesChanged = () => finish(synth.getVoices());
-      synth.addEventListener?.('voiceschanged', onVoicesChanged as any);
-
-      setTimeout(() => {
-        synth.removeEventListener?.('voiceschanged', onVoicesChanged as any);
-        finish(synth.getVoices());
-      }, timeoutMs);
-    });
-  }, []);
-
-  const trySpeakChecked = useCallback(
-    async (
-      text: string,
-      startTimeoutMs: number
-    ): Promise<
-      | { ok: true; usedFallbackVoice: boolean; voiceLang: string | null }
-      | { ok: false; code: SoundTestFailureCode; detail: string }
-    > => {
-      if (typeof window === 'undefined' || !window.speechSynthesis) {
-        return { ok: false, code: 'VOICE_UNAVAILABLE', detail: 'เบราว์เซอร์ไม่รองรับเสียงพูด (speechSynthesis)' };
-      }
-
-      try {
-        const synth = window.speechSynthesis;
-        synth.cancel();
-
-        const voices = await waitForVoices(800);
-        const thaiVoice = voices.find((voice) => voice.lang?.toLowerCase().startsWith('th'));
-        const selectedVoice = thaiVoice ?? voices[0] ?? null;
-        const usedFallbackVoice = !thaiVoice;
-        const voiceLang = selectedVoice?.lang ?? null;
-        if (!selectedVoice) {
-          return { ok: false, code: 'VOICE_UNAVAILABLE', detail: 'ไม่พบเสียงพูดที่ใช้งานได้ในเบราว์เซอร์ (voices ว่างเปล่า)' };
-        }
-
-        const utterance = new SpeechSynthesisUtterance(text);
-        utterance.lang = 'th-TH';
-        utterance.rate = 1.05;
-        utterance.pitch = 1.0;
-        utterance.voice = selectedVoice;
-
-        const started = await new Promise<boolean>((resolve) => {
-          let done = false;
-          const finish = (value: boolean) => {
-            if (done) return;
-            done = true;
-            resolve(value);
-          };
-
-          utterance.onstart = () => finish(true);
-          utterance.onerror = () => finish(false);
-          // If the browser never fires onstart/onerror, treat as failure.
-          setTimeout(() => finish(false), startTimeoutMs);
-
-          synth.speak(utterance);
-        });
-
-        if (!started) {
-          return { ok: false, code: 'TTS_START_TIMEOUT', detail: 'สั่งพูดแล้วแต่ระบบไม่เริ่มเล่นเสียงพูด (อาจถูกบล็อก/เงียบ)' };
-        }
-
-        return { ok: true, usedFallbackVoice, voiceLang };
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
-        return { ok: false, code: 'VOICE_UNAVAILABLE', detail: `ไม่สามารถเริ่มเสียงพูดได้ (${msg})` };
-      }
-    },
-    [waitForVoices]
   );
 
   const setSoundMode = useCallback((next: NotificationSoundMode) => {
@@ -195,6 +141,31 @@ export function useNotifications(agentId: string | null) {
     if (typeof window !== 'undefined') {
       localStorage.setItem(SOUND_MODE_KEY, next);
     }
+  }, []);
+
+  const setSoundVoice = useCallback((next: NotificationVoiceOption) => {
+    setSoundVoiceState(next);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(SOUND_VOICE_KEY, next);
+    }
+  }, []);
+
+  const playVoiceClip = useCallback(async (voice: NotificationVoiceOption) => {
+    if (typeof window === 'undefined') {
+      throw new Error('Voice playback requires a browser environment');
+    }
+
+    let template = voiceAudioRef.current[voice];
+    if (!template) {
+      template = new Audio(VOICE_AUDIO_SRC[voice]);
+      template.preload = 'auto';
+      voiceAudioRef.current[voice] = template;
+    }
+
+    const audio = template.cloneNode(true) as HTMLAudioElement;
+    audio.currentTime = 0;
+    audio.volume = 1;
+    await audio.play();
   }, []);
 
   // ---------------------------------------------------------------
@@ -281,42 +252,37 @@ export function useNotifications(agentId: string | null) {
   const playNewTicketSound = useCallback(() => {
     if (isMuted) return;
     if (soundMode === 'voice') {
-      void trySpeakChecked('มีใบงานใหม่', 900).then((res) => {
-        if (res.ok) return;
-        // Fallback to beep if voice is not available.
+      void playVoiceClip(soundVoice).catch(() => {
         void playBeep('newTicket');
       });
       return;
     }
     void playBeep('newTicket');
-  }, [isMuted, playBeep, soundMode, trySpeakChecked]);
+  }, [isMuted, playBeep, playVoiceClip, soundMode, soundVoice]);
 
   const announceMuteState = useCallback((muted: boolean) => {
     if (muted) return;
-    if (soundMode === 'voice') {
-      void trySpeakChecked('เปิดเสียงแจ้งเตือนแล้ว', 900).then((res) => {
-        if (res.ok) return;
-        void playBeep('confirm');
-      });
-      return;
-    }
     void playBeep('confirm');
-  }, [playBeep, soundMode, trySpeakChecked]);
+  }, [playBeep]);
 
   const testSound = useCallback(async (): Promise<SoundTestResult> => {
     const hint =
       'ถ้าไม่ได้ยิน ให้ตรวจว่าแท็บ/เว็บไม่ถูก Mute และ Site settings > Sound เป็น Allow รวมถึงเสียงของเครื่อง (Volume mixer / output device)';
 
     if (soundMode === 'voice') {
-      const res = await trySpeakChecked('มีใบงานใหม่', 1200);
-      if (res.ok) {
-        const voiceNote = res.usedFallbackVoice
-          ? 'ไม่พบเสียงไทยในเบราว์เซอร์ จึงใช้เสียงเริ่มต้นของเครื่องแทน (ยังควรได้ยินเสียงพูด)'
-          : 'ใช้เสียงไทยของเครื่อง';
-        const extraHint = `${voiceNote} • ถ้าเพิ่งติดตั้งเสียง แนะนำปิดและเปิดเบราว์เซอร์ใหม่ 1 ครั้ง`;
-        return { ok: true, hint: `${extraHint} • ${hint}` };
+      try {
+        await playVoiceClip(soundVoice);
+        const voiceLabel = soundVoice === 'female' ? 'เสียงผู้หญิง' : 'เสียงผู้ชาย';
+        return { ok: true, hint: `กำลังใช้ ${voiceLabel} จากไฟล์ MP3 ในระบบ • ${hint}` };
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        return {
+          ok: false,
+          code: 'AUDIO_PLAYBACK_FAILED',
+          detail: `เล่นไฟล์เสียงแจ้งเตือนไม่สำเร็จ (${msg})`,
+          hint,
+        };
       }
-      return { ok: false, code: res.code, detail: res.detail, hint };
     }
 
     const ctx = getAudioContext();
@@ -341,7 +307,7 @@ export function useNotifications(agentId: string | null) {
         hint,
       };
     }
-  }, [getAudioContext, playBeep, soundMode, trySpeakChecked]);
+  }, [getAudioContext, playBeep, playVoiceClip, soundMode, soundVoice]);
 
   // ---------------------------------------------------------------
   // Fetch ticket_logs for this agent
@@ -534,6 +500,11 @@ export function useNotifications(agentId: string | null) {
       if (storedMode === 'beep' || storedMode === 'voice') {
         setTimeout(() => setSoundModeState(storedMode), 0);
       }
+
+      const storedVoice = localStorage.getItem(SOUND_VOICE_KEY);
+      if (storedVoice === 'female' || storedVoice === 'male') {
+        setTimeout(() => setSoundVoiceState(storedVoice), 0);
+      }
     }
 
     // Subscribe: new ticket_logs targeting this agent
@@ -657,7 +628,9 @@ export function useNotifications(agentId: string | null) {
     newTicketsCount,
     isMuted,
     soundMode,
+    soundVoice,
     setSoundMode,
+    setSoundVoice,
     testSound,
     toggleMute,
     markAsRead, 
