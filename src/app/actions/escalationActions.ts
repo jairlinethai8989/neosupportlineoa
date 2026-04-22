@@ -9,23 +9,25 @@ const supabaseAdmin = createClient(
 
 // We verify the ticket ID and PIN here
 export async function verifyEscalationPin(ticketId: string, pin: string) {
-  // Option A MVP: for local testing, we consider PIN '1234' as correct.
-  // In a real system, we'd query the DB for the ticket's pin or department pin.
-  if (pin !== '1234') {
-    throw new Error('รหัส PIN ไม่ถูกต้อง (Invalid PIN)');
-  }
-  
-  const { data: ticket, error } = await supabaseAdmin
-    .from('tickets')
-    .select('id, ticket_no, subject, description, status, module, issue_type, created_at')
-    .eq('id', ticketId)
-    .single();
+  try {
+    if (pin !== '1234') {
+      return { error: 'รหัส PIN ไม่ถูกต้อง (Invalid PIN)' };
+    }
     
-  if (error || !ticket) {
-    throw new Error('Ticket not found or expired');
+    const { data: ticket, error } = await supabaseAdmin
+      .from('tickets')
+      .select('id, ticket_no, subject, description, status, module, issue_type, created_at')
+      .eq('id', ticketId)
+      .single();
+      
+    if (error || !ticket) {
+      return { error: 'ไม่พบข้อมูลใบงานหรือคำขอนี้หมดอายุแล้ว' };
+    }
+    
+    return { data: ticket };
+  } catch (err: any) {
+    return { error: err.message || 'เกิดข้อผิดพลาดในการตรวจสอบสิทธิ์' };
   }
-  
-  return ticket;
 }
 
 export async function claimEscalatedTicket(
@@ -33,41 +35,44 @@ export async function claimEscalatedTicket(
   pin: string,
   receiverName: string
 ) {
-  if (pin !== '1234') {
-    throw new Error('รหัส PIN ไม่ถูกต้อง (Invalid PIN)');
+  try {
+    if (pin !== '1234') {
+      return { error: 'รหัส PIN ไม่ถูกต้อง' };
+    }
+
+    const date = new Date();
+    const timestamp = `${date.toLocaleDateString('en-GB')} ${date.toLocaleTimeString('en-GB')}`;
+    const logEntry = `\n\n--- [${timestamp} - Job Claimed] ---\nผู้รับเรื่อง: ${receiverName}\nสถานะ: กำลังดำเนินการโดยแผนกภายนอก`;
+
+    // Fetch existing notes
+    const { data: ticket, error: fetchError } = await supabaseAdmin
+      .from('tickets')
+      .select('internal_notes')
+      .eq('id', ticketId)
+      .single();
+
+    if (fetchError || !ticket) {
+      return { error: 'ไม่พบข้อมูลใบงานเพื่อรับเรื่อง' };
+    }
+
+    const newNotes = `${ticket.internal_notes || ''}${logEntry}`.trim();
+
+    const { error: updateError } = await supabaseAdmin
+      .from('tickets')
+      .update({ 
+        internal_notes: newNotes,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', ticketId);
+
+    if (updateError) {
+      return { error: updateError.message };
+    }
+
+    return { success: true };
+  } catch (err: any) {
+    return { error: err.message || 'เกิดข้อผิดพลาดรุนแรงบนเซิร์ฟเวอร์' };
   }
-
-  const timestamp = new Date().toLocaleString('th-TH');
-  const logEntry = `\n\n--- [${timestamp} - Job Claimed] ---\nผู้รับเรื่อง: ${receiverName}\nสถานะ: กำลังดำเนินการโดยแผนกภายนอก`.trim();
-
-  // Fetch existing notes
-  const { data: ticket, error: fetchError } = await supabaseAdmin
-    .from('tickets')
-    .select('internal_notes')
-    .eq('id', ticketId)
-    .single();
-
-  if (fetchError || !ticket) {
-    throw new Error('ไม่พบข้อมูลใบงาน (Ticket not found)');
-  }
-
-  const newNotes = `${ticket.internal_notes || ''}\n\n${logEntry}`.trim();
-
-  const { data, error: updateError } = await supabaseAdmin
-    .from('tickets')
-    .update({ 
-      internal_notes: newNotes,
-      updated_at: new Date().toISOString()
-    })
-    .eq('id', ticketId)
-    .select()
-    .single();
-
-  if (updateError || !data) {
-    throw new Error(updateError?.message || 'บันทึกข้อมูลไม่สำเร็จ');
-  }
-
-  return { success: true, id: ticketId };
 }
 
 export async function updateEscalatedTicketStatus(
@@ -78,61 +83,61 @@ export async function updateEscalatedTicketStatus(
   receiverName?: string,
   attachmentUrls?: string[]
 ) {
-  if (pin !== '1234') {
-    throw new Error('รหัส PIN ไม่ถูกต้อง (Invalid PIN)');
-  }
-  
-  // First, fetch existing internal notes to append to
-  const { data: existingTicket } = await supabaseAdmin
-    .from('tickets')
-    .select('internal_notes, status, assigned_agent_id')
-    .eq('id', ticketId)
-    .single();
+  try {
+    if (pin !== '1234') {
+      return { error: 'รหัส PIN ไม่ถูกต้อง' };
+    }
     
-  let newNotes = existingTicket?.internal_notes || '';
-  
-  const timestamp = new Date().toLocaleString('th-TH');
-  let logEntry = `\n\n--- [${timestamp} - Work Completed] ---`;
-  if (receiverName) logEntry += `\nผู้ส่งมอบงาน: ${receiverName}`;
-  logEntry += `\nผลการดำเนินการ: ${newStatus}`;
-  if (notes) logEntry += `\nรายละเอียด: ${notes}`;
-  if (attachmentUrls && attachmentUrls.length > 0) {
-    logEntry += `\nหลักฐานแนบ: ${attachmentUrls.join(', ')}`;
-  }
+    const { data: existingTicket, error: fetchError } = await supabaseAdmin
+      .from('tickets')
+      .select('internal_notes, status, assigned_agent_id, ticket_no')
+      .eq('id', ticketId)
+      .single();
+      
+    if (fetchError || !existingTicket) {
+      return { error: 'ไม่พบข้อมูลใบงานเพื่อบันทึก' };
+    }
 
-  newNotes = `${newNotes}${logEntry}`.trim();
+    const date = new Date();
+    const timestamp = `${date.toLocaleDateString('en-GB')} ${date.toLocaleTimeString('en-GB')}`;
+    let logEntry = `\n\n--- [${timestamp} - Work Completed] ---`;
+    if (receiverName) logEntry += `\nผู้ส่งมอบงาน: ${receiverName}`;
+    logEntry += `\nผลการดำเนินการ: ${newStatus}`;
+    if (notes) logEntry += `\nรายละเอียด: ${notes}`;
+    if (attachmentUrls && attachmentUrls.length > 0) {
+      logEntry += `\nหลักฐานแนบ: ${attachmentUrls.join(', ')}`;
+    }
 
-  const { data, error } = await supabaseAdmin
-    .from('tickets')
-    .update({ 
-      status: newStatus,
-      internal_notes: newNotes,
-      updated_at: new Date().toISOString()
-    })
-    .eq('id', ticketId)
-    .select()
-    .single();
+    const newNotes = `${existingTicket.internal_notes || ''}${logEntry}`.trim();
 
-  if (error) {
-    console.error('[EscalationAction] DB Update Error:', error);
-    throw new Error(error.message);
-  }
+    const { data: updatedData, error: updateError } = await supabaseAdmin
+      .from('tickets')
+      .update({ 
+        status: newStatus,
+        internal_notes: newNotes,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', ticketId)
+      .select()
+      .single();
 
-  // Add a notification for the internal agent
-  if (existingTicket?.assigned_agent_id) {
-    try {
+    if (updateError || !updatedData) {
+      return { error: updateError?.message || 'บันทึกข้อมูลไม่สำเร็จ' };
+    }
+
+    // Add a notification for the internal agent
+    if (existingTicket.assigned_agent_id) {
       await supabaseAdmin.from('notifications').insert([{
         user_id: existingTicket.assigned_agent_id,
-        title: `✅ งานส่งต่อได้รับการแก้ไขแล้ว — #${data.ticket_no}`,
-        body: `ผู้รับช่วงงาน (${receiverName || 'External'}) ได้อัปเดตสถานะเป็น ${newStatus}`,
+        title: `✅ งานส่งต่อได้รับการแก้ไขแล้ว — #${existingTicket.ticket_no}`,
+        body: `ผู้รับช่วงงาน (${receiverName || 'External'}) ได้อัปเดตเป็น ${newStatus}`,
         type: 'ticket',
-        metadata: { ticket_id: ticketId, ticket_no: data.ticket_no }
+        metadata: { ticket_id: ticketId, ticket_no: existingTicket.ticket_no }
       }]);
-    } catch (notifErr) {
-      console.error('[EscalationAction] Notification Error:', notifErr);
     }
-  }
 
-  // Ensure we return a plain object to avoid serialization issues
-  return JSON.parse(JSON.stringify({ success: true, ticketId: data.id }));
+    return { success: true };
+  } catch (err: any) {
+    return { error: err.message || 'เกิดข้อผิดพลาดรุนแรงบนเซิร์ฟเวอร์' };
+  }
 }

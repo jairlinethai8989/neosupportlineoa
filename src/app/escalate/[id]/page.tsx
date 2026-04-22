@@ -33,12 +33,16 @@ export default function EscalationPortalPage() {
     setLoading(true);
     
     try {
-      const data = await verifyEscalationPin(ticketId, pin);
-      setTicketData(data);
-      setNewStatus(data.status || 'Resolved');
-      setIsUnlocked(true);
+      const res = await verifyEscalationPin(ticketId, pin);
+      if (res.error) {
+        setError(res.error);
+      } else {
+        setTicketData(res.data);
+        setNewStatus(res.data.status || 'Resolved');
+        setIsUnlocked(true);
+      }
     } catch (err: any) {
-      setError(err.message || 'รหัสผ่านไม่ถูกต้อง หรือคำขอนี้หมดอายุแล้ว');
+      setError('เกิดข้อผิดพลาดในการเชื่อมต่อ');
     } finally {
       setLoading(false);
     }
@@ -54,12 +58,16 @@ export default function EscalationPortalPage() {
     setError('');
     setLoading(true);
     try {
-      await claimEscalatedTicket(ticketId, pin, receiverName);
-      setIsClaimed(true);
-      setSuccess('รับเรื่องสำเร็จ! กรุณาตรวจสอบรายละเอียดและดำเนินการ');
-      setTimeout(() => setSuccess(''), 3000);
+      const res = await claimEscalatedTicket(ticketId, pin, receiverName);
+      if (res.error) {
+        setError(res.error);
+      } else {
+        setIsClaimed(true);
+        setSuccess('รับเรื่องสำเร็จ! กรุณาตรวจสอบรายละเอียดและดำเนินการ');
+        setTimeout(() => setSuccess(''), 3000);
+      }
     } catch (err: any) {
-      setError(err.message || 'เกิดข้อผิดพลาดในการรับเรื่อง');
+      setError('เกิดข้อผิดพลาดในการรับเรื่อง');
     } finally {
       setLoading(false);
     }
@@ -114,15 +122,16 @@ export default function EscalationPortalPage() {
     setLoading(true);
     
     try {
-      await updateEscalatedTicketStatus(ticketId, pin, newStatus, notes, receiverName, attachments);
-      setSuccess('บันทึกข้อมูลและส่งกลับหาแอดมินสำเร็จ!');
-      setNotes(''); 
-      setAttachments([]);
-      setError('');
+      const res = await updateEscalatedTicketStatus(ticketId, pin, newStatus, notes, receiverName, attachments);
+      if (res.error) {
+        setError(res.error);
+      } else {
+        setSuccess('บันทึกข้อมูลและส่งกลับหาแอดมินสำเร็จ!');
+        setNotes(''); 
+        setAttachments([]);
+      }
     } catch (err: any) {
-      console.error('Update failed:', err);
-      const msg = err.message || 'เกิดข้อผิดพลาดในการอัปเดต';
-      setError(String(msg));
+      setError('เกิดข้อผิดพลาดในการส่งรายงาน');
     } finally {
       setLoading(false);
     }
@@ -139,7 +148,7 @@ export default function EscalationPortalPage() {
         </div>
         <h2 style={{ fontSize: '20px', fontWeight: 800, marginBottom: '8px' }}>เข้าสู่ระบบ (แผนกรับช่วงต่อ)</h2>
         <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '24px' }}>กรุณากรอกรหัส PIN 4 หลัก เพื่อตรวจสอบรายละเอียดใบงาน</p>
-        {error && <div style={{ padding: '12px', background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', borderRadius: '12px', marginBottom: '20px', fontSize: '13px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}><AlertCircle size={16} /> {error}</div>}
+        {error && <div style={{ padding: '12px', background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', borderRadius: '12px', marginBottom: '20px', fontSize: '13px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}><AlertCircle size={16} /> <span>{String(error)}</span></div>}
         <form onSubmit={handleUnlock} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           <input type="password" maxLength={4} value={pin} onChange={(e) => setPin(e.target.value.replace(/[^0-9]/g, ''))} placeholder="รหัส PIN 4 หลัก" style={{ padding: '16px', borderRadius: '12px', border: '2px solid #e2e8f0', textAlign: 'center', fontSize: '24px', letterSpacing: '8px', fontWeight: 800, outline: 'none' }} disabled={loading} />
           <button disabled={loading || pin.length < 4} type="submit" style={{ background: 'var(--primary)', color: 'white', border: 'none', padding: '16px', borderRadius: '12px', fontWeight: 800, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
@@ -172,7 +181,7 @@ export default function EscalationPortalPage() {
                  />
               </div>
 
-              {error && <div style={{ padding: '12px', background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', borderRadius: '12px', fontSize: '13px' }}>{error}</div>}
+              {error && <div style={{ padding: '12px', background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', borderRadius: '12px', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '8px' }}><AlertCircle size={16} /> <span>{String(error)}</span></div>}
 
               <button 
                  disabled={loading || !receiverName.trim()} 
