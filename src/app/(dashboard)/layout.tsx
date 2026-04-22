@@ -458,7 +458,8 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
                                  }}
                                  title={t.thai}
                                >
-                                  {theme === t.id && <div style={{ position: 'absolute', inset: -2, border: `2px solid ${t.iconColor}`, borderRadius: '50%' }} />}
+                                  <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: t.iconColor }} />
+                                  {theme === t.id && <div style={{ position: 'absolute', inset: -3, border: `2px solid ${t.iconColor}`, borderRadius: '50%' }} />}
                                </button>
                             ))}
                          </div>
