@@ -19,12 +19,17 @@ export async function verifyEscalationPin(ticketId: string, pin: string) {
       return { error: 'รหัส PIN ไม่ถูกต้อง (Invalid PIN)' };
     }
     
-    // Simplifed select - remove joins to confirm record existence first
-    const { data: ticket, error } = await supabaseAdmin
-      .from('tickets')
-      .select('*')
-      .eq('id', ticketId)
-      .maybeSingle();
+    // Search by ID (UUID) or custom Token
+    const isUuid = ticketId.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
+    
+    let query = supabaseAdmin.from('tickets').select('*');
+    if (isUuid) {
+      query = query.eq('id', ticketId);
+    } else {
+      query = query.eq('escalation_token', ticketId);
+    }
+
+    const { data: ticket, error } = await query.maybeSingle();
       
     if (error) {
        console.error('[Verify] Supabase Error:', error);
@@ -32,8 +37,8 @@ export async function verifyEscalationPin(ticketId: string, pin: string) {
     }
 
     if (!ticket) {
-      console.log('[Verify] Ticket NOT FOUND for ID:', ticketId);
-      return { error: `ไม่พบข้อมูลใบงาน (Ticket Not Found: ${ticketId.substring(0, 8)}...)` };
+      console.log('[Verify] Ticket NOT FOUND for ID/Token:', ticketId);
+      return { error: 'ไม่พบข้อมูลใบงานหรือรหัสยืนยันผิดพลาด (Ticket Not Found or Invalid Token)' };
     }
 
     // If found, we can try to fetch the joined data separately or use a safer join

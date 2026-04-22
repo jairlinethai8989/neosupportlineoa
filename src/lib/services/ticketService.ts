@@ -17,8 +17,8 @@ export const ticketService = {
     return claimTicketServerAction(ticketId);
   },
 
-  async updateStatus(ticketId: string, newStatus: string, agentId?: string, note?: string) {
-    return updateTicketStatusAction(ticketId, newStatus, note);
+  async updateStatus(ticketId: string, newStatus: string, agentId?: string, note?: string, escalationToken?: string) {
+    return updateTicketStatusAction(ticketId, newStatus, note, escalationToken);
   },
 
   async transfer(ticketId: string, fromAgentId?: string, toAgentId?: string, toTeamId?: string, reason?: string) {

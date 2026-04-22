@@ -159,8 +159,9 @@ export const TicketSidebar: React.FC<TicketSidebarProps> = ({
                   if (!window.confirm('ต้องการเปลี่ยนสถานะเป็น Pending (รออุปกรณ์/ติดปัญหาถาวร) ใช่หรือไม่?')) return;
                   setIsProcessing(true);
                   try {
-                     await ticketService.updateStatus(currentTicket.id, 'Pending');
-                     const link = `${window.location.origin}/escalate/${currentTicket.id}`;
+                     const randomToken = `P-${Math.random().toString(36).substring(2, 10).toUpperCase()}`;
+                     await ticketService.updateStatus(currentTicket.id, 'Pending', undefined, undefined, randomToken);
+                     const link = `${window.location.origin}/escalate/${randomToken}`;
                      setMagicLink(link);
                   } catch (err: any) {
                      alert('Error: ' + err.message);

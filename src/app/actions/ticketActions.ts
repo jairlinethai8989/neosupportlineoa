@@ -77,7 +77,7 @@ export async function claimTicketServerAction(ticketId: string) {
   return ticket;
 }
 
-export async function updateTicketStatusAction(ticketId: string, newStatus: string, note?: string) {
+export async function updateTicketStatusAction(ticketId: string, newStatus: string, note?: string, escalationToken?: string) {
   const user = await getSessionUser();
   await verifyAgentRole(user.id);
   const agentId = user.id;
@@ -88,12 +88,17 @@ export async function updateTicketStatusAction(ticketId: string, newStatus: stri
     .eq('id', ticketId)
     .single();
 
+  const updateData: any = { 
+    status: newStatus,
+    updated_at: new Date().toISOString()
+  };
+  if (escalationToken) {
+    updateData.escalation_token = escalationToken;
+  }
+
   const { data: ticket, error: updateError } = await supabaseAdmin
     .from('tickets')
-    .update({ 
-      status: newStatus,
-      updated_at: new Date().toISOString()
-    })
+    .update(updateData)
     .eq('id', ticketId)
     .select()
     .single();
