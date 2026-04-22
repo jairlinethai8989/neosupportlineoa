@@ -72,11 +72,10 @@ export async function updateEscalatedTicketStatus(
     .single();
 
   if (error) {
+    console.error('[EscalationAction] DB Update Error:', error);
     throw new Error(error.message);
   }
 
-  // If status resolved, optionally close the active conversation if requested? 
-  // Probably let the Agent handle it on the dashboard side.
-  
-  return data;
+  // Ensure we return a plain object to avoid serialization issues
+  return JSON.parse(JSON.stringify({ success: true, ticketId: data.id }));
 }

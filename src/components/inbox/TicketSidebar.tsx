@@ -48,6 +48,7 @@ export const TicketSidebar: React.FC<TicketSidebarProps> = ({
 
   const [copied, setCopied] = useState(false);
   const [magicLink, setMagicLink] = useState<string | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
 
   const handleCopyLink = (link: string) => {
     navigator.clipboard.writeText(link);
@@ -141,8 +142,10 @@ export const TicketSidebar: React.FC<TicketSidebarProps> = ({
          </h4>
          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
             <button
+               disabled={isProcessing}
                onClick={async () => {
                  if (!currentTicket?.id) return;
+                 setIsProcessing(true);
                  try {
                     await ticketService.updateStatus(currentTicket.id, 'Escalated');
                     const link = `${window.location.origin}/escalate/${currentTicket.id}`;
@@ -150,6 +153,8 @@ export const TicketSidebar: React.FC<TicketSidebarProps> = ({
                     handleCopyLink(link);
                  } catch (err: any) {
                     alert('Error: ' + err.message);
+                 } finally {
+                    setIsProcessing(false);
                  }
                }}
                className="glass-interactive"
@@ -161,19 +166,22 @@ export const TicketSidebar: React.FC<TicketSidebarProps> = ({
                   color: 'var(--secondary, #8b5cf6)',
                   fontWeight: '900',
                   fontSize: '13px',
-                  cursor: 'pointer',
+                  cursor: isProcessing ? 'not-allowed' : 'pointer',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   gap: '8px',
-                  boxShadow: '0 4px 15px rgba(139, 92, 246, 0.15)'
+                  boxShadow: '0 4px 15px rgba(139, 92, 246, 0.15)',
+                  opacity: isProcessing ? 0.7 : 1
                }}
             >
-               🚨 Escalate
+               {isProcessing ? <Loader2 size={18} className="animate-spin" /> : '🚨 Escalate'}
             </button>
             <button
+               disabled={isProcessing}
                onClick={async () => {
                  if (!currentTicket?.id) return;
+                 setIsProcessing(true);
                  try {
                     await ticketService.updateStatus(currentTicket.id, 'Pending');
                     const link = `${window.location.origin}/escalate/${currentTicket.id}`;
@@ -181,6 +189,8 @@ export const TicketSidebar: React.FC<TicketSidebarProps> = ({
                     handleCopyLink(link);
                  } catch (err: any) {
                     alert('Error: ' + err.message);
+                 } finally {
+                    setIsProcessing(false);
                  }
                }}
                className="glass-interactive"
@@ -192,15 +202,16 @@ export const TicketSidebar: React.FC<TicketSidebarProps> = ({
                   color: '#ef4444',
                   fontWeight: '900',
                   fontSize: '13px',
-                  cursor: 'pointer',
+                  cursor: isProcessing ? 'not-allowed' : 'pointer',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   gap: '8px',
-                  boxShadow: '0 4px 15px rgba(239, 68, 68, 0.15)'
+                  boxShadow: '0 4px 15px rgba(239, 68, 68, 0.15)',
+                  opacity: isProcessing ? 0.7 : 1
                }}
             >
-               ⏳ Pending
+               {isProcessing ? <Loader2 size={18} className="animate-spin" /> : '⏳ Pending'}
             </button>
          </div>
 

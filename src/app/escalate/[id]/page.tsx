@@ -88,13 +88,17 @@ export default function EscalationPortalPage() {
     setLoading(true);
     
     try {
-      await updateEscalatedTicketStatus(ticketId, pin, newStatus, notes, receiverName, attachments);
+      const result = await updateEscalatedTicketStatus(ticketId, pin, newStatus, notes, receiverName, attachments);
+      console.log('Update result:', result);
       setSuccess('บันทึกข้อมูลและส่งกลับสำเร็จ!');
       setNotes(''); 
       setReceiverName('');
       setAttachments([]);
+      setError(null);
     } catch (err: any) {
-      setError(err.message || 'เกิดข้อผิดพลาดในการอัปเดต');
+      console.error('Update failed:', err);
+      const msg = err.message || (typeof err === 'string' ? err : 'เกิดข้อผิดพลาดในการอัปเดต');
+      setError(String(msg));
     } finally {
       setLoading(false);
     }
@@ -231,7 +235,7 @@ export default function EscalationPortalPage() {
         
         {error && (
           <div style={{ padding: '12px', background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', borderRadius: '12px', marginBottom: '20px', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <AlertCircle size={16} /> {error}
+            <AlertCircle size={16} /> <span>{String(error)}</span>
           </div>
         )}
 
