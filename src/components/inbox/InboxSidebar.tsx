@@ -23,7 +23,7 @@ export const InboxSidebar: React.FC<InboxSidebarProps> = ({
   onPageChange
 }) => {
   return (
-    <div className={`glass inbox-list-panel ${viewMode !== 'list' ? 'hidden-mobile' : ''}`} style={{ width: '360px', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+    <div className={`glass inbox-list-panel ${viewMode !== 'list' ? 'hidden-mobile' : ''}`} style={{ width: '260px', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
       
       {/* Header */}
       <div style={{ padding: '24px', borderBottom: '1px solid var(--border)', background: 'linear-gradient(to right, rgba(255,255,255,0.03), transparent)' }}>
@@ -100,7 +100,7 @@ export const InboxSidebar: React.FC<InboxSidebarProps> = ({
                 </p>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <p className="truncate" style={{ fontSize: '11px', color: 'var(--text-muted)', maxWidth: '180px' }}>
+                <p className="truncate" style={{ fontSize: '11px', color: 'var(--text-muted)', maxWidth: '100px' }}>
                   สถานะ: <span style={{ color: 'var(--primary)', fontWeight: '700' }}>ACTIVE</span>
                 </p>
                 <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--primary)', boxShadow: '0 0 10px var(--primary)' }} />
