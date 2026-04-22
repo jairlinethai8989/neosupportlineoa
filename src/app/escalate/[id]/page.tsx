@@ -291,10 +291,10 @@ export default function EscalationPortalPage() {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
             <div>
               <label style={{ display: 'block', fontSize: '12px', fontWeight: 800, color: '#64748b', marginBottom: '8px' }}>สถานะผลงาน (Final Status)</label>
-              <select value={newStatus} onChange={(e) => setNewStatus(e.target.value)} style={{ width: '100%', padding: '14px', borderRadius: '12px', border: '1px solid #e2e8f0', background: '#f8fafc', fontSize: '14px', fontWeight: 700, outline: 'none' }}>
-                <option value="Resolved">ซ่อมเสร็จสิ้น (Resolved)</option>
-                <option value="In Progress">ยังติดปัญหา (In Progress)</option>
-                <option value="Pending">รออะไหล่/รออุปกรณ์ (Pending)</option>
+              <select value={newStatus} onChange={(e) => setNewStatus(e.target.value)} disabled={loading || !!success} style={{ width: '100%', padding: '14px', borderRadius: '12px', border: '1px solid #e2e8f0', background: '#f8fafc', fontSize: '14px', fontWeight: 700, outline: 'none' }}>
+                <option value="Resolved">แก้ไขเสร็จสิ้น (Resolved)</option>
+                <option value="In Progress">กำลังดำเนินการ (In Progress)</option>
+                <option value="Pending">ติดปัญหา (Pending)</option>
               </select>
             </div>
             <div>
@@ -305,7 +305,7 @@ export default function EscalationPortalPage() {
 
           <div>
             <label style={{ display: 'block', fontSize: '12px', fontWeight: 800, color: '#64748b', marginBottom: '8px' }}>บันทึกผลการดำเนินงาน (Work Log)</label>
-            <textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="พิมพ์รายละเอียดสิ่งที่แก้ไข หรือสาเหตุ..." style={{ width: '100%', height: '80px', padding: '14px', borderRadius: '12px', border: '1px solid #e2e8f0', background: '#f8fafc', fontSize: '14px', resize: 'none', outline: 'none' }} />
+            <textarea value={notes} onChange={(e) => setNotes(e.target.value)} disabled={loading || !!success} placeholder="พิมพ์รายละเอียดสิ่งที่แก้ไข หรือสาเหตุ..." style={{ width: '100%', height: '80px', padding: '14px', borderRadius: '12px', border: '1px solid #e2e8f0', background: '#f8fafc', fontSize: '14px', resize: 'none', outline: 'none' }} />
           </div>
 
           <div>
@@ -314,18 +314,18 @@ export default function EscalationPortalPage() {
               {attachments.map((url, idx) => (
                 <div key={idx} style={{ position: 'relative', width: '80px', height: '80px', borderRadius: '12px', overflow: 'hidden', border: '1px solid #e2e8f0' }}>
                   <img src={url} alt="attachment" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                  <button type="button" onClick={() => removeAttachment(url)} style={{ position: 'absolute', top: '4px', right: '4px', background: 'rgba(239, 68, 68, 0.8)', border: 'none', borderRadius: '4px', padding: '2px', cursor: 'pointer', color: 'white' }}><Trash2 size={12} /></button>
+                  {!success && <button type="button" onClick={() => removeAttachment(url)} style={{ position: 'absolute', top: '4px', right: '4px', background: 'rgba(239, 68, 68, 0.8)', border: 'none', borderRadius: '4px', padding: '2px', cursor: 'pointer', color: 'white' }}><Trash2 size={12} /></button>}
                 </div>
               ))}
-              <label style={{ width: '80px', height: '80px', borderRadius: '12px', border: '2px dashed #cbd5e1', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', cursor: uploading ? 'not-allowed' : 'pointer', background: '#f8fafc', gap: '4px' }}>
+              {!success && <label style={{ width: '80px', height: '80px', borderRadius: '12px', border: '2px dashed #cbd5e1', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', cursor: uploading ? 'not-allowed' : 'pointer', background: '#f8fafc', gap: '4px' }}>
                 {uploading ? <Loader2 className="animate-spin" size={20} color="#94a3b8" /> : <><Camera size={20} color="#94a3b8" /><span style={{ fontSize: '10px', color: '#94a3b8', fontWeight: 700 }}>แนบรูป</span></>}
                 <input type="file" multiple accept="image/*" hidden onChange={handleFileUpload} disabled={uploading} />
-              </label>
+              </label>}
             </div>
           </div>
 
-          <button type="submit" disabled={loading} style={{ background: '#10b981', color: 'white', border: 'none', padding: '16px', borderRadius: '12px', fontWeight: 800, cursor: loading ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', boxShadow: '0 8px 24px rgba(16, 185, 129, 0.25)', transition: 'all 0.3s' }}>
-            {loading ? <Loader2 className="animate-spin" size={18} /> : <><Send size={18} /> ส่งรายงานกลับแผนกต้นเรื่อง</>}
+          <button type="submit" disabled={loading || !!success} style={{ background: success ? '#94a3b8' : '#10b981', color: 'white', border: 'none', padding: '16px', borderRadius: '12px', fontWeight: 800, cursor: (loading || success) ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', boxShadow: success ? 'none' : '0 8px 24px rgba(16, 185, 129, 0.25)', transition: 'all 0.3s' }}>
+            {loading ? <Loader2 className="animate-spin" size={18} /> : success ? <><CheckCircle size={18} /> ส่งรายงานเรียบร้อยแล้ว</> : <><Send size={18} /> ส่งรายงานกลับแผนกต้นเรื่อง</>}
           </button>
         </form>
       </div>
