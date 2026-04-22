@@ -254,7 +254,7 @@ export default function EscalationPortalPage() {
 
           <div>
             <label style={{ display: 'block', fontSize: '12px', fontWeight: 800, color: '#64748b', marginBottom: '8px' }}>บันทึกผลการดำเนินงาน (Work Log)</label>
-            <textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="พิมพ์รายละเอียดสิ่งที่แก้ไข หรือสาเหตุ...” style={{ width: '100%', height: '80px', padding: '14px', borderRadius: '12px', border: '1px solid #e2e8f0', background: '#f8fafc', fontSize: '14px', resize: 'none', outline: 'none' }} />
+            <textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="พิมพ์รายละเอียดสิ่งที่แก้ไข หรือสาเหตุ..." style={{ width: '100%', height: '80px', padding: '14px', borderRadius: '12px', border: '1px solid #e2e8f0', background: '#f8fafc', fontSize: '14px', resize: 'none', outline: 'none' }} />
           </div>
 
           <div>
