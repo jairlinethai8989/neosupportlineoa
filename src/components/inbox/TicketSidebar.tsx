@@ -10,7 +10,8 @@ import {
   X,
   Copy,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  Loader2
 } from 'lucide-react';
 import type { InboxAgent, InboxConversation, InboxTicket, InboxViewMode } from '@/types/inbox';
 import { ticketService } from '@/lib/services/ticketService';
