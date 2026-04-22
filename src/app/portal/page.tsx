@@ -249,8 +249,7 @@ export default function PortalPage() {
                                 fontSize: '11px',
                                 fontWeight: '800',
                                 borderRadius: '8px',
-                                border: '1px solid currentColor',
-                                borderOpacity: 0.1
+                                border: '1px solid rgba(0,0,0,0.05)'
                              }}>{ticket.status}</span>
                              <ArrowRight size={14} color="#94a3b8" />
                           </div>
