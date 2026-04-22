@@ -2,7 +2,6 @@
 
 import { createClient } from '@supabase/supabase-js';
 
-// We initialize inside or ensure it's strictly from env
 const getSupabaseAdmin = () => {
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -14,26 +13,23 @@ const getSupabaseAdmin = () => {
 export async function verifyEscalationPin(ticketId: string, pin: string) {
   try {
     const supabaseAdmin = getSupabaseAdmin();
-    console.log('[Verify] TicketID:', ticketId);
-
     if (pin !== '1234') {
       return { error: 'รหัส PIN ไม่ถูกต้อง (Invalid PIN)' };
     }
     
+    // Selecting columns that DEFINITELY exist
     const { data: ticket, error } = await supabaseAdmin
       .from('tickets')
-      .select('id, ticket_no, subject, description, status, module, issue_type, created_at')
+      .select('id, ticket_no, subject, description, status, module, issue_type, created_at, customer_id')
       .eq('id', ticketId)
-      .single();
+      .maybeSingle();
       
     if (error || !ticket) {
-      console.error('[Verify] Fetch Error:', error);
       return { error: 'ไม่พบข้อมูลใบงานหรือคำขอนี้หมดอายุแล้ว' };
     }
     
     return { data: ticket };
   } catch (err: any) {
-    console.error('[Verify] Critical Error:', err);
     return { error: 'เกิดข้อผิดพลาดในการตรวจสอบสิทธิ์: ' + err.message };
   }
 }
@@ -45,46 +41,33 @@ export async function claimEscalatedTicket(
 ) {
   try {
     const supabaseAdmin = getSupabaseAdmin();
-    console.log('[Claim] TicketID:', ticketId, 'for', receiverName);
-
     if (pin !== '1234') {
       return { error: 'รหัส PIN ไม่ถูกต้อง' };
     }
 
-    const timestamp = new Date().toISOString().replace('T', ' ').substring(0, 19);
-    const logEntry = `\n\n--- [${timestamp} UTC - Job Claimed] ---\nผู้รับเรื่อง: ${receiverName}\nสถานะ: กำลังดำเนินการโดยแผนกภายนอก`;
+    const date = new Date();
+    const timestamp = date.toISOString().replace('T', ' ').substring(0, 19);
+    const logNote = `[Job Claimed by External] ผู้รับเรื่อง: ${receiverName} (เวลา: ${timestamp} UTC)`;
 
-    // Fetch existing notes
-    const { data: ticket, error: fetchError } = await supabaseAdmin
-      .from('tickets')
-      .select('internal_notes')
-      .eq('id', ticketId)
-      .maybeSingle(); // Better than single() if we want to handle "not found" gracefully
+    // INSTEAD of updating 'internal_notes' (which doesn't exist), we insert into ticket_logs
+    const { error: logError } = await supabaseAdmin
+      .from('ticket_logs')
+      .insert([{
+        ticket_id: ticketId,
+        action_type: 'claim',
+        note: logNote
+      }]);
 
-    if (fetchError || !ticket) {
-      console.error('[Claim] Fetch Error:', fetchError);
-      return { error: `ไม่พบข้อมูลใบงานเพื่อรับเรื่อง (ID: ${ticketId.substring(0, 8)}...)` };
+    if (logError) {
+      return { error: 'ไม่สามารถบันทึกการรับเรื่องได้: ' + logError.message };
     }
 
-    const newNotes = `${ticket.internal_notes || ''}${logEntry}`.trim();
-
-    const { error: updateError } = await supabaseAdmin
-      .from('tickets')
-      .update({ 
-        internal_notes: newNotes,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', ticketId);
-
-    if (updateError) {
-      console.error('[Claim] Update Error:', updateError);
-      return { error: 'บันทึกข้อมูลล้มเหลว: ' + updateError.message };
-    }
+    // Also update ticket updated_at
+    await supabaseAdmin.from('tickets').update({ updated_at: new Date().toISOString() }).eq('id', ticketId);
 
     return { success: true };
   } catch (err: any) {
-    console.error('[Claim] Critical Error:', err);
-    return { error: 'เกิดข้อผิดพลาดรุนแรงบนเซิร์ฟเวอร์: ' + err.message };
+    return { error: 'เกิดข้อผิดพลาดรุนแรง: ' + err.message };
   }
 }
 
@@ -102,32 +85,35 @@ export async function updateEscalatedTicketStatus(
       return { error: 'รหัส PIN ไม่ถูกต้อง' };
     }
     
-    const { data: existingTicket, error: fetchError } = await supabaseAdmin
+    // Fetch info needed for notification
+    const { data: ticket, error: fetchError } = await supabaseAdmin
       .from('tickets')
-      .select('internal_notes, status, assigned_agent_id, ticket_no')
+      .select('ticket_no, assigned_agent_id, resolution_summary')
       .eq('id', ticketId)
       .maybeSingle();
       
-    if (fetchError || !existingTicket) {
+    if (fetchError || !ticket) {
       return { error: 'ไม่พบข้อมูลใบงานเพื่อบันทึกงานส่งมอบ' };
     }
 
-    const timestamp = new Date().toISOString().replace('T', ' ').substring(0, 19);
-    let logEntry = `\n\n--- [${timestamp} UTC - Work Completed] ---`;
-    if (receiverName) logEntry += `\nผู้ส่งมอบงาน: ${receiverName}`;
-    logEntry += `\nผลการดำเนินการ: ${newStatus}`;
-    if (notes) logEntry += `\nรายละเอียด: ${notes}`;
+    const date = new Date();
+    const timestamp = date.toISOString().replace('T', ' ').substring(0, 19);
+    
+    let reportText = `[External Report by ${receiverName || 'N/A'}] - ${timestamp} UTC\n`;
+    reportText += `ผลการดำเนินงาน: ${newStatus}\n`;
+    reportText += `รายละเอียด: ${notes || 'N/A'}\n`;
     if (attachmentUrls && attachmentUrls.length > 0) {
-      logEntry += `\nหลักฐานแนบ: ${attachmentUrls.join(', ')}`;
+      reportText += `หลักฐาน: ${attachmentUrls.join(', ')}`;
     }
 
-    const newNotes = `${existingTicket.internal_notes || ''}${logEntry}`.trim();
+    // Append to resolution_summary (existing column)
+    const updatedSummary = `${ticket.resolution_summary || ''}\n\n${reportText}`.trim();
 
     const { error: updateError } = await supabaseAdmin
       .from('tickets')
       .update({ 
         status: newStatus,
-        internal_notes: newNotes,
+        resolution_summary: updatedSummary,
         updated_at: new Date().toISOString()
       })
       .eq('id', ticketId);
@@ -136,15 +122,23 @@ export async function updateEscalatedTicketStatus(
       return { error: 'บันทึกข้อมูลไม่สำเร็จ: ' + updateError.message };
     }
 
-    // Add a notification for the internal agent
-    if (existingTicket.assigned_agent_id) {
+    // Record Log
+    await supabaseAdmin.from('ticket_logs').insert([{
+      ticket_id: ticketId,
+      action_type: 'status_change',
+      to_status: newStatus,
+      note: reportText
+    }]);
+
+    // Send Notification
+    if (ticket.assigned_agent_id) {
       try {
         await supabaseAdmin.from('notifications').insert([{
-          user_id: existingTicket.assigned_agent_id,
-          title: `✅ งานส่งต่อได้รับการแก้ไขแล้ว — #${existingTicket.ticket_no}`,
-          body: `ผู้รับช่วงงาน (${receiverName || 'External'}) ได้อัปเดตเป็น ${newStatus}`,
+          user_id: ticket.assigned_agent_id,
+          title: `✅ งานส่งต่อได้รับการแก้ไขแล้ว — #${ticket.ticket_no}`,
+          body: `ผู้รับช่วงงาน (${receiverName || 'External'}) ได้อัปเดตสถานะเป็น ${newStatus}`,
           type: 'ticket',
-          metadata: { ticket_id: ticketId, ticket_no: existingTicket.ticket_no }
+          metadata: { ticket_id: ticketId, ticket_no: ticket.ticket_no }
         }]);
       } catch (notifErr) {
         console.error('[UpdateStatus] Notification Error:', notifErr);
@@ -153,6 +147,6 @@ export async function updateEscalatedTicketStatus(
 
     return { success: true };
   } catch (err: any) {
-    return { error: 'เกิดข้อผิดพลาดรุนแรงบนเซิร์ฟเวอร์: ' + err.message };
+    return { error: 'เกิดข้อผิดพลาดรุนแรง: ' + err.message };
   }
 }
