@@ -23,6 +23,7 @@ export default function CreateTicketPage() {
   
   const [subject, setSubject] = useState('');
   const [description, setDescription] = useState('');
+  const [subjectTypes, setSubjectTypes] = useState<string[]>([]);
   const [file, setFile] = useState<File | null>(null);
   const [isAttachOpen, setIsAttachOpen] = useState(false);
   
@@ -37,16 +38,16 @@ export default function CreateTicketPage() {
     if (!profile?.userId) return;
 
     async function checkCustomer() {
-      const { data } = await supabase
-        .from('customers')
-        .select('*, hospitals(name, abbreviation)')
-        .eq('line_user_id', profile?.userId)
-        .maybeSingle();
+      const [{ data: customer }, { data: settings }] = await Promise.all([
+        supabase.from('customers').select('*, hospitals(name, abbreviation)').eq('line_user_id', profile?.userId).maybeSingle(),
+        supabase.from('company_settings').select('subject_types').maybeSingle()
+      ]);
 
-      if (!data || !data.hospital_id) {
+      if (!customer || !customer.hospital_id) {
          router.push('/portal');
       } else {
-         setCustomerData(data);
+         setCustomerData(customer);
+         setSubjectTypes(settings?.subject_types || ['ลบ', 'แก้ไขออเดอร์', 'แจ้ง error', 'เรื่องอื่นๆ']);
       }
       setChecking(false);
     }
@@ -72,7 +73,11 @@ export default function CreateTicketPage() {
       if (submitting) return;
 
       if (!subject.trim()) {
-         setError('กรุณาระบุหัวข้อปัญหา');
+         setError('กรุณาเลือกหัวข้อปัญหา');
+         return;
+      }
+      if (!description.trim()) {
+         setError('กรุณาระบุรายละเอียดเพิ่มเติม');
          return;
       }
       
@@ -92,8 +97,8 @@ export default function CreateTicketPage() {
             ticket_no: ticketNo,
             customer_id: customerData.id,
             hospital_id: customerData.hospital_id,
-            subject: subject,
-            description: description || subject,
+            subject: `${subject}: ${description.slice(0, 50)}${description.length > 50 ? '...' : ''}`,
+            description: description,
             status: 'New', 
             priority: 'Medium',
             created_at: new Date().toISOString()
@@ -204,15 +209,18 @@ export default function CreateTicketPage() {
 
                <div>
                   <label htmlFor="ticket-subject" style={{ display: 'block', fontSize: '11px', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', marginBottom: '8px' }}>หัวข้อที่ต้องการแจ้ง</label>
-                  <input 
+                  <select 
                     id="ticket-subject"
                     name="subject"
-                    type="text" 
                     value={subject}
                     onChange={e => setSubject(e.target.value)}
-                    placeholder="เช่น เข้าใช้งานไม่ได้, ปัญหาอุปกรณ์…"
-                    style={{ background: '#f8fafc', border: '1px solid var(--portal-border)', borderRadius: '12px', padding: '14px 16px', color: '#1e293b', fontSize: '15px', width: '100%', outline: 'none' }}
-                  />
+                    style={{ background: '#f8fafc', border: '1px solid var(--portal-border)', borderRadius: '12px', padding: '14px 16px', color: '#1e293b', fontSize: '15px', width: '100%', outline: 'none', cursor: 'pointer' }}
+                  >
+                    <option value="">เลือกหัวข้อ...</option>
+                    {subjectTypes.map((t, idx) => (
+                      <option key={idx} value={t}>{t}</option>
+                    ))}
+                  </select>
                </div>
 
                <div>

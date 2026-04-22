@@ -23,7 +23,7 @@ import { useNotificationContext } from '@/contexts/NotificationContext';
 import { auditService } from '@/lib/services/auditService';
 import { useAppContext } from '@/contexts/AppContext';
 
-type Tab = 'hospitals' | 'departments' | 'hospital_depts' | 'positions' | 'modules' | 'issue_types';
+type Tab = 'hospitals' | 'departments' | 'hospital_depts' | 'positions' | 'modules' | 'issue_types' | 'subject_types';
 
 export default function MasterSettingsPage() {
   const { 
@@ -83,9 +83,13 @@ export default function MasterSettingsPage() {
     setLoading(true);
 
     // Handle company_settings based tabs
-    if (activeTab === 'modules' || activeTab === 'issue_types') {
+    if (activeTab === 'modules' || activeTab === 'issue_types' || activeTab === 'subject_types') {
       if (ctxGlobalSettings) {
-        const arrayProp = activeTab === 'modules' ? 'modules' : 'issue_types';
+        let arrayProp = '';
+        if (activeTab === 'modules') arrayProp = 'modules';
+        else if (activeTab === 'issue_types') arrayProp = 'issue_types';
+        else arrayProp = 'subject_types';
+
         const itemsList = (ctxGlobalSettings[arrayProp] || []).map((name: string, index: number) => ({
           id: `item-${index}`,
           name: name,
@@ -120,8 +124,12 @@ export default function MasterSettingsPage() {
     let table = (activeTab === 'departments' || activeTab === 'hospital_depts') ? 'departments' : activeTab;
     
     // Handle company_settings based tabs
-    if (activeTab === 'modules' || activeTab === 'issue_types') {
-      const arrayProp = activeTab === 'modules' ? 'modules' : 'issue_types';
+    if (activeTab === 'modules' || activeTab === 'issue_types' || activeTab === 'subject_types') {
+      let arrayProp = '';
+      if (activeTab === 'modules') arrayProp = 'modules';
+      else if (activeTab === 'issue_types') arrayProp = 'issue_types';
+      else arrayProp = 'subject_types';
+
       const currentList = globalSettings?.[arrayProp] || [];
       if (currentList.includes(newItemName)) {
         alert('มีรายการนี้อยู่แล้วครับ');
@@ -197,8 +205,12 @@ export default function MasterSettingsPage() {
     setSubmitting(true);
     let table = (activeTab === 'departments' || activeTab === 'hospital_depts') ? 'departments' : activeTab;
 
-    if (activeTab === 'modules' || activeTab === 'issue_types') {
-        const arrayProp = activeTab === 'modules' ? 'modules' : 'issue_types';
+    if (activeTab === 'modules' || activeTab === 'issue_types' || activeTab === 'subject_types') {
+        let arrayProp = '';
+        if (activeTab === 'modules') arrayProp = 'modules';
+        else if (activeTab === 'issue_types') arrayProp = 'issue_types';
+        else arrayProp = 'subject_types';
+
         const currentList = globalSettings?.[arrayProp] || [];
         const itemToUpdate = items.find(i => i.id === id);
         const newList = currentList.map((name: string) => name === itemToUpdate.name ? editItemName : name);
@@ -247,10 +259,14 @@ export default function MasterSettingsPage() {
   const toggleStatus = async (id: string, current: boolean) => {
     let table = (activeTab === 'departments' || activeTab === 'hospital_depts') ? 'departments' : activeTab;
     
-    if (activeTab === 'modules' || activeTab === 'issue_types') {
+    if (activeTab === 'modules' || activeTab === 'issue_types' || activeTab === 'subject_types') {
         // Simple delete for arrays instead of toggle
         if (!confirm('ยืนยันผลการลบรายการนี้ใช่หรือไม่?')) return;
-        const arrayProp = activeTab === 'modules' ? 'modules' : 'issue_types';
+        let arrayProp = '';
+        if (activeTab === 'modules') arrayProp = 'modules';
+        else if (activeTab === 'issue_types') arrayProp = 'issue_types';
+        else arrayProp = 'subject_types';
+
         const itemToDelete = items.find(i => i.id === id);
         const newList = (globalSettings?.[arrayProp] || []).filter((name: string) => name !== itemToDelete.name);
         
@@ -295,7 +311,8 @@ export default function MasterSettingsPage() {
     hospital_depts: { title: 'แผนกที่ให้บริการใน รพ.', icon: Layout, desc: 'ชุดแผนกที่ให้บริการเหมือนกันทุก รพ. (เช่น OPD, ER, การเงิน) เพื่อให้ลูกค้าเลือกได้รวดเร็ว' },
     positions: { title: 'ตำแหน่งงาน', icon: Briefcase, desc: 'จัดการชื่อตำแหน่งสำหรับผู้แจ้งล่วงหน้า' },
     modules: { title: 'Modules', icon: FileText, desc: 'จัดการชื่อโมดูลหรือโปรแกรมต่างๆ' },
-    issue_types: { title: 'ประเภทงาน', icon: Tag, desc: 'จัดการประเภทของงาน เช่น REQ, PB, แนะนำ' }
+    issue_types: { title: 'ประเภทงาน', icon: Tag, desc: 'จัดการประเภทของงาน เช่น REQ, PB, แนะนำ' },
+    subject_types: { title: 'หัวข้อที่ต้องการแจ้ง', icon: MessageSquare, desc: 'จัดการหัวข้อมาตรฐานสำหรับให้ลูกค้าเลือกในหน้าแจ้งปัญหา' }
   };
 
   const ActiveIcon = TAB_CONFIG[activeTab].icon;
@@ -313,7 +330,7 @@ export default function MasterSettingsPage() {
 
       {/* Tabs Selector */}
       <div style={{ display: 'flex', gap: '8px', marginBottom: '32px', background: 'rgba(255,255,255,0.03)', padding: '6px', borderRadius: '16px', border: '1px solid var(--border)', width: 'fit-content', flexWrap: 'wrap' }}>
-        {(['hospitals', 'departments', 'hospital_depts', 'positions', 'modules', 'issue_types'] as Tab[]).map(t => (
+        {(['hospitals', 'departments', 'hospital_depts', 'positions', 'modules', 'issue_types', 'subject_types'] as Tab[]).map(t => (
           <button
             key={t}
             onClick={() => setActiveTab(t)}
