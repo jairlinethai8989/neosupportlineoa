@@ -87,3 +87,18 @@
  GET /logo.png 404 in 142ms (next.js: 52ms, application-code: 90ms)
  GET /logo.png 404 in 67ms (next.js: 9ms, application-code: 58ms)
 ✓ Compiled in 18.5s
+ GET /settings/notifications 200 in 1654ms (next.js: 702ms, application-code: 952ms)
+ GET /logo.png 404 in 96ms (next.js: 23ms, application-code: 73ms)
+ GET /logo.png 404 in 211ms (next.js: 12ms, application-code: 199ms)
+ GET /logo.png 404 in 97ms (next.js: 15ms, application-code: 82ms)
+ GET /logo.png 404 in 91ms (next.js: 6ms, application-code: 85ms)
+ GET /logo.png 404 in 67ms (next.js: 7ms, application-code: 60ms)
+ GET /settings/notifications 200 in 131ms (next.js: 12ms, application-code: 119ms)
+ GET /logo.png 404 in 95ms (next.js: 8ms, application-code: 87ms)
+ GET /logo.png 404 in 95ms (next.js: 10ms, application-code: 84ms)
+ GET /logo.png 404 in 93ms (next.js: 19ms, application-code: 74ms)
+ GET /logo.png 404 in 99ms (next.js: 7ms, application-code: 92ms)
+ GET /tickets 200 in 12.6s (next.js: 12.3s, application-code: 266ms)
+✓ Compiled in 24.7s
+ GET /tickets 200 in 3.3s (next.js: 504ms, application-code: 2.8s)
+ GET /settings/notifications 200 in 6.8s (next.js: 3.5s, application-code: 3.2s)

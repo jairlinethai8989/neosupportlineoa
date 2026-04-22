@@ -1,2 +1,47 @@
 ⚠ Slow filesystem detected. The benchmark took 317ms. If D:\Project APP\AntiGravity\neo_line_oa\.next/dev is a network drive, consider moving it to a local folder.
 See more: https://nextjs.org/docs/app/guides/local-development
+[browser] ⨯ unhandledRejection: AuthSessionMissingError: Auth session missing!
+    at <unknown> (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/node_modules_0ojv9h~._.js:21810:32)
+    at SupabaseAuthClient._useSession (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/node_modules_0ojv9h~._.js:21613:26)
+    at async SupabaseAuthClient._getUser (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/node_modules_0ojv9h~._.js:21798:20)
+    at async (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/node_modules_0ojv9h~._.js:21782:20)
+[browser] ⨯ unhandledRejection: AuthSessionMissingError: Auth session missing!
+    at <unknown> (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/node_modules_0ojv9h~._.js:21810:32)
+    at SupabaseAuthClient._useSession (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/node_modules_0ojv9h~._.js:21613:26)
+    at async SupabaseAuthClient._getUser (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/node_modules_0ojv9h~._.js:21798:20)
+    at async (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/node_modules_0ojv9h~._.js:21782:20)
+[browser] ⨯ unhandledRejection: AuthSessionMissingError: Auth session missing!
+    at <unknown> (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/node_modules_0ojv9h~._.js:21810:32)
+    at SupabaseAuthClient._useSession (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/node_modules_0ojv9h~._.js:21613:26)
+    at async SupabaseAuthClient._getUser (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/node_modules_0ojv9h~._.js:21798:20)
+    at async (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/node_modules_0ojv9h~._.js:21782:20)
+[browser] ⨯ unhandledRejection: AuthSessionMissingError: Auth session missing!
+    at <unknown> (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/node_modules_0ojv9h~._.js:21810:32)
+    at SupabaseAuthClient._useSession (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/node_modules_0ojv9h~._.js:21613:26)
+    at async SupabaseAuthClient._getUser (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/node_modules_0ojv9h~._.js:21798:20)
+    at async (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/node_modules_0ojv9h~._.js:21782:20)
+[browser] ⨯ unhandledRejection: AuthSessionMissingError: Auth session missing!
+    at <unknown> (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/node_modules_0ojv9h~._.js:21810:32)
+    at SupabaseAuthClient._useSession (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/node_modules_0ojv9h~._.js:21613:26)
+    at async SupabaseAuthClient._getUser (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/node_modules_0ojv9h~._.js:21798:20)
+    at async (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/node_modules_0ojv9h~._.js:21782:20)
+[browser] ⨯ unhandledRejection: AuthSessionMissingError: Auth session missing!
+    at <unknown> (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/node_modules_0ojv9h~._.js:21810:32)
+    at SupabaseAuthClient._useSession (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/node_modules_0ojv9h~._.js:21613:26)
+    at async SupabaseAuthClient._getUser (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/node_modules_0ojv9h~._.js:21798:20)
+    at async (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/node_modules_0ojv9h~._.js:21782:20)
+[browser] ⨯ unhandledRejection: AuthSessionMissingError: Auth session missing!
+    at <unknown> (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/node_modules_0ojv9h~._.js:21810:32)
+    at SupabaseAuthClient._useSession (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/node_modules_0ojv9h~._.js:21613:26)
+    at async SupabaseAuthClient._getUser (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/node_modules_0ojv9h~._.js:21798:20)
+    at async (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/node_modules_0ojv9h~._.js:21782:20)
+[browser] ⨯ unhandledRejection: AuthSessionMissingError: Auth session missing!
+    at <unknown> (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/node_modules_0ojv9h~._.js:21810:32)
+    at SupabaseAuthClient._useSession (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/node_modules_0ojv9h~._.js:21613:26)
+    at async SupabaseAuthClient._getUser (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/node_modules_0ojv9h~._.js:21798:20)
+    at async (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/node_modules_0ojv9h~._.js:21782:20)
+[browser] ⨯ unhandledRejection: AuthSessionMissingError: Auth session missing!
+    at <unknown> (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/node_modules_0ojv9h~._.js:21810:32)
+    at SupabaseAuthClient._useSession (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/node_modules_0ojv9h~._.js:21613:26)
+    at async SupabaseAuthClient._getUser (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/node_modules_0ojv9h~._.js:21798:20)
+    at async (file://D:/Project APP/AntiGravity/neo_line_oa/.next/dev/static/chunks/node_modules_0ojv9h~._.js:21782:20)

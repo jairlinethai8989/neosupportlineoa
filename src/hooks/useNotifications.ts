@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
@@ -329,15 +329,15 @@ export function useNotifications(agentId: string | null) {
       const id = row.id?.toString() ?? `${row.ticket_id}-${row.created_at}`;
       const isRead = readIds.includes(id);
 
-      let title = 'à¸­à¸±à¸›à¹€à¸”à¸•à¹ƒà¸šà¸‡à¸²à¸™';
+      let title = 'อัปเดตใบงาน';
       const type: NotifType = 'ticket';
 
       if (row.action_type === 'transfer' && row.to_user_id === agentId) {
-        title = `à¹‚à¸­à¸™à¸‡à¸²à¸™à¸¡à¸²à¹ƒà¸«à¹‰à¸„à¸¸à¸“ â€” #${row.tickets?.ticket_no ?? ''}`;
+        title = `โอนงานมาให้คุณ — #${row.tickets?.ticket_no ?? ''}`;
       } else if (row.action_type === 'claim') {
-        title = `à¸£à¸±à¸šà¸‡à¸²à¸™à¹à¸¥à¹‰à¸§ â€” #${row.tickets?.ticket_no ?? ''}`;
+        title = `รับงานแล้ว — #${row.tickets?.ticket_no ?? ''}`;
       } else if (row.action_type === 'resolve') {
-        title = `à¸›à¸´à¸”à¸‡à¸²à¸™ â€” #${row.tickets?.ticket_no ?? ''}`;
+        title = `ปิดงาน — #${row.tickets?.ticket_no ?? ''}`;
       }
 
       return {
@@ -365,7 +365,7 @@ export function useNotifications(agentId: string | null) {
   }, []);
 
   // ---------------------------------------------------------------
-  // SLA Monitor â€” breached + warning (< 30 min)
+  // SLA Monitor — breached + warning (< 30 min)
   // ---------------------------------------------------------------
   const fetchSlaBreaches = useCallback(async () => {
     if (!agentId) return;
@@ -398,8 +398,8 @@ export function useNotifications(agentId: string | null) {
         slaNotifs.push({
           id,
           type: 'sla',
-          title: `ðŸš¨ SLA à¹€à¸à¸´à¸™à¸à¸³à¸«à¸™à¸”à¹à¸¥à¹‰à¸§ â€” #${t.ticket_no}`,
-          body: t.subject ?? 'à¹ƒà¸šà¸‡à¸²à¸™à¸™à¸µà¹‰à¹€à¸à¸´à¸™ SLA à¹à¸¥à¹‰à¸§ à¸à¸£à¸¸à¸“à¸²à¸ˆà¸±à¸”à¸à¸²à¸£à¸”à¹ˆà¸§à¸™',
+          title: `🚨 SLA เกินกำหนดแล้ว — #${t.ticket_no}`,
+          body: t.subject ?? 'ใบงานนี้เกิน SLA แล้ว กรุณาจัดการด่วน',
           ticketNo: t.ticket_no,
           ticketId: t.id,
           createdAt: t.sla_due_at,
@@ -412,8 +412,8 @@ export function useNotifications(agentId: string | null) {
           addToast({
             id: `toast-${id}-${Date.now()}`,
             type: 'sla',
-            title: `ðŸš¨ SLA à¸«à¸¥à¸¸à¸”à¸à¸³à¸«à¸™à¸” â€” #${t.ticket_no}`,
-            body: t.subject ?? 'à¸à¸£à¸¸à¸“à¸²à¸ˆà¸±à¸”à¸à¸²à¸£à¸”à¹ˆà¸§à¸™',
+            title: `🚨 SLA หลุดกำหนด — #${t.ticket_no}`,
+            body: t.subject ?? 'กรุณาจัดการด่วน',
             ticketId: t.id,
             ticketNo: t.ticket_no,
             duration: 8000,
@@ -421,13 +421,13 @@ export function useNotifications(agentId: string | null) {
           saveWarnedId(id);
         }
       } else if (mins <= 30) {
-        // --- SLA Warning (â‰¤ 30 min remaining) ---
+        // --- SLA Warning (≤ 30 min remaining) ---
         const id = `sla-warn-${t.id}`;
         slaNotifs.push({
           id,
           type: 'sla_warning',
-          title: `âš ï¸ SLA à¹ƒà¸à¸¥à¹‰à¸«à¸¡à¸” (${mins} à¸™à¸²à¸—à¸µ) â€” #${t.ticket_no}`,
-          body: t.subject ?? `à¹€à¸«à¸¥à¸·à¸­à¹€à¸§à¸¥à¸²à¸­à¸µà¸ ${mins} à¸™à¸²à¸—à¸µ`,
+          title: `⚠️ SLA ใกล้หมด (${mins} นาที) — #${t.ticket_no}`,
+          body: t.subject ?? `เหลือเวลาอีก ${mins} นาที`,
           ticketNo: t.ticket_no,
           ticketId: t.id,
           createdAt: t.sla_due_at,
@@ -440,8 +440,8 @@ export function useNotifications(agentId: string | null) {
           addToast({
             id: `toast-${id}-${Date.now()}`,
             type: 'sla_warning',
-            title: `âš ï¸ SLA à¹ƒà¸à¸¥à¹‰à¸«à¸¡à¸” à¹€à¸«à¸¥à¸·à¸­ ${mins} à¸™à¸²à¸—à¸µ`,
-            body: `#${t.ticket_no} Â· ${t.subject ?? ''}`,
+            title: `⚠️ SLA ใกล้หมด เหลือ ${mins} นาที`,
+            body: `#${t.ticket_no} · ${t.subject ?? ''}`,
             ticketId: t.id,
             ticketNo: t.ticket_no,
             duration: 6000,
@@ -449,13 +449,13 @@ export function useNotifications(agentId: string | null) {
           saveWarnedId(id);
         }
       } else if (mins <= 60) {
-        // --- SLA Upcoming (â‰¤ 60 min) â€” add to notification list only, no toast ---
+        // --- SLA Upcoming (≤ 60 min) — add to notification list only, no toast ---
         const id = `sla-upcoming-${t.id}`;
         slaNotifs.push({
           id,
           type: 'sla_warning',
-          title: `ðŸ• SLA à¹€à¸«à¸¥à¸·à¸­ ${mins} à¸™à¸²à¸—à¸µ â€” #${t.ticket_no}`,
-          body: t.subject ?? `à¹‚à¸›à¸£à¸”à¹€à¸•à¸£à¸µà¸¢à¸¡à¸”à¸³à¹€à¸™à¸´à¸™à¸à¸²à¸£à¸à¹ˆà¸­à¸™ SLA à¸«à¸¡à¸”`,
+          title: `🕰️ SLA เหลือ ${mins} นาที — #${t.ticket_no}`,
+          body: t.subject ?? `โปรดเตรียมดำเนินการก่อน SLA หมด`,
           ticketNo: t.ticket_no,
           ticketId: t.id,
           createdAt: t.sla_due_at,
@@ -517,18 +517,18 @@ export function useNotifications(agentId: string | null) {
           await fetchLogs();
           if (isFirstLoad.current) return;
 
-          let title = 'à¹ƒà¸šà¸‡à¸²à¸™à¹„à¸”à¹‰à¸£à¸±à¸šà¸à¸²à¸£à¸­à¸±à¸›à¹€à¸”à¸•';
+          let title = 'ใบงานได้รับการอัปเดต';
           if (row.action_type === 'transfer' && row.to_user_id === agentId) {
-            title = 'ðŸ“¨ à¸¡à¸µà¹ƒà¸šà¸‡à¸²à¸™à¹‚à¸­à¸™à¸¡à¸²à¹ƒà¸«à¹‰à¸„à¸¸à¸“';
+            title = '📨 มีใบงานโอนมาให้คุณ';
           } else if (row.action_type === 'resolve') {
-            title = 'âœ… à¹ƒà¸šà¸‡à¸²à¸™à¹„à¸”à¹‰à¸£à¸±à¸šà¸à¸²à¸£à¸›à¸´à¸”à¹à¸¥à¹‰à¸§';
+            title = '✅ ใบงานได้รับการปิดแล้ว';
           }
 
           addToast({
             id: `toast-log-${Date.now()}`,
             type: 'ticket',
             title,
-            body: row.note || 'à¸”à¸¹à¸£à¸²à¸¢à¸¥à¸°à¹€à¸­à¸µà¸¢à¸”à¹ƒà¸™à¸à¸¥à¹ˆà¸­à¸‡à¸‚à¹‰à¸­à¸„à¸§à¸²à¸¡',
+            body: row.note || 'ดูรายละเอียดในกล่องข้อความ',
             ticketId: row.ticket_id,
           });
         }
@@ -548,8 +548,8 @@ export function useNotifications(agentId: string | null) {
           addToast({
             id: `toast-msg-${Date.now()}`,
             type: 'message',
-            title: 'ðŸ’¬ à¸‚à¹‰à¸­à¸„à¸§à¸²à¸¡à¹ƒà¸«à¸¡à¹ˆà¸ˆà¸²à¸à¸¥à¸¹à¸à¸„à¹‰à¸²',
-            body: (row.content as string)?.slice(0, 60) ?? 'à¸¡à¸µà¸‚à¹‰à¸­à¸„à¸§à¸²à¸¡à¹ƒà¸«à¸¡à¹ˆ',
+            title: '💬 ข้อความใหม่จากลูกค้า',
+            body: (row.content as string)?.slice(0, 60) ?? 'มีข้อความใหม่',
             conversationId: row.conversation_id,
           });
         }
@@ -570,8 +570,8 @@ export function useNotifications(agentId: string | null) {
           addToast({
             id: `toast-ticket-${Date.now()}`,
             type: 'ticket',
-            title: 'ðŸ†• à¸¡à¸µà¹ƒà¸šà¸‡à¸²à¸™à¹ƒà¸«à¸¡à¹ˆà¹€à¸‚à¹‰à¸²à¸ªà¸¹à¹ˆà¸£à¸°à¸šà¸š',
-            body: row.subject || `à¹ƒà¸šà¸‡à¸²à¸™ #${row.ticket_no} à¸à¸³à¸¥à¸±à¸‡à¸£à¸­à¸à¸²à¸£à¸£à¸±à¸šà¸‡à¸²à¸™`,
+            title: '🆕 มีใบงานใหม่เข้าสู่ระบบ',
+            body: row.subject || `ใบงาน #${row.ticket_no} กำลังรอการรับงาน`,
             ticketId: row.id,
             ticketNo: row.ticket_no,
           });
