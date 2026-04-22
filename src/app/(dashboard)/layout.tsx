@@ -21,7 +21,11 @@ import {
   Clock,
   Loader2,
   Volume2,
-  VolumeX
+  VolumeX,
+  Palette,
+  LogOut,
+  ChevronDown,
+  Monitor
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { NotificationProvider, useNotificationContext } from '@/contexts/NotificationContext';
@@ -45,17 +49,17 @@ const ACTION_ICONS: Record<string, any> = {
   'message': MessageSquare,
 };
 
-const ACTION_COLORS: Record<string, string> = {
-  'Created': 'var(--primary)',
-  'Claimed': 'var(--warning)',
-  'Transferred': 'var(--primary)',
-  'Resolved': 'var(--success)',
-  'Message': 'var(--primary)',
-  'sla': 'var(--danger)',
-  'sla_warning': 'var(--warning)',
   'ticket': 'var(--primary)',
   'message': 'var(--success)',
 };
+
+const THEMES = [
+  { id: 'dark', name: 'Dark', thai: 'ธีมเข้ม', color: '#0a0e14', iconColor: '#7367f0' },
+  { id: 'light', name: 'Light', thai: 'ธีมสว่าง', color: '#ffffff', iconColor: '#ffcd3c' },
+  { id: 'blue', name: 'Blue', thai: 'ธีมฟ้า', color: '#0f172a', iconColor: '#38bdf8' },
+  { id: 'cyan', name: 'Cyan', thai: 'ธีมไซแอน', color: '#081a26', iconColor: '#06b6d4' },
+  { id: 'gray', name: 'Gray', thai: 'ธีมเทา', color: '#111827', iconColor: '#f3f4f6' },
+];
 
 function timeAgo(dateStr: string): string {
   const now = new Date();
@@ -75,8 +79,12 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [showUserMenu, setShowUserMenu] = useState(false);
+  const [showThemes, setShowThemes] = useState(false);
   const [activeTab, setActiveTab] = useState<NotifTab>('all');
+  const [theme, setTheme] = useState('dark');
   const notifRef = useRef<HTMLDivElement>(null);
+  const userMenuRef = useRef<HTMLDivElement>(null);
 
   const router = useRouter();
   const { 
@@ -95,10 +103,30 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
       if (notifRef.current && !notifRef.current.contains(e.target as Node)) {
         setShowNotifications(false);
       }
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) {
+        setShowUserMenu(false);
+      }
     }
-    if (showNotifications) document.addEventListener('mousedown', handleClick);
+    document.addEventListener('mousedown', handleClick);
     return () => document.removeEventListener('mousedown', handleClick);
-  }, [showNotifications]);
+  }, []);
+
+  useEffect(() => {
+    const savedTheme = localStorage.getItem('theme') || 'dark';
+    setTheme(savedTheme);
+  }, []);
+
+  const changeTheme = (newTheme: string) => {
+    setTheme(newTheme);
+    localStorage.setItem('theme', newTheme);
+    document.documentElement.setAttribute('data-theme', newTheme);
+  };
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    router.push('/login');
+    router.refresh();
+  };
 
   const handleBellClick = () => {
     setShowNotifications(!showNotifications);
@@ -342,27 +370,110 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
               )}
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginLeft: '8px', padding: '4px 12px 4px 4px', borderRadius: '30px', border: '1px solid var(--border)' }} className="glass-interactive">
-              {agent?.avatar_url ? (
-                <img src={agent.avatar_url} style={{ width: '30px', height: '30px', borderRadius: '50%', objectFit: 'cover' }} />
-              ) : (
-                <div style={{
-                  width: '30px',
-                  height: '30px',
-                  borderRadius: '50%',
-                  background: 'var(--secondary)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontWeight: '700',
-                  fontSize: '11px',
-                  color: 'white',
-                  boxShadow: '0 0 10px rgba(115, 103, 240, 0.4)'
-                }}>{agent?.full_name?.charAt(0) || 'A'}</div>
-              )}
-              <div className="show-desktop">
-                <p style={{ fontSize: '12px', fontWeight: '700' }}>{agent?.full_name || 'Agent'}</p>
-              </div>
+            <div ref={userMenuRef} style={{ position: 'relative' }}>
+               <div 
+                 onClick={() => setShowUserMenu(!showUserMenu)}
+                 style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: '12px', 
+                    marginLeft: '8px', 
+                    padding: '4px 12px 4px 4px', 
+                    borderRadius: '30px', 
+                    border: '1px solid var(--border)',
+                    cursor: 'pointer'
+                 }} 
+                 className="glass-interactive"
+               >
+                 {agent?.avatar_url ? (
+                   <img src={agent.avatar_url} style={{ width: '30px', height: '30px', borderRadius: '50%', objectFit: 'cover' }} />
+                 ) : (
+                   <div style={{
+                     width: '30px',
+                     height: '30px',
+                     borderRadius: '50%',
+                     background: 'var(--secondary)',
+                     display: 'flex',
+                     alignItems: 'center',
+                     justifyContent: 'center',
+                     fontWeight: '700',
+                     fontSize: '11px',
+                     color: 'white',
+                     boxShadow: '0 0 10px rgba(115, 103, 240, 0.4)'
+                   }}>{agent?.full_name?.charAt(0) || 'A'}</div>
+                 )}
+                 <div className="show-desktop" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                   <p style={{ fontSize: '12px', fontWeight: '700' }}>{agent?.full_name || 'Agent'}</p>
+                   <ChevronDown size={14} opacity={0.5} />
+                 </div>
+               </div>
+
+               {showUserMenu && (
+                 <div style={{
+                   position: 'absolute',
+                   top: 'calc(100% + 8px)',
+                   right: 0,
+                   width: '240px',
+                   background: 'var(--bg-card)',
+                   border: '1px solid var(--border)',
+                   borderRadius: '20px',
+                   backdropFilter: 'blur(34px)',
+                   boxShadow: '0 20px 60px rgba(0, 0, 0, 0.5)',
+                   zIndex: 101,
+                   padding: '8px',
+                   animation: 'fadeIn 0.2s ease-out'
+                 }}>
+                   <div style={{ padding: '12px', borderBottom: '1px solid var(--border)', marginBottom: '4px' }}>
+                      <p style={{ fontSize: '13px', fontWeight: '800' }}>{agent?.full_name}</p>
+                      <p style={{ fontSize: '10px', color: 'var(--primary)', fontWeight: '700', textTransform: 'uppercase', marginTop: '2px' }}>{agent?.role || 'Agent'}</p>
+                   </div>
+
+                   {/* Theme Section */}
+                   <div style={{ padding: '8px' }}>
+                      <button 
+                        onClick={() => setShowThemes(!showThemes)}
+                        style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '10px', padding: '10px', borderRadius: '12px', border: 'none', background: 'none', color: 'var(--text-main)', cursor: 'pointer', transition: 'all 0.2s' }}
+                        className="hover-item"
+                      >
+                         <Palette size={16} />
+                         <span style={{ fontSize: '12px', fontWeight: '700', flex: 1, textAlign: 'left' }}>สลับธีม (Theme)</span>
+                         <div style={{ fontSize: '10px', opacity: 0.5 }}>{showThemes ? '▲' : '▶'}</div>
+                      </button>
+
+                      {showThemes && (
+                         <div style={{ display: 'flex', gap: '8px', padding: '8px 10px 12px', flexWrap: 'wrap', animation: 'fadeIn 0.2s' }}>
+                            {THEMES.map(t => (
+                               <button 
+                                 key={t.id}
+                                 onClick={() => changeTheme(t.id)}
+                                 style={{ 
+                                   width: '28px', 
+                                   height: '28px', 
+                                   borderRadius: '50%', 
+                                   background: t.color, 
+                                   border: theme === t.id ? `2px solid ${t.iconColor}` : '1px solid var(--border)',
+                                   cursor: 'pointer',
+                                   position: 'relative'
+                                 }}
+                                 title={t.thai}
+                               >
+                                  {theme === t.id && <div style={{ position: 'absolute', inset: -2, border: `2px solid ${t.iconColor}`, borderRadius: '50%' }} />}
+                               </button>
+                            ))}
+                         </div>
+                      )}
+                   </div>
+
+                   <button 
+                      onClick={handleLogout}
+                      style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '10px', padding: '12px', borderRadius: '12px', border: 'none', background: 'rgba(234, 84, 85, 0.05)', color: 'var(--danger)', cursor: 'pointer', marginTop: '4px' }}
+                      className="glass-interactive"
+                   >
+                      <LogOut size={16} />
+                      <span style={{ fontSize: '12px', fontWeight: '800' }}>ออกจากระบบ</span>
+                   </button>
+                 </div>
+               )}
             </div>
           </div>
         </header>
@@ -384,6 +495,9 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
         __html: `
         :root {
           --primary-rgb: 59, 130, 246;
+        }
+        .hover-item:hover {
+          background: rgba(255,255,255,0.05) !important;
         }
         @keyframes pulse {
           0%, 100% { opacity: 1; }

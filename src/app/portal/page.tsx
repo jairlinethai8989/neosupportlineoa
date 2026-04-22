@@ -15,7 +15,11 @@ import {
   Inbox,
   Settings,
   ArrowRight,
-  RefreshCw
+  RefreshCw,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight
 } from 'lucide-react';
 import Link from 'next/link';
 import ProfileRegistrationModal from '@/components/portal/ProfileRegistrationModal';
@@ -30,6 +34,7 @@ export default function PortalPage() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [showAllHistory, setShowAllHistory] = useState(false);
   const [historyPage, setHistoryPage] = useState(1);
+  const [totalHistory, setTotalHistory] = useState(0);
   const ITEMS_PER_PAGE = 5;
 
   const fetchTickets = async (silent = false) => {
@@ -50,22 +55,22 @@ export default function PortalPage() {
           const thirtyDaysAgo = new Date();
           thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
+          const ITEMS_PER_PAGE = 5;
+          const from = (historyPage - 1) * ITEMS_PER_PAGE;
+          const to = from + ITEMS_PER_PAGE - 1;
+
           const query = supabase
             .from('tickets')
             .select('*, assigned_agent:profiles!assigned_agent_id (id, full_name)', { count: 'exact' })
             .eq('customer_id', customer.id)
             .or(`status.not.in.(Resolved,Closed,Canceled,Canceled),created_at.gte.${thirtyDaysAgo.toISOString()}`)
-            .order('created_at', { ascending: false });
-
-          // Final limit depends on how many pages the user has seen
-          query.limit(historyPage * ITEMS_PER_PAGE);
+            .order('created_at', { ascending: false })
+            .range(from, to);
 
           const { data: ticketData, count } = await query;
           
           if (ticketData) setTickets(ticketData);
-          if (count !== null) {
-             // Total tickets count
-          }
+          if (count !== null) setTotalHistory(count);
         } else {
           setNeedsRegistration(true);
         }
@@ -300,14 +305,41 @@ export default function PortalPage() {
                   </Link>
                ))}
             </div>
-            {tickets.length >= historyPage * ITEMS_PER_PAGE && (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginTop: '24px' }}>
                <button 
-                 onClick={() => setHistoryPage(prev => prev + 1)}
-                 style={{ width: '100%', marginTop: '20px', padding: '14px', borderRadius: '12px', border: '1px solid var(--portal-border)', background: 'white', color: '#1e293b', fontWeight: '800', fontSize: '14px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+                  disabled={historyPage === 1}
+                  onClick={() => setHistoryPage(1)}
+                  style={{ padding: '8px', borderRadius: '8px', border: '1px solid var(--portal-border)', background: 'white', opacity: historyPage === 1 ? 0.3 : 1, cursor: 'pointer' }}
                >
-                 แสดงรายการถัดไป <ArrowRight size={16} />
+                  <ChevronsLeft size={16} />
                </button>
-            )}
+               <button 
+                  disabled={historyPage === 1}
+                  onClick={() => setHistoryPage(prev => prev - 1)}
+                  style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--portal-border)', background: 'white', color: '#1e293b', fontWeight: '700', fontSize: '13px', opacity: historyPage === 1 ? 0.3 : 1, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+               >
+                  <ChevronLeft size={16} /> ก่อนหน้า
+               </button>
+               
+               <span style={{ fontSize: '13px', fontWeight: '800', color: '#64748b', margin: '0 8px' }}>
+                  หน้า {historyPage} / {Math.ceil(totalHistory / ITEMS_PER_PAGE) || 1}
+               </span>
+
+               <button 
+                  disabled={historyPage * ITEMS_PER_PAGE >= totalHistory}
+                  onClick={() => setHistoryPage(prev => prev + 1)}
+                  style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--portal-border)', background: 'white', color: '#1e293b', fontWeight: '700', fontSize: '13px', opacity: historyPage * ITEMS_PER_PAGE >= totalHistory ? 0.3 : 1, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+               >
+                  ถัดไป <ChevronRight size={16} />
+               </button>
+               <button 
+                  disabled={historyPage * ITEMS_PER_PAGE >= totalHistory}
+                  onClick={() => setHistoryPage(Math.ceil(totalHistory / ITEMS_PER_PAGE))}
+                  style={{ padding: '8px', borderRadius: '8px', border: '1px solid var(--portal-border)', background: 'white', opacity: historyPage * ITEMS_PER_PAGE >= totalHistory ? 0.3 : 1, cursor: 'pointer' }}
+               >
+                  <ChevronsRight size={16} />
+               </button>
+            </div>
           </>
         )}
       </section>

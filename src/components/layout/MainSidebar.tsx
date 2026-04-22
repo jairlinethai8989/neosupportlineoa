@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @next/next/no-img-element */
@@ -360,92 +360,10 @@ const Sidebar = ({ onClickLink, isCollapsed = false }: SidebarProps) => {
         ))}
       </nav>
 
-      <div style={{ padding: '16px', borderTop: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-        {/* User Profile Section at bottom */}
-        <div style={{ padding: isCollapsed ? '8px 0' : '12px', background: 'rgba(255,255,255,0.02)', borderRadius: '16px', marginBottom: '8px', border: '1px solid var(--border)' }}>
-             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', justifyContent: isCollapsed ? 'center' : 'flex-start' }}>
-                <div style={{ position: 'relative', width: '38px', height: '38px', flexShrink: 0 }}>
-                   <img 
-                      src={profile?.avatar_url || 'https://ui-avatars.com/api/?name=' + profile?.full_name} 
-                      alt="User Avatar"
-                      style={{ width: '38px', height: '38px', borderRadius: '12px', objectFit: 'cover', border: '1px solid var(--border)' }} 
-                   />
-                   {profile?.department && (
-                      <div style={{ position: 'absolute', top: '-5px', right: '-5px', fontSize: '10px', background: 'var(--bg-sidebar)', width: '16px', height: '16px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid var(--border)', boxShadow: '0 2px 5px rgba(0,0,0,0.5)' }}>
-                         {DEPT_BADGES[profile.department] || '💼'}
-                      </div>
-                   )}
-                </div>
-                {!isCollapsed && (
-                  <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-                     <span style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-main)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{profile?.full_name || 'Staff User'}</span>
-                     <span style={{ fontSize: '10px', color: 'var(--primary)', fontWeight: '600', textTransform: 'uppercase' }}>{userRole || 'Agent'}</span>
-                  </div>
-                )}
-             </div>
-        </div>
-
-        {!isCollapsed && (
-           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-             <span style={{ fontSize: '10px', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px' }}>สลับธีม</span>
-             <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                {THEMES.map(t => (
-                  <button 
-                    key={t.id}
-                    onClick={() => changeTheme(t.id)}
-                    title={t.thai}
-                    className="glass-interactive"
-                    style={{ 
-                      width: '32px', 
-                      height: '32px', 
-                      borderRadius: '50%', 
-                      background: t.color, 
-                      border: theme === t.id ? `2px solid ${t.iconColor}` : '1px solid var(--border)',
-                      cursor: 'pointer',
-                      padding: 0,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      boxShadow: theme === t.id ? `0 0 10px ${t.iconColor}40` : 'none',
-                      transition: 'all 0.2s'
-                    }}
-                  >
-                    <div style={{ width: '12px', height: '12px', borderRadius: '50%', background: t.iconColor }} />
-                  </button>
-                ))}
-             </div>
-           </div>
-        )}
-
-        <button 
-          onClick={handleLogout}
-          className="glass-interactive"
-          title={isCollapsed ? 'ออกจากระบบ' : ''}
-          style={{
-            width: '100%',
-            display: 'flex',
-            alignItems: 'center',
-            gap: isCollapsed ? '0' : '12px',
-            padding: isCollapsed ? '12px' : '12px',
-            borderRadius: '12px',
-            color: 'var(--danger)',
-            background: 'rgba(234, 84, 85, 0.05)',
-            border: '1px solid rgba(234, 84, 85, 0.1)',
-            cursor: 'pointer',
-            fontSize: '14px',
-            justifyContent: isCollapsed ? 'center' : 'flex-start',
-            fontFamily: 'inherit',
-            transition: 'all 0.2s ease'
-          }}
-        >
-          <LogOut size={18} style={{ flexShrink: 0 }} />
-          {!isCollapsed && (
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
-              <span style={{ fontWeight: '700', fontSize: '13px' }}>ออกจากระบบ</span>
-              <span style={{ fontSize: '9px', opacity: 0.6, fontWeight: '700' }}>LOGOUT</span>
-            </div>
-          )}
-        </button>
+      <div style={{ padding: '16px', borderTop: '1px solid var(--border)', display: 'flex', flexDirection: 'column' }}>
+        <p style={{ fontSize: '10px', color: 'var(--text-dim)', textAlign: 'center' }}>
+          {!isCollapsed && 'Neo Support v1.1.2'}
+        </p>
       </div>
       
       <style dangerouslySetInnerHTML={{ __html: `
