@@ -258,8 +258,9 @@ export const TicketSidebar: React.FC<TicketSidebarProps> = ({
                         if (!currentTicket?.id) return;
                         setIsProcessing(true);
                         try {
-                           await ticketService.updateStatus(currentTicket.id, 'Escalated', undefined, `[ESCALATION INSTRUCTIONS]: ${escalationNote}`);
-                           const link = `${window.location.origin}/escalate/${currentTicket.id}`;
+                           const randomToken = `E-${Math.random().toString(36).substring(2, 10).toUpperCase()}`;
+                           await ticketService.updateStatus(currentTicket.id, 'Escalated', undefined, `[ESCALATION INSTRUCTIONS]: ${escalationNote}`, randomToken);
+                           const link = `${window.location.origin}/escalate/${randomToken}`;
                            setMagicLink(link);
                            handleCopyLink(link);
                            setShowEscalateModal(false);
