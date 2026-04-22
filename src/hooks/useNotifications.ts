@@ -20,7 +20,12 @@ const MAX_TOASTS = 4;
 
 export type NotificationSoundMode = 'beep' | 'voice';
 
-export type SoundTestFailureCode = 'NO_AUDIO_CONTEXT' | 'AUDIO_RESUME_BLOCKED' | 'VOICE_UNAVAILABLE';
+export type SoundTestFailureCode =
+  | 'NO_AUDIO_CONTEXT'
+  | 'AUDIO_RESUME_BLOCKED'
+  | 'VOICE_UNAVAILABLE'
+  | 'THAI_VOICE_MISSING'
+  | 'TTS_START_TIMEOUT';
 
 export type SoundTestResult =
   | { ok: true; hint: string }
@@ -100,27 +105,82 @@ export function useNotifications(agentId: string | null) {
     [getAudioContext]
   );
 
-  const trySpeak = useCallback((text: string): boolean => {
-    if (typeof window === 'undefined' || !window.speechSynthesis) return false;
-    try {
-      const synth = window.speechSynthesis;
-      synth.cancel();
+  const waitForVoices = useCallback(async (timeoutMs: number) => {
+    if (typeof window === 'undefined' || !window.speechSynthesis) return [];
+    const synth = window.speechSynthesis;
 
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = 'th-TH';
-      utterance.rate = 1.05;
-      utterance.pitch = 1.0;
+    const initial = synth.getVoices();
+    if (initial.length > 0) return initial;
 
-      const voices = synth.getVoices();
-      const thaiVoice = voices.find((voice) => voice.lang?.toLowerCase().startsWith('th'));
-      if (thaiVoice) utterance.voice = thaiVoice;
+    // Some browsers populate voices asynchronously; wait for voiceschanged or timeout.
+    return await new Promise<SpeechSynthesisVoice[]>((resolve) => {
+      let done = false;
+      const finish = (voices: SpeechSynthesisVoice[]) => {
+        if (done) return;
+        done = true;
+        resolve(voices);
+      };
 
-      synth.speak(utterance);
-      return true;
-    } catch {
-      return false;
-    }
+      const onVoicesChanged = () => finish(synth.getVoices());
+      synth.addEventListener?.('voiceschanged', onVoicesChanged as any);
+
+      setTimeout(() => {
+        synth.removeEventListener?.('voiceschanged', onVoicesChanged as any);
+        finish(synth.getVoices());
+      }, timeoutMs);
+    });
   }, []);
+
+  const trySpeakChecked = useCallback(
+    async (text: string, startTimeoutMs: number): Promise<{ ok: true } | { ok: false; code: SoundTestFailureCode; detail: string }> => {
+      if (typeof window === 'undefined' || !window.speechSynthesis) {
+        return { ok: false, code: 'VOICE_UNAVAILABLE', detail: 'เบราว์เซอร์ไม่รองรับเสียงพูด (speechSynthesis)' };
+      }
+
+      try {
+        const synth = window.speechSynthesis;
+        synth.cancel();
+
+        const voices = await waitForVoices(800);
+        const thaiVoice = voices.find((voice) => voice.lang?.toLowerCase().startsWith('th'));
+        if (!thaiVoice) {
+          return { ok: false, code: 'THAI_VOICE_MISSING', detail: 'ไม่พบเสียงพูดภาษาไทยในเครื่อง (Thai TTS voice)' };
+        }
+
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = 'th-TH';
+        utterance.rate = 1.05;
+        utterance.pitch = 1.0;
+        utterance.voice = thaiVoice;
+
+        const started = await new Promise<boolean>((resolve) => {
+          let done = false;
+          const finish = (value: boolean) => {
+            if (done) return;
+            done = true;
+            resolve(value);
+          };
+
+          utterance.onstart = () => finish(true);
+          utterance.onerror = () => finish(false);
+          // If the browser never fires onstart/onerror, treat as failure.
+          setTimeout(() => finish(false), startTimeoutMs);
+
+          synth.speak(utterance);
+        });
+
+        if (!started) {
+          return { ok: false, code: 'TTS_START_TIMEOUT', detail: 'สั่งพูดแล้วแต่ระบบไม่เริ่มเล่นเสียงพูด (อาจถูกบล็อก/เงียบ)' };
+        }
+
+        return { ok: true };
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        return { ok: false, code: 'VOICE_UNAVAILABLE', detail: `ไม่สามารถเริ่มเสียงพูดได้ (${msg})` };
+      }
+    },
+    [waitForVoices]
+  );
 
   const setSoundMode = useCallback((next: NotificationSoundMode) => {
     setSoundModeState(next);
@@ -213,34 +273,40 @@ export function useNotifications(agentId: string | null) {
   const playNewTicketSound = useCallback(() => {
     if (isMuted) return;
     if (soundMode === 'voice') {
-      const spoken = trySpeak('มีใบงานใหม่');
-      if (spoken) return;
+      void trySpeakChecked('มีใบงานใหม่', 900).then((res) => {
+        if (res.ok) return;
+        // Fallback to beep if voice is not available.
+        void playBeep('newTicket');
+      });
+      return;
     }
     void playBeep('newTicket');
-  }, [isMuted, playBeep, soundMode, trySpeak]);
+  }, [isMuted, playBeep, soundMode, trySpeakChecked]);
 
   const announceMuteState = useCallback((muted: boolean) => {
     if (muted) return;
     if (soundMode === 'voice') {
-      const spoken = trySpeak('เปิดเสียงแจ้งเตือนแล้ว');
-      if (spoken) return;
+      void trySpeakChecked('เปิดเสียงแจ้งเตือนแล้ว', 900).then((res) => {
+        if (res.ok) return;
+        void playBeep('confirm');
+      });
+      return;
     }
     void playBeep('confirm');
-  }, [playBeep, soundMode, trySpeak]);
+  }, [playBeep, soundMode, trySpeakChecked]);
 
   const testSound = useCallback(async (): Promise<SoundTestResult> => {
     const hint =
       'ถ้าไม่ได้ยิน ให้ตรวจว่าแท็บ/เว็บไม่ถูก Mute และ Site settings > Sound เป็น Allow รวมถึงเสียงของเครื่อง (Volume mixer / output device)';
 
     if (soundMode === 'voice') {
-      const spoken = trySpeak('มีใบงานใหม่');
-      if (spoken) return { ok: true, hint };
-      return {
-        ok: false,
-        code: 'VOICE_UNAVAILABLE',
-        detail: 'เสียงพูด (speechSynthesis) ไม่พร้อมหรือถูกบล็อก',
-        hint,
-      };
+      const res = await trySpeakChecked('มีใบงานใหม่', 1200);
+      if (res.ok) return { ok: true, hint };
+      const voiceHint =
+        res.code === 'THAI_VOICE_MISSING'
+          ? 'ติดตั้งเสียงพูดภาษาไทยในระบบปฏิบัติการ (Thai TTS voice) แล้วลองใหม่ หรือเปลี่ยนเป็นโหมด Beep'
+          : hint;
+      return { ok: false, code: res.code, detail: res.detail, hint: voiceHint };
     }
 
     const ctx = getAudioContext();
@@ -265,7 +331,7 @@ export function useNotifications(agentId: string | null) {
         hint,
       };
     }
-  }, [getAudioContext, playBeep, soundMode, trySpeak]);
+  }, [getAudioContext, playBeep, soundMode, trySpeakChecked]);
 
   // ---------------------------------------------------------------
   // Fetch ticket_logs for this agent
