@@ -294,7 +294,7 @@ function InboxContent() {
 
       <div
         className={`inbox-details-sidebar ${viewMode === 'details' ? 'showing' : ''}`}
-        style={{ width: '320px', display: 'flex', flexDirection: 'column', gap: '24px' }}
+        style={{ width: '460px', display: 'flex', flexDirection: 'column', gap: '24px' }}
       >
         {selectedChat && (
           <TicketSidebar
