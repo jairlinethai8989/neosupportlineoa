@@ -28,6 +28,7 @@ export default function PortalPage() {
   const [fetching, setFetching] = useState(true);
   const [needsRegistration, setNeedsRegistration] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [showAllHistory, setShowAllHistory] = useState(false);
 
   const fetchTickets = async (silent = false) => {
     if (!profile?.userId) return;
@@ -44,11 +45,19 @@ export default function PortalPage() {
         setCustomerData(customer);
         if (customer.hospital_id) {
           setNeedsRegistration(false);
-          const { data: ticketData } = await supabase
+          const query = supabase
             .from('tickets')
             .select('*, assigned_agent:profiles!assigned_agent_id (id, full_name)')
             .eq('customer_id', customer.id)
             .order('created_at', { ascending: false });
+
+          if (!showAllHistory) {
+            const fiveDaysAgo = new Date();
+            fiveDaysAgo.setDate(fiveDaysAgo.getDate() - 5);
+            query.gte('created_at', fiveDaysAgo.toISOString());
+          }
+
+          const { data: ticketData } = await query;
           
           if (ticketData) setTickets(ticketData);
         } else {
@@ -80,7 +89,7 @@ export default function PortalPage() {
        window.removeEventListener('focus', onRefresh);
        window.removeEventListener('popstate', onRefresh);
     };
-  }, [profile?.userId, isReady]);
+  }, [profile?.userId, isReady, showAllHistory]);
 
   // Realtime subscription for ticket updates
   useEffect(() => {
@@ -257,25 +266,43 @@ export default function PortalPage() {
         
         {pastTickets.length === 0 ? (
           <div style={{ padding: '24px', textAlign: 'center', color: '#94a3b8', background: '#f8fafc', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
-            <p style={{ fontSize: '12px' }}>ยังไม่มีประวัติการแจ้งงานที่สมบูรณ์</p>
+            <p style={{ fontSize: '12px' }}>{showAllHistory ? 'ยังไม่มีประวัติการแจ้งงาน' : 'ยังไม่มีประวัติในช่วง 5 วันที่ผ่านมา'}</p>
+            {!showAllHistory && (
+              <button 
+                onClick={() => setShowAllHistory(true)}
+                style={{ marginTop: '12px', background: 'transparent', border: 'none', color: 'var(--portal-primary)', fontWeight: '800', fontSize: '12px', cursor: 'pointer', textDecoration: 'underline' }}
+              >
+                ดูประวัติทั้งหมด
+              </button>
+            )}
           </div>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-             {pastTickets.slice(0, 20).map(ticket => (
-                <Link href={`/portal/tickets/${ticket.id}`} key={ticket.id} style={{ textDecoration: 'none', color: 'inherit' }}>
-                   <div className="portal-glass" style={{ padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'white', border: '1px solid rgba(0,0,0,0.02)' }}>
-                      <div>
-                         <p style={{ fontSize: '14px', fontWeight: '800', color: '#1e293b' }}>#{ticket.ticket_no}</p>
-                         <p style={{ fontSize: '11px', color: 'var(--portal-text-muted)', marginTop: '2px' }}>{new Date(ticket.resolved_at || ticket.created_at).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: '2-digit' })} • {ticket.status}</p>
-                      </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                         <CheckCircle size={16} color="#22c55e" />
-                         <ArrowRight size={14} color="#cbd5e1" />
-                      </div>
-                   </div>
-                </Link>
-             ))}
-          </div>
+          <>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+               {pastTickets.map(ticket => (
+                  <Link href={`/portal/tickets/${ticket.id}`} key={ticket.id} style={{ textDecoration: 'none', color: 'inherit' }}>
+                     <div className="portal-glass" style={{ padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'white', border: '1px solid rgba(0,0,0,0.02)' }}>
+                        <div>
+                           <p style={{ fontSize: '14px', fontWeight: '800', color: '#1e293b' }}>#{ticket.ticket_no}</p>
+                           <p style={{ fontSize: '11px', color: 'var(--portal-text-muted)', marginTop: '2px' }}>{new Date(ticket.resolved_at || ticket.created_at).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: '2-digit' })} • {ticket.status}</p>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                           <CheckCircle size={16} color="#22c55e" />
+                           <ArrowRight size={14} color="#cbd5e1" />
+                        </div>
+                     </div>
+                  </Link>
+               ))}
+            </div>
+            {!showAllHistory && (
+               <button 
+                 onClick={() => setShowAllHistory(true)}
+                 style={{ width: '100%', marginTop: '20px', padding: '14px', borderRadius: '12px', border: '1px solid var(--portal-border)', background: 'white', color: '#1e293b', fontWeight: '800', fontSize: '14px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+               >
+                 แสดงประวัติก่อนหน้านี้ <ArrowRight size={16} />
+               </button>
+            )}
+          </>
         )}
       </section>
     </div>
