@@ -87,9 +87,7 @@ export function TicketsWorkspaceHeader({
   viewMode,
 }: TicketsWorkspaceHeaderProps) {
   const { t } = useStaffLocale();
-
   const timeRangeOptions: Array<{ id: TicketWorkspaceTimeRange; label: string }> = [
-    { id: 'all', label: t('tickets.allTime') },
     { id: 'today', label: t('tickets.today') },
     { id: 'week', label: t('tickets.last7Days') },
     { id: 'month', label: t('tickets.last31Days') },

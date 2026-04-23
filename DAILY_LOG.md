@@ -13,6 +13,7 @@
    * **Top Right User Menu:** ย้ายข้อมูลส่วนตัว, การเลือกธีม และปุ่มออกจากระบบ ไปไว้ที่มุมขวาบนในรูปแบบ Dropdown ชุดเดียว
    * **Clean Sidebar:** เคลียร์พื้นที่ Sidebar ด้านซ้ายให้เหลือเฉพาะการนำทาง (Navigation) ทำให้ดูโปร่งและทันสมัย
    * **Hideable Themes:** ซ่อนชุดเลือกธีมไว้ในเมนู User เพื่อลดการรกของหน้าจอ
+   * **Performance Optimization (Ticket Workspace):** เอาตัวเลือกฟิลเตอร์เวลา "ทั้งหมด (All Time)" ออกเพื่อป้องกันปัญหาข้อมูลล้นและการดึงข้อมูลปริมาณมากเกินจำเป็น โดยกำหนดค่าเริ่มต้นเป็น "วันนี้ (Today)" แทน
 4. **Status Consistency & Fixes:**
    * ปรับสีสถานะลูกค้ารายการ (Badge) ให้ชัดเจน: **In Progress (ฟ้า), Pending (ส้ม), Escalated (แดง), Resolved (เขียว)**
    * แก้ไขปัญหาการบันทึกหัวข้อ (Subject Selection) ใน Master Settings ให้เป็นปัจจุบันเสมอ
