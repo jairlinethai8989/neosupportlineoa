@@ -431,7 +431,6 @@ export default function NotificationsPage() {
               {t('notificationsHub.goToList')} <ExternalLink size={12} />
             </button>
           </div>
-          </div>
         </div>
       </div>
 
