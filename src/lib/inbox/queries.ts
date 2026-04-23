@@ -17,12 +17,12 @@ import type {
 
 export const inboxConversationSelect = `
   *,
-  customers (id, display_name, line_user_id, avatar_url),
+  customers (id, display_name, line_user_id),
   ticket_data:current_ticket_id (
     id,
     ticket_no,
     subject,
-    customers:customers!tickets_customer_id_fkey (id, display_name, line_user_id, avatar_url)
+    customers:customers!tickets_customer_id_fkey (id, display_name, line_user_id)
   )
 `;
 

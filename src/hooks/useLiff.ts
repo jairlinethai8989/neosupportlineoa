@@ -25,7 +25,6 @@ export function useLiff() {
       const payload = {
         line_user_id: currentProfile.userId,
         display_name: currentProfile.displayName,
-        avatar_url: currentProfile.pictureUrl || null,
         updated_at: new Date().toISOString(),
       };
 

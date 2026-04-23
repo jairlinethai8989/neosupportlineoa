@@ -17,13 +17,11 @@ async function getLineProfileSnapshot(userId: string) {
     const profile = await client.getProfile(userId);
     return {
       display_name: profile.displayName || 'LINE User',
-      avatar_url: profile.pictureUrl || null,
     };
   } catch (error) {
     console.warn(`Webhook: Failed to fetch LINE profile for ${userId}`, error);
     return {
       display_name: 'LINE User',
-      avatar_url: null,
     };
   }
 }
@@ -99,7 +97,7 @@ export async function POST(req: Request) {
       // 2. Map Customer
       let { data: customer } = await supabaseAdmin
         .from('customers')
-        .select('id, display_name, avatar_url')
+        .select('id, display_name')
         .eq('line_user_id', lineUserId)
         .maybeSingle();
 
@@ -109,25 +107,20 @@ export async function POST(req: Request) {
           .insert([{ 
              line_user_id: lineUserId, 
              display_name: lineProfile.display_name,
-             avatar_url: lineProfile.avatar_url,
              metadata: { original_event: event } 
           }])
           .select()
           .single();
         customer = newCustomer;
-      } else if (
-        customer.display_name !== lineProfile.display_name ||
-        (customer.avatar_url || null) !== lineProfile.avatar_url
-      ) {
+      } else if (customer.display_name !== lineProfile.display_name) {
         const { data: updatedCustomer } = await supabaseAdmin
           .from('customers')
           .update({
             display_name: lineProfile.display_name,
-            avatar_url: lineProfile.avatar_url,
             updated_at: new Date().toISOString(),
           })
           .eq('id', customer.id)
-          .select('id, display_name, avatar_url')
+          .select('id, display_name')
           .single();
 
         customer = updatedCustomer || customer;
