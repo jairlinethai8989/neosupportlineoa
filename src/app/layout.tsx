@@ -11,7 +11,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="th" data-theme="dark">
+    <html lang="th" data-theme={typeof localStorage !== 'undefined' ? localStorage.getItem('theme') || 'light' : 'light'}>
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
