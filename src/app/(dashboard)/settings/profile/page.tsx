@@ -17,7 +17,6 @@ import {
   MessageSquarePlus,
   ClipboardCheck,
   Trash2,
-  Edit2,
   CheckCircle,
   PenTool,
   Plus
@@ -423,7 +422,7 @@ export default function ProfileSettingsPage() {
                     </div>
                     <h2 style={{ fontSize: '16px', fontWeight: '700' }}>{t('settingsProfile.quickReplies')}</h2>
                  </div>
-                 <button onClick={() => { const val = prompt('ใส่ข้อความตอบด่วนใหม่:'); if (val) addTemplate('quick', val); }} className="glass-interactive" style={{ padding: '6px 14px', borderRadius: '10px', background: 'var(--primary)', border: 'none', color: '#000', fontSize: '11px', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                 <button onClick={() => { const val = prompt(t('settingsProfile.addQuickReplyPrompt')); if (val) addTemplate('quick', val); }} className="glass-interactive" style={{ padding: '6px 14px', borderRadius: '10px', background: 'var(--primary)', border: 'none', color: '#000', fontSize: '11px', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <Plus size={14} /> {t('settingsProfile.add')}
                  </button>
               </div>
@@ -447,7 +446,7 @@ export default function ProfileSettingsPage() {
                      </div>
                      <h2 style={{ fontSize: '16px', fontWeight: '700' }}>{t('settingsProfile.resolutionTemplates')}</h2>
                   </div>
-                  <button onClick={() => { const val = prompt('ใส่ข้อความสรุปงานใหม่:'); if (val) addTemplate('res', val); }} className="glass-interactive" style={{ padding: '6px 14px', borderRadius: '10px', background: '#28c76f', border: 'none', color: '#fff', fontSize: '11px', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <button onClick={() => { const val = prompt(t('settingsProfile.addResolutionTemplatePrompt')); if (val) addTemplate('res', val); }} className="glass-interactive" style={{ padding: '6px 14px', borderRadius: '10px', background: '#28c76f', border: 'none', color: '#fff', fontSize: '11px', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '6px' }}>
                      <Plus size={14} /> {t('settingsProfile.add')}
                   </button>
                </div>

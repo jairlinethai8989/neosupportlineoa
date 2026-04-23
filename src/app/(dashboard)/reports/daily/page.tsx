@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { exportToExcel } from '@/lib/utils/exportUtils';
 import Skeleton from '@/components/ui/Skeleton';
+import { useStaffLocale } from '@/contexts/StaffLocaleContext';
 
 type SortConfig = {
   key: string;
@@ -15,6 +16,7 @@ type SortConfig = {
 } | null;
 
 export default function DailyReportPage() {
+  const { t } = useStaffLocale();
   const [tickets, setTickets] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [dateRange, setDateRange] = useState({
@@ -99,8 +101,10 @@ export default function DailyReportPage() {
     const mins = Math.floor(diff / (1000 * 60));
     const hours = Math.floor(mins / 60);
     const m = mins % 60;
-    if (hours > 0) return `${hours} ชม. ${m} นาที`;
-    return `${m} นาที`;
+    const hoursLabel = t('dashboard.hoursAgo').replace('ที่แล้ว', '');
+    const minsLabel = t('dashboard.minutesAgo').replace('ที่แล้ว', '');
+    if (hours > 0) return `${hours} ${hoursLabel} ${m} ${minsLabel}`;
+    return `${m} ${minsLabel}`;
   };
 
   // Process data (Filter & Sort)
@@ -170,19 +174,19 @@ export default function DailyReportPage() {
         const resolvedAt = t.resolved_at ? new Date(t.resolved_at) : null;
         
         return {
-           'สถานะ': t.status === 'Resolved' || t.status === 'Closed' ? '✅' : (t.status === 'New' ? '⚪' : '🔄'),
-           'วันที่แจ้ง': d.toLocaleDateString('th-TH'),
-           'โรงพยาบาล': t.hospitals?.name || t.customers?.hospitals?.name || '-',
-           'ผู้แจ้ง': t.customers?.display_name || (t.assigned_agent ? `👷‍♂️ ${t.assigned_agent.display_name}` : '-'),
-           'รายละเอียดงาน': t.subject || t.description || '-',
-           'วิธีการแก้ไข': t.resolution_summary || '-',
-           'ผู้รับงาน': t.assigned_agent?.display_name || '-',
-           'ที่มาของปัญหา': t.source || 'Line กลุ่ม',
-           'module': t.module || '-',
-           'ประเภทงาน': t.issue_type || '-',
-           'เวลาที่แจ้ง': d.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }),
-           'เวลาที่ปิดงาน': resolvedAt ? resolvedAt.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }) : '-',
-           'เวลาที่ใช้ไป': getDurationStr(t.created_at, t.resolved_at)
+           [t('reports.columns.status')]: t.status === 'Resolved' || t.status === 'Closed' ? '✅' : (t.status === 'New' ? '⚪' : '🔄'),
+           [t('reports.columns.date')]: d.toLocaleDateString('th-TH'),
+           [t('reports.columns.hospital')]: t.hospitals?.name || t.customers?.hospitals?.name || '-',
+           [t('reports.columns.customer')]: t.customers?.display_name || (t.assigned_agent ? `👷‍♂️ ${t.assigned_agent.display_name}` : '-'),
+           [t('reports.columns.workDetails')]: t.subject || t.description || '-',
+           [t('reports.columns.resolution')]: t.resolution_summary || '-',
+           [t('reports.columns.assignee')]: t.assigned_agent?.display_name || '-',
+           [t('reports.columns.source')]: t.source || 'Line กลุ่ม',
+           [t('reports.columns.module')]: t.module || '-',
+           [t('reports.columns.type')]: t.issue_type || '-',
+           [t('reports.columns.createdTime')]: d.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }),
+           [t('reports.columns.resolvedTime')]: resolvedAt ? resolvedAt.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }) : '-',
+           [t('reports.columns.timeUsed')]: getDurationStr(t.created_at, t.resolved_at)
         };
       });
       const rangeStr = dateRange.start === dateRange.end ? dateRange.start : `${dateRange.start}_to_${dateRange.end}`;
@@ -201,19 +205,19 @@ export default function DailyReportPage() {
   }
 
   const COLUMNS = [
-    { label: 'สถานะ', key: 'status' },
-    { label: 'วันที่แจ้ง', key: 'date' },
-    { label: 'โรงพยาบาล', key: 'hospital' },
-    { label: 'ผู้แจ้ง', key: 'customer' },
-    { label: 'รายละเอียดงาน', key: 'subject' },
-    { label: 'วิธีการแก้ไข', key: 'resolution' },
-    { label: 'ผู้รับงาน', key: 'agent' },
-    { label: 'ที่มาของปัญหา', key: 'source' },
-    { label: 'module', key: 'module' },
-    { label: 'ประเภทงาน', key: 'type' },
-    { label: 'เวลาที่แจ้ง', key: 'date' },
-    { label: 'เวลาที่ปิดงาน', key: 'resolved_at' },
-    { label: 'เวลาที่ใช้ไป', key: 'duration' },
+    { label: t('reports.columns.status'), key: 'status' },
+    { label: t('reports.columns.date'), key: 'date' },
+    { label: t('reports.columns.hospital'), key: 'hospital' },
+    { label: t('reports.columns.customer'), key: 'customer' },
+    { label: t('reports.columns.workDetails'), key: 'subject' },
+    { label: t('reports.columns.resolution'), key: 'resolution' },
+    { label: t('reports.columns.assignee'), key: 'agent' },
+    { label: t('reports.columns.source'), key: 'source' },
+    { label: t('reports.columns.module'), key: 'module' },
+    { label: t('reports.columns.type'), key: 'type' },
+    { label: t('reports.columns.createdTime'), key: 'date' },
+    { label: t('reports.columns.resolvedTime'), key: 'resolved_at' },
+    { label: t('reports.columns.timeUsed'), key: 'duration' },
   ];
 
   return (
@@ -226,8 +230,8 @@ export default function DailyReportPage() {
                   <TableIcon size={24} color="var(--primary)" />
                </div>
                <div>
-                 <h1 style={{ fontSize: '22px', fontWeight: '800', letterSpacing: '-0.5px', color: 'var(--text-main)' }}>รายงานสรุปปัญหาประจำวัน</h1>
-                 <p style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: '500' }}>Daily Issues & Resolution Tracker</p>
+                 <h1 style={{ fontSize: '22px', fontWeight: '800', letterSpacing: '-0.5px', color: 'var(--text-main)' }}>{t('reports.dailyTitle')}</h1>
+                 <p style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: '500' }}>{t('reports.dailySubtitle')}</p>
                </div>
             </div>
          </div>
@@ -236,9 +240,9 @@ export default function DailyReportPage() {
             {/* Presets */}
             <div style={{ display: 'flex', background: 'var(--bg-card)', padding: '4px', borderRadius: '12px', border: '1px solid var(--border)' }}>
               {[
-                { label: 'วันนี้', value: 'today' },
-                { label: 'สัปดาห์นี้', value: 'week' },
-                { label: 'เดือนนี้', value: 'month' }
+                { label: t('dashboard.daily'), value: 'today' },
+                { label: t('dashboard.weekly'), value: 'week' },
+                { label: t('dashboard.monthly'), value: 'month' }
               ].map(p => (
                 <button
                   key={p.value}
@@ -289,7 +293,7 @@ export default function DailyReportPage() {
                 <Search size={16} style={{ position: 'absolute', left: '12px', color: 'var(--text-muted)' }} />
                 <input 
                   type="text"
-                  placeholder="ค้นหาข้อมูล..."
+                  placeholder={t('common.messages.noResults').replace('พบ', 'ค้นหา')}
                   value={filterText}
                   onChange={(e) => setFilterText(e.target.value)}
                   className="glass-interactive"
@@ -319,7 +323,7 @@ export default function DailyReportPage() {
                style={{ height: '44px', padding: '0 20px', borderRadius: '12px', border: 'none', background: 'var(--success)', color: 'white', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 8px 20px rgba(16, 185, 129, 0.25)' }}
             >
                {isExporting ? <Loader2 size={18} className="animate-spin" /> : <Download size={18} />}
-               EXPORT EXCEL
+               {t('reports.exportExcel')}
             </button>
          </div>
       </div>
@@ -360,7 +364,7 @@ export default function DailyReportPage() {
                      <tr><td colSpan={13} style={{ textAlign: 'center', padding: '40px' }}><Loader2 className="animate-spin text-primary" style={{ margin: '0 auto' }} /></td></tr>
                   ) : processedTickets.length === 0 ? (
                      <tr><td colSpan={13} style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
-                         {filterText ? 'ไม่พบข้อมูลที่ตรงกับการค้นหา' : 'ไม่พบข้อมูลใบงานในช่วงวันที่เลือก'}
+                         {filterText ? t('common.messages.noResults') : t('reports.noDataRange')}
                      </td></tr>
                   ) : (
                      processedTickets.map((t, idx) => (
@@ -395,8 +399,8 @@ export default function DailyReportPage() {
          </div>
          
          <div style={{ padding: '14px 20px', background: 'var(--bg-card)', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11px', fontWeight: '500', color: 'var(--text-muted)', letterSpacing: '0.3px' }}>
-            <span>กำลังแสดงผล {processedTickets.length} รายการ {filterText && `(จากทั้งหมด ${tickets.length} รายการ)`}</span>
-             <span>ข้อมูลสรุปตามช่วงเวลา ({dateRange.start} ถึง {dateRange.end})</span>
+            <span>{t('tickets.list')} {processedTickets.length} {t('tickets.workspaceDescription').split(' ')[0]} {filterText && `(${t('dashboard.tabs.all')} ${tickets.length})`}</span>
+            <span>{t('reports.dailySubtitle')} ({dateRange.start} {t('tickets.to')} {dateRange.end})</span>
          </div>
       </div>
     </div>

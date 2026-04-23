@@ -25,6 +25,7 @@ import {
 import { supabase } from '@/lib/supabase';
 import { exportTickets } from '@/lib/utils/exportUtils';
 import Skeleton from '@/components/ui/Skeleton';
+import { useStaffLocale } from '@/contexts/StaffLocaleContext';
 
 const CHART_COLORS = {
   primary: '#00f2fe',
@@ -139,6 +140,8 @@ function getDayLabel(dateStr: string): string {
 }
 
 export default function Home() {
+  const { t } = useStaffLocale();
+  const router = useRouter();
   const [tickets, setTickets] = useState<any[]>([]);
   const [recentLogs, setRecentLogs] = useState<any[]>([]);
   const [showExportMenu, setShowExportMenu] = useState(false);
@@ -237,7 +240,10 @@ export default function Home() {
 
   // 7-day trend data
   const trendData = useMemo(() => {
-    const days: { label: string; dateKey: string; ใบงานใหม่: number; ปิดแล้ว: number }[] = [];
+    const days: { label: string; dateKey: string; [key: string]: any }[] = [];
+    const newTicketsLabel = t('dashboard.newTickets');
+    const resolvedLabel = t('dashboard.resolved');
+
     for (let i = 6; i >= 0; i--) {
       const d = new Date();
       d.setDate(d.getDate() - i);
@@ -250,7 +256,7 @@ export default function Home() {
         t.updated_at?.startsWith(dateKey)
       ).length;
       
-      days.push({ label, dateKey, 'ใบงานใหม่': created, 'ปิดแล้ว': resolved });
+      days.push({ label, dateKey, [newTicketsLabel]: created, [resolvedLabel]: resolved });
     }
     return days;
   }, [tickets]);
@@ -342,17 +348,17 @@ export default function Home() {
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px', flexWrap: 'wrap', gap: '16px' }}>
         <div>
-          <h1 style={{ fontSize: '28px', fontWeight: '800', marginBottom: '4px' }}>สรุปผลบริหารจัดการ</h1>
+          <h1 style={{ fontSize: '28px', fontWeight: '800', marginBottom: '4px' }}>{t('dashboard.managementSummary')}</h1>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <p style={{ color: 'var(--text-muted)', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-              EXECUTIVE SUMMARY • DASHBOARD
+              {t('dashboard.executiveSummary')}
             </p>
             <div style={{ display: 'flex', background: 'var(--bg-card)', padding: '4px', borderRadius: '10px', border: '1px solid var(--border)' }}>
               {[
-                { id: 'today', thai: 'วันนี้' },
-                { id: 'week', thai: 'สัปดาห์นี้' },
-                { id: 'month', thai: 'เดือนนี้' },
-                { id: 'custom', thai: 'เลือกช่วงเวลา' }
+                { id: 'today', label: t('dashboard.daily') },
+                { id: 'week', label: t('dashboard.weekly') },
+                { id: 'month', label: t('dashboard.monthly') },
+                { id: 'custom', label: t('dashboard.customRange') }
               ].map(opt => (
                 <button
                   key={opt.id}
@@ -369,7 +375,7 @@ export default function Home() {
                     transition: 'all 0.2s'
                   }}
                 >
-                  {opt.thai}
+                  {opt.label}
                 </button>
               ))}
             </div>
@@ -416,7 +422,7 @@ export default function Home() {
             >
               <Download size={20} />
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', lineHeight: '1.2' }}>
-                <span style={{ fontSize: '14px' }}>ส่งออกรายงาน</span>
+                <span style={{ fontSize: '14px' }}>{t('dashboard.exportReport')}</span>
                 <span style={{ fontSize: '10px', opacity: 0.7 }}>EXPORT REPORT</span>
               </div>
             </button>
@@ -480,29 +486,29 @@ export default function Home() {
       {/* KPI Cards */}
       <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap', marginBottom: '32px' }}>
         <KPICard 
-          title={{ thai: 'ใบงานวันนี้', eng: 'TODAY\'S TICKETS' }} 
+          title={{ thai: t('dashboard.todayTickets'), eng: 'TODAY\'S TICKETS' }} 
           value={stats.totalToday} 
           icon={Ticket} 
           color="#00cfe8" 
           trend={stats.trendPct}
-          trendLabel="เทียบกับเมื่อวาน"
+          trendLabel={t('dashboard.comparedToYesterday')}
         />
         <KPICard 
-          title={{ thai: 'ใบงานใหม่', eng: 'NEW TICKETS' }} 
+          title={{ thai: t('dashboard.newTickets'), eng: 'NEW TICKETS' }} 
           value={stats.newTickets} 
           icon={MessageSquare} 
           color="#00f2fe" 
           trend={null}
         />
         <KPICard 
-          title={{ thai: 'กำลังดำเนินงาน', eng: 'IN PROGRESS' }} 
+          title={{ thai: t('dashboard.inProgress'), eng: 'IN PROGRESS' }} 
           value={stats.inProgress} 
           icon={Clock} 
           color="#ff9f43" 
           trend={null}
         />
         <KPICard 
-          title={{ thai: 'ปิดแล้ว', eng: 'RESOLVED' }} 
+          title={{ thai: t('dashboard.resolved'), eng: 'RESOLVED' }} 
           value={stats.resolved} 
           icon={CheckCircle} 
           color="#28c76f" 
@@ -516,17 +522,17 @@ export default function Home() {
         <div className="glass" style={{ padding: '24px', display: 'flex', flexDirection: 'column' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
             <div>
-              <h2 style={{ fontSize: '16px', fontWeight: '800', marginBottom: '2px' }}>แนวโน้มใบงาน 7 วัน</h2>
+              <h2 style={{ fontSize: '16px', fontWeight: '800', marginBottom: '2px' }}>{t('dashboard.ticketTrend')}</h2>
               <p style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>TICKET TREND • Last 7 Days</p>
             </div>
             <div style={{ display: 'flex', gap: '16px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: CHART_COLORS.primary }} />
-                <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>ใบงานใหม่</span>
+                <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{t('dashboard.newTickets')}</span>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: CHART_COLORS.success }} />
-                <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>ปิดแล้ว</span>
+                <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{t('dashboard.resolved')}</span>
               </div>
             </div>
           </div>
@@ -549,7 +555,7 @@ export default function Home() {
                 <Tooltip content={<CustomTooltip />} />
                 <Area 
                   type="monotone" 
-                  dataKey="ใบงานใหม่" 
+                  dataKey={t('dashboard.newTickets')} 
                   stroke={CHART_COLORS.primary} 
                   strokeWidth={3} 
                   fillOpacity={1} 
@@ -559,7 +565,7 @@ export default function Home() {
                 />
                 <Area 
                   type="monotone" 
-                  dataKey="ปิดแล้ว" 
+                  dataKey={t('dashboard.resolved')} 
                   stroke={CHART_COLORS.success} 
                   strokeWidth={3} 
                   fillOpacity={1} 
@@ -575,7 +581,7 @@ export default function Home() {
         {/* Status Distribution Donut */}
         <div className="glass" style={{ padding: '24px', display: 'flex', flexDirection: 'column' }}>
           <div style={{ marginBottom: '16px' }}>
-            <h2 style={{ fontSize: '16px', fontWeight: '800', marginBottom: '2px' }}>สถานะใบงาน</h2>
+            <h2 style={{ fontSize: '16px', fontWeight: '800', marginBottom: '2px' }}>{t('dashboard.statusDistribution')}</h2>
             <p style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>STATUS DISTRIBUTION</p>
           </div>
           <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
@@ -601,11 +607,11 @@ export default function Home() {
                 {/* Center label */}
                 <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -60%)', textAlign: 'center' }}>
                   <p style={{ fontSize: '28px', fontWeight: '900' }}>{stats.totalAll}</p>
-                  <p style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: '700' }}>ทั้งหมด</p>
+                  <p style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: '700' }}>{t('dashboard.tabs.all')}</p>
                 </div>
               </>
             ) : (
-              <p style={{ color: 'var(--text-muted)', fontSize: '13px' }}>ยังไม่มีข้อมูล</p>
+              <p style={{ color: 'var(--text-muted)', fontSize: '13px' }}>{t('common.messages.noResults')}</p>
             )}
           </div>
           {/* Legend */}
@@ -628,7 +634,7 @@ export default function Home() {
         {/* Priority Distribution */}
         <div className="glass" style={{ padding: '24px', display: 'flex', flexDirection: 'column' }}>
           <div style={{ marginBottom: '16px' }}>
-            <h2 style={{ fontSize: '16px', fontWeight: '800', marginBottom: '2px' }}>ระดับความสำคัญ</h2>
+            <h2 style={{ fontSize: '16px', fontWeight: '800', marginBottom: '2px' }}>{t('dashboard.priorityBreakdown')}</h2>
             <p style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>PRIORITY BREAKDOWN</p>
           </div>
           <div style={{ flex: 1, minHeight: '220px' }}>
@@ -647,7 +653,7 @@ export default function Home() {
                 </BarChart>
               </ResponsiveContainer>
             ) : (
-              <div className="flex-center" style={{ height: '220px', color: 'var(--text-muted)', fontSize: '13px' }}>ยังไม่มีข้อมูล</div>
+              <div className="flex-center" style={{ height: '220px', color: 'var(--text-muted)', fontSize: '13px' }}>{t('common.messages.noResults')}</div>
             )}
           </div>
         </div>
@@ -655,7 +661,7 @@ export default function Home() {
         {/* Agent Workload */}
         <div className="glass" style={{ padding: '24px', display: 'flex', flexDirection: 'column' }}>
           <div style={{ marginBottom: '16px' }}>
-            <h2 style={{ fontSize: '16px', fontWeight: '800', marginBottom: '2px' }}>ภาระงานเจ้าหน้าที่</h2>
+            <h2 style={{ fontSize: '16px', fontWeight: '800', marginBottom: '2px' }}>{t('dashboard.agentWorkload')}</h2>
             <p style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>AGENT WORKLOAD • TOP 5</p>
           </div>
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '12px', justifyContent: 'center' }}>
@@ -680,7 +686,7 @@ export default function Home() {
                 </div>
               );
             }) : (
-              <p style={{ color: 'var(--text-muted)', fontSize: '13px', textAlign: 'center' }}>ยังไม่มีการมอบหมายงาน</p>
+              <p style={{ color: 'var(--text-muted)', fontSize: '13px', textAlign: 'center' }}>{t('common.messages.noResults')}</p>
             )}
           </div>
         </div>
@@ -688,12 +694,12 @@ export default function Home() {
         {/* Recent Activity */}
         <div className="glass" style={{ padding: '24px', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
           <div style={{ marginBottom: '16px' }}>
-            <h2 style={{ fontSize: '16px', fontWeight: '800', marginBottom: '2px' }}>กิจกรรมล่าสุด</h2>
+            <h2 style={{ fontSize: '16px', fontWeight: '800', marginBottom: '2px' }}>{t('dashboard.recentActivity')}</h2>
             <p style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>RECENT ACTIVITY</p>
           </div>
           <div style={{ flex: 1, overflowY: 'auto' }}>
             {recentLogs.length === 0 ? (
-                <p style={{ color: 'var(--text-muted)', textAlign: 'center', marginTop: '40px', fontSize: '13px' }}>ยังไม่มีกิจกรรม</p>
+                <p style={{ color: 'var(--text-muted)', textAlign: 'center', marginTop: '40px', fontSize: '13px' }}>{t('common.messages.noResults')}</p>
             ) : recentLogs.map((log, idx) => (
               <div key={idx} style={{ 
                 padding: '10px 0', 

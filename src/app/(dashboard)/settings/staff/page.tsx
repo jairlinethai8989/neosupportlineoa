@@ -3,7 +3,7 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @next/next/no-img-element */
 /* eslint-disable jsx-a11y/alt-text */
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { 
   Users, 
@@ -84,7 +84,7 @@ export default function StaffManagementPage() {
   const [permissions, setPermissions] = useState<any>(DEFAULT_PERMISSIONS);
   const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' }>({ key: 'full_name', direction: 'asc' });
 
-  const fetchStaff = async () => {
+  const fetchStaff = useCallback(async () => {
     setLoading(true);
     const { data, error } = await supabase
       .from('profiles')
@@ -98,7 +98,7 @@ export default function StaffManagementPage() {
       setStaff(data || []);
     }
     setLoading(false);
-  };
+  }, [t]);
 
   useEffect(() => {
     let isMounted = true;
@@ -116,7 +116,7 @@ export default function StaffManagementPage() {
     };
     fetchStaffAsync();
     return () => { isMounted = false; };
-  }, []);
+  }, [fetchStaff]);
 
   const handleDeleteStaff = async (id: string, name: string) => {
     if (!confirm(t('common.messages.deleteConfirm').replace('{name}', name))) return;

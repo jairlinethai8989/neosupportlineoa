@@ -19,6 +19,7 @@ import {
   ChevronRight
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import { auditService } from '@/lib/services/auditService';
 import { useAppContext } from '@/contexts/AppContext';
 import { useStaffLocale } from '@/contexts/StaffLocaleContext';
@@ -334,10 +335,11 @@ export default function AuditLogPage() {
                        </td>
                        <td style={{ padding: '20px 24px' }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                             <div style={{ width: '30px', height: '30px', borderRadius: '10px', background: 'var(--border)', overflow: 'hidden' }}>
-                                <img 
+                             <div style={{ width: '30px', height: '30px', borderRadius: '10px', background: 'var(--border)', overflow: 'hidden', position: 'relative' }}>
+                                <Image 
                                   src={log.performer?.avatar_url || `https://ui-avatars.com/api/?name=${log.performer?.full_name || t('settingsAudit.systemFallback')}`} 
-                                  style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                                  fill
+                                  style={{ objectFit: 'cover' }} 
                                   alt={log.performer?.full_name || 'Avatar'}
                                 />
                              </div>

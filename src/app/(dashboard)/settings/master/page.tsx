@@ -8,13 +8,11 @@ import {
   Users, 
   Briefcase, 
   Plus, 
-  Trash2, 
   Edit3, 
   Check, 
   X,
   Loader2,
   Search,
-  ChevronRight,
   Layout,
   FileText,
   Tag,
@@ -34,8 +32,7 @@ export default function MasterSettingsPage() {
     departments: ctxDepartments, 
     companySettings: ctxGlobalSettings, 
     refreshData,
-    userProfile,
-    loading: ctxLoading 
+    userProfile
   } = useAppContext();
 
   const canEdit = React.useMemo(() => {
@@ -424,7 +421,7 @@ export default function MasterSettingsPage() {
                  {activeTab === 'hospital_depts' && (
                    <select
                      value=""
-                     onChange={e => () => {}}
+                     onChange={() => {}}
                      style={{ flex: 1, minWidth: '150px', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', borderRadius: '12px', padding: '14px 20px', color: 'var(--text-main)', fontSize: '15px', outline: 'none', cursor: 'pointer' }}
                    >
                      <option value="">{t('settingsMaster.selectHospital')}</option>

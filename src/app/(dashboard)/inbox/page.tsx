@@ -3,6 +3,7 @@
 import React, { Suspense, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Loader2, MessageSquare } from 'lucide-react';
+import { useStaffLocale } from '@/contexts/StaffLocaleContext';
 import { useRealtimeInbox } from '@/hooks/useRealtimeInbox';
 import { useNotificationContext } from '@/contexts/NotificationContext';
 import ImageEditorModal from '@/components/modals/ImageEditorModal';
@@ -41,6 +42,7 @@ function hasSelectedConversationChanged(
 }
 
 function InboxContent() {
+  const { t } = useStaffLocale();
   const { addToast } = useNotificationContext();
   const [selectedChat, setSelectedChat] = useState<InboxConversation | null>(null);
   const [viewMode, setViewMode] = useState<InboxViewMode>('list');
@@ -194,10 +196,11 @@ function InboxContent() {
     return () => window.removeEventListener('paste', handlePaste);
   }, [selectedChat]);
 
-  if (inboxLoading) {
+  if (inboxLoading && page === 1) {
     return (
-      <div className="flex-center" style={{ height: '70vh' }}>
+      <div className="flex-center" style={{ height: '400px', flexDirection: 'column', gap: '16px' }}>
         <Loader2 className="animate-spin" />
+        <p style={{ color: 'var(--text-muted)' }}>{t('common.messages.loading')}</p>
       </div>
     );
   }
@@ -266,7 +269,7 @@ function InboxContent() {
             viewMode={viewMode}
             setViewMode={setViewMode}
             onDeleteMessage={async (messageId: string) => {
-              if (confirm('ยกเลิกส่งข้อความนี้ใช่หรือไม่?')) {
+              if (confirm(t('common.messages.deleteConfirm'))) {
                 const result = await deleteInboxMessage(messageId);
                 if (!result.success) {
                   alert(getInboxDeleteFailedMessage(result.error));
@@ -286,8 +289,8 @@ function InboxContent() {
             }}
           >
             <MessageSquare size={64} style={{ opacity: 0.1 }} />
-            <h3 style={{ fontSize: '18px', fontWeight: '800' }}>เลือกแชตเพื่อเริ่มการสนทนา</h3>
-            <p style={{ fontSize: '14px' }}>ระบบจะแสดงประวัติข้อความและข้อมูล ticket ทางด้านขวา</p>
+            <h3 style={{ fontSize: '18px', fontWeight: '800' }}>{t('inbox.selectChatTitle')}</h3>
+            <p style={{ fontSize: '14px' }}>{t('inbox.selectChatSubtitle')}</p>
           </div>
         )}
       </div>

@@ -1,6 +1,7 @@
 'use client';
 import React, { useState } from 'react';
 import { Search, Mail, Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
+import { useStaffLocale } from '@/contexts/StaffLocaleContext';
 import type { InboxConversation, InboxViewMode } from '@/types/inbox';
 
 interface InboxSidebarProps {
@@ -22,13 +23,15 @@ export const InboxSidebar: React.FC<InboxSidebarProps> = ({
   totalPages,
   onPageChange
 }) => {
+  const { t } = useStaffLocale();
+
   return (
     <div className={`glass inbox-list-panel ${viewMode !== 'list' ? 'hidden-mobile' : ''}`} style={{ width: '260px', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
       
       {/* Header */}
       <div style={{ padding: '24px', borderBottom: '1px solid var(--border)', background: 'linear-gradient(to right, rgba(255,255,255,0.03), transparent)' }}>
-        <h2 style={{ fontSize: '18px', fontWeight: '900', color: 'var(--primary)', margin: 0, letterSpacing: '-0.5px' }}>แชทที่กำลังดำเนินการ</h2>
-        <p style={{ fontSize: '12px', color: 'var(--text-dim)', marginTop: '4px' }}>จัดการคิวสนทนาแบบ Real-time</p>
+        <h2 style={{ fontSize: '18px', fontWeight: '900', color: 'var(--primary)', margin: 0, letterSpacing: '-0.5px' }}>{t('inbox.activeChats')}</h2>
+        <p style={{ fontSize: '12px', color: 'var(--text-dim)', marginTop: '4px' }}>{t('inbox.queueSubtitle')}</p>
       </div>
 
       <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--border)' }}>
@@ -37,8 +40,8 @@ export const InboxSidebar: React.FC<InboxSidebarProps> = ({
           <Search style={{ position: 'absolute', left: '12px', top: '12px', color: 'var(--text-muted)' }} size={16} aria-hidden="true" />
           <input 
             type="text" 
-            placeholder="ค้นหาชื่อลูกค้า…" 
-            aria-label="ค้นหาชื่อลูกค้า"
+            placeholder={t('inbox.searchPlaceholder')} 
+            aria-label={t('inbox.searchPlaceholder')}
             style={{
               width: '100%',
               background: 'var(--bg-input)',
@@ -57,7 +60,7 @@ export const InboxSidebar: React.FC<InboxSidebarProps> = ({
         {conversations.length === 0 ? (
            <div style={{ padding: '60px 20px', textAlign: 'center', color: 'var(--text-muted)' }}>
               <Mail size={40} style={{ marginBottom: '16px', opacity: 0.2 }} />
-              <p style={{ fontSize: '13px' }}>ยังไม่มีข้อความส่งเข้ามา</p>
+              <p style={{ fontSize: '13px' }}>{t('inbox.noMessages')}</p>
            </div>
         ) : conversations.map((chat) => (
           <div 
