@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { CheckCircle, Loader2 } from 'lucide-react';
+import { useStaffLocale } from '@/contexts/StaffLocaleContext';
 
 interface ResolveTicketModalTicket {
   ticket_no: string | null;
@@ -42,6 +43,8 @@ export function ResolveTicketModal({
   onChangeIssueType,
   isChatActive = false,
 }: ResolveTicketModalProps) {
+  const { t } = useStaffLocale();
+
   if (!open) return null;
 
   const isDisabled =
