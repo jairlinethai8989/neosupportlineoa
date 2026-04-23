@@ -23,6 +23,8 @@ import {
 import { useRouter } from 'next/navigation';
 import { auditService } from '@/lib/services/auditService';
 import { useAppContext } from '@/contexts/AppContext';
+import { useStaffLocale } from '@/contexts/StaffLocaleContext';
+import { translateAuditAction, translateTicketStatus } from '@/lib/i18n/staff';
 
 // Export utils
 import * as XLSX from 'xlsx';
@@ -30,6 +32,7 @@ import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 
 export default function AuditLogPage() {
+  const { t, locale } = useStaffLocale();
   const { userProfile } = useAppContext();
   const router = useRouter();
 
@@ -115,16 +118,7 @@ export default function AuditLogPage() {
   };
 
   const getActionLabel = (type: string) => {
-    switch (type.toLowerCase()) {
-      case 'claim': return 'รับงาน (Claim)';
-      case 'transfer': return 'โอนงาน (Transfer)';
-      case 'resolve': return 'ปิดงาน (Resolve)';
-      case 'status_change': return 'เปลี่ยนสถานะ';
-      case 'staff_create': return 'สร้างพนักงาน';
-      case 'branding_update': return 'แก้ไของค์กร';
-      case 'dept_create': return 'เพิ่มแผนก';
-      default: return type;
-    }
+    return translateAuditAction(type, locale);
   };
 
   const filteredLogs = logs.filter(log => {
@@ -155,7 +149,7 @@ export default function AuditLogPage() {
   const handleExportExcel = () => {
     const dataToExport = filteredLogs.map(log => ({
       'วันเวลา': formatDate(log.created_at),
-      'ผู้ดำเนินการ': log.performer?.full_name || 'System',
+      'ผู้ดำเนินการ': log.performer?.full_name || t('settingsAudit.systemFallback'),
       'ประเภท': getActionLabel(log.action_type),
        ...(activeTab === 'ticket' ? {
          'เลขใบงาน': log.tickets?.ticket_no || 'N/A',
@@ -172,18 +166,18 @@ export default function AuditLogPage() {
 
   const handleExportPDF = () => {
     const doc = new jsPDF() as any;
-    const title = activeTab === 'ticket' ? 'Ticket Activity Audit Log' : 'System Activity Audit Log';
+    const title = activeTab === 'ticket' ? t('settingsAudit.ticketTab') : t('settingsAudit.systemTab');
     doc.text(title, 14, 15);
     
     const tableData = filteredLogs.map(log => [
       formatDate(log.created_at),
-      log.performer?.full_name || 'System',
+      log.performer?.full_name || t('settingsAudit.systemFallback'),
       getActionLabel(log.action_type),
       activeTab === 'ticket' ? (log.tickets?.ticket_no || 'N/A') : log.note || ''
     ]);
 
     doc.autoTable({
-      head: [['DateTime', 'Actor', 'Action', activeTab === 'ticket' ? 'Ticket #' : 'Detail']],
+      head: [[t('settingsAudit.headers.time'), t('settingsAudit.headers.actor'), t('settingsAudit.headers.action'), activeTab === 'ticket' ? t('settingsAudit.headers.ticket') : t('settingsAudit.headers.details')]],
       body: tableData,
       startY: 20,
     });
@@ -201,8 +195,8 @@ export default function AuditLogPage() {
                 <Shield color="var(--primary)" size={24} />
              </div>
              <div>
-                <h1 style={{ fontSize: '28px', fontWeight: '900', letterSpacing: '-0.5px' }}>Audit Log Dashboard</h1>
-                <p style={{ color: 'var(--text-muted)', fontSize: '13px', fontWeight: '500' }}>ตรวจสอบความโปร่งใสและกิจกรรมทั้งหมดภายในระบบ</p>
+                <h1 style={{ fontSize: '28px', fontWeight: '900', letterSpacing: '-0.5px' }}>{t('settingsAudit.title')}</h1>
+                <p style={{ color: 'var(--text-muted)', fontSize: '13px', fontWeight: '500' }}>{t('settingsAudit.subtitle')}</p>
              </div>
           </div>
         </div>
@@ -215,7 +209,7 @@ export default function AuditLogPage() {
              style={{ padding: '12px 20px', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '10px', background: 'rgba(40, 199, 111, 0.1)', color: '#28c76f', border: '1px solid rgba(40, 199, 111, 0.2)', cursor: !canEdit ? 'not-allowed' : 'pointer', fontWeight: '800', fontSize: '13px', opacity: !canEdit ? 0.5 : 1 }}
            >
              <FileSpreadsheet size={18} />
-             Excel
+             {t('settingsAudit.exportExcel')}
            </button>
            <button 
              onClick={handleExportPDF} 
@@ -224,7 +218,7 @@ export default function AuditLogPage() {
              style={{ padding: '12px 20px', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '10px', background: 'rgba(234, 84, 85, 0.1)', color: '#ea5455', border: '1px solid rgba(234, 84, 85, 0.2)', cursor: !canEdit ? 'not-allowed' : 'pointer', fontWeight: '800', fontSize: '13px', opacity: !canEdit ? 0.5 : 1 }}
            >
              <FileText size={18} />
-             PDF
+             {t('settingsAudit.exportPdf')}
            </button>
         </div>
       </div>
@@ -241,7 +235,7 @@ export default function AuditLogPage() {
              display: 'flex', alignItems: 'center', gap: '8px'
            }}>
            <Ticket size={16} />
-           กิจกรรม Ticket
+           {t('settingsAudit.ticketTab')}
          </button>
          <button 
            onClick={() => setActiveTab('system')}
@@ -253,7 +247,7 @@ export default function AuditLogPage() {
              display: 'flex', alignItems: 'center', gap: '8px'
            }}>
            <Activity size={16} />
-           กิจกรรมระบบ
+           {t('settingsAudit.systemTab')}
          </button>
       </div>
 
@@ -263,7 +257,7 @@ export default function AuditLogPage() {
             <Search size={20} style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', opacity: 0.3 }} />
             <input 
               type="text" 
-              placeholder={activeTab === 'ticket' ? "ค้นหาเลขตั๋ว, ชื่อเจ้าหน้าที่ หรือหัวข้อ..." : "ค้นหาชื่อเจ้าหน้าที่ หรือชื่อเหตุการณ์..."}
+              placeholder={activeTab === 'ticket' ? t('settingsAudit.ticketSearchPlaceholder') : t('settingsAudit.systemSearchPlaceholder')}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               style={{ width: '100%', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border)', borderRadius: '14px', padding: '14px 16px 14px 52px', color: 'white', fontSize: '15px' }}
@@ -278,7 +272,7 @@ export default function AuditLogPage() {
                  onChange={(e) => setSelectedAgent(e.target.value)}
                  style={{ background: 'none', border: 'none', color: 'white', fontSize: '14px', padding: '8px 0', outline: 'none', cursor: 'pointer', fontWeight: '600' }}
                >
-                 <option value="all" style={{ background: '#1a1d23' }}>พนักงานทุกคน</option>
+                 <option value="all" style={{ background: '#1a1d23' }}>{t('settingsAudit.allAgents')}</option>
                  {agents.map(a => <option key={a.id} value={a.id} style={{ background: '#1a1d23' }}>{a.full_name}</option>)}
                </select>
             </div>
@@ -290,9 +284,9 @@ export default function AuditLogPage() {
                  onChange={(e) => setLimit(Number(e.target.value))}
                  style={{ background: 'none', border: 'none', color: 'white', fontSize: '14px', padding: '8px 0', outline: 'none', cursor: 'pointer', fontWeight: '600' }}
                >
-                 <option value={50} style={{ background: '#1a1d23' }}>50 ล่าสุด</option>
-                 <option value={100} style={{ background: '#1a1d23' }}>100 ล่าสุด</option>
-                 <option value={250} style={{ background: '#1a1d23' }}>250 ล่าสุด</option>
+                 <option value={50} style={{ background: '#1a1d23' }}>{t('settingsAudit.latest50')}</option>
+                 <option value={100} style={{ background: '#1a1d23' }}>{t('settingsAudit.latest100')}</option>
+                 <option value={250} style={{ background: '#1a1d23' }}>{t('settingsAudit.latest250')}</option>
                </select>
             </div>
          </div>
@@ -303,11 +297,11 @@ export default function AuditLogPage() {
          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
             <thead>
                <tr style={{ background: 'rgba(255,255,255,0.02)', borderBottom: '1px solid var(--border)' }}>
-                  <th style={{ padding: '20px 24px', fontSize: '11px', fontWeight: '900', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px' }}>Time & ID</th>
-                  <th style={{ padding: '20px 24px', fontSize: '11px', fontWeight: '900', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px' }}>Actor</th>
-                  {activeTab === 'ticket' && <th style={{ padding: '20px 24px', fontSize: '11px', fontWeight: '900', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px' }}>Ticket #</th>}
-                  <th style={{ padding: '20px 24px', fontSize: '11px', fontWeight: '900', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px' }}>Action</th>
-                  <th style={{ padding: '20px 24px', fontSize: '11px', fontWeight: '900', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px' }}>Key Details</th>
+                  <th style={{ padding: '20px 24px', fontSize: '11px', fontWeight: '900', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px' }}>{t('settingsAudit.headers.time')}</th>
+                  <th style={{ padding: '20px 24px', fontSize: '11px', fontWeight: '900', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px' }}>{t('settingsAudit.headers.actor')}</th>
+                  {activeTab === 'ticket' && <th style={{ padding: '20px 24px', fontSize: '11px', fontWeight: '900', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px' }}>{t('settingsAudit.headers.ticket')}</th>}
+                  <th style={{ padding: '20px 24px', fontSize: '11px', fontWeight: '900', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px' }}>{t('settingsAudit.headers.action')}</th>
+                  <th style={{ padding: '20px 24px', fontSize: '11px', fontWeight: '900', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px' }}>{t('settingsAudit.headers.details')}</th>
                </tr>
             </thead>
             <tbody>
@@ -315,14 +309,14 @@ export default function AuditLogPage() {
                   <tr>
                     <td colSpan={5} style={{ padding: '100px', textAlign: 'center' }}>
                        <div className="premium-loader"></div>
-                       <p style={{ marginTop: '20px', color: 'var(--text-muted)', fontWeight: '700' }}>กำลังวิเคราะห์ข้อมูลประวัติ...</p>
+                       <p style={{ marginTop: '20px', color: 'var(--text-muted)', fontWeight: '700' }}>{t('settingsAudit.loading')}</p>
                     </td>
                   </tr>
                ) : filteredLogs.length === 0 ? (
                   <tr>
                     <td colSpan={5} style={{ padding: '100px', textAlign: 'center' }}>
                        <History size={48} style={{ opacity: 0.1, marginBottom: '16px' }} />
-                       <p style={{ color: 'var(--text-muted)', fontWeight: '600' }}>ไม่พบบันทึกที่ตรงตามเงื่อนไข</p>
+                       <p style={{ color: 'var(--text-muted)', fontWeight: '600' }}>{t('settingsAudit.noResults')}</p>
                     </td>
                   </tr>
                ) : (
@@ -336,15 +330,15 @@ export default function AuditLogPage() {
                        <td style={{ padding: '20px 24px' }}>
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                              <span style={{ fontSize: '13px', fontWeight: '800', color: 'var(--text-main)' }}>{formatDate(log.created_at)}</span>
-                             <span style={{ fontSize: '9px', color: 'var(--text-muted)', fontFamily: 'monospace' }}>UUID: {log.id.slice(0, 13)}...</span>
+                             <span style={{ fontSize: '9px', color: 'var(--text-muted)', fontFamily: 'monospace' }}>{t('settingsAudit.uuidPrefix')}: {log.id.slice(0, 13)}...</span>
                           </div>
                        </td>
                        <td style={{ padding: '20px 24px' }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                              <div style={{ width: '30px', height: '30px', borderRadius: '10px', background: 'var(--border)', overflow: 'hidden' }}>
-                                <img src={log.performer?.avatar_url || `https://ui-avatars.com/api/?name=${log.performer?.full_name || 'System'}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                <img src={log.performer?.avatar_url || `https://ui-avatars.com/api/?name=${log.performer?.full_name || t('settingsAudit.systemFallback')}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                              </div>
-                             <span style={{ fontSize: '13px', fontWeight: '700' }}>{log.performer?.full_name || 'System'}</span>
+                             <span style={{ fontSize: '13px', fontWeight: '700' }}>{log.performer?.full_name || t('settingsAudit.systemFallback')}</span>
                           </div>
                        </td>
                        {activeTab === 'ticket' && (
@@ -365,13 +359,13 @@ export default function AuditLogPage() {
                           <div style={{ fontSize: '13px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
                              {log.action_type === 'status_change' && (
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                   <span className="status-tag-dim">{log.from_status}</span>
+                                   <span className="status-tag-dim">{translateTicketStatus(log.from_status, locale)}</span>
                                    <ChevronRight size={12} opacity={0.3} />
-                                   <span className="status-tag-bright">{log.to_status}</span>
+                                   <span className="status-tag-bright">{translateTicketStatus(log.to_status, locale)}</span>
                                 </div>
                              )}
                              {log.action_type === 'transfer' && log.target_user && (
-                                <span style={{ color: 'var(--primary)', fontWeight: '700' }}>🎯 To: {log.target_user.full_name}</span>
+                                <span style={{ color: 'var(--primary)', fontWeight: '700' }}>🎯 {t('settingsAudit.transferTo')}: {log.target_user.full_name}</span>
                              )}
                              <span style={{ opacity: 0.7, fontStyle: 'italic', maxWidth: '300px' }}>{log.note || '-'}</span>
                           </div>

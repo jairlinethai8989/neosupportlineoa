@@ -33,8 +33,11 @@ import Link from 'next/link';
 import { useNotificationContext } from '@/contexts/NotificationContext';
 import { auditService } from '@/lib/services/auditService';
 import { useAppContext } from '@/contexts/AppContext';
+import { useStaffLocale } from '@/contexts/StaffLocaleContext';
+import { translateStaffRole, translateStaffStatus } from '@/lib/i18n/staff';
 
 export default function StaffManagementPage() {
+  const { t, locale } = useStaffLocale();
   const { userProfile } = useAppContext();
   const [staff, setStaff] = useState<any[]>([]);
   
@@ -220,7 +223,7 @@ export default function StaffManagementPage() {
   };
 
   const filteredStaff = useMemo(() => {
-    let result = staff.filter(s => 
+    const result = staff.filter(s => 
       s.full_name.toLowerCase().includes(searchTerm.toLowerCase()) || 
       (s.email && s.email.toLowerCase().includes(searchTerm.toLowerCase()))
     );
@@ -270,8 +273,8 @@ export default function StaffManagementPage() {
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
            <Link href="/" style={{ color: 'var(--text-muted)' }}><ChevronLeft size={24} /></Link>
            <div>
-             <h1 style={{ fontSize: '28px', fontWeight: '800', lineHeight: '1.1' }}>จัดการพนักงาน</h1>
-             <p style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px' }}>Staff & Team Management</p>
+             <h1 style={{ fontSize: '28px', fontWeight: '800', lineHeight: '1.1' }}>{t('settingsStaff.title')}</h1>
+             <p style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px' }}>{t('settingsStaff.subtitle')}</p>
            </div>
         </div>
         
@@ -295,7 +298,7 @@ export default function StaffManagementPage() {
           }}
         >
           <UserPlus size={20} />
-          <span>เพิ่มพนักงานใหม่</span>
+          <span>{t('settingsStaff.addStaff')}</span>
         </button>
       </div>
 
@@ -306,7 +309,7 @@ export default function StaffManagementPage() {
             <Users size={20} color="var(--primary)" />
           </div>
           <div>
-            <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>พนักงานทั้งหมด</p>
+            <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{t('settingsStaff.totalStaff')}</p>
             <p style={{ fontSize: '20px', fontWeight: '800' }}>{staff.length}</p>
           </div>
         </div>
@@ -315,7 +318,7 @@ export default function StaffManagementPage() {
             <CheckCircle size={20} color="var(--success)" />
           </div>
           <div>
-            <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>กำลังออนไลน์</p>
+            <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{t('settingsStaff.onlineNow')}</p>
             <p style={{ fontSize: '20px', fontWeight: '800' }}>2</p>
           </div>
         </div>
@@ -324,7 +327,7 @@ export default function StaffManagementPage() {
             <Shield size={20} color="var(--secondary)" />
           </div>
           <div>
-            <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>ผู้ดูแลระบบ</p>
+            <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{t('settingsStaff.administrators')}</p>
             <p style={{ fontSize: '20px', fontWeight: '800' }}>1</p>
           </div>
         </div>
@@ -333,12 +336,12 @@ export default function StaffManagementPage() {
       {/* Main Content: Staff List */}
       <div className="glass" style={{ overflow: 'hidden' }}>
         <div style={{ padding: '24px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <h2 style={{ fontSize: '18px', fontWeight: '700' }}>รายชื่อทีมงาน</h2>
+          <h2 style={{ fontSize: '18px', fontWeight: '700' }}>{t('settingsStaff.teamList')}</h2>
           <div style={{ position: 'relative', width: '300px' }}>
             <Search size={18} color="var(--text-muted)" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
             <input 
               type="text" 
-              placeholder="ค้นหาชื่อ หรืออีเมล..." 
+              placeholder={t('settingsStaff.searchPlaceholder')} 
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
               style={{ width: '100%', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '10px', padding: '10px 10px 10px 40px', color: 'var(--text-main)', outline: 'none', fontSize: '14px' }}
@@ -350,11 +353,11 @@ export default function StaffManagementPage() {
           <thead>
             <tr style={{ borderBottom: '1px solid var(--border)', background: 'rgba(255,255,255,0.02)' }}>
               {[
-                { key: 'full_name', label: 'พนักงาน (Staff)' },
-                { key: 'department', label: 'แผนก (Dept)' },
-                { key: 'role', label: 'บทบาท (Role)' },
-                { key: 'status', label: 'สถานะ (Status)' },
-                { key: 'actions', label: 'จัดการ', noSort: true, textAlign: 'right' }
+                { key: 'full_name', label: t('settingsStaff.columns.staff') },
+                { key: 'department', label: t('settingsStaff.columns.department') },
+                { key: 'role', label: t('settingsStaff.columns.role') },
+                { key: 'status', label: t('settingsStaff.columns.status') },
+                { key: 'actions', label: t('settingsStaff.columns.actions'), noSort: true, textAlign: 'right' }
               ].map(col => (
                 <th 
                   key={col.key}
@@ -404,7 +407,7 @@ export default function StaffManagementPage() {
                 <td style={{ padding: '16px 24px' }}>
                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                       <Shield size={14} color={member.role === 'Administrator' ? 'var(--primary)' : 'var(--text-muted)'} />
-                      <span style={{ fontSize: '13px', fontWeight: '600' }}>{member.role}</span>
+                      <span style={{ fontSize: '13px', fontWeight: '600' }}>{translateStaffRole(member.role, locale)}</span>
                    </div>
                 </td>
                 <td style={{ padding: '16px 24px' }}>
@@ -415,7 +418,7 @@ export default function StaffManagementPage() {
                       borderRadius: '50%', 
                       background: member.status === 'Active' ? 'var(--success)' : member.status === 'Away' ? 'var(--warning)' : 'var(--text-muted)' 
                     }} />
-                    <span style={{ fontSize: '13px' }}>{member.status}</span>
+                    <span style={{ fontSize: '13px' }}>{translateStaffStatus(member.status, locale)}</span>
                   </div>
                 </td>
                 <td style={{ padding: '16px 24px', textAlign: 'right' }}>
@@ -426,7 +429,7 @@ export default function StaffManagementPage() {
                           handleOpenPermissions(member);
                         }}
                         disabled={!canEdit}
-                        title={canEdit ? "จัดการสิทธิ์" : "ไม่มีสิทธิ์แก้ไข"}
+                        title={canEdit ? t('settingsStaff.managePermissions') : t('settingsStaff.noEditPermission')}
                         style={{ padding: '8px', borderRadius: '8px', background: 'rgba(54, 153, 255, 0.1)', border: 'none', color: 'var(--primary)', cursor: canEdit ? 'pointer' : 'not-allowed', opacity: canEdit ? 1 : 0.5 }}
                       >
                         <Shield size={16} />
@@ -451,7 +454,7 @@ export default function StaffManagementPage() {
         
         {filteredStaff.length === 0 && (
           <div style={{ padding: '64px', textAlign: 'center' }}>
-            <p style={{ color: 'var(--text-muted)' }}>ไม่พบรายชื่อพนักงานที่ค้นหา</p>
+            <p style={{ color: 'var(--text-muted)' }}>{t('settingsStaff.noResults')}</p>
           </div>
         )}
       </div>
@@ -465,7 +468,7 @@ export default function StaffManagementPage() {
                 <div style={{ background: 'var(--primary)', padding: '8px', borderRadius: '10px' }}>
                    <UserPlus size={20} color="#0a0e14" />
                 </div>
-                <h3 style={{ fontSize: '20px', fontWeight: '800' }}>เพิ่มพนักงานใหม่</h3>
+                <h3 style={{ fontSize: '20px', fontWeight: '800' }}>{t('settingsStaff.modalTitle')}</h3>
               </div>
               <button onClick={() => setIsModalOpen(false)} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
                 <XCircle size={24} />
@@ -474,33 +477,33 @@ export default function StaffManagementPage() {
 
             <form onSubmit={handleAddStaff} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <div>
-                <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '6px' }}>Username (ใช้สำหรับ Login)</label>
+                <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '6px' }}>{t('settingsStaff.fields.username')}</label>
                 <input 
                   type="text" 
                   required
-                  placeholder="เช่น somchai_neo"
+                  placeholder={t('settingsStaff.placeholders.username')}
                   value={form.username}
                   onChange={e => setForm({...form, username: e.target.value})}
                   style={{ width: '100%', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '10px', padding: '12px', color: 'var(--text-main)' }}
                 />
               </div>
               <div>
-                <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '6px' }}>ชื่อ-นามสกุล</label>
+                <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '6px' }}>{t('settingsStaff.fields.fullName')}</label>
                 <input 
                   type="text" 
                   required
-                  placeholder="ส้มชาย รักดี"
+                  placeholder={t('settingsStaff.placeholders.fullName')}
                   value={form.full_name}
                   onChange={e => setForm({...form, full_name: e.target.value})}
                   style={{ width: '100%', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '10px', padding: '12px', color: 'var(--text-main)' }}
                 />
               </div>
               <div>
-                <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '6px' }}>รหัสผ่านเริ่มต้น</label>
+                <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '6px' }}>{t('settingsStaff.fields.password')}</label>
                 <input 
                   type="password" 
                   required
-                  placeholder="รหัสผ่านสำหรับพนักงาน..."
+                  placeholder={t('settingsStaff.placeholders.password')}
                   value={form.password}
                   onChange={e => setForm({...form, password: e.target.value})}
                   style={{ width: '100%', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '10px', padding: '12px', color: 'var(--text-main)' }}
@@ -508,18 +511,18 @@ export default function StaffManagementPage() {
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                 <div>
-                  <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '6px' }}>บทบาท (Role)</label>
+                  <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '6px' }}>{t('settingsStaff.fields.role')}</label>
                   <select 
                     value={form.role}
                     onChange={e => setForm({...form, role: e.target.value})}
                     style={{ width: '100%', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '10px', padding: '12px', color: 'var(--text-main)' }}
                   >
-                    <option value="Agent">พนักงาน (Agent)</option>
-                    <option value="Administrator">ผู้ดูแลระบบ (Admin)</option>
+                    <option value="Agent">{t('settingsStaff.roleOptions.agent')}</option>
+                    <option value="Administrator">{t('settingsStaff.roleOptions.admin')}</option>
                   </select>
                 </div>
                 <div>
-                  <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '6px' }}>แผนก (Dept)</label>
+                  <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '6px' }}>{t('settingsStaff.fields.department')}</label>
                   <select 
                     value={form.department}
                     onChange={e => setForm({...form, department: e.target.value})}
@@ -528,19 +531,19 @@ export default function StaffManagementPage() {
                     {departments.map((dept, idx) => (
                       <option key={idx} value={dept}>{dept}</option>
                     ))}
-                    {departments.length === 0 && <option value="">ยังไม่มีแผนก</option>}
+                    {departments.length === 0 && <option value="">{t('settingsStaff.noDepartments')}</option>}
                   </select>
                 </div>
               </div>
 
               <div style={{ marginTop: '12px', display: 'flex', gap: '12px' }}>
-                <button type="button" onClick={() => setIsModalOpen(false)} style={{ flex: 1, padding: '14px', borderRadius: '10px', background: 'transparent', border: '1px solid var(--border)', color: 'var(--text-main)', cursor: 'pointer' }}>ยกเลิก</button>
+                <button type="button" onClick={() => setIsModalOpen(false)} style={{ flex: 1, padding: '14px', borderRadius: '10px', background: 'transparent', border: '1px solid var(--border)', color: 'var(--text-main)', cursor: 'pointer' }}>{t('common.cancel')}</button>
                 <button 
                   type="submit" 
                   disabled={submitting || !canEdit}
                   style={{ flex: 1, padding: '14px', borderRadius: '10px', background: 'var(--primary)', border: 'none', color: '#0a0e14', fontWeight: '800', cursor: canEdit ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', opacity: !canEdit ? 0.5 : 1 }}
                 >
-                  {submitting ? <Loader2 size={18} className="animate-spin" /> : <><CheckCircle size={18} /> ยืนยันเพิ่มพนักงาน</>}
+                  {submitting ? <Loader2 size={18} className="animate-spin" /> : <><CheckCircle size={18} /> {t('settingsStaff.confirmAddStaff')}</>}
                 </button>
               </div>
             </form>
@@ -558,8 +561,8 @@ export default function StaffManagementPage() {
                    <Shield size={24} color="var(--primary)" />
                 </div>
                 <div>
-                  <h3 style={{ fontSize: '20px', fontWeight: '800' }}>กำหนดสิทธิ์การเข้าถึง</h3>
-                  <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>{selectedStaff?.full_name} ({selectedStaff?.role})</p>
+                  <h3 style={{ fontSize: '20px', fontWeight: '800' }}>{t('settingsStaff.permissionsTitle')}</h3>
+                  <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>{selectedStaff?.full_name} ({translateStaffRole(selectedStaff?.role, locale)})</p>
                 </div>
               </div>
               <button 
@@ -580,25 +583,25 @@ export default function StaffManagementPage() {
               paddingRight: '4px'
             }}>
               {[
-                { key: 'analytics', label: 'ภาพรวม & สถิติ (Analytics)', icon: BarChart2 },
-                { key: 'inbox', label: 'ระบบแชท (Inbox)', icon: Mail },
-                { key: 'tickets', label: 'จัดการตั๋ว (Tickets)', icon: Shield },
-                { key: 'notifications', label: 'การแจ้งเตือน (Notifications)', icon: Bell },
-                { key: 'customers', label: 'ฐานข้อมูลลูกค้า (Customers)', icon: Users },
-                { key: 'reports', label: 'การส่งรายงาน (LINE Reports)', icon: Send },
-                { key: 'module_doctor', label: 'โมดูล: ห้องทำงานแพทย์', icon: LayoutGrid },
-                { key: 'module_nurse', label: 'โมดูล: ห้องพยาบาล', icon: LayoutGrid },
-                { key: 'module_pharmacy', label: 'โมดูล: ห้องยาผู้ป่วยใน', icon: LayoutGrid },
-                { key: 'module_records', label: 'โมดูล: ห้องเวชระเบียน', icon: LayoutGrid },
-                { key: 'module_surgery', label: 'โมดูล: ห้องผ่าตัด', icon: LayoutGrid },
-                { key: 'module_anesthesia', label: 'โมดูล: ห้องวิสัญญี', icon: LayoutGrid },
-                { key: 'module_consult', label: 'โมดูล: ห้อง Consult', icon: LayoutGrid },
-                { key: 'settings_profile', label: 'ตั้งค่า: ข้อมูลส่วนตัว', icon: User },
-                { key: 'settings_branding', label: 'ตั้งค่า: ข้อมูลองค์กร', icon: Building },
-                { key: 'settings_staff', label: 'ตั้งค่า: จัดการทีมงาน', icon: UserPlus },
-                { key: 'settings_sla', label: 'ตั้งค่า: ระดับการบริการ (SLA)', icon: ShieldCheck },
-                { key: 'settings_master', label: 'ตั้งค่า: ข้อมูลพื้นฐาน', icon: Settings2 },
-                { key: 'settings_audit', label: 'ตั้งค่า: ตรวจสอบความปลอดภัย (Audit)', icon: Shield },
+                { key: 'analytics', label: t('settingsStaff.permissionLabels.analytics'), icon: BarChart2 },
+                { key: 'inbox', label: t('settingsStaff.permissionLabels.inbox'), icon: Mail },
+                { key: 'tickets', label: t('settingsStaff.permissionLabels.tickets'), icon: Shield },
+                { key: 'notifications', label: t('settingsStaff.permissionLabels.notifications'), icon: Bell },
+                { key: 'customers', label: t('settingsStaff.permissionLabels.customers'), icon: Users },
+                { key: 'reports', label: t('settingsStaff.permissionLabels.reports'), icon: Send },
+                { key: 'module_doctor', label: t('settingsStaff.permissionLabels.moduleDoctor'), icon: LayoutGrid },
+                { key: 'module_nurse', label: t('settingsStaff.permissionLabels.moduleNurse'), icon: LayoutGrid },
+                { key: 'module_pharmacy', label: t('settingsStaff.permissionLabels.modulePharmacy'), icon: LayoutGrid },
+                { key: 'module_records', label: t('settingsStaff.permissionLabels.moduleRecords'), icon: LayoutGrid },
+                { key: 'module_surgery', label: t('settingsStaff.permissionLabels.moduleSurgery'), icon: LayoutGrid },
+                { key: 'module_anesthesia', label: t('settingsStaff.permissionLabels.moduleAnesthesia'), icon: LayoutGrid },
+                { key: 'module_consult', label: t('settingsStaff.permissionLabels.moduleConsult'), icon: LayoutGrid },
+                { key: 'settings_profile', label: t('settingsStaff.permissionLabels.settingsProfile'), icon: User },
+                { key: 'settings_branding', label: t('settingsStaff.permissionLabels.settingsBranding'), icon: Building },
+                { key: 'settings_staff', label: t('settingsStaff.permissionLabels.settingsStaff'), icon: UserPlus },
+                { key: 'settings_sla', label: t('settingsStaff.permissionLabels.settingsSla'), icon: ShieldCheck },
+                { key: 'settings_master', label: t('settingsStaff.permissionLabels.settingsMaster'), icon: Settings2 },
+                { key: 'settings_audit', label: t('settingsStaff.permissionLabels.settingsAudit'), icon: Shield },
               ].map((module) => (
                 <div key={module.key} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', background: 'rgba(255,255,255,0.03)', borderRadius: '14px', border: '1px solid var(--border)' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -632,7 +635,7 @@ export default function StaffManagementPage() {
                           transition: 'all 0.2s'
                         }}
                       >
-                        {level === 'none' ? 'OFF' : level === 'view' ? 'VIEW' : 'EDIT'}
+                        {level === 'none' ? t('settingsStaff.accessLevels.none') : level === 'view' ? t('settingsStaff.accessLevels.view') : t('settingsStaff.accessLevels.edit')}
                       </button>
                     ))}
                   </div>
@@ -641,14 +644,14 @@ export default function StaffManagementPage() {
             </div>
 
             <div style={{ display: 'flex', gap: '12px' }}>
-              <button onClick={() => setPermissionModalOpen(false)} style={{ flex: 1, padding: '16px', borderRadius: '14px', background: 'transparent', border: '1px solid var(--border)', color: 'var(--text-main)', fontWeight: '700', cursor: 'pointer' }}>ยกเลิก</button>
+              <button onClick={() => setPermissionModalOpen(false)} style={{ flex: 1, padding: '16px', borderRadius: '14px', background: 'transparent', border: '1px solid var(--border)', color: 'var(--text-main)', fontWeight: '700', cursor: 'pointer' }}>{t('common.cancel')}</button>
               <button 
                 onClick={handleSavePermissions}
                 disabled={submitting || !canEdit}
                 className="glass-interactive"
                 style={{ flex: 1, padding: '16px', borderRadius: '14px', background: 'var(--primary)', border: 'none', color: '#0a0e14', fontWeight: '900', cursor: canEdit ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', opacity: !canEdit ? 0.5 : 1 }}
               >
-                {submitting ? <Loader2 size={20} className="animate-spin" /> : 'บันทึกสิทธิ์พนักงาน'}
+                {submitting ? <Loader2 size={20} className="animate-spin" /> : t('settingsStaff.permissionsSave')}
               </button>
             </div>
           </div>

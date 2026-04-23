@@ -25,6 +25,7 @@ import {
 import Link from 'next/link';
 import { auditService } from '@/lib/services/auditService';
 import { SignaturePad } from '@/components/profile/SignaturePad';
+import { useStaffLocale } from '@/contexts/StaffLocaleContext';
 
 const AVATAR_SEEDS = [
   'Ariel', 'Willow', 'Casper', 'Sasha', 'Jasper', 'Zoey', 'Felix', 'Luna',
@@ -48,6 +49,7 @@ const DEPT_BADGES: Record<string, string> = {
 };
 
 export default function ProfileSettingsPage() {
+  const { t } = useStaffLocale();
   const [profile, setProfile] = useState<any>(null);
   const [companyDepts, setCompanyDepts] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
@@ -289,8 +291,8 @@ export default function ProfileSettingsPage() {
          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
             <Link href="/" style={{ color: 'var(--text-muted)', background: 'var(--bg-card)', padding: '10px', borderRadius: '12px', border: '1px solid var(--border)' }}><ChevronLeft size={24} /></Link>
             <div>
-              <h1 style={{ fontSize: '28px', fontWeight: '800', lineHeight: 1 }}>ตั้งค่าบัญชีและการใช้งาน</h1>
-              <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px', textTransform: 'uppercase', letterSpacing: '2px' }}>Manage identity and workflow tools</p>
+              <h1 style={{ fontSize: '28px', fontWeight: '800', lineHeight: 1 }}>{t('settingsProfile.title')}</h1>
+              <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px', textTransform: 'uppercase', letterSpacing: '2px' }}>{t('settingsProfile.subtitle')}</p>
             </div>
          </div>
       </div>
@@ -307,7 +309,7 @@ export default function ProfileSettingsPage() {
             boxShadow: activeTab === 'profile' ? '0 4px 15px rgba(0, 242, 254, 0.2)' : 'none'
           }}
         >
-          จัดการเวิร์กสเปซและโปรไฟล์
+          {t('settingsProfile.profileTab')}
         </button>
         <button 
           onClick={() => setActiveTab('security')}
@@ -319,7 +321,7 @@ export default function ProfileSettingsPage() {
             boxShadow: activeTab === 'security' ? '0 4px 15px rgba(115, 103, 240, 0.3)' : 'none'
           }}
         >
-          รหัสผ่านและความปลอดภัย
+          {t('settingsProfile.securityTab')}
         </button>
       </div>
 
@@ -338,7 +340,7 @@ export default function ProfileSettingsPage() {
                <div style={{ background: 'var(--secondary)', padding: '8px', borderRadius: '10px' }}>
                    <User size={20} color="var(--primary)" />
                </div>
-               <h2 style={{ fontSize: '18px', fontWeight: '700' }}>ข้อมูลโปรไฟล์</h2>
+               <h2 style={{ fontSize: '18px', fontWeight: '700' }}>{t('settingsProfile.profileSection')}</h2>
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: '24px' }}>
@@ -374,13 +376,13 @@ export default function ProfileSettingsPage() {
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                <div>
-                  <label style={{ display: 'block', fontSize: '10px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '6px' }}>ชื่อ-นามสกุล</label>
+                  <label style={{ display: 'block', fontSize: '10px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '6px' }}>{t('settingsProfile.fullName')}</label>
                   <input type="text" value={profile?.full_name || ''} onChange={e => setProfile({...profile, full_name: e.target.value})} style={{ width: '100%', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '12px', padding: '12px', color: 'var(--text-main)', outline: 'none', fontWeight: '700', fontSize: '14px' }} />
                </div>
                <div>
-                  <label style={{ display: 'block', fontSize: '10px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '6px' }}>แผนกประจำการ</label>
+                  <label style={{ display: 'block', fontSize: '10px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '6px' }}>{t('settingsProfile.department')}</label>
                   <select value={profile?.department || ''} onChange={e => setProfile({...profile, department: e.target.value})} style={{ width: '100%', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '12px', padding: '12px', color: 'var(--text-main)', outline: 'none', fontWeight: '700', fontSize: '14px' }}>
-                    <option value="">เลือกแผนก...</option>
+                    <option value="">{t('settingsProfile.selectDepartment')}</option>
                     {companyDepts.map((d: string) => (<option key={d} value={d}>{d}</option>))}
                   </select>
                </div>
@@ -390,7 +392,7 @@ export default function ProfileSettingsPage() {
                 disabled={saving || uploading}
                 className="glass-interactive" 
                 style={{ width: '100%', padding: '14px', borderRadius: '14px', background: 'var(--primary)', border: 'none', color: '#000', fontWeight: '900', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginTop: '8px', fontSize: '14px' }}>
-                  {saving ? <Loader2 className="animate-spin" size={18} /> : <><Save size={18} /> บันทึกโปรไฟล์</>}
+                  {saving ? <Loader2 className="animate-spin" size={18} /> : <><Save size={18} /> {t('settingsProfile.saveProfile')}</>}
                </button>
             </div>
           </div>
@@ -401,7 +403,7 @@ export default function ProfileSettingsPage() {
                 <div style={{ background: 'rgba(0, 242, 254, 0.1)', padding: '8px', borderRadius: '10px' }}>
                    <PenTool size={20} color="var(--primary)" />
                 </div>
-                <h2 style={{ fontSize: '18px', fontWeight: '700' }}>ลายเซ็นดิจิทัล (Signature)</h2>
+                <h2 style={{ fontSize: '18px', fontWeight: '700' }}>{t('settingsProfile.signatureSection')}</h2>
              </div>
              <SignaturePad 
                 initialValue={profile?.signature_url} 
@@ -419,10 +421,10 @@ export default function ProfileSettingsPage() {
                     <div style={{ background: 'rgba(0, 242, 254, 0.1)', padding: '8px', borderRadius: '10px' }}>
                        <MessageSquarePlus size={20} color="var(--primary)" />
                     </div>
-                    <h2 style={{ fontSize: '16px', fontWeight: '700' }}>ข้อความตอบด่วน</h2>
+                    <h2 style={{ fontSize: '16px', fontWeight: '700' }}>{t('settingsProfile.quickReplies')}</h2>
                  </div>
                  <button onClick={() => { const val = prompt('ใส่ข้อความตอบด่วนใหม่:'); if (val) addTemplate('quick', val); }} className="glass-interactive" style={{ padding: '6px 14px', borderRadius: '10px', background: 'var(--primary)', border: 'none', color: '#000', fontSize: '11px', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <Plus size={14} /> เพิ่ม
+                    <Plus size={14} /> {t('settingsProfile.add')}
                  </button>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '200px', overflowY: 'auto', paddingRight: '4px' }}>
@@ -432,7 +434,7 @@ export default function ProfileSettingsPage() {
                        <button onClick={() => removeTemplate('quick', idx)} style={{ padding: '4px', color: 'var(--danger)', background: 'transparent', border: 'none', cursor: 'pointer' }}><Trash2 size={16} /></button>
                     </div>
                  ))}
-                 {(profile?.quick_replies || []).length === 0 && <div style={{ padding: '20px', textAlign: 'center', border: '1px dashed var(--border)', borderRadius: '12px', color: 'var(--text-muted)', fontSize: '12px' }}>ไม่มีข้อมูล</div>}
+                 {(profile?.quick_replies || []).length === 0 && <div style={{ padding: '20px', textAlign: 'center', border: '1px dashed var(--border)', borderRadius: '12px', color: 'var(--text-muted)', fontSize: '12px' }}>{t('settingsProfile.noData')}</div>}
               </div>
             </div>
 
@@ -443,10 +445,10 @@ export default function ProfileSettingsPage() {
                      <div style={{ background: 'rgba(40, 199, 111, 0.1)', padding: '8px', borderRadius: '10px' }}>
                         <ClipboardCheck size={20} color="#28c76f" />
                      </div>
-                     <h2 style={{ fontSize: '16px', fontWeight: '700' }}>เทมเพลตสรุปงาน</h2>
+                     <h2 style={{ fontSize: '16px', fontWeight: '700' }}>{t('settingsProfile.resolutionTemplates')}</h2>
                   </div>
                   <button onClick={() => { const val = prompt('ใส่ข้อความสรุปงานใหม่:'); if (val) addTemplate('res', val); }} className="glass-interactive" style={{ padding: '6px 14px', borderRadius: '10px', background: '#28c76f', border: 'none', color: '#fff', fontSize: '11px', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                     <Plus size={14} /> เพิ่ม
+                     <Plus size={14} /> {t('settingsProfile.add')}
                   </button>
                </div>
                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '200px', overflowY: 'auto', paddingRight: '4px' }}>
@@ -456,7 +458,7 @@ export default function ProfileSettingsPage() {
                         <button onClick={() => removeTemplate('res', idx)} style={{ padding: '4px', color: 'var(--danger)', background: 'transparent', border: 'none', cursor: 'pointer' }}><Trash2 size={16} /></button>
                      </div>
                   ))}
-                  {(profile?.resolution_templates || []).length === 0 && <div style={{ padding: '20px', textAlign: 'center', border: '1px dashed var(--border)', borderRadius: '12px', color: 'var(--text-muted)', fontSize: '12px' }}>ไม่มีข้อมูล</div>}
+                  {(profile?.resolution_templates || []).length === 0 && <div style={{ padding: '20px', textAlign: 'center', border: '1px dashed var(--border)', borderRadius: '12px', color: 'var(--text-muted)', fontSize: '12px' }}>{t('settingsProfile.noData')}</div>}
                </div>
             </div>
           </div>
@@ -470,13 +472,13 @@ export default function ProfileSettingsPage() {
                   <Lock size={24} color="var(--danger)" />
                </div>
                <div>
-                 <h2 style={{ fontSize: '20px', fontWeight: '700' }}>บัญชีและความปลอดภัย</h2>
-                 <p style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Secured Authentication</p>
+                 <h2 style={{ fontSize: '20px', fontWeight: '700' }}>{t('settingsProfile.securitySection')}</h2>
+                 <p style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>{t('settingsProfile.securitySubtitle')}</p>
                </div>
             </div>
 
             <div style={{ marginBottom: '32px' }}>
-               <label style={{ display: 'block', fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '12px' }}>อีเมลเข้าใช้งาน</label>
+               <label style={{ display: 'block', fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '12px' }}>{t('settingsProfile.email')}</label>
                <div style={{ padding: '18px', background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border)', borderRadius: '16px', display: 'flex', alignItems: 'center', gap: '16px' }}>
                  <Mail size={20} color="var(--text-muted)" />
                  <span style={{ fontWeight: '700', color: 'var(--text-muted)', fontSize: '16px' }}>{profile?.email}</span>
@@ -484,11 +486,11 @@ export default function ProfileSettingsPage() {
             </div>
 
             <form onSubmit={handleChangePassword} style={{ display: 'flex', flexDirection: 'column', gap: '20px', borderTop: '1px solid var(--border)', paddingTop: '32px' }}>
-               <h3 style={{ fontSize: '15px', fontWeight: '700', marginBottom: '4px' }}>เปลี่ยนรหัสผ่านใหม่</h3>
-               <input type="password" required value={newPassword} onChange={e => setNewPassword(e.target.value)} placeholder="รหัสผ่านใหม่" style={{ width: '100%', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '16px', padding: '16px', fontWeight: '700' }} />
-               <input type="password" required value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} placeholder="ยืนยันรหัสผ่านใหม่" style={{ width: '100%', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '16px', padding: '16px', fontWeight: '700' }} />
+               <h3 style={{ fontSize: '15px', fontWeight: '700', marginBottom: '4px' }}>{t('settingsProfile.changePassword')}</h3>
+               <input type="password" required value={newPassword} onChange={e => setNewPassword(e.target.value)} placeholder={t('settingsProfile.newPasswordPlaceholder')} style={{ width: '100%', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '16px', padding: '16px', fontWeight: '700' }} />
+               <input type="password" required value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} placeholder={t('settingsProfile.confirmPasswordPlaceholder')} style={{ width: '100%', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '16px', padding: '16px', fontWeight: '700' }} />
                <button type="submit" disabled={updatingPassword} className="glass-interactive" style={{ width: '100%', padding: '18px', borderRadius: '16px', background: 'rgba(234, 84, 85, 0.1)', border: '1px solid rgba(234, 84, 85, 0.2)', color: 'var(--danger)', fontWeight: '900', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', marginTop: '8px' }}>
-                 {updatingPassword ? <Loader2 className="animate-spin" /> : <><ShieldCheck size={22} /> อัปเดตรหัสผ่านใหม่</>}
+                 {updatingPassword ? <Loader2 className="animate-spin" /> : <><ShieldCheck size={22} /> {t('settingsProfile.updatePassword')}</>}
                </button>
             </form>
           </div>

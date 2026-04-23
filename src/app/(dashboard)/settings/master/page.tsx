@@ -23,10 +23,12 @@ import {
 import { useNotificationContext } from '@/contexts/NotificationContext';
 import { auditService } from '@/lib/services/auditService';
 import { useAppContext } from '@/contexts/AppContext';
+import { useStaffLocale } from '@/contexts/StaffLocaleContext';
 
 type Tab = 'hospitals' | 'departments' | 'hospital_depts' | 'positions' | 'modules' | 'issue_types' | 'subject_types';
 
 export default function MasterSettingsPage() {
+  const { t } = useStaffLocale();
   const { 
     hospitals: ctxHospitals, 
     departments: ctxDepartments, 
@@ -122,7 +124,7 @@ export default function MasterSettingsPage() {
   const handleAdd = async () => {
     if (!newItemName.trim()) return;
     setSubmitting(true);
-    let table = (activeTab === 'departments' || activeTab === 'hospital_depts') ? 'departments' : activeTab;
+    const table = (activeTab === 'departments' || activeTab === 'hospital_depts') ? 'departments' : activeTab;
     
     // Handle company_settings based tabs
     if (activeTab === 'modules' || activeTab === 'issue_types' || activeTab === 'subject_types') {
@@ -133,7 +135,7 @@ export default function MasterSettingsPage() {
 
       const currentList = globalSettings?.[arrayProp] || [];
       if (currentList.includes(newItemName)) {
-        alert('มีรายการนี้อยู่แล้วครับ');
+        alert(t('settingsMaster.alreadyExists'));
         setSubmitting(false);
         return;
       }
@@ -144,9 +146,14 @@ export default function MasterSettingsPage() {
         setNewItemName('');
         setIsAdding(false);
         await refreshData('settings');
-        addToast({ id: `master-add-${Date.now()}`, type: 'ticket', title: 'Successfully Added! ✨', body: `เพิ่มรายการ "${newItemName}" เรียบร้อยแล้ว` });
+        addToast({
+          id: `master-add-${arrayProp}-${newItemName}`,
+          type: 'ticket',
+          title: t('settingsMaster.addSuccessTitle'),
+          body: t('settingsMaster.addSuccessBody').replace('{name}', newItemName),
+        });
       } else {
-        alert('บันทึกไม่สำเร็จ');
+        alert(t('settingsMaster.saveFailed'));
       }
       setSubmitting(false);
       return;
@@ -192,10 +199,10 @@ export default function MasterSettingsPage() {
       });
 
       addToast({
-        id: `master-add-${Date.now()}`,
+        id: `master-add-${table}-${newItemName}`,
         type: 'ticket',
-        title: 'Successfully Added! ✨',
-        body: `เพิ่มรายการ "${newItemName}" เรียบร้อยแล้ว`
+        title: t('settingsMaster.addSuccessTitle'),
+        body: t('settingsMaster.addSuccessBody').replace('{name}', newItemName),
       });
     }
     setSubmitting(false);
@@ -204,7 +211,7 @@ export default function MasterSettingsPage() {
   const handleUpdate = async (id: string) => {
     if (!editItemName.trim()) return;
     setSubmitting(true);
-    let table = (activeTab === 'departments' || activeTab === 'hospital_depts') ? 'departments' : activeTab;
+    const table = (activeTab === 'departments' || activeTab === 'hospital_depts') ? 'departments' : activeTab;
 
     if (activeTab === 'modules' || activeTab === 'issue_types' || activeTab === 'subject_types') {
         let arrayProp = '';
@@ -220,9 +227,14 @@ export default function MasterSettingsPage() {
         if (!error) {
           await refreshData('settings');
           setEditingId(null);
-          addToast({ id: `master-upd-${Date.now()}`, type: 'ticket', title: 'Successfully Updated! ✅', body: `แก้ไขเป็น "${editItemName}" เรียบร้อย` });
+          addToast({
+            id: `master-upd-${arrayProp}-${id}`,
+            type: 'ticket',
+            title: t('settingsMaster.updateSuccessTitle'),
+            body: t('settingsMaster.updateSuccessBody').replace('{name}', editItemName),
+          });
         } else {
-          alert('อัปเดตไม่สำเร็จ');
+          alert(t('settingsMaster.updateFailed'));
         }
         setSubmitting(false);
         return;
@@ -248,21 +260,21 @@ export default function MasterSettingsPage() {
       });
 
       addToast({
-        id: `master-upd-${Date.now()}`,
+        id: `master-upd-${table}-${id}`,
         type: 'ticket',
-        title: 'Successfully Updated! ✅',
-        body: `แก้ไขเป็น "${editItemName}" เรียบร้อย`
+        title: t('settingsMaster.updateSuccessTitle'),
+        body: t('settingsMaster.updateSuccessBody').replace('{name}', editItemName),
       });
     }
     setSubmitting(false);
   };
 
   const toggleStatus = async (id: string, current: boolean) => {
-    let table = (activeTab === 'departments' || activeTab === 'hospital_depts') ? 'departments' : activeTab;
+    const table = (activeTab === 'departments' || activeTab === 'hospital_depts') ? 'departments' : activeTab;
     
     if (activeTab === 'modules' || activeTab === 'issue_types' || activeTab === 'subject_types') {
         // Simple delete for arrays instead of toggle
-        if (!confirm('ยืนยันผลการลบรายการนี้ใช่หรือไม่?')) return;
+        if (!confirm(t('settingsMaster.confirmDelete'))) return;
         let arrayProp = '';
         if (activeTab === 'modules') arrayProp = 'modules';
         else if (activeTab === 'issue_types') arrayProp = 'issue_types';
@@ -274,7 +286,12 @@ export default function MasterSettingsPage() {
         const { error } = await supabase.from('company_settings').update({ [arrayProp]: newList }).eq('id', globalSettings.id);
         if (!error) {
            await refreshData('settings');
-           addToast({ id: `master-del-${id}`, type: 'ticket', title: 'Deleted! 🗑️', body: `ลบรายการเรียบร้อยแล้ว` });
+           addToast({
+             id: `master-del-${id}`,
+             type: 'ticket',
+             title: t('settingsMaster.deleteSuccessTitle'),
+             body: t('settingsMaster.deleteSuccessBody'),
+           });
         }
         return;
     }
@@ -297,8 +314,8 @@ export default function MasterSettingsPage() {
       addToast({
         id: `master-toggle-${id}`,
         type: 'ticket',
-        title: 'Status Updated! 🔄',
-        body: `เปลี่ยนสถานะรายการเรียบร้อยแล้ว`
+        title: t('settingsMaster.toggleSuccessTitle'),
+        body: t('settingsMaster.toggleSuccessBody'),
       });
       fetchData();
     }
@@ -307,13 +324,13 @@ export default function MasterSettingsPage() {
   const filteredItems = items.filter(i => i.name.toLowerCase().includes(search.toLowerCase()));
 
   const TAB_CONFIG = {
-    hospitals: { title: 'โรงพยาบาล / หน่วยงาน', icon: Building2, desc: 'จัดการรายชื่อสถานพยาบาลที่รองรับในระบบ' },
-    departments: { title: 'แผนกในองค์กร', icon: Users, desc: 'ชุดแผนกส่วนกลางสำหรับทีมสนับสนุนและธุรการ' },
-    hospital_depts: { title: 'แผนกที่ให้บริการใน รพ.', icon: Layout, desc: 'ชุดแผนกที่ให้บริการเหมือนกันทุก รพ. (เช่น OPD, ER, การเงิน) เพื่อให้ลูกค้าเลือกได้รวดเร็ว' },
-    positions: { title: 'ตำแหน่งงาน', icon: Briefcase, desc: 'จัดการชื่อตำแหน่งสำหรับผู้แจ้งล่วงหน้า' },
-    modules: { title: 'Modules', icon: FileText, desc: 'จัดการชื่อโมดูลหรือโปรแกรมต่างๆ' },
-    issue_types: { title: 'ประเภทงาน', icon: Tag, desc: 'จัดการประเภทของงาน เช่น REQ, PB, แนะนำ' },
-    subject_types: { title: 'หัวข้อที่ต้องการแจ้ง', icon: MessageSquare, desc: 'จัดการหัวข้อมาตรฐานสำหรับให้ลูกค้าเลือกในหน้าแจ้งปัญหา' }
+    hospitals: { title: t('settingsMaster.tabs.hospitals'), icon: Building2, desc: t('settingsMaster.descriptions.hospitals') },
+    departments: { title: t('settingsMaster.tabs.departments'), icon: Users, desc: t('settingsMaster.descriptions.departments') },
+    hospital_depts: { title: t('settingsMaster.tabs.hospitalDepartments'), icon: Layout, desc: t('settingsMaster.descriptions.hospitalDepartments') },
+    positions: { title: t('settingsMaster.tabs.positions'), icon: Briefcase, desc: t('settingsMaster.descriptions.positions') },
+    modules: { title: t('settingsMaster.tabs.modules'), icon: FileText, desc: t('settingsMaster.descriptions.modules') },
+    issue_types: { title: t('settingsMaster.tabs.issueTypes'), icon: Tag, desc: t('settingsMaster.descriptions.issueTypes') },
+    subject_types: { title: t('settingsMaster.tabs.subjectTypes'), icon: MessageSquare, desc: t('settingsMaster.descriptions.subjectTypes') }
   };
 
   const ActiveIcon = TAB_CONFIG[activeTab].icon;
@@ -324,7 +341,7 @@ export default function MasterSettingsPage() {
       <div style={{ marginBottom: '32px' }}>
          <h1 style={{ fontSize: '28px', fontWeight: '900', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '12px' }}>
             <ActiveIcon size={32} color="var(--primary)" />
-            ตั้งค่าข้อมูลพื้นฐาน
+            {t('settingsMaster.title')}
          </h1>
          <p style={{ color: 'var(--text-muted)', fontSize: '15px' }}>{TAB_CONFIG[activeTab].desc}</p>
       </div>
@@ -364,7 +381,7 @@ export default function MasterSettingsPage() {
                <Search size={18} style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', opacity: 0.5 }} />
                <input 
                  type="text" 
-                 placeholder={`ค้นหา${TAB_CONFIG[activeTab].title.split(' / ')[0]}...`}
+                 placeholder={`${t('settingsMaster.search')} ${TAB_CONFIG[activeTab].title}...`}
                  value={search}
                  onChange={e => setSearch(e.target.value)}
                  style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', borderRadius: '12px', padding: '12px 16px 12px 48px', color: 'var(--text-main)', fontSize: '14px', outline: 'none' }}
@@ -376,7 +393,7 @@ export default function MasterSettingsPage() {
               disabled={!canEdit}
               style={{ background: 'var(--primary)', color: 'black', border: 'none', padding: '12px 20px', borderRadius: '12px', fontWeight: '900', fontSize: '14px', cursor: !canEdit ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: '8px', opacity: !canEdit ? 0.5 : 1 }}
             >
-               <Plus size={18} /> เพิ่มรายการใหม่
+               <Plus size={18} /> {t('settingsMaster.addItem')}
             </button>
          </div>
 
@@ -387,7 +404,7 @@ export default function MasterSettingsPage() {
                  <input 
                    autoFocus
                    type="text" 
-                   placeholder={`ระบุชื่อ${TAB_CONFIG[activeTab].title.split(' / ')[0]}...`}
+                   placeholder={`${t('settingsMaster.addItemNamed')} ${TAB_CONFIG[activeTab].title}...`}
                    value={newItemName}
                    onChange={e => setNewItemName(e.target.value)}
                    style={{ flex: 2, minWidth: '200px', background: 'rgba(255,255,255,0.1)', border: '1px solid var(--primary)', borderRadius: '12px', padding: '14px 20px', color: 'var(--text-main)', fontSize: '15px', outline: 'none' }}
@@ -397,7 +414,7 @@ export default function MasterSettingsPage() {
                  {activeTab === 'hospitals' && (
                    <input 
                      type="text" 
-                     placeholder="ชื่อย่อ (ABBR)" 
+                     placeholder={t('settingsMaster.abbreviation')} 
                      value={newItemAbbr}
                      onChange={e => setNewItemAbbr(e.target.value)}
                      style={{ flex: 1, minWidth: '120px', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', borderRadius: '12px', padding: '14px 20px', color: 'var(--text-main)', fontSize: '15px', outline: 'none' }}
@@ -410,7 +427,7 @@ export default function MasterSettingsPage() {
                      onChange={e => () => {}}
                      style={{ flex: 1, minWidth: '150px', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', borderRadius: '12px', padding: '14px 20px', color: 'var(--text-main)', fontSize: '15px', outline: 'none', cursor: 'pointer' }}
                    >
-                     <option value="">เลือกโรงพยาบาล...</option>
+                     <option value="">{t('settingsMaster.selectHospital')}</option>
                      {hospitals.map(h => <option key={h.id} value={h.id}>{h.name}</option>)}
                    </select>
                  )}
@@ -430,12 +447,12 @@ export default function MasterSettingsPage() {
             {loading ? (
               <div className="flex-center" style={{ height: '300px', flexDirection: 'column', gap: '16px' }}>
                  <Loader2 className="animate-spin" color="var(--primary)" size={40} />
-                 <p style={{ color: 'var(--text-muted)' }}>กำลังดึงข้อมูล...</p>
+                 <p style={{ color: 'var(--text-muted)' }}>{t('settingsMaster.loading')}</p>
               </div>
             ) : filteredItems.length === 0 ? (
               <div className="flex-center" style={{ height: '300px', flexDirection: 'column', gap: '16px', opacity: 0.5 }}>
                  <ActiveIcon size={48} />
-                 <p>ไม่พบรายการที่ต้องการ</p>
+                 <p>{t('settingsMaster.noResults')}</p>
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column' }}>
@@ -484,7 +501,7 @@ export default function MasterSettingsPage() {
                               opacity: canEdit ? 1 : 0.5
                             }}
                           >
-                             {item.is_active ? 'เปิดใช้งาน' : 'ปิดใช้งาน'}
+                             {item.is_active ? t('settingsMaster.active') : t('settingsMaster.inactive')}
                           </button>
 
                          {/* Actions */}

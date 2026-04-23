@@ -20,8 +20,10 @@ import Skeleton from '@/components/ui/Skeleton';
 import { useNotificationContext } from '@/contexts/NotificationContext';
 import { auditService } from '@/lib/services/auditService';
 import { useAppContext } from '@/contexts/AppContext';
+import { useStaffLocale } from '@/contexts/StaffLocaleContext';
 
 export default function BrandingSettingsPage() {
+  const { t } = useStaffLocale();
   const { userProfile } = useAppContext();
   const [company, setCompany] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -164,7 +166,7 @@ export default function BrandingSettingsPage() {
     <div className="animate-page-in">
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '32px' }}>
          <Link href="/" className="glass-interactive flex-center" style={{ width: '40px', height: '40px', borderRadius: '50%', color: 'var(--text-muted)', display: 'flex', textDecoration: 'none' }}><ChevronLeft size={20} /></Link>
-         <h1 style={{ fontSize: '28px', fontWeight: '900', letterSpacing: '-0.5px' }}>ตราสินค้าองค์กร</h1>
+         <h1 style={{ fontSize: '28px', fontWeight: '900', letterSpacing: '-0.5px' }}>{t('settingsBranding.title')}</h1>
       </div>
 
      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(400px, 600px)', gap: '32px', justifyContent: 'center' }}>
@@ -175,8 +177,8 @@ export default function BrandingSettingsPage() {
                   <Building size={24} color="#0a0e14" />
                </div>
                <div>
-                 <h2 style={{ fontSize: '20px', fontWeight: '700', lineHeight: '1.2' }}>ข้อมูลองค์กร</h2>
-                 <p style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Corporate Identity Settings</p>
+                 <h2 style={{ fontSize: '20px', fontWeight: '700', lineHeight: '1.2' }}>{t('settingsBranding.sectionTitle')}</h2>
+                 <p style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>{t('settingsBranding.sectionSubtitle')}</p>
                </div>
             </div>
 
@@ -201,7 +203,7 @@ export default function BrandingSettingsPage() {
                   ) : (
                     <div style={{ textAlign: 'center' }}>
                        <Building size={48} color="var(--border)" />
-                       <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '8px' }}>โลโก้องค์กร (No Logo)</p>
+                       <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '8px' }}>{t('settingsBranding.noLogo')}</p>
                     </div>
                   )}
                   <label 
@@ -214,7 +216,7 @@ export default function BrandingSettingsPage() {
                       opacity: !canEdit ? 0.5 : 1
                    }}>
                      {uploading ? <Loader2 size={16} className="animate-spin" /> : <Camera size={18} />}
-                     <span>{uploading ? 'UPLOADING...' : 'CHANGE LOGO'}</span>
+                     <span>{uploading ? t('settingsBranding.uploading') : t('settingsBranding.changeLogo')}</span>
                      <input type="file" hidden accept="image/*" onChange={handleFileUpload} disabled={uploading || !canEdit} />
                   </label>
                </div>
@@ -222,10 +224,10 @@ export default function BrandingSettingsPage() {
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                <div>
-                  <label style={{ display: 'block', fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '8px', letterSpacing: '0.5px' }}>ชื่อบริษัท/องค์กร (COMPANY NAME)</label>
+                  <label style={{ display: 'block', fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '8px', letterSpacing: '0.5px' }}>{t('settingsBranding.companyName')}</label>
                   <input 
                     type="text" 
-                    placeholder="Enter company name..."
+                    placeholder={t('settingsBranding.companyNamePlaceholder')}
                     value={company?.company_name || ''} 
                     onChange={e => setCompany({...(company || {}), company_name: e.target.value})}
                     style={{ width: '100%', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '10px', padding: '14px', color: 'var(--text-main)', outline: 'none', fontWeight: '600' }}
@@ -236,7 +238,7 @@ export default function BrandingSettingsPage() {
                 disabled={saving || uploading || !canEdit}
                 className="glass-interactive" 
                 style={{ width: '100%', height: '56px', borderRadius: '14px', background: 'var(--primary)', border: 'none', color: '#0a0e14', fontWeight: '900', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', marginTop: '12px', boxShadow: '0 8px 30px rgba(0, 242, 254, 0.2)', opacity: !canEdit ? 0.5 : 1, cursor: !canEdit ? 'not-allowed' : 'pointer' }}>
-                  {saving ? <Loader2 className="animate-spin" /> : <><Save size={20} /> ยืนยันข้อมูลองค์กร (SAVE BRANDING)</>}
+                  {saving ? <Loader2 className="animate-spin" /> : <><Save size={20} /> {t('settingsBranding.saveBranding')}</>}
                </button>
             </div>
 
@@ -244,14 +246,12 @@ export default function BrandingSettingsPage() {
                <div style={{ display: 'flex', gap: '12px' }}>
                   <ShieldCheck size={18} color="var(--primary)" />
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    <p style={{ fontSize: '13px', color: 'var(--text-main)', fontWeight: '700' }}>
-                       โหมดจัดการการแสดงผลแบรนด์
-                    </p>
+                    <p style={{ fontSize: '13px', color: 'var(--text-main)', fontWeight: '700' }}>{t('settingsBranding.infoTitle')}</p>
                     <p style={{ fontSize: '12px', color: 'var(--text-muted)', lineHeight: '1.5' }}>
-                       ข้อมูลเหล่านี้จะถูกนำไปใช้ในหน้า Dashboard, Sidebar และเอกสารรายงาน ทั่วทั้งระบบแบบเรียลไทม์
+                       {t('settingsBranding.infoBody')}
                     </p>
                     <Link href="/settings/master" style={{ color: 'var(--primary)', fontSize: '12px', fontWeight: '800', marginTop: '8px', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                       จัดการโครงสร้างแผนกและหน่วยงานแทน →
+                       {t('settingsBranding.manageMasterData')} →
                     </Link>
                   </div>
                </div>
