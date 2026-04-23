@@ -21,8 +21,7 @@ export const inboxConversationSelect = `
   last_message_at,
   customer_id,
   current_ticket_id,
-  customers (id, display_name, avatar_url),
-  ticket_data:tickets (id, ticket_no, subject)
+  customers (id, display_name, avatar_url)
 `;
 
 export const inboxMessageSelect = `
