@@ -89,13 +89,28 @@ export function useInboxConversation({
         initialPage.length > 0 ? initialPage[0].created_at : null;
       setHasMoreMessages(initialPage.length === MESSAGE_PAGE_SIZE);
 
+      // 1. Prioritize Ticket ID from URL (Deep Link)
+      const urlTicketId = new URLSearchParams(window.location.search).get('tid');
+      if (urlTicketId) {
+        const ticket = await getInboxTicketById(urlTicketId);
+        if (ticket) {
+          setCurrentTicket(ticket);
+          // Auto-link if needed
+          if (selectedChat!.current_ticket_id !== urlTicketId) {
+            await linkConversationToTicket(selectedChat!.id, urlTicketId);
+          }
+          return;
+        }
+      }
+
+      // 2. Use Metadata if available from query
       if (selectedChat!.ticket_data) {
         setCurrentTicket({
           id: selectedChat!.ticket_data.id,
           ticket_no: selectedChat!.ticket_data.ticket_no,
           subject: selectedChat!.ticket_data.subject,
           customer_id: selectedChat!.customer_id,
-          status: 'In Progress', // Assume active for display
+          status: 'In Progress',
           assigned_agent_id: null,
           module: null,
           issue_type: null,
@@ -104,6 +119,7 @@ export function useInboxConversation({
         return;
       }
 
+      // 3. Fallback to current_ticket_id on record
       if (selectedChat!.current_ticket_id) {
         setCurrentTicket(await getInboxTicketById(selectedChat!.current_ticket_id));
         return;

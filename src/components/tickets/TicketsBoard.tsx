@@ -350,8 +350,8 @@ export function TicketsBoard({
 
                           <div style={actionLinksWrapStyle}>
                             {convId && (
-                              <Link
-                                href={`/inbox?cid=${convId}`}
+                                <Link
+                                  href={`/inbox?cid=${convId}&tid=${ticket.id}`}
                                 title={t('tickets.openInboxChat')}
                                 className="glass-interactive flex-center"
                                 style={messageButtonStyle}

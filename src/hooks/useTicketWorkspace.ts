@@ -412,14 +412,17 @@ export function useTicketWorkspace(filterCustomerId: string | null) {
       const linked = conversations.find((conversation) => conversation.current_ticket_id === ticket.id);
       if (linked) return linked.id;
 
-      const active = conversations.find(
+      // STRICT: Only fallback if it's explicitly for this customer and HAS NO OTHER TICKET linked
+      // This prevents multi-ticket overlap
+      const activeForCustomerOnly = conversations.find(
         (conversation) =>
           conversation.customer_id === ticket.customer_id &&
-          conversation.status === 'active'
+          conversation.status === 'active' &&
+          (!conversation.current_ticket_id || conversation.current_ticket_id === ticket.id)
       );
-      if (active) return active.id;
+      if (activeForCustomerOnly) return activeForCustomerOnly.id;
 
-      return conversations.find((conversation) => conversation.customer_id === ticket.customer_id)?.id;
+      return undefined;
     },
     [conversations]
   );
@@ -509,6 +512,7 @@ export function useTicketWorkspace(filterCustomerId: string | null) {
         const updatedTicket = await claimWorkspaceTicket(ticketId, user.id);
         
         setTickets((prev) => upsertWorkspaceTicket(prev, updatedTicket));
+        void fetchData(true); // Refresh conversations to pick up the new linked conversation
         
         addToast(getTicketWorkspaceClaimSuccessToast(ticketId));
       } catch (error) {
