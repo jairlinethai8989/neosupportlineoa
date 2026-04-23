@@ -517,16 +517,33 @@ export default function Home() {
           trend={null}
         />
         <div style={{ display: 'flex', gap: '20px', flex: 1, minWidth: '300px' }}>
-          <div className="glass-interactive" style={{ padding: '16px 24px', flex: 1, borderLeft: '4px solid #ea5455' }}>
-            <p style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase' }}>
-              {t('tickets.statuses.escalated')}
-            </p>
+          <div className="glass-interactive" style={{ padding: '24px', flex: 1 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px' }}>
+              <div style={{ background: 'rgba(234, 84, 85, 0.15)', color: '#ea5455', padding: '10px', borderRadius: '10px' }}>
+                <AlertTriangle size={20} />
+              </div>
+            </div>
+            <h3 style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text-muted)', marginBottom: '4px', textTransform: 'uppercase' }}>
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                <span>ส่งต่อ</span>
+                <span style={{ fontSize: '8px', opacity: 0.7 }}>ESCALATED</span>
+              </div>
+            </h3>
             <p style={{ fontSize: '24px', fontWeight: '800', color: '#ea5455' }}>{stats.escalated}</p>
           </div>
-          <div className="glass-interactive" style={{ padding: '16px 24px', flex: 1, borderLeft: '4px solid #ff9f43' }}>
-            <p style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase' }}>
-              {t('tickets.statuses.pending')}
-            </p>
+
+          <div className="glass-interactive" style={{ padding: '24px', flex: 1 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px' }}>
+              <div style={{ background: 'rgba(255, 159, 67, 0.15)', color: '#ff9f43', padding: '10px', borderRadius: '10px' }}>
+                <Zap size={20} />
+              </div>
+            </div>
+            <h3 style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text-muted)', marginBottom: '4px', textTransform: 'uppercase' }}>
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                <span>รอดำเนินการ</span>
+                <span style={{ fontSize: '8px', opacity: 0.7 }}>PENDING</span>
+              </div>
+            </h3>
             <p style={{ fontSize: '24px', fontWeight: '800', color: '#ff9f43' }}>{stats.pending}</p>
           </div>
         </div>
