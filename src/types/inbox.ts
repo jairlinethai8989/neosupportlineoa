@@ -15,6 +15,11 @@ export interface InboxConversation {
   current_ticket_id?: string | null;
   is_active?: boolean | null;
   customers?: InboxCustomer | null;
+  ticket_data?: {
+    id: string;
+    ticket_no: string | null;
+    subject: string | null;
+  } | null;
 }
 
 export interface InboxMessage {

@@ -55,6 +55,11 @@ export function normalizeInboxConversation(value: unknown): InboxConversation | 
     current_ticket_id: asString(value.current_ticket_id),
     is_active: asBoolean(value.is_active),
     customers: normalizeInboxCustomer(value.customers),
+    ticket_data: isRecord(value.ticket_data) ? {
+      id: asString(value.ticket_data.id) || '',
+      ticket_no: asString(value.ticket_data.ticket_no),
+      subject: asString(value.ticket_data.subject),
+    } : null,
   };
 }
 

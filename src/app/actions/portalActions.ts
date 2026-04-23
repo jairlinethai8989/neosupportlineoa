@@ -52,8 +52,7 @@ export async function sendPortalMessageAction(
   const { data: conversation } = await supabaseAdmin
     .from('conversations')
     .select('id')
-    .eq('customer_id', customer.id)
-    .eq('status', 'active')
+    .eq('current_ticket_id', ticketId)
     .maybeSingle();
 
   // 3. Insert Message Securely

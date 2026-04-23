@@ -20,7 +20,9 @@ export const inboxConversationSelect = `
   status,
   last_message_at,
   customer_id,
-  customers (id, display_name, avatar_url)
+  current_ticket_id,
+  customers (id, display_name, avatar_url),
+  ticket_data:tickets!current_ticket_id (id, ticket_no, subject)
 `;
 
 export const inboxMessageSelect = `
@@ -103,7 +105,7 @@ export async function listInboxConversationsV2({
   // Simple focused query for active conversations
   const { data, error, count } = await supabase
     .from('conversations')
-    .select('*, customers(*)', { count: 'exact' })
+    .select(inboxConversationSelect, { count: 'exact' })
     .eq('status', 'active')
     .order('last_message_at', { ascending: false, nullsFirst: false })
     .range(from, to);

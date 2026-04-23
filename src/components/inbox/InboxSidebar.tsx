@@ -97,14 +97,17 @@ export const InboxSidebar: React.FC<InboxSidebarProps> = ({
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '2px' }}>
-                <p style={{ fontWeight: '800', fontSize: '14px', color: selectedChat?.id === chat.id ? 'var(--primary)' : 'var(--text-main)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{chat.customers?.display_name || 'LINE User'}</p>
+                <p style={{ fontWeight: '800', fontSize: '14px', color: selectedChat?.id === chat.id ? 'var(--primary)' : 'var(--text-main)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {chat.ticket_data?.ticket_no ? `#${chat.ticket_data.ticket_no} ` : ''}
+                  {chat.customers?.display_name || 'LINE User'}
+                </p>
                 <p style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
                   {chat.last_message_at ? new Date(chat.last_message_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', hour12: false }) : '-'}
                 </p>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <p className="truncate" style={{ fontSize: '11px', color: 'var(--text-muted)', maxWidth: '100px' }}>
-                  สถานะ: <span style={{ color: 'var(--primary)', fontWeight: '700' }}>ACTIVE</span>
+                <p className="truncate" style={{ fontSize: '11px', color: 'var(--text-muted)', maxWidth: '140px' }}>
+                  {chat.ticket_data?.subject || 'แชททั่วไป'}
                 </p>
                 <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--primary)', boxShadow: '0 0 10px var(--primary)' }} />
               </div>

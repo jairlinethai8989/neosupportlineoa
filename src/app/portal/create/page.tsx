@@ -111,11 +111,7 @@ export default function CreateTicketPage() {
          const createdTicket = newTicket?.[0];
          if (!createdTicket) throw new Error('Ticket was not created');
 
-         // 3. Create Fresh Conversation
-         await supabase.from('conversations')
-           .update({ status: 'closed' })
-           .eq('customer_id', customerData.id)
-           .eq('status', 'active');
+         // 3. Create Fresh Conversation (Preserve existing active ones)
 
          const { data: newConv } = await supabase.from('conversations').insert([{
              customer_id: customerData.id,

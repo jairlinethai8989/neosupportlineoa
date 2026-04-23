@@ -106,6 +106,8 @@ export async function POST(req: Request) {
           .select('id, current_ticket_id')
           .eq('customer_id', customer.id)
           .eq('status', 'active')
+          .order('last_message_at', { ascending: false })
+          .limit(1)
           .maybeSingle();
 
         if (!conversation) {
