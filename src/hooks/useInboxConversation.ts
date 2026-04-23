@@ -89,6 +89,21 @@ export function useInboxConversation({
         initialPage.length > 0 ? initialPage[0].created_at : null;
       setHasMoreMessages(initialPage.length === MESSAGE_PAGE_SIZE);
 
+      if (selectedChat!.ticket_data) {
+        setCurrentTicket({
+          id: selectedChat!.ticket_data.id,
+          ticket_no: selectedChat!.ticket_data.ticket_no,
+          subject: selectedChat!.ticket_data.subject,
+          customer_id: selectedChat!.customer_id,
+          status: 'In Progress', // Assume active for display
+          assigned_agent_id: null,
+          module: null,
+          issue_type: null,
+          description: null,
+        });
+        return;
+      }
+
       if (selectedChat!.current_ticket_id) {
         setCurrentTicket(await getInboxTicketById(selectedChat!.current_ticket_id));
         return;

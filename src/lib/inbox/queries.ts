@@ -20,7 +20,9 @@ export const inboxConversationSelect = `
   status,
   last_message_at,
   customer_id,
-  current_ticket_id
+  current_ticket_id,
+  customers (id, display_name, avatar_url),
+  ticket_data:tickets (id, ticket_no, subject)
 `;
 
 export const inboxMessageSelect = `
