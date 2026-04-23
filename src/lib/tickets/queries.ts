@@ -73,11 +73,15 @@ export async function listTicketWorkspaceTickets(input: {
     .order('created_at', { ascending: false })
     .limit(input.limit || 300);
 
-  if (input.fromIso) {
+  if (input.fromIso && input.toIso) {
+    // Persistent statuses that show regardless of date
+    const persistentStatuses = 'Escalated,Pending';
+    // Combine: (In date range) OR (Status is persistent)
+    const filter = `and(created_at.gte.${input.fromIso},created_at.lte.${input.toIso}),status.in.(${persistentStatuses})`;
+    query = query.or(filter);
+  } else if (input.fromIso) {
     query = query.gte('created_at', input.fromIso);
-  }
-
-  if (input.toIso) {
+  } else if (input.toIso) {
     query = query.lte('created_at', input.toIso);
   }
 

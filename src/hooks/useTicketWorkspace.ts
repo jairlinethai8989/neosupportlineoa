@@ -57,6 +57,9 @@ function isTicketWithinWorkspaceRange(
   const fromMs = new Date(fromIso).getTime();
   const toMs = new Date(toIso).getTime();
 
+  const status = (ticket as any).status || '';
+  if (status === 'Escalated' || status === 'Pending') return true;
+
   return createdAtMs >= fromMs && createdAtMs <= toMs;
 }
 
@@ -90,7 +93,10 @@ function mergeWorkspaceTicketsForSilentRefresh(
   previousTickets.forEach((ticket) => {
     if (!pendingRealtimeTicketIds.has(ticket.id)) return;
     if (fetchedIds.has(ticket.id)) return;
-    if (!isTicketWithinWorkspaceRange(ticket, timeRange, customStart, customEnd)) return;
+    if (!isTicketWithinWorkspaceRange(ticket, timeRange, customStart, customEnd)) {
+      const status = (ticket as any).status || '';
+      if (status !== 'Escalated' && status !== 'Pending') return;
+    }
     mergedTickets.unshift(ticket);
   });
 
@@ -111,11 +117,15 @@ function getTicketWorkspaceDateRange(
     from.setHours(0, 0, 0, 0);
   } else if (timeRange === 'week') {
     from = new Date();
-    from.setDate(from.getDate() - 7);
+    // Set to Monday of this week
+    const day = from.getDay();
+    const diff = from.getDate() - day + (day === 0 ? -6 : 1);
+    from.setDate(diff);
     from.setHours(0, 0, 0, 0);
   } else if (timeRange === 'month') {
     from = new Date();
-    from.setDate(from.getDate() - 31);
+    // Set to 1st of this month
+    from.setDate(1);
     from.setHours(0, 0, 0, 0);
   } else if (timeRange === 'custom') {
     from = customStart ? new Date(customStart) : new Date();
