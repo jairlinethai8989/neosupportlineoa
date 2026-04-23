@@ -5,14 +5,12 @@ import { supabase } from '@/lib/supabase';
 import { 
   History, 
   Search, 
-  Filter, 
   ArrowRight, 
   Zap, 
   CheckCheck, 
   Ticket,
   User,
   Shield,
-  Download,
   Info,
   Clock,
   Activity,
@@ -88,15 +86,15 @@ export default function AuditLogPage() {
     }
   }, [activeTab, selectedAgent, selectedAction, limit]);
 
-  const fetchAgents = async () => {
+  const fetchAgents = useCallback(async () => {
     const { data } = await supabase.from('profiles').select('id, full_name');
     setAgents(data || []);
-  };
+  }, []);
 
   useEffect(() => {
     fetchAgents();
     fetchLogs();
-  }, [fetchLogs]);
+  }, [fetchLogs, fetchAgents]);
 
   // Reset filters when switching tabs
   useEffect(() => {
@@ -137,7 +135,7 @@ export default function AuditLogPage() {
   });
 
   const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleString('th-TH', {
+    return new Date(dateStr).toLocaleString(locale === 'th' ? 'th-TH' : 'en-US', {
       day: '2-digit',
       month: 'short',
       year: '2-digit',
@@ -148,20 +146,21 @@ export default function AuditLogPage() {
 
   const handleExportExcel = () => {
     const dataToExport = filteredLogs.map(log => ({
-      'วันเวลา': formatDate(log.created_at),
-      'ผู้ดำเนินการ': log.performer?.full_name || t('settingsAudit.systemFallback'),
-      'ประเภท': getActionLabel(log.action_type),
+      [t('settingsAudit.headers.time')]: formatDate(log.created_at),
+      [t('settingsAudit.headers.actor')]: log.performer?.full_name || t('settingsAudit.systemFallback'),
+      [t('settingsAudit.headers.action')]: getActionLabel(log.action_type),
        ...(activeTab === 'ticket' ? {
-         'เลขใบงาน': log.tickets?.ticket_no || 'N/A',
-         'หัวข้อ': log.tickets?.subject || ''
-       } : {}),
-      'รายละเอียด': log.note || ''
+         [t('settingsAudit.headers.ticket')]: log.tickets?.ticket_no || 'N/A',
+         [t('settingsAudit.headers.details')]: log.tickets?.subject || ''
+       } : {
+         [t('settingsAudit.headers.details')]: log.note || ''
+       })
     }));
 
     const ws = XLSX.utils.json_to_sheet(dataToExport);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Audit Logs');
-    XLSX.writeFile(wb, `NeoSupport_Audit_${activeTab}_${new Date().getTime()}.xlsx`);
+    XLSX.writeFile(wb, `${t('settingsAudit.messages.exportPrefix')}_${activeTab}_${new Date().getTime()}.xlsx`);
   };
 
   const handleExportPDF = () => {
@@ -182,7 +181,7 @@ export default function AuditLogPage() {
       startY: 20,
     });
     
-    doc.save(`NeoSupport_Audit_${activeTab}.pdf`);
+    doc.save(`${t('settingsAudit.messages.exportPrefix')}_${activeTab}.pdf`);
   };
 
   return (
@@ -307,17 +306,17 @@ export default function AuditLogPage() {
             <tbody>
                {loading ? (
                   <tr>
-                    <td colSpan={5} style={{ padding: '100px', textAlign: 'center' }}>
-                       <div className="premium-loader"></div>
-                       <p style={{ marginTop: '20px', color: 'var(--text-muted)', fontWeight: '700' }}>{t('settingsAudit.loading')}</p>
-                    </td>
+                     <td colSpan={5} style={{ padding: '100px', textAlign: 'center' }}>
+                        <div className="premium-loader"></div>
+                        <p style={{ marginTop: '20px', color: 'var(--text-muted)', fontWeight: '700' }}>{t('common.messages.loading')}</p>
+                     </td>
                   </tr>
                ) : filteredLogs.length === 0 ? (
                   <tr>
-                    <td colSpan={5} style={{ padding: '100px', textAlign: 'center' }}>
-                       <History size={48} style={{ opacity: 0.1, marginBottom: '16px' }} />
-                       <p style={{ color: 'var(--text-muted)', fontWeight: '600' }}>{t('settingsAudit.noResults')}</p>
-                    </td>
+                     <td colSpan={5} style={{ padding: '100px', textAlign: 'center' }}>
+                        <History size={48} style={{ opacity: 0.1, marginBottom: '16px' }} />
+                        <p style={{ color: 'var(--text-muted)', fontWeight: '600' }}>{t('common.messages.noResults')}</p>
+                     </td>
                   </tr>
                ) : (
                   filteredLogs.map((log) => (
@@ -336,7 +335,11 @@ export default function AuditLogPage() {
                        <td style={{ padding: '20px 24px' }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                              <div style={{ width: '30px', height: '30px', borderRadius: '10px', background: 'var(--border)', overflow: 'hidden' }}>
-                                <img src={log.performer?.avatar_url || `https://ui-avatars.com/api/?name=${log.performer?.full_name || t('settingsAudit.systemFallback')}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                <img 
+                                  src={log.performer?.avatar_url || `https://ui-avatars.com/api/?name=${log.performer?.full_name || t('settingsAudit.systemFallback')}`} 
+                                  style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                                  alt={log.performer?.full_name || 'Avatar'}
+                                />
                              </div>
                              <span style={{ fontSize: '13px', fontWeight: '700' }}>{log.performer?.full_name || t('settingsAudit.systemFallback')}</span>
                           </div>

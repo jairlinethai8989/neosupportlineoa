@@ -16,12 +16,17 @@
 4. **Status Consistency & Fixes:**
    * ปรับสีสถานะลูกค้ารายการ (Badge) ให้ชัดเจน: **In Progress (ฟ้า), Pending (ส้ม), Escalated (แดง), Resolved (เขียว)**
    * แก้ไขปัญหาการบันทึกหัวข้อ (Subject Selection) ใน Master Settings ให้เป็นปัจจุบันเสมอ
+5. **Global Multi-Language Integration (i18n) & Optimization:**
+   * ย้ายข้อความ Hardcoded และชุด Alert/Toast ทั้งหมดไปไว้ใน **Central Dictionary (`staff.ts`)**
+   * **Consolidated Messaging:** รวมข้อความมาตรฐาน (เช่น บันทึกสำเร็จ, ลบข้อมูล, เกิดข้อผิดพลาด) ไว้ใน `common.messages.*` เพื่อความสม่ำเสมอทั่วทั้งระบบ
+   * **Lint & Performance:** เคลียร์ React Hook warnings ในหน้า Audit และ Master โดยการใช้ `useCallback` และจัดระเบียบ Dependencies ให้ถูกต้อง
+   * **Clean Code:** ลบชุดคำแปลที่ซ้ำซ้อนและเคลียร์ปัญหา Mojibake จนจบเฟสการตั้งค่า (Settings Phase) ได้อย่างสมบูรณ์
 
 ## 📅 แผนงานพัฒนาต่อในอนาคต (Roadmap)
 1. **LINE Messaging API Integration:** ระบบส่ง Magic Link เข้าหาช่างผ่าน LINE OA กลุ่มโดยอัตโนมัติ
 2. **Media & Document Upload:** รองรับการแนบไฟล์รูปภาพการซ่อมหรือเอกสารอะไหล่ในหน้า Escalate Portal
 3. **Advanced Intelligence Analytics:** พัฒนากราฟสถิติเชิงลึกสำหรับดูประสิทธิภาพรายแผนกแบบ Interactive
-4. **CSAT Flow Phase 2:** ระบบประเมินความพึงพอใจหลังจากปิดงาน พร้อมส่งรายงานสรุปให้ผู้บริหารแบบ Real-time
+4. **Offline Mode:** ปรับปรุงให้ระบบทำงานพื้นฐานได้แม้สัญญาณอินเทอร์เน็ตไม่เสถียร
 
 ---
 

@@ -53,7 +53,7 @@ export default function StaffManagementPage() {
     password: '',
     full_name: '',
     role: 'Agent',
-    department: 'ฝ่ายสนับสนุนลูกค้า (Customer Support)'
+    department: t('settingsStaff.defaults.department')
   });
   const [submitting, setSubmitting] = useState(false);
   const [departments, setDepartments] = useState<string[]>([]);
@@ -93,7 +93,7 @@ export default function StaffManagementPage() {
     
     if (error) {
       console.error('Fetch error:', error);
-      alert('ไม่สามารถดึงข้อมูลพนักงานได้: ' + error.message);
+      alert(t('common.messages.fetchError') + ': ' + error.message);
     } else {
       setStaff(data || []);
     }
@@ -119,11 +119,11 @@ export default function StaffManagementPage() {
   }, []);
 
   const handleDeleteStaff = async (id: string, name: string) => {
-    if (!confirm(`คุณแน่ใจหรือไม่ว่าต้องการลบพนักงาน ${name} ออกจากระบบ?`)) return;
+    if (!confirm(t('common.messages.deleteConfirm').replace('{name}', name))) return;
     
     const { error } = await supabase.from('profiles').delete().eq('id', id);
     if (error) {
-      alert('ลบข้อมูลไม่สำเร็จ: ' + error.message);
+      alert(t('common.messages.deleteFailed') + ': ' + error.message);
     } else {
       setStaff(prev => prev.filter(s => s.id !== id));
       
@@ -139,8 +139,8 @@ export default function StaffManagementPage() {
       addToast({
         id: `staff-del-${id}`,
         type: 'ticket',
-        title: 'Staff Deleted 🗑️',
-        body: `ลบพนักงาน ${name} เรียบร้อยแล้ว`
+        title: t('settingsStaff.messages.deleteSuccessTitle'),
+        body: t('common.messages.deleteSuccess').replace('{name}', name)
       });
     }
   };
@@ -157,12 +157,12 @@ export default function StaffManagementPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to create staff');
       
-      alert('เพิ่มพนักงานสำเร็จ! 🎉');
+      alert(t('common.messages.success'));
       setIsModalOpen(false);
-      setForm({ username: '', password: '', full_name: '', role: 'Agent', department: 'ฝ่ายสนับสนุนลูกค้า (Customer Support)' });
+      setForm({ username: '', password: '', full_name: '', role: 'Agent', department: t('settingsStaff.defaults.department') });
       fetchStaff();
     } catch (err: any) {
-      alert('เกิดข้อผิดพลาด: ' + err.message);
+      alert(t('common.messages.error') + ': ' + err.message);
     } finally {
       setSubmitting(false);
     }
@@ -187,7 +187,7 @@ export default function StaffManagementPage() {
       
       if (error) throw error;
       
-      alert('อัปเดตสิทธิ์การใช้งานสำเร็จ! 🛡️');
+      alert(t('common.messages.success'));
       setPermissionModalOpen(false);
       fetchStaff();
 
@@ -204,11 +204,11 @@ export default function StaffManagementPage() {
       addToast({
         id: `staff-perm-${selectedStaff.id}`,
         type: 'ticket',
-        title: 'Permissions Updated! 🛡️',
-        body: `บันทึกสิทธิ์พนักงาน ${selectedStaff.full_name} เรียบร้อย`
+        title: t('settingsStaff.messages.permSaveSuccessTitle'),
+        body: t('common.messages.saveSuccess').replace('{name}', selectedStaff.full_name)
       });
     } catch (err: any) {
-      alert('ล้มเหลว: ' + err.message);
+      alert(t('common.messages.saveFailed') + ': ' + err.message);
     } finally {
       setSubmitting(false);
     }

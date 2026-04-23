@@ -69,7 +69,7 @@ export default function MasterSettingsPage() {
     setGlobalSettings(ctxGlobalSettings);
   }, [ctxGlobalSettings]);
   
-  const fetchData = async () => {
+  const fetchData = React.useCallback(async () => {
     if (activeTab === 'hospitals') {
       setItems(ctxHospitals);
       return;
@@ -112,14 +112,14 @@ export default function MasterSettingsPage() {
       setItems(data || []);
     }
     setLoading(false);
-  };
+  }, [activeTab, ctxHospitals, ctxDepartments, ctxGlobalSettings]);
 
   useEffect(() => {
     fetchData();
     setIsAdding(false);
     setEditingId(null);
     setNewItemName('');
-  }, [activeTab, ctxHospitals, ctxDepartments, ctxGlobalSettings]);
+  }, [fetchData]);
 
   const handleAdd = async () => {
     if (!newItemName.trim()) return;
@@ -153,7 +153,7 @@ export default function MasterSettingsPage() {
           body: t('settingsMaster.addSuccessBody').replace('{name}', newItemName),
         });
       } else {
-        alert(t('settingsMaster.saveFailed'));
+        alert(t('common.messages.saveFailed'));
       }
       setSubmitting(false);
       return;
@@ -179,7 +179,7 @@ export default function MasterSettingsPage() {
     
     if (error) {
       console.error('Add Error:', error);
-      alert(`บันทึกไม่สำเร็จ: ${error.message} (ตรวจสอบว่ารัน SQL เพิ่มคอลัมน์ dept_type แล้วหรือยังครับ)`);
+      alert(`${t('common.messages.saveFailed')}: ${error.message} (${t('settingsMaster.messages.sqlGuidance')})`);
     } else {
       setNewItemName('');
       setNewItemAbbr('');
@@ -234,7 +234,7 @@ export default function MasterSettingsPage() {
             body: t('settingsMaster.updateSuccessBody').replace('{name}', editItemName),
           });
         } else {
-          alert(t('settingsMaster.updateFailed'));
+          alert(t('common.messages.saveFailed'));
         }
         setSubmitting(false);
         return;
@@ -244,7 +244,7 @@ export default function MasterSettingsPage() {
     
     if (error) {
       console.error('Update Error:', error);
-      alert(`อัปเดตไม่สำเร็จ: ${error.message}`);
+      alert(`${t('common.messages.saveFailed')}: ${error.message}`);
     } else {
       setEditingId(null);
       fetchData();
@@ -274,7 +274,7 @@ export default function MasterSettingsPage() {
     
     if (activeTab === 'modules' || activeTab === 'issue_types' || activeTab === 'subject_types') {
         // Simple delete for arrays instead of toggle
-        if (!confirm(t('settingsMaster.confirmDelete'))) return;
+        if (!confirm(t('common.messages.deleteConfirm'))) return;
         let arrayProp = '';
         if (activeTab === 'modules') arrayProp = 'modules';
         else if (activeTab === 'issue_types') arrayProp = 'issue_types';
@@ -299,7 +299,7 @@ export default function MasterSettingsPage() {
     const { error } = await supabase.from(table).update({ is_active: !current }).eq('id', id);
     if (error) {
       console.error('Toggle status Error:', error);
-      alert(`เปลี่ยนสถานะไม่สำเร็จ: ${error.message}`);
+      alert(`${t('common.messages.saveFailed')}: ${error.message}`);
     } else {
       const { data: { user } } = await supabase.auth.getUser();
       await auditService.log({
@@ -445,15 +445,15 @@ export default function MasterSettingsPage() {
          {/* Items List */}
          <div style={{ minHeight: '300px' }}>
             {loading ? (
-              <div className="flex-center" style={{ height: '300px', flexDirection: 'column', gap: '16px' }}>
-                 <Loader2 className="animate-spin" color="var(--primary)" size={40} />
-                 <p style={{ color: 'var(--text-muted)' }}>{t('settingsMaster.loading')}</p>
-              </div>
+               <div className="flex-center" style={{ height: '300px', flexDirection: 'column', gap: '16px' }}>
+                  <Loader2 className="animate-spin" color="var(--primary)" size={40} />
+                  <p style={{ color: 'var(--text-muted)' }}>{t('common.messages.loading')}</p>
+               </div>
             ) : filteredItems.length === 0 ? (
-              <div className="flex-center" style={{ height: '300px', flexDirection: 'column', gap: '16px', opacity: 0.5 }}>
-                 <ActiveIcon size={48} />
-                 <p>{t('settingsMaster.noResults')}</p>
-              </div>
+               <div className="flex-center" style={{ height: '300px', flexDirection: 'column', gap: '16px', opacity: 0.5 }}>
+                  <ActiveIcon size={48} />
+                  <p>{t('common.messages.noResults')}</p>
+               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column' }}>
                  {filteredItems.map(item => (

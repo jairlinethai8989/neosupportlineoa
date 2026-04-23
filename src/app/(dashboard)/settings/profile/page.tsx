@@ -95,11 +95,11 @@ export default function ProfileSettingsPage() {
         const { data: { publicUrl } } = supabase.storage.from('chat_media').getPublicUrl(filePath);
         setProfile({ ...profile, avatar_url: publicUrl });
         
-        setToastMsg('อัปโหลดรูปโปรไฟล์สำเร็จ! 🎉');
+        setToastMsg(t('common.messages.success'));
         setShowToast(true);
         setTimeout(() => setShowToast(false), 3000);
      } catch (err: any) {
-        alert('อัปโหลดล้มเหลว: ' + (err.message || 'Error'));
+        alert(t('common.messages.error') + ': ' + (err.message || 'Error'));
      } finally {
         setUploading(false);
      }
@@ -127,11 +127,11 @@ export default function ProfileSettingsPage() {
 
       if (error) throw error;
       setProfile({ ...profile, signature_url: publicUrl });
-      setToastMsg('บันทึกลายเซ็นใหม่เรียบร้อย! ✍️');
+      setToastMsg(t('common.messages.saveSuccess'));
       setShowToast(true);
       setTimeout(() => setShowToast(false), 3000);
     } catch (err: any) {
-      alert('บันทึกลายเซ็นล้มเหลว: ' + err.message);
+      alert(t('common.messages.saveFailed') + ': ' + err.message);
     } finally {
       setSaving(false);
     }
@@ -156,11 +156,11 @@ export default function ProfileSettingsPage() {
 
       if (error) throw error;
       setProfile({ ...profile, signature_url: publicUrl });
-      setToastMsg('อัปโหลดลายเซ็นใหม่เรียบร้อย! ✍️');
+      setToastMsg(t('common.messages.saveSuccess'));
       setShowToast(true);
       setTimeout(() => setShowToast(false), 3000);
     } catch (err: any) {
-      alert('อัปโหลดลายเซ็นล้มเหลว: ' + err.message);
+      alert(t('common.messages.saveFailed') + ': ' + err.message);
     } finally {
       setSaving(false);
     }
@@ -193,11 +193,11 @@ export default function ProfileSettingsPage() {
         },
         note: `Updated own profile information`
       });
-      setToastMsg('บันทึกข้อมูลและเทมเพลตเรียบร้อย! ✅');
+      setToastMsg(t('common.messages.saveSuccess'));
       setShowToast(true);
       setTimeout(() => setShowToast(false), 3000);
     } catch (err) {
-      alert('Save failed');
+      alert(t('common.messages.saveFailed'));
     } finally {
       setSaving(false);
     }
@@ -227,7 +227,7 @@ export default function ProfileSettingsPage() {
           new_data: { type, text },
           note: `Added new ${type === 'quick' ? 'Quick Reply' : 'Resolution Template'}`
         });
-        setToastMsg('บันทึกเทมเพลตอัตโนมัติสำเร็จ! ✨');
+        setToastMsg(t('common.messages.saveSuccess'));
         setShowToast(true);
         setTimeout(() => setShowToast(false), 2000);
       }
@@ -251,7 +251,7 @@ export default function ProfileSettingsPage() {
       }).eq('id', profile.id);
 
       if (!error) {
-        setToastMsg('ลบเทมเพลตเรียบร้อย! 🗑️');
+        setToastMsg(t('common.messages.deleteSuccess'));
         setShowToast(true);
         setTimeout(() => setShowToast(false), 2000);
       }
@@ -263,20 +263,20 @@ export default function ProfileSettingsPage() {
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
     if (newPassword !== confirmPassword) {
-      alert('รหัสผ่านไม่ตรงกัน!');
+      alert(t('settingsProfile.messages.passMismatch'));
       return;
     }
     setUpdatingPassword(true);
     try {
       const { error } = await supabase.auth.updateUser({ password: newPassword });
       if (error) throw error;
-      setToastMsg('เปลี่ยนรหัสผ่านสำเร็จ! 🔐');
+      setToastMsg(t('common.messages.success'));
       setShowToast(true);
       setNewPassword('');
       setConfirmPassword('');
       setTimeout(() => setShowToast(false), 3000);
     } catch (err: any) {
-      alert('ล้มเหลว: ' + err.message);
+      alert(t('common.messages.error') + ': ' + err.message);
     } finally {
       setUpdatingPassword(false);
     }

@@ -21,7 +21,20 @@ const messages: Record<StaffLocale, MessageDictionary> = {
       cancel: 'ยกเลิก',
       add: 'เพิ่ม',
       delete: 'ลบ',
-      loading: 'กำลังโหลด...',
+      messages: {
+        success: 'ดำเนินการสำเร็จ',
+        error: 'เกิดข้อผิดพลาด',
+        saveSuccess: 'บันทึกข้อมูลเรียบร้อยแล้ว',
+        saveFailed: 'บันทึกไม่สำเร็จ',
+        deleteConfirm: 'คุณแน่ใจหรือไม่ว่าต้องการลบรายการนี้?',
+        deleteSuccess: 'ลบข้อมูลเรียบร้อยแล้ว',
+        deleteFailed: 'ลบข้อมูลไม่สำเร็จ',
+        fetchError: 'ไม่สามารถโหลดข้อมูลได้',
+        noPermission: 'คุณไม่มีสิทธิ์ในการดำเนินการนี้',
+        confirmAction: 'ยืนยันการดำเนินการ',
+        loading: 'กำลังโหลด...',
+        noResults: 'ไม่พบข้อมูล',
+      }
     },
     dashboard: {
       title: 'ระบบจัดการอัจฉริยะ',
@@ -149,6 +162,15 @@ const messages: Record<StaffLocale, MessageDictionary> = {
       newPasswordPlaceholder: 'รหัสผ่านใหม่',
       confirmPasswordPlaceholder: 'ยืนยันรหัสผ่านใหม่',
       updatePassword: 'อัปเดตรหัสผ่านใหม่',
+      messages: {
+        passSuccess: 'เปลี่ยนรหัสผ่านสำเร็จ',
+        passError: 'เปลี่ยนรหัสผ่านไม่สำเร็จ',
+        passMismatch: 'รหัสผ่านใหม่ไม่ตรงกัน',
+        qrSuccess: 'เพิ่มข้อความตอบด่วนสำเร็จ',
+        qrDelSuccess: 'ลบข้อความตอบด่วนสำเร็จ',
+        rtSuccess: 'เพิ่มเทมเพลตสรุปงานสำเร็จ',
+        rtDelSuccess: 'ลบเทมเพลตสรุปงานสำเร็จ',
+      }
     },
     settingsBranding: {
       title: 'ตราสินค้าองค์กร',
@@ -163,6 +185,11 @@ const messages: Record<StaffLocale, MessageDictionary> = {
       infoTitle: 'โหมดจัดการการแสดงผลแบรนด์',
       infoBody: 'ข้อมูลเหล่านี้จะถูกนำไปใช้ในหน้า Dashboard, Sidebar และเอกสารรายงานทั่วทั้งระบบแบบเรียลไทม์',
       manageMasterData: 'จัดการโครงสร้างแผนกและหน่วยงานแทน',
+      messages: {
+        uploadSuccessTitle: 'Success! 🖼️',
+        saveSuccessTitle: 'Success! ✅',
+        migrationNote: '(หากคุณเห็นข้อความนี้ทันทีหลังจากทำ Migration กรุณากด Refresh หน้าเว็บหนึ่งครั้งครับ)',
+      }
     },
     settingsStaff: {
       title: 'จัดการพนักงาน',
@@ -235,6 +262,13 @@ const messages: Record<StaffLocale, MessageDictionary> = {
       },
       managePermissions: 'จัดการสิทธิ์',
       noEditPermission: 'ไม่มีสิทธิ์แก้ไข',
+      defaults: {
+        department: 'ฝ่ายสนับสนุนลูกค้า (Customer Support)',
+      },
+      messages: {
+        deleteSuccessTitle: 'Staff Deleted 🗑️',
+        permSaveSuccessTitle: 'Permissions Updated! 🛡️',
+      }
     },
     settingsMaster: {
       title: 'ตั้งค่าข้อมูลพื้นฐาน',
@@ -250,11 +284,8 @@ const messages: Record<StaffLocale, MessageDictionary> = {
       alreadyExists: 'มีรายการนี้อยู่แล้ว',
       addSuccessTitle: 'เพิ่มรายการสำเร็จ',
       addSuccessBody: 'เพิ่มรายการ "{name}" เรียบร้อยแล้ว',
-      saveFailed: 'บันทึกไม่สำเร็จ',
       updateSuccessTitle: 'อัปเดตสำเร็จ',
       updateSuccessBody: 'แก้ไขเป็น "{name}" เรียบร้อย',
-      updateFailed: 'อัปเดตไม่สำเร็จ',
-      confirmDelete: 'ยืนยันผลการลบรายการนี้ใช่หรือไม่?',
       deleteSuccessTitle: 'ลบรายการแล้ว',
       deleteSuccessBody: 'ลบรายการเรียบร้อยแล้ว',
       toggleSuccessTitle: 'อัปเดตสถานะแล้ว',
@@ -277,6 +308,9 @@ const messages: Record<StaffLocale, MessageDictionary> = {
         issueTypes: 'จัดการประเภทของงาน เช่น REQ, PB, แนะนำ',
         subjectTypes: 'จัดการหัวข้อมาตรฐานสำหรับให้ลูกค้าเลือกในหน้าแจ้งปัญหา',
       },
+      messages: {
+        sqlGuidance: 'ตรวจสอบความถูกต้องของโครงสร้าง SQL',
+      }
     },
     settingsAudit: {
       title: 'แดชบอร์ดประวัติการใช้งาน',
@@ -309,9 +343,10 @@ const messages: Record<StaffLocale, MessageDictionary> = {
       },
       transferTo: 'โอนไปที่',
       uuidPrefix: 'UUID',
-      loading: 'กำลังวิเคราะห์ข้อมูลประวัติ...',
-      noResults: 'ไม่พบบันทึกที่ตรงตามเงื่อนไข',
       systemFallback: 'System',
+      headers: {
+        exportPrefix: 'Audit_Log',
+      }
     },
     tickets: {
       loadingWorkspace: 'กำลังรีเฟรช workspace...',
@@ -374,7 +409,20 @@ const messages: Record<StaffLocale, MessageDictionary> = {
       cancel: 'Cancel',
       add: 'Add',
       delete: 'Delete',
-      loading: 'Loading...',
+      messages: {
+        success: 'Success',
+        error: 'Error',
+        saveSuccess: 'Data saved successfully',
+        saveFailed: 'Save failed',
+        deleteConfirm: 'Are you sure you want to delete this item?',
+        deleteSuccess: 'Deleted successfully',
+        deleteFailed: 'Deletion failed',
+        fetchError: 'Failed to load data',
+        noPermission: 'You do not have permission to perform this action',
+        confirmAction: 'Confirm action',
+        loading: 'Loading...',
+        noResults: 'No data found',
+      }
     },
     dashboard: {
       title: 'Intelligent Operations Suite',
@@ -502,6 +550,15 @@ const messages: Record<StaffLocale, MessageDictionary> = {
       newPasswordPlaceholder: 'New password',
       confirmPasswordPlaceholder: 'Confirm new password',
       updatePassword: 'Update password',
+      messages: {
+        passSuccess: 'Password changed successfully',
+        passError: 'Password change failed',
+        passMismatch: 'Passwords do not match',
+        qrSuccess: 'Quick reply added successfully',
+        qrDelSuccess: 'Quick reply deleted successfully',
+        rtSuccess: 'Resolution template added successfully',
+        rtDelSuccess: 'Resolution template deleted successfully',
+      }
     },
     settingsBranding: {
       title: 'Organization Branding',
@@ -516,6 +573,11 @@ const messages: Record<StaffLocale, MessageDictionary> = {
       infoTitle: 'Brand display mode',
       infoBody: 'These values are reused across the dashboard, sidebar, and system reports in real time.',
       manageMasterData: 'Manage departments and units instead',
+      messages: {
+        uploadSuccessTitle: 'Success! 🖼️',
+        saveSuccessTitle: 'Success! ✅',
+        migrationNote: '(If you see this right after a migration, please refresh the page once.)',
+      }
     },
     settingsStaff: {
       title: 'Staff Management',
@@ -588,6 +650,13 @@ const messages: Record<StaffLocale, MessageDictionary> = {
       },
       managePermissions: 'Manage permissions',
       noEditPermission: 'No edit permission',
+      defaults: {
+        department: 'Customer Support',
+      },
+      messages: {
+        deleteSuccessTitle: 'Staff Deleted 🗑️',
+        permSaveSuccessTitle: 'Permissions Updated! 🛡️',
+      }
     },
     settingsMaster: {
       title: 'Master Data Settings',
@@ -603,11 +672,8 @@ const messages: Record<StaffLocale, MessageDictionary> = {
       alreadyExists: 'This item already exists',
       addSuccessTitle: 'Item added',
       addSuccessBody: 'Added "{name}" successfully',
-      saveFailed: 'Failed to save',
       updateSuccessTitle: 'Item updated',
       updateSuccessBody: 'Updated to "{name}" successfully',
-      updateFailed: 'Failed to update',
-      confirmDelete: 'Confirm deleting this item?',
       deleteSuccessTitle: 'Item deleted',
       deleteSuccessBody: 'Deleted successfully',
       toggleSuccessTitle: 'Status updated',
@@ -630,6 +696,9 @@ const messages: Record<StaffLocale, MessageDictionary> = {
         issueTypes: 'Manage work categories such as REQ, PB, or suggestion.',
         subjectTypes: 'Manage standard issue subjects shown on the customer form.',
       },
+      messages: {
+        sqlGuidance: 'Verify SQL structure integrity',
+      }
     },
     settingsAudit: {
       title: 'Audit Log Dashboard',
@@ -662,9 +731,10 @@ const messages: Record<StaffLocale, MessageDictionary> = {
       },
       transferTo: 'Transfer to',
       uuidPrefix: 'UUID',
-      loading: 'Analyzing audit history...',
-      noResults: 'No logs matched the selected filters',
       systemFallback: 'System',
+      messages: {
+        exportPrefix: 'Audit_Log',
+      }
     },
     tickets: {
       loadingWorkspace: 'Refreshing workspace...',

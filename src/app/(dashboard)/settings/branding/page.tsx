@@ -40,9 +40,7 @@ export default function BrandingSettingsPage() {
     async function fetchData() {
       const { data: c } = await supabase.from('company_settings').select('*').limit(1).single();
       if (c && !c.modules) {
-        c.modules = [
-          "ห้องทำงานแพทย์", "ห้องพยาบาล", "ห้องยาผู้ป่วยใน", "ห้องเวชระเบียน", "ห้องผ่าตัด", "ห้องวิสัญญี", "ห้อง Consult", "All"
-        ];
+        c.modules = []; // Fallback to empty array, modules should come from Master Data
       }
       setCompany(c);
       setLoading(false);
@@ -71,11 +69,11 @@ export default function BrandingSettingsPage() {
         addToast({
            id: 'logo-upload',
            type: 'ticket',
-           title: 'Success! 🖼️',
-           body: 'อัปโหลดโลโก้สำเร็จเรียบร้อยแล้ว'
+           title: t('settingsBranding.messages.uploadSuccessTitle'),
+           body: t('common.messages.success')
         });
      } catch (err: any) {
-        alert('อัปโหลดล้มเหลว: ' + (err.message || 'Error uploading file'));
+        alert(t('common.messages.error') + ': ' + (err.message || 'Error uploading file'));
      } finally {
         setUploading(false);
      }
@@ -120,14 +118,14 @@ export default function BrandingSettingsPage() {
       addToast({
         id: 'branding-save',
         type: 'ticket',
-        title: 'Success! ✅',
-        body: 'บันทึกข้อมูลองค์กรเรียบร้อยแล้ว'
+        title: t('settingsBranding.messages.saveSuccessTitle'),
+        body: t('common.messages.saveSuccess')
       });
     } catch (err: any) {
       console.error('Save failed details:', err);
       // Detailed error for better debugging
       const errorMsg = err.message || err.details || 'Unknown database error';
-      alert(`บันทึกไม่สำเร็จ: ${errorMsg}\n\n(หากคุณเห็นข้อความนี้ทันทีหลังจากทำ Migration กรุณากด Refresh หน้าเว็บหนึ่งครั้งครับ)`);
+      alert(`${t('common.messages.saveFailed')}: ${errorMsg}\n\n${t('settingsBranding.messages.migrationNote')}`);
     } finally {
       setSaving(false);
     }
