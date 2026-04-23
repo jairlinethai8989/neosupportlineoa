@@ -1,19 +1,16 @@
 'use client';
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useLiff } from '@/hooks/useLiff';
 import { supabase } from '@/lib/supabase';
 import { 
   ArrowLeft, 
   Loader2, 
-  Paperclip, 
   SendHorizontal, 
-  Image as ImageIcon,
   AlertCircle,
   Camera,
-  CheckCircle,
-  MessageSquare
+  CheckCircle
 } from 'lucide-react';
 import ChatAttachmentModal from '@/components/chat/ChatAttachmentModal';
 
@@ -31,8 +28,6 @@ export default function CreateTicketPage() {
   const [error, setError] = useState('');
   const [customerData, setCustomerData] = useState<any>(null);
   const [checking, setChecking] = useState(true);
-
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!profile?.userId) return;
@@ -61,12 +56,6 @@ export default function CreateTicketPage() {
   if (!customerData) {
      return null; 
   }
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      setFile(e.target.files[0]);
-    }
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
       e.preventDefault();
@@ -97,7 +86,8 @@ export default function CreateTicketPage() {
             ticket_no: ticketNo,
             customer_id: customerData.id,
             hospital_id: customerData.hospital_id,
-            subject: `${subject}: ${description.slice(0, 50)}${description.length > 50 ? '...' : ''}`,
+            // Keep subject and additional details separated for downstream reports/audits.
+            subject: subject.trim(),
             description: description,
             status: 'New', 
             priority: 'Medium',

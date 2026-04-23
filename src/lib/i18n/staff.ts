@@ -134,6 +134,8 @@ const messages: Record<StaffLocale, MessageDictionary> = {
         date: 'วันที่แจ้ง',
         hospital: 'โรงพยาบาล',
         customer: 'ผู้แจ้ง',
+        subject: 'หัวข้อที่แจ้ง',
+        additionalDetails: 'รายละเอียดเพิ่มเติม',
         workDetails: 'รายละเอียดงาน',
         resolution: 'วิธีการแก้ไข',
         assignee: 'ผู้รับงาน',
@@ -609,6 +611,8 @@ const messages: Record<StaffLocale, MessageDictionary> = {
         date: 'Created Date',
         hospital: 'Hospital',
         customer: 'Customer',
+        subject: 'Issue Subject',
+        additionalDetails: 'Additional Details',
         workDetails: 'Work Details',
         resolution: 'Resolution',
         assignee: 'Assignee',
@@ -1045,4 +1049,3 @@ export function translateAuditAction(actionType: string, locale: StaffLocale): s
     'settingsAudit.headers.action'
   );
 }
-

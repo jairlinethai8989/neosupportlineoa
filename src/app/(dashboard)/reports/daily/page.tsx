@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/lib/supabase';
 import { 
-  Download, Loader2, Table as TableIcon, AlignLeft, Filter, Link as LinkIcon,
+  Download, Loader2, Table as TableIcon, AlignLeft, Filter,
   ArrowUpDown, Search, X, Calendar, ChevronRight
 } from 'lucide-react';
 import { exportToExcel } from '@/lib/utils/exportUtils';
@@ -137,7 +137,8 @@ export default function DailyReportPage() {
           case 'date': valA = a.created_at; valB = b.created_at; break;
           case 'hospital': valA = a.hospitals?.name || a.customers?.hospitals?.name; valB = b.hospitals?.name || b.customers?.hospitals?.name; break;
           case 'customer': valA = a.customers?.display_name || a.assigned_agent?.display_name; valB = b.customers?.display_name || b.assigned_agent?.display_name; break;
-          case 'subject': valA = a.subject || a.description; valB = b.subject || b.description; break;
+          case 'subject': valA = a.subject || ''; valB = b.subject || ''; break;
+          case 'description': valA = a.description || ''; valB = b.description || ''; break;
           case 'resolution': valA = a.resolution_summary; valB = b.resolution_summary; break;
           case 'agent': valA = a.assigned_agent?.display_name; valB = b.assigned_agent?.display_name; break;
           case 'source': valA = a.source; valB = b.source; break;
@@ -178,7 +179,8 @@ export default function DailyReportPage() {
            [t('reports.columns.date')]: d.toLocaleDateString('th-TH'),
            [t('reports.columns.hospital')]: t.hospitals?.name || t.customers?.hospitals?.name || '-',
            [t('reports.columns.customer')]: t.customers?.display_name || (t.assigned_agent ? `👷‍♂️ ${t.assigned_agent.display_name}` : '-'),
-           [t('reports.columns.workDetails')]: t.subject || t.description || '-',
+           [t('reports.columns.subject')]: t.subject || '-',
+           [t('reports.columns.additionalDetails')]: t.description || '-',
            [t('reports.columns.resolution')]: t.resolution_summary || '-',
            [t('reports.columns.assignee')]: t.assigned_agent?.display_name || '-',
            [t('reports.columns.source')]: t.source || 'Line กลุ่ม',
@@ -209,7 +211,8 @@ export default function DailyReportPage() {
     { label: t('reports.columns.date'), key: 'date' },
     { label: t('reports.columns.hospital'), key: 'hospital' },
     { label: t('reports.columns.customer'), key: 'customer' },
-    { label: t('reports.columns.workDetails'), key: 'subject' },
+    { label: t('reports.columns.subject'), key: 'subject' },
+    { label: t('reports.columns.additionalDetails'), key: 'description' },
     { label: t('reports.columns.resolution'), key: 'resolution' },
     { label: t('reports.columns.assignee'), key: 'agent' },
     { label: t('reports.columns.source'), key: 'source' },
@@ -331,7 +334,7 @@ export default function DailyReportPage() {
       {/* Spreadsheet View */}
       <div className="glass" style={{ flex: 1, borderRadius: '16px', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
          <div style={{ overflowX: 'auto', overflowY: 'auto', height: '100%', background: 'var(--bg-card)' }}>
-            <table style={{ width: '100%', minWidth: '1800px', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
+            <table style={{ width: '100%', minWidth: '2050px', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
                <thead style={{ position: 'sticky', top: 0, zIndex: 10, background: 'var(--primary)', color: 'white', fontWeight: '700' }}>
                   <tr>
                      {COLUMNS.map((col, i) => (
@@ -361,9 +364,9 @@ export default function DailyReportPage() {
                </thead>
                <tbody style={{ fontWeight: '500' }}>
                   {loading && tickets.length === 0 ? (
-                     <tr><td colSpan={13} style={{ textAlign: 'center', padding: '40px' }}><Loader2 className="animate-spin text-primary" style={{ margin: '0 auto' }} /></td></tr>
+                     <tr><td colSpan={14} style={{ textAlign: 'center', padding: '40px' }}><Loader2 className="animate-spin text-primary" style={{ margin: '0 auto' }} /></td></tr>
                   ) : processedTickets.length === 0 ? (
-                     <tr><td colSpan={13} style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
+                     <tr><td colSpan={14} style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
                          {filterText ? t('common.messages.noResults') : t('reports.noDataRange')}
                      </td></tr>
                   ) : (
@@ -375,9 +378,12 @@ export default function DailyReportPage() {
                            <td style={{ padding: '12px 16px' }}>{new Date(t.created_at).toLocaleDateString('th-TH')}</td>
                            <td style={{ padding: '12px 16px', fontWeight: '700', color: 'var(--text-main)' }}>{t.hospitals?.name || t.customers?.hospitals?.name || '-'}</td>
                            <td style={{ padding: '12px 16px' }}>{t.customers?.display_name || (t.assigned_agent ? `👷‍♂️ ${t.assigned_agent.display_name}` : '-')}</td>
-                           <td style={{ padding: '12px 16px', maxWidth: '300px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                           <td style={{ padding: '12px 16px', maxWidth: '240px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                               <AlignLeft size={12} style={{ display: 'inline', marginRight: '6px', opacity: 0.5 }} />
-                              {t.subject || t.description || '-'}
+                              {t.subject || '-'}
+                           </td>
+                           <td style={{ padding: '12px 16px', maxWidth: '320px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--text-muted)' }}>
+                              {t.description || '-'}
                            </td>
                            <td style={{ padding: '12px 16px', color: 'var(--primary)', maxWidth: '250px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: '600' }}>{t.resolution_summary || '-'}</td>
                            <td style={{ padding: '12px 16px' }}>{t.assigned_agent?.display_name || '-'}</td>
