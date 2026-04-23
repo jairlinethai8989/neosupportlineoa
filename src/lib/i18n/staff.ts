@@ -344,7 +344,7 @@ const messages: Record<StaffLocale, MessageDictionary> = {
       transferTo: 'โอนไปที่',
       uuidPrefix: 'UUID',
       systemFallback: 'System',
-      headers: {
+      messages: {
         exportPrefix: 'Audit_Log',
       }
     },
