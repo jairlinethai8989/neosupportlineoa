@@ -146,17 +146,30 @@ export default function StaffTicketDetailPage() {
         }
 
         // Only check active chat if a customer exists
-        if (normalizedTicket.customer_id) {
-          const { data: conv } = await supabase
+        // 1. Try to find the specific conversation linked to this ticket
+        const { data: convByTicket } = await supabase
+          .from('conversations')
+          .select('id, status')
+          .eq('current_ticket_id', ticketId)
+          .eq('status', 'active')
+          .maybeSingle();
+
+        if (convByTicket) {
+          setConversationId(convByTicket.id);
+          conversationIdRef.current = convByTicket.id;
+          setIsChatActive(true);
+        } else if (normalizedTicket.customer_id) {
+          // 2. Fallback: find any active conversation for this customer (e.g. legacy or general chat)
+          const { data: convByCustomer } = await supabase
             .from('conversations')
             .select('id, status')
             .eq('customer_id', normalizedTicket.customer_id)
             .eq('status', 'active')
             .maybeSingle();
 
-          if (conv) {
-            setConversationId(conv.id);
-            conversationIdRef.current = conv.id;
+          if (convByCustomer) {
+            setConversationId(convByCustomer.id);
+            conversationIdRef.current = convByCustomer.id;
             setIsChatActive(true);
           } else {
             setConversationId(null);
