@@ -220,14 +220,27 @@ export async function resolveTicketAction(
           console.error('[ResolveAction] Silent CSAT Error:', csatErr);
         }
 
-        // 2. Close active conversation
-        await supabaseAdmin.from('conversations')
-         .update({ 
-           status: 'closed',
-           current_ticket_id: null
-         })
-         .eq('customer_id', ticket.customer_id)
-         .eq('status', 'active');
+        // 2. Close only the conversation that belongs to this ticket resolution.
+        // Never close every active conversation of the same customer.
+        if (conversationId) {
+          await supabaseAdmin
+            .from('conversations')
+            .update({
+              status: 'closed',
+              current_ticket_id: null,
+            })
+            .eq('id', conversationId)
+            .eq('status', 'active');
+        } else {
+          await supabaseAdmin
+            .from('conversations')
+            .update({
+              status: 'closed',
+              current_ticket_id: null,
+            })
+            .eq('current_ticket_id', ticketId)
+            .eq('status', 'active');
+        }
      }
 
      // 3. Send system message if requested (Atomic)

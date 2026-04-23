@@ -76,14 +76,7 @@ export async function listInboxConversationsFallback(limit = 100): Promise<Inbox
   return normalizeInboxConversations(data || []);
 }
 
-export async function listInboxConversationsV2({
-  status = 'active',
-  page = 1,
-  pageSize = 20,
-  startDate,
-  endDate,
-  search
-}: {
+export async function listInboxConversationsV2(input: {
   status?: 'active' | 'closed';
   page?: number;
   pageSize?: number;
@@ -91,6 +84,8 @@ export async function listInboxConversationsV2({
   endDate?: string | null;
   search?: string;
 }): Promise<{ data: InboxConversation[]; count: number }> {
+  const page = input.page || 1;
+  const pageSize = input.pageSize || 20;
   const from = (page - 1) * pageSize;
   const to = from + pageSize - 1;
 
@@ -160,22 +155,28 @@ export async function getInboxTicketById(ticketId: string): Promise<InboxTicket 
   return normalizeInboxTicket(data);
 }
 
-export async function getLatestOpenInboxTicketForCustomer(
-  customerId: string | null
+export async function getLatestInboxTicketForConversation(
+  conversationId: string
 ): Promise<InboxTicket | null> {
-  if (!customerId) return null;
-
-  const { data, error } = await supabase
-    .from('tickets')
-    .select(inboxTicketSelect)
-    .eq('customer_id', customerId)
-    .not('status', 'in', '("Resolved","Closed")')
+  const { data: messageRow, error: messageError } = await supabase
+    .from('messages')
+    .select('ticket_id')
+    .eq('conversation_id', conversationId)
+    .not('ticket_id', 'is', null)
     .order('created_at', { ascending: false })
     .limit(1)
     .maybeSingle();
 
-  if (error) throw error;
-  return normalizeInboxTicket(data);
+  if (messageError) throw messageError;
+
+  const ticketId =
+    messageRow && typeof messageRow.ticket_id === 'string'
+      ? messageRow.ticket_id
+      : null;
+
+  if (!ticketId) return null;
+
+  return getInboxTicketById(ticketId);
 }
 
 export async function getInboxProfile(userId: string): Promise<InboxAgent | null> {

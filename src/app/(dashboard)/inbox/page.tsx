@@ -114,7 +114,7 @@ function InboxContent() {
       await uploadInboxChatMedia({
         file,
         conversationId: selectedChat.id,
-        ticketId: selectedChat.current_ticket_id || null,
+        ticketId: currentTicket?.id || selectedChat.current_ticket_id || null,
       });
     } catch (error: unknown) {
       addToast({
@@ -216,6 +216,15 @@ function InboxContent() {
         onSelectChat={(conversation) => {
           setSelectedChat(conversation);
           setViewMode('chat');
+          const params = new URLSearchParams(window.location.search);
+          params.set('cid', conversation.id);
+          params.delete('tid');
+          const query = params.toString();
+          window.history.replaceState(
+            {},
+            '',
+            query ? `${window.location.pathname}?${query}` : window.location.pathname
+          );
         }}
         viewMode={viewMode}
         currentPage={page}
@@ -313,9 +322,10 @@ function InboxContent() {
             onTransfer={() => alert('ฟีเจอร์โอนงานกำลังอยู่ระหว่างการพัฒนา')}
             onCloseSession={handleCloseSession}
             onCopySurvey={() => {
-              if (!selectedChat.current_ticket_id) return;
+              const surveyTicketId = currentTicket?.id || selectedChat.current_ticket_id;
+              if (!surveyTicketId) return;
               navigator.clipboard.writeText(
-                `${window.location.origin}/survey/${selectedChat.current_ticket_id}`
+                `${window.location.origin}/survey/${surveyTicketId}`
               );
               alert('คัดลอกลิงก์ประเมินแล้ว');
             }}
@@ -368,7 +378,7 @@ function InboxContent() {
               await uploadInboxChatMedia({
                 file, // Pass the new File object
                 conversationId: selectedChat.id,
-                ticketId: selectedChat.current_ticket_id || null,
+                ticketId: currentTicket?.id || selectedChat.current_ticket_id || null,
                 filePrefix: 'edited'
               });
 

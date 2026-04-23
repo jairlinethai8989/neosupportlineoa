@@ -15,11 +15,10 @@ import {
   linkConversationToTicket,
   resolveInboxTicket,
   sendInboxAgentMessage,
-  sendInboxSystemMessage,
 } from '@/lib/inbox/mutations';
 import {
   getInboxTicketById,
-  getLatestOpenInboxTicketForCustomer,
+  getLatestInboxTicketForConversation,
   listInboxMessagesPage,
 } from '@/lib/inbox/queries';
 import {
@@ -89,9 +88,21 @@ export function useInboxConversation({
         initialPage.length > 0 ? initialPage[0].created_at : null;
       setHasMoreMessages(initialPage.length === MESSAGE_PAGE_SIZE);
 
+      const latestMessageTicketId =
+        [...initialPage]
+          .reverse()
+          .find((message) => Boolean(message.ticket_id))
+          ?.ticket_id || null;
+
       // 1. Prioritize Ticket ID from URL (Deep Link)
-      const urlTicketId = new URLSearchParams(window.location.search).get('tid');
-      if (urlTicketId) {
+      const urlParams = new URLSearchParams(window.location.search);
+      const urlTicketId = urlParams.get('tid');
+      const urlConversationId = urlParams.get('cid');
+      const shouldUseUrlTicket =
+        Boolean(urlTicketId) &&
+        (!urlConversationId || urlConversationId === selectedChat!.id);
+
+      if (shouldUseUrlTicket && urlTicketId) {
         const ticket = await getInboxTicketById(urlTicketId);
         if (ticket) {
           setCurrentTicket(ticket);
@@ -103,7 +114,19 @@ export function useInboxConversation({
         }
       }
 
-      // 2. Use Metadata if available from query
+      // 2. Prefer ticket bound to this conversation's message stream.
+      if (latestMessageTicketId) {
+        const messageTicket = await getInboxTicketById(latestMessageTicketId);
+        if (messageTicket) {
+          setCurrentTicket(messageTicket);
+          if (selectedChat!.current_ticket_id !== messageTicket.id) {
+            await linkConversationToTicket(selectedChat!.id, messageTicket.id);
+          }
+          return;
+        }
+      }
+
+      // 3. Use Metadata if available from query
       if (selectedChat!.ticket_data) {
         setCurrentTicket({
           id: selectedChat!.ticket_data.id,
@@ -119,17 +142,21 @@ export function useInboxConversation({
         return;
       }
 
-      // 3. Fallback to current_ticket_id on record
+      // 4. Fallback to current_ticket_id on record
       if (selectedChat!.current_ticket_id) {
         setCurrentTicket(await getInboxTicketById(selectedChat!.current_ticket_id));
         return;
       }
 
-      const recentTicket = await getLatestOpenInboxTicketForCustomer(selectedChat!.customer_id);
-
-      if (recentTicket) {
-        await linkConversationToTicket(selectedChat!.id, recentTicket.id);
-        setCurrentTicket(recentTicket);
+      // 5. Safe fallback: derive ticket only from messages inside this conversation.
+      // Never link by customer-level "latest open ticket", because it can cross-link
+      // different chats of the same customer to a single ticket.
+      const conversationTicket = await getLatestInboxTicketForConversation(selectedChat!.id);
+      if (conversationTicket) {
+        setCurrentTicket(conversationTicket);
+        if (selectedChat!.current_ticket_id !== conversationTicket.id) {
+          await linkConversationToTicket(selectedChat!.id, conversationTicket.id);
+        }
       } else {
         setCurrentTicket(null);
       }
@@ -243,7 +270,7 @@ export function useInboxConversation({
       sender_type: 'agent',
       staff_id: agent.id,
       conversation_id: selectedChat.id,
-      ticket_id: selectedChat.current_ticket_id || null,
+      ticket_id: currentTicket?.id || selectedChat.current_ticket_id || null,
       message_type: 'text',
       created_at: new Date().toISOString(),
     };
@@ -255,7 +282,7 @@ export function useInboxConversation({
     try {
       await sendInboxAgentMessage({
         conversationId: selectedChat.id,
-        ticketId: selectedChat.current_ticket_id || null,
+        ticketId: currentTicket?.id || selectedChat.current_ticket_id || null,
         content: optimisticMessage.content || '',
         messageType: 'text',
       });
@@ -281,7 +308,7 @@ export function useInboxConversation({
   }
 
   function handleResolve() {
-    const ticketId = selectedChat?.current_ticket_id || currentTicket?.id;
+    const ticketId = currentTicket?.id || selectedChat?.current_ticket_id;
     if (!ticketId || !agent) return;
 
     setResSummary('');
@@ -291,7 +318,7 @@ export function useInboxConversation({
   }
 
   async function handleExecuteResolve() {
-    const ticketId = selectedChat?.current_ticket_id || currentTicket?.id;
+    const ticketId = currentTicket?.id || selectedChat?.current_ticket_id;
     if (!ticketId || !selectedModule || !resSummary.trim() || !selectedChat) return;
 
     setSending(true);

@@ -75,6 +75,20 @@ export async function resolveInboxTicket(input: ResolveInboxTicketInput & { conv
 }
 
 export async function linkConversationToTicket(conversationId: string, ticketId: string) {
+  const { data: duplicateActiveConversation, error: duplicateCheckError } = await supabase
+    .from('conversations')
+    .select('id')
+    .eq('current_ticket_id', ticketId)
+    .eq('status', 'active')
+    .neq('id', conversationId)
+    .limit(1)
+    .maybeSingle();
+
+  if (duplicateCheckError) throw duplicateCheckError;
+  if (duplicateActiveConversation) {
+    throw new Error('Ticket is already linked to another active conversation');
+  }
+
   const { error } = await supabase
     .from('conversations')
     .update({ current_ticket_id: ticketId })
