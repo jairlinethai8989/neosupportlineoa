@@ -1,7 +1,7 @@
 'use client';
 /* eslint-disable @next/next/no-img-element */
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   AlertTriangle,
@@ -92,6 +92,7 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showThemes, setShowThemes] = useState(false);
   const [activeTab, setActiveTab] = useState<NotifTab>('all');
+  const [now, setNow] = useState(() => new Date());
   const [theme, setTheme] = useState(() => {
     if (typeof window === 'undefined') return 'dark';
     return localStorage.getItem('theme') || 'light';
@@ -114,6 +115,82 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
     document.addEventListener('mousedown', handleClick);
     return () => document.removeEventListener('mousedown', handleClick);
   }, []);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      setNow(new Date());
+    }, 1000);
+
+    return () => window.clearInterval(timer);
+  }, []);
+
+  const formattedNow = useMemo(() => {
+    const dateLocale = locale === 'th' ? 'th-TH' : 'en-US';
+    const dateText = new Intl.DateTimeFormat(dateLocale, {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+    }).format(now);
+    const timeText = new Intl.DateTimeFormat(dateLocale, {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false,
+    }).format(now);
+
+    return {
+      label: locale === 'th' ? '????????????' : 'Current time',
+      dateText,
+      timeText: locale === 'th' ? `${timeText} ?.` : timeText,
+      combinedText: `${dateText} ? ${timeText}`,
+    };
+  }, [locale, now]);
+
+  const clockAccent = useMemo(() => {
+    switch (theme) {
+      case 'dark':
+        return {
+          background: 'linear-gradient(135deg, rgba(115, 103, 240, 0.18), rgba(24, 33, 56, 0.9))',
+          border: 'rgba(115, 103, 240, 0.22)',
+          shadow: '0 14px 34px rgba(9, 14, 25, 0.32)',
+          iconBg: 'rgba(115, 103, 240, 0.16)',
+          glow: 'rgba(115, 103, 240, 0.22)',
+        };
+      case 'blue':
+        return {
+          background: 'linear-gradient(135deg, rgba(56, 189, 248, 0.18), rgba(15, 23, 42, 0.92))',
+          border: 'rgba(56, 189, 248, 0.24)',
+          shadow: '0 14px 34px rgba(8, 47, 73, 0.28)',
+          iconBg: 'rgba(56, 189, 248, 0.14)',
+          glow: 'rgba(56, 189, 248, 0.2)',
+        };
+      case 'cyan':
+        return {
+          background: 'linear-gradient(135deg, rgba(6, 182, 212, 0.18), rgba(8, 26, 38, 0.94))',
+          border: 'rgba(6, 182, 212, 0.24)',
+          shadow: '0 14px 34px rgba(5, 40, 49, 0.28)',
+          iconBg: 'rgba(6, 182, 212, 0.14)',
+          glow: 'rgba(6, 182, 212, 0.2)',
+        };
+      case 'gray':
+        return {
+          background: 'linear-gradient(135deg, rgba(243, 244, 246, 0.1), rgba(17, 24, 39, 0.92))',
+          border: 'rgba(243, 244, 246, 0.14)',
+          shadow: '0 14px 34px rgba(15, 23, 42, 0.28)',
+          iconBg: 'rgba(243, 244, 246, 0.08)',
+          glow: 'rgba(243, 244, 246, 0.16)',
+        };
+      default:
+        return {
+          background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.14), rgba(255, 255, 255, 0.9))',
+          border: 'rgba(59, 130, 246, 0.18)',
+          shadow: '0 14px 34px rgba(148, 163, 184, 0.18)',
+          iconBg: 'rgba(59, 130, 246, 0.12)',
+          glow: 'rgba(59, 130, 246, 0.16)',
+        };
+    }
+  }, [theme]);
 
   const changeTheme = (newTheme: string) => {
     setTheme(newTheme);
@@ -178,6 +255,122 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
 
       <main className="content-area">
         <header className="top-bar">
+          <div
+            className="top-bar-clock"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '14px',
+              padding: '12px 18px',
+              borderRadius: '20px',
+              border: `1px solid ${clockAccent.border}`,
+              background: clockAccent.background,
+              boxShadow: `${clockAccent.shadow}, inset 0 1px 0 rgba(255,255,255,0.05)`,
+              minWidth: '420px',
+              justifyContent: 'space-between',
+              position: 'relative',
+              overflow: 'hidden',
+            }}
+          >
+            <div
+              aria-hidden
+              style={{
+                position: 'absolute',
+                inset: '-40% auto auto 58%',
+                width: '190px',
+                height: '190px',
+                borderRadius: '999px',
+                background: `radial-gradient(circle, ${clockAccent.glow} 0%, transparent 70%)`,
+                pointerEvents: 'none',
+              }}
+            />
+            <div
+              style={{
+                width: '46px',
+                height: '46px',
+                borderRadius: '15px',
+                background: clockAccent.iconBg,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: 'var(--primary)',
+                flexShrink: 0,
+                position: 'relative',
+                zIndex: 1,
+              }}
+            >
+              <Clock size={20} />
+            </div>
+            <div style={{ minWidth: 0, flex: 1, position: 'relative', zIndex: 1 }}>
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  marginBottom: '2px',
+                }}
+              >
+                <span
+                  style={{
+                    fontSize: '10px',
+                    fontWeight: '800',
+                    letterSpacing: '0.08em',
+                    textTransform: 'uppercase',
+                    color: 'var(--primary)',
+                  }}
+                >
+                  {formattedNow.label}
+                </span>
+                <span
+                  style={{
+                    width: '8px',
+                    height: '8px',
+                    borderRadius: '999px',
+                    background: 'var(--success)',
+                    boxShadow: '0 0 0 4px rgba(16, 185, 129, 0.12)',
+                    animation: 'pulse 2s infinite',
+                  }}
+                />
+              </div>
+              <div
+                style={{
+                  fontSize: '24px',
+                  fontWeight: '800',
+                  lineHeight: 1.1,
+                  color: 'var(--text-main)',
+                  fontVariantNumeric: 'tabular-nums',
+                }}
+              >
+                {formattedNow.timeText}
+              </div>
+              <div
+                style={{
+                  fontSize: '12px',
+                  color: 'var(--text-muted)',
+                  marginTop: '3px',
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                }}
+              >
+                {formattedNow.dateText}
+              </div>
+              <div
+                style={{
+                  fontSize: '11px',
+                  color: 'var(--text-dim)',
+                  marginTop: '5px',
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  fontVariantNumeric: 'tabular-nums',
+                }}
+              >
+                {formattedNow.combinedText}
+              </div>
+            </div>
+          </div>
+
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <button
               onClick={() => {
@@ -567,8 +760,8 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
                         display: 'flex',
                         alignItems: 'center',
                         gap: '10px',
-                        padding: '10px',
-                        borderRadius: '12px',
+                        padding: '10px 12px',
+                        borderRadius: '14px',
                         border: 'none',
                         background: 'none',
                         color: 'var(--text-main)',
@@ -581,46 +774,139 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
                       <span style={{ fontSize: '12px', fontWeight: '700', flex: 1, textAlign: 'left' }}>
                         {t('dashboard.themeMenu')}
                       </span>
-                      <div style={{ fontSize: '10px', opacity: 0.5 }}>{showThemes ? '▲' : '▶'}</div>
+                      <ChevronDown
+                        size={14}
+                        style={{
+                          opacity: 0.5,
+                          transform: showThemes ? 'rotate(180deg)' : 'rotate(0deg)',
+                          transition: 'transform 0.2s ease',
+                        }}
+                      />
                     </button>
 
                     {showThemes && (
-                      <div style={{ display: 'flex', gap: '8px', padding: '8px 10px 12px', flexWrap: 'wrap', animation: 'fadeIn 0.2s' }}>
+                      <div
+                        style={{
+                          display: 'grid',
+                          gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+                          gap: '10px',
+                          padding: '10px 10px 14px',
+                          animation: 'fadeIn 0.2s',
+                        }}
+                      >
                         {THEMES.map((themeOption) => (
                           <button
                             key={themeOption.id}
                             onClick={() => changeTheme(themeOption.id)}
                             style={{
-                              width: '28px',
-                              height: '28px',
-                              borderRadius: '50%',
-                              background: themeOption.color,
-                              border:
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '10px',
+                              width: '100%',
+                              minHeight: '64px',
+                              padding: '10px 12px',
+                              borderRadius: '16px',
+                              background:
                                 theme === themeOption.id
-                                  ? `2px solid ${themeOption.iconColor}`
-                                  : '1px solid var(--border)',
+                                  ? `linear-gradient(135deg, ${themeOption.color}, rgba(255,255,255,0.08))`
+                                  : 'rgba(255,255,255,0.02)',
+                              border: theme === themeOption.id ? `1px solid ${themeOption.iconColor}` : '1px solid var(--border)',
                               cursor: 'pointer',
                               position: 'relative',
+                              textAlign: 'left',
+                              boxShadow:
+                                theme === themeOption.id
+                                  ? `0 10px 24px ${themeOption.iconColor}22`
+                                  : '0 6px 18px rgba(15, 23, 42, 0.08)',
+                              transition: 'all 0.2s ease',
+                              overflow: 'hidden',
                             }}
                             title={themeOption.label}
                           >
                             <div
                               style={{
-                                width: '10px',
-                                height: '10px',
-                                borderRadius: '50%',
-                                background: themeOption.iconColor,
+                                width: '34px',
+                                height: '34px',
+                                borderRadius: '12px',
+                                background: `linear-gradient(135deg, ${themeOption.iconColor}, ${themeOption.color})`,
+                                border: '1px solid rgba(255,255,255,0.12)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                flexShrink: 0,
+                                boxShadow: `inset 0 1px 0 rgba(255,255,255,0.18), 0 8px 18px ${themeOption.iconColor}33`,
                               }}
-                            />
+                            >
+                              <div
+                                style={{
+                                  width: '12px',
+                                  height: '12px',
+                                  borderRadius: '50%',
+                                  background: themeOption.iconColor,
+                                  boxShadow: '0 0 0 3px rgba(255,255,255,0.14)',
+                                }}
+                              />
+                            </div>
+
+                            <div style={{ minWidth: 0, flex: 1 }}>
+                              <div
+                                style={{
+                                  fontSize: '12px',
+                                  fontWeight: '800',
+                                  color: 'var(--text-main)',
+                                  marginBottom: '4px',
+                                }}
+                              >
+                                {themeOption.label}
+                              </div>
+                              <div style={{ display: 'flex', gap: '4px' }}>
+                                <span
+                                  style={{
+                                    width: '16px',
+                                    height: '4px',
+                                    borderRadius: '999px',
+                                    background: themeOption.iconColor,
+                                    opacity: 0.95,
+                                  }}
+                                />
+                                <span
+                                  style={{
+                                    width: '24px',
+                                    height: '4px',
+                                    borderRadius: '999px',
+                                    background: 'rgba(255,255,255,0.3)',
+                                  }}
+                                />
+                                <span
+                                  style={{
+                                    width: '12px',
+                                    height: '4px',
+                                    borderRadius: '999px',
+                                    background: 'rgba(255,255,255,0.18)',
+                                  }}
+                                />
+                              </div>
+                            </div>
+
                             {theme === themeOption.id && (
                               <div
                                 style={{
                                   position: 'absolute',
-                                  inset: -3,
-                                  border: `2px solid ${themeOption.iconColor}`,
-                                  borderRadius: '50%',
+                                  top: '8px',
+                                  right: '8px',
+                                  padding: '2px 6px',
+                                  borderRadius: '999px',
+                                  fontSize: '9px',
+                                  fontWeight: '800',
+                                  background: `${themeOption.iconColor}22`,
+                                  color: themeOption.iconColor,
+                                  border: `1px solid ${themeOption.iconColor}33`,
+                                  letterSpacing: '0.04em',
+                                  textTransform: 'uppercase',
                                 }}
-                              />
+                              >
+                                On
+                              </div>
                             )}
                           </button>
                         ))}
@@ -687,6 +973,9 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
             }
             @media (max-width: 1024px) {
               .show-desktop { display: none !important; }
+              .top-bar-clock {
+                display: none !important;
+              }
             }
           `,
         }}
