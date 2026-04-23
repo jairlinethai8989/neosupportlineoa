@@ -26,6 +26,7 @@ import { supabase } from '@/lib/supabase';
 import { exportTickets } from '@/lib/utils/exportUtils';
 import Skeleton from '@/components/ui/Skeleton';
 import { useStaffLocale } from '@/contexts/StaffLocaleContext';
+import { useRouter } from 'next/navigation';
 
 const CHART_COLORS = {
   primary: '#00f2fe',
