@@ -233,6 +233,7 @@ export default function Home() {
       newTickets: tickets.filter(t => t.status === 'New').length,
       inProgress: tickets.filter(t => t.status === 'In Progress').length,
       pending: tickets.filter(t => t.status === 'Pending').length,
+      escalated: tickets.filter(t => t.status === 'Escalated').length,
       resolved: tickets.filter(t => t.status === 'Resolved' || t.status === 'Closed').length,
       totalAll: tickets.length,
       trendPct,
@@ -515,6 +516,20 @@ export default function Home() {
           color="#28c76f" 
           trend={null}
         />
+        <div style={{ display: 'flex', gap: '20px', flex: 1, minWidth: '300px' }}>
+          <div className="glass-interactive" style={{ padding: '16px 24px', flex: 1, borderLeft: '4px solid #ea5455' }}>
+            <p style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+              {t('tickets.statuses.escalated')}
+            </p>
+            <p style={{ fontSize: '24px', fontWeight: '800', color: '#ea5455' }}>{stats.escalated}</p>
+          </div>
+          <div className="glass-interactive" style={{ padding: '16px 24px', flex: 1, borderLeft: '4px solid #ff9f43' }}>
+            <p style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+              {t('tickets.statuses.pending')}
+            </p>
+            <p style={{ fontSize: '24px', fontWeight: '800', color: '#ff9f43' }}>{stats.pending}</p>
+          </div>
+        </div>
       </div>
 
       {/* Charts Row 1 — Trend + Status Pie */}
