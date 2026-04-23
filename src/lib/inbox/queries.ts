@@ -15,7 +15,16 @@ import type {
   InboxTicket,
 } from '@/types/inbox';
 
-export const inboxConversationSelect = `*`;
+export const inboxConversationSelect = `
+  *,
+  customers (id, display_name, line_user_id, avatar_url),
+  ticket_data:current_ticket_id (
+    id,
+    ticket_no,
+    subject,
+    customers:customers!tickets_customer_id_fkey (id, display_name, line_user_id, avatar_url)
+  )
+`;
 
 export const inboxMessageSelect = `
   id,

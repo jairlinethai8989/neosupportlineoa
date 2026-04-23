@@ -2,6 +2,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useEffect } from 'react';
 import liff from '@line/liff';
+import { supabase } from '@/lib/supabase';
 
 export interface LiffProfile {
   userId: string;
@@ -13,6 +14,36 @@ export function useLiff() {
   const [isReady, setIsReady] = useState(false);
   const [profile, setProfile] = useState<LiffProfile | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!profile?.userId) return;
+    const currentProfile = profile;
+
+    let isCancelled = false;
+
+    async function syncCustomerProfile() {
+      const payload = {
+        line_user_id: currentProfile.userId,
+        display_name: currentProfile.displayName,
+        avatar_url: currentProfile.pictureUrl || null,
+        updated_at: new Date().toISOString(),
+      };
+
+      const { error: syncError } = await supabase
+        .from('customers')
+        .upsert(payload, { onConflict: 'line_user_id' });
+
+      if (!isCancelled && syncError) {
+        console.error('LIFF profile sync error:', syncError);
+      }
+    }
+
+    void syncCustomerProfile();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [profile]);
 
   useEffect(() => {
     const initLiff = async () => {

@@ -12,6 +12,22 @@ const config = {
 
 const client = new line.Client(config);
 
+async function getLineProfileSnapshot(userId: string) {
+  try {
+    const profile = await client.getProfile(userId);
+    return {
+      display_name: profile.displayName || 'LINE User',
+      avatar_url: profile.pictureUrl || null,
+    };
+  } catch (error) {
+    console.warn(`Webhook: Failed to fetch LINE profile for ${userId}`, error);
+    return {
+      display_name: 'LINE User',
+      avatar_url: null,
+    };
+  }
+}
+
 export async function POST(req: Request) {
   const signature = req.headers.get('x-line-signature');
   const rawBody = await req.text();
@@ -78,25 +94,43 @@ export async function POST(req: Request) {
       if (!lineUserId) continue; // Safety check
       
       const messageText = event.message.type === 'text' ? event.message.text : `[Attachment: ${event.message.type}]`;
+      const lineProfile = await getLineProfileSnapshot(lineUserId);
 
       // 2. Map Customer
       let { data: customer } = await supabaseAdmin
         .from('customers')
-        .select('id, display_name')
+        .select('id, display_name, avatar_url')
         .eq('line_user_id', lineUserId)
-        .single();
+        .maybeSingle();
 
       if (!customer) {
         const { data: newCustomer } = await supabaseAdmin
           .from('customers')
           .insert([{ 
              line_user_id: lineUserId, 
-             display_name: 'LINE User', 
+             display_name: lineProfile.display_name,
+             avatar_url: lineProfile.avatar_url,
              metadata: { original_event: event } 
           }])
           .select()
           .single();
         customer = newCustomer;
+      } else if (
+        customer.display_name !== lineProfile.display_name ||
+        (customer.avatar_url || null) !== lineProfile.avatar_url
+      ) {
+        const { data: updatedCustomer } = await supabaseAdmin
+          .from('customers')
+          .update({
+            display_name: lineProfile.display_name,
+            avatar_url: lineProfile.avatar_url,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', customer.id)
+          .select('id, display_name, avatar_url')
+          .single();
+
+        customer = updatedCustomer || customer;
       }
 
       if (customer) {

@@ -44,8 +44,37 @@ export function normalizeInboxCustomer(value: unknown): InboxCustomer | null {
   };
 }
 
+function isFallbackInboxCustomerName(name: string | null | undefined) {
+  if (!name) return true;
+
+  const normalizedName = name.trim().toLowerCase();
+  return normalizedName === 'line user';
+}
+
+function mergeInboxCustomerSources(
+  primaryCustomer: InboxCustomer | null,
+  fallbackCustomer: InboxCustomer | null
+): InboxCustomer | null {
+  if (!primaryCustomer) return fallbackCustomer;
+  if (!fallbackCustomer) return primaryCustomer;
+
+  return {
+    id: primaryCustomer.id || fallbackCustomer.id,
+    display_name:
+      !isFallbackInboxCustomerName(primaryCustomer.display_name)
+        ? primaryCustomer.display_name
+        : fallbackCustomer.display_name || primaryCustomer.display_name,
+    line_user_id: primaryCustomer.line_user_id || fallbackCustomer.line_user_id,
+    avatar_url: primaryCustomer.avatar_url || fallbackCustomer.avatar_url,
+  };
+}
+
 export function normalizeInboxConversation(value: unknown): InboxConversation | null {
   if (!isRecord(value)) return null;
+
+  const conversationCustomer = normalizeInboxCustomer(value.customers);
+  const ticketData = isRecord(value.ticket_data) ? value.ticket_data : null;
+  const ticketCustomer = ticketData ? normalizeInboxCustomer(ticketData.customers) : null;
 
   return {
     id: asString(value.id) || '',
@@ -54,11 +83,11 @@ export function normalizeInboxConversation(value: unknown): InboxConversation | 
     customer_id: asString(value.customer_id),
     current_ticket_id: asString(value.current_ticket_id),
     is_active: asBoolean(value.is_active),
-    customers: normalizeInboxCustomer(value.customers),
-    ticket_data: isRecord(value.ticket_data) ? {
-      id: asString(value.ticket_data.id) || '',
-      ticket_no: asString(value.ticket_data.ticket_no),
-      subject: asString(value.ticket_data.subject),
+    customers: mergeInboxCustomerSources(conversationCustomer, ticketCustomer),
+    ticket_data: ticketData ? {
+      id: asString(ticketData.id) || '',
+      ticket_no: asString(ticketData.ticket_no),
+      subject: asString(ticketData.subject),
     } : null,
   };
 }
