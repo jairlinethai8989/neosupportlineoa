@@ -516,7 +516,7 @@ export default function Home() {
           color="#28c76f" 
           trend={null}
         />
-        <div style={{ display: 'flex', gap: '20px', flex: 1, minWidth: '300px' }}>
+        <div className="kpi-group" style={{ display: 'flex', gap: '20px', flex: 1, minWidth: '280px' }}>
           <div className="glass-interactive" style={{ padding: '24px', flex: 1 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px' }}>
               <div style={{ background: 'rgba(234, 84, 85, 0.15)', color: '#ea5455', padding: '10px', borderRadius: '10px' }}>
@@ -782,6 +782,12 @@ export default function Home() {
         @media (max-width: 768px) {
           div[style*="gridTemplateColumns: 2fr 1fr"] { grid-template-columns: 1fr !important; }
           div[style*="gridTemplateColumns: 1fr 1fr 1fr"] { grid-template-columns: 1fr !important; }
+        }
+        @media (max-width: 640px) {
+          .kpi-group {
+            flex-direction: column !important;
+            min-width: 100% !important;
+          }
         }
       `}} />
     </div>

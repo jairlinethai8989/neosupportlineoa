@@ -258,38 +258,64 @@ export function ResolveTicketModal({
               Manage templates
             </a>
           </div>
-          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
             {personalResTemplates.map((template) => (
               <button
                 key={template}
                 type="button"
                 onClick={() => onChangeSummary(template)}
+                className="glass-interactive"
                 style={{
-                  padding: '8px 16px',
-                  borderRadius: '12px',
-                  border: '1px solid var(--primary)',
-                  background: 'rgba(0, 242, 254, 0.08)',
+                  padding: '10px 18px',
+                  borderRadius: '14px',
+                  border: '1px solid rgba(0, 242, 254, 0.3)',
+                  background: 'rgba(0, 242, 254, 0.05)',
                   fontSize: '13px',
+                  fontWeight: '700',
                   color: 'var(--primary)',
                   cursor: 'pointer',
-                  transition: 'all 0.2s',
+                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
                 }}
               >
-                {template}
+                <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--primary)' }} />
+                {template.length > 25 ? template.slice(0, 25) + '...' : template}
               </button>
             ))}
             {personalResTemplates.length === 0 && (
-              <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                No templates yet.{' '}
+              <div 
+                style={{ 
+                  width: '100%', 
+                  padding: '24px', 
+                  borderRadius: '16px', 
+                  border: '1px dashed var(--border)', 
+                  textAlign: 'center',
+                  background: 'rgba(255,255,255,0.02)'
+                }}
+              >
+                <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '8px' }}>
+                  {t('inbox.noTemplatesFound') || 'No resolution templates available.'}
+                </p>
                 <a
                   href="/settings/profile"
                   target="_blank"
                   rel="noreferrer"
-                  style={{ color: 'var(--primary)', textDecoration: 'underline' }}
+                  style={{ 
+                    fontSize: '12px', 
+                    color: 'var(--primary)', 
+                    fontWeight: '800', 
+                    textDecoration: 'none',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px'
+                  }}
                 >
-                  Set them up here
+                  <span>+</span> {t('inbox.setupTemplates') || 'Set up your templates here'}
                 </a>
-              </p>
+              </div>
             )}
           </div>
         </div>
