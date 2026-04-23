@@ -328,9 +328,9 @@ CREATE INDEX IF NOT EXISTS idx_conversations_customer_id ON public.conversations
 CREATE INDEX IF NOT EXISTS idx_conversations_status ON public.conversations(status);
 CREATE INDEX IF NOT EXISTS idx_conversations_current_ticket_id ON public.conversations(current_ticket_id);
 CREATE INDEX IF NOT EXISTS idx_conversations_last_message_at ON public.conversations(last_message_at DESC);
-CREATE UNIQUE INDEX IF NOT EXISTS uq_conversations_active_customer
-  ON public.conversations(customer_id)
-  WHERE status = 'active';
+CREATE UNIQUE INDEX IF NOT EXISTS uq_conversations_active_ticket
+  ON public.conversations(current_ticket_id)
+  WHERE status = 'active' AND current_ticket_id IS NOT NULL;
 
 CREATE INDEX IF NOT EXISTS idx_messages_conversation_id ON public.messages(conversation_id);
 CREATE INDEX IF NOT EXISTS idx_messages_ticket_id ON public.messages(ticket_id);
