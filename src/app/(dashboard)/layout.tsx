@@ -139,58 +139,12 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
       hour12: false,
     }).format(now);
 
+    const suffix = locale === 'th' ? ' น.' : '';
+
     return {
-      label: locale === 'th' ? '????????????' : 'Current time',
-      dateText,
-      timeText: locale === 'th' ? `${timeText} ?.` : timeText,
-      combinedText: `${dateText} ? ${timeText}`,
+      text: `${dateText} • ${timeText}${suffix}`,
     };
   }, [locale, now]);
-
-  const clockAccent = useMemo(() => {
-    switch (theme) {
-      case 'dark':
-        return {
-          background: 'linear-gradient(135deg, rgba(115, 103, 240, 0.18), rgba(24, 33, 56, 0.9))',
-          border: 'rgba(115, 103, 240, 0.22)',
-          shadow: '0 14px 34px rgba(9, 14, 25, 0.32)',
-          iconBg: 'rgba(115, 103, 240, 0.16)',
-          glow: 'rgba(115, 103, 240, 0.22)',
-        };
-      case 'blue':
-        return {
-          background: 'linear-gradient(135deg, rgba(56, 189, 248, 0.18), rgba(15, 23, 42, 0.92))',
-          border: 'rgba(56, 189, 248, 0.24)',
-          shadow: '0 14px 34px rgba(8, 47, 73, 0.28)',
-          iconBg: 'rgba(56, 189, 248, 0.14)',
-          glow: 'rgba(56, 189, 248, 0.2)',
-        };
-      case 'cyan':
-        return {
-          background: 'linear-gradient(135deg, rgba(6, 182, 212, 0.18), rgba(8, 26, 38, 0.94))',
-          border: 'rgba(6, 182, 212, 0.24)',
-          shadow: '0 14px 34px rgba(5, 40, 49, 0.28)',
-          iconBg: 'rgba(6, 182, 212, 0.14)',
-          glow: 'rgba(6, 182, 212, 0.2)',
-        };
-      case 'gray':
-        return {
-          background: 'linear-gradient(135deg, rgba(243, 244, 246, 0.1), rgba(17, 24, 39, 0.92))',
-          border: 'rgba(243, 244, 246, 0.14)',
-          shadow: '0 14px 34px rgba(15, 23, 42, 0.28)',
-          iconBg: 'rgba(243, 244, 246, 0.08)',
-          glow: 'rgba(243, 244, 246, 0.16)',
-        };
-      default:
-        return {
-          background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.14), rgba(255, 255, 255, 0.9))',
-          border: 'rgba(59, 130, 246, 0.18)',
-          shadow: '0 14px 34px rgba(148, 163, 184, 0.18)',
-          iconBg: 'rgba(59, 130, 246, 0.12)',
-          glow: 'rgba(59, 130, 246, 0.16)',
-        };
-    }
-  }, [theme]);
 
   const changeTheme = (newTheme: string) => {
     setTheme(newTheme);
@@ -255,122 +209,6 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
 
       <main className="content-area">
         <header className="top-bar">
-          <div
-            className="top-bar-clock"
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '14px',
-              padding: '12px 18px',
-              borderRadius: '20px',
-              border: `1px solid ${clockAccent.border}`,
-              background: clockAccent.background,
-              boxShadow: `${clockAccent.shadow}, inset 0 1px 0 rgba(255,255,255,0.05)`,
-              minWidth: '420px',
-              justifyContent: 'space-between',
-              position: 'relative',
-              overflow: 'hidden',
-            }}
-          >
-            <div
-              aria-hidden
-              style={{
-                position: 'absolute',
-                inset: '-40% auto auto 58%',
-                width: '190px',
-                height: '190px',
-                borderRadius: '999px',
-                background: `radial-gradient(circle, ${clockAccent.glow} 0%, transparent 70%)`,
-                pointerEvents: 'none',
-              }}
-            />
-            <div
-              style={{
-                width: '46px',
-                height: '46px',
-                borderRadius: '15px',
-                background: clockAccent.iconBg,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: 'var(--primary)',
-                flexShrink: 0,
-                position: 'relative',
-                zIndex: 1,
-              }}
-            >
-              <Clock size={20} />
-            </div>
-            <div style={{ minWidth: 0, flex: 1, position: 'relative', zIndex: 1 }}>
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  marginBottom: '2px',
-                }}
-              >
-                <span
-                  style={{
-                    fontSize: '10px',
-                    fontWeight: '800',
-                    letterSpacing: '0.08em',
-                    textTransform: 'uppercase',
-                    color: 'var(--primary)',
-                  }}
-                >
-                  {formattedNow.label}
-                </span>
-                <span
-                  style={{
-                    width: '8px',
-                    height: '8px',
-                    borderRadius: '999px',
-                    background: 'var(--success)',
-                    boxShadow: '0 0 0 4px rgba(16, 185, 129, 0.12)',
-                    animation: 'pulse 2s infinite',
-                  }}
-                />
-              </div>
-              <div
-                style={{
-                  fontSize: '24px',
-                  fontWeight: '800',
-                  lineHeight: 1.1,
-                  color: 'var(--text-main)',
-                  fontVariantNumeric: 'tabular-nums',
-                }}
-              >
-                {formattedNow.timeText}
-              </div>
-              <div
-                style={{
-                  fontSize: '12px',
-                  color: 'var(--text-muted)',
-                  marginTop: '3px',
-                  whiteSpace: 'nowrap',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                }}
-              >
-                {formattedNow.dateText}
-              </div>
-              <div
-                style={{
-                  fontSize: '11px',
-                  color: 'var(--text-dim)',
-                  marginTop: '5px',
-                  whiteSpace: 'nowrap',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  fontVariantNumeric: 'tabular-nums',
-                }}
-              >
-                {formattedNow.combinedText}
-              </div>
-            </div>
-          </div>
-
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <button
               onClick={() => {
@@ -408,6 +246,36 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
                   {t('dashboard.subtitle')}
                 </span>
               </h2>
+            </div>
+          </div>
+
+          <div className="show-desktop" style={{ flex: 1, display: 'flex', justifyContent: 'center', padding: '0 16px' }}>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                minWidth: 0,
+                maxWidth: '100%',
+                color: 'var(--text-muted)',
+                fontSize: '13px',
+                fontWeight: '700',
+                letterSpacing: '0.01em',
+                fontVariantNumeric: 'tabular-nums',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+              }}
+            >
+              <Clock size={14} color="var(--primary)" />
+              <span
+                style={{
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                }}
+              >
+                {formattedNow.text}
+              </span>
             </div>
           </div>
 
@@ -973,9 +841,6 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
             }
             @media (max-width: 1024px) {
               .show-desktop { display: none !important; }
-              .top-bar-clock {
-                display: none !important;
-              }
             }
           `,
         }}
