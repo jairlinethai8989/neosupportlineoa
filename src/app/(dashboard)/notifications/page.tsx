@@ -7,21 +7,19 @@ import {
   CheckCheck, 
   Ticket, 
   Zap, 
-  ArrowRight, 
   MessageSquare,
   AlertTriangle,
   CheckCircle2,
   Volume2,
   VolumeX,
   Settings2,
-  Info,
   ExternalLink,
   Smartphone,
   ShieldCheck,
   Clock,
-  TrendingUp,
   Activity,
   RefreshCw,
+  Trash2,
 } from 'lucide-react';
 import { useNotificationContext } from '@/contexts/NotificationContext';
 import { useStaffLocale } from '@/contexts/StaffLocaleContext';
@@ -101,22 +99,23 @@ function SlaBadge({ minutesRemaining, t }: { minutesRemaining?: number, t: any }
 export default function NotificationsPage() {
   const { t } = useStaffLocale();
   const router = useRouter();
-  const { notifications, unreadCount, markAllRead, markAsRead } = useNotificationContext();
+  const { notifications, unreadCount, markAllRead, clearNotifications, markAsRead } = useNotificationContext();
   
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState<'all' | 'unread' | 'sla'>('all');
-  const [browserNotifsEnabled, setBrowserNotifsEnabled] = useState(false);
-  const [lastRefreshed, setLastRefreshed] = useState(new Date());
-
-  useEffect(() => {
-    if (typeof window !== 'undefined' && 'Notification' in window) {
-      setBrowserNotifsEnabled(Notification.permission === 'granted');
-    }
-  }, []);
+  const [browserNotifsEnabled, setBrowserNotifsEnabled] = useState(
+    typeof window !== 'undefined' && 'Notification' in window
+      ? Notification.permission === 'granted'
+      : false
+  );
 
   // Refresh timestamp every minute
   useEffect(() => {
-    const t = setInterval(() => setLastRefreshed(new Date()), 60000);
+    const t = setInterval(() => {
+      if (typeof window !== 'undefined' && 'Notification' in window) {
+        setBrowserNotifsEnabled(Notification.permission === 'granted');
+      }
+    }, 60000);
     return () => clearInterval(t);
   }, []);
 
@@ -154,6 +153,13 @@ export default function NotificationsPage() {
     markAsRead(notif.id);
     if (notif.ticketId) router.push(`/tickets/${notif.ticketId}`);
     else if (notif.type === 'message') router.push('/inbox');
+  };
+
+  const handleClearNotifications = () => {
+    if (typeof window === 'undefined') return;
+    const shouldClear = window.confirm('Clear all notifications from this list?');
+    if (!shouldClear) return;
+    clearNotifications();
   };
 
   const tabs: { key: 'all' | 'unread' | 'sla'; label: string }[] = [
@@ -213,6 +219,17 @@ export default function NotificationsPage() {
             >
               <CheckCheck size={16} />
               {t('dashboard.markAllRead')}
+            </button>
+          )}
+
+          {notifications.length > 0 && (
+            <button
+              onClick={handleClearNotifications}
+              className="glass-interactive"
+              style={{ padding: '10px 16px', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '8px', color: '#ff9f43', border: '1px solid rgba(255, 159, 67, 0.3)', background: 'rgba(255, 159, 67, 0.08)', cursor: 'pointer', fontWeight: '800', fontSize: '13px' }}
+            >
+              <Trash2 size={16} />
+              Clear all
             </button>
           )}
         </div>

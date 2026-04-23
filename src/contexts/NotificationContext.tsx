@@ -17,6 +17,7 @@ interface NotificationContextValue {
   unreadCount: number;
   markAsRead: (id: string) => void;
   markAllRead: () => void;
+  clearNotifications: () => void;
   dismissToast: (id: string) => void;
   addToast: (toast: ToastNotif) => void;
   agentId: string | null;
@@ -37,6 +38,7 @@ const NotificationContext = createContext<NotificationContextValue>({
   unreadCount: 0,
   markAsRead: () => {},
   markAllRead: () => {},
+  clearNotifications: () => {},
   dismissToast: () => {},
   addToast: () => {},
   agentId: null,

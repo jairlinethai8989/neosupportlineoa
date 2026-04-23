@@ -13,6 +13,7 @@ import type {
 export type { NotifType, AppNotification, ToastNotif };
 
 const STORAGE_KEY = 'neo_notif_read_ids_v1';
+const CLEAR_BEFORE_KEY = 'neo_notif_clear_before_ms_v1';
 // Track which SLA warnings we've already toasted to avoid repeated firing
 const WARNED_SLA_KEY = 'neo_sla_warned_ids_v1';
 const SOUND_MODE_KEY = 'neo_notif_sound_mode_v1';
@@ -210,6 +211,14 @@ export function useNotifications(agentId: string | null) {
     try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); } catch { return []; }
   }, []);
 
+  const getClearBeforeMs = useCallback((): number => {
+    if (typeof window === 'undefined') return 0;
+    const raw = localStorage.getItem(CLEAR_BEFORE_KEY);
+    if (!raw) return 0;
+    const parsed = Number.parseInt(raw, 10);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }, []);
+
   const getWarnedIds = useCallback((): string[] => {
     if (typeof window === 'undefined') return [];
     try { return JSON.parse(localStorage.getItem(WARNED_SLA_KEY) || '[]'); } catch { return []; }
@@ -264,6 +273,20 @@ export function useNotifications(agentId: string | null) {
       return next;
     });
   }, []);
+
+  const clearNotifications = useCallback(() => {
+    const currentIds = notifications.map((notification) => notification.id);
+    setNotifications([]);
+    setToasts([]);
+    setUnreadCount(0);
+
+    if (typeof window !== 'undefined') {
+      const existingReadIds = getReadIds();
+      const mergedReadIds = Array.from(new Set([...existingReadIds, ...currentIds]));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(mergedReadIds.slice(-1000)));
+      localStorage.setItem(CLEAR_BEFORE_KEY, String(Date.now()));
+    }
+  }, [getReadIds, notifications]);
 
   const dismissToast = useCallback((id: string) => {
     setToasts(prev => prev.filter(t => t.id !== id));
@@ -345,6 +368,7 @@ export function useNotifications(agentId: string | null) {
   const fetchLogs = useCallback(async () => {
     if (!agentId) return;
     const readIds = getReadIds();
+    const clearBeforeMs = getClearBeforeMs();
 
     const { data } = await supabase
       .from('ticket_logs')
@@ -355,7 +379,13 @@ export function useNotifications(agentId: string | null) {
 
     if (!data) return;
 
-    const notifs: AppNotification[] = data.map((row) => {
+    const notifs: AppNotification[] = data
+      .filter((row) => {
+        if (!clearBeforeMs) return true;
+        const createdAtMs = new Date(row.created_at).getTime();
+        return Number.isFinite(createdAtMs) && createdAtMs > clearBeforeMs;
+      })
+      .map((row) => {
       const id = row.id?.toString() ?? `${row.ticket_id}-${row.created_at}`;
       const isRead = readIds.includes(id);
 
@@ -384,7 +414,7 @@ export function useNotifications(agentId: string | null) {
 
     setNotifications(notifs);
     recalcUnread(notifs);
-  }, [agentId, getReadIds, recalcUnread]);
+  }, [agentId, getClearBeforeMs, getReadIds, recalcUnread]);
 
   const fetchNewTicketsCount = useCallback(async () => {
     const { count } = await supabase
@@ -688,6 +718,7 @@ export function useNotifications(agentId: string | null) {
     toggleMute,
     markAsRead, 
     markAllRead, 
+    clearNotifications,
     dismissToast, 
     addToast 
   };
