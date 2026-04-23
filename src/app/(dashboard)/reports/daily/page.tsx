@@ -179,8 +179,8 @@ export default function DailyReportPage() {
     const m = mins % 60;
     const hoursLabel = t('dashboard.hoursAgo').replace('ที่ผ่านมา', '');
     const minsLabel = t('dashboard.minutesAgo').replace('ที่ผ่านมา', '');
-    if (hours > 0) return `${hours} ${hoursLabel} ${m} ${minsLabel}`;
-    return `${m} ${minsLabel}`;
+    if (hours > 0) return `${hours} ชม. ${m} น.`;
+    return `${m} น.`;
   };
 
   const processedTickets = useMemo(() => {
@@ -475,7 +475,7 @@ export default function DailyReportPage() {
                     <td style={{ padding: '12px 16px', color: 'var(--primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: '600', ...getColWidth('resolution') }}>{ticket.resolution_summary || '-'}</td>
                     <td style={{ padding: '12px 16px', ...getColWidth('assignee') }}>{ticket.assigned_agent?.display_name || '-'}</td>
                     <td style={{ padding: '12px 16px', color: 'var(--success)', background: 'var(--primary-transparent)', ...getColWidth('source') }}>{ticket.source || 'Line กลุ่ม'}</td>
-                    <td style={{ padding: '12px 16px', fontWeight: '700', ...getColWidth('module') }}>{ticket.module || '-'}</td>
+                    <td style={{ padding: '12px 16px', fontWeight: '400', ...getColWidth('module') }}>{ticket.module || '-'}</td>
                     <td style={{ padding: '12px 16px', ...getColWidth('type') }}>
                       <span style={{ padding: '4px 8px', background: 'var(--primary-transparent)', color: 'var(--accent)', borderRadius: '4px', fontSize: '10px', fontWeight: '800' }}>
                         {ticket.issue_type || ticket.priority || 'PB'}
