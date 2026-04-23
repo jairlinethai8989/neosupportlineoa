@@ -60,10 +60,24 @@ export async function claimTicketServerAction(ticketId: string) {
   if (ticketError) throw new Error(ticketError.message);
 
   if (ticket?.customer_id) {
-     await supabaseAdmin.from('conversations')
-      .update({ current_ticket_id: ticketId })
-      .eq('customer_id', ticket.customer_id)
-      .eq('status', 'active');
+     // 1. Check if this ticket already has an active conversation
+     const { data: existingConv } = await supabaseAdmin
+       .from('conversations')
+       .select('id')
+       .eq('current_ticket_id', ticketId)
+       .eq('status', 'active')
+       .maybeSingle();
+
+     if (!existingConv) {
+       // 2. Create a new conversation for this ticket if it doesn't exist
+       // This supports the "1 Ticket : 1 Chat" architecture
+       await supabaseAdmin.from('conversations').insert([{
+         customer_id: ticket.customer_id,
+         current_ticket_id: ticketId,
+         status: 'active',
+         last_message_at: new Date().toISOString()
+       }]);
+     }
   }
 
   await supabaseAdmin.from('ticket_logs').insert([{

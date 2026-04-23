@@ -22,7 +22,7 @@ export const inboxConversationSelect = `
   customer_id,
   current_ticket_id,
   customers (id, display_name, avatar_url),
-  ticket_data:tickets!current_ticket_id (id, ticket_no, subject)
+  ticket_data:tickets (id, ticket_no, subject)
 `;
 
 export const inboxMessageSelect = `
