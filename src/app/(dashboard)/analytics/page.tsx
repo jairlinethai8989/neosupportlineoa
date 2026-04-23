@@ -1,21 +1,17 @@
 'use client';
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { 
   BarChart as BarChartIcon, 
   PieChart as PieChartIcon, 
   LineChart as LineChartIcon,
-  Filter,
   Calendar,
   Download,
   FileSpreadsheet,
-  LayoutDashboard,
   Settings,
   LayoutGrid,
   FileText as FileIcon,
   RefreshCw,
-  CheckCircle,
-  Zap
 } from 'lucide-react';
 import { 
   ResponsiveContainer, 
@@ -24,17 +20,15 @@ import {
   PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend,
   AreaChart, Area,
-  ComposedChart,
-  RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar,
+  RadarChart, PolarGrid, PolarAngleAxis, Radar,
   ScatterChart, Scatter,
-  Treemap
 } from 'recharts';
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, rectSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { DateTime } from 'luxon';
 import { supabase } from '@/lib/supabase';
-import { exportToExcel, exportToPDF, exportDashboardAsPDF } from '@/lib/utils/exportUtils';
+import { exportToExcel, exportDashboardAsPDF } from '@/lib/utils/exportUtils';
 import Skeleton from '@/components/ui/Skeleton';
 import html2canvas from 'html2canvas';
 
@@ -60,7 +54,31 @@ const CHART_TYPES = [
   { id: 'scatter-load', name: 'ภาระงานรายวัน (Daily Load)', icon: LayoutGrid, type: 'scatter' }
 ];
 
+const DEFAULT_WIDGET_LAYOUT = [
+  'bar-status',
+  'bar-category',
+  'line-trend',
+  'pie-priority',
+  'area-peak',
+  'line-csat',
+];
+
 const COLORS = ['#00f2fe', '#4facfe', '#7367f0', '#28c76f', '#ff9f43', '#ea5455', '#9f44d3', '#f1f5f9'];
+
+function getTicketCategoryLabel(ticket: any): string {
+  const issueType = String(ticket?.issue_type || '').trim();
+  if (issueType) return issueType;
+
+  const subject = String(ticket?.subject || '').trim();
+  if (!subject) return 'Other';
+
+  const separatorIndex = subject.indexOf(':');
+  if (separatorIndex > 0) {
+    return subject.slice(0, separatorIndex).trim() || subject;
+  }
+
+  return subject;
+}
 
 /**
  * 2. Sortable Widget Component
@@ -75,7 +93,7 @@ const SortableWidget = ({ id, chart, data, onRemove }: any) => {
         setSelectedItems(data.map((d: any) => d.name));
       }, 0);
     }
-  }, [data]);
+  }, [data, selectedItems.length]);
 
   const filteredData = useMemo(() => {
     return data.filter((d: any) => selectedItems.includes(d.name));
@@ -223,7 +241,7 @@ const SortableWidget = ({ id, chart, data, onRemove }: any) => {
  * 3. Main Analytics Page
  */
 export default function AdvancedAnalyticsPage() {
-  const [activeWidgets, setActiveWidgets] = useState<string[]>(CHART_TYPES.slice(0, 6).map(c => c.id));
+  const [activeWidgets, setActiveWidgets] = useState<string[]>(DEFAULT_WIDGET_LAYOUT);
   const [dateRange, setDateRange] = useState({
     start: DateTime.now().minus({ months: 1 }).toISODate(),
     end: DateTime.now().toISODate()
@@ -238,7 +256,7 @@ export default function AdvancedAnalyticsPage() {
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true);
     try {
       const [ticketsRes, csatRes] = await Promise.all([
@@ -263,7 +281,7 @@ export default function AdvancedAnalyticsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [dateRange.end, dateRange.start]);
 
   useEffect(() => {
     let isMounted = true;
@@ -271,7 +289,7 @@ export default function AdvancedAnalyticsPage() {
       if (isMounted) fetchData();
     }, 0);
     return () => { isMounted = false; };
-  }, [dateRange]);
+  }, [fetchData]);
 
   const chartDataMap = useMemo(() => {
     if (!tickets.length) return {};
@@ -280,7 +298,7 @@ export default function AdvancedAnalyticsPage() {
     const statusCounts = tickets.reduce((acc: any, t) => { acc[t.status] = (acc[t.status] || 0) + 1; return acc; }, {});
     const priorityCounts = tickets.reduce((acc: any, t) => { acc[t.priority] = (acc[t.priority] || 0) + 1; return acc; }, {});
     const categoryCounts = tickets.reduce((acc: any, t) => { 
-      const cat = (t as any).department_data?.name || 'Unassigned';
+      const cat = getTicketCategoryLabel(t);
       acc[cat] = (acc[cat] || 0) + 1; 
       return acc; 
     }, {});
@@ -322,7 +340,10 @@ export default function AdvancedAnalyticsPage() {
       'pie-priority': Object.entries(priorityCounts).map(([name, value]) => ({ name, value })),
       'line-trend': trendData,
       'area-volume': trendData, // Reuse trend for volume
-      'bar-category': Object.entries(categoryCounts).map(([name, value]) => ({ name, value })),
+      'bar-category': Object.entries(categoryCounts)
+        .map(([name, value]) => ({ name, value }))
+        .sort((a, b) => Number(b.value) - Number(a.value))
+        .slice(0, 12),
       'area-peak': peakData,
       'bar-resolution': resolutionData,
       'line-csat': Object.entries(csatData).map(([name, value]) => ({ name: `Score ${name}`, value })),
@@ -483,8 +504,8 @@ export default function AdvancedAnalyticsPage() {
         <Skeleton width={200} height={36} borderRadius={20} marginBottom={32} />
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(400px, 1fr))', gap: '24px' }}>
-          {[1, 2, 3, 4, 5, 6].map(i => (
-             <div key={i} className="glass" style={{ height: '340px', padding: '16px', display: 'flex', flexDirection: 'column' }}>
+              {DEFAULT_WIDGET_LAYOUT.map((widgetId, i) => (
+                 <div key={i} className="glass" style={{ height: '340px', padding: '16px', display: 'flex', flexDirection: 'column' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '24px' }}>
                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                       <Skeleton width={32} height={32} borderRadius={8} />
