@@ -1,8 +1,8 @@
 'use client';
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
-import { 
+import {
   Download, Loader2, Table as TableIcon, AlignLeft, Filter,
   ArrowUpDown, Search, X, Calendar, ChevronRight
 } from 'lucide-react';
@@ -15,6 +15,50 @@ type SortConfig = {
   direction: 'asc' | 'desc';
 } | null;
 
+type ReportColumn = {
+  id: string;
+  label: string;
+  sortKey: string;
+};
+
+const INITIAL_COLUMN_WIDTHS: Record<string, number> = {
+  status: 84,
+  date: 120,
+  hospital: 170,
+  customer: 130,
+  subject: 190,
+  additionalDetails: 180,
+  resolution: 250,
+  assignee: 170,
+  source: 125,
+  module: 120,
+  type: 120,
+  createdTime: 120,
+  resolvedTime: 120,
+  timeUsed: 150,
+};
+
+function getTicketSubjectOnly(ticket: any): string {
+  const subjectRaw = String(ticket?.subject ?? '').trim();
+  if (!subjectRaw) return '-';
+
+  const descriptionRaw = String(ticket?.description ?? '').trim();
+  if (!descriptionRaw) return subjectRaw;
+
+  const splitIndex = subjectRaw.indexOf(':');
+  if (splitIndex <= 0) return subjectRaw;
+
+  const heading = subjectRaw.slice(0, splitIndex).trim();
+  const suffix = subjectRaw.slice(splitIndex + 1).trim();
+  if (!heading || !suffix) return subjectRaw;
+
+  const normalizedSuffix = suffix.endsWith('...') ? suffix.slice(0, -3).trim() : suffix;
+  const isLegacyCombinedSubject =
+    descriptionRaw === suffix || descriptionRaw.startsWith(normalizedSuffix);
+
+  return isLegacyCombinedSubject ? heading : subjectRaw;
+}
+
 export default function DailyReportPage() {
   const { t } = useStaffLocale();
   const [tickets, setTickets] = useState<any[]>([]);
@@ -25,11 +69,43 @@ export default function DailyReportPage() {
   });
   const [preset, setPreset] = useState('today');
   const [isExporting, setIsExporting] = useState(false);
-  
-  // Sorting & Filtering State
   const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'created_at', direction: 'desc' });
   const [filterText, setFilterText] = useState('');
   const [showFilter, setShowFilter] = useState(false);
+  const [columnWidths, setColumnWidths] = useState<Record<string, number>>(INITIAL_COLUMN_WIDTHS);
+
+  const columns: ReportColumn[] = useMemo(
+    () => [
+      { id: 'status', label: t('reports.columns.status'), sortKey: 'status' },
+      { id: 'date', label: t('reports.columns.date'), sortKey: 'date' },
+      { id: 'hospital', label: t('reports.columns.hospital'), sortKey: 'hospital' },
+      { id: 'customer', label: t('reports.columns.customer'), sortKey: 'customer' },
+      { id: 'subject', label: t('reports.columns.subject'), sortKey: 'subject' },
+      { id: 'additionalDetails', label: t('reports.columns.additionalDetails'), sortKey: 'description' },
+      { id: 'resolution', label: t('reports.columns.resolution'), sortKey: 'resolution' },
+      { id: 'assignee', label: t('reports.columns.assignee'), sortKey: 'agent' },
+      { id: 'source', label: t('reports.columns.source'), sortKey: 'source' },
+      { id: 'module', label: t('reports.columns.module'), sortKey: 'module' },
+      { id: 'type', label: t('reports.columns.type'), sortKey: 'type' },
+      { id: 'createdTime', label: t('reports.columns.createdTime'), sortKey: 'date' },
+      { id: 'resolvedTime', label: t('reports.columns.resolvedTime'), sortKey: 'resolved_at' },
+      { id: 'timeUsed', label: t('reports.columns.timeUsed'), sortKey: 'duration' },
+    ],
+    [t]
+  );
+
+  const tableMinWidth = useMemo(
+    () => columns.reduce((sum, column) => sum + (columnWidths[column.id] ?? 120), 0),
+    [columns, columnWidths]
+  );
+
+  const getColWidth = useCallback(
+    (id: string) => {
+      const width = columnWidths[id] ?? 120;
+      return { width: `${width}px`, minWidth: `${width}px`, maxWidth: `${width}px` };
+    },
+    [columnWidths]
+  );
 
   const fetchTickets = async (start: string, end: string) => {
     setLoading(true);
@@ -101,32 +177,29 @@ export default function DailyReportPage() {
     const mins = Math.floor(diff / (1000 * 60));
     const hours = Math.floor(mins / 60);
     const m = mins % 60;
-    const hoursLabel = t('dashboard.hoursAgo').replace('ที่แล้ว', '');
-    const minsLabel = t('dashboard.minutesAgo').replace('ที่แล้ว', '');
+    const hoursLabel = t('dashboard.hoursAgo').replace('ที่ผ่านมา', '');
+    const minsLabel = t('dashboard.minutesAgo').replace('ที่ผ่านมา', '');
     if (hours > 0) return `${hours} ${hoursLabel} ${m} ${minsLabel}`;
     return `${m} ${minsLabel}`;
   };
 
-  // Process data (Filter & Sort)
   const processedTickets = useMemo(() => {
     let result = [...tickets];
 
-    // Filter
     if (filterText) {
       const lower = filterText.toLowerCase();
-      result = result.filter(t => 
-        (t.subject?.toLowerCase().includes(lower)) ||
-        (t.description?.toLowerCase().includes(lower)) ||
-        (t.customers?.display_name?.toLowerCase().includes(lower)) ||
-        (t.hospitals?.name?.toLowerCase().includes(lower)) ||
-        (t.customers?.hospitals?.name?.toLowerCase().includes(lower)) ||
-        (t.assigned_agent?.display_name?.toLowerCase().includes(lower)) ||
-        (t.status?.toLowerCase().includes(lower)) ||
-        (t.module?.toLowerCase().includes(lower))
+      result = result.filter(ticket =>
+        getTicketSubjectOnly(ticket).toLowerCase().includes(lower) ||
+        (ticket.description?.toLowerCase().includes(lower)) ||
+        (ticket.customers?.display_name?.toLowerCase().includes(lower)) ||
+        (ticket.hospitals?.name?.toLowerCase().includes(lower)) ||
+        (ticket.customers?.hospitals?.name?.toLowerCase().includes(lower)) ||
+        (ticket.assigned_agent?.display_name?.toLowerCase().includes(lower)) ||
+        (ticket.status?.toLowerCase().includes(lower)) ||
+        (ticket.module?.toLowerCase().includes(lower))
       );
     }
 
-    // Sort
     if (sortConfig) {
       result.sort((a, b) => {
         let valA: any = '';
@@ -137,7 +210,7 @@ export default function DailyReportPage() {
           case 'date': valA = a.created_at; valB = b.created_at; break;
           case 'hospital': valA = a.hospitals?.name || a.customers?.hospitals?.name; valB = b.hospitals?.name || b.customers?.hospitals?.name; break;
           case 'customer': valA = a.customers?.display_name || a.assigned_agent?.display_name; valB = b.customers?.display_name || b.assigned_agent?.display_name; break;
-          case 'subject': valA = a.subject || ''; valB = b.subject || ''; break;
+          case 'subject': valA = getTicketSubjectOnly(a); valB = getTicketSubjectOnly(b); break;
           case 'description': valA = a.description || ''; valB = b.description || ''; break;
           case 'resolution': valA = a.resolution_summary; valB = b.resolution_summary; break;
           case 'agent': valA = a.assigned_agent?.display_name; valB = b.assigned_agent?.display_name; break;
@@ -160,37 +233,57 @@ export default function DailyReportPage() {
 
   const handleSort = (key: string) => {
     setSortConfig(prev => {
-      if (prev?.key === key) {
-        return { key, direction: prev.direction === 'asc' ? 'desc' : 'asc' };
-      }
+      if (prev?.key === key) return { key, direction: prev.direction === 'asc' ? 'desc' : 'asc' };
       return { key, direction: 'asc' };
     });
   };
 
+  const handleResizeStart = useCallback((columnId: string, event: React.MouseEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+
+    const startX = event.clientX;
+    const startWidth = columnWidths[columnId] ?? 120;
+
+    const onMouseMove = (moveEvent: MouseEvent) => {
+      const nextWidth = Math.max(90, startWidth + (moveEvent.clientX - startX));
+      setColumnWidths(prev => ({ ...prev, [columnId]: nextWidth }));
+    };
+
+    const onMouseUp = () => {
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+    };
+
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+  }, [columnWidths]);
+
   const handleExportExcel = () => {
     setIsExporting(true);
     setTimeout(() => {
-      const formatData = processedTickets.map(t => {
-        const d = new Date(t.created_at);
-        const resolvedAt = t.resolved_at ? new Date(t.resolved_at) : null;
-        
+      const formatData = processedTickets.map(ticket => {
+        const createdAt = new Date(ticket.created_at);
+        const resolvedAt = ticket.resolved_at ? new Date(ticket.resolved_at) : null;
+
         return {
-           [t('reports.columns.status')]: t.status === 'Resolved' || t.status === 'Closed' ? '✅' : (t.status === 'New' ? '⚪' : '🔄'),
-           [t('reports.columns.date')]: d.toLocaleDateString('th-TH'),
-           [t('reports.columns.hospital')]: t.hospitals?.name || t.customers?.hospitals?.name || '-',
-           [t('reports.columns.customer')]: t.customers?.display_name || (t.assigned_agent ? `👷‍♂️ ${t.assigned_agent.display_name}` : '-'),
-           [t('reports.columns.subject')]: t.subject || '-',
-           [t('reports.columns.additionalDetails')]: t.description || '-',
-           [t('reports.columns.resolution')]: t.resolution_summary || '-',
-           [t('reports.columns.assignee')]: t.assigned_agent?.display_name || '-',
-           [t('reports.columns.source')]: t.source || 'Line กลุ่ม',
-           [t('reports.columns.module')]: t.module || '-',
-           [t('reports.columns.type')]: t.issue_type || '-',
-           [t('reports.columns.createdTime')]: d.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }),
-           [t('reports.columns.resolvedTime')]: resolvedAt ? resolvedAt.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }) : '-',
-           [t('reports.columns.timeUsed')]: getDurationStr(t.created_at, t.resolved_at)
+          [t('reports.columns.status')]: ticket.status === 'Resolved' || ticket.status === 'Closed' ? '✅' : (ticket.status === 'New' ? '⚪' : '🔄'),
+          [t('reports.columns.date')]: createdAt.toLocaleDateString('th-TH'),
+          [t('reports.columns.hospital')]: ticket.hospitals?.name || ticket.customers?.hospitals?.name || '-',
+          [t('reports.columns.customer')]: ticket.customers?.display_name || (ticket.assigned_agent ? `👷‍♂️ ${ticket.assigned_agent.display_name}` : '-'),
+          [t('reports.columns.subject')]: getTicketSubjectOnly(ticket),
+          [t('reports.columns.additionalDetails')]: ticket.description || '-',
+          [t('reports.columns.resolution')]: ticket.resolution_summary || '-',
+          [t('reports.columns.assignee')]: ticket.assigned_agent?.display_name || '-',
+          [t('reports.columns.source')]: ticket.source || 'Line กลุ่ม',
+          [t('reports.columns.module')]: ticket.module || '-',
+          [t('reports.columns.type')]: ticket.issue_type || '-',
+          [t('reports.columns.createdTime')]: createdAt.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }),
+          [t('reports.columns.resolvedTime')]: resolvedAt ? resolvedAt.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }) : '-',
+          [t('reports.columns.timeUsed')]: getDurationStr(ticket.created_at, ticket.resolved_at)
         };
       });
+
       const rangeStr = dateRange.start === dateRange.end ? dateRange.start : `${dateRange.start}_to_${dateRange.end}`;
       exportToExcel(formatData, `Daily_Issues_${rangeStr}`);
       setIsExporting(false);
@@ -206,208 +299,202 @@ export default function DailyReportPage() {
     );
   }
 
-  const COLUMNS = [
-    { label: t('reports.columns.status'), key: 'status' },
-    { label: t('reports.columns.date'), key: 'date' },
-    { label: t('reports.columns.hospital'), key: 'hospital' },
-    { label: t('reports.columns.customer'), key: 'customer' },
-    { label: t('reports.columns.subject'), key: 'subject' },
-    { label: t('reports.columns.additionalDetails'), key: 'description' },
-    { label: t('reports.columns.resolution'), key: 'resolution' },
-    { label: t('reports.columns.assignee'), key: 'agent' },
-    { label: t('reports.columns.source'), key: 'source' },
-    { label: t('reports.columns.module'), key: 'module' },
-    { label: t('reports.columns.type'), key: 'type' },
-    { label: t('reports.columns.createdTime'), key: 'date' },
-    { label: t('reports.columns.resolvedTime'), key: 'resolved_at' },
-    { label: t('reports.columns.timeUsed'), key: 'duration' },
-  ];
-
   return (
     <div className="animate-page-in" style={{ height: 'calc(100vh - 40px)', display: 'flex', flexDirection: 'column' }}>
-      {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexShrink: 0 }}>
-         <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-               <div style={{ background: 'var(--primary-transparent)', padding: '10px', borderRadius: '12px' }}>
-                  <TableIcon size={24} color="var(--primary)" />
-               </div>
-               <div>
-                 <h1 style={{ fontSize: '22px', fontWeight: '800', letterSpacing: '-0.5px', color: 'var(--text-main)' }}>{t('reports.dailyTitle')}</h1>
-                 <p style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: '500' }}>{t('reports.dailySubtitle')}</p>
-               </div>
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <div style={{ background: 'var(--primary-transparent)', padding: '10px', borderRadius: '12px' }}>
+              <TableIcon size={24} color="var(--primary)" />
             </div>
-         </div>
+            <div>
+              <h1 style={{ fontSize: '22px', fontWeight: '800', letterSpacing: '-0.5px', color: 'var(--text-main)' }}>{t('reports.dailyTitle')}</h1>
+              <p style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: '500' }}>{t('reports.dailySubtitle')}</p>
+            </div>
+          </div>
+        </div>
 
-         <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-            {/* Presets */}
-            <div style={{ display: 'flex', background: 'var(--bg-card)', padding: '4px', borderRadius: '12px', border: '1px solid var(--border)' }}>
-              {[
-                { label: t('dashboard.daily'), value: 'today' },
-                { label: t('dashboard.weekly'), value: 'week' },
-                { label: t('dashboard.monthly'), value: 'month' }
-              ].map(p => (
-                <button
-                  key={p.value}
-                  onClick={() => applyPreset(p.value)}
-                  style={{
-                    padding: '6px 16px',
-                    borderRadius: '8px',
-                    border: 'none',
-                    background: preset === p.value ? 'var(--primary)' : 'transparent',
-                    color: preset === p.value ? 'black' : 'var(--text-muted)',
-                    fontSize: '13px',
-                    fontWeight: '700',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s'
-                  }}
-                >
-                  {p.label}
+        <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+          <div style={{ display: 'flex', background: 'var(--bg-card)', padding: '4px', borderRadius: '12px', border: '1px solid var(--border)' }}>
+            {[
+              { label: t('dashboard.daily'), value: 'today' },
+              { label: t('dashboard.weekly'), value: 'week' },
+              { label: t('dashboard.monthly'), value: 'month' }
+            ].map(p => (
+              <button
+                key={p.value}
+                onClick={() => applyPreset(p.value)}
+                style={{
+                  padding: '6px 16px',
+                  borderRadius: '8px',
+                  border: 'none',
+                  background: preset === p.value ? 'var(--primary)' : 'transparent',
+                  color: preset === p.value ? 'black' : 'var(--text-muted)',
+                  fontSize: '13px',
+                  fontWeight: '700',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s'
+                }}
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '0 12px', height: '44px', background: 'var(--bg-input)', borderRadius: '12px', border: '1px solid var(--border)' }}>
+            <Calendar size={16} color="var(--primary)" />
+            <input
+              type="date"
+              value={dateRange.start}
+              onChange={(e) => {
+                setDateRange(prev => ({ ...prev, start: e.target.value }));
+                setPreset('custom');
+              }}
+              style={{ background: 'none', border: 'none', color: 'var(--text-main)', fontWeight: '600', fontSize: '13px', outline: 'none' }}
+            />
+            <ChevronRight size={14} color="var(--text-muted)" />
+            <input
+              type="date"
+              value={dateRange.end}
+              onChange={(e) => {
+                setDateRange(prev => ({ ...prev, end: e.target.value }));
+                setPreset('custom');
+              }}
+              style={{ background: 'none', border: 'none', color: 'var(--text-main)', fontWeight: '600', fontSize: '13px', outline: 'none' }}
+            />
+          </div>
+
+          {showFilter && (
+            <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+              <Search size={16} style={{ position: 'absolute', left: '12px', color: 'var(--text-muted)' }} />
+              <input
+                type="text"
+                placeholder={t('common.messages.noResults').replace('พบ', 'ค้นหา')}
+                value={filterText}
+                onChange={(e) => setFilterText(e.target.value)}
+                className="glass-interactive"
+                autoFocus
+                style={{ padding: '0 36px', width: '200px', height: '44px', borderRadius: '12px', border: '1px solid var(--primary)', background: 'var(--bg-input)', color: 'var(--text-main)' }}
+              />
+              {filterText && (
+                <button onClick={() => setFilterText('')} style={{ position: 'absolute', right: '12px', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
+                  <X size={14} />
                 </button>
-              ))}
+              )}
             </div>
+          )}
 
-            {/* Custom Range */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '0 12px', height: '44px', background: 'var(--bg-input)', borderRadius: '12px', border: '1px solid var(--border)' }}>
-              <Calendar size={16} color="var(--primary)" />
-              <input 
-                 type="date" 
-                 value={dateRange.start}
-                 onChange={(e) => {
-                   setDateRange(prev => ({ ...prev, start: e.target.value }));
-                   setPreset('custom');
-                 }}
-                 style={{ background: 'none', border: 'none', color: 'var(--text-main)', fontWeight: '600', fontSize: '13px', outline: 'none' }}
-              />
-              <ChevronRight size={14} color="var(--text-muted)" />
-              <input 
-                 type="date" 
-                 value={dateRange.end}
-                 onChange={(e) => {
-                   setDateRange(prev => ({ ...prev, end: e.target.value }));
-                   setPreset('custom');
-                 }}
-                 style={{ background: 'none', border: 'none', color: 'var(--text-main)', fontWeight: '600', fontSize: '13px', outline: 'none' }}
-              />
-            </div>
+          <button
+            onClick={() => setShowFilter(!showFilter)}
+            className={`glass-interactive ${showFilter ? 'active' : ''}`}
+            style={{ width: '44px', height: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '12px', border: showFilter ? '1px solid var(--primary)' : '1px solid var(--border)', background: showFilter ? 'var(--primary-transparent)' : 'var(--bg-card)', color: showFilter ? 'var(--primary)' : 'var(--text-main)' }}
+          >
+            <Filter size={18} />
+          </button>
 
-            {showFilter && (
-              <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                <Search size={16} style={{ position: 'absolute', left: '12px', color: 'var(--text-muted)' }} />
-                <input 
-                  type="text"
-                  placeholder={t('common.messages.noResults').replace('พบ', 'ค้นหา')}
-                  value={filterText}
-                  onChange={(e) => setFilterText(e.target.value)}
-                  className="glass-interactive"
-                  autoFocus
-                  style={{ padding: '0 36px', width: '200px', height: '44px', borderRadius: '12px', border: '1px solid var(--primary)', background: 'var(--bg-input)', color: 'var(--text-main)' }}
-                />
-                {filterText && (
-                  <button onClick={() => setFilterText('')} style={{ position: 'absolute', right: '12px', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
-                    <X size={14} />
-                  </button>
-                )}
-              </div>
-            )}
-
-            <button 
-              onClick={() => setShowFilter(!showFilter)}
-              className={`glass-interactive ${showFilter ? 'active' : ''}`}
-              style={{ width: '44px', height: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '12px', border: showFilter ? '1px solid var(--primary)' : '1px solid var(--border)', background: showFilter ? 'var(--primary-transparent)' : 'var(--bg-card)', color: showFilter ? 'var(--primary)' : 'var(--text-main)' }}
-            >
-              <Filter size={18} />
-            </button>
-            
-            <button 
-               onClick={handleExportExcel}
-               disabled={isExporting || processedTickets.length === 0}
-               className="glass-interactive"
-               style={{ height: '44px', padding: '0 20px', borderRadius: '12px', border: 'none', background: 'var(--success)', color: 'white', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 8px 20px rgba(16, 185, 129, 0.25)' }}
-            >
-               {isExporting ? <Loader2 size={18} className="animate-spin" /> : <Download size={18} />}
-               {t('reports.exportExcel')}
-            </button>
-         </div>
+          <button
+            onClick={handleExportExcel}
+            disabled={isExporting || processedTickets.length === 0}
+            className="glass-interactive"
+            style={{ height: '44px', padding: '0 20px', borderRadius: '12px', border: 'none', background: 'var(--success)', color: 'white', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 8px 20px rgba(16, 185, 129, 0.25)' }}
+          >
+            {isExporting ? <Loader2 size={18} className="animate-spin" /> : <Download size={18} />}
+            {t('reports.exportExcel')}
+          </button>
+        </div>
       </div>
 
-      {/* Spreadsheet View */}
       <div className="glass" style={{ flex: 1, borderRadius: '16px', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-         <div style={{ overflowX: 'auto', overflowY: 'auto', height: '100%', background: 'var(--bg-card)' }}>
-            <table style={{ width: '100%', minWidth: '2050px', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
-               <thead style={{ position: 'sticky', top: 0, zIndex: 10, background: 'var(--primary)', color: 'white', fontWeight: '700' }}>
-                  <tr>
-                     {COLUMNS.map((col, i) => (
-                        <th 
-                          key={i} 
-                          onClick={() => handleSort(col.key)}
-                          style={{ 
-                            padding: '12px 16px', 
-                            borderRight: '1px solid rgba(255,255,255,0.15)', 
-                            whiteSpace: 'nowrap', 
-                            textTransform: 'uppercase', 
-                            fontSize: '11px', 
-                            letterSpacing: '0.8px',
-                            cursor: 'pointer',
-                            userSelect: 'none'
-                          }}
-                        >
-                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
-                              {col.label}
-                              <div style={{ display: 'flex', flexDirection: 'column', opacity: sortConfig?.key === col.key ? 1 : 0.4 }}>
-                                <ArrowUpDown size={12} />
-                              </div>
-                           </div>
-                        </th>
-                     ))}
+        <div style={{ overflowX: 'auto', overflowY: 'auto', height: '100%', background: 'var(--bg-card)' }}>
+          <table style={{ width: '100%', minWidth: `${tableMinWidth}px`, borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
+            <thead style={{ position: 'sticky', top: 0, zIndex: 10, background: 'var(--primary)', color: 'white', fontWeight: '700' }}>
+              <tr>
+                {columns.map((column) => (
+                  <th
+                    key={column.id}
+                    onClick={() => handleSort(column.sortKey)}
+                    style={{
+                      position: 'relative',
+                      padding: '12px 16px',
+                      ...getColWidth(column.id),
+                      borderRight: '1px solid rgba(255,255,255,0.15)',
+                      whiteSpace: 'nowrap',
+                      textTransform: 'uppercase',
+                      fontSize: '11px',
+                      letterSpacing: '0.8px',
+                      cursor: 'pointer',
+                      userSelect: 'none'
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
+                      {column.label}
+                      <div style={{ display: 'flex', flexDirection: 'column', opacity: sortConfig?.key === column.sortKey ? 1 : 0.4 }}>
+                        <ArrowUpDown size={12} />
+                      </div>
+                    </div>
+                    <div
+                      onMouseDown={(event) => handleResizeStart(column.id, event)}
+                      style={{
+                        position: 'absolute',
+                        top: 0,
+                        right: 0,
+                        width: '10px',
+                        height: '100%',
+                        cursor: 'col-resize',
+                        zIndex: 2,
+                      }}
+                      aria-label={`Resize ${column.label}`}
+                    />
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody style={{ fontWeight: '500' }}>
+              {loading && tickets.length === 0 ? (
+                <tr><td colSpan={columns.length} style={{ textAlign: 'center', padding: '40px' }}><Loader2 className="animate-spin text-primary" style={{ margin: '0 auto' }} /></td></tr>
+              ) : processedTickets.length === 0 ? (
+                <tr><td colSpan={columns.length} style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
+                  {filterText ? t('common.messages.noResults') : t('reports.noDataRange')}
+                </td></tr>
+              ) : (
+                processedTickets.map((ticket, idx) => (
+                  <tr key={ticket.id || idx} style={{ borderBottom: '1px solid var(--border)', background: idx % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.02)' }}>
+                    <td style={{ padding: '12px 16px', textAlign: 'center', ...getColWidth('status') }}>
+                      {ticket.status === 'Resolved' || ticket.status === 'Closed' ? '✅' : (ticket.status === 'New' ? '⚪' : '🔄')}
+                    </td>
+                    <td style={{ padding: '12px 16px', ...getColWidth('date') }}>{new Date(ticket.created_at).toLocaleDateString('th-TH')}</td>
+                    <td style={{ padding: '12px 16px', fontWeight: '700', color: 'var(--text-main)', ...getColWidth('hospital') }}>{ticket.hospitals?.name || ticket.customers?.hospitals?.name || '-'}</td>
+                    <td style={{ padding: '12px 16px', ...getColWidth('customer') }}>{ticket.customers?.display_name || (ticket.assigned_agent ? `👷‍♂️ ${ticket.assigned_agent.display_name}` : '-')}</td>
+                    <td style={{ padding: '12px 16px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', ...getColWidth('subject') }}>
+                      <AlignLeft size={12} style={{ display: 'inline', marginRight: '6px', opacity: 0.5 }} />
+                      {getTicketSubjectOnly(ticket)}
+                    </td>
+                    <td style={{ padding: '12px 16px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--text-muted)', ...getColWidth('additionalDetails') }}>
+                      {ticket.description || '-'}
+                    </td>
+                    <td style={{ padding: '12px 16px', color: 'var(--primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: '600', ...getColWidth('resolution') }}>{ticket.resolution_summary || '-'}</td>
+                    <td style={{ padding: '12px 16px', ...getColWidth('assignee') }}>{ticket.assigned_agent?.display_name || '-'}</td>
+                    <td style={{ padding: '12px 16px', color: 'var(--success)', background: 'var(--primary-transparent)', ...getColWidth('source') }}>{ticket.source || 'Line กลุ่ม'}</td>
+                    <td style={{ padding: '12px 16px', fontWeight: '700', ...getColWidth('module') }}>{ticket.module || '-'}</td>
+                    <td style={{ padding: '12px 16px', ...getColWidth('type') }}>
+                      <span style={{ padding: '4px 8px', background: 'var(--primary-transparent)', color: 'var(--accent)', borderRadius: '4px', fontSize: '10px', fontWeight: '800' }}>
+                        {ticket.issue_type || ticket.priority || 'PB'}
+                      </span>
+                    </td>
+                    <td style={{ padding: '12px 16px', ...getColWidth('createdTime') }}>{new Date(ticket.created_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })} น.</td>
+                    <td style={{ padding: '12px 16px', ...getColWidth('resolvedTime') }}>{ticket.resolved_at ? new Date(ticket.resolved_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }) + ' น.' : '-'}</td>
+                    <td style={{ padding: '12px 16px', fontWeight: '700', color: ticket.resolved_at ? 'var(--success)' : 'inherit', ...getColWidth('timeUsed') }}>{getDurationStr(ticket.created_at, ticket.resolved_at)}</td>
                   </tr>
-               </thead>
-               <tbody style={{ fontWeight: '500' }}>
-                  {loading && tickets.length === 0 ? (
-                     <tr><td colSpan={14} style={{ textAlign: 'center', padding: '40px' }}><Loader2 className="animate-spin text-primary" style={{ margin: '0 auto' }} /></td></tr>
-                  ) : processedTickets.length === 0 ? (
-                     <tr><td colSpan={14} style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
-                         {filterText ? t('common.messages.noResults') : t('reports.noDataRange')}
-                     </td></tr>
-                  ) : (
-                     processedTickets.map((t, idx) => (
-                        <tr key={t.id || idx} style={{ borderBottom: '1px solid var(--border)', background: idx % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.02)' }}>
-                           <td style={{ padding: '12px 16px', textAlign: 'center' }}>
-                              {t.status === 'Resolved' || t.status === 'Closed' ? '✅' : (t.status === 'New' ? '⚪' : '🔄')}
-                           </td>
-                           <td style={{ padding: '12px 16px' }}>{new Date(t.created_at).toLocaleDateString('th-TH')}</td>
-                           <td style={{ padding: '12px 16px', fontWeight: '700', color: 'var(--text-main)' }}>{t.hospitals?.name || t.customers?.hospitals?.name || '-'}</td>
-                           <td style={{ padding: '12px 16px' }}>{t.customers?.display_name || (t.assigned_agent ? `👷‍♂️ ${t.assigned_agent.display_name}` : '-')}</td>
-                           <td style={{ padding: '12px 16px', maxWidth: '240px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                              <AlignLeft size={12} style={{ display: 'inline', marginRight: '6px', opacity: 0.5 }} />
-                              {t.subject || '-'}
-                           </td>
-                           <td style={{ padding: '12px 16px', maxWidth: '320px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--text-muted)' }}>
-                              {t.description || '-'}
-                           </td>
-                           <td style={{ padding: '12px 16px', color: 'var(--primary)', maxWidth: '250px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: '600' }}>{t.resolution_summary || '-'}</td>
-                           <td style={{ padding: '12px 16px' }}>{t.assigned_agent?.display_name || '-'}</td>
-                           <td style={{ padding: '12px 16px', color: 'var(--success)', background: 'var(--primary-transparent)' }}>{t.source || 'Line กลุ่ม'}</td>
-                           <td style={{ padding: '12px 16px', fontWeight: '700' }}>{t.module || '-'}</td>
-                           <td style={{ padding: '12px 16px' }}>
-                              <span style={{ padding: '4px 8px', background: 'var(--primary-transparent)', color: 'var(--accent)', borderRadius: '4px', fontSize: '10px', fontWeight: '800' }}>
-                                 {t.issue_type || t.priority || 'PB'}
-                              </span>
-                           </td>
-                           <td style={{ padding: '12px 16px' }}>{new Date(t.created_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })} น.</td>
-                           <td style={{ padding: '12px 16px' }}>{t.resolved_at ? new Date(t.resolved_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }) + ' น.' : '-'}</td>
-                           <td style={{ padding: '12px 16px', fontWeight: '700', color: t.resolved_at ? 'var(--success)' : 'inherit' }}>{getDurationStr(t.created_at, t.resolved_at)}</td>
-                        </tr>
-                     ))
-                  )}
-               </tbody>
-            </table>
-         </div>
-         
-         <div style={{ padding: '14px 20px', background: 'var(--bg-card)', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11px', fontWeight: '500', color: 'var(--text-muted)', letterSpacing: '0.3px' }}>
-            <span>{t('tickets.list')} {processedTickets.length} {t('tickets.workspaceDescription').split(' ')[0]} {filterText && `(${t('dashboard.tabs.all')} ${tickets.length})`}</span>
-            <span>{t('reports.dailySubtitle')} ({dateRange.start} {t('tickets.to')} {dateRange.end})</span>
-         </div>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        <div style={{ padding: '14px 20px', background: 'var(--bg-card)', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11px', fontWeight: '500', color: 'var(--text-muted)', letterSpacing: '0.3px' }}>
+          <span>{t('tickets.list')} {processedTickets.length} {t('tickets.workspaceDescription').split(' ')[0]} {filterText && `(${t('dashboard.tabs.all')} ${tickets.length})`}</span>
+          <span>{t('reports.dailySubtitle')} ({dateRange.start} {t('tickets.to')} {dateRange.end})</span>
+        </div>
       </div>
     </div>
   );
