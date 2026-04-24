@@ -40,6 +40,12 @@ export default function TicketDetailPage() {
   const [viewingImage, setViewingImage] = useState<string>('');
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [showJumpToLatest, setShowJumpToLatest] = useState(false);
+  const [showSurvey, setShowSurvey] = useState<boolean>(false);
+  const [hasResponded, setHasResponded] = useState<boolean>(false);
+  const [surveyRating, setSurveyRating] = useState<number>(0);
+  const [surveyHover, setSurveyHover] = useState<number>(0);
+  const [surveyComment, setSurveyComment] = useState<string>('');
+  const [submittingSurvey, setSubmittingSurvey] = useState<boolean>(false);
   const messagesContainerRef = useRef<HTMLDivElement | null>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   // Use a ref so realtime handler always has the latest conversationId
@@ -260,6 +266,26 @@ export default function TicketDetailPage() {
     return () => window.cancelAnimationFrame(frame);
   }, [messages]);
 
+  useEffect(() => {
+    if (!ticketId) return;
+    async function checkSurvey() {
+      const { data } = await supabase
+        .from('csat_surveys')
+        .select('score')
+        .eq('ticket_id', ticketId)
+        .maybeSingle();
+      if (data?.score) setHasResponded(true);
+    }
+    checkSurvey();
+  }, [ticketId]);
+
+  useEffect(() => {
+    if (ticket?.status === 'Resolved' && !hasResponded) {
+      const timer = setTimeout(() => setShowSurvey(true), 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [ticket?.status, hasResponded]);
+
   const handleEditExistingImage = (url: string) => {
     setViewingImage(url);
     setIsViewerOpen(true);
@@ -364,33 +390,6 @@ export default function TicketDetailPage() {
     'closed': 4
   };
   const currentLevel = statusLevels[String(ticket.status).toLowerCase()] || 1;
-
-  const [showSurvey, setShowSurvey] = useState<boolean>(false);
-  const [hasResponded, setHasResponded] = useState<boolean>(false);
-  const [surveyRating, setSurveyRating] = useState<number>(0);
-  const [surveyHover, setSurveyHover] = useState<number>(0);
-  const [surveyComment, setSurveyComment] = useState<string>('');
-  const [submittingSurvey, setSubmittingSurvey] = useState<boolean>(false);
-
-  useEffect(() => {
-    if (!ticketId) return;
-    async function checkSurvey() {
-      const { data } = await supabase
-        .from('csat_surveys')
-        .select('score')
-        .eq('ticket_id', ticketId)
-        .maybeSingle();
-      if (data?.score) setHasResponded(true);
-    }
-    checkSurvey();
-  }, [ticketId]);
-
-  useEffect(() => {
-    if (ticket?.status === 'Resolved' && !hasResponded) {
-      const timer = setTimeout(() => setShowSurvey(true), 1500);
-      return () => clearTimeout(timer);
-    }
-  }, [ticket?.status, hasResponded]);
 
   const handleSubmitSurvey = async () => {
     if (surveyRating === 0) return;
