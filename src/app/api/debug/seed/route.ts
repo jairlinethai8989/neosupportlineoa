@@ -5,7 +5,8 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
 export async function GET() {
-  if (process.env.ENABLE_DEBUG_ROUTES !== 'true') {
+  // SECURITY: Only allow in development AND when explicitly enabled
+  if (process.env.NODE_ENV !== 'development' || process.env.ENABLE_DEBUG_ROUTES !== 'true') {
     return NextResponse.json({ error: 'Not Found' }, { status: 404 });
   }
 

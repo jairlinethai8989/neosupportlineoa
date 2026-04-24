@@ -79,9 +79,24 @@ export default function TicketDetailPage() {
 
         if (e1) throw e1;
         if (!tBase) {
-           console.warn('Ticket not found for ID:', ticketId);
            setLoading(false);
            return;
+        }
+
+        // SECURITY: Verify the logged-in LINE user owns this ticket
+        if (profile?.userId && tBase.customer_id) {
+          const { data: ownerCustomer } = await supabase
+            .from('customers')
+            .select('id')
+            .eq('line_user_id', profile.userId)
+            .maybeSingle();
+
+          if (!ownerCustomer || ownerCustomer.id !== tBase.customer_id) {
+            console.warn('Access denied: user does not own this ticket');
+            setTicket(null);
+            setLoading(false);
+            return;
+          }
         }
 
         const { data: ticketData } = await supabase
