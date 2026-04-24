@@ -54,11 +54,15 @@ export default function SurveyPage() {
         updated_at: new Date().toISOString()
       }, { onConflict: 'ticket_id' });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase Error:', error);
+        alert(`เกิดข้อผิดพลาดจากฐานข้อมูล: ${error.message} (${error.code})`);
+        return;
+      }
       setCompleted(true);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Survey error:', err);
-      alert('ไม่สามารถบันทึกข้อมูลได้ กรุณาลองใหม่อีกครั้ง');
+      alert(`ไม่สามารถบันทึกข้อมูลได้: ${err.message || 'ปัญหาการเชื่อมต่อ'}`);
     } finally {
       setSubmitting(false);
     }
