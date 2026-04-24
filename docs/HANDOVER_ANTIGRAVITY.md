@@ -54,5 +54,13 @@
 ---
 *หมายเหตุสำหรับ AntiGravity: ชุดที่ 6 นี้มีการจูนเรื่อง Sync/Fallback ไว้ละเอียดมาก ขอความร่วมมือเลี่ยงการ Revert หรือแก้ไข Logic ใน 4 ไฟล์ข้างต้นครับ*
 
+## 🖼️ 7. Portal Image UX & Drawing Accuracy
+ปรับปรุงระบบจัดการรูปภาพฝั่งลูกค้าให้รองรับการใช้งานบนมือถือได้สมบูรณ์แบบ
+*   **ImageViewer Improvements:** ย้ายปุ่มปิดไปซ้ายบนแยกจากปุ่มแก้ไข และปรับ Toolbar ให้ Scroll แนวนอนได้บนมือถือเพื่อป้องกันปุ่มเบียดกัน
+*   **Mobile Editor Fix:** ปรับ Header/Bottom Toolbar ของ Editor ให้เป็น Responsive + Wrap และเพิ่มระบบล็อก Body Scroll ขณะเปิด Modal
+*   **Precision Drawing:** เปลี่ยนระบบวาดภาพไปใช้ **Pointer Events** ร่วมกับ `touch-action: none` และปรับพิกัดการวาดจาก Canvas Rect โดยตรง ทำให้การแตะ/ลากบนมือถือแม่นยำขึ้น 100%
+*   **Files:** `ImageViewerModal.tsx`, `ImageEditorModal.tsx`
+*   **Commit:** `8837cc5`
+
 ---
 *หมายเหตุ: งานทั้งหมดได้ผ่านการทดสอบและ Push ขึ้นสาขา Main เรียบร้อยแล้ว*
