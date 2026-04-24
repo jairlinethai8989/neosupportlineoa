@@ -26,6 +26,8 @@ export interface TicketWorkspaceHospital {
 export interface TicketWorkspaceCustomer {
   id: string;
   display_name: string | null;
+  full_name?: string | null;
+  line_username?: string | null;
 }
 
 export interface TicketWorkspaceAssignedAgent {
@@ -75,6 +77,8 @@ export interface TicketDetailUser {
 export interface TicketDetailCustomer {
   id?: string | null;
   display_name?: string | null;
+  full_name?: string | null;
+  line_username?: string | null;
   avatar_url?: string | null;
   hospitals?: { id: string; name: string } | null;
 }
