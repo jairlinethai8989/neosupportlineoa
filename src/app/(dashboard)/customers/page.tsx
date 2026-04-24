@@ -87,8 +87,10 @@ export default function CustomersPage() {
   const filteredCustomers = useMemo(() => {
     let result = customers.filter(c => {
       const name = String(c.display_name || '').toLowerCase();
+      const fullName = String(c.full_name || '').toLowerCase();
+      const lineName = String(c.line_username || '').toLowerCase();
       const query = searchTerm.toLowerCase();
-      return name.includes(query);
+      return name.includes(query) || fullName.includes(query) || lineName.includes(query);
     });
 
     if (sortConfig.key) {
@@ -311,8 +313,15 @@ export default function CustomersPage() {
                                 ) : <UserIcon size={24} color="var(--text-muted)" />}
                              </div>
                              <div>
-                                <h4 style={{ fontSize: '15px', fontWeight: '800', color: 'var(--text-main)' }}>{c.display_name}</h4>
-                                <p style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{c.position || 'Registered User'}</p>
+                                <h4 style={{ fontSize: '15px', fontWeight: '800', color: 'var(--text-main)' }}>
+                                   {c.full_name || c.display_name}
+                                </h4>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                   <span style={{ fontSize: '11px', color: 'var(--success)', fontWeight: '800' }}>LINE:</span>
+                                   <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: '600' }}>
+                                      {c.line_username || 'Not Captured'}
+                                   </span>
+                                </div>
                              </div>
                           </div>
                        </td>

@@ -105,7 +105,9 @@ export default function ProfileRegistrationModal({ isOpen, profile, existingCust
       // prevents "duplicate key on line_user_id" errors.
       const payload: any = {
         line_user_id: profile.userId,
-        display_name: displayName,
+        display_name: displayName, // Keep as primary display name
+        full_name: displayName,    // Store as dedicated real name field
+        line_username: profile.displayName || null, // Store LINE nickname
         hospital_id: selectedHospital,
         department_id: selectedDept,
         position_id: selectedPosition,

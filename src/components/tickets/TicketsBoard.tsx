@@ -336,7 +336,14 @@ export function TicketsBoard({
                               <div style={customerAvatarStyle}>
                                 <User size={14} color="var(--text-muted)" />
                               </div>
-                              <span style={customerTextStyle}>{ticket.customers?.display_name || t('tickets.noData')}</span>
+                              <span style={customerTextStyle}>
+                                {ticket.customers?.full_name || ticket.customers?.display_name || t('tickets.noData')}
+                                {ticket.customers?.line_username && (
+                                  <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: '500', marginLeft: '4px' }}>
+                                    ({ticket.customers.line_username})
+                                  </span>
+                                )}
+                              </span>
                             </div>
                             <div style={entityRowStyle}>
                               <div style={agentAvatarStyle}>
