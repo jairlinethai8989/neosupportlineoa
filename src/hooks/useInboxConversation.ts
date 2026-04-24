@@ -182,6 +182,26 @@ export function useInboxConversation({
             if (prev.some((message) => message.id === normalizedMessage.id)) {
               return prev;
             }
+
+            // Reconcile optimistic agent message to prevent ghost duplicates.
+            const optimisticIndex = prev.findIndex((message) => {
+              if (!message.id.startsWith('temp-')) return false;
+              if (message.sender_type !== 'agent') return false;
+              if (normalizedMessage.sender_type !== 'agent') return false;
+              if (message.staff_id !== normalizedMessage.staff_id) return false;
+              if ((message.content || '').trim() !== (normalizedMessage.content || '').trim()) return false;
+
+              const optimisticAt = new Date(message.created_at).getTime();
+              const serverAt = new Date(normalizedMessage.created_at).getTime();
+              return Math.abs(serverAt - optimisticAt) <= 30_000;
+            });
+
+            if (optimisticIndex >= 0) {
+              const next = [...prev];
+              next[optimisticIndex] = normalizedMessage;
+              return next;
+            }
+
             return [...prev, normalizedMessage];
           });
         }

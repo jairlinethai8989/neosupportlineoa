@@ -23,6 +23,7 @@ import { sendPortalMessageAction } from '@/app/actions/portalActions';
 
 export default function TicketDetailPage() {
   const { id } = useParams();
+  const ticketId = Array.isArray(id) ? id[0] : id;
   const router = useRouter();
   const { isReady, profile, error: liffError, setMockLogin } = useLiff();
   const [ticket, setTicket] = useState<any | null>(null);
@@ -42,21 +43,21 @@ export default function TicketDetailPage() {
   const conversationIdRef = useRef<string | null>(null);
 
   useEffect(() => {
-    if (!id) return;
+    if (!ticketId) return;
 
     async function fetchTicketData() {
-      if (!id) return;
+      if (!ticketId) return;
       setLoading(true);
       try {
         const { data: tBase, error: e1 } = await supabase
           .from('tickets')
           .select('*')
-          .eq('id', id)
+          .eq('id', ticketId)
           .maybeSingle();
 
         if (e1) throw e1;
         if (!tBase) {
-           console.warn('Ticket not found for ID:', id);
+           console.warn('Ticket not found for ID:', ticketId);
            setLoading(false);
            return;
         }
@@ -64,7 +65,7 @@ export default function TicketDetailPage() {
         const { data: ticketData } = await supabase
           .from('tickets')
           .select(`*, assigned_agent:profiles!assigned_agent_id(*)`)
-          .eq('id', id)
+          .eq('id', ticketId)
           .maybeSingle();
 
         setTicket(ticketData || tBase);
@@ -74,7 +75,9 @@ export default function TicketDetailPage() {
         const { data: convData } = await supabase
           .from('conversations')
           .select('id')
-          .eq('current_ticket_id', id)
+          .eq('current_ticket_id', ticketId)
+          .order('last_message_at', { ascending: false, nullsFirst: false })
+          .limit(1)
           .maybeSingle();
         cid = convData?.id || null;
 
@@ -85,6 +88,8 @@ export default function TicketDetailPage() {
             .select('id')
             .eq('customer_id', tBase.customer_id)
             .eq('status', 'active')
+            .order('last_message_at', { ascending: false, nullsFirst: false })
+            .limit(1)
             .maybeSingle();
           cid = convFallback?.id || null;
         }
@@ -95,16 +100,29 @@ export default function TicketDetailPage() {
           conversationIdRef.current = cid;
         }
 
-        const [lRes, mRes] = await Promise.all([
-           supabase.from('ticket_logs').select('*').eq('ticket_id', id).order('created_at', { ascending: false }),
-           supabase.from('messages')
-             .select('*')
-             .or(`ticket_id.eq.${id}${cid ? `,conversation_id.eq.${cid}` : ''}`)
-             .order('created_at', { ascending: true })
+        const loadMessages = async (cidToUse: string | null) => {
+          let messagesQuery = supabase
+            .from('messages')
+            .select('*');
+
+          if (cidToUse) {
+            messagesQuery = messagesQuery.or(
+              `ticket_id.eq.${ticketId},conversation_id.eq.${cidToUse}`
+            );
+          } else {
+            messagesQuery = messagesQuery.eq('ticket_id', ticketId);
+          }
+
+          const { data } = await messagesQuery.order('created_at', { ascending: true });
+          if (data) setMessages(data);
+        };
+
+        const [lRes] = await Promise.all([
+           supabase.from('ticket_logs').select('*').eq('ticket_id', ticketId).order('created_at', { ascending: false }),
         ]);
 
         if (lRes.data) setLogs(lRes.data);
-        if (mRes.data) setMessages(mRes.data);
+        await loadMessages(cid);
 
       } catch (err: any) {
         console.error('Error fetching ticket:', err);
@@ -118,7 +136,7 @@ export default function TicketDetailPage() {
     
     fetchTicketData().then(() => {
       const channel = supabase
-        .channel(`portal-ticket-${id}`)
+        .channel(`portal-ticket-${ticketId}`)
         // Listen to ALL message inserts — filter inside handler using ref
         .on('postgres_changes', {
           event: 'INSERT',
@@ -129,7 +147,7 @@ export default function TicketDetailPage() {
           const cid = conversationIdRef.current;
           // Accept message if it belongs to this ticket or this conversation
           const belongs =
-            msg.ticket_id === id ||
+            msg.ticket_id === ticketId ||
             (cid && msg.conversation_id === cid);
           if (!belongs) return;
           setMessages(prev => {
@@ -142,31 +160,78 @@ export default function TicketDetailPage() {
           schema: 'public',
           table: 'messages',
         }, (payload: any) => {
+          const cid = conversationIdRef.current;
+          const msg = payload.new;
+          const belongs = msg.ticket_id === ticketId || (cid && msg.conversation_id === cid);
+          if (!belongs) return;
           setMessages(prev => prev.map(m => m.id === payload.new.id ? payload.new : m));
         })
         .on('postgres_changes', {
           event: 'UPDATE',
           schema: 'public',
+          table: 'conversations',
+        }, (payload: any) => {
+          const cid = conversationIdRef.current;
+          const currentTicketId = payload.new?.current_ticket_id;
+          if (payload.new?.id === cid || currentTicketId === ticketId) {
+            let query = supabase.from('messages').select('*');
+            if (cid) {
+              query = query.or(`ticket_id.eq.${ticketId},conversation_id.eq.${cid}`);
+            } else {
+              query = query.eq('ticket_id', ticketId);
+            }
+            query.order('created_at', { ascending: true }).then(({ data }: any) => {
+              if (data) setMessages(data);
+            });
+          }
+        })
+        .on('postgres_changes', {
+          event: 'UPDATE',
+          schema: 'public',
           table: 'tickets',
-          filter: `id=eq.${id}`
+          filter: `id=eq.${ticketId}`
         }, (payload: any) => {
           setTicket((prev: any) => prev ? ({ ...prev, ...payload.new }) : prev);
-          supabase.from('ticket_logs').select('*').eq('ticket_id', id).order('created_at', { ascending: false })
+          supabase.from('ticket_logs').select('*').eq('ticket_id', ticketId).order('created_at', { ascending: false })
             .then(({ data }: any) => { if (data) setLogs(data); });
         })
         .subscribe((status) => {
-          console.log(`Portal Realtime Status (ticket=${id}):`, status);
+          console.log(`Portal Realtime Status (ticket=${ticketId}):`, status);
         });
       
       channelRef = channel;
     });
 
+    const poller = window.setInterval(() => {
+      const cid = conversationIdRef.current;
+      let query = supabase.from('messages').select('*');
+      if (cid) {
+        query = query.or(`ticket_id.eq.${ticketId},conversation_id.eq.${cid}`);
+      } else {
+        query = query.eq('ticket_id', ticketId);
+      }
+      query.order('created_at', { ascending: true }).then(({ data }: any) => {
+        if (!data) return;
+        setMessages(prev => {
+          const prevLast = prev[prev.length - 1];
+          const nextLast = data[data.length - 1];
+          const sameShape =
+            prev.length === data.length &&
+            prevLast?.id === nextLast?.id &&
+            prevLast?.updated_at === nextLast?.updated_at;
+          if (sameShape) return prev;
+          return data;
+        });
+      });
+    }, 4000);
+
     // Cleanup on unmount/id change
     return () => {
       conversationIdRef.current = null;
+      window.clearInterval(poller);
       if (channelRef) supabase.removeChannel(channelRef);
     };
-  }, [id, isReady]);
+  }, [ticketId, isReady]);
 
   const handleEditExistingImage = (url: string) => {
     setViewingImage(url);
@@ -181,7 +246,7 @@ export default function TicketDetailPage() {
        content: newMessage,
        sender_type: 'customer',
        created_at: new Date().toISOString(),
-       ticket_id: id
+       ticket_id: ticketId
     };
     setMessages((prev: any[]) => [...prev, optimisticMsg]);
     const messageToSend = newMessage;
@@ -192,7 +257,7 @@ export default function TicketDetailPage() {
       if (!profile?.userId) throw new Error('LINE profile not loaded');
       
       await sendPortalMessageAction(
-         id as string,
+         ticketId as string,
          profile.userId,
          messageToSend,
          'text'
@@ -209,7 +274,7 @@ export default function TicketDetailPage() {
     setSending(true);
     try {
       const fileExt = file.name.split('.').pop() || 'jpg';
-      const fileName = `${id}_${Date.now()}.${fileExt}`;
+      const fileName = `${ticketId}_${Date.now()}.${fileExt}`;
       const { error: uploadError } = await supabase.storage.from('chat_media').upload(fileName, file);
       if (uploadError) throw uploadError;
 
@@ -218,7 +283,7 @@ export default function TicketDetailPage() {
       
       const { data: { publicUrl } } = supabase.storage.from('chat_media').getPublicUrl(fileName);
       await sendPortalMessageAction(
-         id as string,
+         ticketId as string,
          profile.userId,
          publicUrl,
          dbType
