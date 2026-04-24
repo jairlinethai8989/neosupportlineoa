@@ -41,10 +41,27 @@ export function useRealtimeInbox(options: {
         page,
         pageSize
       });
+      if (data.length === 0) {
+        // Last-resort fallback to avoid disappearing inbox when strict query shape/status mismatches.
+        const fallback = await listInboxConversationsFallback(pageSize);
+        if (fallback.length > 0) {
+          setConversations(fallback);
+          setTotalCount(Math.max(count, fallback.length));
+          return;
+        }
+      }
+
       setConversations(data);
       setTotalCount(count);
     } catch (error) {
       console.error('Fetch Inbox Error:', error);
+      try {
+        const fallback = await listInboxConversations(pageSize);
+        setConversations(fallback);
+        setTotalCount(fallback.length);
+      } catch (fallbackError) {
+        console.error('Fetch Inbox Fallback Error:', fallbackError);
+      }
     } finally {
       if (!options.silent) {
         setLoading(false);

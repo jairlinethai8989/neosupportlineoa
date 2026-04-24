@@ -16,12 +16,7 @@ import type {
 } from '@/types/inbox';
 
 export const inboxConversationSelect = `
-  id,
-  status,
-  last_message_at,
-  customer_id,
-  current_ticket_id,
-  is_active,
+  *,
   customers (id, display_name, line_user_id),
   ticket_data:current_ticket_id (
     id,
@@ -103,17 +98,68 @@ export async function listInboxConversationsV2(input: {
   const from = (page - 1) * pageSize;
   const to = from + pageSize - 1;
 
-  // Simple focused query for active conversations
+  // Include multiple legacy status variants and is_active=true so claimed chats do not disappear.
+  const activeStatusFilter =
+    'status.ilike.active,status.ilike.open,status.ilike.new,status.ilike.in progress,status.ilike.in_progress,is_active.eq.true';
+
   const { data, error, count } = await supabase
     .from('conversations')
     .select(inboxConversationSelect, { count: 'exact' })
-    .eq('status', 'active')
+    .or(activeStatusFilter)
     .order('last_message_at', { ascending: false, nullsFirst: false })
     .range(from, to);
 
   if (error) {
     console.error('Inbox Query Error:', error);
-    return { data: [], count: 0 };
+    // Safe fallback query to prevent empty inbox on transient select/schema mismatch.
+    const { data: fallbackData, count: fallbackCount, error: fallbackError } = await supabase
+      .from('conversations')
+      .select('*', { count: 'exact' })
+      .or(activeStatusFilter)
+      .order('last_message_at', { ascending: false, nullsFirst: false })
+      .range(from, to);
+
+    if (fallbackError) {
+      console.error('Inbox Fallback Query Error:', fallbackError);
+      return { data: [], count: 0 };
+    }
+
+    return {
+      data: normalizeInboxConversations(fallbackData || []),
+      count: fallbackCount || (fallbackData?.length || 0),
+    };
+  }
+
+  // Defensive fallback: some environments can return zero rows for strict status filter
+  // while conversations exist with non-standard status text.
+  if ((data?.length || 0) === 0 && input.status === 'active') {
+    const {
+      data: wideData,
+      count: wideCount,
+      error: wideError,
+    } = await supabase
+      .from('conversations')
+      .select(inboxConversationSelect, { count: 'exact' })
+      .order('last_message_at', { ascending: false, nullsFirst: false })
+      .range(from, to);
+
+    if (!wideError && (wideData?.length || 0) > 0) {
+      const normalizedWide = normalizeInboxConversations(wideData || []);
+      const activeLike = normalizedWide.filter((conversation) => {
+        const normalizedStatus = String(conversation.status || '').toLowerCase().trim();
+        const isClosedLike =
+          normalizedStatus === 'closed' ||
+          normalizedStatus === 'resolved' ||
+          normalizedStatus === 'done';
+        if (conversation.is_active === true) return true;
+        return !isClosedLike;
+      });
+
+      return {
+        data: activeLike,
+        count: wideCount || activeLike.length,
+      };
+    }
   }
   
   return {
