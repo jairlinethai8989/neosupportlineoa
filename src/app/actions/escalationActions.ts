@@ -1,19 +1,11 @@
 'use server';
 
-import { createClient } from '@supabase/supabase-js';
-
-const getSupabaseAdmin = () => {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  );
-};
+import { supabaseAdmin } from '@/lib/supabaseAdmin';
 
 // We verify the ticket ID and PIN here
 export async function verifyEscalationPin(ticketId: string, pin: string) {
   try {
-    const supabaseAdmin = getSupabaseAdmin();
-    console.log('[Verify] Attempting ID:', ticketId);
+
 
     if (pin !== '1234') {
       return { error: 'รหัส PIN ไม่ถูกต้อง (Invalid PIN)' };
@@ -32,12 +24,12 @@ export async function verifyEscalationPin(ticketId: string, pin: string) {
     const { data: ticket, error } = await query.maybeSingle();
       
     if (error) {
-       console.error('[Verify] Supabase Error:', error);
+
        return { error: 'Database Error: ' + error.message };
     }
 
     if (!ticket) {
-      console.log('[Verify] Ticket NOT FOUND for ID/Token:', ticketId);
+
       return { error: 'ไม่พบข้อมูลใบงานหรือรหัสยืนยันผิดพลาด (Ticket Not Found or Invalid Token)' };
     }
 
@@ -55,7 +47,6 @@ export async function verifyEscalationPin(ticketId: string, pin: string) {
     
     return { data: { ...ticket, customers: customer, hospitals: hospital, logs } };
   } catch (err: any) {
-    console.error('[Verify] Catch Block Error:', err);
     return { error: 'เกิดข้อผิดพลาดในการตรวจสอบสิทธิ์: ' + err.message };
   }
 }
@@ -66,7 +57,7 @@ export async function claimEscalatedTicket(
   receiverName: string
 ) {
   try {
-    const supabaseAdmin = getSupabaseAdmin();
+
     if (pin !== '1234') {
       return { error: 'รหัส PIN ไม่ถูกต้อง' };
     }
@@ -103,7 +94,7 @@ export async function updateEscalatedTicketStatus(
   attachmentUrls?: string[]
 ) {
   try {
-    const supabaseAdmin = getSupabaseAdmin();
+
     if (pin !== '1234') {
       return { error: 'รหัส PIN ไม่ถูกต้อง' };
     }
@@ -160,8 +151,8 @@ export async function updateEscalatedTicketStatus(
           type: 'ticket',
           metadata: { ticket_id: ticketId, ticket_no: ticket.ticket_no }
         }]);
-      } catch (notifErr) {
-        console.error('[UpdateStatus] Notification Error:', notifErr);
+      } catch (_notifErr) {
+        // Notification failure should not break the flow
       }
     }
 

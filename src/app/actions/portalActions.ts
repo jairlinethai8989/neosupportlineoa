@@ -1,11 +1,5 @@
 'use server';
-/* eslint-disable @typescript-eslint/no-explicit-any */
-import { createClient } from '@supabase/supabase-js';
-
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+import { supabaseAdmin } from '@/lib/supabaseAdmin';
 
 /**
  * Securely sends a message from the Portal (Customer side)

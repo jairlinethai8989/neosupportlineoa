@@ -232,9 +232,7 @@ export default function TicketDetailPage() {
           supabase.from('ticket_logs').select('*').eq('ticket_id', ticketId).order('created_at', { ascending: false })
             .then(({ data }: any) => { if (data) setLogs(data); });
         })
-        .subscribe((status) => {
-          console.log(`Portal Realtime Status (ticket=${ticketId}):`, status);
-        });
+        .subscribe();
       
       channelRef = channel;
     });
@@ -247,7 +245,7 @@ export default function TicketDetailPage() {
       } else {
         query = query.eq('ticket_id', ticketId);
       }
-      query.order('created_at', { ascending: true }).then(({ data }: any) => {
+      query.order('created_at', { ascending: true }).limit(200).then(({ data }: any) => {
         if (!data) return;
         setMessages(prev => {
           const prevLast = prev[prev.length - 1];
@@ -260,7 +258,7 @@ export default function TicketDetailPage() {
           return data;
         });
       });
-    }, 4000);
+    }, 10000);
 
     // Cleanup on unmount/id change
     return () => {

@@ -1,13 +1,7 @@
 'use server';
-/* eslint-disable @typescript-eslint/no-explicit-any */
-import { createClient } from '@supabase/supabase-js';
+import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { cookies } from 'next/headers';
 import { createServerClient } from '@supabase/ssr';
-
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
 
 async function getSessionUser() {
   const cookieStore = await cookies();

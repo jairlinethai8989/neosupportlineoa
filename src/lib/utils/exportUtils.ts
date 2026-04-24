@@ -25,7 +25,7 @@ export const exportToExcel = (data: any[], fileName: string) => {
  * Universal PDF Export with Thai Font Support (Note: Thai chars need embedded font for full rendering)
  */
 export const exportToPDF = (data: any[], fileName: string, title: string) => {
-  console.log('Exporting PDF...', { data, fileName, title });
+
   try {
     if (!data || data.length === 0) {
       alert('ไม่มีข้อมูลสำหรับส่งออก (No data to export)');
@@ -79,7 +79,7 @@ export const exportToPDF = (data: any[], fileName: string, title: string) => {
     });
 
     doc.save(`${fileName}_${new Date().getTime()}.pdf`);
-    console.log('PDF Export successful');
+
   } catch (err: any) {
     console.error('PDF Export Error:', err);
     alert('PDF Export failed: ' + (err.message || 'Unknown Error'));
