@@ -245,7 +245,7 @@ export async function resolveTicketAction(
 
      // 3. Send system message if requested (Atomic)
      if (conversationId) {
-        const content = `[SYSTEM] งานได้รับการแก้ไขแล้ว: ${resolutionSummary}\nโมดูล: ${module || 'N/A'}\nแบบประเมิน: ${surveyLink || 'N/A'}`;
+        const content = `[SYSTEM] ✅ งานได้รับการแก้ไขแล้ว: ${resolutionSummary}\nโมดูล: ${module || 'N/A'}\n\n👉 ทำประเมินที่นี่: ${surveyLink || 'N/A'}`;
         await supabaseAdmin.from('messages').insert([{
            conversation_id: conversationId,
            ticket_id: ticketId,

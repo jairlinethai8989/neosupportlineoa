@@ -365,8 +365,143 @@ export default function TicketDetailPage() {
   };
   const currentLevel = statusLevels[String(ticket.status).toLowerCase()] || 1;
 
+  const [showSurvey, setShowSurvey] = useState<boolean>(false);
+  const [hasResponded, setHasResponded] = useState<boolean>(false);
+  const [surveyRating, setSurveyRating] = useState<number>(0);
+  const [surveyHover, setSurveyHover] = useState<number>(0);
+  const [surveyComment, setSurveyComment] = useState<string>('');
+  const [submittingSurvey, setSubmittingSurvey] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (!ticketId) return;
+    async function checkSurvey() {
+      const { data } = await supabase
+        .from('csat_surveys')
+        .select('score')
+        .eq('ticket_id', ticketId)
+        .maybeSingle();
+      if (data?.score) setHasResponded(true);
+    }
+    checkSurvey();
+  }, [ticketId]);
+
+  useEffect(() => {
+    if (ticket?.status === 'Resolved' && !hasResponded) {
+      const timer = setTimeout(() => setShowSurvey(true), 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [ticket?.status, hasResponded]);
+
+  const handleSubmitSurvey = async () => {
+    if (surveyRating === 0) return;
+    setSubmittingSurvey(true);
+    try {
+      const { error } = await supabase.from('csat_surveys').upsert({
+        ticket_id: ticketId,
+        score: surveyRating,
+        comment: surveyComment,
+        responded_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'ticket_id' });
+
+      if (error) throw error;
+      setHasResponded(true);
+      setShowSurvey(false);
+    } catch (err: any) {
+      alert('ไม่สามารถบันทึกการประเมินได้: ' + err.message);
+    } finally {
+      setSubmittingSurvey(false);
+    }
+  };
+
   return (
-    <div className="portal-container" style={{ animation: 'fadeIn 0.5s ease-out' }}>
+    <div className="portal-container" style={{ animation: 'fadeIn 0.5s ease-out', position: 'relative' }}>
+       {/* Survey Modal Popup */}
+       {showSurvey && (
+         <div className="flex-center" style={{ 
+           position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', 
+           background: 'rgba(15, 23, 42, 0.8)', backdropFilter: 'blur(8px)',
+           zIndex: 1000, padding: '20px'
+         }}>
+           <div className="portal-glass" style={{ 
+             width: '100%', maxWidth: '400px', padding: '32px', background: 'white',
+             animation: 'fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1)'
+           }}>
+             <div style={{ textAlign: 'center', marginBottom: '24px' }}>
+               <div style={{ 
+                 display: 'inline-flex', padding: '12px', background: '#f0f9ff', 
+                 borderRadius: '50%', marginBottom: '16px', color: 'var(--portal-primary)' 
+               }}>
+                 <Clock size={24} />
+               </div>
+               <h3 style={{ fontSize: '20px', fontWeight: '900', color: '#1e293b', marginBottom: '8px' }}>ประเมินความพึงพอใจ</h3>
+               <p style={{ fontSize: '14px', color: '#64748b' }}>งานหมายเลข #{ticket.ticket_no} ได้รับการแก้ไขแล้ว ช่วยให้คะแนนเราหน่อยนะครับ</p>
+             </div>
+
+             <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', marginBottom: '12px' }}>
+               {[1, 2, 3, 4, 5].map((star) => (
+                 <button
+                   key={star}
+                   onClick={() => setSurveyRating(star)}
+                   onMouseEnter={() => setSurveyHover(star)}
+                   onMouseLeave={() => setSurveyHover(0)}
+                   style={{ 
+                     background: 'none', border: 'none', cursor: 'pointer', outline: 'none',
+                     transition: 'transform 0.2s', padding: '4px'
+                   }}
+                 >
+                   <svg 
+                     width="36" height="36" viewBox="0 0 24 24" 
+                     fill={(surveyHover || surveyRating) >= star ? '#f59e0b' : 'none'} 
+                     stroke={(surveyHover || surveyRating) >= star ? '#f59e0b' : '#cbd5e1'} 
+                     strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+                   >
+                     <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+                   </svg>
+                 </button>
+               ))}
+             </div>
+             <div style={{ textAlign: 'center', height: '20px', fontSize: '12px', color: '#f59e0b', fontWeight: '700', marginBottom: '24px' }}>
+               {surveyRating === 5 ? 'ยอดเยี่ยมที่สุด' : surveyRating === 4 ? 'ดีมาก' : surveyRating === 3 ? 'ดี' : surveyRating === 2 ? 'พอใช้' : surveyRating === 1 ? 'ควรปรับปรุง' : ''}
+             </div>
+
+             <textarea 
+               placeholder="ข้อเสนอแนะเพิ่มเติม (ถ้ามี)..."
+               value={surveyComment}
+               onChange={(e) => setSurveyComment(e.target.value)}
+               style={{ 
+                 width: '100%', minHeight: '80px', padding: '12px', borderRadius: '12px',
+                 border: '1px solid #e2e8f0', fontSize: '14px', marginBottom: '24px',
+                 outline: 'none', resize: 'none'
+               }}
+             />
+
+             <div style={{ display: 'flex', gap: '12px' }}>
+               <button 
+                 onClick={() => setShowSurvey(false)}
+                 style={{ 
+                   flex: 1, padding: '14px', borderRadius: '12px', border: '1px solid #e2e8f0',
+                   background: 'white', color: '#64748b', fontWeight: '700', cursor: 'pointer'
+                 }}
+               >
+                 ข้ามก่อน
+               </button>
+               <button 
+                 onClick={handleSubmitSurvey}
+                 disabled={submittingSurvey || surveyRating === 0}
+                 style={{ 
+                   flex: 2, padding: '14px', borderRadius: '12px', border: 'none',
+                   background: 'var(--portal-primary)', color: 'white', fontWeight: '800',
+                   cursor: 'pointer', opacity: (surveyRating === 0 || submittingSurvey) ? 0.5 : 1
+                 }}
+               >
+                 {submittingSurvey ? 'กำลังส่ง...' : 'ส่งผลประเมิน'}
+               </button>
+             </div>
+           </div>
+         </div>
+       )}
+
        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px', padding: '0 4px' }}>
           <button onClick={() => router.push('/portal')} style={{ padding: '8px', borderRadius: '12px', border: '1px solid var(--portal-border)', background: 'white', color: '#1e293b', cursor: 'pointer' }}>
              <ArrowLeft size={18} />
