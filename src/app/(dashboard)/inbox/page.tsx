@@ -30,13 +30,17 @@ function hasSelectedConversationChanged(
 
   // Potential stale data: If we locally closed it, don't revert to active 
   // until we are sure the server has a real reason (like a new ticket).
-  const isStaleStatusRevert = prev.status === 'closed' && next.status === 'active';
+  const isStaleSessionRevert =
+    prev.status === 'closed' &&
+    next.status === 'active' &&
+    prev.is_active === false &&
+    next.is_active === true;
 
   return (
     prev.last_message_at !== next.last_message_at ||
-    (prev.status !== next.status && !isStaleStatusRevert) ||
+    (prev.status !== next.status && !isStaleSessionRevert) ||
     prev.current_ticket_id !== next.current_ticket_id ||
-    prev.is_active !== next.is_active ||
+    (prev.is_active !== next.is_active && !isStaleSessionRevert) ||
     prev.customers?.display_name !== next.customers?.display_name ||
     prev.customers?.avatar_url !== next.customers?.avatar_url
   );
@@ -157,24 +161,31 @@ function InboxContent() {
   }, [cid, conversations]);
 
   useEffect(() => {
-    const updatedConversation = conversations.find((conversation) => conversation.id === selectedChat?.id);
-    if (!updatedConversation || !selectedChat) return;
+    setSelectedChat((prev) => {
+      if (!prev) return prev;
 
-    if (hasSelectedConversationChanged(selectedChat, updatedConversation)) {
-      // When syncing, preserve local 'closed'/'inactive' state if the incoming data is 'active' (likely stale)
-      setSelectedChat(prev => {
-         if (!prev) return updatedConversation;
-         if (prev.status === 'closed' && updatedConversation.status === 'active') {
-            return {
-               ...updatedConversation,
-               status: 'closed',
-               is_active: false
-            };
-         }
-         return updatedConversation;
-      });
-    }
-  }, [conversations, selectedChat]);
+      const updatedConversation = conversations.find(
+        (conversation) => conversation.id === prev.id
+      );
+      if (!updatedConversation) return prev;
+
+      if (!hasSelectedConversationChanged(prev, updatedConversation)) {
+        return prev;
+      }
+
+      const isStaleSessionRevert =
+        prev.status === 'closed' &&
+        updatedConversation.status === 'active' &&
+        prev.is_active === false &&
+        updatedConversation.is_active === true;
+
+      if (isStaleSessionRevert) {
+        return prev;
+      }
+
+      return updatedConversation;
+    });
+  }, [conversations, selectedChat?.id]);
 
   useEffect(() => {
     const handlePaste = (event: ClipboardEvent) => {

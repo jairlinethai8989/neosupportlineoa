@@ -98,6 +98,14 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
   const isViewOnly = !!(agent?.role !== 'Administrator' && agent?.permissions?.inbox === 'view');
   const isUnassigned = !!(currentTicket && !currentTicket.assigned_agent_id);
   const isRestricted = !!(currentTicket && !currentTicket.assigned_agent_id && agent?.role !== 'Administrator');
+  const normalizedConversationStatus = String(selectedChat.status || '')
+    .toLowerCase()
+    .trim();
+  const isSessionActive =
+    selectedChat.is_active === true ||
+    ['active', 'open', 'new', 'in progress', 'in_progress'].includes(
+      normalizedConversationStatus
+    );
 
   const handleMessagesScroll = async (
     event: React.UIEvent<HTMLDivElement>
@@ -131,8 +139,24 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
            <div>
               <p style={{ fontWeight: '800', fontSize: '16px' }}>{selectedChat.customers?.display_name || 'LINE User'}</p>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--success)' }} />
-                <span style={{ fontSize: '11px', color: 'var(--success)', fontWeight: '700', textTransform: 'uppercase' }}>Active Session</span>
+                <span
+                  style={{
+                    width: '6px',
+                    height: '6px',
+                    borderRadius: '50%',
+                    background: isSessionActive ? 'var(--success)' : 'var(--text-muted)',
+                  }}
+                />
+                <span
+                  style={{
+                    fontSize: '11px',
+                    color: isSessionActive ? 'var(--success)' : 'var(--text-muted)',
+                    fontWeight: '700',
+                    textTransform: 'uppercase',
+                  }}
+                >
+                  {isSessionActive ? 'Active Session' : 'Closed Session'}
+                </span>
               </div>
            </div>
         </div>

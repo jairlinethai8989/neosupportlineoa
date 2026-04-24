@@ -1,9 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
-import type { RealtimePostgresChangesPayload } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
 import {
-  getInboxConversationById,
   listInboxConversations,
   listInboxConversationsFallback,
   listInboxConversationsV2
@@ -15,6 +13,14 @@ function sortConversations(items: InboxConversation[]) {
     (left, right) =>
       new Date(right.last_message_at || 0).getTime() -
       new Date(left.last_message_at || 0).getTime()
+  );
+}
+
+function isConversationActiveLike(conversation: InboxConversation) {
+  const status = String(conversation.status || '').toLowerCase().trim();
+  return (
+    conversation.is_active === true ||
+    ['active', 'open', 'new', 'in progress', 'in_progress'].includes(status)
   );
 }
 
@@ -44,9 +50,10 @@ export function useRealtimeInbox(options: {
       if (data.length === 0) {
         // Last-resort fallback to avoid disappearing inbox when strict query shape/status mismatches.
         const fallback = await listInboxConversationsFallback(pageSize);
-        if (fallback.length > 0) {
-          setConversations(fallback);
-          setTotalCount(Math.max(count, fallback.length));
+        const activeFallback = fallback.filter(isConversationActiveLike);
+        if (activeFallback.length > 0) {
+          setConversations(sortConversations(activeFallback));
+          setTotalCount(Math.max(count, activeFallback.length));
           return;
         }
       }
@@ -57,8 +64,9 @@ export function useRealtimeInbox(options: {
       console.error('Fetch Inbox Error:', error);
       try {
         const fallback = await listInboxConversations(pageSize);
-        setConversations(fallback);
-        setTotalCount(fallback.length);
+        const activeFallback = fallback.filter(isConversationActiveLike);
+        setConversations(sortConversations(activeFallback));
+        setTotalCount(activeFallback.length);
       } catch (fallbackError) {
         console.error('Fetch Inbox Fallback Error:', fallbackError);
       }
