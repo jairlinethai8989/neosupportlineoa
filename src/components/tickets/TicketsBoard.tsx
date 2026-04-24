@@ -78,8 +78,8 @@ const cardTopRowStyle: React.CSSProperties = {
 };
 
 const ticketLinkStyle: React.CSSProperties = {
-  fontSize: '13px',
-  fontWeight: '900',
+  fontSize: '11px',
+  fontWeight: '700',
   color: 'var(--primary)',
   textDecoration: 'none',
 };
@@ -321,13 +321,13 @@ export function TicketsBoard({
                         </div>
 
                         <div>
-                          <h4 style={subjectStyle}>{ticket.subject}</h4>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-muted)' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-muted)', marginBottom: '4px' }}>
                             <span style={{ fontSize: '14px' }}>◌</span>
                             <span style={{ fontSize: '13px', fontWeight: '700', color: 'var(--warning, #ff9f43)' }}>
                               {hospitalName}
                             </span>
                           </div>
+                          <h4 style={subjectStyle}>{ticket.subject}</h4>
                         </div>
 
                         <div style={cardFooterStyle}>
