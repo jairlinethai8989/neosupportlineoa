@@ -40,20 +40,25 @@ export default function SurveyPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (rating === 0) {
-       alert('Please provide a rating');
+       alert('กรุณาให้คะแนนความพึงพอใจ');
        return;
     }
     setSubmitting(true);
     try {
-      await supabase.from('csat_surveys').update({
-        rating: rating,
+      // Use upsert to handle cases where the survey record doesn't exist yet
+      const { error } = await supabase.from('csat_surveys').upsert({
+        ticket_id: id,
+        score: rating,
         comment: comment,
-        responded_at: new Date().toISOString()
-      }).eq('ticket_id', id);
+        responded_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'ticket_id' });
 
+      if (error) throw error;
       setCompleted(true);
     } catch (err) {
-      alert('Failed to submit survey');
+      console.error('Survey error:', err);
+      alert('ไม่สามารถบันทึกข้อมูลได้ กรุณาลองใหม่อีกครั้ง');
     } finally {
       setSubmitting(false);
     }
@@ -66,9 +71,9 @@ export default function SurveyPage() {
   );
 
   if (!ticket) return (
-     <div className="flex-center" style={{ height: '100vh', background: '#0a0e14', color: 'white', flexDirection: 'column', gap: '16px' }}>
-        <h1 style={{ fontSize: '24px', fontWeight: '800' }}>Survey Not Found</h1>
-        <p style={{ color: 'var(--text-muted)' }}>This survey may have expired or is invalid.</p>
+     <div className="flex-center" style={{ height: '100vh', background: '#0a0e14', color: 'white', padding: '24px', textAlign: 'center', flexDirection: 'column', gap: '16px' }}>
+        <h1 style={{ fontSize: '24px', fontWeight: '800' }}>ไม่พบข้อมูลการประเมิน</h1>
+        <p style={{ color: 'var(--text-muted)' }}>ลิงก์นี้อาจจะไม่ถูกต้อง หรือใบงานนี้ไม่สามารถประเมินได้แล้ว</p>
      </div>
   );
 
@@ -76,14 +81,14 @@ export default function SurveyPage() {
      <div className="flex-center" style={{ height: '100vh', background: '#0a0e14', color: 'white', padding: '24px', textAlign: 'center' }}>
         <div className="glass" style={{ padding: '48px 32px', width: '100%', maxWidth: '400px', animation: 'fadeIn 0.5s ease-out' }}>
            <CheckCircle size={64} color="var(--success)" style={{ marginBottom: '24px' }} />
-           <h1 style={{ fontSize: '28px', fontWeight: '800', marginBottom: '16px' }}>Thank You!</h1>
+           <h1 style={{ fontSize: '28px', fontWeight: '800', marginBottom: '16px' }}>ขอบคุณครับ!</h1>
            <p style={{ color: 'var(--text-muted)', lineHeight: '1.6' }}>
-              Your feedback is invaluable to us. It helps us improve our service quality.
+              ความคิดเห็นของคุณมีค่าสำหรับเรามาก เพื่อนำไปปรับปรุงการบริการให้ดียิ่งขึ้นครับ
            </p>
            <button 
             onClick={() => window.close()}
             className="glass-interactive" style={{ width: '100%', marginTop: '32px', padding: '14px', borderRadius: '10px', background: 'var(--primary)', color: '#0a0e14', border: 'none', fontWeight: '800' }}>
-              Done
+              เรียบร้อย
            </button>
         </div>
      </div>
@@ -98,20 +103,21 @@ export default function SurveyPage() {
                   <ShieldCheck size={32} color="#0a0e14" />
                </div>
             </div>
-            <h1 style={{ fontSize: '24px', fontWeight: '800', marginBottom: '8px' }}>Service Feedback</h1>
-            <p style={{ color: 'var(--text-muted)', fontSize: '14px' }}>
-               Hi {ticket.customers?.display_name}, how was your experience with Ticket <strong>#{ticket.ticket_no}</strong>?
+            <h1 style={{ fontSize: '24px', fontWeight: '800', marginBottom: '8px' }}>ประเมินการบริการ</h1>
+            <div style={{ color: 'var(--text-muted)', fontSize: '14px' }}>
+               คุณ {ticket.customers?.display_name} <br/>
+               ช่วยให้คะแนนการแก้ไขงานหมายเลข <strong>#{ticket.ticket_no}</strong>
                {ticket.module && (
-                 <span style={{ display: 'block', marginTop: '12px' }}>
-                   Module: <span style={{ color: 'var(--primary)', fontWeight: '800' }}>{ticket.module}</span>
-                 </span>
+                 <div style={{ marginTop: '12px' }}>
+                   ระบบที่เกี่ยวข้อง: <span style={{ color: 'var(--primary)', fontWeight: '800' }}>{ticket.module}</span>
+                 </div>
                )}
-            </p>
+            </div>
          </div>
 
          <form onSubmit={handleSubmit}>
             <div style={{ marginBottom: '40px' }}>
-               <label style={{ display: 'block', textAlign: 'center', fontSize: '14px', fontWeight: '700', color: 'var(--text-muted)', marginBottom: '20px', textTransform: 'uppercase' }}>Overall Satisfaction</label>
+               <label style={{ display: 'block', textAlign: 'center', fontSize: '14px', fontWeight: '700', color: 'var(--text-muted)', marginBottom: '20px', textTransform: 'uppercase' }}>ความพึงพอใจในภาพรวม</label>
                <div style={{ display: 'flex', justifyContent: 'center', gap: '8px' }}>
                   {[1, 2, 3, 4, 5].map((star) => (
                     <button
@@ -120,27 +126,32 @@ export default function SurveyPage() {
                       onClick={() => setRating(star)}
                       onMouseEnter={() => setHover(star)}
                       onMouseLeave={() => setHover(0)}
-                      style={{ background: 'none', border: 'none', cursor: 'pointer', outline: 'none', transition: 'transform 0.2s' }}
+                      className="star-button"
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', outline: 'none', transition: 'transform 0.2s', padding: '4px' }}
                     >
                       <Star 
-                        size={40} 
+                        size={44} 
                         fill={(hover || rating) >= star ? 'var(--primary)' : 'transparent'} 
-                        color={(hover || rating) >= star ? 'var(--primary)' : 'var(--border)'} 
+                        color={(hover || rating) >= star ? 'var(--primary)' : 'rgba(255,255,255,0.1)'} 
                         strokeWidth={1.5}
+                        style={{ filter: (hover || rating) >= star ? 'drop-shadow(0 0 8px rgba(0, 242, 254, 0.5))' : 'none' }}
                       />
                     </button>
                   ))}
                </div>
+               <div style={{ textAlign: 'center', marginTop: '12px', fontSize: '12px', color: 'var(--primary)', fontWeight: '600' }}>
+                  {rating === 5 ? 'ยอดเยี่ยมที่สุด' : rating === 4 ? 'ดีมาก' : rating === 3 ? 'ดี' : rating === 2 ? 'พอใช้' : rating === 1 ? 'ควรปรับปรุง' : 'กรุณาเลือกคะแนน'}
+               </div>
             </div>
 
             <div style={{ marginBottom: '32px' }}>
-               <label style={{ display: 'block', fontSize: '14px', fontWeight: '700', color: 'var(--text-muted)', marginBottom: '12px', textTransform: 'uppercase' }}>Additional Comments</label>
+               <label style={{ display: 'block', fontSize: '14px', fontWeight: '700', color: 'var(--text-muted)', marginBottom: '12px', textTransform: 'uppercase' }}>ข้อเสนอแนะเพิ่มเติม (ถ้ามี)</label>
                <div style={{ position: 'relative' }}>
                   <MessageSquare style={{ position: 'absolute', left: '12px', top: '12px', color: 'rgba(255,255,255,0.2)' }} size={18} />
                   <textarea 
                     value={comment}
                     onChange={(e) => setComment(e.target.value)}
-                    placeholder="Tell us what we did well or how we can improve..."
+                    placeholder="บอกเราได้ครับว่าชอบส่วนไหน หรืออยากให้เราปรับปรุงอะไร..."
                     style={{ width: '100%', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border)', borderRadius: '12px', padding: '12px 12px 12px 40px', color: 'white', fontSize: '15px', minHeight: '120px', outline: 'none' }}
                   />
                </div>
@@ -154,14 +165,14 @@ export default function SurveyPage() {
             >
               {submitting ? <Loader2 className="animate-spin" /> : (
                 <>
-                  Submit Feedback <Send size={18} />
+                  ส่งแบบประเมิน <Send size={18} />
                 </>
               )}
             </button>
          </form>
 
          <p style={{ textAlign: 'center', marginTop: '32px', fontSize: '12px', color: 'var(--text-muted)' }}>
-            Your response will help us serve you better.
+            ข้อมูลของคุณจะถูกนำไปพัฒนาการบริการให้ดียิ่งขึ้น
          </p>
       </div>
 
@@ -174,8 +185,37 @@ export default function SurveyPage() {
           from { transform: rotate(0deg); }
           to { transform: rotate(360deg); }
         }
+        @keyframes pulse {
+          0% { transform: scale(1); }
+          50% { transform: scale(1.05); }
+          100% { transform: scale(1); }
+        }
         .animate-spin {
           animation: animate-spin 1s linear infinite;
+        }
+        .star-button:hover {
+          transform: scale(1.2) rotate(5deg);
+        }
+        .star-button:active {
+          transform: scale(0.9);
+        }
+        .glass {
+          background: rgba(255, 255, 255, 0.03);
+          backdrop-filter: blur(20px);
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          border-radius: 24px;
+        }
+        .glass-interactive {
+          transition: all 0.2s ease;
+          cursor: pointer;
+        }
+        .glass-interactive:hover:not(:disabled) {
+          filter: brightness(1.1);
+          transform: translateY(-2px);
+          box-shadow: 0 8px 20px rgba(0, 242, 254, 0.3);
+        }
+        .glass-interactive:active:not(:disabled) {
+          transform: translateY(0);
         }
       `}} />
     </div>
