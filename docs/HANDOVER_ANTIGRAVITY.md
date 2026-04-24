@@ -41,5 +41,18 @@
 *   **Silent Refresh:** ปรับระบบ Refresh ใน Inbox ให้ทำงานเบื้องหลังโดยไม่มี Loading Overlay รบกวนเจ้าหน้าที่
 *   **Commit:** `4aa06ec`
 
+## 📥 6. Inbox Stability & Lifecycle Management
+แก้ไขปัญหาเรื่องสถานะการสนทนาและการแสดงผลที่ค้างหลังจบงาน
+*   **Freeze Fix:** แก้ไขปัญหา "จบการสนทนาแล้วหน้าค้าง" โดยปรับ Logic การ Sync `selectedChat` เพื่อป้องกัน Re-render Loop จาก Realtime Payload
+*   **Status Clarity:** 
+    *   **Header:** แสดง "Active Session" หรือ "Closed Session" ตามจริง
+    *   **Sidebar:** แยกสีจุดสถานะและเปลี่ยนข้อความเป็น "กำลังสนทนา" หรือ "ปิดการสนทนาแล้ว" ให้ชัดเจน
+*   **Smart Filtering:** ปรับระบบ Fallback ให้กรองเฉพาะแชทที่เป็น Active-like ก่อนแสดงผล เพื่อความแม่นยำ
+*   **Files:** `inbox/page.tsx`, `ChatWindow.tsx`, `InboxSidebar.tsx`, `useRealtimeInbox.ts`
+*   **Commit:** `e03c1af`
+
+---
+*หมายเหตุสำหรับ AntiGravity: ชุดที่ 6 นี้มีการจูนเรื่อง Sync/Fallback ไว้ละเอียดมาก ขอความร่วมมือเลี่ยงการ Revert หรือแก้ไข Logic ใน 4 ไฟล์ข้างต้นครับ*
+
 ---
 *หมายเหตุ: งานทั้งหมดได้ผ่านการทดสอบและ Push ขึ้นสาขา Main เรียบร้อยแล้ว*
