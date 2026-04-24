@@ -43,10 +43,13 @@ export const TicketSidebar: React.FC<TicketSidebarProps> = ({
   onCloseSession,
   onCopySurvey
 }) => {
+  void onTransfer;
+  void onCopySurvey;
+
   const isResolved = currentTicket?.status === 'Resolved' || currentTicket?.status === 'Closed';
   const isOwner = currentTicket?.assigned_agent_id === agent?.id;
   const isAdmin = agent?.role === 'Administrator';
-  const isSessionActive = !!(selectedChat.status === 'active' || selectedChat.is_active);
+  const isSessionActive = !isResolved && !!(selectedChat.status === 'active' || selectedChat.is_active);
   
   const [copied, setCopied] = useState(false);
   const [magicLink, setMagicLink] = useState<string | null>(null);
@@ -163,8 +166,8 @@ export const TicketSidebar: React.FC<TicketSidebarProps> = ({
                      await ticketService.updateStatus(currentTicket.id, 'Pending', undefined, undefined, randomToken);
                      const link = `${window.location.origin}/escalate/${randomToken}`;
                      setMagicLink(link);
-                  } catch (err: any) {
-                     alert('Error: ' + err.message);
+                  } catch (err: unknown) {
+                     alert(`Error: ${err instanceof Error ? err.message : 'Unknown error'}`);
                   } finally {
                      setIsProcessing(false);
                   }
@@ -265,8 +268,8 @@ export const TicketSidebar: React.FC<TicketSidebarProps> = ({
                            handleCopyLink(link);
                            setShowEscalateModal(false);
                            setEscalationNote('');
-                        } catch (err: any) {
-                           alert('Error: ' + err.message);
+                        } catch (err: unknown) {
+                           alert(`Error: ${err instanceof Error ? err.message : 'Unknown error'}`);
                         } finally {
                            setIsProcessing(false);
                         }

@@ -342,6 +342,18 @@ export function useInboxConversation({
     if (!ticketId || !selectedModule || !resSummary.trim() || !selectedChat) return;
 
     setSending(true);
+    const closingConversationId = selectedChat.id;
+    const markConversationClosedLocally = () => {
+      setSelectedChat((prev) => {
+        if (!prev || prev.id !== closingConversationId) return prev;
+        return {
+          ...prev,
+          status: 'closed',
+          is_active: false,
+          current_ticket_id: null,
+        };
+      });
+    };
 
     try {
       const surveyLink = `${window.location.origin}/survey/${ticketId}`;
@@ -357,11 +369,24 @@ export function useInboxConversation({
       });
 
       setCurrentTicket(resolvedTicket);
+      markConversationClosedLocally();
       setShowResolveModal(false);
-      setSelectedChat(null);
       addToast(getInboxResolveSuccessToast());
     } catch (error: unknown) {
-      alert(getInboxActionFailedMessage('Failed', error));
+      // Network can fail after server successfully commits resolve.
+      // Re-check ticket state once before showing failure.
+      const refreshedTicket = await getInboxTicketById(ticketId);
+      const isActuallyResolved =
+        refreshedTicket?.status === 'Resolved' || refreshedTicket?.status === 'Closed';
+
+      if (isActuallyResolved && refreshedTicket) {
+        setCurrentTicket(refreshedTicket);
+        markConversationClosedLocally();
+        setShowResolveModal(false);
+        addToast(getInboxResolveSuccessToast());
+      } else {
+        alert(getInboxActionFailedMessage('Failed', error));
+      }
     } finally {
       setSending(false);
     }
