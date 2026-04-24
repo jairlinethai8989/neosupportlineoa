@@ -549,20 +549,37 @@ export default function StaffTicketDetailPage() {
       });
       
       const canvas = await html2canvas(reportRef.current, {
-        scale: 2,
+        scale: 1.5,
         useCORS: true,
         logging: false,
         backgroundColor: '#ffffff'
       });
       
-      const imgData = canvas.toDataURL('image/png');
+      // Use JPEG instead of PNG for massively smaller file size (~200KB vs ~10MB)
+      const imgData = canvas.toDataURL('image/jpeg', 0.85);
+      
+      // Use proper A4 dimensions in mm
       const pdf = new jsPDF({
         orientation: 'portrait',
-        unit: 'px',
-        format: [canvas.width, canvas.height]
+        unit: 'mm',
+        format: 'a4'
       });
 
-      pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height);
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      const margin = 10; // 10mm margins
+      const contentWidth = pageWidth - (margin * 2);
+      const imgAspectRatio = canvas.height / canvas.width;
+      const contentHeight = contentWidth * imgAspectRatio;
+
+      // If content is taller than one page, scale to fit
+      const finalHeight = Math.min(contentHeight, pageHeight - (margin * 2));
+      const finalWidth = finalHeight < contentHeight 
+        ? (finalHeight / imgAspectRatio) 
+        : contentWidth;
+      const xOffset = (pageWidth - finalWidth) / 2;
+
+      pdf.addImage(imgData, 'JPEG', xOffset, margin, finalWidth, finalHeight);
       pdf.save(`Service_Report_${ticket.ticket_no}.pdf`);
       
       addToast({
