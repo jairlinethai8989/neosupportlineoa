@@ -399,8 +399,7 @@ export default function TicketDetailPage() {
         ticket_id: ticketId,
         score: surveyRating,
         comment: surveyComment,
-        responded_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
+        responded_at: new Date().toISOString()
       }, { onConflict: 'ticket_id' });
 
       if (error) throw error;
