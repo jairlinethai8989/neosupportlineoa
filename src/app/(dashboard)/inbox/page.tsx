@@ -6,8 +6,6 @@ import { Loader2, MessageSquare } from 'lucide-react';
 import { useStaffLocale } from '@/contexts/StaffLocaleContext';
 import { useRealtimeInbox } from '@/hooks/useRealtimeInbox';
 import { useNotificationContext } from '@/contexts/NotificationContext';
-import ImageEditorModal from '@/components/modals/ImageEditorModal';
-import ImageViewerModal from '@/components/modals/ImageViewerModal';
 import { InboxSidebar } from '@/components/inbox/InboxSidebar';
 import { ChatWindow } from '@/components/inbox/ChatWindow';
 import { TicketSidebar } from '@/components/inbox/TicketSidebar';
@@ -20,6 +18,9 @@ import {
 } from '@/lib/inbox/feedback';
 import { deleteInboxMessage, uploadInboxChatMedia } from '@/lib/inbox/mutations';
 import type { InboxConversation, InboxViewMode } from '@/types/inbox';
+
+const ImageEditorModal = React.lazy(() => import('@/components/modals/ImageEditorModal'));
+const ImageViewerModal = React.lazy(() => import('@/components/modals/ImageViewerModal'));
 
 function hasSelectedConversationChanged(
   prev: InboxConversation | null,
@@ -352,47 +353,51 @@ function InboxContent() {
       />
 
       {isViewerOpen && viewingImage && (
-        <ImageViewerModal
-          imageUrl={viewingImage}
-          onClose={() => setIsViewerOpen(false)}
-          onEdit={(source: string) => {
-            setEditingImage(source);
-            setIsEditorOpen(true);
-          }}
-        />
+        <Suspense fallback={null}>
+          <ImageViewerModal
+            imageUrl={viewingImage}
+            onClose={() => setIsViewerOpen(false)}
+            onEdit={(source: string) => {
+              setEditingImage(source);
+              setIsEditorOpen(true);
+            }}
+          />
+        </Suspense>
       )}
 
       {isEditorOpen && editingImage && (
-        <ImageEditorModal
-          imageUrl={editingImage}
-          onClose={() => setIsEditorOpen(false)}
-          onSave={async (blob: Blob) => {
-            if (!selectedChat) return;
+        <Suspense fallback={null}>
+          <ImageEditorModal
+            imageUrl={editingImage}
+            onClose={() => setIsEditorOpen(false)}
+            onSave={async (blob: Blob) => {
+              if (!selectedChat) return;
 
-            setSending(true);
-            try {
-              // 1. Convert Blob to File as per Codex protocol
-              const file = new File([blob], `edited_inbox_${Date.now()}.jpg`, { type: 'image/jpeg' });
-              
-              // 2. Upload and wait for completion
-              await uploadInboxChatMedia({
-                file, // Pass the new File object
-                conversationId: selectedChat.id,
-                ticketId: currentTicket?.id || selectedChat.current_ticket_id || null,
-                filePrefix: 'edited'
-              });
+              setSending(true);
+              try {
+                // 1. Convert Blob to File as per Codex protocol
+                const file = new File([blob], `edited_inbox_${Date.now()}.jpg`, { type: 'image/jpeg' });
+                
+                // 2. Upload and wait for completion
+                await uploadInboxChatMedia({
+                  file, // Pass the new File object
+                  conversationId: selectedChat.id,
+                  ticketId: currentTicket?.id || selectedChat.current_ticket_id || null,
+                  filePrefix: 'edited'
+                });
 
-              // 3. Success! Close modal and cleanup
-              setIsEditorOpen(false);
-              setEditingImage('');
-            } catch (error: unknown) {
-              console.error('Inbox editor save failed:', error);
-              alert(getInboxUploadFailedMessage(error));
-            } finally {
-              setSending(false);
-            }
-          }}
-        />
+                // 3. Success! Close modal and cleanup
+                setIsEditorOpen(false);
+                setEditingImage('');
+              } catch (error: unknown) {
+                console.error('Inbox editor save failed:', error);
+                alert(getInboxUploadFailedMessage(error));
+              } finally {
+                setSending(false);
+              }
+            }}
+          />
+        </Suspense>
       )}
 
       <style

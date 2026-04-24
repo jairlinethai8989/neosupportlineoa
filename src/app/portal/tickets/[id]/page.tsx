@@ -15,11 +15,12 @@ import {
   SendHorizontal,
   Paperclip
 } from 'lucide-react';
-import ChatAttachmentModal from '@/components/chat/ChatAttachmentModal';
-import ImageEditorModal from '@/components/modals/ImageEditorModal';
-import ImageViewerModal from '@/components/modals/ImageViewerModal';
 import { useLiff } from '@/hooks/useLiff';
 import { sendPortalMessageAction } from '@/app/actions/portalActions';
+
+const ChatAttachmentModal = React.lazy(() => import('@/components/chat/ChatAttachmentModal'));
+const ImageEditorModal = React.lazy(() => import('@/components/modals/ImageEditorModal'));
+const ImageViewerModal = React.lazy(() => import('@/components/modals/ImageViewerModal'));
 
 export default function TicketDetailPage() {
   const { id } = useParams();
@@ -38,9 +39,23 @@ export default function TicketDetailPage() {
   const [editingImage, setEditingImage] = useState<string>('');
   const [viewingImage, setViewingImage] = useState<string>('');
   const [conversationId, setConversationId] = useState<string | null>(null);
+  const [showJumpToLatest, setShowJumpToLatest] = useState(false);
+  const messagesContainerRef = useRef<HTMLDivElement | null>(null);
+  const messagesEndRef = useRef<HTMLDivElement | null>(null);
   // Use a ref so realtime handler always has the latest conversationId
   // without needing to re-subscribe every time state changes
   const conversationIdRef = useRef<string | null>(null);
+
+  const scrollToLatest = (behavior: ScrollBehavior = 'smooth') => {
+    messagesEndRef.current?.scrollIntoView({ behavior, block: 'end' });
+  };
+
+  const handleMessagesScroll = (event: React.UIEvent<HTMLDivElement>) => {
+    const target = event.currentTarget;
+    const distanceFromBottom =
+      target.scrollHeight - target.scrollTop - target.clientHeight;
+    setShowJumpToLatest(distanceFromBottom > 80);
+  };
 
   useEffect(() => {
     if (!ticketId) return;
@@ -233,6 +248,18 @@ export default function TicketDetailPage() {
     };
   }, [ticketId, isReady]);
 
+  useEffect(() => {
+    if (!ticketId) return;
+    scrollToLatest('auto');
+  }, [ticketId]);
+
+  useEffect(() => {
+    const frame = window.requestAnimationFrame(() => {
+      scrollToLatest(messages.length > 1 ? 'smooth' : 'auto');
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [messages]);
+
   const handleEditExistingImage = (url: string) => {
     setViewingImage(url);
     setIsViewerOpen(true);
@@ -347,13 +374,18 @@ export default function TicketDetailPage() {
           <h2 style={{ fontSize: '18px', fontWeight: '900', color: '#1e293b' }}>ตั๋วเลขที่ #{ticket.ticket_no}</h2>
        </div>
 
-       <section className="portal-glass" style={{ padding: '20px', marginBottom: '24px', display: 'flex', flexDirection: 'column', height: '450px', background: 'white' }}>
+       <section className="portal-glass" style={{ padding: '20px', marginBottom: '24px', display: 'flex', flexDirection: 'column', height: '450px', background: 'white', position: 'relative' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px', borderBottom: '1px solid var(--portal-border)', paddingBottom: '12px' }}>
              <MessageCircle size={16} color="var(--portal-primary)" />
              <h3 style={{ fontSize: '13px', fontWeight: '800', color: '#1e293b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>สนทนากับเจ้าหน้าที่</h3>
           </div>
 
-          <div style={{ flex: 1, overflowY: 'auto', marginBottom: '20px', display: 'flex', flexDirection: 'column', gap: '14px', padding: '0 4px' }} className="no-scrollbar">
+          <div
+            ref={messagesContainerRef}
+            onScroll={handleMessagesScroll}
+            style={{ flex: 1, overflowY: 'auto', marginBottom: '20px', display: 'flex', flexDirection: 'column', gap: '14px', padding: '0 4px' }}
+            className="no-scrollbar"
+          >
              {messages.filter((m: any) => m.message_type !== 'unsent').map((msg, idx) => (
                 <div key={idx} style={{ 
                    alignSelf: msg.sender_type === 'customer' ? 'flex-end' : 'flex-start',
@@ -387,7 +419,32 @@ export default function TicketDetailPage() {
                 </div>
              ))}
              {messages.length === 0 && <p style={{ textAlign: 'center', color: 'var(--portal-text-muted)', fontSize: '13px', marginTop: '40px' }}>ยังไม่มีข้อความ เริ่มคุยกับเราได้เลยครับ</p>}
+             <div ref={messagesEndRef} />
           </div>
+
+          {showJumpToLatest && (
+            <button
+              type="button"
+              onClick={() => scrollToLatest('smooth')}
+              style={{
+                position: 'absolute',
+                right: '22px',
+                bottom: '84px',
+                border: '1px solid rgba(15, 23, 42, 0.08)',
+                background: '#ffffff',
+                color: '#0f172a',
+                borderRadius: '999px',
+                padding: '8px 12px',
+                fontSize: '12px',
+                fontWeight: '800',
+                boxShadow: '0 10px 20px rgba(15, 23, 42, 0.12)',
+                cursor: 'pointer',
+                zIndex: 5,
+              }}
+            >
+              Latest ↓
+            </button>
+          )}
 
           {ticket.status !== 'Resolved' && ticket.status !== 'Closed' ? (
             <div style={{ display: 'flex', gap: '10px', alignItems: 'center', background: '#f8fafc', padding: '8px', borderRadius: '16px' }}>
@@ -510,39 +567,45 @@ export default function TicketDetailPage() {
            </div>
         </section>
 
-        <ChatAttachmentModal 
-           isOpen={isAttachModalOpen} 
-           onClose={() => setIsAttachModalOpen(false)}
-           onConfirm={handleConfirmAttachment}
-           onImageSelect={(dataUrl) => {
-              setEditingImage(dataUrl);
-              setIsEditorOpen(true);
-              setIsAttachModalOpen(false);
-           }}
-        />
+        <React.Suspense fallback={null}>
+          <ChatAttachmentModal 
+             isOpen={isAttachModalOpen} 
+             onClose={() => setIsAttachModalOpen(false)}
+             onConfirm={handleConfirmAttachment}
+             onImageSelect={(dataUrl) => {
+                setEditingImage(dataUrl);
+                setIsEditorOpen(true);
+                setIsAttachModalOpen(false);
+             }}
+          />
+        </React.Suspense>
 
         {isEditorOpen && editingImage && (
-           <ImageEditorModal 
-              imageUrl={editingImage}
-              onClose={() => setIsEditorOpen(false)}
-              onSave={async (blob) => {
-                 const file = new File([blob], `edit_${Date.now()}.jpg`, { type: 'image/jpeg' });
-                 await handleConfirmAttachment(file, 'image');
-                 setIsEditorOpen(false);
-              }}
-           />
+           <React.Suspense fallback={null}>
+             <ImageEditorModal 
+                imageUrl={editingImage}
+                onClose={() => setIsEditorOpen(false)}
+                onSave={async (blob) => {
+                   const file = new File([blob], `edit_${Date.now()}.jpg`, { type: 'image/jpeg' });
+                   await handleConfirmAttachment(file, 'image');
+                   setIsEditorOpen(false);
+                }}
+             />
+           </React.Suspense>
         )}
 
         {isViewerOpen && viewingImage && (
-           <ImageViewerModal 
-              imageUrl={viewingImage} 
-              onClose={() => setIsViewerOpen(false)} 
-              onEdit={(src) => {
-                 setIsViewerOpen(false);
-                 setEditingImage(src);
-                 setIsEditorOpen(true);
-              }}
-           />
+           <React.Suspense fallback={null}>
+             <ImageViewerModal 
+                imageUrl={viewingImage} 
+                onClose={() => setIsViewerOpen(false)} 
+                onEdit={(src) => {
+                   setIsViewerOpen(false);
+                   setEditingImage(src);
+                   setIsEditorOpen(true);
+                }}
+             />
+           </React.Suspense>
         )}
 
     </div>

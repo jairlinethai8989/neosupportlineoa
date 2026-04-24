@@ -22,8 +22,9 @@ import {
   ChevronsRight
 } from 'lucide-react';
 import Link from 'next/link';
-import ProfileRegistrationModal from '@/components/portal/ProfileRegistrationModal';
 import Skeleton from '@/components/ui/Skeleton';
+
+const ProfileRegistrationModal = React.lazy(() => import('@/components/portal/ProfileRegistrationModal'));
 
 export default function PortalPage() {
   const { profile, isReady, error: liffError, setMockLogin } = useLiff();
@@ -55,13 +56,12 @@ export default function PortalPage() {
           const thirtyDaysAgo = new Date();
           thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-          const ITEMS_PER_PAGE = 5;
           const from = (historyPage - 1) * ITEMS_PER_PAGE;
           const to = from + ITEMS_PER_PAGE - 1;
 
           const query = supabase
             .from('tickets')
-            .select('*, assigned_agent:profiles!assigned_agent_id (id, full_name)', { count: 'exact' })
+            .select('id, ticket_no, subject, status, created_at, resolved_at', { count: 'exact' })
             .eq('customer_id', customer.id)
             .or(`status.not.in.(Resolved,Closed,Canceled,Canceled),created_at.gte.${thirtyDaysAgo.toISOString()}`)
             .order('created_at', { ascending: false })
@@ -346,16 +346,18 @@ export default function PortalPage() {
     </div>
 
     {/* MODALS - Moved outside container to avoid transform-fixed ghosting */}
-    <ProfileRegistrationModal 
-        isOpen={needsRegistration || isEditModalOpen} 
-        profile={profile}
-        existingCustomer={customerData}
-        onComplete={() => {
-            setIsEditModalOpen(false);
-            fetchTickets();
-        }}
-        onClose={() => setIsEditModalOpen(false)}
-    />
+    <React.Suspense fallback={null}>
+      <ProfileRegistrationModal 
+          isOpen={needsRegistration || isEditModalOpen} 
+          profile={profile}
+          existingCustomer={customerData}
+          onComplete={() => {
+              setIsEditModalOpen(false);
+              fetchTickets();
+          }}
+          onClose={() => setIsEditModalOpen(false)}
+      />
+    </React.Suspense>
     </>
   );
 }

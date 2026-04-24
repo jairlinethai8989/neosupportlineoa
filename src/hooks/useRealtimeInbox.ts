@@ -31,8 +31,10 @@ export function useRealtimeInbox(options: {
   const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(true);
 
-  const fetchConversations = async () => {
-    setLoading(true);
+  const fetchConversations = async (options: { silent?: boolean } = {}) => {
+    if (!options.silent) {
+      setLoading(true);
+    }
     try {
       const { data, count } = await listInboxConversationsV2({
         status: 'active',
@@ -44,7 +46,9 @@ export function useRealtimeInbox(options: {
     } catch (error) {
       console.error('Fetch Inbox Error:', error);
     } finally {
-      setLoading(false);
+      if (!options.silent) {
+        setLoading(false);
+      }
     }
   };
 
@@ -60,7 +64,7 @@ export function useRealtimeInbox(options: {
         { event: '*', schema: 'public', table: 'conversations' },
         () => {
           // Simplest approach: full refresh on any change to avoid state logic errors
-          void fetchConversations();
+          void fetchConversations({ silent: true });
         }
       )
       .subscribe();

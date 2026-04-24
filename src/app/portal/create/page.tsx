@@ -12,7 +12,7 @@ import {
   Camera,
   CheckCircle
 } from 'lucide-react';
-import ChatAttachmentModal from '@/components/chat/ChatAttachmentModal';
+const ChatAttachmentModal = React.lazy(() => import('@/components/chat/ChatAttachmentModal'));
 
 export default function CreateTicketPage() {
   const router = useRouter();
@@ -265,23 +265,25 @@ export default function CreateTicketPage() {
          </div>
       </div>
 
-      <ChatAttachmentModal 
-         isOpen={isAttachOpen}
-         onClose={() => setIsAttachOpen(false)}
-         onConfirm={(f) => {
-            setFile(f);
-            setIsAttachOpen(false);
-         }}
-         onImageSelect={(dataUrl) => {
-            fetch(dataUrl)
-              .then(res => res.blob())
-              .then(blob => {
-                 const f = new File([blob], `cam_${Date.now()}.jpg`, { type: 'image/jpeg' });
-                 setFile(f);
-                 setIsAttachOpen(false);
-              });
-         }}
-      />
+      <React.Suspense fallback={null}>
+        <ChatAttachmentModal 
+           isOpen={isAttachOpen}
+           onClose={() => setIsAttachOpen(false)}
+           onConfirm={(f) => {
+              setFile(f);
+              setIsAttachOpen(false);
+           }}
+           onImageSelect={(dataUrl) => {
+              fetch(dataUrl)
+                .then(res => res.blob())
+                .then(blob => {
+                   const f = new File([blob], `cam_${Date.now()}.jpg`, { type: 'image/jpeg' });
+                   setFile(f);
+                   setIsAttachOpen(false);
+                });
+           }}
+        />
+      </React.Suspense>
     </div>
   );
 }
