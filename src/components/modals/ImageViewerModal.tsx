@@ -54,8 +54,17 @@ export default function ImageViewerModal({ imageUrl, onClose, onEdit }: ImageVie
       }}
       onClick={onClose}
     >
+      {/* Close Button */}
+      <button
+        onClick={onClose}
+        className="viewer-close-btn flex-center glass-interactive"
+      >
+        <X size={24} />
+      </button>
+
       {/* Toolbar */}
       <div 
+        className="viewer-toolbar"
         style={{ 
           position: 'absolute', 
           top: '24px', 
@@ -93,27 +102,6 @@ export default function ImageViewerModal({ imageUrl, onClose, onEdit }: ImageVie
         )}
       </div>
 
-      {/* Close Button */}
-      <button 
-        onClick={onClose}
-        style={{ 
-          position: 'absolute', 
-          top: '24px', 
-          right: '24px', 
-          width: '48px', 
-          height: '48px', 
-          borderRadius: '24px', 
-          background: 'rgba(255, 255, 255, 0.1)', 
-          border: 'none', 
-          color: 'white', 
-          cursor: 'pointer',
-          zIndex: 10
-        }}
-        className="flex-center glass-interactive"
-      >
-        <X size={24} />
-      </button>
-
       {/* Image Container */}
       <div 
         style={{ 
@@ -142,6 +130,22 @@ export default function ImageViewerModal({ imageUrl, onClose, onEdit }: ImageVie
       </div>
 
       <style dangerouslySetInnerHTML={{ __html: `
+        .viewer-close-btn {
+          position: absolute;
+          top: 24px;
+          left: 24px;
+          width: 48px;
+          height: 48px;
+          border-radius: 24px;
+          background: rgba(255, 255, 255, 0.1);
+          border: none;
+          color: white;
+          cursor: pointer;
+          z-index: 12;
+        }
+        .viewer-toolbar {
+          max-width: calc(100vw - 120px);
+        }
         .tool-btn {
           width: 36px;
           height: 36px;
@@ -158,6 +162,25 @@ export default function ImageViewerModal({ imageUrl, onClose, onEdit }: ImageVie
         .tool-btn:hover {
           background: rgba(255, 255, 255, 0.1);
           transform: translateY(-2px);
+        }
+        @media (max-width: 768px) {
+          .viewer-close-btn {
+            top: max(12px, env(safe-area-inset-top));
+            left: 12px;
+            width: 44px;
+            height: 44px;
+          }
+          .viewer-toolbar {
+            top: calc(max(12px, env(safe-area-inset-top)) + 54px) !important;
+            max-width: calc(100vw - 24px);
+            gap: 8px !important;
+            padding: 8px 10px !important;
+            overflow-x: auto;
+            scrollbar-width: none;
+          }
+          .viewer-toolbar::-webkit-scrollbar {
+            display: none;
+          }
         }
       `}} />
     </div>
