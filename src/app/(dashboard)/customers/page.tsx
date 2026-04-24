@@ -17,7 +17,11 @@ import {
   AlertCircle,
   ArrowUpDown,
   ArrowUp,
-  ArrowDown
+  ArrowDown,
+  X,
+  Clock,
+  ExternalLink,
+  FileText
 } from 'lucide-react';
 import Link from 'next/link';
 import Skeleton from '@/components/ui/Skeleton';
@@ -29,6 +33,11 @@ export default function CustomersPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' }>({ key: 'created_at', direction: 'desc' });
+
+  // History Modal States
+  const [selectedCustomer, setSelectedCustomer] = useState<any | null>(null);
+  const [customerTickets, setCustomerTickets] = useState<any[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
 
   const fetchCustomers = async () => {
     setLoading(true);
@@ -64,6 +73,26 @@ export default function CustomersPage() {
     } finally {
       setLoading(false);
       setIsRefreshing(false);
+    }
+  };
+
+  const openHistory = async (customer: any) => {
+    setSelectedCustomer(customer);
+    setLoadingHistory(true);
+    setCustomerTickets([]);
+    try {
+      const { data, error } = await supabase
+        .from('tickets')
+        .select('*')
+        .eq('customer_id', customer.id)
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      setCustomerTickets(data || []);
+    } catch (err: any) {
+      console.error('Error fetching history:', err.message);
+    } finally {
+      setLoadingHistory(false);
     }
   };
 
@@ -353,8 +382,8 @@ export default function CustomersPage() {
                           <p style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{new Date(c.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
                        </td>
                        <td style={{ padding: '16px 20px', background: 'rgba(255, 255, 255, 0.02)', borderRadius: '0 20px 20px 0', textAlign: 'right' }}>
-                          <Link 
-                            href={`/tickets?customerId=${c.id}`}
+                          <button 
+                            onClick={() => openHistory(c)}
                             className="glass-interactive flex-center" 
                             style={{ 
                               display: 'inline-flex', 
@@ -363,11 +392,14 @@ export default function CustomersPage() {
                               borderRadius: '12px', 
                               border: '1px solid var(--border)', 
                               color: 'var(--primary)',
-                              marginLeft: '8px'
+                              marginLeft: '8px',
+                              background: 'none',
+                              cursor: 'pointer'
                             }}
+                            title="View Ticket History"
                           >
                              <Ticket size={18} />
-                          </Link>
+                          </button>
                           <Link 
                             href={`/inbox?customerId=${c.id}`}
                             className="glass-interactive flex-center" 
@@ -409,6 +441,116 @@ export default function CustomersPage() {
            border-top-right-radius: 20px;
            border-bottom-right-radius: 20px;
         }
+      `}} />
+
+      {/* 4. History Modal */}
+      {selectedCustomer && (
+         <div style={{
+           position: 'fixed',
+           inset: 0,
+           background: 'rgba(15, 23, 42, 0.7)',
+           backdropFilter: 'blur(8px)',
+           display: 'flex',
+           alignItems: 'center',
+           justifyContent: 'center',
+           zIndex: 10000,
+           padding: '20px',
+           animation: 'modalFadeIn 0.3s ease'
+         }}>
+           <div style={{
+             width: '100%',
+             maxWidth: '700px',
+             background: 'var(--card-bg)',
+             borderRadius: '24px',
+             border: '1px solid var(--border)',
+             display: 'flex',
+             flexDirection: 'column',
+             maxHeight: '85vh',
+             overflow: 'hidden',
+             boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+             animation: 'modalContentIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)'
+           }}>
+             {/* Modal Header */}
+             <div style={{ padding: '24px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+               <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px' }}>
+                     <Clock size={20} color="var(--primary)" />
+                     <h3 style={{ fontSize: '18px', fontWeight: '800', color: 'var(--text-main)' }}>Ticket History</h3>
+                  </div>
+                  <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
+                     ประวัติการแจ้งงานของ: <span style={{ color: 'var(--primary)', fontWeight: '700' }}>{selectedCustomer.full_name || selectedCustomer.display_name}</span>
+                  </p>
+               </div>
+               <button 
+                 onClick={() => setSelectedCustomer(null)}
+                 style={{ width: '36px', height: '36px', borderRadius: '10px', border: 'none', background: 'rgba(255,255,255,0.05)', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+               >
+                 <X size={20} />
+               </button>
+             </div>
+
+             {/* Modal Content */}
+             <div style={{ padding: '24px', overflowY: 'auto', flex: 1 }}>
+                {loadingHistory ? (
+                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '40px 0', gap: '12px' }}>
+                      <Loader2 size={32} className="animate-spin" color="var(--primary)" />
+                      <p style={{ fontSize: '14px', color: 'var(--text-muted)' }}>กำลังโหลดประวัติ...</p>
+                   </div>
+                ) : customerTickets.length > 0 ? (
+                   <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                      {customerTickets.map((t) => (
+                         <div key={t.id} className="glass" style={{ padding: '16px', borderRadius: '16px', border: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+                               <div style={{ 
+                                  width: '48px', height: '48px', borderRadius: '12px', background: 'rgba(54, 153, 255, 0.1)', 
+                                  display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--primary)' 
+                               }}>
+                                  <FileText size={20} />
+                               </div>
+                               <div>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '2px' }}>
+                                     <span style={{ fontSize: '14px', fontWeight: '800', color: 'var(--text-main)' }}>#{t.ticket_no}</span>
+                                     <span style={{ 
+                                        fontSize: '10px', fontWeight: '800', padding: '2px 8px', borderRadius: '6px',
+                                        background: t.status === 'closed' ? 'rgba(40, 199, 111, 0.1)' : 'rgba(255, 159, 67, 0.1)',
+                                        color: t.status === 'closed' ? 'var(--success)' : 'var(--warning)'
+                                     }}>
+                                        {t.status?.toUpperCase()}
+                                     </span>
+                                  </div>
+                                  <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '4px' }}>{t.subject}</p>
+                                  <p style={{ fontSize: '11px', color: 'var(--text-dim)' }}>
+                                     แจ้งเมื่อ: {new Date(t.created_at).toLocaleString('th-TH', { dateStyle: 'medium', timeStyle: 'short' })}
+                                  </p>
+                               </div>
+                            </div>
+                            <Link 
+                              href={`/tickets/${t.id}`}
+                              style={{ 
+                                 width: '40px', height: '40px', borderRadius: '10px', border: '1px solid var(--border)', 
+                                 display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--primary)',
+                                 background: 'rgba(255,255,255,0.02)'
+                              }}
+                            >
+                               <ExternalLink size={18} />
+                            </Link>
+                         </div>
+                      ))}
+                   </div>
+                ) : (
+                   <div style={{ textAlign: 'center', padding: '40px 0', opacity: 0.5 }}>
+                      <FileText size={48} style={{ marginBottom: '12px' }} />
+                      <p>ไม่พบประวัติการแจ้งงาน</p>
+                   </div>
+                )}
+             </div>
+           </div>
+         </div>
+      )}
+
+      <style dangerouslySetInnerHTML={{ __html: `
+        @keyframes modalFadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes modalContentIn { from { opacity: 0; transform: translateY(20px) scale(0.95); } to { opacity: 1; transform: translateY(0) scale(1); } }
       `}} />
     </div>
   );
