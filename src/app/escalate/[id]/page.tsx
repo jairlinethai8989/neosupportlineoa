@@ -1,279 +1,534 @@
 'use client';
-import React, { useState, useEffect } from 'react';
-import { verifyEscalationPin, claimEscalatedTicket, updateEscalatedTicketStatus } from '@/app/actions/escalationActions';
-import { Lock, Unlock, AlertCircle, CheckCircle, FileText, Send, Loader2, Camera, Trash2, ClipboardCheck, History, User, Building2, Calendar } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
+
+import React, { useState, type ChangeEvent, type FormEvent } from 'react';
+import {
+  AlertCircle,
+  Building2,
+  Calendar,
+  Camera,
+  CheckCircle,
+  ClipboardCheck,
+  FileText,
+  History,
+  Loader2,
+  Lock,
+  Send,
+  Trash2,
+  Unlock,
+  User,
+} from 'lucide-react';
 import { useParams } from 'next/navigation';
+import {
+  claimEscalatedTicket,
+  updateEscalatedTicketStatus,
+  verifyEscalationPin,
+} from '@/app/actions/escalationActions';
+import { supabase } from '@/lib/supabase';
+
+type ExternalReportStatus = 'In Progress' | 'Pending';
+
+type TicketLog = {
+  action_type?: string | null;
+  note?: string | null;
+  created_at: string;
+};
+
+type TicketData = {
+  id: string;
+  ticket_no?: string | null;
+  status?: string | null;
+  subject?: string | null;
+  description?: string | null;
+  customers?: {
+    display_name?: string | null;
+  } | null;
+  hospitals?: {
+    name?: string | null;
+  } | null;
+  logs?: TicketLog[] | null;
+};
+
+const STATUS_OPTIONS: Array<{ value: ExternalReportStatus; label: string }> = [
+  { value: 'In Progress', label: 'Return to owner for review (In Progress)' },
+  { value: 'Pending', label: 'Blocked (Pending)' },
+];
+
+function formatDateTime(value?: string | null) {
+  if (!value) return '-';
+  return new Date(value).toLocaleString('th-TH');
+}
+
+function statusBadgeStyle(status: string | null | undefined): React.CSSProperties {
+  if (status === 'Resolved') {
+    return {
+      background: '#d1fae5',
+      color: '#065f46',
+    };
+  }
+  return {
+    background: '#fef3c7',
+    color: '#92400e',
+  };
+}
 
 export default function EscalationPortalPage() {
   const params = useParams();
   const ticketId = params.id as string;
-  
-  // App States
+
   const [pin, setPin] = useState('');
   const [isUnlocked, setIsUnlocked] = useState(false);
   const [isClaimed, setIsClaimed] = useState(false);
-  const [ticketData, setTicketData] = useState<any>(null);
-  
+  const [ticketData, setTicketData] = useState<TicketData | null>(null);
+
   const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
-  // Form State
-  const [newStatus, setNewStatus] = useState('In Progress');
+  const [newStatus, setNewStatus] = useState<ExternalReportStatus>('In Progress');
   const [notes, setNotes] = useState('');
   const [receiverName, setReceiverName] = useState('');
   const [attachments, setAttachments] = useState<string[]>([]);
-  const [uploading, setUploading] = useState(false);
 
-  // 1. PIN UNLOCK
-  const handleUnlock = async (e: React.FormEvent) => {
-    e.preventDefault();
+  async function handleUnlock(event: FormEvent) {
+    event.preventDefault();
     setError('');
     setLoading(true);
-    
+
     try {
-      const res = await verifyEscalationPin(ticketId, pin);
-      if (res.error) {
-        setError(res.error);
-      } else {
-        setTicketData(res.data);
-        setNewStatus(
-          res.data?.status === 'Escalated'
-            ? 'In Progress'
-            : res.data?.status || 'In Progress'
-        );
-        setIsUnlocked(true);
+      const response = await verifyEscalationPin(ticketId, pin);
+      if (response.error) {
+        setError(response.error);
+        return;
       }
+
+      const nextTicket = response.data as TicketData;
+      setTicketData(nextTicket);
+      setNewStatus(nextTicket?.status === 'Pending' ? 'Pending' : 'In Progress');
+      setIsUnlocked(true);
     } catch (err: any) {
-      setError('เกิดข้อผิดพลาดในการเชื่อมต่อ');
+      setError(`Unable to verify PIN: ${err.message}`);
     } finally {
       setLoading(false);
     }
-  };
+  }
 
-  // 2. CLAIM JOB
-  const handleClaim = async (e: React.FormEvent) => {
-    e.preventDefault();
+  async function handleClaim(event: FormEvent) {
+    event.preventDefault();
     if (!receiverName.trim()) {
-      setError('กรุณาระบุชื่อผู้รับเรื่อง');
+      setError('Please provide receiver name');
       return;
     }
+
     setError('');
     setLoading(true);
+
     try {
-      const res = await claimEscalatedTicket(ticketId, pin, receiverName);
-      if (res.error) {
-        setError(res.error);
-      } else {
-        setIsClaimed(true);
-        setSuccess('รับเรื่องสำเร็จ! กรุณาตรวจสอบรายละเอียดและดำเนินการ');
-        setTimeout(() => setSuccess(''), 3000);
+      const response = await claimEscalatedTicket(ticketId, pin, receiverName.trim());
+      if (response.error) {
+        setError(response.error);
+        return;
       }
+
+      setIsClaimed(true);
+      setSuccess('Ticket claimed. You can now submit progress back to owner.');
+      setTimeout(() => setSuccess(''), 3000);
     } catch (err: any) {
-      setError('เกิดข้อผิดพลาดในการรับเรื่อง');
+      setError(`Unable to claim ticket: ${err.message}`);
     } finally {
       setLoading(false);
     }
-  };
+  }
 
-  // 3. FILE UPLOAD
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
+  async function handleFileUpload(event: ChangeEvent<HTMLInputElement>) {
+    const files = event.target.files;
     if (!files || files.length === 0) return;
 
     setUploading(true);
     setError('');
 
     try {
-      const newUrls: string[] = [];
-      for (let i = 0; i < files.length; i++) {
-        const file = files[i];
-        const fileExt = file.name.split('.').pop() || 'jpg';
-        const fileName = `${ticketId}_ext_${Date.now()}_${i}.${fileExt}`;
-        
+      const uploadedUrls: string[] = [];
+      for (let index = 0; index < files.length; index += 1) {
+        const file = files[index];
+        const extension = file.name.split('.').pop() || 'jpg';
+        const fileName = `${ticketId}_ext_${Date.now()}_${index}.${extension}`;
+
         const { error: uploadError } = await supabase.storage
           .from('chat_media')
           .upload(fileName, file);
 
-        if (uploadError) throw uploadError;
+        if (uploadError) {
+          throw uploadError;
+        }
 
-        const { data: { publicUrl } } = supabase.storage
-          .from('chat_media')
-          .getPublicUrl(fileName);
-
-        newUrls.push(publicUrl);
+        const { data } = supabase.storage.from('chat_media').getPublicUrl(fileName);
+        uploadedUrls.push(data.publicUrl);
       }
-      setAttachments(prev => [...prev, ...newUrls]);
+
+      setAttachments((prev) => [...prev, ...uploadedUrls]);
     } catch (err: any) {
-      setError('อัปโหลดไฟล์ล้มเหลว: ' + err.message);
+      setError(`File upload failed: ${err.message}`);
     } finally {
       setUploading(false);
+      event.target.value = '';
     }
-  };
+  }
 
-  const removeAttachment = (url: string) => {
-    setAttachments(prev => prev.filter(u => u !== url));
-  };
+  function removeAttachment(url: string) {
+    setAttachments((prev) => prev.filter((item) => item !== url));
+  }
 
-  // 4. SUBMIT WORK
-  const handleUpdate = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newStatus) return;
-    
+  async function handleUpdate(event: FormEvent) {
+    event.preventDefault();
     setError('');
     setSuccess('');
     setLoading(true);
-    
+
     try {
-      const res = await updateEscalatedTicketStatus(ticketId, pin, newStatus, notes, receiverName, attachments);
-      if (res.error) {
-        setError(res.error);
-      } else {
-        setSuccess('บันทึกข้อมูลและส่งกลับหาแอดมินสำเร็จ!');
-        setNotes(''); 
-        setAttachments([]);
+      const response = await updateEscalatedTicketStatus(
+        ticketId,
+        pin,
+        newStatus,
+        notes.trim(),
+        receiverName,
+        attachments
+      );
+
+      if (response.error) {
+        setError(response.error);
+        return;
       }
+
+      setSuccess('Escalation report submitted. Owner needs to review and resolve ticket.');
+      setNotes('');
+      setAttachments([]);
     } catch (err: any) {
-      setError('เกิดข้อผิดพลาดในการส่งรายงาน');
+      setError(`Unable to submit report: ${err.message}`);
     } finally {
       setLoading(false);
     }
-  };
+  }
 
-  // --- RENDERING ---
-
-  // A. LOCKED STATE (PIN ONLY)
   if (!isUnlocked) {
     return (
-      <div className="glass" style={{ marginTop: '10vh', padding: '32px', borderRadius: '24px', textAlign: 'center', background: '#ffffff', border: '1px solid #e2e8f0', boxShadow: '0 10px 25px -5px rgba(0,0,0,0.05)' }}>
-        <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: 'rgba(8, 145, 178, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px', color: 'var(--primary)' }}>
+      <div
+        className="glass"
+        style={{
+          marginTop: '10vh',
+          padding: '32px',
+          borderRadius: '24px',
+          textAlign: 'center',
+          background: '#ffffff',
+          border: '1px solid #e2e8f0',
+          boxShadow: '0 10px 25px -5px rgba(0,0,0,0.05)',
+        }}
+      >
+        <div
+          style={{
+            width: '64px',
+            height: '64px',
+            borderRadius: '50%',
+            background: 'rgba(8, 145, 178, 0.1)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            margin: '0 auto 24px',
+            color: 'var(--primary)',
+          }}
+        >
           <Lock size={32} />
         </div>
-        <h2 style={{ fontSize: '20px', fontWeight: 800, marginBottom: '8px' }}>เข้าสู่ระบบ (แผนกรับช่วงต่อ)</h2>
-        <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '24px' }}>กรุณากรอกรหัส PIN 4 หลัก เพื่อตรวจสอบรายละเอียดใบงาน</p>
-        {error && <div style={{ padding: '12px', background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', borderRadius: '12px', marginBottom: '20px', fontSize: '13px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}><AlertCircle size={16} /> <span>{String(error)}</span></div>}
+        <h2 style={{ fontSize: '20px', fontWeight: 800, marginBottom: '8px' }}>Escalation Access</h2>
+        <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '24px' }}>
+          Enter the 4-digit PIN to open escalation ticket details.
+        </p>
+
+        {error && (
+          <div
+            style={{
+              padding: '12px',
+              background: 'rgba(239, 68, 68, 0.1)',
+              color: '#ef4444',
+              borderRadius: '12px',
+              marginBottom: '20px',
+              fontSize: '13px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px',
+            }}
+          >
+            <AlertCircle size={16} />
+            <span>{error}</span>
+          </div>
+        )}
+
         <form onSubmit={handleUnlock} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          <input type="password" maxLength={4} value={pin} onChange={(e) => setPin(e.target.value.replace(/[^0-9]/g, ''))} placeholder="รหัส PIN 4 หลัก" style={{ padding: '16px', borderRadius: '12px', border: '2px solid #e2e8f0', textAlign: 'center', fontSize: '24px', letterSpacing: '8px', fontWeight: 800, outline: 'none' }} disabled={loading} />
-          <button disabled={loading || pin.length < 4} type="submit" style={{ background: 'var(--primary)', color: 'white', border: 'none', padding: '16px', borderRadius: '12px', fontWeight: 800, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
-            {loading ? <Loader2 className="animate-spin" size={18} /> : <><Unlock size={18} /> ปลดล็อคใบงาน</>}
+          <input
+            type="password"
+            maxLength={4}
+            value={pin}
+            onChange={(event) => setPin(event.target.value.replace(/[^0-9]/g, ''))}
+            placeholder="4-digit PIN"
+            style={{
+              padding: '16px',
+              borderRadius: '12px',
+              border: '2px solid #e2e8f0',
+              textAlign: 'center',
+              fontSize: '24px',
+              letterSpacing: '8px',
+              fontWeight: 800,
+              outline: 'none',
+            }}
+            disabled={loading}
+          />
+          <button
+            disabled={loading || pin.length < 4}
+            type="submit"
+            style={{
+              background: 'var(--primary)',
+              color: 'white',
+              border: 'none',
+              padding: '16px',
+              borderRadius: '12px',
+              fontWeight: 800,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px',
+            }}
+          >
+            {loading ? <Loader2 className="animate-spin" size={18} /> : <><Unlock size={18} /> Unlock Ticket</>}
           </button>
         </form>
       </div>
     );
   }
 
-  // B. UNLOCKED BUT NOT CLAIMED (ENTER NAME TO CLAIM)
   if (!isClaimed) {
-     return (
-        <div className="glass" style={{ padding: '32px', borderRadius: '24px', background: '#ffffff', border: '1px solid #e2e8f0', boxShadow: '0 10px 25px -5px rgba(0,0,0,0.05)' }}>
-           <h2 style={{ fontSize: '20px', fontWeight: 900, marginBottom: '16px', textAlign: 'center' }}>📥 รับเรื่องประสานงาน</h2>
-           <p style={{ fontSize: '14px', color: '#64748b', textAlign: 'center', marginBottom: '24px' }}>
-              ระบุชื่อเพื่อ "ยืนยันการรับเรื่อง" และเข้าดูรายละเอียดงาน<br/>
-              <b>#{ticketData?.ticket_no}</b>
-           </p>
+    return (
+      <div
+        className="glass"
+        style={{
+          padding: '32px',
+          borderRadius: '24px',
+          background: '#ffffff',
+          border: '1px solid #e2e8f0',
+          boxShadow: '0 10px 25px -5px rgba(0,0,0,0.05)',
+        }}
+      >
+        <h2 style={{ fontSize: '20px', fontWeight: 900, marginBottom: '16px', textAlign: 'center' }}>
+          Claim Escalation Ticket
+        </h2>
+        <p style={{ fontSize: '14px', color: '#64748b', textAlign: 'center', marginBottom: '24px' }}>
+          Identify the external receiver before submitting escalation work for #{ticketData?.ticket_no || '-'}.
+        </p>
 
-           <form onSubmit={handleClaim} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              <div>
-                 <label style={{ display: 'block', fontSize: '12px', fontWeight: 800, color: '#64748b', marginBottom: '8px' }}>ชื่อผู้รับเรื่อง (Your Name)</label>
-                 <input 
-                    type="text" 
-                    value={receiverName} 
-                    onChange={(e) => setReceiverName(e.target.value)} 
-                    placeholder="ระบุชื่อจริงหรือชื่อเล่นของคุณ..." 
-                    style={{ width: '100%', padding: '16px', borderRadius: '12px', border: '1px solid #e2e8f0', fontSize: '15px', fontWeight: 700, outline: 'none' }} 
-                 />
-              </div>
+        <form onSubmit={handleClaim} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div>
+            <label
+              style={{
+                display: 'block',
+                fontSize: '12px',
+                fontWeight: 800,
+                color: '#64748b',
+                marginBottom: '8px',
+              }}
+            >
+              Receiver name
+            </label>
+            <input
+              type="text"
+              value={receiverName}
+              onChange={(event) => setReceiverName(event.target.value)}
+              placeholder="Enter receiver name..."
+              style={{
+                width: '100%',
+                padding: '16px',
+                borderRadius: '12px',
+                border: '1px solid #e2e8f0',
+                fontSize: '15px',
+                fontWeight: 700,
+                outline: 'none',
+              }}
+            />
+          </div>
 
-              {error && <div style={{ padding: '12px', background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', borderRadius: '12px', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '8px' }}><AlertCircle size={16} /> <span>{String(error)}</span></div>}
+          {error && (
+            <div
+              style={{
+                padding: '12px',
+                background: 'rgba(239, 68, 68, 0.1)',
+                color: '#ef4444',
+                borderRadius: '12px',
+                fontSize: '13px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+              }}
+            >
+              <AlertCircle size={16} />
+              <span>{error}</span>
+            </div>
+          )}
 
-              <button 
-                 disabled={loading || !receiverName.trim()} 
-                 type="submit" 
-                 style={{ 
-                    background: '#0891b2', 
-                    color: 'white', 
-                    border: 'none', 
-                    padding: '16px', 
-                    borderRadius: '12px', 
-                    fontWeight: 800, 
-                    cursor: 'pointer', 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    justifyContent: 'center', 
-                    gap: '8px',
-                    boxShadow: '0 4px 12px rgba(8, 145, 178, 0.2)'
-                 }}
-              >
-                 {loading ? <Loader2 className="animate-spin" size={18} /> : <><ClipboardCheck size={18} /> กดเพื่อรับเรื่อง (Claim Job)</>}
-              </button>
-           </form>
-        </div>
-     )
+          <button
+            disabled={loading || !receiverName.trim()}
+            type="submit"
+            style={{
+              background: '#0891b2',
+              color: 'white',
+              border: 'none',
+              padding: '16px',
+              borderRadius: '12px',
+              fontWeight: 800,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px',
+              boxShadow: '0 4px 12px rgba(8, 145, 178, 0.2)',
+            }}
+          >
+            {loading ? <Loader2 className="animate-spin" size={18} /> : <><ClipboardCheck size={18} /> Claim Job</>}
+          </button>
+        </form>
+      </div>
+    );
   }
 
-  // C. FULL PORTAL (CLAIMED)
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-      
-      {/* Ticket Header Card */}
-      <div className="glass" style={{ padding: '24px', background: '#ffffff', borderRadius: '24px', border: '1px solid #e2e8f0' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px' }}>
+      <div
+        className="glass"
+        style={{ padding: '24px', background: '#ffffff', borderRadius: '24px', border: '1px solid #e2e8f0' }}
+      >
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'flex-start',
+            marginBottom: '20px',
+          }}
+        >
           <div>
-            <p style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 800, textTransform: 'uppercase' }}>Ticket NO.</p>
-            <h2 style={{ fontSize: '20px', fontWeight: 900, color: 'var(--primary)' }}>#{ticketData?.ticket_no}</h2>
+            <p style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 800, textTransform: 'uppercase' }}>
+              Ticket No.
+            </p>
+            <h2 style={{ fontSize: '20px', fontWeight: 900, color: 'var(--primary)' }}>
+              #{ticketData?.ticket_no || '-'}
+            </h2>
           </div>
-          <span style={{ background: ticketData?.status === 'Resolved' ? '#d1fae5' : '#fef3c7', color: ticketData?.status === 'Resolved' ? '#065f46' : '#92400e', padding: '6px 16px', borderRadius: '20px', fontSize: '12px', fontWeight: 800 }}>
-             {ticketData?.status}
+          <span
+            style={{
+              ...statusBadgeStyle(ticketData?.status),
+              padding: '6px 16px',
+              borderRadius: '20px',
+              fontSize: '12px',
+              fontWeight: 800,
+            }}
+          >
+            {ticketData?.status || 'Unknown'}
           </span>
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '24px' }}>
-           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <div style={{ padding: '8px', background: '#f1f5f9', borderRadius: '10px', color: '#64748b' }}><User size={16} /></div>
-              <div>
-                 <p style={{ fontSize: '10px', color: '#94a3b8', fontWeight: 800, textTransform: 'uppercase' }}>เจ้าของงาน</p>
-                 <p style={{ fontSize: '14px', fontWeight: 700 }}>{ticketData?.customers?.display_name || 'N/A'}</p>
-              </div>
-           </div>
-           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <div style={{ padding: '8px', background: '#f1f5f9', borderRadius: '10px', color: '#64748b' }}><Building2 size={16} /></div>
-              <div>
-                 <p style={{ fontSize: '10px', color: '#94a3b8', fontWeight: 800, textTransform: 'uppercase' }}>แผนก/รพ.</p>
-                 <p style={{ fontSize: '14px', fontWeight: 700 }}>{ticketData?.hospitals?.name || 'N/A'}</p>
-              </div>
-           </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div style={{ padding: '8px', background: '#f1f5f9', borderRadius: '10px', color: '#64748b' }}>
+              <User size={16} />
+            </div>
+            <div>
+              <p style={{ fontSize: '10px', color: '#94a3b8', fontWeight: 800, textTransform: 'uppercase' }}>
+                Customer
+              </p>
+              <p style={{ fontSize: '14px', fontWeight: 700 }}>
+                {ticketData?.customers?.display_name || 'N/A'}
+              </p>
+            </div>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div style={{ padding: '8px', background: '#f1f5f9', borderRadius: '10px', color: '#64748b' }}>
+              <Building2 size={16} />
+            </div>
+            <div>
+              <p style={{ fontSize: '10px', color: '#94a3b8', fontWeight: 800, textTransform: 'uppercase' }}>
+                Hospital
+              </p>
+              <p style={{ fontSize: '14px', fontWeight: 700 }}>{ticketData?.hospitals?.name || 'N/A'}</p>
+            </div>
+          </div>
         </div>
 
         <div style={{ marginBottom: '20px' }}>
-          <p style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 800, textTransform: 'uppercase', marginBottom: '4px' }}>Subject / หัวข้อ</p>
-          <p style={{ fontSize: '16px', fontWeight: 800, lineHeight: 1.5 }}>{ticketData?.subject}</p>
+          <p style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 800, textTransform: 'uppercase', marginBottom: '4px' }}>
+            Subject
+          </p>
+          <p style={{ fontSize: '16px', fontWeight: 800, lineHeight: 1.5 }}>{ticketData?.subject || '-'}</p>
         </div>
 
         <div style={{ padding: '20px', background: '#f8fafc', borderRadius: '16px', border: '1px solid #e2e8f0' }}>
-          <p style={{ fontSize: '11px', color: '#64748b', fontWeight: 800, textTransform: 'uppercase', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-             📝 รายละเอียดปัญหาต้นฉบับ
+          <p
+            style={{
+              fontSize: '11px',
+              color: '#64748b',
+              fontWeight: 800,
+              textTransform: 'uppercase',
+              marginBottom: '10px',
+            }}
+          >
+            Original Description
           </p>
           <p style={{ fontSize: '14px', lineHeight: 1.7, color: '#334155', whiteSpace: 'pre-wrap' }}>
-             {ticketData?.description || 'ไม่มีรายละเอียดเพิ่มเติม'}
+            {ticketData?.description || 'No description'}
           </p>
         </div>
       </div>
 
-      {/* History Card */}
       {ticketData?.logs && ticketData.logs.length > 0 && (
-        <div className="glass" style={{ padding: '24px', background: '#ffffff', borderRadius: '24px', border: '1px solid #e2e8f0' }}>
-          <h3 style={{ fontSize: '15px', fontWeight: 800, marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <History size={18} color="var(--primary)" /> ประวัติการประสานงานล่าสุด
+        <div
+          className="glass"
+          style={{ padding: '24px', background: '#ffffff', borderRadius: '24px', border: '1px solid #e2e8f0' }}
+        >
+          <h3
+            style={{
+              fontSize: '15px',
+              fontWeight: 800,
+              marginBottom: '20px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+            }}
+          >
+            <History size={18} color="var(--primary)" /> Escalation History
           </h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            {ticketData.logs.map((log: any, idx: number) => (
-              <div key={idx} style={{ display: 'flex', gap: '12px' }}>
-                <div style={{ marginTop: '4px', width: '8px', height: '8px', borderRadius: '50%', background: log.action_type === 'claim' ? '#0891b2' : '#10b981', flexShrink: 0 }} />
+            {ticketData.logs.map((log, index) => (
+              <div key={`${log.created_at}-${index}`} style={{ display: 'flex', gap: '12px' }}>
+                <div
+                  style={{
+                    marginTop: '4px',
+                    width: '8px',
+                    height: '8px',
+                    borderRadius: '50%',
+                    background: log.action_type === 'claim' ? '#0891b2' : '#10b981',
+                    flexShrink: 0,
+                  }}
+                />
                 <div>
-                  <p style={{ fontSize: '13px', fontWeight: 700, color: '#1e293b' }}>{log.note}</p>
-                  <p style={{ fontSize: '11px', color: '#94a3b8', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    <Calendar size={12} /> {new Date(log.created_at).toLocaleString('th-TH')}
+                  <p style={{ fontSize: '13px', fontWeight: 700, color: '#1e293b' }}>{log.note || '-'}</p>
+                  <p
+                    style={{
+                      fontSize: '11px',
+                      color: '#94a3b8',
+                      marginTop: '2px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                    }}
+                  >
+                    <Calendar size={12} /> {formatDateTime(log.created_at)}
                   </p>
                 </div>
               </div>
@@ -282,57 +537,277 @@ export default function EscalationPortalPage() {
         </div>
       )}
 
-      {/* Action Card */}
-      <div className="glass" style={{ padding: '24px', background: '#ffffff', borderRadius: '24px', border: '1px solid #e2e8f0' }}>
-        <h3 style={{ fontSize: '16px', fontWeight: 800, marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <FileText size={18} color="var(--primary)" /> รายงานการประสานงาน
+      <div
+        className="glass"
+        style={{ padding: '24px', background: '#ffffff', borderRadius: '24px', border: '1px solid #e2e8f0' }}
+      >
+        <h3
+          style={{
+            fontSize: '16px',
+            fontWeight: 800,
+            marginBottom: '20px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+          }}
+        >
+          <FileText size={18} color="var(--primary)" /> External Report
         </h3>
-        
-        {success && <div style={{ padding: '12px', background: 'rgba(16, 185, 129, 0.1)', color: '#10b981', borderRadius: '12px', marginBottom: '20px', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '8px' }}><CheckCircle size={16} /> {success}</div>}
-        {error && <div style={{ padding: '12px', background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', borderRadius: '12px', marginBottom: '20px', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '8px' }}><AlertCircle size={16} /> <span>{String(error)}</span></div>}
+
+        {success && (
+          <div
+            style={{
+              padding: '12px',
+              background: 'rgba(16, 185, 129, 0.1)',
+              color: '#10b981',
+              borderRadius: '12px',
+              marginBottom: '20px',
+              fontSize: '13px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+            }}
+          >
+            <CheckCircle size={16} /> {success}
+          </div>
+        )}
+
+        {error && (
+          <div
+            style={{
+              padding: '12px',
+              background: 'rgba(239, 68, 68, 0.1)',
+              color: '#ef4444',
+              borderRadius: '12px',
+              marginBottom: '20px',
+              fontSize: '13px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+            }}
+          >
+            <AlertCircle size={16} /> <span>{error}</span>
+          </div>
+        )}
 
         <form onSubmit={handleUpdate} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
             <div>
-              <label style={{ display: 'block', fontSize: '12px', fontWeight: 800, color: '#64748b', marginBottom: '8px' }}>สถานะผลงาน (Final Status)</label>
-              <select value={newStatus} onChange={(e) => setNewStatus(e.target.value)} disabled={loading || !!success} style={{ width: '100%', padding: '14px', borderRadius: '12px', border: '1px solid #e2e8f0', background: '#f8fafc', fontSize: '14px', fontWeight: 700, outline: 'none' }}>
-                <option value="In Progress">ส่งกลับเจ้าของงานเพื่อตรวจสอบ (In Progress)</option>
-                <option value="Pending">ติดปัญหา (Pending)</option>
+              <label
+                style={{
+                  display: 'block',
+                  fontSize: '12px',
+                  fontWeight: 800,
+                  color: '#64748b',
+                  marginBottom: '8px',
+                }}
+              >
+                Return status
+              </label>
+              <select
+                value={newStatus}
+                onChange={(event) => setNewStatus(event.target.value as ExternalReportStatus)}
+                disabled={loading || Boolean(success)}
+                style={{
+                  width: '100%',
+                  padding: '14px',
+                  borderRadius: '12px',
+                  border: '1px solid #e2e8f0',
+                  background: '#f8fafc',
+                  fontSize: '14px',
+                  fontWeight: 700,
+                  outline: 'none',
+                }}
+              >
+                {STATUS_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
               </select>
             </div>
             <div>
-              <label style={{ display: 'block', fontSize: '12px', fontWeight: 800, color: '#64748b', marginBottom: '8px' }}>ชื่อผู้แจ้งงานกลับ</label>
-              <input type="text" value={receiverName} disabled style={{ width: '100%', padding: '14px', borderRadius: '12px', border: '1px solid #e2e8f0', background: '#f1f5f9', fontSize: '14px', fontWeight: 700, outline: 'none', color: '#94a3b8' }} />
+              <label
+                style={{
+                  display: 'block',
+                  fontSize: '12px',
+                  fontWeight: 800,
+                  color: '#64748b',
+                  marginBottom: '8px',
+                }}
+              >
+                Receiver
+              </label>
+              <input
+                type="text"
+                value={receiverName}
+                disabled
+                style={{
+                  width: '100%',
+                  padding: '14px',
+                  borderRadius: '12px',
+                  border: '1px solid #e2e8f0',
+                  background: '#f1f5f9',
+                  fontSize: '14px',
+                  fontWeight: 700,
+                  outline: 'none',
+                  color: '#94a3b8',
+                }}
+              />
             </div>
           </div>
 
           <div>
-            <label style={{ display: 'block', fontSize: '12px', fontWeight: 800, color: '#64748b', marginBottom: '8px' }}>บันทึกผลการดำเนินงาน (Work Log)</label>
-            <textarea value={notes} onChange={(e) => setNotes(e.target.value)} disabled={loading || !!success} placeholder="พิมพ์รายละเอียดสิ่งที่แก้ไข หรือสาเหตุ..." style={{ width: '100%', height: '80px', padding: '14px', borderRadius: '12px', border: '1px solid #e2e8f0', background: '#f8fafc', fontSize: '14px', resize: 'none', outline: 'none' }} />
+            <label
+              style={{
+                display: 'block',
+                fontSize: '12px',
+                fontWeight: 800,
+                color: '#64748b',
+                marginBottom: '8px',
+              }}
+            >
+              Work log
+            </label>
+            <textarea
+              value={notes}
+              onChange={(event) => setNotes(event.target.value)}
+              disabled={loading || Boolean(success)}
+              placeholder="Describe what has been done or what is blocked..."
+              style={{
+                width: '100%',
+                minHeight: '90px',
+                padding: '14px',
+                borderRadius: '12px',
+                border: '1px solid #e2e8f0',
+                background: '#f8fafc',
+                fontSize: '14px',
+                resize: 'none',
+                outline: 'none',
+              }}
+            />
           </div>
 
           <div>
-            <label style={{ display: 'block', fontSize: '12px', fontWeight: 800, color: '#64748b', marginBottom: '8px' }}>แนบรูปภาพหรือไฟล์หลักฐาน</label>
+            <label
+              style={{
+                display: 'block',
+                fontSize: '12px',
+                fontWeight: 800,
+                color: '#64748b',
+                marginBottom: '8px',
+              }}
+            >
+              Attachments
+            </label>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
-              {attachments.map((url, idx) => (
-                <div key={idx} style={{ position: 'relative', width: '80px', height: '80px', borderRadius: '12px', overflow: 'hidden', border: '1px solid #e2e8f0' }}>
+              {attachments.map((url, index) => (
+                <div
+                  key={`${url}-${index}`}
+                  style={{
+                    position: 'relative',
+                    width: '80px',
+                    height: '80px',
+                    borderRadius: '12px',
+                    overflow: 'hidden',
+                    border: '1px solid #e2e8f0',
+                  }}
+                >
                   <img src={url} alt="attachment" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                  {!success && <button type="button" onClick={() => removeAttachment(url)} style={{ position: 'absolute', top: '4px', right: '4px', background: 'rgba(239, 68, 68, 0.8)', border: 'none', borderRadius: '4px', padding: '2px', cursor: 'pointer', color: 'white' }}><Trash2 size={12} /></button>}
+                  {!success && (
+                    <button
+                      type="button"
+                      onClick={() => removeAttachment(url)}
+                      style={{
+                        position: 'absolute',
+                        top: '4px',
+                        right: '4px',
+                        background: 'rgba(239, 68, 68, 0.8)',
+                        border: 'none',
+                        borderRadius: '4px',
+                        padding: '2px',
+                        cursor: 'pointer',
+                        color: 'white',
+                      }}
+                    >
+                      <Trash2 size={12} />
+                    </button>
+                  )}
                 </div>
               ))}
-              {!success && <label style={{ width: '80px', height: '80px', borderRadius: '12px', border: '2px dashed #cbd5e1', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', cursor: uploading ? 'not-allowed' : 'pointer', background: '#f8fafc', gap: '4px' }}>
-                {uploading ? <Loader2 className="animate-spin" size={20} color="#94a3b8" /> : <><Camera size={20} color="#94a3b8" /><span style={{ fontSize: '10px', color: '#94a3b8', fontWeight: 700 }}>แนบรูป</span></>}
-                <input type="file" multiple accept="image/*" hidden onChange={handleFileUpload} disabled={uploading} />
-              </label>}
+              {!success && (
+                <label
+                  style={{
+                    width: '80px',
+                    height: '80px',
+                    borderRadius: '12px',
+                    border: '2px dashed #cbd5e1',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: uploading ? 'not-allowed' : 'pointer',
+                    background: '#f8fafc',
+                    gap: '4px',
+                  }}
+                >
+                  {uploading ? (
+                    <Loader2 className="animate-spin" size={20} color="#94a3b8" />
+                  ) : (
+                    <>
+                      <Camera size={20} color="#94a3b8" />
+                      <span style={{ fontSize: '10px', color: '#94a3b8', fontWeight: 700 }}>Upload</span>
+                    </>
+                  )}
+                  <input
+                    type="file"
+                    multiple
+                    accept="image/*"
+                    hidden
+                    onChange={handleFileUpload}
+                    disabled={uploading}
+                  />
+                </label>
+              )}
             </div>
           </div>
 
-          <button type="submit" disabled={loading || !!success} style={{ background: success ? '#94a3b8' : '#10b981', color: 'white', border: 'none', padding: '16px', borderRadius: '12px', fontWeight: 800, cursor: (loading || success) ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', boxShadow: success ? 'none' : '0 8px 24px rgba(16, 185, 129, 0.25)', transition: 'all 0.3s' }}>
-            {loading ? <Loader2 className="animate-spin" size={18} /> : success ? <><CheckCircle size={18} /> ส่งรายงานเรียบร้อยแล้ว</> : <><Send size={18} /> ส่งรายงานกลับแผนกต้นเรื่อง</>}
+          <button
+            type="submit"
+            disabled={loading || Boolean(success)}
+            style={{
+              background: success ? '#94a3b8' : '#10b981',
+              color: 'white',
+              border: 'none',
+              padding: '16px',
+              borderRadius: '12px',
+              fontWeight: 800,
+              cursor: loading || Boolean(success) ? 'not-allowed' : 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px',
+              boxShadow: success ? 'none' : '0 8px 24px rgba(16, 185, 129, 0.25)',
+              transition: 'all 0.3s',
+            }}
+          >
+            {loading ? (
+              <Loader2 className="animate-spin" size={18} />
+            ) : success ? (
+              <>
+                <CheckCircle size={18} />
+                Report submitted
+              </>
+            ) : (
+              <>
+                <Send size={18} />
+                Submit report to owner
+              </>
+            )}
           </button>
         </form>
       </div>
-
     </div>
   );
 }
+

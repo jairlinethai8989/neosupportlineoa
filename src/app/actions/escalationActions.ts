@@ -2,8 +2,64 @@
 
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 
+const ESCALATION_PIN = '1234';
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+type ExternalWorkStatus = 'In Progress' | 'Pending';
+
+type EscalationTicketRow = {
+  id: string;
+  ticket_no?: string | null;
+  assigned_agent_id?: string | null;
+  resolution_summary?: string | null;
+  customer_id?: string | null;
+  hospital_id?: string | null;
+  [key: string]: unknown;
+};
+
 function isUuidLike(value: string) {
-  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
+  return UUID_REGEX.test(value);
+}
+
+function getInvalidPinError() {
+  return { error: 'Invalid PIN' as const };
+}
+
+function hasValidPin(pin: string) {
+  return pin === ESCALATION_PIN;
+}
+
+function sanitizeExternalStatus(status: string): ExternalWorkStatus {
+  return status === 'Pending' ? 'Pending' : 'In Progress';
+}
+
+function buildExternalReport(input: {
+  receiverName?: string;
+  status: ExternalWorkStatus;
+  notes: string;
+  attachmentUrls?: string[];
+}) {
+  const timestamp = new Date().toISOString().replace('T', ' ').substring(0, 19);
+  const lines = [
+    `[External Report by ${input.receiverName || 'N/A'}] - ${timestamp} UTC`,
+    `Status: ${input.status}`,
+    `Details: ${input.notes || 'N/A'}`,
+  ];
+
+  if (input.attachmentUrls && input.attachmentUrls.length > 0) {
+    lines.push(`Attachments: ${input.attachmentUrls.join(', ')}`);
+  }
+
+  return lines.join('\n');
+}
+
+async function resolveTicketQuery(selectClause: string, ticketIdOrToken: string) {
+  let query = supabaseAdmin.from('tickets').select(selectClause);
+  query = isUuidLike(ticketIdOrToken)
+    ? query.eq('id', ticketIdOrToken)
+    : query.eq('escalation_token', ticketIdOrToken);
+
+  return query.maybeSingle();
 }
 
 async function resolveRealTicketId(ticketIdOrToken: string) {
@@ -11,62 +67,75 @@ async function resolveRealTicketId(ticketIdOrToken: string) {
     return ticketIdOrToken;
   }
 
-  const { data: ticket } = await supabaseAdmin
-    .from('tickets')
-    .select('id')
-    .eq('escalation_token', ticketIdOrToken)
+  const { data: ticket } = await resolveTicketQuery('id', ticketIdOrToken);
+  return (ticket as { id: string } | null)?.id || null;
+}
+
+async function reopenConversationForTicket(ticketId: string) {
+  const { data: lastTicketMessage } = await supabaseAdmin
+    .from('messages')
+    .select('conversation_id')
+    .eq('ticket_id', ticketId)
+    .order('created_at', { ascending: false })
+    .limit(1)
     .maybeSingle();
 
-  return ticket?.id || null;
+  if (!lastTicketMessage?.conversation_id) {
+    return;
+  }
+
+  await supabaseAdmin
+    .from('conversations')
+    .update({
+      status: 'active',
+      current_ticket_id: ticketId,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', lastTicketMessage.conversation_id);
 }
 
 export async function verifyEscalationPin(ticketId: string, pin: string) {
   try {
-    if (pin !== '1234') {
-      return { error: 'รหัส PIN ไม่ถูกต้อง (Invalid PIN)' };
+    if (!hasValidPin(pin)) {
+      return getInvalidPinError();
     }
 
-    let query = supabaseAdmin.from('tickets').select('*');
-    if (isUuidLike(ticketId)) {
-      query = query.eq('id', ticketId);
-    } else {
-      query = query.eq('escalation_token', ticketId);
-    }
-
-    const { data: ticket, error } = await query.maybeSingle();
-
+    const { data: ticket, error } = await resolveTicketQuery('*', ticketId);
     if (error) {
       return { error: `Database Error: ${error.message}` };
     }
-
     if (!ticket) {
-      return { error: 'ไม่พบข้อมูลใบงานหรือรหัสยืนยันผิดพลาด (Ticket Not Found or Invalid Token)' };
+      return { error: 'Ticket not found or invalid escalation token' };
     }
 
-    const { data: customer } = await supabaseAdmin
-      .from('customers')
-      .select('display_name')
-      .eq('id', ticket.customer_id)
-      .maybeSingle();
+    const ticketRow = ticket as unknown as EscalationTicketRow;
 
-    const { data: hospital } = ticket.hospital_id
+    const { data: customer } = ticketRow.customer_id
+      ? await supabaseAdmin
+          .from('customers')
+          .select('display_name')
+          .eq('id', ticketRow.customer_id)
+          .maybeSingle()
+      : { data: null };
+
+    const { data: hospital } = ticketRow.hospital_id
       ? await supabaseAdmin
           .from('hospitals')
           .select('name')
-          .eq('id', ticket.hospital_id)
+          .eq('id', ticketRow.hospital_id)
           .maybeSingle()
       : { data: null };
 
     const { data: logs } = await supabaseAdmin
       .from('ticket_logs')
       .select('action_type, note, created_at')
-      .eq('ticket_id', ticket.id)
+      .eq('ticket_id', ticketRow.id)
       .order('created_at', { ascending: false })
       .limit(5);
 
-    return { data: { ...ticket, customers: customer, hospitals: hospital, logs } };
+    return { data: { ...ticketRow, customers: customer, hospitals: hospital, logs } };
   } catch (err: any) {
-    return { error: `เกิดข้อผิดพลาดในการตรวจสอบสิทธิ์: ${err.message}` };
+    return { error: `Escalation access check failed: ${err.message}` };
   }
 }
 
@@ -76,30 +145,28 @@ export async function claimEscalatedTicket(
   receiverName: string
 ) {
   try {
-    if (pin !== '1234') {
-      return { error: 'รหัส PIN ไม่ถูกต้อง' };
+    if (!hasValidPin(pin)) {
+      return getInvalidPinError();
     }
 
     const realId = await resolveRealTicketId(ticketId);
     if (!realId) {
-      return { error: 'ไม่พบใบงานที่ระบุ' };
+      return { error: 'Ticket not found' };
     }
 
     const timestamp = new Date().toISOString().replace('T', ' ').substring(0, 19);
-    const logNote = `[Job Claimed by External] ผู้รับเรื่อง: ${receiverName} (เวลา: ${timestamp} UTC)`;
+    const logNote = `[Job Claimed by External] Receiver: ${receiverName} (time: ${timestamp} UTC)`;
 
-    const { error: logError } = await supabaseAdmin
-      .from('ticket_logs')
-      .insert([
-        {
-          ticket_id: realId,
-          action_type: 'claim',
-          note: logNote,
-        },
-      ]);
+    const { error: logError } = await supabaseAdmin.from('ticket_logs').insert([
+      {
+        ticket_id: realId,
+        action_type: 'claim',
+        note: logNote,
+      },
+    ]);
 
     if (logError) {
-      return { error: `ไม่สามารถบันทึกการรับเรื่องได้: ${logError.message}` };
+      return { error: `Failed to record claim: ${logError.message}` };
     }
 
     await supabaseAdmin
@@ -109,7 +176,7 @@ export async function claimEscalatedTicket(
 
     return { success: true };
   } catch (err: any) {
-    return { error: `เกิดข้อผิดพลาดรุนแรง: ${err.message}` };
+    return { error: `Failed to claim escalation ticket: ${err.message}` };
   }
 }
 
@@ -122,39 +189,28 @@ export async function updateEscalatedTicketStatus(
   attachmentUrls?: string[]
 ) {
   try {
-    if (pin !== '1234') {
-      return { error: 'รหัส PIN ไม่ถูกต้อง' };
+    if (!hasValidPin(pin)) {
+      return getInvalidPinError();
     }
 
-    let query = supabaseAdmin
-      .from('tickets')
-      .select('id, ticket_no, assigned_agent_id, resolution_summary');
+    const { data: ticket, error: fetchError } = await resolveTicketQuery(
+      'id, ticket_no, assigned_agent_id, resolution_summary',
+      ticketId
+    );
 
-    if (isUuidLike(ticketId)) {
-      query = query.eq('id', ticketId);
-    } else {
-      query = query.eq('escalation_token', ticketId);
-    }
-
-    const { data: ticket, error: fetchError } = await query.maybeSingle();
     if (fetchError || !ticket) {
-      return { error: 'ไม่พบข้อมูลใบงานเพื่อบันทึกงานส่งมอบ' };
+      return { error: 'Ticket not found for escalation update' };
     }
 
-    const realId = ticket.id;
-    // External escalation page is for reporting progress back to owner.
-    // It must never close ticket directly.
-    const nextStatus = newStatus === 'Resolved' ? 'In Progress' : newStatus;
-    const timestamp = new Date().toISOString().replace('T', ' ').substring(0, 19);
-
-    let reportText = `[External Report by ${receiverName || 'N/A'}] - ${timestamp} UTC\n`;
-    reportText += `Status: ${nextStatus}\n`;
-    reportText += `Details: ${notes || 'N/A'}\n`;
-    if (attachmentUrls && attachmentUrls.length > 0) {
-      reportText += `Attachments: ${attachmentUrls.join(', ')}`;
-    }
-
-    const updatedSummary = `${ticket.resolution_summary || ''}\n\n${reportText}`.trim();
+    const ticketRow = ticket as unknown as EscalationTicketRow;
+    const nextStatus = sanitizeExternalStatus(newStatus);
+    const reportText = buildExternalReport({
+      receiverName,
+      status: nextStatus,
+      notes,
+      attachmentUrls,
+    });
+    const updatedSummary = `${ticketRow.resolution_summary || ''}\n\n${reportText}`.trim();
 
     const { error: updateError } = await supabaseAdmin
       .from('tickets')
@@ -164,60 +220,41 @@ export async function updateEscalatedTicketStatus(
         resolution_summary: updatedSummary,
         updated_at: new Date().toISOString(),
       })
-      .eq('id', realId);
+      .eq('id', ticketRow.id);
 
     if (updateError) {
-      return { error: `บันทึกข้อมูลไม่สำเร็จ: ${updateError.message}` };
+      return { error: `Failed to update ticket: ${updateError.message}` };
     }
 
     await supabaseAdmin.from('ticket_logs').insert([
       {
-        ticket_id: realId,
+        ticket_id: ticketRow.id,
         action_type: 'status_change',
         to_status: nextStatus,
         note: reportText,
       },
     ]);
 
-    // Re-open the conversation bound to this ticket if it was closed earlier by mistake.
-    const { data: lastTicketMessage } = await supabaseAdmin
-      .from('messages')
-      .select('conversation_id')
-      .eq('ticket_id', realId)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
+    await reopenConversationForTicket(ticketRow.id);
 
-    if (lastTicketMessage?.conversation_id) {
-      await supabaseAdmin
-        .from('conversations')
-        .update({
-          status: 'active',
-          current_ticket_id: realId,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', lastTicketMessage.conversation_id);
-    }
-
-    if (ticket.assigned_agent_id) {
+    if (ticketRow.assigned_agent_id) {
       try {
         await supabaseAdmin.from('notifications').insert([
           {
-            user_id: ticket.assigned_agent_id,
-            title: `🚩 งานส่งต่อ #${ticket.ticket_no} แก้ไขเสร็จเรียบร้อยแล้ว`,
-            body: `กรุณาตรวจสอบผลงานและยืนยันปิดใบงานด้วยเจ้าของงาน (${nextStatus})`,
+            user_id: ticketRow.assigned_agent_id,
+            title: `Escalation update #${ticketRow.ticket_no}`,
+            body: `External team returned work as ${nextStatus}. Owner review is required before final resolve.`,
             type: 'ticket',
-            metadata: { ticket_id: realId, ticket_no: ticket.ticket_no },
+            metadata: { ticket_id: ticketRow.id, ticket_no: ticketRow.ticket_no },
           },
         ]);
       } catch {
-        // Notification failure should not break main flow.
+        // Notification failure should never block core workflow.
       }
     }
 
     return { success: true };
   } catch (err: any) {
-    return { error: `เกิดข้อผิดพลาดรุนแรง: ${err.message}` };
+    return { error: `Failed to submit escalation report: ${err.message}` };
   }
 }
-
