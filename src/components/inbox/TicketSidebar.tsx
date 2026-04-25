@@ -142,9 +142,9 @@ export const TicketSidebar: React.FC<TicketSidebarProps> = ({
                    flex: '1 1 120px',
                    height: '50px',
                    borderRadius: '16px',
-                   border: '1px solid #ef4444',
-                   background: currentTicket.status === 'Escalated' ? 'rgba(239, 68, 68, 0.2)' : 'rgba(239, 68, 68, 0.08)',
-                   color: '#ef4444',
+                   border: '1px solid #8b5cf6',
+                   background: currentTicket.status === 'Escalated' ? 'rgba(139, 92, 246, 0.2)' : 'rgba(139, 92, 246, 0.08)',
+                   color: '#8b5cf6',
                    fontWeight: '900',
                    fontSize: '12px',
                    cursor: (isProcessing || (isEscalatedOrPending && !!activeMagicLink)) ? 'not-allowed' : 'pointer',
@@ -152,7 +152,7 @@ export const TicketSidebar: React.FC<TicketSidebarProps> = ({
                    alignItems: 'center',
                    justifyContent: 'center',
                    gap: '8px',
-                   boxShadow: '0 4px 15px rgba(239, 68, 68, 0.15)',
+                   boxShadow: '0 4px 15px rgba(139, 92, 246, 0.15)',
                    opacity: (isProcessing || (isEscalatedOrPending && !!activeMagicLink)) ? 0.6 : 1
                 }}
              >
@@ -180,9 +180,9 @@ export const TicketSidebar: React.FC<TicketSidebarProps> = ({
                    flex: '1 1 120px',
                    height: '50px',
                    borderRadius: '16px',
-                   border: '1px solid #f59e0b',
-                   background: currentTicket.status === 'Pending' ? 'rgba(245, 158, 11, 0.2)' : 'rgba(245, 158, 11, 0.08)',
-                   color: '#f59e0b',
+                   border: '1px solid #ef4444',
+                   background: currentTicket.status === 'Pending' ? 'rgba(239, 68, 68, 0.2)' : 'rgba(239, 68, 68, 0.08)',
+                   color: '#ef4444',
                    fontWeight: '900',
                    fontSize: '12px',
                    cursor: (isProcessing || (isEscalatedOrPending && !!activeMagicLink)) ? 'not-allowed' : 'pointer',
@@ -190,7 +190,7 @@ export const TicketSidebar: React.FC<TicketSidebarProps> = ({
                    alignItems: 'center',
                    justifyContent: 'center',
                    gap: '8px',
-                   boxShadow: '0 4px 15px rgba(245, 158, 11, 0.15)',
+                   boxShadow: '0 4px 15px rgba(239, 68, 68, 0.15)',
                    opacity: (isProcessing || (isEscalatedOrPending && !!activeMagicLink)) ? 0.6 : 1
                 }}
              >
@@ -224,7 +224,7 @@ export const TicketSidebar: React.FC<TicketSidebarProps> = ({
       {/* End Chat and Resolve buttons at bottom */}
       <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '12px' }}>
          {isSessionActive && (
-            <button onClick={onCloseSession} className="glass-interactive" style={{ width: '100%', padding: '16px', borderRadius: '16px', border: '1px solid #ef4444', background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', fontWeight: '800', fontSize: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+            <button onClick={onCloseSession} className="glass-interactive" style={{ width: '100%', padding: '16px', borderRadius: '16px', border: '1px solid #06b6d4', background: 'rgba(6, 182, 212, 0.1)', color: '#06b6d4', fontWeight: '800', fontSize: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
                <X size={18} /> จบการสนทนา (End Chat)
             </button>
          )}
@@ -239,7 +239,7 @@ export const TicketSidebar: React.FC<TicketSidebarProps> = ({
                   onResolve();
                }}
                className={isSessionActive ? "" : "glass-interactive"}
-               style={{ width: '100%', padding: '16px', borderRadius: '16px', border: 'none', background: isSessionActive ? 'rgba(255,255,255,0.05)' : 'var(--success)', color: isSessionActive ? 'var(--text-muted)' : 'black', fontWeight: '900', fontSize: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', cursor: 'pointer', boxShadow: isSessionActive ? 'none' : '0 8px 24px rgba(40, 199, 111, 0.3)', opacity: isSessionActive ? 0.7 : 1 }}
+               style={{ width: '100%', padding: '16px', borderRadius: '16px', border: 'none', background: isSessionActive ? 'rgba(255,255,255,0.05)' : '#22c55e', color: isSessionActive ? 'var(--text-muted)' : 'white', fontWeight: '900', fontSize: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', cursor: 'pointer', boxShadow: isSessionActive ? 'none' : '0 8px 24px rgba(34, 197, 94, 0.3)', opacity: isSessionActive ? 0.7 : 1 }}
             >
                <CheckCircle size={18} /> ปิดงาน (Resolve Ticket)
             </button>
@@ -275,7 +275,7 @@ export const TicketSidebar: React.FC<TicketSidebarProps> = ({
                         } finally {
                            setIsProcessing(false);
                         }
-                     }} style={{ flex: 2, padding: '12px', borderRadius: '12px', border: 'none', background: '#ef4444', color: 'white', fontWeight: '800', cursor: 'pointer', opacity: (!escalationNote.trim() || isProcessing) ? 0.7 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                     }} style={{ flex: 2, padding: '12px', borderRadius: '12px', border: 'none', background: '#8b5cf6', color: 'white', fontWeight: '800', cursor: 'pointer', opacity: (!escalationNote.trim() || isProcessing) ? 0.7 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
                      {isProcessing ? <Loader2 size={16} className="animate-spin" /> : 'ยืนยันการส่งต่องาน'}
                   </button>
                </div>
