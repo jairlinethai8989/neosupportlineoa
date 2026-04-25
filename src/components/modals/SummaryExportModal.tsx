@@ -18,6 +18,10 @@ export default function SummaryExportModal({
   ticketNo,
 }: SummaryExportModalProps) {
   const [loading, setLoading] = useState(false);
+  const modalTitleColor = '#f8fafc';
+  const modalTextColor = 'rgba(226, 232, 240, 0.95)';
+  const modalMutedColor = 'rgba(148, 163, 184, 0.95)';
+  const modalDimColor = 'rgba(148, 163, 184, 0.82)';
 
   const handleDownload = async () => {
     setLoading(true);
@@ -83,7 +87,7 @@ export default function SummaryExportModal({
             background: 'none',
             border: 'none',
             cursor: 'pointer',
-            color: 'var(--text-muted)',
+            color: modalMutedColor,
             width: '36px',
             height: '36px',
             borderRadius: '50%',
@@ -112,10 +116,10 @@ export default function SummaryExportModal({
           >
             <FileText size={36} />
           </div>
-          <h2 style={{ fontSize: '24px', fontWeight: '900', marginBottom: '8px', letterSpacing: '-0.5px', color: 'white' }}>
+          <h2 style={{ fontSize: '24px', fontWeight: '900', marginBottom: '8px', letterSpacing: '-0.5px', color: modalTitleColor }}>
             ตัวอย่าง Ticket Summary
           </h2>
-          <p style={{ fontSize: '14px', color: 'var(--text-muted)', fontWeight: '500' }}>
+          <p style={{ fontSize: '14px', color: modalMutedColor, fontWeight: '500' }}>
             ตรวจสอบสรุปรายงานของใบงาน <strong style={{ color: 'var(--primary)' }}>#{ticketNo}</strong> ก่อนเลือกการดำเนินการ
           </p>
         </div>
@@ -132,7 +136,7 @@ export default function SummaryExportModal({
               gap: '12px',
             }}
           >
-            <span style={{ fontSize: '11px', color: 'var(--text-dim)', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '1px' }}>
+            <span style={{ fontSize: '11px', color: modalDimColor, fontWeight: '800', textTransform: 'uppercase', letterSpacing: '1px' }}>
               ข้อมูลที่จะแสดง
             </span>
 
@@ -145,7 +149,7 @@ export default function SummaryExportModal({
               ].map((item, i) => (
                 <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <CheckCircle2 size={14} color="#10b981" />
-                  <span style={{ fontSize: '13px', color: 'var(--text-main)', fontWeight: '500' }}>{item}</span>
+                  <span style={{ fontSize: '13px', color: modalTextColor, fontWeight: '500' }}>{item}</span>
                 </div>
               ))}
             </div>
@@ -153,7 +157,7 @@ export default function SummaryExportModal({
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '0 8px' }}>
             <Info size={14} color="var(--primary)" />
-            <p style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: '500' }}>
+            <p style={{ fontSize: '11px', color: modalMutedColor, fontWeight: '500' }}>
               เลือกได้ทั้งดาวน์โหลดเป็นไฟล์ PDF หรือสั่งพิมพ์ทันที
             </p>
           </div>
@@ -169,7 +173,7 @@ export default function SummaryExportModal({
               padding: '16px',
               borderRadius: '16px',
               background: 'rgba(255,255,255,0.03)',
-              color: 'var(--text-muted)',
+              color: modalTextColor,
               border: '1px solid var(--border)',
               fontWeight: '700',
               fontSize: '15px',

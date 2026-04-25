@@ -31,6 +31,10 @@ export function ExportPreviewModal({
   loading,
 }: ExportPreviewModalProps) {
   if (!isOpen) return null;
+  const modalTitleColor = '#f8fafc';
+  const modalTextColor = 'rgba(226, 232, 240, 0.95)';
+  const modalMutedColor = 'rgba(148, 163, 184, 0.95)';
+  const modalDimColor = 'rgba(148, 163, 184, 0.82)';
 
   const isExcel = data.format === 'excel';
   const handleDownload = onDownload || onConfirm;
@@ -72,7 +76,7 @@ export function ExportPreviewModal({
             background: 'none',
             border: 'none',
             cursor: 'pointer',
-            color: 'var(--text-muted)',
+            color: modalMutedColor,
             width: '36px',
             height: '36px',
             borderRadius: '50%',
@@ -109,16 +113,16 @@ export function ExportPreviewModal({
               fontWeight: '900',
               marginBottom: '8px',
               letterSpacing: '-0.5px',
-              color: 'white',
+              color: modalTitleColor,
             }}
           >
             ยืนยันการส่งออกข้อมูล
           </h2>
-          <p style={{ fontSize: '14px', color: 'var(--text-muted)', fontWeight: '500' }}>
+          <p style={{ fontSize: '14px', color: modalMutedColor, fontWeight: '500' }}>
             {data.title}
           </p>
           {data.subtitle && (
-            <p style={{ fontSize: '12px', color: 'var(--text-dim)', fontWeight: '500', marginTop: '4px' }}>
+            <p style={{ fontSize: '12px', color: modalDimColor, fontWeight: '500', marginTop: '4px' }}>
               {data.subtitle}
             </p>
           )}
@@ -137,7 +141,7 @@ export function ExportPreviewModal({
             }}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: '700', textTransform: 'uppercase' }}>
+              <span style={{ fontSize: '12px', color: modalMutedColor, fontWeight: '700', textTransform: 'uppercase' }}>
                 Format
               </span>
               <span style={{ fontSize: '13px', fontWeight: '800', color: isExcel ? '#10b981' : '#ef4444' }}>
@@ -147,15 +151,15 @@ export function ExportPreviewModal({
 
             {data.dateRange && (
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: '700', textTransform: 'uppercase' }}>
+                <span style={{ fontSize: '12px', color: modalMutedColor, fontWeight: '700', textTransform: 'uppercase' }}>
                   Period
                 </span>
-                <span style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-main)' }}>{data.dateRange}</span>
+                <span style={{ fontSize: '13px', fontWeight: '700', color: modalTextColor }}>{data.dateRange}</span>
               </div>
             )}
 
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: '700', textTransform: 'uppercase' }}>
+              <span style={{ fontSize: '12px', color: modalMutedColor, fontWeight: '700', textTransform: 'uppercase' }}>
                 Records
               </span>
               <span style={{ fontSize: '13px', fontWeight: '800', color: 'var(--primary)' }}>
@@ -164,7 +168,7 @@ export function ExportPreviewModal({
             </div>
 
             <div style={{ marginTop: '4px', paddingTop: '12px', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
-              <span style={{ fontSize: '10px', color: 'var(--text-dim)', fontWeight: '800', textTransform: 'uppercase', marginBottom: '8px', display: 'block' }}>
+              <span style={{ fontSize: '10px', color: modalDimColor, fontWeight: '800', textTransform: 'uppercase', marginBottom: '8px', display: 'block' }}>
                 คอลัมน์ ({data.columns.length})
               </span>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
@@ -176,7 +180,7 @@ export function ExportPreviewModal({
                       padding: '4px 10px',
                       background: 'rgba(255,255,255,0.05)',
                       borderRadius: '6px',
-                      color: 'var(--text-muted)',
+                      color: modalTextColor,
                       border: '1px solid rgba(255,255,255,0.03)',
                     }}
                   >
@@ -194,7 +198,7 @@ export function ExportPreviewModal({
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '0 8px' }}>
             <Info size={14} color="var(--primary)" />
-            <p style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: '500' }}>
+            <p style={{ fontSize: '11px', color: modalMutedColor, fontWeight: '500' }}>
               ตรวจสอบข้อมูลในหน้าต่างนี้ก่อน แล้วเลือกดาวน์โหลดหรือสั่งพิมพ์ได้ทันที
             </p>
           </div>
@@ -210,7 +214,7 @@ export function ExportPreviewModal({
               padding: '16px',
               borderRadius: '16px',
               background: 'rgba(255,255,255,0.03)',
-              color: 'var(--text-muted)',
+              color: modalTextColor,
               border: '1px solid var(--border)',
               fontWeight: '700',
               fontSize: '15px',
