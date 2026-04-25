@@ -20,7 +20,7 @@ export default function EscalationPortalPage() {
   const [success, setSuccess] = useState('');
 
   // Form State
-  const [newStatus, setNewStatus] = useState('Resolved');
+  const [newStatus, setNewStatus] = useState('In Progress');
   const [notes, setNotes] = useState('');
   const [receiverName, setReceiverName] = useState('');
   const [attachments, setAttachments] = useState<string[]>([]);
@@ -38,7 +38,11 @@ export default function EscalationPortalPage() {
         setError(res.error);
       } else {
         setTicketData(res.data);
-        setNewStatus(res.data?.status === 'Escalated' ? 'Resolved' : res.data?.status || 'Resolved');
+        setNewStatus(
+          res.data?.status === 'Escalated'
+            ? 'In Progress'
+            : res.data?.status || 'In Progress'
+        );
         setIsUnlocked(true);
       }
     } catch (err: any) {
@@ -292,8 +296,7 @@ export default function EscalationPortalPage() {
             <div>
               <label style={{ display: 'block', fontSize: '12px', fontWeight: 800, color: '#64748b', marginBottom: '8px' }}>สถานะผลงาน (Final Status)</label>
               <select value={newStatus} onChange={(e) => setNewStatus(e.target.value)} disabled={loading || !!success} style={{ width: '100%', padding: '14px', borderRadius: '12px', border: '1px solid #e2e8f0', background: '#f8fafc', fontSize: '14px', fontWeight: 700, outline: 'none' }}>
-                <option value="Resolved">แก้ไขเสร็จสิ้น (Resolved)</option>
-                <option value="In Progress">กำลังดำเนินการ (In Progress)</option>
+                <option value="In Progress">ส่งกลับเจ้าของงานเพื่อตรวจสอบ (In Progress)</option>
                 <option value="Pending">ติดปัญหา (Pending)</option>
               </select>
             </div>
