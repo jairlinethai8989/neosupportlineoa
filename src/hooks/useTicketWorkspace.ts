@@ -41,6 +41,7 @@ const DEFAULT_MODULES = [
   'Consultation',
   'All',
 ];
+const WORKSPACE_TICKETS_FETCH_LIMIT = 120;
 
 function isTicketWithinWorkspaceRange(
   ticket: Pick<TicketWorkspaceTicket, 'created_at'>,
@@ -200,7 +201,7 @@ export function useTicketWorkspace(filterCustomerId: string | null) {
     const { fromIso, toIso } = getTicketWorkspaceDateRange(timeRange, customStart, customEnd);
     const [conversationResult, ticketResult] = await Promise.allSettled([
       listTicketWorkspaceConversations(),
-      listTicketWorkspaceTickets({ fromIso, toIso, limit: 300 }),
+      listTicketWorkspaceTickets({ fromIso, toIso, limit: WORKSPACE_TICKETS_FETCH_LIMIT }),
     ]);
 
     const errors: string[] = [];

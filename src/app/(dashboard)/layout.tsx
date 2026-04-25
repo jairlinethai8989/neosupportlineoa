@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 /* eslint-disable @next/next/no-img-element */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useEffect, useMemo, useRef, useState } from 'react';
@@ -73,48 +73,8 @@ function timeAgo(dateStr: string, t: (key: string) => string): string {
   return `${days} ${t('dashboard.daysAgo')}`;
 }
 
-function DashboardInner({ children }: { children: React.ReactNode }) {
-  const router = useRouter();
-  const { userProfile: agent, loading: appLoading } = useAppContext();
-  const {
-    notifications,
-    unreadCount,
-    markAllRead,
-    markAsRead,
-    isMuted,
-    toggleMute,
-  } = useNotificationContext();
-  const { locale, toggleLocale, t } = useStaffLocale();
-
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
-  const [showNotifications, setShowNotifications] = useState(false);
-  const [showUserMenu, setShowUserMenu] = useState(false);
-  const [showThemes, setShowThemes] = useState(false);
-  const [activeTab, setActiveTab] = useState<NotifTab>('all');
+function TopBarClock({ locale }: { locale: 'th' | 'en' }) {
   const [now, setNow] = useState(() => new Date());
-  const [theme, setTheme] = useState(() => {
-    if (typeof window === 'undefined') return 'dark';
-    return localStorage.getItem('theme') || 'light';
-  });
-
-  const notifRef = useRef<HTMLDivElement>(null);
-  const userMenuRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    function handleClick(event: MouseEvent) {
-      if (notifRef.current && !notifRef.current.contains(event.target as Node)) {
-        setShowNotifications(false);
-      }
-
-      if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
-        setShowUserMenu(false);
-      }
-    }
-
-    document.addEventListener('mousedown', handleClick);
-    return () => document.removeEventListener('mousedown', handleClick);
-  }, []);
 
   useEffect(() => {
     const timer = window.setInterval(() => {
@@ -138,13 +98,83 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
       second: '2-digit',
       hour12: false,
     }).format(now);
-
     const suffix = locale === 'th' ? ' น.' : '';
 
-    return {
-      text: `${dateText} • ${timeText}${suffix}`,
-    };
+    return `${dateText} • ${timeText}${suffix}`;
   }, [locale, now]);
+
+  return (
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: '8px',
+        minWidth: 0,
+        maxWidth: '100%',
+        color: 'var(--text-muted)',
+        fontSize: '13px',
+        fontWeight: '700',
+        letterSpacing: '0.01em',
+        fontVariantNumeric: 'tabular-nums',
+        whiteSpace: 'nowrap',
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
+      }}
+    >
+      <Clock size={14} color="var(--primary)" />
+      <span
+        style={{
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+        }}
+      >
+        {formattedNow}
+      </span>
+    </div>
+  );
+}
+
+function DashboardInner({ children }: { children: React.ReactNode }) {
+  const router = useRouter();
+  const { userProfile: agent, loading: appLoading } = useAppContext();
+  const {
+    notifications,
+    unreadCount,
+    markAllRead,
+    markAsRead,
+    isMuted,
+    toggleMute,
+  } = useNotificationContext();
+  const { locale, toggleLocale, t } = useStaffLocale();
+
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [showUserMenu, setShowUserMenu] = useState(false);
+  const [showThemes, setShowThemes] = useState(false);
+  const [activeTab, setActiveTab] = useState<NotifTab>('all');
+  const [theme, setTheme] = useState(() => {
+    if (typeof window === 'undefined') return 'dark';
+    return localStorage.getItem('theme') || 'light';
+  });
+
+  const notifRef = useRef<HTMLDivElement>(null);
+  const userMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClick(event: MouseEvent) {
+      if (notifRef.current && !notifRef.current.contains(event.target as Node)) {
+        setShowNotifications(false);
+      }
+
+      if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
+        setShowUserMenu(false);
+      }
+    }
+
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, []);
 
   const changeTheme = (newTheme: string) => {
     setTheme(newTheme);
@@ -250,33 +280,7 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
           </div>
 
           <div className="show-desktop" style={{ flex: 1, display: 'flex', justifyContent: 'center', padding: '0 16px' }}>
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                minWidth: 0,
-                maxWidth: '100%',
-                color: 'var(--text-muted)',
-                fontSize: '13px',
-                fontWeight: '700',
-                letterSpacing: '0.01em',
-                fontVariantNumeric: 'tabular-nums',
-                whiteSpace: 'nowrap',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-              }}
-            >
-              <Clock size={14} color="var(--primary)" />
-              <span
-                style={{
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                }}
-              >
-                {formattedNow.text}
-              </span>
-            </div>
+            <TopBarClock locale={locale} />
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -422,7 +426,7 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
                             ? t('dashboard.tabs.all')
                             : tab === 'unread'
                               ? `${t('dashboard.tabs.unread')}${unreadCount > 0 ? ` (${unreadCount})` : ''}`
-                              : `⚠️ ${t('dashboard.tabs.sla')}`}
+                              : `âš ï¸ ${t('dashboard.tabs.sla')}`}
                         </button>
                       ))}
                     </div>
@@ -860,3 +864,4 @@ export default function DashboardLayout({ children }: Readonly<{ children: React
     </AppProvider>
   );
 }
+

@@ -58,6 +58,9 @@ export function useNotifications(agentId: string | null) {
     female: null,
     male: null,
   });
+  const logsRefreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const slaRefreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const newTicketsCountTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const getAudioContext = useCallback((): AudioContext | null => {
     if (typeof window === 'undefined') return null;
@@ -424,6 +427,26 @@ export function useNotifications(agentId: string | null) {
     if (count !== null) setNewTicketsCount(count);
   }, []);
 
+  const scheduleFetchLogs = useCallback(
+    (delayMs = 300) => {
+      if (logsRefreshTimerRef.current) clearTimeout(logsRefreshTimerRef.current);
+      logsRefreshTimerRef.current = setTimeout(() => {
+        void fetchLogs();
+      }, delayMs);
+    },
+    [fetchLogs]
+  );
+
+  const scheduleFetchNewTicketsCount = useCallback(
+    (delayMs = 800) => {
+      if (newTicketsCountTimerRef.current) clearTimeout(newTicketsCountTimerRef.current);
+      newTicketsCountTimerRef.current = setTimeout(() => {
+        void fetchNewTicketsCount();
+      }, delayMs);
+    },
+    [fetchNewTicketsCount]
+  );
+
   // ---------------------------------------------------------------
   // SLA Monitor — breached + warning (< 30 min)
   // ---------------------------------------------------------------
@@ -536,17 +559,27 @@ export function useNotifications(agentId: string | null) {
     }
   }, [agentId, getReadIds, getWarnedIds, saveWarnedId, addToast, recalcUnread]);
 
+  const scheduleFetchSlaBreaches = useCallback(
+    (delayMs = 1200) => {
+      if (slaRefreshTimerRef.current) clearTimeout(slaRefreshTimerRef.current);
+      slaRefreshTimerRef.current = setTimeout(() => {
+        void fetchSlaBreaches();
+      }, delayMs);
+    },
+    [fetchSlaBreaches]
+  );
+
   // ---------------------------------------------------------------
   // Initial load + Realtime subscriptions
   // ---------------------------------------------------------------
   useEffect(() => {
     if (!agentId) return;
 
-    // Defer initial state updates to avoid setState-in-effect lint rule.
+    // Initial load: keep first paint responsive, then queue heavier checks.
     setTimeout(() => {
       void fetchLogs();
-      void fetchSlaBreaches();
       void fetchNewTicketsCount();
+      scheduleFetchSlaBreaches(1600);
     }, 0);
 
     // Load mute state
@@ -571,10 +604,11 @@ export function useNotifications(agentId: string | null) {
     const logChannel = supabase
       .channel(`notif-logs-${agentId}`)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'ticket_logs' },
-        async (payload) => {
+        (payload) => {
           const row = payload.new as any;
           if (row.to_user_id !== agentId && row.performer_id !== agentId) return;
-          await fetchLogs();
+          scheduleFetchLogs(250);
+          scheduleFetchSlaBreaches(900);
           if (isFirstLoad.current) return;
 
           let title = 'ใบงานได้รับการอัปเดต';
@@ -620,9 +654,9 @@ export function useNotifications(agentId: string | null) {
     const ticketChannel = supabase
       .channel('notif-all-tickets')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'tickets' },
-        async (payload) => {
+        (payload) => {
           const row = payload.new as any;
-          await fetchNewTicketsCount();
+          scheduleFetchNewTicketsCount(400);
           const normalizedStatus = (row.status || '').toLowerCase();
           if (normalizedStatus !== 'new') return;
           if (isFirstLoad.current) return;
@@ -646,21 +680,27 @@ export function useNotifications(agentId: string | null) {
         }
       )
       // Also listen to updates to capture status changes (e.g., ticket claimed)
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'tickets' }, 
-        async () => {
-          await fetchNewTicketsCount();
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'tickets' },
+        (payload) => {
+          const nextStatus = String((payload.new as any)?.status || '').toLowerCase();
+          const previousStatus = String((payload.old as any)?.status || '').toLowerCase();
+          if (nextStatus === 'new' || previousStatus === 'new') {
+            scheduleFetchNewTicketsCount(450);
+          }
         }
       )
       // Also listen to deletes
-      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'tickets' }, 
-        async () => {
-          await fetchNewTicketsCount();
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'tickets' },
+        () => {
+          scheduleFetchNewTicketsCount(450);
         }
       )
       .subscribe();
 
     // SLA polling every 90 seconds (more responsive than 2min)
-    const slaInterval = setInterval(fetchSlaBreaches, 90_000);
+    const slaInterval = setInterval(() => {
+      scheduleFetchSlaBreaches(0);
+    }, 120_000);
 
     // Mark first-load done after 2.5s
     const firstLoadTimer = setTimeout(() => {
@@ -673,8 +713,20 @@ export function useNotifications(agentId: string | null) {
       supabase.removeChannel(ticketChannel);
       clearInterval(slaInterval);
       clearTimeout(firstLoadTimer);
+      if (logsRefreshTimerRef.current) clearTimeout(logsRefreshTimerRef.current);
+      if (slaRefreshTimerRef.current) clearTimeout(slaRefreshTimerRef.current);
+      if (newTicketsCountTimerRef.current) clearTimeout(newTicketsCountTimerRef.current);
     };
-  }, [agentId, fetchLogs, fetchNewTicketsCount, fetchSlaBreaches, addToast, playNewTicketSound]);
+  }, [
+    agentId,
+    fetchLogs,
+    fetchNewTicketsCount,
+    addToast,
+    playNewTicketSound,
+    scheduleFetchLogs,
+    scheduleFetchNewTicketsCount,
+    scheduleFetchSlaBreaches,
+  ]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;

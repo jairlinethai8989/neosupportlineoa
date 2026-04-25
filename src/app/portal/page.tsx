@@ -1,7 +1,7 @@
 'use client';
 /* eslint-disable @next/next/no-img-element */
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useLiff } from '@/hooks/useLiff';
 import { supabase } from '@/lib/supabase';
 import { 
@@ -36,18 +36,30 @@ export default function PortalPage() {
   const [showAllHistory, setShowAllHistory] = useState(false);
   const [historyPage, setHistoryPage] = useState(1);
   const [totalHistory, setTotalHistory] = useState(0);
+  const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const inFlightRef = useRef(false);
   const ITEMS_PER_PAGE = 5;
 
-  const fetchTickets = async (silent = false) => {
+  const fetchTickets = useCallback(async (silent = false) => {
     if (!profile?.userId) return;
+    if (inFlightRef.current && silent) return;
+    inFlightRef.current = true;
+
     if (!silent) setFetching(true);
-    
+
     try {
-      const { data: customer } = await supabase
-        .from('customers')
-        .select(`*, hospitals(name, abbreviation)`)
-        .eq('line_user_id', profile.userId)
-        .maybeSingle();
+      const existingCustomer =
+        customerData && customerData.line_user_id === profile.userId ? customerData : null;
+
+      const customer =
+        existingCustomer ||
+        (
+          await supabase
+            .from('customers')
+            .select('*, hospitals(name, abbreviation)')
+            .eq('line_user_id', profile.userId)
+            .maybeSingle()
+        ).data;
 
       if (customer) {
         setCustomerData(customer);
@@ -59,7 +71,7 @@ export default function PortalPage() {
           const from = (historyPage - 1) * ITEMS_PER_PAGE;
           const to = from + ITEMS_PER_PAGE - 1;
 
-          const query = supabase
+          const { data: ticketData, count } = await supabase
             .from('tickets')
             .select('id, ticket_no, subject, status, created_at, resolved_at', { count: 'exact' })
             .eq('customer_id', customer.id)
@@ -67,8 +79,6 @@ export default function PortalPage() {
             .order('created_at', { ascending: false })
             .range(from, to);
 
-          const { data: ticketData, count } = await query;
-          
           if (ticketData) setTickets(ticketData);
           if (count !== null) setTotalHistory(count);
         } else {
@@ -80,27 +90,38 @@ export default function PortalPage() {
     } catch (err) {
       console.error('Portal Fetch Error:', err);
     } finally {
+      inFlightRef.current = false;
       setFetching(false);
     }
-  };
+  }, [ITEMS_PER_PAGE, customerData, historyPage, profile?.userId]);
 
   useEffect(() => {
     if (profile?.userId) {
-       fetchTickets();
+       void fetchTickets();
     }
-    
-    // Refresh on focus or back navigation
-    const onRefresh = () => {
-       if (profile?.userId) fetchTickets(true);
-    };
-    window.addEventListener('focus', onRefresh);
-    window.addEventListener('popstate', onRefresh);
 
-    return () => { 
-       window.removeEventListener('focus', onRefresh);
-       window.removeEventListener('popstate', onRefresh);
+    // Refresh on focus or back navigation (debounced)
+    const scheduleRefresh = () => {
+      if (!profile?.userId) return;
+      if (refreshTimerRef.current) {
+        clearTimeout(refreshTimerRef.current);
+      }
+      refreshTimerRef.current = setTimeout(() => {
+        void fetchTickets(true);
+      }, 250);
     };
-  }, [profile?.userId, isReady, historyPage]);
+
+    window.addEventListener('focus', scheduleRefresh);
+    window.addEventListener('popstate', scheduleRefresh);
+
+    return () => {
+      window.removeEventListener('focus', scheduleRefresh);
+      window.removeEventListener('popstate', scheduleRefresh);
+      if (refreshTimerRef.current) {
+        clearTimeout(refreshTimerRef.current);
+      }
+    };
+  }, [fetchTickets, historyPage, profile?.userId]);
 
   // Realtime subscription for ticket updates
   useEffect(() => {
@@ -114,7 +135,12 @@ export default function PortalPage() {
         table: 'tickets',
         filter: `customer_id=eq.${customerData.id}`
       }, () => {
-        fetchTickets(true);
+        if (refreshTimerRef.current) {
+          clearTimeout(refreshTimerRef.current);
+        }
+        refreshTimerRef.current = setTimeout(() => {
+          void fetchTickets(true);
+        }, 350);
       })
       .subscribe();
 

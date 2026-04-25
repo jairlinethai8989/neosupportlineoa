@@ -71,7 +71,7 @@ export async function listTicketWorkspaceTickets(input: {
     .from('tickets')
     .select(ticketWorkspaceTicketSelect)
     .order('created_at', { ascending: false })
-    .limit(input.limit || 300);
+    .limit(input.limit || 120);
 
   if (input.fromIso && input.toIso) {
     // Persistent statuses that show regardless of date
