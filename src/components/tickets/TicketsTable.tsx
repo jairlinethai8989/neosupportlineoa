@@ -182,7 +182,7 @@ export function TicketsTable({
                 </td>
                 <td style={cellStyle}>
                   <div style={actionWrapStyle}>
-                    {convId && (
+                    {convId && !['resolved', 'closed', 'pending', 'escalated'].includes(String(ticket.status || '').toLowerCase()) && (
                       <Link
                         href={`/inbox?cid=${convId}`}
                         title={t('tickets.openInboxChat')}

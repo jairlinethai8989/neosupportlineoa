@@ -356,7 +356,7 @@ export function TicketsBoard({
                           </div>
 
                           <div style={actionLinksWrapStyle}>
-                            {convId && (
+                            {convId && !['resolved', 'closed', 'pending', 'escalated'].includes(normalizedStatus) && (
                                 <Link
                                   href={`/inbox?cid=${convId}&tid=${ticket.id}`}
                                 title={t('tickets.openInboxChat')}
