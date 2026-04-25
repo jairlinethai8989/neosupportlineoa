@@ -1,6 +1,6 @@
 'use client';
-import React from 'react';
-import { User, Clock } from 'lucide-react';
+import React, { useState } from 'react';
+import { User, Clock, Link as LinkIcon, Copy, CheckCircle2, Info } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 import type {
@@ -57,7 +57,19 @@ export const TicketSidebar: React.FC<TicketSidebarProps> = ({
   showActivity = true,
   showProfile = true, // Default to true
 }) => {
+  const [copied, setCopied] = useState(false);
+
   if (!ticket) return null;
+
+  const handleCopyLink = (link: string) => {
+    navigator.clipboard.writeText(link);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const magicLink = ticket.escalation_token 
+    ? `${typeof window !== 'undefined' ? window.location.origin : ''}/escalate/${ticket.escalation_token}` 
+    : null;
 
   const ticketStatus = ticket.status || '';
   const isResolvedOrClosed = ticketStatus === 'Resolved' || ticketStatus === 'Closed';
@@ -289,7 +301,37 @@ export const TicketSidebar: React.FC<TicketSidebarProps> = ({
         </div>
       </div>
 
-      {showActivity && (
+      {magicLink && !isResolvedOrClosed && (
+        <div className="glass animate-fade-in" style={{ padding: '20px', border: '1px dashed var(--primary)', background: 'rgba(0,242,254,0.05)' }}>
+           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+              <LinkIcon size={16} color="var(--primary)" />
+              <span style={{ fontSize: '11px', fontWeight: '800', color: 'var(--primary)', textTransform: 'uppercase' }}>Magic Link (Handoff)</span>
+           </div>
+           
+           <div style={{ display: 'flex', gap: '8px', alignItems: 'center', background: 'rgba(0,0,0,0.2)', padding: '10px', borderRadius: '10px', marginBottom: '12px' }}>
+              <input 
+                 readOnly 
+                 value={magicLink} 
+                 style={{ flex: 1, background: 'transparent', border: 'none', color: 'var(--text-muted)', fontSize: '11px', outline: 'none', textOverflow: 'ellipsis' }} 
+              />
+              <button 
+                 onClick={() => handleCopyLink(magicLink)} 
+                 style={{ background: 'var(--primary)', border: 'none', borderRadius: '8px', padding: '6px 10px', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+               >
+                  {copied ? <CheckCircle2 size={14} color="#000" /> : <Copy size={14} color="#000" />}
+               </button>
+            </div>
+            
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
+               <Info size={14} color="var(--text-dim)" style={{ marginTop: '2px' }} />
+               <p style={{ fontSize: '11px', color: 'var(--text-dim)', lineHeight: '1.4' }}>
+                  แชร์ลิงก์นี้ให้ผู้รับช่วงงาน (External) เพื่อให้สามารถดูใบสรุปงานและบันทึกผลได้โดยไม่ต้องใช้รหัสผ่านพนักงาน
+               </p>
+            </div>
+         </div>
+       )}
+
+       {showActivity && (
         <>
           {/* Time Tracking section removed to avoid redundancy with header stats */}
 

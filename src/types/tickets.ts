@@ -51,6 +51,7 @@ export interface TicketWorkspaceTicket {
   department_data?: { id: string; name: string } | null;
   current_department_id?: string | null;
   hospital_id?: string | null;
+  escalation_token?: string | null;
 }
 
 export interface TicketWorkspaceProfile {
@@ -104,6 +105,7 @@ export interface TicketDetailTicket {
   assigned_agent_id: string | null;
   current_department_id: string | null;
   hospital_id: string | null;
+  escalation_token?: string | null;
   resolution_summary?: string | null;
   department_data?: { id: string; name: string } | null;
   customers?: TicketDetailCustomer | null;

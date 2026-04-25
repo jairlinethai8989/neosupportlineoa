@@ -46,7 +46,8 @@ export const inboxTicketSelect = `
   status,
   assigned_agent_id,
   module,
-  issue_type
+  issue_type,
+  escalation_token
 `;
 
 export const inboxProfileSelect = `

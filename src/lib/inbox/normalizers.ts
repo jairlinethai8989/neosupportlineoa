@@ -132,6 +132,7 @@ export function normalizeInboxTicket(value: unknown): InboxTicket | null {
     assigned_agent_id: asString(value.assigned_agent_id),
     module: asString(value.module),
     issue_type: asString(value.issue_type),
+    escalation_token: asString(value.escalation_token),
   };
 }
 

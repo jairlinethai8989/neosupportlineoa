@@ -63,6 +63,8 @@ export const TicketSidebar: React.FC<TicketSidebarProps> = ({
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const activeMagicLink = magicLink || (currentTicket?.escalation_token ? `${window.location.origin}/escalate/${currentTicket.escalation_token}` : null);
+
   const isEscalatedOrPending = currentTicket?.status === 'Escalated' || currentTicket?.status === 'Pending';
 
   return (
@@ -134,7 +136,7 @@ export const TicketSidebar: React.FC<TicketSidebarProps> = ({
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
              <button 
                 onClick={() => setShowEscalateModal(true)}
-                disabled={isProcessing || isEscalatedOrPending || !!magicLink}
+                disabled={isProcessing || (isEscalatedOrPending && !!activeMagicLink)}
                 className="glass-interactive"
                 style={{
                    flex: '1 1 120px',
@@ -145,13 +147,13 @@ export const TicketSidebar: React.FC<TicketSidebarProps> = ({
                    color: '#ef4444',
                    fontWeight: '900',
                    fontSize: '12px',
-                   cursor: (isProcessing || isEscalatedOrPending || !!magicLink) ? 'not-allowed' : 'pointer',
+                   cursor: (isProcessing || (isEscalatedOrPending && !!activeMagicLink)) ? 'not-allowed' : 'pointer',
                    display: 'flex',
                    alignItems: 'center',
                    justifyContent: 'center',
                    gap: '8px',
                    boxShadow: '0 4px 15px rgba(239, 68, 68, 0.15)',
-                   opacity: (isProcessing || isEscalatedOrPending || !!magicLink) ? 0.6 : 1
+                   opacity: (isProcessing || (isEscalatedOrPending && !!activeMagicLink)) ? 0.6 : 1
                 }}
              >
                 {isProcessing ? <Loader2 size={18} className="animate-spin" /> : <><AlertTriangle size={16} /> Escalate</>}
@@ -172,7 +174,7 @@ export const TicketSidebar: React.FC<TicketSidebarProps> = ({
                      setIsProcessing(false);
                   }
                 }}
-                disabled={isProcessing || isEscalatedOrPending || !!magicLink}
+                disabled={isProcessing || (isEscalatedOrPending && !!activeMagicLink)}
                 className="glass-interactive"
                 style={{
                    flex: '1 1 120px',
@@ -183,25 +185,25 @@ export const TicketSidebar: React.FC<TicketSidebarProps> = ({
                    color: '#f59e0b',
                    fontWeight: '900',
                    fontSize: '12px',
-                   cursor: (isProcessing || isEscalatedOrPending || !!magicLink) ? 'not-allowed' : 'pointer',
+                   cursor: (isProcessing || (isEscalatedOrPending && !!activeMagicLink)) ? 'not-allowed' : 'pointer',
                    display: 'flex',
                    alignItems: 'center',
                    justifyContent: 'center',
                    gap: '8px',
                    boxShadow: '0 4px 15px rgba(245, 158, 11, 0.15)',
-                   opacity: (isProcessing || isEscalatedOrPending || !!magicLink) ? 0.6 : 1
+                   opacity: (isProcessing || (isEscalatedOrPending && !!activeMagicLink)) ? 0.6 : 1
                 }}
              >
                 {isProcessing ? <Loader2 size={18} className="animate-spin" /> : <><Hourglass size={16} /> Pending</>}
              </button>
           </div>
 
-          {magicLink && (
+          {activeMagicLink && (
             <div className="animate-fade-in" style={{ marginTop: '12px', padding: '16px', background: 'var(--bg-input)', borderRadius: '16px', border: '1px dashed var(--primary)' }}>
                <p style={{ fontSize: '10px', color: 'var(--primary)', fontWeight: '900', marginBottom: '8px', textTransform: 'uppercase' }}>Magic Link Ready!</p>
                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                  <input readOnly value={magicLink} style={{ flex: 1, background: 'transparent', border: 'none', color: 'var(--text-muted)', fontSize: '11px', outline: 'none' }} />
-                  <button onClick={() => handleCopyLink(magicLink)} style={{ background: 'var(--primary)', border: 'none', borderRadius: '8px', padding: '6px 10px', cursor: 'pointer' }}>
+                  <input readOnly value={activeMagicLink} style={{ flex: 1, background: 'transparent', border: 'none', color: 'var(--text-muted)', fontSize: '11px', outline: 'none' }} />
+                  <button onClick={() => handleCopyLink(activeMagicLink)} style={{ background: 'var(--primary)', border: 'none', borderRadius: '8px', padding: '6px 10px', cursor: 'pointer' }}>
                      {copied ? <CheckCircle2 size={14} color="#000" /> : <Copy size={14} color="#000" />}
                   </button>
                </div>

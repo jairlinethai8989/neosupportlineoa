@@ -43,6 +43,7 @@ export interface InboxTicket {
   assigned_agent_id: string | null;
   module?: string | null;
   issue_type?: string | null;
+  escalation_token?: string | null;
 }
 
 export interface InboxAgent {
