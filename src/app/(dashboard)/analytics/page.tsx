@@ -28,8 +28,9 @@ import { arrayMove, SortableContext, sortableKeyboardCoordinates, rectSortingStr
 import { CSS } from '@dnd-kit/utilities';
 import { DateTime } from 'luxon';
 import { supabase } from '@/lib/supabase';
-import { exportToExcel, exportDashboardAsPDF } from '@/lib/utils/exportUtils';
+import { exportToExcel, exportDashboardAsPDF, printDataTable } from '@/lib/utils/exportUtils';
 import Skeleton from '@/components/ui/Skeleton';
+import { ExportPreviewModal, type ExportPreviewData } from '@/components/ui/ExportPreviewModal';
 import html2canvas from 'html2canvas';
 
 /**
@@ -250,6 +251,10 @@ export default function AdvancedAnalyticsPage() {
   const [exporting, setExporting] = useState(false);
   const [tickets, setTickets] = useState<any[]>([]);
   const [showWidgetSelector, setShowWidgetSelector] = useState(false);
+  
+  const [showPreview, setShowPreview] = useState(false);
+  const [previewData, setPreviewData] = useState<ExportPreviewData | null>(null);
+  const [pendingFormat, setPendingFormat] = useState<'excel' | 'pdf' | null>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -376,7 +381,27 @@ export default function AdvancedAnalyticsPage() {
     }
   };
 
-  const handleExport = async (format: 'excel' | 'pdf') => {
+  const handleExport = (format: 'excel' | 'pdf') => {
+    const preview: ExportPreviewData = {
+      format,
+      title: 'Executive Intelligence Report',
+      subtitle: 'สรุปสถิติการดำเนินงาน • NEO SUPPORT',
+      totalRecords: tickets.length,
+      dateRange: `${dateRange.start} - ${dateRange.end}`,
+      columns: format === 'excel' 
+        ? ['No.', 'Subject', 'Status', 'Priority', 'Created']
+        : ['Dashboard Summary', 'Statistics Charts', 'Data Tables']
+    };
+    setPendingFormat(format);
+    setPreviewData(preview);
+    setShowPreview(true);
+  };
+
+  const executeExport = async () => {
+    if (!pendingFormat) return;
+    const format = pendingFormat;
+    setShowPreview(false);
+    
     const dataToExport = tickets.map(t => ({
       'No.': t.ticket_no,
       'Subject': t.subject,
@@ -482,6 +507,25 @@ export default function AdvancedAnalyticsPage() {
     } finally {
       setExporting(false);
     }
+  };
+
+  const executePrint = () => {
+    if (!pendingFormat) return;
+
+    const dataToPrint = tickets.map((t) => ({
+      'No.': t.ticket_no,
+      Subject: t.subject,
+      Status: t.status,
+      Priority: t.priority,
+      Created: DateTime.fromISO(t.created_at).toFormat('dd/MM/yyyy'),
+    }));
+
+    setShowPreview(false);
+    printDataTable(
+      'Executive Intelligence Report',
+      dataToPrint,
+      `${dateRange.start} - ${dateRange.end}`
+    );
   };
 
   if (loading && !tickets.length) {
@@ -693,6 +737,17 @@ export default function AdvancedAnalyticsPage() {
           <RefreshCw size={20} className="animate-spin" />
           กำลังวิเคราะห์ข้อมูล...
         </div>
+      )}
+
+      {previewData && (
+        <ExportPreviewModal 
+          isOpen={showPreview}
+          onClose={() => setShowPreview(false)}
+          onDownload={executeExport}
+          onPrint={executePrint}
+          data={previewData}
+          loading={exporting}
+        />
       )}
     </div>
   );

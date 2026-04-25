@@ -15,7 +15,7 @@ import {
   Activity,
   Zap
 } from 'lucide-react';
-import {
+import { 
   ResponsiveContainer,
   AreaChart, Area,
   PieChart, Pie, Cell,
@@ -23,10 +23,11 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, Legend,
 } from 'recharts';
 import { supabase } from '@/lib/supabase';
-import { exportTickets } from '@/lib/utils/exportUtils';
+import { exportTickets, printTickets } from '@/lib/utils/exportUtils';
 import Skeleton from '@/components/ui/Skeleton';
 import { useStaffLocale } from '@/contexts/StaffLocaleContext';
 import { useRouter } from 'next/navigation';
+import { ExportPreviewModal, type ExportPreviewData } from '@/components/ui/ExportPreviewModal';
 
 const CHART_COLORS = {
   primary: '#00f2fe',
@@ -147,6 +148,9 @@ export default function Home() {
   const [recentLogs, setRecentLogs] = useState<any[]>([]);
   const [showExportMenu, setShowExportMenu] = useState(false);
   const exportRef = React.useRef<HTMLDivElement>(null);
+  const [showExportPreview, setShowExportPreview] = useState(false);
+  const [previewData, setPreviewData] = useState<ExportPreviewData | null>(null);
+  const [pendingFormat, setPendingFormat] = useState<'xlsx' | 'pdf' | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   
   // Date Filter State
@@ -164,6 +168,32 @@ export default function Home() {
     if (showExportMenu) document.addEventListener('mousedown', handleClick);
     return () => document.removeEventListener('mousedown', handleClick);
   }, [showExportMenu]);
+
+  const handleExportRequest = (format: 'xlsx' | 'pdf') => {
+    const preview: ExportPreviewData = {
+      format: format === 'xlsx' ? 'excel' : 'pdf',
+      title: t('dashboard.exportReport'),
+      subtitle: t('dashboard.managementSummary'),
+      totalRecords: tickets.length,
+      dateRange: timeRange,
+      columns: ['Ticket No', 'Subject', 'Customer', 'Status', 'Priority', 'Created At', 'Resolved At'],
+    };
+    setPendingFormat(format);
+    setPreviewData(preview);
+    setShowExportMenu(false);
+    setShowExportPreview(true);
+  };
+
+  const handleExportDownload = () => {
+    if (!pendingFormat) return;
+    exportTickets(tickets, pendingFormat);
+    setShowExportPreview(false);
+  };
+
+  const handleExportPrint = () => {
+    printTickets(tickets, 'Dashboard Tickets Report');
+    setShowExportPreview(false);
+  };
 
   useEffect(() => {
     async function fetchDashboard() {
@@ -444,7 +474,7 @@ export default function Home() {
                 minWidth: '200px',
               }}>
                 <button
-                  onClick={() => { exportTickets(tickets, 'xlsx'); setShowExportMenu(false); }}
+                  onClick={() => handleExportRequest('xlsx')}
                   style={{
                     display: 'flex', alignItems: 'center', gap: '12px',
                     width: '100%', padding: '14px 20px',
@@ -462,7 +492,7 @@ export default function Home() {
                   </div>
                 </button>
                 <button
-                  onClick={() => { exportTickets(tickets, 'pdf'); setShowExportMenu(false); }}
+                  onClick={() => handleExportRequest('pdf')}
                   style={{
                     display: 'flex', alignItems: 'center', gap: '12px',
                     width: '100%', padding: '14px 20px',
@@ -769,6 +799,16 @@ export default function Home() {
           </div>
         </div>
       </div>
+
+      {previewData && (
+        <ExportPreviewModal
+          isOpen={showExportPreview}
+          onClose={() => setShowExportPreview(false)}
+          onDownload={handleExportDownload}
+          onPrint={handleExportPrint}
+          data={previewData}
+        />
+      )}
 
       <style dangerouslySetInnerHTML={{ __html: `
         @keyframes pulse {

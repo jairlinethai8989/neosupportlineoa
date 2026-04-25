@@ -599,6 +599,63 @@ export default function StaffTicketDetailPage() {
     }
   };
 
+  const handlePrintSummary = async () => {
+    if (!reportRef.current || !ticket) return;
+
+    try {
+      const canvas = await html2canvas(reportRef.current, {
+        scale: 1.5,
+        useCORS: true,
+        logging: false,
+        backgroundColor: '#ffffff'
+      });
+
+      const imgData = canvas.toDataURL('image/jpeg', 0.85);
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4'
+      });
+
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      const margin = 10;
+      const contentWidth = pageWidth - (margin * 2);
+      const imgAspectRatio = canvas.height / canvas.width;
+      const contentHeight = contentWidth * imgAspectRatio;
+      const finalHeight = Math.min(contentHeight, pageHeight - (margin * 2));
+      const finalWidth = finalHeight < contentHeight ? (finalHeight / imgAspectRatio) : contentWidth;
+      const xOffset = (pageWidth - finalWidth) / 2;
+
+      pdf.addImage(imgData, 'JPEG', xOffset, margin, finalWidth, finalHeight);
+
+      const blobUrl = pdf.output('bloburl');
+      const printWindow = window.open(blobUrl, '_blank');
+      if (!printWindow) {
+        addToast({
+          id: `pdf-print-popup-${Date.now()}`,
+          type: 'sla',
+          title: 'ไม่สามารถเปิดหน้าต่างพิมพ์ได้',
+          body: 'กรุณาอนุญาต pop-up แล้วลองใหม่อีกครั้ง'
+        });
+        return;
+      }
+
+      setTimeout(() => {
+        printWindow.focus();
+        printWindow.print();
+      }, 500);
+    } catch (error) {
+      console.error('PDF Print Error:', error);
+      addToast({
+        id: `pdf-print-error-${Date.now()}`,
+        type: 'sla',
+        title: 'ไม่สามารถพิมพ์รายงานได้',
+        body: 'เกิดข้อผิดพลาดระหว่างเตรียมเอกสารสำหรับพิมพ์'
+      });
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex-center" style={loadingContainerStyle}>
@@ -616,6 +673,7 @@ export default function StaffTicketDetailPage() {
   }
 
   return (
+    <>
     <div className="animate-page-in">
       <TicketHeader
         ticket={ticket}
@@ -757,6 +815,7 @@ export default function StaffTicketDetailPage() {
           showProfile={false}
         />
       </div>
+    </div>
 
       <ResolveTicketModal
         open={showResolveModal}
@@ -821,6 +880,7 @@ export default function StaffTicketDetailPage() {
             });
           }
         }}
+        onPrint={handlePrintSummary}
         ticketNo={ticket?.ticket_no || ''}
       />
 
@@ -923,6 +983,6 @@ export default function StaffTicketDetailPage() {
           )}
         </div>
       </div>
-    </div>
+    </>
   );
 }

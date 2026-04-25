@@ -2,6 +2,16 @@ import * as XLSX from 'xlsx';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
+function escapeHtml(input: unknown): string {
+  const value = String(input ?? '-');
+  return value
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
+}
+
 /**
  * Universal Excel Export
  */
@@ -113,6 +123,66 @@ export const exportDashboardAsPDF = async (
   }
 };
 
+export const printDataTable = (title: string, data: any[], subtitle?: string) => {
+  if (!data || data.length === 0) {
+    alert('ไม่พบข้อมูลสำหรับพิมพ์');
+    return;
+  }
+
+  const headers = Object.keys(data[0] || {});
+  const rows = data
+    .map((row) =>
+      `<tr>${headers.map((header) => `<td>${escapeHtml(row[header])}</td>`).join('')}</tr>`
+    )
+    .join('');
+
+  const html = `
+    <html>
+      <head>
+        <title>${escapeHtml(title)}</title>
+        <style>
+          body { font-family: Arial, sans-serif; padding: 20px; color: #111; }
+          h1 { margin: 0 0 8px; font-size: 22px; }
+          .sub { margin: 0 0 6px; color: #666; font-size: 12px; }
+          .meta { margin: 0 0 18px; color: #777; font-size: 11px; }
+          table { width: 100%; border-collapse: collapse; font-size: 12px; }
+          th, td { border: 1px solid #ddd; padding: 8px; vertical-align: top; text-align: left; }
+          th { background: #f3f5f9; font-weight: 700; }
+          tr:nth-child(even) { background: #fafafa; }
+          @media print {
+            body { padding: 0; }
+          }
+        </style>
+      </head>
+      <body>
+        <h1>${escapeHtml(title)}</h1>
+        ${subtitle ? `<p class="sub">${escapeHtml(subtitle)}</p>` : ''}
+        <p class="meta">Printed at: ${escapeHtml(new Date().toLocaleString('th-TH'))}</p>
+        <table>
+          <thead>
+            <tr>${headers.map((header) => `<th>${escapeHtml(header)}</th>`).join('')}</tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </body>
+    </html>
+  `;
+
+  const printWindow = window.open('', '_blank', 'width=1280,height=900');
+  if (!printWindow) {
+    alert('ไม่สามารถเปิดหน้าต่างพิมพ์ได้ กรุณาอนุญาต pop-up');
+    return;
+  }
+
+  printWindow.document.open();
+  printWindow.document.write(html);
+  printWindow.document.close();
+  printWindow.focus();
+  setTimeout(() => {
+    printWindow.print();
+  }, 350);
+};
+
 /**
  * Bulk Ticket Export (Helper)
  */
@@ -132,4 +202,17 @@ export const exportTickets = (tickets: any[], format: 'xlsx' | 'pdf') => {
   } else {
     exportToPDF(formatted, 'NeoSupport_Tickets', 'Report: All Tickets');
   }
+};
+
+export const printTickets = (tickets: any[], title = 'Report: All Tickets') => {
+  const formatted = tickets.map((t) => ({
+    'Ticket No': t.ticket_no,
+    Subject: t.subject,
+    Customer: t.customers?.display_name || 'N/A',
+    Status: t.status,
+    Priority: t.priority,
+    'Created At': new Date(t.created_at).toLocaleString('th-TH'),
+    'Resolved At': t.resolved_at ? new Date(t.resolved_at).toLocaleString('th-TH') : '-',
+  }));
+  printDataTable(title, formatted, 'NEO SUPPORT');
 };

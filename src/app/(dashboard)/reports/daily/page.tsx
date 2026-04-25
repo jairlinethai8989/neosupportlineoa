@@ -6,9 +6,10 @@ import {
   Download, Loader2, Table as TableIcon, AlignLeft, Filter,
   ArrowUpDown, Search, X, Calendar, ChevronRight
 } from 'lucide-react';
-import { exportToExcel } from '@/lib/utils/exportUtils';
+import { exportToExcel, printDataTable } from '@/lib/utils/exportUtils';
 import Skeleton from '@/components/ui/Skeleton';
 import { useStaffLocale } from '@/contexts/StaffLocaleContext';
+import { ExportPreviewModal, type ExportPreviewData } from '@/components/ui/ExportPreviewModal';
 
 type SortConfig = {
   key: string;
@@ -73,6 +74,9 @@ export default function DailyReportPage() {
   const [filterText, setFilterText] = useState('');
   const [showFilter, setShowFilter] = useState(false);
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>(INITIAL_COLUMN_WIDTHS);
+  
+  const [showPreview, setShowPreview] = useState(false);
+  const [previewData, setPreviewData] = useState<ExportPreviewData | null>(null);
 
   const columns: ReportColumn[] = useMemo(
     () => [
@@ -260,7 +264,21 @@ export default function DailyReportPage() {
   }, [columnWidths]);
 
   const handleExportExcel = () => {
+    const preview: ExportPreviewData = {
+      format: 'excel',
+      title: t('reports.dailyTitle'),
+      subtitle: t('reports.dailySubtitle'),
+      totalRecords: processedTickets.length,
+      dateRange: `${dateRange.start} - ${dateRange.end}`,
+      columns: columns.map(c => c.label)
+    };
+    setPreviewData(preview);
+    setShowPreview(true);
+  };
+
+  const executeExport = () => {
     setIsExporting(true);
+    setShowPreview(false);
     setTimeout(() => {
       const formatData = processedTickets.map(ticket => {
         const createdAt = new Date(ticket.created_at);
@@ -290,6 +308,37 @@ export default function DailyReportPage() {
     }, 500);
   };
 
+  const executePrint = () => {
+    const formatData = processedTickets.map(ticket => {
+      const createdAt = new Date(ticket.created_at);
+      const resolvedAt = ticket.resolved_at ? new Date(ticket.resolved_at) : null;
+
+      return {
+        [t('reports.columns.status')]: ticket.status,
+        [t('reports.columns.date')]: createdAt.toLocaleDateString('th-TH'),
+        [t('reports.columns.hospital')]: ticket.hospitals?.name || ticket.customers?.hospitals?.name || '-',
+        [t('reports.columns.customer')]: ticket.customers?.display_name || (ticket.assigned_agent ? ticket.assigned_agent.display_name : '-'),
+        [t('reports.columns.subject')]: getTicketSubjectOnly(ticket),
+        [t('reports.columns.additionalDetails')]: ticket.description || '-',
+        [t('reports.columns.resolution')]: ticket.resolution_summary || '-',
+        [t('reports.columns.assignee')]: ticket.assigned_agent?.display_name || '-',
+        [t('reports.columns.source')]: ticket.source || 'Line',
+        [t('reports.columns.module')]: ticket.module || '-',
+        [t('reports.columns.type')]: ticket.issue_type || ticket.priority || 'PB',
+        [t('reports.columns.createdTime')]: createdAt.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }),
+        [t('reports.columns.resolvedTime')]: resolvedAt ? resolvedAt.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }) : '-',
+        [t('reports.columns.timeUsed')]: getDurationStr(ticket.created_at, ticket.resolved_at)
+      };
+    });
+
+    setShowPreview(false);
+    printDataTable(
+      t('reports.dailyTitle'),
+      formatData,
+      `${dateRange.start} - ${dateRange.end}`
+    );
+  };
+
   if (loading && tickets.length === 0) {
     return (
       <div className="animate-page-in">
@@ -300,6 +349,7 @@ export default function DailyReportPage() {
   }
 
   return (
+    <>
     <div className="animate-page-in" style={{ height: 'calc(100vh - 40px)', display: 'flex', flexDirection: 'column' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexShrink: 0 }}>
         <div>
@@ -496,6 +546,19 @@ export default function DailyReportPage() {
           <span>{t('reports.dailySubtitle')} ({dateRange.start} {t('tickets.to')} {dateRange.end})</span>
         </div>
       </div>
-    </div>
+
+      </div>
+
+      {previewData && (
+        <ExportPreviewModal 
+          isOpen={showPreview}
+          onClose={() => setShowPreview(false)}
+          onDownload={executeExport}
+          onPrint={executePrint}
+          data={previewData}
+          loading={isExporting}
+        />
+      )}
+    </>
   );
 }
