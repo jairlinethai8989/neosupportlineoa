@@ -113,6 +113,18 @@ export async function updateTicketStatusAction(ticketId: string, newStatus: stri
 
   if (updateError) throw new Error(updateError.message);
 
+  // v3.0: Automatically close active conversations if ticket is Resolved or Escalated
+  if (['Resolved', 'Escalated'].includes(newStatus)) {
+    await supabaseAdmin
+      .from('conversations')
+      .update({ 
+        status: 'closed',
+        current_ticket_id: null 
+      })
+      .eq('current_ticket_id', ticketId)
+      .eq('status', 'active');
+  }
+
   await supabaseAdmin.from('ticket_logs').insert([{
     ticket_id: ticketId,
     action_type: 'status_change',

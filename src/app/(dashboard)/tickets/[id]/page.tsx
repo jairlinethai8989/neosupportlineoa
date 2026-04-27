@@ -457,7 +457,18 @@ export default function StaffTicketDetailPage() {
       const dbField = field === 'department' ? 'current_department_id' : field;
 
       try {
-        await supabase.from('tickets').update({ [dbField]: value }).eq('id', ticketId);
+        if (field === 'status') {
+          await ticketService.updateStatus(ticketId, value);
+        } else {
+          await supabase.from('tickets').update({ [dbField]: value }).eq('id', ticketId);
+        }
+
+        addToast({
+          id: `update-${field}-${Date.now()}`,
+          type: 'ticket',
+          title: 'อัปเดตข้อมูลสำเร็จ',
+          body: `เปลี่ยน ${field} เป็น ${value} เรียบร้อยแล้ว`
+        });
       } catch (error) {
         addToast(getTicketDetailActionFailedToast('update ticket', error));
       }
