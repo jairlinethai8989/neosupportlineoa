@@ -46,12 +46,6 @@ export default function LoginPage() {
     }
   };
 
-  const handleLineLogin = () => {
-    // Placeholder for LINE Login
-    // supabase.auth.signInWithOAuth({ provider: 'line' });
-    alert('ระบบเชื่อมต่อ LINE Login จะเปิดให้บริการเร็วๆ นี้');
-  };
-
   return (
     <div style={{ 
       minHeight: '100vh', 
@@ -74,20 +68,22 @@ export default function LoginPage() {
         {/* Logo/Title */}
         <div style={{ marginBottom: '40px' }}>
           <h1 style={{ 
-            fontSize: '38px', 
-            fontWeight: '850', 
+            fontSize: '32px', 
+            fontWeight: '900', 
             margin: '0 0 10px', 
             color: '#0066ff',
-            letterSpacing: '-1px'
+            letterSpacing: '-1.5px',
+            lineHeight: '1.1'
           }}>
-            NEO Support
+            Neo Support Intelligence
           </h1>
           <p style={{ 
             color: '#707070', 
-            fontSize: '15px', 
-            fontWeight: '500' 
+            fontSize: '16px', 
+            fontWeight: '600',
+            letterSpacing: '0.5px'
           }}>
-            ระบบจัดการงาน IT สำหรับโรงพยาบาล
+            ระบบ support NeoHos
           </p>
         </div>
 
@@ -191,55 +187,28 @@ export default function LoginPage() {
               gap: '10px',
               boxShadow: '0 10px 20px rgba(0, 102, 255, 0.2)',
               transition: 'all 0.2s ease',
-              opacity: loading ? 0.7 : 1
+              opacity: loading ? 0.7 : 1,
+              marginBottom: '10px'
             }}
           >
             {loading ? <Loader2 className="animate-spin" size={20} /> : 'เข้าสู่ระบบ'}
           </button>
         </form>
 
-        <div style={{ 
-          display: 'flex', 
-          alignItems: 'center', 
-          margin: '30px 0', 
-          gap: '15px' 
-        }}>
-          <div style={{ flex: 1, height: '1px', background: '#eeeeee' }} />
-          <span style={{ fontSize: '13px', color: '#999999', fontWeight: '600' }}>หรือ</span>
-          <div style={{ flex: 1, height: '1px', background: '#eeeeee' }} />
-        </div>
-
-        <button 
-          type="button" 
-          onClick={handleLineLogin}
-          style={{
-            width: '100%',
-            background: '#00c300',
-            color: '#ffffff',
-            padding: '16px',
-            borderRadius: '14px',
-            border: 'none',
-            fontWeight: '800',
-            fontSize: '16px',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '12px',
-            boxShadow: '0 8px 15px rgba(0, 195, 0, 0.15)',
-            transition: 'all 0.2s ease',
-            marginBottom: '35px'
-          }}
-        >
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M24 10.304c0-4.577-4.705-8.304-10.5-8.304-5.795 0-10.5 3.727-10.5 8.304 0 4.1 3.732 7.531 8.776 8.192.342.073.806.226.924.518.106.262.069.673.033 0.938-.036.265-.174 1.042-.212 1.342-.064.506-.296 1.977 1.277 1.079 1.573-.898 8.491-5.001 11.579-8.57 2.053-2.373 3.124-4.838 3.124-7.5zm-5.022 5.029c0 .16-.131.291-.292.291h-1.545c-.161 0-.292-.131-.292-.291v-3.921l-1.895 2.502c-.053.07-.138.113-.231.113h-.011c-.092 0-.177-.042-.23-.112l-1.894-2.502v3.921c0 .16-.131.291-.292.291h-1.545c-.161 0-.292-.131-.292-.291v-4.993c0-.161.131-.292.292-.292h1.545c.161 0 .292.131.292.292l2.136 2.822 2.135-2.822c.161 0 .292.131.292.292v4.993z" />
-          </svg>
-          เข้าสู่ระบบด้วย LINE
-        </button>
-
-        <p style={{ fontSize: '14px', color: '#999999' }}>
-          ยังไม่มีบัญชี? <a href="#" style={{ color: '#0066ff', fontWeight: '800', textDecoration: 'none' }}>สมัครสมาชิกใหม่</a>
+        <p style={{ fontSize: '13px', color: '#999999', marginTop: '20px', marginBottom: '30px' }}>
+          สำหรับเจ้าหน้าที่เท่านั้น หากลืมรหัสผ่านกรุณาติดต่อผู้ดูแลระบบ
         </p>
+
+        <div style={{ 
+          marginTop: '20px', 
+          paddingTop: '20px', 
+          borderTop: '1px solid #f0f0f0',
+          fontSize: '12px',
+          color: '#bbbbbb',
+          fontWeight: '500'
+        }}>
+          Powered by NeoNetwork <span style={{ marginLeft: '8px', color: '#dddddd' }}>v2.1.2</span>
+        </div>
 
         <style dangerouslySetInnerHTML={{ __html: `
           @keyframes slideUp {

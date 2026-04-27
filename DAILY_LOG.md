@@ -20,11 +20,21 @@
    * ปรับปรุงการแสดงผลบนบัตรใบงาน (Board View) ให้แสดงทั้งวันที่และเวลา (เช่น `27 เม.ย. 69 • 17:37 น.`)
    * ปรับปรุงหน้าจอรายละเอียดย่อยเพื่อรองรับการแสดงผลข้อมูลที่ครบถ้วนขึ้น
 5. **Conversation Lifecycle Fix (Stuck Chat):**
-   * แก้ไขปัญหา "แชทค้าง" เมื่อมีการส่งต่องาน (Escalate) หรือเปลี่ยนสถานะเป็น Pending
+   - **Conversation Lifecycle Integrity (COMPLETE)**: Automated closure on Escalate/Pending.
+   - **Old Ticket Accessibility Fix (COMPLETE)**: Resolved "Ticket Not Found" by removing non-existent `avatar_url` and `department` columns from the `tickets/[id]` query.
+   - **Reporting Time Visibility (COMPLETE)**: Added timestamps to Board/List/Detail views.
    * ปรับปรุง Server Actions ให้ทำการปิดการสนทนา (Close Conversation) และล้างความเชื่อมโยงกับใบงาน (Clear `current_ticket_id`) โดยอัตโนมัติเมื่อใบงานถูกเปลี่ยนสถานะเป็น Resolved, Escalated หรือ Pending
    * ครอบคลุมทั้งการเปลี่ยนสถานะปกติและการใช้ฟังก์ชัน Transfer Ticket
 6. **Vercel Build Stability:**
    * แก้ไขข้อผิดพลาดทางเทคนิค (Missing Loader2 Import) ที่ทำให้ระบบ Build บน Vercel ไม่ผ่าน จนปัจจุบันระบบกลับมา Online พร้อมใช้งาน 100%
+7. **Ticket Data Integrity & Retrieval (Preventing Ticket Loss):**
+   * **Fix Database Schema**: รัน SQL เพิ่มคอลัมน์ `resolved_at`, `assigned_at`, `resolution_summary` ในตาราง `tickets` เพื่อป้องกันข้อมูลหายขณะปิดงาน
+   * **Ticket Guard**: เพิ่ม Unique Index บน `conversations(current_ticket_id)` เฉพาะสถานะ `active` เพื่อป้องกัน 1 ใบงานถูกผูกกับหลายแชท (Data Inconsistency)
+   * **Retrieval Fix**: แก้ไข Bug ใน API Query ที่เรียกใช้คอลัมน์ที่ไม่มีอยู่จริง ทำให้ใบงานเก่าๆ แสดงผลเป็น "Ticket Not Found"
+8. **Login Security & Access Control:**
+   * **Disable Public Registration**: ยกเลิกระบบสมัครสมาชิกใหม่หน้าเว็บ เพื่อให้ Admin เป็นผู้สร้างบัญชีให้เท่านั้น
+   * **Disable LINE Login**: ถอดปุ่ม LINE Login ออกจากหน้าหลัก เพื่อใช้ระบบ Internal Account เป็นหลักในการเข้าถึงระบบหลังบ้าน
+   * **Rebranding**: เปลี่ยนชื่อระบบเป็น "Neo Support Intelligence" (ระบบ support NeoHos) และเพิ่ม Footer "Powered by NeoNetwork v2.1.2"
 
 ---
 
