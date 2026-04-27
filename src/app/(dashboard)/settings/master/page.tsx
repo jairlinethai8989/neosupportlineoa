@@ -56,6 +56,7 @@ export default function MasterSettingsPage() {
   const [newItemName, setNewItemName] = useState('');
   const [newItemAbbr, setNewItemAbbr] = useState('');
   const [editItemName, setEditItemName] = useState('');
+  const [editItemAbbr, setEditItemAbbr] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -237,7 +238,12 @@ export default function MasterSettingsPage() {
         return;
     }
 
-    const { error } = await supabase.from(table).update({ name: editItemName }).eq('id', id);
+    const updateData: any = { name: editItemName };
+    if (activeTab === 'hospitals') {
+      updateData.abbreviation = editItemAbbr.trim() || editItemName.slice(0, 10).toUpperCase();
+    }
+
+    const { error } = await supabase.from(table).update(updateData).eq('id', id);
     
     if (error) {
       console.error('Update Error:', error);
@@ -252,8 +258,8 @@ export default function MasterSettingsPage() {
         action_type: 'MASTER_UPDATE',
         entity_type: table.toUpperCase(),
         entity_id: id,
-        new_data: { name: editItemName },
-        note: `Updated ${table} name to: ${editItemName}`
+        new_data: updateData,
+        note: `Updated ${table} to: ${editItemName} ${activeTab === 'hospitals' ? `(${editItemAbbr})` : ''}`
       });
 
       addToast({
@@ -460,18 +466,37 @@ export default function MasterSettingsPage() {
                             <ActiveIcon size={18} color={item.is_active ? 'var(--primary)' : 'var(--text-muted)'} />
                          </div>
                          
-                         {editingId === item.id ? (
-                           <input 
-                             autoFocus
-                             type="text" 
-                             value={editItemName}
-                             onChange={e => setEditItemName(e.target.value)}
-                             style={{ background: 'rgba(0, 242, 254, 0.05)', border: '1px solid var(--primary)', borderRadius: '8px', padding: '8px 12px', color: 'var(--text-main)', fontSize: '15px', fontWeight: '700', outline: 'none', width: '250px' }}
-                             onKeyDown={e => e.key === 'Enter' && handleUpdate(item.id)}
-                           />
+                          {editingId === item.id ? (
+                           <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                             <input 
+                               autoFocus
+                               type="text" 
+                               value={editItemName}
+                               onChange={e => setEditItemName(e.target.value)}
+                               style={{ background: 'rgba(0, 242, 254, 0.05)', border: '1px solid var(--primary)', borderRadius: '8px', padding: '8px 12px', color: 'var(--text-main)', fontSize: '15px', fontWeight: '700', outline: 'none', width: '250px' }}
+                               onKeyDown={e => e.key === 'Enter' && handleUpdate(item.id)}
+                             />
+                             {activeTab === 'hospitals' && (
+                               <input 
+                                 type="text" 
+                                 placeholder="ย่อ"
+                                 value={editItemAbbr}
+                                 onChange={e => setEditItemAbbr(e.target.value)}
+                                 style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', borderRadius: '8px', padding: '8px 12px', color: 'var(--text-main)', fontSize: '14px', outline: 'none', width: '100px' }}
+                                 onKeyDown={e => e.key === 'Enter' && handleUpdate(item.id)}
+                               />
+                             )}
+                           </div>
                          ) : (
                            <div>
-                              <p style={{ fontSize: '15px', fontWeight: '700', color: item.is_active ? 'var(--text-main)' : 'var(--text-muted)' }}>{item.name}</p>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <p style={{ fontSize: '15px', fontWeight: '700', color: item.is_active ? 'var(--text-main)' : 'var(--text-muted)' }}>{item.name}</p>
+                                {activeTab === 'hospitals' && item.abbreviation && (
+                                  <span style={{ fontSize: '11px', background: 'rgba(255,255,255,0.1)', padding: '2px 6px', borderRadius: '4px', color: 'var(--text-muted)' }}>
+                                    {item.abbreviation}
+                                  </span>
+                                )}
+                              </div>
                               <span style={{ fontSize: '11px', color: 'var(--text-dim)', textTransform: 'uppercase' }}>ID: {item.id.slice(0,8)}</span>
                            </div>
                          )}
@@ -518,6 +543,7 @@ export default function MasterSettingsPage() {
                                    if (!canEdit) return;
                                    setEditingId(item.id);
                                    setEditItemName(item.name);
+                                   setEditItemAbbr(item.abbreviation || '');
                                  }}
                                  disabled={!canEdit}
                                  style={{ color: 'var(--text-muted)', cursor: canEdit ? 'pointer' : 'not-allowed', opacity: canEdit ? 1 : 0.5 }} 

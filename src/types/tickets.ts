@@ -21,6 +21,7 @@ export interface TicketWorkspaceConversation {
 export interface TicketWorkspaceHospital {
   id: string;
   name: string | null;
+  abbreviation?: string | null;
 }
 
 export interface TicketWorkspaceCustomer {
