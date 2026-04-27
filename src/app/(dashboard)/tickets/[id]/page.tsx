@@ -68,7 +68,6 @@ const ticketDetailSelect = `
   status,
   subject,
   description,
-  department,
   priority,
   module,
   issue_type,
@@ -84,7 +83,6 @@ const ticketDetailSelect = `
     display_name,
     full_name,
     line_username,
-    avatar_url,
     hospitals:hospitals(id, name)
   ),
   assigned_agent:profiles!assigned_agent_id (
