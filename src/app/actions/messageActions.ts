@@ -80,7 +80,7 @@ export async function closeConversationAction(conversationId: string) {
   await verifyAgentRole(user.id);
 
   await supabaseAdmin.from('conversations')
-    .update({ status: 'closed' })
+    .update({ status: 'closed', current_ticket_id: null })
     .eq('id', conversationId);
   
   await supabaseAdmin.from('messages').insert([{

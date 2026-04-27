@@ -113,8 +113,8 @@ export async function updateTicketStatusAction(ticketId: string, newStatus: stri
 
   if (updateError) throw new Error(updateError.message);
 
-  // v3.0: Automatically close active conversations if ticket is Resolved or Escalated
-  if (['Resolved', 'Escalated'].includes(newStatus)) {
+  // v3.0: Automatically close active conversations if ticket is Resolved, Escalated or Pending
+  if (['Resolved', 'Escalated', 'Pending'].includes(newStatus)) {
     await supabaseAdmin
       .from('conversations')
       .update({ 
@@ -167,6 +167,16 @@ export async function transferTicketAction(ticketId: string, toAgentId?: string,
      to_team_id: toTeamId,
      note: reason || 'Ticket transferred securely'
    }]);
+
+   // v3.1: Close active conversations on transfer (since status becomes Escalated)
+   await supabaseAdmin
+     .from('conversations')
+     .update({ 
+       status: 'closed',
+       current_ticket_id: null 
+     })
+     .eq('current_ticket_id', ticketId)
+     .eq('status', 'active');
 
    return ticket;
 }
