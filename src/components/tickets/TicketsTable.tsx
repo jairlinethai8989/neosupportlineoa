@@ -7,7 +7,7 @@ import { useStaffLocale } from '@/contexts/StaffLocaleContext';
 import { translateTicketStatus } from '@/lib/i18n/staff';
 import type { TicketWorkspaceSortConfig, TicketWorkspaceTicket } from '@/types/tickets';
 
-type SortableColumnKey = 'ticket_no' | 'subject' | 'hospital' | 'customer' | 'agent' | 'status';
+type SortableColumnKey = 'ticket_no' | 'subject' | 'hospital' | 'customer' | 'agent' | 'status' | 'created_at';
 type TableColumn = {
   key: SortableColumnKey | 'actions';
   label: string;
@@ -115,6 +115,7 @@ export function TicketsTable({
 
   const columns: TableColumn[] = [
     { key: 'ticket_no', label: t('tickets.ticketId') },
+    { key: 'created_at', label: 'วันที่แจ้งงาน' },
     { key: 'subject', label: t('tickets.subject') },
     { key: 'hospital', label: t('tickets.hospital') },
     { key: 'customer', label: t('tickets.customer') },
@@ -161,16 +162,23 @@ export function TicketsTable({
             return (
               <tr key={ticket.id} style={rowStyle}>
                 <td style={cellStyle}>
-                  <div style={{ display: 'flex', flexDirection: 'column' }}>
-                    <Link href={`/tickets/${ticket.id}`} style={ticketLinkStyle}>
-                      #{ticket.ticket_no}
-                    </Link>
-                    {ticket.created_at && (
-                      <span style={{ fontSize: '10px', color: 'var(--text-dim)', marginTop: '2px' }}>
+                  <Link href={`/tickets/${ticket.id}`} style={ticketLinkStyle}>
+                    #{ticket.ticket_no}
+                  </Link>
+                </td>
+                <td style={cellStyle}>
+                  {ticket.created_at ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                      <span style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-main)' }}>
+                        {new Date(ticket.created_at).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: '2-digit' })}
+                      </span>
+                      <span style={{ fontSize: '11px', color: 'var(--text-dim)' }}>
                         {new Date(ticket.created_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })} น.
                       </span>
-                    )}
-                  </div>
+                    </div>
+                  ) : (
+                    <span style={{ opacity: 0.3 }}>-</span>
+                  )}
                 </td>
                 <td style={subjectCellStyle}>{ticket.subject}</td>
                 <td style={hospitalCellStyle}>{hospitalName}</td>

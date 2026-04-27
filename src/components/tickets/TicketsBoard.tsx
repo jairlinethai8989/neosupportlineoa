@@ -320,7 +320,7 @@ export function TicketsBoard({
                             </Link>
                             {ticket.created_at && (
                               <span style={{ fontSize: '10px', color: 'var(--text-dim)', fontWeight: '600', marginTop: '2px' }}>
-                                📅 {new Date(ticket.created_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })} น.
+                                📅 {new Date(ticket.created_at).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: '2-digit' })} • {new Date(ticket.created_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })} น.
                               </span>
                             )}
                           </div>
