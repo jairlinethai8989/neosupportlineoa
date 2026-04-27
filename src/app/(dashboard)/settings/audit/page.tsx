@@ -7,6 +7,7 @@ import {
   Search, 
   ArrowRight, 
   Zap, 
+  Loader2,
   CheckCheck, 
   Ticket,
   User,
