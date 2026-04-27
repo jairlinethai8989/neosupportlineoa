@@ -337,12 +337,19 @@ export function TicketsBoard({
                                 <User size={14} color="var(--text-muted)" />
                               </div>
                               <span style={customerTextStyle}>
-                                {(ticket.customers as any)?.full_name || ticket.customers?.display_name || t('tickets.noData')}
-                                {ticket.customers?.line_username && (
-                                  <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: '500', marginLeft: '4px' }}>
-                                    ({ticket.customers.line_username})
-                                  </span>
-                                )}
+                                {(() => {
+                                  const customer = ticket.customers as any;
+                                  return (
+                                    <>
+                                      {customer?.full_name || customer?.display_name || t('tickets.noData')}
+                                      {customer?.line_username && (
+                                        <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: '500', marginLeft: '4px' }}>
+                                          ({customer.line_username})
+                                        </span>
+                                      )}
+                                    </>
+                                  );
+                                })()}
                               </span>
                             </div>
                             <div style={entityRowStyle}>
