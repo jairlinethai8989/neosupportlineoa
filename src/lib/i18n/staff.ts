@@ -433,8 +433,13 @@ const messages: Record<StaffLocale, MessageDictionary> = {
       transferTo: 'โอนไปที่',
       uuidPrefix: 'UUID',
       systemFallback: 'System',
+      clearLogs: 'ล้างข้อมูลบันทึกทั้งหมด',
       messages: {
         exportPrefix: 'Audit_Log',
+        adminOnly: 'เฉพาะผู้ดูแลระบบเท่านั้นที่สามารถล้างบันทึกได้',
+        clearConfirm: 'คุณแน่ใจหรือไม่ว่าต้องการล้างข้อมูลบันทึกทั้งหมด? การดำเนินการนี้ไม่สามารถย้อนกลับได้',
+        clearSuccessTitle: 'ล้างข้อมูลสำเร็จ',
+        clearSuccessBody: 'ข้อมูลบันทึกถูกลบเรียบร้อยแล้ว',
       }
     },
     tickets: {
@@ -910,8 +915,13 @@ const messages: Record<StaffLocale, MessageDictionary> = {
       transferTo: 'Transfer to',
       uuidPrefix: 'UUID',
       systemFallback: 'System',
+      clearLogs: 'Clear all logs',
       messages: {
         exportPrefix: 'Audit_Log',
+        adminOnly: 'Only administrators can clear logs',
+        clearConfirm: 'Are you sure you want to clear all logs? This action cannot be undone.',
+        clearSuccessTitle: 'Logs Cleared',
+        clearSuccessBody: 'Audit logs have been successfully deleted.',
       }
     },
     tickets: {

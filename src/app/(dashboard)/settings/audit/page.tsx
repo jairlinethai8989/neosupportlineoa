@@ -24,6 +24,8 @@ import { auditService } from '@/lib/services/auditService';
 import { useAppContext } from '@/contexts/AppContext';
 import { useStaffLocale } from '@/contexts/StaffLocaleContext';
 import { translateAuditAction, translateTicketStatus } from '@/lib/i18n/staff';
+import { clearSystemLogsAction, clearTicketLogsAction } from '@/app/actions/auditActions';
+import { useNotificationContext } from '@/contexts/NotificationContext';
 
 // Export utils
 import * as XLSX from 'xlsx';
@@ -31,6 +33,7 @@ import * as XLSX from 'xlsx';
 export default function AuditLogPage() {
   const { t, locale } = useStaffLocale();
   const { userProfile } = useAppContext();
+  const { addToast } = useNotificationContext();
   const router = useRouter();
 
   const canEdit = React.useMemo(() => {
@@ -47,6 +50,7 @@ export default function AuditLogPage() {
   const [selectedAgent, setSelectedAgent] = useState('all');
   const [selectedAction, setSelectedAction] = useState('all');
   const [limit, setLimit] = useState(50);
+  const [clearing, setClearing] = useState(false);
 
   const fetchLogs = useCallback(async () => {
     setLoading(true);
@@ -190,6 +194,38 @@ export default function AuditLogPage() {
     }
   };
 
+  const handleClearLogs = async () => {
+    if (!userProfile || userProfile.role !== 'Administrator') {
+      alert(t('settingsAudit.messages.adminOnly'));
+      return;
+    }
+
+    if (!confirm(t('settingsAudit.messages.clearConfirm'))) return;
+
+    setClearing(true);
+    try {
+      const result = activeTab === 'ticket' 
+        ? await clearTicketLogsAction() 
+        : await clearSystemLogsAction();
+
+      if (result.success) {
+        addToast({
+          id: `clear-log-${Date.now()}`,
+          type: 'ticket',
+          title: t('settingsAudit.messages.clearSuccessTitle'),
+          body: t('settingsAudit.messages.clearSuccessBody')
+        });
+        fetchLogs();
+      } else {
+        alert(result.error);
+      }
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setClearing(false);
+    }
+  };
+
   return (
     <div className="audit-page" style={{ animation: 'fadeIn 0.5s ease-out' }}>
       {/* Header Section */}
@@ -207,6 +243,17 @@ export default function AuditLogPage() {
         </div>
 
         <div style={{ display: 'flex', gap: '12px' }}>
+           {userProfile?.role === 'Administrator' && (
+             <button 
+               onClick={handleClearLogs} 
+               disabled={clearing}
+               className="glass-interactive" 
+               style={{ padding: '12px 20px', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '10px', background: 'rgba(234, 84, 85, 0.1)', color: '#ea5455', border: '1px solid rgba(234, 84, 85, 0.2)', cursor: clearing ? 'not-allowed' : 'pointer', fontWeight: '800', fontSize: '13px' }}
+             >
+               {clearing ? <Loader2 className="animate-spin" size={18} /> : <Zap size={18} />}
+               {t('settingsAudit.clearLogs')}
+             </button>
+           )}
            <button 
              onClick={handleExportExcel} 
              disabled={!canEdit}
@@ -265,7 +312,7 @@ export default function AuditLogPage() {
               placeholder={activeTab === 'ticket' ? t('settingsAudit.ticketSearchPlaceholder') : t('settingsAudit.systemSearchPlaceholder')}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              style={{ width: '100%', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border)', borderRadius: '14px', padding: '14px 16px 14px 52px', color: 'white', fontSize: '15px' }}
+              style={{ width: '100%', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border)', borderRadius: '14px', padding: '14px 16px 14px 52px', color: 'var(--text-main)', fontSize: '15px' }}
             />
          </div>
 
@@ -275,10 +322,10 @@ export default function AuditLogPage() {
                <select 
                  value={selectedAgent}
                  onChange={(e) => setSelectedAgent(e.target.value)}
-                 style={{ background: 'none', border: 'none', color: 'white', fontSize: '14px', padding: '8px 0', outline: 'none', cursor: 'pointer', fontWeight: '600' }}
+                 style={{ background: 'none', border: 'none', color: 'var(--text-main)', fontSize: '14px', padding: '8px 0', outline: 'none', cursor: 'pointer', fontWeight: '600' }}
                >
-                 <option value="all" style={{ background: '#1a1d23' }}>{t('settingsAudit.allAgents')}</option>
-                 {agents.map(a => <option key={a.id} value={a.id} style={{ background: '#1a1d23' }}>{a.full_name}</option>)}
+                 <option value="all" style={{ background: 'var(--bg-deep)' }}>{t('settingsAudit.allAgents')}</option>
+                 {agents.map(a => <option key={a.id} value={a.id} style={{ background: 'var(--bg-deep)' }}>{a.full_name}</option>)}
                </select>
             </div>
 
@@ -287,11 +334,11 @@ export default function AuditLogPage() {
                <select 
                  value={limit}
                  onChange={(e) => setLimit(Number(e.target.value))}
-                 style={{ background: 'none', border: 'none', color: 'white', fontSize: '14px', padding: '8px 0', outline: 'none', cursor: 'pointer', fontWeight: '600' }}
+                 style={{ background: 'none', border: 'none', color: 'var(--text-main)', fontSize: '14px', padding: '8px 0', outline: 'none', cursor: 'pointer', fontWeight: '600' }}
                >
-                 <option value={50} style={{ background: '#1a1d23' }}>{t('settingsAudit.latest50')}</option>
-                 <option value={100} style={{ background: '#1a1d23' }}>{t('settingsAudit.latest100')}</option>
-                 <option value={250} style={{ background: '#1a1d23' }}>{t('settingsAudit.latest250')}</option>
+                 <option value={50} style={{ background: 'var(--bg-deep)' }}>{t('settingsAudit.latest50')}</option>
+                 <option value={100} style={{ background: 'var(--bg-deep)' }}>{t('settingsAudit.latest100')}</option>
+                 <option value={250} style={{ background: 'var(--bg-deep)' }}>{t('settingsAudit.latest250')}</option>
                </select>
             </div>
          </div>

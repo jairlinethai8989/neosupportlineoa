@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 import React, { useMemo } from 'react';
 import {
   MessageSquare,
@@ -127,7 +127,7 @@ export const TicketChat: React.FC<TicketChatProps> = ({
               alignItems: 'center',
               gap: '8px',
               padding: '4px 12px',
-              background: isChatActive ? 'rgba(0,255,127,0.1)' : 'rgba(255,255,255,0.05)',
+              background: isChatActive ? 'rgba(0,255,127,0.1)' : 'var(--bg-input)',
               borderRadius: '20px',
             }}
           >
@@ -442,7 +442,7 @@ export const TicketChat: React.FC<TicketChatProps> = ({
                   height: '48px',
                   borderRadius: '12px',
                   border: 'none',
-                  background: !newMessage.trim() && !sending ? 'rgba(255,255,255,0.05)' : 'var(--primary)',
+                  background: !newMessage.trim() && !sending ? 'var(--bg-input)' : 'var(--primary)',
                   color: !newMessage.trim() && !sending ? 'var(--text-muted)' : 'black',
                   transition: 'all 0.3s',
                 }}

@@ -114,7 +114,7 @@ export function ResolveTicketModal({
             style={{ 
               marginBottom: '28px', 
               padding: '14px 20px', 
-              background: '#ef4444', 
+              background: 'var(--danger)', 
               borderRadius: '14px',
               color: 'white',
               fontSize: '14px',
@@ -381,7 +381,7 @@ export function ResolveTicketModal({
               padding: '16px',
               borderRadius: '14px',
               border: 'none',
-              background: isDisabled ? 'rgba(16, 185, 129, 0.15)' : 'var(--success)',
+              background: isDisabled ? 'var(--border)' : 'var(--success)',
               color: isDisabled ? 'var(--text-muted)' : 'black',
               fontWeight: '900',
               cursor: isDisabled ? 'not-allowed' : 'pointer',

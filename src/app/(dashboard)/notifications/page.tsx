@@ -260,7 +260,7 @@ export default function NotificationsPage() {
                 <input 
                   type="text" placeholder={t('notificationsHub.searchPlaceholder')}
                   value={searchTerm} onChange={e => setSearchTerm(e.target.value)}
-                  style={{ width: '100%', background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border)', borderRadius: '10px', padding: '10px 14px 10px 42px', color: 'white', fontSize: '13px' }}
+                  style={{ width: '100%', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '10px', padding: '10px 14px 10px 42px', color: 'var(--text-main)', fontSize: '13px' }}
                 />
               </div>
             </div>
@@ -443,7 +443,7 @@ export default function NotificationsPage() {
             </p>
             <button 
               onClick={() => router.push('/settings/profile')}
-              style={{ width: '100%', padding: '10px', borderRadius: '9px', background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border)', color: 'white', fontSize: '12px', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+              style={{ width: '100%', padding: '10px', borderRadius: '9px', background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border)', color: 'var(--text-main)', fontSize: '12px', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
             >
               {t('notificationsHub.goToList')} <ExternalLink size={12} />
             </button>

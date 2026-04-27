@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 /* eslint-disable @next/next/no-img-element */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useEffect, useMemo, useRef, useState } from 'react';
@@ -455,17 +455,17 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
                               display: 'flex',
                               gap: '12px',
                               alignItems: 'flex-start',
-                              background: !notif.isRead ? 'rgba(var(--primary-rgb), 0.05)' : 'transparent',
+                              background: !notif.isRead ? 'var(--primary-transparent)' : 'transparent',
                               cursor: 'pointer',
                               transition: 'all 0.15s ease',
                               position: 'relative',
                             }}
                             onMouseEnter={(event) => {
-                              event.currentTarget.style.background = 'rgba(255,255,255,0.03)';
+                              event.currentTarget.style.background = 'var(--bg-card-hover)';
                             }}
                             onMouseLeave={(event) => {
                               event.currentTarget.style.background = !notif.isRead
-                                ? 'rgba(var(--primary-rgb), 0.05)'
+                                ? 'var(--primary-transparent)'
                                 : 'transparent';
                             }}
                           >
@@ -506,7 +506,7 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
                                       width: '18px',
                                       height: '18px',
                                       borderRadius: '50%',
-                                      background: 'rgba(255,255,255,0.05)',
+                                      background: 'var(--bg-input)',
                                       border: 'none',
                                       display: 'flex',
                                       alignItems: 'center',

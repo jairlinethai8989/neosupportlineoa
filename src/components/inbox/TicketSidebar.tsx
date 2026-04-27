@@ -249,16 +249,16 @@ export const TicketSidebar: React.FC<TicketSidebarProps> = ({
       {/* Escalation Modal */}
       {showEscalateModal && (
          <div style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
-            <div className="glass animate-in zoom-in" style={{ width: '100%', maxWidth: '400px', background: 'white', borderRadius: '24px', padding: '24px', boxShadow: '0 20px 50px rgba(0,0,0,0.2)' }}>
-               <h3 style={{ fontSize: '18px', fontWeight: '900', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px', color: '#1e293b' }}>
-                  <AlertCircle color="#ef4444" /> ส่งต่องาน (Escalate)
+            <div className="glass animate-in zoom-in" style={{ width: '100%', maxWidth: '400px', background: 'var(--bg-card)', borderRadius: '24px', padding: '24px', boxShadow: '0 20px 50px rgba(0,0,0,0.2)' }}>
+               <h3 style={{ fontSize: '18px', fontWeight: '900', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-main)' }}>
+                  <AlertCircle color="var(--danger)" /> ส่งต่องาน (Escalate)
                </h3>
-               <p style={{ fontSize: '13px', color: '#64748b', marginBottom: '20px' }}>
+               <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '20px' }}>
                   ระบุรายละเอียดหรือสิ่งที่ต้องการจากแผนกอื่น
                </p>
-               <textarea value={escalationNote} onChange={(e) => setEscalationNote(e.target.value)} placeholder="เช่น ตรวจสอบใบเสนอราคา..." style={{ width: '100%', height: '120px', padding: '12px', borderRadius: '12px', border: '1px solid #e2e8f0', fontSize: '14px', marginBottom: '20px', outline: 'none', resize: 'none' }} />
+               <textarea value={escalationNote} onChange={(e) => setEscalationNote(e.target.value)} placeholder="เช่น ตรวจสอบใบเสนอราคา..." style={{ width: '100%', height: '120px', padding: '12px', borderRadius: '12px', border: '1px solid var(--border)', background: 'var(--bg-input)', color: 'var(--text-main)', fontSize: '14px', marginBottom: '20px', outline: 'none', resize: 'none' }} />
                <div style={{ display: 'flex', gap: '12px' }}>
-                  <button onClick={() => setShowEscalateModal(false)} style={{ flex: 1, padding: '12px', borderRadius: '12px', border: '1px solid #e2e8f0', background: 'none', fontWeight: '700', cursor: 'pointer' }}>ยกเลิก</button>
+                  <button onClick={() => setShowEscalateModal(false)} style={{ flex: 1, padding: '12px', borderRadius: '12px', border: '1px solid var(--border)', background: 'none', color: 'var(--text-main)', fontWeight: '700', cursor: 'pointer' }}>ยกเลิก</button>
                   <button disabled={!escalationNote.trim() || isProcessing} onClick={async () => {
                         if (!currentTicket?.id) return;
                         setIsProcessing(true);
@@ -275,7 +275,7 @@ export const TicketSidebar: React.FC<TicketSidebarProps> = ({
                         } finally {
                            setIsProcessing(false);
                         }
-                     }} style={{ flex: 2, padding: '12px', borderRadius: '12px', border: 'none', background: '#8b5cf6', color: 'white', fontWeight: '800', cursor: 'pointer', opacity: (!escalationNote.trim() || isProcessing) ? 0.7 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                     }} style={{ flex: 2, padding: '12px', borderRadius: '12px', border: 'none', background: 'var(--secondary)', color: 'white', fontWeight: '800', cursor: 'pointer', opacity: (!escalationNote.trim() || isProcessing) ? 0.7 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
                      {isProcessing ? <Loader2 size={16} className="animate-spin" /> : 'ยืนยันการส่งต่องาน'}
                   </button>
                </div>
