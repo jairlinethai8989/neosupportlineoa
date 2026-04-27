@@ -15,7 +15,10 @@
    * ปรับปรุง Contrast ของช่อง Search, Select Box และ Modal ต่างๆ ให้มีความชัดเจนและเป็นมืออาชีพ
    * ปรับปรุง **Global Scrollbar** ให้มีความโปร่งใสและมองเห็นได้ชัดเจนในทุกสีพื้นหลัง
    * ปรับแต่งสีของปุ่ม Send และสถานะ Live Session ในหน้าแชทให้มีความสม่ำเสมอ
-4. **Vercel Build Stability:**
+4. **Ticket Reporting Time Visibility:**
+   * เพิ่มการแสดงผล **"เวลาที่แจ้งงาน"** บนบัตรใบงาน (Ticket Card) ทั้งในรูปแบบ Kanban Board และ Table View
+   * เพิ่มการแสดงผลเวลาแจ้งงานในส่วน Header ของหน้ารายละเอียดใบงาน เพื่อให้เจ้าหน้าที่ติดตามลำดับงานได้แม่นยำขึ้น
+5. **Vercel Build Stability:**
    * แก้ไขข้อผิดพลาดทางเทคนิค (Missing Loader2 Import) ที่ทำให้ระบบ Build บน Vercel ไม่ผ่าน จนปัจจุบันระบบกลับมา Online พร้อมใช้งาน 100%
 
 ---

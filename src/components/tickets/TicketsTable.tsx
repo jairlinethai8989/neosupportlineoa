@@ -161,9 +161,16 @@ export function TicketsTable({
             return (
               <tr key={ticket.id} style={rowStyle}>
                 <td style={cellStyle}>
-                  <Link href={`/tickets/${ticket.id}`} style={ticketLinkStyle}>
-                    #{ticket.ticket_no}
-                  </Link>
+                  <div style={{ display: 'flex', flexDirection: 'column' }}>
+                    <Link href={`/tickets/${ticket.id}`} style={ticketLinkStyle}>
+                      #{ticket.ticket_no}
+                    </Link>
+                    {ticket.created_at && (
+                      <span style={{ fontSize: '10px', color: 'var(--text-dim)', marginTop: '2px' }}>
+                        {new Date(ticket.created_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })} น.
+                      </span>
+                    )}
+                  </div>
                 </td>
                 <td style={subjectCellStyle}>{ticket.subject}</td>
                 <td style={hospitalCellStyle}>{hospitalName}</td>

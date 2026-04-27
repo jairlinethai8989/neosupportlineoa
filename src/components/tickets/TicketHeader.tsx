@@ -84,7 +84,17 @@ export const TicketHeader: React.FC<TicketHeaderProps> = ({
               </div>
             )}
           </div>
-          <p style={{ color: 'var(--text-muted)', fontSize: '14px' }}>Ticket Details & Management</p>
+          <p style={{ color: 'var(--text-muted)', fontSize: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span>Ticket Details & Management</span>
+            {ticket.created_at && (
+              <>
+                <span>•</span>
+                <span style={{ color: 'var(--primary)', fontWeight: '700' }}>
+                  Reported: {new Date(ticket.created_at).toLocaleString('th-TH', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })} น.
+                </span>
+              </>
+            )}
+          </p>
         </div>
       </div>
       <div style={{ display: 'flex', gap: '8px' }}>

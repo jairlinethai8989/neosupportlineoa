@@ -314,9 +314,16 @@ export function TicketsBoard({
                         style={{ ...cardStyle, borderLeft: `6px solid ${config.color}` }}
                       >
                         <div style={cardTopRowStyle}>
-                          <Link href={`/tickets/${ticket.id}`} style={ticketLinkStyle}>
-                            #{ticket.ticket_no}
-                          </Link>
+                          <div style={{ display: 'flex', flexDirection: 'column' }}>
+                            <Link href={`/tickets/${ticket.id}`} style={ticketLinkStyle}>
+                              #{ticket.ticket_no}
+                            </Link>
+                            {ticket.created_at && (
+                              <span style={{ fontSize: '10px', color: 'var(--text-dim)', fontWeight: '600', marginTop: '2px' }}>
+                                📅 {new Date(ticket.created_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })} น.
+                              </span>
+                            )}
+                          </div>
                           <PriorityIndicator priority={ticket.priority || ''} locale={locale} />
                         </div>
 
