@@ -33,7 +33,7 @@ export const ticketWorkspaceTicketSelect = `
   hospital_id,
   current_department_id,
   hospitals!tickets_hospital_id_fkey (id, name),
-  customers!tickets_customer_id_fkey (id, display_name),
+  customers!tickets_customer_id_fkey (id, display_name, full_name, line_username),
   assigned_agent:profiles!assigned_agent_id (id, display_name:full_name),
   department_data:departments!current_department_id (id, name)
 `;

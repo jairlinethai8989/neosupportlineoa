@@ -42,6 +42,8 @@ function normalizeCustomer(value: unknown): TicketWorkspaceCustomer | null {
   return {
     id: asString(value.id) || '',
     display_name: asString(value.display_name),
+    full_name: asString(value.full_name),
+    line_username: asString(value.line_username),
   };
 }
 
