@@ -1,5 +1,5 @@
-'use client';
-import React from 'react';
+﻿'use client';
+import React, { useMemo } from 'react';
 import {
   MessageSquare,
   Paperclip,
@@ -13,6 +13,11 @@ import type {
   TicketDetailTicket,
   TicketDetailUser,
 } from '@/types/tickets';
+import {
+  isAssignedToOtherAgent,
+  isNewStatus,
+  isResolvedOrClosedStatus,
+} from '@/lib/tickets/detailState';
 
 interface TicketChatProps {
   messages: TicketDetailMessage[];
@@ -50,12 +55,17 @@ export const TicketChat: React.FC<TicketChatProps> = ({
   if (!ticket) return null;
 
   const status = ticket.status || '';
-  const isResolvedOrClosed = status === 'Resolved' || status === 'Closed';
-  const isNew = status === 'New';
-  const isAssignedToOther =
-    Boolean(ticket.assigned_agent_id) &&
-    ticket.assigned_agent_id !== user?.id &&
-    user?.role !== 'Administrator';
+  const visibleMessages = useMemo(
+    () => messages.filter((message) => message.message_type !== 'unsent'),
+    [messages]
+  );
+  const visibleQuickReplies = useMemo(
+    () => quickReplies.filter(Boolean).slice(0, 12),
+    [quickReplies]
+  );
+  const isResolvedOrClosed = isResolvedOrClosedStatus(status);
+  const isNew = isNewStatus(status);
+  const isAssignedToOther = isAssignedToOtherAgent(ticket, user);
   const isAdmin = user?.role === 'Administrator';
 
   return (
@@ -97,9 +107,9 @@ export const TicketChat: React.FC<TicketChatProps> = ({
               style={{
                 padding: '6px 14px',
                 borderRadius: '20px',
-                background: 'rgba(239, 68, 68, 0.1)',
-                color: '#ef4444',
-                border: '1px solid rgba(239, 68, 68, 0.2)',
+                background: 'rgba(6, 182, 212, 0.1)',
+                color: '#06b6d4',
+                border: '1px solid rgba(6, 182, 212, 0.2)',
                 fontSize: '11px',
                 fontWeight: '800',
                 cursor: 'pointer',
@@ -154,9 +164,7 @@ export const TicketChat: React.FC<TicketChatProps> = ({
         }}
         className="no-scrollbar"
       >
-        {messages
-          .filter((message) => message.message_type !== 'unsent')
-          .map((msg) => {
+        {visibleMessages.map((msg) => {
             const isOwn = msg.staff_id === user?.id;
             const canDelete =
               Boolean((isOwn || isAdmin) && msg.sender_type === 'agent' && onDeleteMessage);
@@ -266,7 +274,7 @@ export const TicketChat: React.FC<TicketChatProps> = ({
                     minute: '2-digit',
                     hour12: false,
                   })}
-                  {msg.sender_type === 'agent' && ' • Sent by you'}
+                  {msg.sender_type === 'agent' && ' - Sent by you'}
                   {canDelete && (
                     <span
                       onClick={() => onDeleteMessage?.(msg.id)}
@@ -284,7 +292,7 @@ export const TicketChat: React.FC<TicketChatProps> = ({
               </div>
             );
           })}
-        {messages.length === 0 && (
+        {visibleMessages.length === 0 && (
           <div style={{ textAlign: 'center', marginTop: '100px', opacity: 0.3 }}>
             <MessageSquare size={48} style={{ marginBottom: '16px' }} />
             <p style={{ fontSize: '16px', fontWeight: '800' }}>No messages yet</p>
@@ -306,7 +314,7 @@ export const TicketChat: React.FC<TicketChatProps> = ({
                 paddingBottom: '4px',
               }}
             >
-              {quickReplies.map((quickReply, idx) => (
+              {visibleQuickReplies.map((quickReply, idx) => (
                 <button
                   key={idx}
                   onClick={() =>
@@ -325,7 +333,7 @@ export const TicketChat: React.FC<TicketChatProps> = ({
                     transition: 'all 0.2s',
                   }}
                 >
-                  {quickReply.substring(0, 30)}...
+                  {quickReply.length > 30 ? `${quickReply.substring(0, 30)}...` : quickReply}
                 </button>
               ))}
             </div>
@@ -389,7 +397,7 @@ export const TicketChat: React.FC<TicketChatProps> = ({
                 onClick={onAttachFile}
                 disabled={sending}
                 className="glass-interactive flex-center"
-                title="แนบรูปภาพหรือไฟล์ (Ctrl+V)"
+                title="à¹à¸™à¸šà¸£à¸¹à¸›à¸ à¸²à¸žà¸«à¸£à¸·à¸­à¹„à¸Ÿà¸¥à¹Œ (Ctrl+V)"
                 aria-label="Attach file or paste image"
                 style={{
                   width: '36px',
@@ -428,7 +436,7 @@ export const TicketChat: React.FC<TicketChatProps> = ({
                 onClick={onSendMessage}
                 disabled={sending || !newMessage.trim()}
                 className="glass-interactive flex-center"
-                title="ส่งข้อความ"
+                title="à¸ªà¹ˆà¸‡à¸‚à¹‰à¸­à¸„à¸§à¸²à¸¡"
                 style={{
                   width: '48px',
                   height: '48px',
@@ -448,4 +456,5 @@ export const TicketChat: React.FC<TicketChatProps> = ({
     </div>
   );
 };
+
 

@@ -8,6 +8,7 @@ import type {
   TicketDetailTicket,
   TicketDetailUser,
 } from '@/types/tickets';
+import { isResolvedOrClosedStatus } from '@/lib/tickets/detailState';
 
 interface TicketSidebarProps {
   ticket: TicketDetailTicket | null;
@@ -72,7 +73,7 @@ export const TicketSidebar: React.FC<TicketSidebarProps> = ({
     : null;
 
   const ticketStatus = ticket.status || '';
-  const isResolvedOrClosed = ticketStatus === 'Resolved' || ticketStatus === 'Closed';
+  const isResolvedOrClosed = isResolvedOrClosedStatus(ticketStatus);
   const isAdmin = user?.role === 'Administrator';
 
   return (

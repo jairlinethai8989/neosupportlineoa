@@ -28,6 +28,14 @@ import {
   getTicketDetailSystemResolveMessage,
   getTicketDetailValidationToast,
 } from '@/lib/tickets/detailFeedback';
+import {
+  appendMessageIfMissing,
+  isMessageRelatedToThread,
+  removeMessageById,
+  replaceMessageById,
+  ticketDetailMessageSelect,
+} from '@/lib/tickets/detailRealtime';
+import { isActiveConversationStatus } from '@/lib/tickets/detailState';
 import type {
   TicketDetailLog,
   TicketDetailMessage,
@@ -55,6 +63,39 @@ const pageGridStyle: React.CSSProperties = {
 };
 
 const loadingContainerStyle: React.CSSProperties = { height: '70vh' };
+const ticketDetailSelect = `
+  id,
+  ticket_no,
+  customer_id,
+  status,
+  subject,
+  description,
+  department,
+  priority,
+  module,
+  issue_type,
+  created_at,
+  resolved_at,
+  assigned_agent_id,
+  current_department_id,
+  hospital_id,
+  escalation_token,
+  resolution_summary,
+  customers:customers!tickets_customer_id_fkey (
+    id,
+    display_name,
+    full_name,
+    line_username,
+    avatar_url,
+    hospitals:hospitals(id, name)
+  ),
+  assigned_agent:profiles!assigned_agent_id (
+    id,
+    display_name:full_name
+  ),
+  department_data:departments!current_department_id(id, name)
+`;
+const ticketDetailLogSelect = 'id, created_at, action_type, to_status, note, performer_id';
 
 function normalizeRouteId(rawId: string | string[] | undefined): string | null {
   if (!rawId) return null;
@@ -67,6 +108,7 @@ export default function StaffTicketDetailPage() {
   const { addToast } = useNotificationContext();
   const adminFileRef = useRef<HTMLInputElement>(null);
   const conversationIdRef = useRef<string | null>(null);
+  const staticMetaLoadedRef = useRef(false);
   const reportRef = useRef<HTMLDivElement>(null);
 
   const [ticket, setTicket] = useState<TicketDetailTicket | null>(null);
@@ -77,7 +119,10 @@ export default function StaffTicketDetailPage() {
   const [messages, setMessages] = useState<TicketDetailMessage[]>([]);
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [isChatActive, setIsChatActive] = useState(false);
-  const [resolverProfile, setResolverProfile] = useState<any>(null);
+  const [resolverProfile, setResolverProfile] = useState<{
+    full_name?: string | null;
+    signature_url?: string | null;
+  } | null>(null);
 
   const [status, setStatus] = useState('');
   const [priority, setPriority] = useState('');
@@ -100,170 +145,189 @@ export default function StaffTicketDetailPage() {
   const [showViewer, setShowViewer] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
 
+  const fetchStaticMeta = useCallback(async () => {
+    if (staticMetaLoadedRef.current) return;
+
+    const [deptResult, companyResult, authResult] = await Promise.all([
+      supabase
+        .from('departments')
+        .select('id, name')
+        .eq('dept_type', 'organization')
+        .eq('is_active', true)
+        .order('name'),
+      supabase.from('company_settings').select('id, modules, issue_types').limit(1).single(),
+      supabase.auth.getUser(),
+    ]);
+
+    if (deptResult.data) {
+      setAvailableDepts(deptResult.data.map((department) => ({ label: department.name, value: department.id })));
+    }
+
+    setAvailableModules(
+      companyResult.data?.modules && companyResult.data.modules.length > 0
+        ? companyResult.data.modules
+        : DEFAULT_MODULES
+    );
+    setAvailableIssueTypes(
+      companyResult.data?.issue_types && companyResult.data.issue_types.length > 0
+        ? companyResult.data.issue_types
+        : []
+    );
+
+    const authUser = authResult.data.user;
+    if (authUser) {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('id, display_name, role, quick_replies, resolution_templates')
+        .eq('id', authUser.id)
+        .single();
+
+      if (profile) {
+        const mergedUser: TicketDetailUser = {
+          id: authUser.id,
+          display_name: profile.display_name || null,
+          role: profile.role || null,
+        };
+        setUser(mergedUser);
+        setPersonalQuickReplies(profile.quick_replies || []);
+        setPersonalResTemplates(profile.resolution_templates || []);
+      } else {
+        setUser({ id: authUser.id });
+      }
+    }
+
+    staticMetaLoadedRef.current = true;
+  }, []);
+
+  const resolveConversationForTicket = useCallback(async (customerId: string | null) => {
+    if (!ticketId) return null;
+
+    const { data: convByTicket } = await supabase
+      .from('conversations')
+      .select('id, status')
+      .eq('current_ticket_id', ticketId)
+      .maybeSingle();
+
+    if (convByTicket && isActiveConversationStatus(convByTicket.status)) {
+      return convByTicket.id;
+    }
+
+    if (!customerId) return null;
+
+    const { data: convByCustomer } = await supabase
+      .from('conversations')
+      .select('id, status')
+      .eq('customer_id', customerId)
+      .eq('status', 'active')
+      .maybeSingle();
+
+    if (convByCustomer && isActiveConversationStatus(convByCustomer.status)) {
+      return convByCustomer.id;
+    }
+
+    return null;
+  }, [ticketId]);
+
   const fetchData = useCallback(async () => {
     if (!ticketId) return;
 
     try {
       const { data: ticketData, error } = await supabase
         .from('tickets')
-        .select(`
-          *,
-          customers!tickets_customer_id_fkey (*, hospitals:hospitals(*)),
-          assigned_agent:profiles!assigned_agent_id(*),
-          department_data:departments!current_department_id(id, name)
-        `)
+        .select(ticketDetailSelect)
         .eq('id', ticketId)
         .maybeSingle();
 
       if (error) throw error;
       if (ticketData) {
-        const normalizedTicket = ticketData as TicketDetailTicket;
+        const normalizedTicket = ticketData as unknown as TicketDetailTicket;
         setTicket(normalizedTicket);
         setStatus(normalizedTicket.status || '');
         setPriority(normalizedTicket.priority || '');
         setSelectedDept(normalizedTicket.current_department_id || '');
         setSelectedModule(normalizedTicket.module || '');
 
-        const { data: logData } = await supabase
-          .from('ticket_logs')
-          .select('*')
-          .eq('ticket_id', ticketId)
-          .order('created_at', { ascending: false });
+        const [logResult, conversationIdResult] = await Promise.all([
+          supabase
+            .from('ticket_logs')
+            .select(ticketDetailLogSelect)
+            .eq('ticket_id', ticketId)
+            .order('created_at', { ascending: false }),
+          resolveConversationForTicket(normalizedTicket.customer_id),
+        ]);
 
-        if (logData) {
-          setLogs(logData as TicketDetailLog[]);
-          
-          // Find resolver profile
-          const resolveLog = (logData as any[]).find(l => l.action_type === 'resolve');
-          if (resolveLog) {
+        if (logResult.data) {
+          setLogs(logResult.data as TicketDetailLog[]);
+
+          // Find resolver profile only when needed.
+          const resolveLog = logResult.data.find((log) => log.action_type === 'resolve');
+          if (resolveLog?.performer_id) {
             const { data: resolver } = await supabase
               .from('profiles')
               .select('full_name, signature_url')
               .eq('id', resolveLog.performer_id)
               .single();
-            if (resolver) setResolverProfile(resolver);
-          }
-        }
-
-        // Only check active chat if a customer exists
-        // 1. Try to find the specific conversation linked to this ticket
-        const { data: convByTicket } = await supabase
-          .from('conversations')
-          .select('id, status')
-          .eq('current_ticket_id', ticketId)
-          .eq('status', 'active')
-          .maybeSingle();
-
-        if (convByTicket) {
-          setConversationId(convByTicket.id);
-          conversationIdRef.current = convByTicket.id;
-          setIsChatActive(true);
-        } else if (normalizedTicket.customer_id) {
-          // 2. Fallback: find any active conversation for this customer (e.g. legacy or general chat)
-          const { data: convByCustomer } = await supabase
-            .from('conversations')
-            .select('id, status')
-            .eq('customer_id', normalizedTicket.customer_id)
-            .eq('status', 'active')
-            .maybeSingle();
-
-          if (convByCustomer) {
-            setConversationId(convByCustomer.id);
-            conversationIdRef.current = convByCustomer.id;
-            setIsChatActive(true);
+            setResolverProfile(resolver || null);
           } else {
-            setConversationId(null);
-            conversationIdRef.current = null;
-            setIsChatActive(false);
+            setResolverProfile(null);
           }
-        } else {
-          setConversationId(null);
-          conversationIdRef.current = null;
-          setIsChatActive(false);
         }
 
-        const cid = conversationIdRef.current;
-        const query = cid
+        setConversationId(conversationIdResult);
+        conversationIdRef.current = conversationIdResult;
+        setIsChatActive(Boolean(conversationIdResult));
+
+        const messageQuery = conversationIdResult
           ? supabase
               .from('messages')
-              .select('*')
-              .or(`ticket_id.eq.${ticketId},conversation_id.eq.${cid}`)
-          : supabase.from('messages').select('*').eq('ticket_id', ticketId);
-        const { data: msgData } = await query.order('created_at', { ascending: true });
-        if (msgData) setMessages(msgData as TicketDetailMessage[]);
+              .select(ticketDetailMessageSelect)
+              .or(`ticket_id.eq.${ticketId},conversation_id.eq.${conversationIdResult}`)
+          : supabase
+              .from('messages')
+              .select(ticketDetailMessageSelect)
+              .eq('ticket_id', ticketId);
+
+        const { data: messageData } = await messageQuery.order('created_at', { ascending: true });
+        setMessages((messageData || []) as TicketDetailMessage[]);
       }
 
-      const { data: deptData } = await supabase
-        .from('departments')
-        .select('id, name')
-        .eq('dept_type', 'organization')
-        .eq('is_active', true)
-        .order('name');
-
-      if (deptData) setAvailableDepts(deptData.map(d => ({ label: d.name, value: d.id })));
-
-      const { data: companyData } = await supabase
-        .from('company_settings')
-        .select('id, modules, issue_types')
-        .limit(1)
-        .single();
-      setAvailableModules(
-        companyData?.modules && companyData.modules.length > 0
-          ? companyData.modules
-          : DEFAULT_MODULES
-      );
-      setAvailableIssueTypes(
-        companyData?.issue_types && companyData.issue_types.length > 0
-          ? companyData.issue_types
-          : []
-      );
-
-      const {
-        data: { user: authUser },
-      } = await supabase.auth.getUser();
-
-      if (authUser) {
-        const { data: profile } = await supabase.from('profiles').select('*').eq('id', authUser.id).single();
-        if (profile) {
-          const mergedUser: TicketDetailUser = {
-            id: authUser.id,
-            display_name: (profile as { display_name?: string | null }).display_name || null,
-            role: (profile as { role?: string | null }).role || null,
-          };
-          setUser(mergedUser);
-          setPersonalQuickReplies((profile as { quick_replies?: string[] }).quick_replies || []);
-          setPersonalResTemplates((profile as { resolution_templates?: string[] }).resolution_templates || []);
-        } else {
-          setUser({ id: authUser.id });
-        }
-      }
+      await fetchStaticMeta();
     } catch (error) {
       addToast(getTicketDetailActionFailedToast('update ticket', error));
     } finally {
       setLoading(false);
     }
-  }, [addToast, ticketId]);
+  }, [addToast, fetchStaticMeta, resolveConversationForTicket, ticketId]);
 
   useEffect(() => {
-    fetchData();
+    void fetchData();
     if (!ticketId) return;
 
-    const channel = supabase
-      .channel(`staff-ticket-${ticketId}`)
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload) => {
-        const message = payload.new as unknown as TicketDetailMessage;
-        const cid = conversationIdRef.current;
-        if (message.ticket_id === ticketId || (cid && message.conversation_id === cid)) {
-          setMessages((prev) => (prev.some((item) => item.id === message.id) ? prev : [...prev, message]));
+    const ticketMessageChannel = supabase
+      .channel(`staff-ticket-messages-${ticketId}`)
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'messages', filter: `ticket_id=eq.${ticketId}` },
+        (payload) => {
+          const message = payload.new as unknown as TicketDetailMessage;
+          setMessages((prev) => appendMessageIfMissing(prev, message));
         }
-      })
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'messages' }, (payload) => {
-        const updatedMessage = payload.new as unknown as TicketDetailMessage;
-        setMessages((prev) => prev.map((item) => (item.id === updatedMessage.id ? updatedMessage : item)));
-      })
-      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'messages' }, (payload) => {
-        setMessages((prev) => prev.filter((item) => item.id !== payload.old.id));
-      })
+      )
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'messages', filter: `ticket_id=eq.${ticketId}` },
+        (payload) => {
+          const updatedMessage = payload.new as unknown as TicketDetailMessage;
+          setMessages((prev) => replaceMessageById(prev, updatedMessage));
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'DELETE', schema: 'public', table: 'messages', filter: `ticket_id=eq.${ticketId}` },
+        (payload) => {
+          setMessages((prev) => removeMessageById(prev, String(payload.old.id || '')));
+        }
+      )
       .on(
         'postgres_changes',
         { event: 'UPDATE', schema: 'public', table: 'tickets', filter: `id=eq.${ticketId}` },
@@ -278,10 +342,62 @@ export default function StaffTicketDetailPage() {
       .subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
+      supabase.removeChannel(ticketMessageChannel);
       conversationIdRef.current = null;
     };
   }, [fetchData, ticketId]);
+
+  useEffect(() => {
+    if (!ticketId || !conversationId) return;
+
+    const conversationMessageChannel = supabase
+      .channel(`staff-ticket-conversation-${conversationId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'messages',
+          filter: `conversation_id=eq.${conversationId}`,
+        },
+        (payload) => {
+          const message = payload.new as unknown as TicketDetailMessage;
+          if (!isMessageRelatedToThread(message, ticketId, conversationIdRef.current)) return;
+          setMessages((prev) => appendMessageIfMissing(prev, message));
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'messages',
+          filter: `conversation_id=eq.${conversationId}`,
+        },
+        (payload) => {
+          const message = payload.new as unknown as TicketDetailMessage;
+          if (!isMessageRelatedToThread(message, ticketId, conversationIdRef.current)) return;
+          setMessages((prev) => replaceMessageById(prev, message));
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'DELETE',
+          schema: 'public',
+          table: 'messages',
+          filter: `conversation_id=eq.${conversationId}`,
+        },
+        (payload) => {
+          setMessages((prev) => removeMessageById(prev, String(payload.old.id || '')));
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(conversationMessageChannel);
+    };
+  }, [conversationId, ticketId]);
   const openImageInEditor = useCallback((file: File) => {
     if (!file.type.startsWith('image/')) return;
 

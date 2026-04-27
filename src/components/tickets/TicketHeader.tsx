@@ -3,6 +3,12 @@ import React from 'react';
 import { ArrowLeft, CheckCircle, FileDown, Save, Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import type { TicketDetailTicket, TicketDetailUser } from '@/types/tickets';
+import {
+  canResolveTicket,
+  isResolvedOrClosedStatus,
+  isTicketOwnerOrAdmin,
+  isNewStatus,
+} from '@/lib/tickets/detailState';
 
 interface TicketHeaderProps {
   ticket: TicketDetailTicket | null;
@@ -29,9 +35,9 @@ export const TicketHeader: React.FC<TicketHeaderProps> = ({
 
   if (!ticket) return null;
 
-  const isResolvedOrClosed = status === 'Resolved' || status === 'Closed';
-  const isOwnerOrAdmin = ticket.assigned_agent_id === user?.id || user?.role === 'Administrator';
-  const canResolve = !isResolvedOrClosed && status !== 'New' && isOwnerOrAdmin && !isChatActive;
+  const isResolvedOrClosed = isResolvedOrClosedStatus(status);
+  const isOwnerOrAdmin = isTicketOwnerOrAdmin(ticket, user);
+  const canResolve = canResolveTicket(status, isOwnerOrAdmin, isChatActive);
 
   return (
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
@@ -100,7 +106,7 @@ export const TicketHeader: React.FC<TicketHeaderProps> = ({
         >
           <FileDown size={18} /> Ticket Summary
         </button>
-        {!isResolvedOrClosed && status !== 'New' && isOwnerOrAdmin && isChatActive && (
+        {!isResolvedOrClosed && !isNewStatus(status) && isOwnerOrAdmin && isChatActive && (
           <button
             disabled
             className="flex-center"
@@ -129,11 +135,11 @@ export const TicketHeader: React.FC<TicketHeaderProps> = ({
               height: '44px',
               borderRadius: '12px',
               border: 'none',
-              background: 'var(--success)',
-              color: 'black',
+              background: '#22c55e',
+              color: 'white',
               fontWeight: '900',
               gap: '8px',
-              boxShadow: '0 4px 12px rgba(0, 255, 127, 0.3)',
+              boxShadow: '0 4px 12px rgba(34, 197, 94, 0.3)',
             }}
           >
             <CheckCircle size={18} /> Resolve Ticket
