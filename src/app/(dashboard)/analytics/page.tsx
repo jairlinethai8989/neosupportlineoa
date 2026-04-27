@@ -31,7 +31,6 @@ import { supabase } from '@/lib/supabase';
 import { exportToExcel, exportDashboardAsPDF, printDataTable } from '@/lib/utils/exportUtils';
 import Skeleton from '@/components/ui/Skeleton';
 import { ExportPreviewModal, type ExportPreviewData } from '@/components/ui/ExportPreviewModal';
-import html2canvas from 'html2canvas';
 
 /**
  * 1. Define Chart Types & Mock Logic for 16 variations
@@ -65,6 +64,16 @@ const DEFAULT_WIDGET_LAYOUT = [
 ];
 
 const COLORS = ['#00f2fe', '#4facfe', '#7367f0', '#28c76f', '#ff9f43', '#ea5455', '#9f44d3', '#f1f5f9'];
+
+let html2CanvasPromise: Promise<(typeof import('html2canvas'))['default']> | null = null;
+
+async function loadHtml2Canvas() {
+  if (!html2CanvasPromise) {
+    html2CanvasPromise = import('html2canvas').then((module) => module.default);
+  }
+
+  return html2CanvasPromise;
+}
 
 function getTicketCategoryLabel(ticket: any): string {
   const issueType = String(ticket?.issue_type || '').trim();
@@ -267,12 +276,22 @@ export default function AdvancedAnalyticsPage() {
       const [ticketsRes, csatRes] = await Promise.all([
         supabase
           .from('tickets')
-          .select('*, department_data:departments!current_department_id(name)')
+          .select(`
+            id,
+            ticket_no,
+            subject,
+            status,
+            priority,
+            issue_type,
+            created_at,
+            resolved_at
+          `)
           .gte('created_at', dateRange.start)
-          .lte('created_at', dateRange.end),
+          .lte('created_at', dateRange.end)
+          .order('created_at', { ascending: false }),
         supabase
           .from('csat_surveys')
-          .select('*')
+          .select('rating')
           .not('rating', 'is', null)
           .gte('created_at', dateRange.start)
           .lte('created_at', dateRange.end)
@@ -289,11 +308,7 @@ export default function AdvancedAnalyticsPage() {
   }, [dateRange.end, dateRange.start]);
 
   useEffect(() => {
-    let isMounted = true;
-    setTimeout(() => {
-      if (isMounted) fetchData();
-    }, 0);
-    return () => { isMounted = false; };
+    void fetchData();
   }, [fetchData]);
 
   const chartDataMap = useMemo(() => {
@@ -418,6 +433,7 @@ export default function AdvancedAnalyticsPage() {
     // Professional Multi-Page PDF Export
     setExporting(true);
     try {
+      const html2canvas = await loadHtml2Canvas();
       const pages: string[] = [];
       const reportElement = document.getElementById('report-portal');
       const chartContainer = reportElement?.querySelector('#report-charts-grid');

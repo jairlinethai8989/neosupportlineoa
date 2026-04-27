@@ -117,17 +117,29 @@ export default function DailyReportPage() {
       const startIso = new Date(`${start}T00:00:00.000Z`).toISOString();
       const endIso = new Date(`${end}T23:59:59.999Z`).toISOString();
 
+      const reportTicketSelect = `
+        id,
+        status,
+        created_at,
+        resolved_at,
+        subject,
+        description,
+        resolution_summary,
+        source,
+        module,
+        issue_type,
+        priority,
+        hospitals!tickets_hospital_id_fkey ( name ),
+        customers!tickets_customer_id_fkey (
+          display_name,
+          hospitals!hospital_id ( name )
+        ),
+        assigned_agent:profiles!assigned_agent_id( display_name:full_name )
+      `;
+
       const { data, error } = await supabase
         .from('tickets')
-        .select(`
-          *,
-          hospitals!tickets_hospital_id_fkey ( name ),
-          customers!tickets_customer_id_fkey (
-            display_name,
-            hospitals!hospital_id ( name )
-          ),
-          assigned_agent:profiles!assigned_agent_id( display_name:full_name )
-        `)
+        .select(reportTicketSelect)
         .gte('created_at', startIso)
         .lte('created_at', endIso)
         .order('created_at', { ascending: false });

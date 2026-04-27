@@ -1,6 +1,23 @@
 import * as XLSX from 'xlsx';
-import { jsPDF } from 'jspdf';
-import autoTable from 'jspdf-autotable';
+type PdfModules = {
+  jsPDF: (typeof import('jspdf'))['jsPDF'];
+  autoTable: typeof import('jspdf-autotable')['default'];
+};
+
+let pdfModulesPromise: Promise<PdfModules> | null = null;
+
+async function loadPdfModules(): Promise<PdfModules> {
+  if (!pdfModulesPromise) {
+    pdfModulesPromise = Promise.all([import('jspdf'), import('jspdf-autotable')]).then(
+      ([jsPdfModule, autoTableModule]) => ({
+        jsPDF: jsPdfModule.jsPDF,
+        autoTable: autoTableModule.default,
+      })
+    );
+  }
+
+  return pdfModulesPromise;
+}
 
 function escapeHtml(input: unknown): string {
   const value = String(input ?? '-');
@@ -34,13 +51,14 @@ export const exportToExcel = (data: any[], fileName: string) => {
 /**
  * Universal PDF Export with Thai Font Support (Note: Thai chars need embedded font for full rendering)
  */
-export const exportToPDF = (data: any[], fileName: string, title: string) => {
+export const exportToPDF = async (data: any[], fileName: string, title: string) => {
 
   try {
     if (!data || data.length === 0) {
       alert('ไม่มีข้อมูลสำหรับส่งออก (No data to export)');
       return;
     }
+    const { jsPDF, autoTable } = await loadPdfModules();
     const doc = new jsPDF('p', 'mm', 'a4');
     
     // Header Section
@@ -105,6 +123,7 @@ export const exportDashboardAsPDF = async (
   fileName: string
 ) => {
   try {
+    const { jsPDF } = await loadPdfModules();
     const doc = new jsPDF('p', 'mm', 'a4');
     const pageWidth = doc.internal.pageSize.width;
     const pageHeight = doc.internal.pageSize.height;
@@ -200,7 +219,7 @@ export const exportTickets = (tickets: any[], format: 'xlsx' | 'pdf') => {
   if (format === 'xlsx') {
     exportToExcel(formatted, 'NeoSupport_Tickets');
   } else {
-    exportToPDF(formatted, 'NeoSupport_Tickets', 'Report: All Tickets');
+    void exportToPDF(formatted, 'NeoSupport_Tickets', 'Report: All Tickets');
   }
 };
 

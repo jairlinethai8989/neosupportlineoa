@@ -27,8 +27,6 @@ import { translateAuditAction, translateTicketStatus } from '@/lib/i18n/staff';
 
 // Export utils
 import * as XLSX from 'xlsx';
-import jsPDF from 'jspdf';
-import 'jspdf-autotable';
 
 export default function AuditLogPage() {
   const { t, locale } = useStaffLocale();
@@ -164,25 +162,32 @@ export default function AuditLogPage() {
     XLSX.writeFile(wb, `${t('settingsAudit.messages.exportPrefix')}_${activeTab}_${new Date().getTime()}.xlsx`);
   };
 
-  const handleExportPDF = () => {
-    const doc = new jsPDF() as any;
-    const title = activeTab === 'ticket' ? t('settingsAudit.ticketTab') : t('settingsAudit.systemTab');
-    doc.text(title, 14, 15);
-    
-    const tableData = filteredLogs.map(log => [
-      formatDate(log.created_at),
-      log.performer?.full_name || t('settingsAudit.systemFallback'),
-      getActionLabel(log.action_type),
-      activeTab === 'ticket' ? (log.tickets?.ticket_no || 'N/A') : log.note || ''
-    ]);
+  const handleExportPDF = async () => {
+    try {
+      const { default: jsPDF } = await import('jspdf');
+      await import('jspdf-autotable');
+      
+      const doc = new jsPDF() as any;
+      const title = activeTab === 'ticket' ? t('settingsAudit.ticketTab') : t('settingsAudit.systemTab');
+      doc.text(title, 14, 15);
+      
+      const tableData = filteredLogs.map(log => [
+        formatDate(log.created_at),
+        log.performer?.full_name || t('settingsAudit.systemFallback'),
+        getActionLabel(log.action_type),
+        activeTab === 'ticket' ? (log.tickets?.ticket_no || 'N/A') : log.note || ''
+      ]);
 
-    doc.autoTable({
-      head: [[t('settingsAudit.headers.time'), t('settingsAudit.headers.actor'), t('settingsAudit.headers.action'), activeTab === 'ticket' ? t('settingsAudit.headers.ticket') : t('settingsAudit.headers.details')]],
-      body: tableData,
-      startY: 20,
-    });
-    
-    doc.save(`${t('settingsAudit.messages.exportPrefix')}_${activeTab}.pdf`);
+      doc.autoTable({
+        head: [[t('settingsAudit.headers.time'), t('settingsAudit.headers.actor'), t('settingsAudit.headers.action'), activeTab === 'ticket' ? t('settingsAudit.headers.ticket') : t('settingsAudit.headers.details')]],
+        body: tableData,
+        startY: 20,
+      });
+      
+      doc.save(`${t('settingsAudit.messages.exportPrefix')}_${activeTab}.pdf`);
+    } catch (err) {
+      console.error('Error exporting PDF:', err);
+    }
   };
 
   return (

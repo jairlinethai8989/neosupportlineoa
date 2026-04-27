@@ -30,7 +30,11 @@ export default function ReportsPage() {
     async function getProfile() {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
-        const { data } = await supabase.from('profiles').select('*').eq('id', user.id).single();
+        const { data } = await supabase
+          .from('profiles')
+          .select('id, role, permissions')
+          .eq('id', user.id)
+          .single();
         setUserProfile(data);
       }
     }
@@ -49,21 +53,24 @@ export default function ReportsPage() {
       const dt = DateTime.fromISO(targetDate);
       const start = dt.startOf('day').toISODate();
       const end = dt.endOf('day').toISO();
+      const startIso = `${start}T00:00:00Z`;
+      const endIso = end || '';
+      const ticketPreviewSelect = 'id, status, created_at, resolved_at, hospitals(name)';
 
       // Get tickets created today
-      const { data: ticketData } = await supabase
-        .from('tickets')
-        .select('*, hospitals(name)')
-        .gte('created_at', start + 'T00:00:00Z')
-        .lte('created_at', end || '')
-        .order('created_at', { ascending: false });
-
-      // Identify resolved tickets in this window too
-      const { data: resolvedData } = await supabase
-        .from('tickets')
-        .select('*, hospitals(name)')
-        .gte('resolved_at', start + 'T00:00:00Z')
-        .lte('resolved_at', end || '');
+      const [{ data: ticketData }, { data: resolvedData }] = await Promise.all([
+        supabase
+          .from('tickets')
+          .select(ticketPreviewSelect)
+          .gte('created_at', startIso)
+          .lte('created_at', endIso)
+          .order('created_at', { ascending: false }),
+        supabase
+          .from('tickets')
+          .select(ticketPreviewSelect)
+          .gte('resolved_at', startIso)
+          .lte('resolved_at', endIso),
+      ]);
 
       // Merge unique
       const allIds = new Set(ticketData?.map(t => t.id));
@@ -93,13 +100,13 @@ export default function ReportsPage() {
       hospitalGroups: {} as Record<string, number>
     };
 
-    tickets.forEach(t => {
-      const hName = t.hospitals?.name || t('reports.unspecifiedHospital');
-      stats.hospitalGroups[hName] = (stats.hospitalGroups[hName] || 0) + 1;
+    tickets.forEach((ticket) => {
+      const hospitalName = ticket.hospitals?.name || t('reports.unspecifiedHospital');
+      stats.hospitalGroups[hospitalName] = (stats.hospitalGroups[hospitalName] || 0) + 1;
     });
 
     return stats;
-  }, [tickets]);
+  }, [tickets, t]);
 
   const handleSendReport = async (set: string) => {
     const reportName = set === '1' ? t('reports.set1Title') : t('reports.set2Title');

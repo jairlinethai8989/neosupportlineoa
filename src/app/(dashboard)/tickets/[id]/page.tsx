@@ -15,8 +15,6 @@ import { TicketSidebar, getTicketDuration } from '@/components/tickets/TicketSid
 import Link from 'next/link';
 import Image from 'next/image';
 import { User, Clock, ChevronRight } from 'lucide-react';
-import html2canvas from 'html2canvas';
-import { jsPDF } from 'jspdf';
 import { deleteMessageAction, closeConversationAction } from '@/app/actions/messageActions';
 import { useNotificationContext } from '@/contexts/NotificationContext';
 import {
@@ -96,6 +94,25 @@ const ticketDetailSelect = `
   department_data:departments!current_department_id(id, name)
 `;
 const ticketDetailLogSelect = 'id, created_at, action_type, to_status, note, performer_id';
+
+type PdfDeps = {
+  html2canvas: (typeof import('html2canvas'))['default'];
+  jsPDF: (typeof import('jspdf'))['jsPDF'];
+};
+
+let pdfDepsPromise: Promise<PdfDeps> | null = null;
+
+function loadPdfDeps(): Promise<PdfDeps> {
+  if (!pdfDepsPromise) {
+    pdfDepsPromise = Promise.all([import('html2canvas'), import('jspdf')]).then(
+      ([html2canvasModule, jsPdfModule]) => ({
+        html2canvas: html2canvasModule.default,
+        jsPDF: jsPdfModule.jsPDF,
+      })
+    );
+  }
+  return pdfDepsPromise;
+}
 
 function normalizeRouteId(rawId: string | string[] | undefined): string | null {
   if (!rawId) return null;
@@ -657,6 +674,7 @@ export default function StaffTicketDetailPage() {
     }
 
     try {
+      const { html2canvas, jsPDF } = await loadPdfDeps();
       addToast({
         id: `pdf-prep-${Date.now()}`,
         type: 'ticket',
@@ -719,6 +737,7 @@ export default function StaffTicketDetailPage() {
     if (!reportRef.current || !ticket) return;
 
     try {
+      const { html2canvas, jsPDF } = await loadPdfDeps();
       const canvas = await html2canvas(reportRef.current, {
         scale: 1.5,
         useCORS: true,
