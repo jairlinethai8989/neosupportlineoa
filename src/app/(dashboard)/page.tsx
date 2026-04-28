@@ -27,6 +27,32 @@ const DashboardChartsSection = React.lazy(() =>
 );
 
 type ExportUtilsModule = typeof import('@/lib/utils/exportUtils');
+type DateWindow = { from: Date; to: Date };
+type DashboardStats = {
+  totalToday: number;
+  newTickets: number;
+  inProgress: number;
+  pending: number;
+  escalated: number;
+  resolved: number;
+  totalAll: number;
+  trendPct: number | null;
+};
+type TrendRow = { dateKey: string; created: number; resolved: number };
+type ValueRow = { name: string; value: number };
+type AgentRow = { name: string; value: number };
+type LogRow = { action_type: string; note: string; created_at: string; tickets: { ticket_no: string } };
+
+const EMPTY_STATS: DashboardStats = {
+  totalToday: 0,
+  newTickets: 0,
+  inProgress: 0,
+  pending: 0,
+  escalated: 0,
+  resolved: 0,
+  totalAll: 0,
+  trendPct: null,
+};
 
 let exportUtilsPromise: Promise<ExportUtilsModule> | null = null;
 
@@ -100,11 +126,47 @@ function getDayLabel(dateStr: string): string {
   return `${days[d.getDay()]} ${d.getDate()}`;
 }
 
+function computeDateWindow(
+  timeRange: 'today' | 'week' | 'month' | 'custom',
+  customStart: string,
+  customEnd: string
+): DateWindow {
+  let from: Date;
+  let to: Date = new Date();
+  to.setHours(23, 59, 59, 999);
+
+  if (timeRange === 'today') {
+    from = new Date();
+    from.setHours(0, 0, 0, 0);
+  } else if (timeRange === 'week') {
+    from = new Date();
+    from.setDate(from.getDate() - 7);
+    from.setHours(0, 0, 0, 0);
+  } else if (timeRange === 'month') {
+    from = new Date();
+    from.setMonth(from.getMonth() - 1);
+    from.setHours(0, 0, 0, 0);
+  } else {
+    from = customStart ? new Date(customStart) : new Date();
+    to = customEnd ? new Date(customEnd) : new Date();
+    from.setHours(0, 0, 0, 0);
+    to.setHours(23, 59, 59, 999);
+  }
+
+  return { from, to };
+}
+
 export default function Home() {
   const { t } = useStaffLocale();
   const router = useRouter();
-  const [tickets, setTickets] = useState<any[]>([]);
-  const [recentLogs, setRecentLogs] = useState<any[]>([]);
+  const [stats, setStats] = useState<DashboardStats>(EMPTY_STATS);
+  const [trendRows, setTrendRows] = useState<TrendRow[]>([]);
+  const [statusRows, setStatusRows] = useState<ValueRow[]>([]);
+  const [priorityRows, setPriorityRows] = useState<ValueRow[]>([]);
+  const [agentRows, setAgentRows] = useState<AgentRow[]>([]);
+  const [exportTicketsRows, setExportTicketsRows] = useState<any[]>([]);
+  const [exportTicketsKey, setExportTicketsKey] = useState<string>('');
+  const [recentLogs, setRecentLogs] = useState<LogRow[]>([]);
   const [showExportMenu, setShowExportMenu] = useState(false);
   const exportRef = React.useRef<HTMLDivElement>(null);
   const [showExportPreview, setShowExportPreview] = useState(false);
@@ -116,6 +178,11 @@ export default function Home() {
   const [timeRange, setTimeRange] = useState<'today' | 'week' | 'month' | 'custom'>('week');
   const [customStart, setCustomStart] = useState('');
   const [customEnd, setCustomEnd] = useState('');
+  const dateWindow = useMemo(
+    () => computeDateWindow(timeRange, customStart, customEnd),
+    [timeRange, customStart, customEnd]
+  );
+  const currentWindowKey = `${dateWindow.from.toISOString()}_${dateWindow.to.toISOString()}`;
 
   // Click outside to close export menu
   useEffect(() => {
@@ -128,12 +195,36 @@ export default function Home() {
     return () => document.removeEventListener('mousedown', handleClick);
   }, [showExportMenu]);
 
-  const handleExportRequest = (format: 'xlsx' | 'pdf') => {
+  const handleExportRequest = async (format: 'xlsx' | 'pdf') => {
+    let rows = exportTicketsRows;
+
+    if (exportTicketsKey !== currentWindowKey || rows.length === 0) {
+      const exportSelect = `
+        id,
+        ticket_no,
+        subject,
+        status,
+        priority,
+        created_at,
+        resolved_at,
+        assigned_to
+      `;
+      const { data } = await supabase
+        .from('tickets')
+        .select(exportSelect)
+        .gte('created_at', dateWindow.from.toISOString())
+        .lte('created_at', dateWindow.to.toISOString());
+
+      rows = data || [];
+      setExportTicketsRows(rows);
+      setExportTicketsKey(currentWindowKey);
+    }
+
     const preview: ExportPreviewData = {
       format: format === 'xlsx' ? 'excel' : 'pdf',
       title: t('dashboard.exportReport'),
       subtitle: t('dashboard.managementSummary'),
-      totalRecords: tickets.length,
+      totalRecords: rows.length,
       dateRange: timeRange,
       columns: ['Ticket No', 'Subject', 'Customer', 'Status', 'Priority', 'Created At', 'Resolved At'],
     };
@@ -146,13 +237,13 @@ export default function Home() {
   const handleExportDownload = async () => {
     if (!pendingFormat) return;
     const { exportTickets } = await loadExportUtils();
-    exportTickets(tickets, pendingFormat);
+    exportTickets(exportTicketsRows, pendingFormat);
     setShowExportPreview(false);
   };
 
   const handleExportPrint = async () => {
     const { printTickets } = await loadExportUtils();
-    printTickets(tickets, 'Dashboard Tickets Report');
+    printTickets(exportTicketsRows, 'Dashboard Tickets Report');
     setShowExportPreview(false);
   };
 
@@ -161,64 +252,41 @@ export default function Home() {
 
     async function fetchDashboard() {
       setIsLoading(true);
-      let from: Date, to: Date = new Date();
-      to.setHours(23, 59, 59, 999);
+      try {
+        const from = encodeURIComponent(dateWindow.from.toISOString());
+        const to = encodeURIComponent(dateWindow.to.toISOString());
+        const res = await fetch(`/api/dashboard/summary?from=${from}&to=${to}`, { cache: 'no-store' });
+        if (!res.ok) throw new Error(`Dashboard summary failed (${res.status})`);
+        const payload = await res.json();
 
-      if (timeRange === 'today') {
-        from = new Date(); from.setHours(0, 0, 0, 0);
-      } else if (timeRange === 'week') {
-        from = new Date(); from.setDate(from.getDate() - 7); from.setHours(0, 0, 0, 0);
-      } else if (timeRange === 'month') {
-        from = new Date(); from.setMonth(from.getMonth() - 1); from.setHours(0, 0, 0, 0);
-      } else {
-        from = customStart ? new Date(customStart) : new Date();
-        to = customEnd ? new Date(customEnd) : new Date();
-        from.setHours(0, 0, 0, 0);
-        to.setHours(23, 59, 59, 999);
+        if (cancelled) return;
+        setStats(payload.stats || EMPTY_STATS);
+        setTrendRows(payload.trendByDay || []);
+        setStatusRows(payload.statusData || []);
+        setPriorityRows(payload.priorityData || []);
+        setAgentRows(payload.agentData || []);
+        setRecentLogs([]);
+
+        // Load recent logs after first paint; do not block summary rendering.
+        void fetch(`/api/dashboard/summary?from=${from}&to=${to}&includeLogs=1`, { cache: 'no-store' })
+          .then(async (logRes) => {
+            if (!logRes.ok || cancelled) return;
+            const logPayload = await logRes.json();
+            if (!cancelled) setRecentLogs(logPayload.recentLogs || []);
+          })
+          .catch(() => {});
+      } catch (error) {
+        if (cancelled) return;
+        console.error(error);
+        setStats(EMPTY_STATS);
+        setTrendRows([]);
+        setStatusRows([]);
+        setPriorityRows([]);
+        setAgentRows([]);
+        setRecentLogs([]);
+      } finally {
+        if (!cancelled) setIsLoading(false);
       }
-
-      const ticketSelect = `
-        id,
-        ticket_no,
-        subject,
-        status,
-        priority,
-        created_at,
-        resolved_at,
-        updated_at,
-        assigned_to
-      `;
-
-      const { data: allTickets } = await supabase
-        .from('tickets')
-        .select(ticketSelect)
-        .gte('created_at', from.toISOString())
-        .lte('created_at', to.toISOString());
-      
-      if (!cancelled && allTickets) setTickets(allTickets);
-      if (!cancelled) setIsLoading(false);
-
-      const ticketLogSelect = `
-        id,
-        ticket_id,
-        action_type,
-        created_at,
-        tickets(ticket_no)
-      `;
-
-      // Logs are secondary for first paint; fetch after primary ticket data renders.
-      void supabase
-        .from('ticket_logs')
-        .select(ticketLogSelect)
-        .gte('created_at', from.toISOString())
-        .lte('created_at', to.toISOString())
-        .order('created_at', { ascending: false })
-        .limit(10)
-        .then(({ data: logs }) => {
-          if (!cancelled && logs) {
-            setRecentLogs(logs);
-          }
-        });
     }
     fetchDashboard();
 
@@ -240,95 +308,54 @@ export default function Home() {
       if (refreshTimer) clearTimeout(refreshTimer);
       supabase.removeChannel(channel);
     };
-  }, [timeRange, customStart, customEnd]);
+  }, [dateWindow.from, dateWindow.to]);
 
-  // KPI calculations
-  const stats = useMemo(() => {
-    const now = new Date();
-    const todayStart = new Date(now); todayStart.setHours(0, 0, 0, 0);
-    const yesterdayStart = new Date(todayStart); yesterdayStart.setDate(yesterdayStart.getDate() - 1);
-
-    const todayTickets = tickets.filter(t => new Date(t.created_at) >= todayStart);
-    const yesterdayTickets = tickets.filter(t => {
-      const d = new Date(t.created_at);
-      return d >= yesterdayStart && d < todayStart;
-    });
-
-    const todayCount = todayTickets.length;
-    const yesterdayCount = yesterdayTickets.length;
-    const trendPct = yesterdayCount > 0 ? Math.round(((todayCount - yesterdayCount) / yesterdayCount) * 100) : null;
-
-    return {
-      totalToday: todayCount,
-      newTickets: tickets.filter(t => t.status === 'New').length,
-      inProgress: tickets.filter(t => t.status === 'In Progress').length,
-      pending: tickets.filter(t => t.status === 'Pending').length,
-      escalated: tickets.filter(t => t.status === 'Escalated').length,
-      resolved: tickets.filter(t => t.status === 'Resolved' || t.status === 'Closed').length,
-      totalAll: tickets.length,
-      trendPct,
-    };
-  }, [tickets]);
-
-  // 7-day trend data
   const trendData = useMemo(() => {
     const days: { label: string; dateKey: string; [key: string]: any }[] = [];
     const newTicketsLabel = t('dashboard.newTickets');
     const resolvedLabel = t('dashboard.resolved');
 
-    for (let i = 6; i >= 0; i--) {
-      const d = new Date();
-      d.setDate(d.getDate() - i);
-      const dateKey = d.toISOString().split('T')[0];
-      const label = getDayLabel(d.toISOString());
-      
-      const created = tickets.filter(t => t.created_at?.startsWith(dateKey)).length;
-      const resolved = tickets.filter(t => 
-        (t.status === 'Resolved' || t.status === 'Closed') && 
-        t.updated_at?.startsWith(dateKey)
-      ).length;
-      
-      days.push({ label, dateKey, [newTicketsLabel]: created, [resolvedLabel]: resolved });
+    if (trendRows.length === 0) return days;
+
+    for (const row of trendRows) {
+      days.push({
+        label: getDayLabel(row.dateKey),
+        dateKey: row.dateKey,
+        [newTicketsLabel]: row.created,
+        [resolvedLabel]: row.resolved,
+      });
     }
     return days;
-  }, [tickets]);
+  }, [trendRows, t]);
 
-  // Status distribution for pie
-  const statusData = useMemo(() => {
-    const counts: Record<string, number> = {};
-    tickets.forEach(t => { counts[t.status] = (counts[t.status] || 0) + 1; });
-    return Object.entries(counts).map(([name, value]) => ({ 
-      name, 
-      value, 
-      fill: STATUS_COLORS[name] || '#4facfe' 
-    }));
-  }, [tickets]);
+  const statusData = useMemo(
+    () =>
+      statusRows.map(({ name, value }) => ({
+        name,
+        value,
+        fill: STATUS_COLORS[name] || '#4facfe',
+      })),
+    [statusRows]
+  );
 
-  // Priority distribution for bar chart
-  const priorityData = useMemo(() => {
-    const counts: Record<string, number> = {};
-    tickets.forEach(t => { 
-      const p = t.priority || 'Medium';
-      counts[p] = (counts[p] || 0) + 1; 
-    });
-    return Object.entries(counts).map(([name, value]) => ({ 
-      name, 
-      value, 
-      fill: PRIORITY_COLORS[name] || '#4facfe' 
-    }));
-  }, [tickets]);
+  const priorityData = useMemo(
+    () =>
+      priorityRows.map(({ name, value }) => ({
+        name,
+        value,
+        fill: PRIORITY_COLORS[name] || '#4facfe',
+      })),
+    [priorityRows]
+  );
 
-  // Agent workload
-  const agentData = useMemo(() => {
-    const counts: Record<string, number> = {};
-    tickets.filter(t => t.assigned_to).forEach(t => {
-      counts[t.assigned_to] = (counts[t.assigned_to] || 0) + 1;
-    });
-    return Object.entries(counts)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 5)
-      .map(([name, value]) => ({ name: name.length > 12 ? name.substring(0, 12) + '...' : name, value }));
-  }, [tickets]);
+  const agentData = useMemo(
+    () =>
+      agentRows.map(({ name, value }) => ({
+        name: name.length > 12 ? `${name.substring(0, 12)}...` : name,
+        value,
+      })),
+    [agentRows]
+  );
 
   if (isLoading) {
     return (
