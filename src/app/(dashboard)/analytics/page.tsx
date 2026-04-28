@@ -28,7 +28,7 @@ import { arrayMove, SortableContext, sortableKeyboardCoordinates, rectSortingStr
 import { CSS } from '@dnd-kit/utilities';
 import { DateTime } from 'luxon';
 import { supabase } from '@/lib/supabase';
-import { exportToExcel, exportDashboardAsPDF, printDataTable } from '@/lib/utils/exportUtils';
+import { exportDashboardAsPDF, printDataTable } from '@/lib/utils/exportUtils';
 import Skeleton from '@/components/ui/Skeleton';
 import { ExportPreviewModal, type ExportPreviewData } from '@/components/ui/ExportPreviewModal';
 
@@ -291,8 +291,8 @@ export default function AdvancedAnalyticsPage() {
           .order('created_at', { ascending: false }),
         supabase
           .from('csat_surveys')
-          .select('rating')
-          .not('rating', 'is', null)
+          .select('rating, score, created_at')
+          .or('rating.not.is.null,score.not.is.null')
           .gte('created_at', dateRange.start)
           .lte('created_at', dateRange.end)
       ]);
@@ -350,7 +350,9 @@ export default function AdvancedAnalyticsPage() {
     // 5. CSAT
     const csatRaw = (window as any)._csat_data || [];
     const csatData = csatRaw.reduce((acc: any, c: any) => {
-      const score = c.rating || 0;
+      // Standardization: use 'score' as canonical, fallback to 'rating' for legacy data
+      const score = c.score || c.rating || 0;
+      if (score === 0) return acc;
       acc[score] = (acc[score] || 0) + 1;
       return acc;
     }, {});
@@ -426,7 +428,36 @@ export default function AdvancedAnalyticsPage() {
     }));
 
     if (format === 'excel') {
-      exportToExcel(dataToExport, 'Analytics_Report');
+      setExporting(true);
+      try {
+        const res = await fetch(
+          `/api/reports/analytics/export?start=${encodeURIComponent(dateRange.start)}&end=${encodeURIComponent(dateRange.end)}`,
+          { method: 'GET' }
+        );
+        if (!res.ok) throw new Error(`Export failed (${res.status})`);
+
+        const blob = await res.blob();
+        const fileName =
+          (res.headers.get('content-disposition') || '')
+            .split('filename=')[1]
+            ?.replaceAll('"', '')
+            ?.trim() ||
+          'Analytics_Report.xlsx';
+
+        const blobUrl = window.URL.createObjectURL(blob);
+        const anchor = document.createElement('a');
+        anchor.href = blobUrl;
+        anchor.download = fileName;
+        document.body.appendChild(anchor);
+        anchor.click();
+        anchor.remove();
+        window.URL.revokeObjectURL(blobUrl);
+      } catch (error) {
+        console.error('Analytics excel export failed:', error);
+        alert('ไม่สามารถส่งออก Excel ได้ กรุณาลองใหม่อีกครั้ง');
+      } finally {
+        setExporting(false);
+      }
       return;
     }
 

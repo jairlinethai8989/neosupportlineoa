@@ -672,7 +672,7 @@ export default function StaffTicketDetailPage() {
   ]);
 
   const handleExportSummary = async () => {
-    if (!reportRef.current || !ticket) {
+    if (!ticket) {
       addToast({
         id: `pdf-invalid-${Date.now()}`,
         type: 'sla',
@@ -683,47 +683,34 @@ export default function StaffTicketDetailPage() {
     }
 
     try {
-      const { html2canvas, jsPDF } = await loadPdfDeps();
       addToast({
         id: `pdf-prep-${Date.now()}`,
         type: 'ticket',
         title: 'กำลังเตรียมไฟล์ PDF...',
-        body: 'ระบบกำลังดึงข้อมูลใบงานและจัดแต่งโครงสร้ามรายงาน'
-      });
-      
-      const canvas = await html2canvas(reportRef.current, {
-        scale: 1.5,
-        useCORS: true,
-        logging: false,
-        backgroundColor: '#ffffff'
-      });
-      
-      // Use JPEG instead of PNG for massively smaller file size (~200KB vs ~10MB)
-      const imgData = canvas.toDataURL('image/jpeg', 0.85);
-      
-      // Use proper A4 dimensions in mm
-      const pdf = new jsPDF({
-        orientation: 'portrait',
-        unit: 'mm',
-        format: 'a4'
+        body: 'ระบบกำลังประมวลผลรายงานบนเซิร์ฟเวอร์'
       });
 
-      const pageWidth = pdf.internal.pageSize.getWidth();
-      const pageHeight = pdf.internal.pageSize.getHeight();
-      const margin = 10; // 10mm margins
-      const contentWidth = pageWidth - (margin * 2);
-      const imgAspectRatio = canvas.height / canvas.width;
-      const contentHeight = contentWidth * imgAspectRatio;
+      const response = await fetch(`/api/tickets/${ticket.id}/export-summary`, { method: 'GET' });
+      if (!response.ok) {
+        throw new Error(`Export failed (${response.status})`);
+      }
 
-      // If content is taller than one page, scale to fit
-      const finalHeight = Math.min(contentHeight, pageHeight - (margin * 2));
-      const finalWidth = finalHeight < contentHeight 
-        ? (finalHeight / imgAspectRatio) 
-        : contentWidth;
-      const xOffset = (pageWidth - finalWidth) / 2;
+      const blob = await response.blob();
+      const fileName =
+        (response.headers.get('content-disposition') || '')
+          .split('filename=')[1]
+          ?.replaceAll('"', '')
+          ?.trim() ||
+        `Service_Report_${ticket.ticket_no || ticket.id}.pdf`;
 
-      pdf.addImage(imgData, 'JPEG', xOffset, margin, finalWidth, finalHeight);
-      pdf.save(`Service_Report_${ticket.ticket_no}.pdf`);
+      const blobUrl = window.URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = blobUrl;
+      anchor.download = fileName;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      window.URL.revokeObjectURL(blobUrl);
       
       addToast({
         id: `pdf-success-${Date.now()}`,
@@ -743,37 +730,15 @@ export default function StaffTicketDetailPage() {
   };
 
   const handlePrintSummary = async () => {
-    if (!reportRef.current || !ticket) return;
+    if (!ticket) return;
 
     try {
-      const { html2canvas, jsPDF } = await loadPdfDeps();
-      const canvas = await html2canvas(reportRef.current, {
-        scale: 1.5,
-        useCORS: true,
-        logging: false,
-        backgroundColor: '#ffffff'
-      });
-
-      const imgData = canvas.toDataURL('image/jpeg', 0.85);
-      const pdf = new jsPDF({
-        orientation: 'portrait',
-        unit: 'mm',
-        format: 'a4'
-      });
-
-      const pageWidth = pdf.internal.pageSize.getWidth();
-      const pageHeight = pdf.internal.pageSize.getHeight();
-      const margin = 10;
-      const contentWidth = pageWidth - (margin * 2);
-      const imgAspectRatio = canvas.height / canvas.width;
-      const contentHeight = contentWidth * imgAspectRatio;
-      const finalHeight = Math.min(contentHeight, pageHeight - (margin * 2));
-      const finalWidth = finalHeight < contentHeight ? (finalHeight / imgAspectRatio) : contentWidth;
-      const xOffset = (pageWidth - finalWidth) / 2;
-
-      pdf.addImage(imgData, 'JPEG', xOffset, margin, finalWidth, finalHeight);
-
-      const blobUrl = pdf.output('bloburl');
+      const response = await fetch(`/api/tickets/${ticket.id}/export-summary`, { method: 'GET' });
+      if (!response.ok) {
+        throw new Error(`Print export failed (${response.status})`);
+      }
+      const blob = await response.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
       const printWindow = window.open(blobUrl, '_blank');
       if (!printWindow) {
         addToast({
@@ -788,6 +753,7 @@ export default function StaffTicketDetailPage() {
       setTimeout(() => {
         printWindow.focus();
         printWindow.print();
+        window.URL.revokeObjectURL(blobUrl);
       }, 500);
     } catch (error) {
       console.error('PDF Print Error:', error);

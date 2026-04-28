@@ -11,13 +11,13 @@ import { ExportPreviewModal, type ExportPreviewData } from '@/components/ui/Expo
 
 type ExportUtilsModule = typeof import('@/lib/utils/exportUtils');
 
-let exportUtilsPromise: Promise<ExportUtilsModule> | null = null;
+let printUtilsPromise: Promise<ExportUtilsModule> | null = null;
 
 async function loadExportUtils(): Promise<ExportUtilsModule> {
-  if (!exportUtilsPromise) {
-    exportUtilsPromise = import('@/lib/utils/exportUtils');
+  if (!printUtilsPromise) {
+    printUtilsPromise = import('@/lib/utils/exportUtils');
   }
-  return exportUtilsPromise;
+  return printUtilsPromise;
 }
 
 type SortConfig = {
@@ -270,31 +270,33 @@ export default function DailyReportPage() {
     setIsExporting(true);
     setShowPreview(false);
     try {
-      const { exportToExcel } = await loadExportUtils();
-      const formatData = processedTickets.map(ticket => {
-        const createdAt = new Date(ticket.created_at);
-        const resolvedAt = ticket.resolved_at ? new Date(ticket.resolved_at) : null;
+      const res = await fetch(
+        `/api/reports/daily/export?start=${dateRange.start}&end=${dateRange.end}`,
+        { method: 'GET' }
+      );
+      if (!res.ok) {
+        throw new Error(`Export failed (${res.status})`);
+      }
 
-        return {
-          [t('reports.columns.status')]: ticket.status === 'Resolved' || ticket.status === 'Closed' ? '✅' : (ticket.status === 'New' ? '⚪' : '🔄'),
-          [t('reports.columns.date')]: createdAt.toLocaleDateString('th-TH'),
-          [t('reports.columns.hospital')]: ticket.hospital_name || '-',
-          [t('reports.columns.customer')]: ticket.customer_name || (ticket.assignee_name ? `👷‍♂️ ${ticket.assignee_name}` : '-'),
-          [t('reports.columns.subject')]: ticket.subject_only || '-',
-          [t('reports.columns.additionalDetails')]: ticket.description || '-',
-          [t('reports.columns.resolution')]: ticket.resolution_summary || '-',
-          [t('reports.columns.assignee')]: ticket.assignee_name || '-',
-          [t('reports.columns.source')]: ticket.source || 'Line กลุ่ม',
-          [t('reports.columns.module')]: ticket.module || '-',
-          [t('reports.columns.type')]: ticket.issue_type || '-',
-          [t('reports.columns.createdTime')]: createdAt.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }),
-          [t('reports.columns.resolvedTime')]: resolvedAt ? resolvedAt.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }) : '-',
-          [t('reports.columns.timeUsed')]: getDurationStr(ticket.created_at, ticket.resolved_at)
-        };
-      });
+      const blob = await res.blob();
+      const fileName =
+        (res.headers.get('content-disposition') || '')
+          .split('filename=')[1]
+          ?.replaceAll('"', '')
+          ?.trim() ||
+        `Daily_Issues_${dateRange.start === dateRange.end ? dateRange.start : `${dateRange.start}_to_${dateRange.end}`}.xlsx`;
 
-      const rangeStr = dateRange.start === dateRange.end ? dateRange.start : `${dateRange.start}_to_${dateRange.end}`;
-      exportToExcel(formatData, `Daily_Issues_${rangeStr}`);
+      const blobUrl = window.URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = blobUrl;
+      anchor.download = fileName;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      window.URL.revokeObjectURL(blobUrl);
+    } catch (error) {
+      console.error('Daily export failed:', error);
+      alert('Export failed. Please try again.');
     } finally {
       setIsExporting(false);
     }
