@@ -1,8 +1,13 @@
 import { NextResponse } from 'next/server';
 import { createSupabaseServerClient } from '@/lib/supabase-server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
-import { getOrSetPreviewCache, readPreviewCache } from '@/lib/reports/previewCache';
+import {
+  buildVersionedPreviewCacheKey,
+  getOrSetPreviewCache,
+  readPreviewCache,
+} from '@/lib/reports/previewCache';
 import { shouldExposeReportsCacheDebugHeaders } from '@/lib/reports/cacheDebug';
+import { CACHE_POLICY } from '@/lib/cache/policy';
 
 type PreviewTicketRow = {
   id: string;
@@ -48,8 +53,6 @@ function buildPreviewSummary(rows: PreviewTicketRow[]) {
   };
 }
 
-const HUB_PREVIEW_TTL_MS = 20_000;
-
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
@@ -74,9 +77,12 @@ export async function GET(req: Request) {
       }
     }
 
-    const cacheKey = `hub:${date}`;
+    const cacheKey = buildVersionedPreviewCacheKey(`hub:${date}`);
     const cacheHitBeforeLoad = readPreviewCache(cacheKey) !== null;
-    const summary = await getOrSetPreviewCache(cacheKey, HUB_PREVIEW_TTL_MS, async () => {
+    const summary = await getOrSetPreviewCache(
+      cacheKey,
+      CACHE_POLICY.reports.hubPreviewTtlMs,
+      async () => {
       const { startIso, endIso } = buildDayRangeUtc(date);
       const ticketPreviewSelect = 'id, status, hospitals(name)';
 
@@ -100,10 +106,11 @@ export async function GET(req: Request) {
         hospitals: Array.isArray(row.hospitals) ? row.hospitals[0] || null : row.hospitals,
       }));
       return buildPreviewSummary(rows);
-    });
+      }
+    );
 
     const headers: Record<string, string> = {
-      'Cache-Control': 'private, max-age=20',
+      'Cache-Control': CACHE_POLICY.reports.hubResponseCacheControl,
     };
     if (shouldExposeReportsCacheDebugHeaders()) {
       headers['x-cache'] = cacheHitBeforeLoad ? 'hit' : 'miss';

@@ -2,6 +2,8 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import * as line from '@line/bot-sdk';
+import { invalidateAllLiveCaches } from '@/lib/cache/liveCache';
+import { invalidateAllPreviewCaches } from '@/lib/reports/previewCache';
 
 import crypto from 'crypto';
 
@@ -64,6 +66,8 @@ export async function POST(req: Request) {
     return NextResponse.json({ status: 'ok' });
   }
 
+  let hasDataMutation = false;
+
   for (const event of events) {
     // 0. QUICK CHECK: Get Group ID Command
     if (event.type === 'message' && event.message.type === 'text') {
@@ -112,6 +116,7 @@ export async function POST(req: Request) {
           .select()
           .single();
         customer = newCustomer;
+        hasDataMutation = true;
       } else if (customer.display_name !== lineProfile.display_name) {
         const { data: updatedCustomer } = await supabaseAdmin
           .from('customers')
@@ -124,6 +129,7 @@ export async function POST(req: Request) {
           .single();
 
         customer = updatedCustomer || customer;
+        hasDataMutation = true;
       }
 
       if (customer) {
@@ -174,6 +180,7 @@ export async function POST(req: Request) {
             .select()
             .single();
           conversation = newConv;
+          hasDataMutation = true;
 
           /* 
           // Notify Group about New Support Request (First Message) - DISABLED per user request for manual control
@@ -195,7 +202,7 @@ export async function POST(req: Request) {
             ticket_id: conversation.current_ticket_id,
             sender_type: 'customer',
             customer_id: customer.id,
-            content: messageText || '...', // Temp content for media
+            content: event.message.type === 'text' ? messageText : `[${event.message.type.toUpperCase()} Attachment]`,
             line_message_id: event.message.id,
             line_uid: event.source.userId,
             message_type: event.message.type === 'text' ? 'text' : 
@@ -211,6 +218,7 @@ export async function POST(req: Request) {
              console.error(`Webhook: Message insert error:`, messageError);
              continue;
           }
+          hasDataMutation = true;
 
           let finalContent = messageText;
 
@@ -273,12 +281,20 @@ export async function POST(req: Request) {
                 });
 
               if (!uploadError) {
-                finalContent = fileName;
+                const {
+                  data: { publicUrl },
+                } = supabaseAdmin.storage.from('chat_media').getPublicUrl(fileName);
                 
-                // Update the previously inserted message with the final URL
+                finalContent = publicUrl;
+                
+                // Update the previously inserted message with the final URL in media_path
                 await supabaseAdmin.from('messages')
-                  .update({ content: finalContent })
+                  .update({ 
+                    media_path: finalContent,
+                    media_mime_type: contentType
+                  })
                   .eq('line_message_id', event.message.id);
+                hasDataMutation = true;
               } else {
                 console.error('Webhook: Upload Error:', uploadError);
               }
@@ -291,9 +307,15 @@ export async function POST(req: Request) {
           await supabaseAdmin.from('conversations')
             .update({ last_message_at: new Date().toISOString() })
             .eq('id', conversation.id);
+          hasDataMutation = true;
         }
       }
     }
+  }
+
+  if (hasDataMutation) {
+    invalidateAllLiveCaches();
+    invalidateAllPreviewCaches();
   }
 
   return NextResponse.json({ status: 'ok' });

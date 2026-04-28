@@ -418,15 +418,6 @@ export default function AdvancedAnalyticsPage() {
     if (!pendingFormat) return;
     const format = pendingFormat;
     setShowPreview(false);
-    
-    const dataToExport = tickets.map(t => ({
-      'No.': t.ticket_no,
-      'Subject': t.subject,
-      'Status': t.status,
-      'Priority': t.priority,
-      'Created': DateTime.fromISO(t.created_at).toFormat('dd/MM/yyyy')
-    }));
-
     if (format === 'excel') {
       setExporting(true);
       try {
@@ -455,6 +446,40 @@ export default function AdvancedAnalyticsPage() {
       } catch (error) {
         console.error('Analytics excel export failed:', error);
         alert('ไม่สามารถส่งออก Excel ได้ กรุณาลองใหม่อีกครั้ง');
+      } finally {
+        setExporting(false);
+      }
+      return;
+    }
+
+    if (format === 'pdf') {
+      setExporting(true);
+      try {
+        const res = await fetch(
+          `/api/reports/analytics/export-pdf?start=${encodeURIComponent(dateRange.start)}&end=${encodeURIComponent(dateRange.end)}`,
+          { method: 'GET' }
+        );
+        if (!res.ok) throw new Error(`Export failed (${res.status})`);
+
+        const blob = await res.blob();
+        const fileName =
+          (res.headers.get('content-disposition') || '')
+            .split('filename=')[1]
+            ?.replaceAll('"', '')
+            ?.trim() ||
+          'Analytics_Report.pdf';
+
+        const blobUrl = window.URL.createObjectURL(blob);
+        const anchor = document.createElement('a');
+        anchor.href = blobUrl;
+        anchor.download = fileName;
+        document.body.appendChild(anchor);
+        anchor.click();
+        anchor.remove();
+        window.URL.revokeObjectURL(blobUrl);
+      } catch (error) {
+        console.error('Analytics pdf export failed:', error);
+        alert('à¹„à¸¡à¹ˆà¸ªà¸²à¸¡à¸²à¸£à¸–à¸ªà¹ˆà¸‡à¸­à¸­à¸ PDF à¹„à¸”à¹‰ à¸à¸£à¸¸à¸“à¸²à¸¥à¸­à¸‡à¹ƒà¸«à¸¡à¹ˆà¸­à¸µà¸à¸„à¸£à¸±à¹‰à¸‡');
       } finally {
         setExporting(false);
       }

@@ -2,6 +2,8 @@
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { cookies } from 'next/headers';
 import { createServerClient } from '@supabase/ssr';
+import { invalidateAllLiveCaches } from '@/lib/cache/liveCache';
+import { invalidateAllPreviewCaches } from '@/lib/reports/previewCache';
 
 async function getSessionUser() {
   const cookieStore = await cookies();
@@ -37,7 +39,8 @@ export async function sendAgentMessageAction(
   conversationId: string, 
   ticketId: string | null, 
   content: string, 
-  messageType: string = 'text'
+  messageType: string = 'text',
+  mediaMimeType?: string
 ) {
   const user = await getSessionUser();
   await verifyAgentRole(user.id);
@@ -47,8 +50,10 @@ export async function sendAgentMessageAction(
     ticket_id: ticketId,
     sender_type: 'agent',
     staff_id: user.id,
-    content: content,
-    message_type: messageType
+    content: messageType === 'text' ? content : `[${messageType.toUpperCase()} Attachment]`,
+    message_type: messageType,
+    media_path: messageType !== 'text' ? content : null,
+    media_mime_type: mediaMimeType || null
   }]);
   
   if (dbError) throw new Error(dbError.message);
@@ -56,6 +61,8 @@ export async function sendAgentMessageAction(
   await supabaseAdmin.from('conversations').update({
     last_message_at: new Date().toISOString()
   }).eq('id', conversationId);
+  invalidateAllLiveCaches();
+  invalidateAllPreviewCaches();
 }
 
 export async function sendSystemMessageAction(
@@ -73,6 +80,8 @@ export async function sendSystemMessageAction(
   }]);
   
   if (dbError) throw new Error(dbError.message);
+  invalidateAllLiveCaches();
+  invalidateAllPreviewCaches();
 }
 
 export async function closeConversationAction(conversationId: string) {
@@ -89,6 +98,8 @@ export async function closeConversationAction(conversationId: string) {
     content: '[SYSTEM] จบการสนทนาโดยเจ้าหน้าที่',
     message_type: 'text'
   }]);
+  invalidateAllLiveCaches();
+  invalidateAllPreviewCaches();
 }
 
 export async function deleteMessageAction(messageId: string) {
@@ -128,6 +139,8 @@ export async function deleteMessageAction(messageId: string) {
       return { success: false, error: dbError.message };
     }
 
+    invalidateAllLiveCaches();
+    invalidateAllPreviewCaches();
     return { success: true };
   } catch (err: any) {
     console.error('Delete Action Error:', err);

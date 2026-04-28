@@ -2,8 +2,13 @@ import { NextResponse } from 'next/server';
 import { createSupabaseServerClient } from '@/lib/supabase-server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { getTicketSubjectOnly } from '@/lib/reports/subject';
-import { getOrSetPreviewCache, readPreviewCache } from '@/lib/reports/previewCache';
+import {
+  buildVersionedPreviewCacheKey,
+  getOrSetPreviewCache,
+  readPreviewCache,
+} from '@/lib/reports/previewCache';
 import { shouldExposeReportsCacheDebugHeaders } from '@/lib/reports/cacheDebug';
+import { CACHE_POLICY } from '@/lib/cache/policy';
 
 type RawTicket = {
   id: string;
@@ -90,8 +95,6 @@ function normalizeRow(row: RawTicket): DailyPreviewRow {
   };
 }
 
-const DAILY_PREVIEW_TTL_MS = 20_000;
-
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
@@ -116,9 +119,12 @@ export async function GET(req: Request) {
       }
     }
 
-    const cacheKey = `daily:${start}:${end}`;
+    const cacheKey = buildVersionedPreviewCacheKey(`daily:${start}:${end}`);
     const cacheHitBeforeLoad = readPreviewCache(cacheKey) !== null;
-    const payload = await getOrSetPreviewCache(cacheKey, DAILY_PREVIEW_TTL_MS, async () => {
+    const payload = await getOrSetPreviewCache(
+      cacheKey,
+      CACHE_POLICY.reports.dailyPreviewTtlMs,
+      async () => {
       const startIso = `${start}T00:00:00.000Z`;
       const endIso = `${end}T23:59:59.999Z`;
 
@@ -155,10 +161,11 @@ export async function GET(req: Request) {
 
       const rows = ((data || []) as RawTicket[]).map(normalizeRow);
       return { rows };
-    });
+      }
+    );
 
     const headers: Record<string, string> = {
-      'Cache-Control': 'private, max-age=20',
+      'Cache-Control': CACHE_POLICY.reports.dailyResponseCacheControl,
     };
     if (shouldExposeReportsCacheDebugHeaders()) {
       headers['x-cache'] = cacheHitBeforeLoad ? 'hit' : 'miss';

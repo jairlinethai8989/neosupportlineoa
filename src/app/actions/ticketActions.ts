@@ -2,6 +2,8 @@
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { cookies } from 'next/headers';
 import { createServerClient } from '@supabase/ssr';
+import { invalidateAllLiveCaches } from '@/lib/cache/liveCache';
+import { invalidateAllPreviewCaches } from '@/lib/reports/previewCache';
 
 // Helper to authenticate session dynamically on server
 async function getSessionUser() {
@@ -82,6 +84,8 @@ export async function claimTicketServerAction(ticketId: string) {
     note: 'Agent claimed the ticket securely via server action'
   }]);
 
+  invalidateAllLiveCaches();
+  invalidateAllPreviewCaches();
   return ticket;
 }
 
@@ -134,6 +138,8 @@ export async function updateTicketStatusAction(ticketId: string, newStatus: stri
     note: note || `Status changed to ${newStatus}`
   }]);
 
+  invalidateAllLiveCaches();
+  invalidateAllPreviewCaches();
   return ticket;
 }
 
@@ -178,6 +184,8 @@ export async function transferTicketAction(ticketId: string, toAgentId?: string,
      .eq('current_ticket_id', ticketId)
      .eq('status', 'active');
 
+   invalidateAllLiveCaches();
+   invalidateAllPreviewCaches();
    return ticket;
 }
 
@@ -277,5 +285,7 @@ export async function resolveTicketAction(
      console.error('[ResolveAction] Post-update processing error:', postError);
    }
 
+   invalidateAllLiveCaches();
+   invalidateAllPreviewCaches();
    return ticket;
 }
