@@ -1,15 +1,24 @@
 'use client';
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { supabase } from '@/lib/supabase';
 import {
   Download, Loader2, Table as TableIcon, AlignLeft, Filter,
   ArrowUpDown, Search, X, Calendar, ChevronRight
 } from 'lucide-react';
-import { exportToExcel, printDataTable } from '@/lib/utils/exportUtils';
 import Skeleton from '@/components/ui/Skeleton';
 import { useStaffLocale } from '@/contexts/StaffLocaleContext';
 import { ExportPreviewModal, type ExportPreviewData } from '@/components/ui/ExportPreviewModal';
+
+type ExportUtilsModule = typeof import('@/lib/utils/exportUtils');
+
+let exportUtilsPromise: Promise<ExportUtilsModule> | null = null;
+
+async function loadExportUtils(): Promise<ExportUtilsModule> {
+  if (!exportUtilsPromise) {
+    exportUtilsPromise = import('@/lib/utils/exportUtils');
+  }
+  return exportUtilsPromise;
+}
 
 type SortConfig = {
   key: string;
@@ -39,30 +48,27 @@ const INITIAL_COLUMN_WIDTHS: Record<string, number> = {
   timeUsed: 150,
 };
 
-function getTicketSubjectOnly(ticket: any): string {
-  const subjectRaw = String(ticket?.subject ?? '').trim();
-  if (!subjectRaw) return '-';
-
-  const descriptionRaw = String(ticket?.description ?? '').trim();
-  if (!descriptionRaw) return subjectRaw;
-
-  const splitIndex = subjectRaw.indexOf(':');
-  if (splitIndex <= 0) return subjectRaw;
-
-  const heading = subjectRaw.slice(0, splitIndex).trim();
-  const suffix = subjectRaw.slice(splitIndex + 1).trim();
-  if (!heading || !suffix) return subjectRaw;
-
-  const normalizedSuffix = suffix.endsWith('...') ? suffix.slice(0, -3).trim() : suffix;
-  const isLegacyCombinedSubject =
-    descriptionRaw === suffix || descriptionRaw.startsWith(normalizedSuffix);
-
-  return isLegacyCombinedSubject ? heading : subjectRaw;
-}
+type DailyPreviewRow = {
+  id: string;
+  status: string;
+  created_at: string;
+  resolved_at: string | null;
+  subject_only: string;
+  description: string;
+  resolution_summary: string;
+  source: string;
+  module: string;
+  issue_type: string;
+  priority: string;
+  hospital_name: string;
+  customer_name: string;
+  assignee_name: string;
+  duration_ms: number;
+};
 
 export default function DailyReportPage() {
   const { t } = useStaffLocale();
-  const [tickets, setTickets] = useState<any[]>([]);
+  const [tickets, setTickets] = useState<DailyPreviewRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [dateRange, setDateRange] = useState({
     start: new Date().toISOString().split('T')[0],
@@ -114,40 +120,13 @@ export default function DailyReportPage() {
   const fetchTickets = async (start: string, end: string) => {
     setLoading(true);
     try {
-      const startIso = new Date(`${start}T00:00:00.000Z`).toISOString();
-      const endIso = new Date(`${end}T23:59:59.999Z`).toISOString();
-
-      const reportTicketSelect = `
-        id,
-        status,
-        created_at,
-        resolved_at,
-        subject,
-        description,
-        resolution_summary,
-        source,
-        module,
-        issue_type,
-        priority,
-        hospitals!tickets_hospital_id_fkey ( name ),
-        customers!tickets_customer_id_fkey (
-          display_name,
-          hospitals!hospital_id ( name )
-        ),
-        assigned_agent:profiles!assigned_agent_id( display_name:full_name )
-      `;
-
-      const { data, error } = await supabase
-        .from('tickets')
-        .select(reportTicketSelect)
-        .gte('created_at', startIso)
-        .lte('created_at', endIso)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      setTickets(data || []);
+      const res = await fetch(`/api/reports/daily/preview?start=${start}&end=${end}`, { cache: 'no-store' });
+      if (!res.ok) throw new Error(`Failed to load daily preview (${res.status})`);
+      const payload = (await res.json()) as { rows?: DailyPreviewRow[] };
+      setTickets(payload.rows || []);
     } catch (err: any) {
       console.error('Fetch error:', err.message);
+      setTickets([]);
     } finally {
       setLoading(false);
     }
@@ -205,14 +184,13 @@ export default function DailyReportPage() {
     if (filterText) {
       const lower = filterText.toLowerCase();
       result = result.filter(ticket =>
-        getTicketSubjectOnly(ticket).toLowerCase().includes(lower) ||
-        (ticket.description?.toLowerCase().includes(lower)) ||
-        (ticket.customers?.display_name?.toLowerCase().includes(lower)) ||
-        (ticket.hospitals?.name?.toLowerCase().includes(lower)) ||
-        (ticket.customers?.hospitals?.name?.toLowerCase().includes(lower)) ||
-        (ticket.assigned_agent?.display_name?.toLowerCase().includes(lower)) ||
-        (ticket.status?.toLowerCase().includes(lower)) ||
-        (ticket.module?.toLowerCase().includes(lower))
+        ticket.subject_only.toLowerCase().includes(lower) ||
+        ticket.description.toLowerCase().includes(lower) ||
+        ticket.customer_name.toLowerCase().includes(lower) ||
+        ticket.hospital_name.toLowerCase().includes(lower) ||
+        ticket.assignee_name.toLowerCase().includes(lower) ||
+        ticket.status.toLowerCase().includes(lower) ||
+        ticket.module.toLowerCase().includes(lower)
       );
     }
 
@@ -224,17 +202,17 @@ export default function DailyReportPage() {
         switch (sortConfig.key) {
           case 'status': valA = a.status; valB = b.status; break;
           case 'date': valA = a.created_at; valB = b.created_at; break;
-          case 'hospital': valA = a.hospitals?.name || a.customers?.hospitals?.name; valB = b.hospitals?.name || b.customers?.hospitals?.name; break;
-          case 'customer': valA = a.customers?.display_name || a.assigned_agent?.display_name; valB = b.customers?.display_name || b.assigned_agent?.display_name; break;
-          case 'subject': valA = getTicketSubjectOnly(a); valB = getTicketSubjectOnly(b); break;
-          case 'description': valA = a.description || ''; valB = b.description || ''; break;
+          case 'hospital': valA = a.hospital_name; valB = b.hospital_name; break;
+          case 'customer': valA = a.customer_name || a.assignee_name; valB = b.customer_name || b.assignee_name; break;
+          case 'subject': valA = a.subject_only; valB = b.subject_only; break;
+          case 'description': valA = a.description; valB = b.description; break;
           case 'resolution': valA = a.resolution_summary; valB = b.resolution_summary; break;
-          case 'agent': valA = a.assigned_agent?.display_name; valB = b.assigned_agent?.display_name; break;
+          case 'agent': valA = a.assignee_name; valB = b.assignee_name; break;
           case 'source': valA = a.source; valB = b.source; break;
           case 'module': valA = a.module; valB = b.module; break;
           case 'type': valA = a.issue_type; valB = b.issue_type; break;
           case 'resolved_at': valA = a.resolved_at || ''; valB = b.resolved_at || ''; break;
-          case 'duration': valA = getDurationMs(a.created_at, a.resolved_at); valB = getDurationMs(b.created_at, b.resolved_at); break;
+          case 'duration': valA = a.duration_ms; valB = b.duration_ms; break;
           default: valA = a.created_at; valB = b.created_at;
         }
 
@@ -288,10 +266,11 @@ export default function DailyReportPage() {
     setShowPreview(true);
   };
 
-  const executeExport = () => {
+  const executeExport = async () => {
     setIsExporting(true);
     setShowPreview(false);
-    setTimeout(() => {
+    try {
+      const { exportToExcel } = await loadExportUtils();
       const formatData = processedTickets.map(ticket => {
         const createdAt = new Date(ticket.created_at);
         const resolvedAt = ticket.resolved_at ? new Date(ticket.resolved_at) : null;
@@ -299,12 +278,12 @@ export default function DailyReportPage() {
         return {
           [t('reports.columns.status')]: ticket.status === 'Resolved' || ticket.status === 'Closed' ? '✅' : (ticket.status === 'New' ? '⚪' : '🔄'),
           [t('reports.columns.date')]: createdAt.toLocaleDateString('th-TH'),
-          [t('reports.columns.hospital')]: ticket.hospitals?.name || ticket.customers?.hospitals?.name || '-',
-          [t('reports.columns.customer')]: ticket.customers?.display_name || (ticket.assigned_agent ? `👷‍♂️ ${ticket.assigned_agent.display_name}` : '-'),
-          [t('reports.columns.subject')]: getTicketSubjectOnly(ticket),
+          [t('reports.columns.hospital')]: ticket.hospital_name || '-',
+          [t('reports.columns.customer')]: ticket.customer_name || (ticket.assignee_name ? `👷‍♂️ ${ticket.assignee_name}` : '-'),
+          [t('reports.columns.subject')]: ticket.subject_only || '-',
           [t('reports.columns.additionalDetails')]: ticket.description || '-',
           [t('reports.columns.resolution')]: ticket.resolution_summary || '-',
-          [t('reports.columns.assignee')]: ticket.assigned_agent?.display_name || '-',
+          [t('reports.columns.assignee')]: ticket.assignee_name || '-',
           [t('reports.columns.source')]: ticket.source || 'Line กลุ่ม',
           [t('reports.columns.module')]: ticket.module || '-',
           [t('reports.columns.type')]: ticket.issue_type || '-',
@@ -316,11 +295,13 @@ export default function DailyReportPage() {
 
       const rangeStr = dateRange.start === dateRange.end ? dateRange.start : `${dateRange.start}_to_${dateRange.end}`;
       exportToExcel(formatData, `Daily_Issues_${rangeStr}`);
+    } finally {
       setIsExporting(false);
-    }, 500);
+    }
   };
 
-  const executePrint = () => {
+  const executePrint = async () => {
+    const { printDataTable } = await loadExportUtils();
     const formatData = processedTickets.map(ticket => {
       const createdAt = new Date(ticket.created_at);
       const resolvedAt = ticket.resolved_at ? new Date(ticket.resolved_at) : null;
@@ -328,12 +309,12 @@ export default function DailyReportPage() {
       return {
         [t('reports.columns.status')]: ticket.status,
         [t('reports.columns.date')]: createdAt.toLocaleDateString('th-TH'),
-        [t('reports.columns.hospital')]: ticket.hospitals?.name || ticket.customers?.hospitals?.name || '-',
-        [t('reports.columns.customer')]: ticket.customers?.display_name || (ticket.assigned_agent ? ticket.assigned_agent.display_name : '-'),
-        [t('reports.columns.subject')]: getTicketSubjectOnly(ticket),
+        [t('reports.columns.hospital')]: ticket.hospital_name || '-',
+        [t('reports.columns.customer')]: ticket.customer_name || (ticket.assignee_name || '-'),
+        [t('reports.columns.subject')]: ticket.subject_only || '-',
         [t('reports.columns.additionalDetails')]: ticket.description || '-',
         [t('reports.columns.resolution')]: ticket.resolution_summary || '-',
-        [t('reports.columns.assignee')]: ticket.assigned_agent?.display_name || '-',
+        [t('reports.columns.assignee')]: ticket.assignee_name || '-',
         [t('reports.columns.source')]: ticket.source || 'Line',
         [t('reports.columns.module')]: ticket.module || '-',
         [t('reports.columns.type')]: ticket.issue_type || ticket.priority || 'PB',
@@ -525,17 +506,17 @@ export default function DailyReportPage() {
                       {ticket.status === 'Resolved' || ticket.status === 'Closed' ? '✅' : (ticket.status === 'New' ? '⚪' : '🔄')}
                     </td>
                     <td style={{ padding: '12px 16px', ...getColWidth('date') }}>{new Date(ticket.created_at).toLocaleDateString('th-TH')}</td>
-                    <td style={{ padding: '12px 16px', fontWeight: '700', color: 'var(--text-main)', ...getColWidth('hospital') }}>{ticket.hospitals?.name || ticket.customers?.hospitals?.name || '-'}</td>
-                    <td style={{ padding: '12px 16px', ...getColWidth('customer') }}>{ticket.customers?.display_name || (ticket.assigned_agent ? `👷‍♂️ ${ticket.assigned_agent.display_name}` : '-')}</td>
+                    <td style={{ padding: '12px 16px', fontWeight: '700', color: 'var(--text-main)', ...getColWidth('hospital') }}>{ticket.hospital_name || '-'}</td>
+                    <td style={{ padding: '12px 16px', ...getColWidth('customer') }}>{ticket.customer_name || (ticket.assignee_name ? `👷‍♂️ ${ticket.assignee_name}` : '-')}</td>
                     <td style={{ padding: '12px 16px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', ...getColWidth('subject') }}>
                       <AlignLeft size={12} style={{ display: 'inline', marginRight: '6px', opacity: 0.5 }} />
-                      {getTicketSubjectOnly(ticket)}
+                      {ticket.subject_only || '-'}
                     </td>
                     <td style={{ padding: '12px 16px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--text-muted)', ...getColWidth('additionalDetails') }}>
                       {ticket.description || '-'}
                     </td>
                     <td style={{ padding: '12px 16px', color: 'var(--primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: '600', ...getColWidth('resolution') }}>{ticket.resolution_summary || '-'}</td>
-                    <td style={{ padding: '12px 16px', ...getColWidth('assignee') }}>{ticket.assigned_agent?.display_name || '-'}</td>
+                    <td style={{ padding: '12px 16px', ...getColWidth('assignee') }}>{ticket.assignee_name || '-'}</td>
                     <td style={{ padding: '12px 16px', color: 'var(--success)', background: 'var(--primary-transparent)', ...getColWidth('source') }}>{ticket.source || 'Line กลุ่ม'}</td>
                     <td style={{ padding: '12px 16px', fontWeight: '400', ...getColWidth('module') }}>{ticket.module || '-'}</td>
                     <td style={{ padding: '12px 16px', ...getColWidth('type') }}>

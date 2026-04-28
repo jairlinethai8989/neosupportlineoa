@@ -1,7 +1,7 @@
 'use client';
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState, useEffect, useMemo } from 'react';
-import { 
+import {
   Send, 
   Eye, 
   FileText, 
@@ -13,75 +13,77 @@ import {
   Zap,
   BarChart2
 } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
-import { DateTime } from 'luxon';
 import { useStaffLocale } from '@/contexts/StaffLocaleContext';
+import { useAppContext } from '@/contexts/AppContext';
+
+function toYmd(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function formatPreviewDate(ymd: string, locale: 'th' | 'en'): string {
+  const date = new Date(`${ymd}T00:00:00`);
+  const intlLocale = locale === 'th' ? 'th-TH' : 'en-US';
+  return new Intl.DateTimeFormat(intlLocale, {
+    day: '2-digit',
+    month: 'long',
+    year: 'numeric',
+  }).format(date);
+}
+
+type PreviewResponse = {
+  total: number;
+  newProgress: number;
+  resolved: number;
+  hospitalGroups: Record<string, number>;
+};
 
 export default function ReportsPage() {
-  const { t } = useStaffLocale();
+  const { t, locale } = useStaffLocale();
+  const { userProfile } = useAppContext();
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState<string | null>(null);
-  const [targetDate, setTargetDate] = useState(DateTime.now().toFormat('yyyy-MM-dd'));
-  const [tickets, setTickets] = useState<any[]>([]);
-  const [userProfile, setUserProfile] = useState<any>(null);
-
-  // Fetch Session & Permissions
-  useEffect(() => {
-    async function getProfile() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        const { data } = await supabase
-          .from('profiles')
-          .select('id, role, permissions')
-          .eq('id', user.id)
-          .single();
-        setUserProfile(data);
-      }
-    }
-    getProfile();
-  }, []);
+  const [targetDate, setTargetDate] = useState(() => toYmd(new Date()));
+  const [preview, setPreview] = useState<PreviewResponse>({
+    total: 0,
+    newProgress: 0,
+    resolved: 0,
+    hospitalGroups: {},
+  });
 
   const canSend = useMemo(() => {
     if (userProfile?.role === 'Administrator') return true;
     return userProfile?.permissions?.reports === 'edit';
   }, [userProfile]);
 
+  const previewDateLabel = useMemo(() => formatPreviewDate(targetDate, locale), [locale, targetDate]);
+  const ticketUnitLabel = useMemo(() => t('tickets.workspaceDescription').split(' ')[0], [t]);
+
   // Fetch preview data
   const fetchPreview = async () => {
     setLoading(true);
     try {
-      const dt = DateTime.fromISO(targetDate);
-      const start = dt.startOf('day').toISODate();
-      const end = dt.endOf('day').toISO();
-      const startIso = `${start}T00:00:00Z`;
-      const endIso = end || '';
-      const ticketPreviewSelect = 'id, status, created_at, resolved_at, hospitals(name)';
-
-      // Get tickets created today
-      const [{ data: ticketData }, { data: resolvedData }] = await Promise.all([
-        supabase
-          .from('tickets')
-          .select(ticketPreviewSelect)
-          .gte('created_at', startIso)
-          .lte('created_at', endIso)
-          .order('created_at', { ascending: false }),
-        supabase
-          .from('tickets')
-          .select(ticketPreviewSelect)
-          .gte('resolved_at', startIso)
-          .lte('resolved_at', endIso),
-      ]);
-
-      // Merge unique
-      const allIds = new Set(ticketData?.map(t => t.id));
-      const merged = [...(ticketData || [])];
-      resolvedData?.forEach(t => {
-        if (!allIds.has(t.id)) merged.push(t);
+      const res = await fetch(`/api/reports/hub/preview?date=${targetDate}`, { cache: 'no-store' });
+      if (!res.ok) {
+        throw new Error(`Preview API failed (${res.status})`);
+      }
+      const data = (await res.json()) as PreviewResponse;
+      setPreview({
+        total: data.total || 0,
+        newProgress: data.newProgress || 0,
+        resolved: data.resolved || 0,
+        hospitalGroups: data.hospitalGroups || {},
       });
-
-      setTickets(merged);
     } catch (e) {
       console.error(e);
+      setPreview({
+        total: 0,
+        newProgress: 0,
+        resolved: 0,
+        hospitalGroups: {},
+      });
     } finally {
       setLoading(false);
     }
@@ -93,20 +95,17 @@ export default function ReportsPage() {
 
   // Grouping for preview
   const groupedData = useMemo(() => {
-    const stats = {
-      total: tickets.length,
-      newProgress: tickets.filter(t => t.status !== 'Resolved' && t.status !== 'Closed').length,
-      resolved: tickets.filter(t => t.status === 'Resolved' || t.status === 'Closed').length,
-      hospitalGroups: {} as Record<string, number>
+    const normalizedHospitalGroups: Record<string, number> = {};
+    for (const [name, count] of Object.entries(preview.hospitalGroups || {})) {
+      normalizedHospitalGroups[name || t('reports.unspecifiedHospital')] = count;
+    }
+    return {
+      total: preview.total,
+      newProgress: preview.newProgress,
+      resolved: preview.resolved,
+      hospitalGroups: normalizedHospitalGroups,
     };
-
-    tickets.forEach((ticket) => {
-      const hospitalName = ticket.hospitals?.name || t('reports.unspecifiedHospital');
-      stats.hospitalGroups[hospitalName] = (stats.hospitalGroups[hospitalName] || 0) + 1;
-    });
-
-    return stats;
-  }, [tickets, t]);
+  }, [preview, t]);
 
   const handleSendReport = async (set: string) => {
     const reportName = set === '1' ? t('reports.set1Title') : t('reports.set2Title');
@@ -168,7 +167,7 @@ export default function ReportsPage() {
             </div>
              <h3 style={{ fontSize: '16px', fontWeight: '800', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                <Eye size={18} color="var(--primary)" />
-               {t('reports.previewFor')}: {DateTime.fromISO(targetDate).setLocale(t('common.system') === 'System' ? 'en' : 'th').toFormat('dd MMMM yyyy')}
+               {t('reports.previewFor')}: {previewDateLabel}
             </h3>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px' }}>
@@ -204,7 +203,7 @@ export default function ReportsPage() {
                    <div key={name} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', background: 'rgba(255,255,255,0.02)', borderRadius: '10px', border: '1px solid var(--border)' }}>
                       <span style={{ fontSize: '14px', fontWeight: '600' }}>{name}</span>
                        <span style={{ fontSize: '12px', fontWeight: '800', background: 'var(--primary)', color: 'black', padding: '2px 10px', borderRadius: '20px' }}>
-                        {count} {t('tickets.workspaceDescription').split(' ')[0]}
+                        {count} {ticketUnitLabel}
                       </span>
                    </div>
                 ))}
