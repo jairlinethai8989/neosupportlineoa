@@ -1,7 +1,7 @@
 'use client';
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-unused-vars */
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { Suspense, useState, useEffect, useMemo } from 'react';
 import { 
   Users, 
   MessageSquare, 
@@ -15,28 +15,27 @@ import {
   Activity,
   Zap
 } from 'lucide-react';
-import { 
-  ResponsiveContainer,
-  AreaChart, Area,
-  PieChart, Pie, Cell,
-  BarChart, Bar,
-  XAxis, YAxis, CartesianGrid, Tooltip, Legend,
-} from 'recharts';
 import { supabase } from '@/lib/supabase';
-import { exportTickets, printTickets } from '@/lib/utils/exportUtils';
 import Skeleton from '@/components/ui/Skeleton';
 import { useStaffLocale } from '@/contexts/StaffLocaleContext';
 import { useRouter } from 'next/navigation';
 import { ExportPreviewModal, type ExportPreviewData } from '@/components/ui/ExportPreviewModal';
+const DashboardChartsSection = React.lazy(() =>
+  import('@/components/dashboard/DashboardChartsSection').then((module) => ({
+    default: module.DashboardChartsSection,
+  }))
+);
 
-const CHART_COLORS = {
-  primary: '#00f2fe',
-  secondary: '#7367f0',
-  success: '#28c76f',
-  warning: '#ff9f43',
-  danger: '#ea5455',
-  info: '#4facfe',
-};
+type ExportUtilsModule = typeof import('@/lib/utils/exportUtils');
+
+let exportUtilsPromise: Promise<ExportUtilsModule> | null = null;
+
+async function loadExportUtils(): Promise<ExportUtilsModule> {
+  if (!exportUtilsPromise) {
+    exportUtilsPromise = import('@/lib/utils/exportUtils');
+  }
+  return exportUtilsPromise;
+}
 
 const STATUS_COLORS: Record<string, string> = {
   'New': '#00f2fe',
@@ -51,46 +50,6 @@ const PRIORITY_COLORS: Record<string, string> = {
   'High': '#ff9f43',
   'Medium': '#4facfe',
   'Low': '#28c76f',
-};
-
-const CustomTooltip = ({ active, payload, label }: any) => {
-  if (!active || !payload?.length) return null;
-  return (
-    <div style={{
-      background: 'var(--bg-sidebar)',
-      border: '1px solid var(--border)',
-      borderRadius: '12px',
-      padding: '12px 16px',
-      backdropFilter: 'blur(12px)',
-      boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
-    }}>
-      <p style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)', marginBottom: '6px' }}>{label}</p>
-      {payload.map((p: any, i: number) => (
-        <p key={i} style={{ fontSize: '13px', fontWeight: '800', color: p.color || 'var(--primary)' }}>
-          {p.name}: {p.value}
-        </p>
-      ))}
-    </div>
-  );
-};
-
-const PieTooltip = ({ active, payload }: any) => {
-  if (!active || !payload?.length) return null;
-  const d = payload[0];
-  return (
-    <div style={{
-      background: 'var(--bg-sidebar)',
-      border: '1px solid var(--border)',
-      borderRadius: '12px',
-      padding: '12px 16px',
-      backdropFilter: 'blur(12px)',
-      boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
-    }}>
-      <p style={{ fontSize: '13px', fontWeight: '800', color: d.payload?.fill || 'white' }}>
-        {d.name}: {d.value} ใบงาน
-      </p>
-    </div>
-  );
 };
 
 const KPICard = ({ title, value, icon: Icon, color, trend, trendLabel }: any) => (
@@ -184,18 +143,22 @@ export default function Home() {
     setShowExportPreview(true);
   };
 
-  const handleExportDownload = () => {
+  const handleExportDownload = async () => {
     if (!pendingFormat) return;
+    const { exportTickets } = await loadExportUtils();
     exportTickets(tickets, pendingFormat);
     setShowExportPreview(false);
   };
 
-  const handleExportPrint = () => {
+  const handleExportPrint = async () => {
+    const { printTickets } = await loadExportUtils();
     printTickets(tickets, 'Dashboard Tickets Report');
     setShowExportPreview(false);
   };
 
   useEffect(() => {
+    let cancelled = false;
+
     async function fetchDashboard() {
       setIsLoading(true);
       let from: Date, to: Date = new Date();
@@ -214,32 +177,69 @@ export default function Home() {
         to.setHours(23, 59, 59, 999);
       }
 
+      const ticketSelect = `
+        id,
+        ticket_no,
+        subject,
+        status,
+        priority,
+        created_at,
+        resolved_at,
+        updated_at,
+        assigned_to
+      `;
+
       const { data: allTickets } = await supabase
         .from('tickets')
-        .select('*')
+        .select(ticketSelect)
         .gte('created_at', from.toISOString())
         .lte('created_at', to.toISOString());
       
-      if (allTickets) setTickets(allTickets);
+      if (!cancelled && allTickets) setTickets(allTickets);
+      if (!cancelled) setIsLoading(false);
 
-      const { data: logs } = await supabase
+      const ticketLogSelect = `
+        id,
+        ticket_id,
+        action_type,
+        created_at,
+        tickets(ticket_no)
+      `;
+
+      // Logs are secondary for first paint; fetch after primary ticket data renders.
+      void supabase
         .from('ticket_logs')
-        .select(`*, tickets(ticket_no)`)
+        .select(ticketLogSelect)
         .gte('created_at', from.toISOString())
         .lte('created_at', to.toISOString())
         .order('created_at', { ascending: false })
-        .limit(10);
-      if (logs) setRecentLogs(logs);
-      setIsLoading(false);
+        .limit(10)
+        .then(({ data: logs }) => {
+          if (!cancelled && logs) {
+            setRecentLogs(logs);
+          }
+        });
     }
     fetchDashboard();
 
+    let refreshTimer: ReturnType<typeof setTimeout> | null = null;
+    const scheduleRefresh = () => {
+      if (refreshTimer) clearTimeout(refreshTimer);
+      refreshTimer = setTimeout(() => {
+        void fetchDashboard();
+      }, 300);
+    };
+
     const channel = supabase.channel('dashboard-updates')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'tickets' }, fetchDashboard)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'ticket_logs' }, fetchDashboard)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'tickets' }, scheduleRefresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'ticket_logs' }, scheduleRefresh)
       .subscribe();
 
-    return () => { supabase.removeChannel(channel); };
+    return () => {
+      cancelled = true;
+      if (refreshTimer) clearTimeout(refreshTimer);
+      supabase.removeChannel(channel);
+    };
   }, [timeRange, customStart, customEnd]);
 
   // KPI calculations
@@ -579,226 +579,34 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Charts Row 1 — Trend + Status Pie */}
-      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '24px', marginBottom: '24px' }}>
-        {/* 7-Day Trend Area Chart */}
-        <div className="glass" style={{ padding: '24px', display: 'flex', flexDirection: 'column' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-            <div>
-              <h2 style={{ fontSize: '16px', fontWeight: '800', marginBottom: '2px' }}>{t('dashboard.ticketTrend')}</h2>
-              <p style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>TICKET TREND • Last 7 Days</p>
-            </div>
-            <div style={{ display: 'flex', gap: '16px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: CHART_COLORS.primary }} />
-                <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{t('dashboard.newTickets')}</span>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: CHART_COLORS.success }} />
-                <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{t('dashboard.resolved')}</span>
-              </div>
-            </div>
+      <Suspense
+        fallback={
+          <div className="glass" style={{ padding: '24px', minHeight: '420px' }}>
+            <Skeleton width="30%" height={20} marginBottom={24} />
+            <Skeleton width="100%" height={300} />
           </div>
-          <div style={{ flex: 1, minHeight: '280px' }}>
-            <ResponsiveContainer width="100%" height={280}>
-              <AreaChart data={trendData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
-                <defs>
-                  <linearGradient id="gradNew" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor={CHART_COLORS.primary} stopOpacity={0.3}/>
-                    <stop offset="95%" stopColor={CHART_COLORS.primary} stopOpacity={0}/>
-                  </linearGradient>
-                  <linearGradient id="gradResolved" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor={CHART_COLORS.success} stopOpacity={0.3}/>
-                    <stop offset="95%" stopColor={CHART_COLORS.success} stopOpacity={0}/>
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(128,128,128,0.1)" />
-                <XAxis dataKey="label" stroke="var(--text-muted)" fontSize={11} tickLine={false} axisLine={false} />
-                <YAxis stroke="var(--text-muted)" fontSize={11} tickLine={false} axisLine={false} allowDecimals={false} />
-                <Tooltip content={<CustomTooltip />} />
-                <Area 
-                  type="monotone" 
-                  dataKey={t('dashboard.newTickets')} 
-                  stroke={CHART_COLORS.primary} 
-                  strokeWidth={3} 
-                  fillOpacity={1} 
-                  fill="url(#gradNew)" 
-                  dot={{ r: 4, fill: CHART_COLORS.primary, strokeWidth: 2, stroke: '#0a0e14' }}
-                  activeDot={{ r: 6, stroke: CHART_COLORS.primary, strokeWidth: 2, fill: '#0a0e14' }}
-                />
-                <Area 
-                  type="monotone" 
-                  dataKey={t('dashboard.resolved')} 
-                  stroke={CHART_COLORS.success} 
-                  strokeWidth={3} 
-                  fillOpacity={1} 
-                  fill="url(#gradResolved)" 
-                  dot={{ r: 4, fill: CHART_COLORS.success, strokeWidth: 2, stroke: '#0a0e14' }}
-                  activeDot={{ r: 6, stroke: CHART_COLORS.success, strokeWidth: 2, fill: '#0a0e14' }}
-                />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        {/* Status Distribution Donut */}
-        <div className="glass" style={{ padding: '24px', display: 'flex', flexDirection: 'column' }}>
-          <div style={{ marginBottom: '16px' }}>
-            <h2 style={{ fontSize: '16px', fontWeight: '800', marginBottom: '2px' }}>{t('dashboard.statusDistribution')}</h2>
-            <p style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>STATUS DISTRIBUTION</p>
-          </div>
-          <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
-            {statusData.length > 0 ? (
-              <>
-                <ResponsiveContainer width="100%" height={220}>
-                  <PieChart>
-                    <Pie 
-                      data={statusData} 
-                      innerRadius={60} 
-                      outerRadius={85} 
-                      paddingAngle={4} 
-                      dataKey="value"
-                      strokeWidth={0}
-                    >
-                      {statusData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.fill} />
-                      ))}
-                    </Pie>
-                    <Tooltip content={<PieTooltip />} />
-                  </PieChart>
-                </ResponsiveContainer>
-                {/* Center label */}
-                <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -60%)', textAlign: 'center' }}>
-                  <p style={{ fontSize: '28px', fontWeight: '900' }}>{stats.totalAll}</p>
-                  <p style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: '700' }}>{t('dashboard.tabs.all')}</p>
-                </div>
-              </>
-            ) : (
-              <p style={{ color: 'var(--text-muted)', fontSize: '13px' }}>{t('common.messages.noResults')}</p>
-            )}
-          </div>
-          {/* Legend */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '8px' }}>
-            {statusData.map((item, i) => (
-              <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: item.fill }} />
-                  <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{item.name}</span>
-                </div>
-                <span style={{ fontSize: '13px', fontWeight: '800' }}>{item.value}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Charts Row 2 — Priority Bar + Agent Workload + Recent Activity */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '24px' }}>
-        {/* Priority Distribution */}
-        <div className="glass" style={{ padding: '24px', display: 'flex', flexDirection: 'column' }}>
-          <div style={{ marginBottom: '16px' }}>
-            <h2 style={{ fontSize: '16px', fontWeight: '800', marginBottom: '2px' }}>{t('dashboard.priorityBreakdown')}</h2>
-            <p style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>PRIORITY BREAKDOWN</p>
-          </div>
-          <div style={{ flex: 1, minHeight: '220px' }}>
-            {priorityData.length > 0 ? (
-              <ResponsiveContainer width="100%" height={220}>
-                <BarChart data={priorityData} margin={{ top: 5, right: 10, bottom: 5, left: -10 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(128,128,128,0.1)" />
-                  <XAxis dataKey="name" stroke="var(--text-muted)" fontSize={10} tickLine={false} axisLine={false} />
-                  <YAxis stroke="var(--text-muted)" fontSize={10} tickLine={false} axisLine={false} allowDecimals={false} />
-                  <Tooltip content={<CustomTooltip />} />
-                  <Bar dataKey="value" radius={[6, 6, 0, 0]}>
-                    {priorityData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.fill} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            ) : (
-              <div className="flex-center" style={{ height: '220px', color: 'var(--text-muted)', fontSize: '13px' }}>{t('common.messages.noResults')}</div>
-            )}
-          </div>
-        </div>
-
-        {/* Agent Workload */}
-        <div className="glass" style={{ padding: '24px', display: 'flex', flexDirection: 'column' }}>
-          <div style={{ marginBottom: '16px' }}>
-            <h2 style={{ fontSize: '16px', fontWeight: '800', marginBottom: '2px' }}>{t('dashboard.agentWorkload')}</h2>
-            <p style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>AGENT WORKLOAD • TOP 5</p>
-          </div>
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '12px', justifyContent: 'center' }}>
-            {agentData.length > 0 ? agentData.map((agent, idx) => {
-              const maxVal = Math.max(...agentData.map(a => a.value));
-              const pct = maxVal > 0 ? (agent.value / maxVal) * 100 : 0;
-              return (
-                <div key={idx}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                    <span style={{ fontSize: '12px', fontWeight: '600' }}>{agent.name}</span>
-                    <span style={{ fontSize: '12px', fontWeight: '800', color: 'var(--primary)' }}>{agent.value}</span>
-                  </div>
-                  <div style={{ height: '6px', background: 'rgba(255,255,255,0.05)', borderRadius: '3px', overflow: 'hidden' }}>
-                    <div style={{ 
-                      height: '100%', 
-                      width: `${pct}%`, 
-                      background: `linear-gradient(90deg, ${CHART_COLORS.primary}, ${CHART_COLORS.info})`,
-                      borderRadius: '3px',
-                      transition: 'width 0.8s cubic-bezier(0.4, 0, 0.2, 1)'
-                    }} />
-                  </div>
-                </div>
-              );
-            }) : (
-              <p style={{ color: 'var(--text-muted)', fontSize: '13px', textAlign: 'center' }}>{t('common.messages.noResults')}</p>
-            )}
-          </div>
-        </div>
-
-        {/* Recent Activity */}
-        <div className="glass" style={{ padding: '24px', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-          <div style={{ marginBottom: '16px' }}>
-            <h2 style={{ fontSize: '16px', fontWeight: '800', marginBottom: '2px' }}>{t('dashboard.recentActivity')}</h2>
-            <p style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>RECENT ACTIVITY</p>
-          </div>
-          <div style={{ flex: 1, overflowY: 'auto' }}>
-            {recentLogs.length === 0 ? (
-                <p style={{ color: 'var(--text-muted)', textAlign: 'center', marginTop: '40px', fontSize: '13px' }}>{t('common.messages.noResults')}</p>
-            ) : recentLogs.map((log, idx) => (
-              <div key={idx} style={{ 
-                padding: '10px 0', 
-                borderBottom: idx === recentLogs.length - 1 ? 'none' : '1px solid var(--border)',
-                display: 'flex',
-                gap: '12px',
-                alignItems: 'start'
-              }}>
-                <div style={{ 
-                  width: '28px', 
-                  height: '28px', 
-                  borderRadius: '8px', 
-                  background: 'rgba(0, 242, 254, 0.1)', 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  justifyContent: 'center',
-                  flexShrink: 0
-                }}>
-                  <Zap size={12} color="var(--primary)" />
-                </div>
-                <div style={{ minWidth: 0 }}>
-                  <p style={{ fontSize: '13px', fontWeight: '700', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                    #{log.tickets?.ticket_no} — {log.action_type}
-                  </p>
-                  <p style={{ fontSize: '11px', color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                    {log.note || 'อัปเดตสถานะอัตโนมัติ'}
-                  </p>
-                  <p style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '2px' }}>
-                    {new Date(log.created_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', hour12: false })}
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
+        }
+      >
+        <DashboardChartsSection
+          trendData={trendData}
+          statusData={statusData}
+          priorityData={priorityData}
+          agentData={agentData}
+          recentLogs={recentLogs}
+          totalAll={stats.totalAll}
+          labels={{
+            ticketTrend: t('dashboard.ticketTrend'),
+            newTickets: t('dashboard.newTickets'),
+            resolved: t('dashboard.resolved'),
+            statusDistribution: t('dashboard.statusDistribution'),
+            allTab: t('dashboard.tabs.all'),
+            priorityBreakdown: t('dashboard.priorityBreakdown'),
+            agentWorkload: t('dashboard.agentWorkload'),
+            recentActivity: t('dashboard.recentActivity'),
+            noResults: t('common.messages.noResults'),
+          }}
+        />
+      </Suspense>
 
       {previewData && (
         <ExportPreviewModal

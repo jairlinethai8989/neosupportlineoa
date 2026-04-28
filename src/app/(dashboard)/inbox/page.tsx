@@ -7,9 +7,6 @@ import { useStaffLocale } from '@/contexts/StaffLocaleContext';
 import { useRealtimeInbox } from '@/hooks/useRealtimeInbox';
 import { useNotificationContext } from '@/contexts/NotificationContext';
 import { InboxSidebar } from '@/components/inbox/InboxSidebar';
-import { ChatWindow } from '@/components/inbox/ChatWindow';
-import { TicketSidebar } from '@/components/inbox/TicketSidebar';
-import { ResolveTicketModal } from '@/components/inbox/ResolveTicketModal';
 import { useInboxProfileSettings } from '@/hooks/useInboxProfileSettings';
 import { useInboxConversation } from '@/hooks/useInboxConversation';
 import {
@@ -21,6 +18,15 @@ import type { InboxConversation, InboxViewMode } from '@/types/inbox';
 
 const ImageEditorModal = React.lazy(() => import('@/components/modals/ImageEditorModal'));
 const ImageViewerModal = React.lazy(() => import('@/components/modals/ImageViewerModal'));
+const ChatWindow = React.lazy(() =>
+  import('@/components/inbox/ChatWindow').then((module) => ({ default: module.ChatWindow }))
+);
+const TicketSidebar = React.lazy(() =>
+  import('@/components/inbox/TicketSidebar').then((module) => ({ default: module.TicketSidebar }))
+);
+const ResolveTicketModal = React.lazy(() =>
+  import('@/components/inbox/ResolveTicketModal').then((module) => ({ default: module.ResolveTicketModal }))
+);
 
 function hasSelectedConversationChanged(
   prev: InboxConversation | null,
@@ -257,48 +263,49 @@ function InboxContent() {
         }}
       >
         {selectedChat ? (
-          <ChatWindow
-            selectedChat={selectedChat}
-            messages={messages}
-            newMessage={newMessage}
-            setNewMessage={setNewMessage}
-            onSendMessage={handleSendMessage}
-            sending={sending}
-            agent={agent}
-            currentTicket={currentTicket}
-            onClaim={handleClaim}
-            onAttachClick={() => fileInputRef.current?.click()}
-
-            onEditImage={(source: string) => {
-              setViewingImage(source);
-              setEditingImage(source);
-              setIsViewerOpen(true);
-            }}
-            hasMoreMessages={hasMoreMessages}
-            loadingMoreMessages={loadingMoreMessages}
-            onLoadOlderMessages={handleLoadOlderMessages}
-            cannedResponses={personalQuickReplies}
-            showCanned={showCanned}
-            setShowCanned={setShowCanned}
-            onUseCanned={(text: string) => {
-              setNewMessage(text);
-              setShowCanned(false);
-            }}
-            onAddCanned={handleAddCanned}
-            onEditCanned={handleEditCanned}
-            onDeleteCanned={handleDeleteCanned}
-            viewMode={viewMode}
-            setViewMode={setViewMode}
-            onDeleteMessage={async (messageId: string) => {
-              if (confirm(t('common.messages.deleteConfirm'))) {
-                const result = await deleteInboxMessage(messageId);
-                if (!result.success) {
-                  alert(getInboxDeleteFailedMessage(result.error));
+          <Suspense fallback={<div className="flex-center" style={{ flex: 1 }}><Loader2 className="animate-spin" /></div>}>
+            <ChatWindow
+              selectedChat={selectedChat}
+              messages={messages}
+              newMessage={newMessage}
+              setNewMessage={setNewMessage}
+              onSendMessage={handleSendMessage}
+              sending={sending}
+              agent={agent}
+              currentTicket={currentTicket}
+              onClaim={handleClaim}
+              onAttachClick={() => fileInputRef.current?.click()}
+              onEditImage={(source: string) => {
+                setViewingImage(source);
+                setEditingImage(source);
+                setIsViewerOpen(true);
+              }}
+              hasMoreMessages={hasMoreMessages}
+              loadingMoreMessages={loadingMoreMessages}
+              onLoadOlderMessages={handleLoadOlderMessages}
+              cannedResponses={personalQuickReplies}
+              showCanned={showCanned}
+              setShowCanned={setShowCanned}
+              onUseCanned={(text: string) => {
+                setNewMessage(text);
+                setShowCanned(false);
+              }}
+              onAddCanned={handleAddCanned}
+              onEditCanned={handleEditCanned}
+              onDeleteCanned={handleDeleteCanned}
+              viewMode={viewMode}
+              setViewMode={setViewMode}
+              onDeleteMessage={async (messageId: string) => {
+                if (confirm(t('common.messages.deleteConfirm'))) {
+                  const result = await deleteInboxMessage(messageId);
+                  if (!result.success) {
+                    alert(getInboxDeleteFailedMessage(result.error));
+                  }
                 }
-              }
-            }}
-            messagesEndRef={messagesEndRef}
-          />
+              }}
+              messagesEndRef={messagesEndRef}
+            />
+          </Suspense>
         ) : (
           <div
             className="flex-center"
@@ -321,6 +328,7 @@ function InboxContent() {
         style={{ width: '460px', display: 'flex', flexDirection: 'column', gap: '24px' }}
       >
         {selectedChat && (
+          <Suspense fallback={<div className="flex-center" style={{ minHeight: 220 }}><Loader2 className="animate-spin" /></div>}>
           <TicketSidebar
             selectedChat={selectedChat}
             currentTicket={currentTicket}
@@ -342,9 +350,11 @@ function InboxContent() {
               alert('คัดลอกลิงก์ประเมินแล้ว');
             }}
           />
+          </Suspense>
         )}
       </div>
 
+      <Suspense fallback={null}>
       <ResolveTicketModal
         open={showResolveModal}
         currentTicket={currentTicket}
@@ -362,6 +372,7 @@ function InboxContent() {
         onChangeModule={setSelectedModule}
         onChangeIssueType={setSelectedIssueType}
       />
+      </Suspense>
 
       {isViewerOpen && viewingImage && (
         <Suspense fallback={null}>
