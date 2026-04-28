@@ -6,13 +6,20 @@ type CacheEntry<T> = {
 const globalCache = globalThis as typeof globalThis & {
   __reportPreviewCache__?: Map<string, CacheEntry<unknown>>;
   __reportPreviewInflight__?: Map<string, Promise<unknown>>;
+  __reportPreviewVersion__?: number;
 };
 
 const cacheStore = globalCache.__reportPreviewCache__ ?? new Map<string, CacheEntry<unknown>>();
 const inflightStore = globalCache.__reportPreviewInflight__ ?? new Map<string, Promise<unknown>>();
+const cacheVersion = globalCache.__reportPreviewVersion__ ?? 1;
 
 globalCache.__reportPreviewCache__ = cacheStore;
 globalCache.__reportPreviewInflight__ = inflightStore;
+globalCache.__reportPreviewVersion__ = cacheVersion;
+
+export function buildVersionedPreviewCacheKey(baseKey: string): string {
+  return `v${globalCache.__reportPreviewVersion__ || 1}:${baseKey}`;
+}
 
 export async function getOrSetPreviewCache<T>(
   key: string,
@@ -53,4 +60,10 @@ export function readPreviewCache<T>(key: string): T | null {
     return null;
   }
   return cached.value;
+}
+
+export function invalidateAllPreviewCaches() {
+  cacheStore.clear();
+  inflightStore.clear();
+  globalCache.__reportPreviewVersion__ = (globalCache.__reportPreviewVersion__ || 1) + 1;
 }
