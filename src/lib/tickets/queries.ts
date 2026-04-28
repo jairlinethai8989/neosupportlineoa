@@ -17,7 +17,8 @@ export const ticketWorkspaceConversationSelect = `
   id,
   customer_id,
   current_ticket_id,
-  status
+  status,
+  last_message_at
 `;
 
 export const ticketWorkspaceTicketSelect = `
@@ -33,7 +34,7 @@ export const ticketWorkspaceTicketSelect = `
   hospital_id,
   current_department_id,
   hospitals!tickets_hospital_id_fkey (id, name),
-  customers!tickets_customer_id_fkey (id, display_name, full_name, line_username),
+  customers!tickets_customer_id_fkey (id, display_name),
   assigned_agent:profiles!assigned_agent_id (id, display_name:full_name),
   department_data:departments!current_department_id (id, name)
 `;
@@ -51,13 +52,26 @@ export const ticketWorkspaceCompanySettingsSelect = `
   issue_types
 `;
 
-export async function listTicketWorkspaceConversations(): Promise<TicketWorkspaceConversation[]> {
-  const { data, error } = await supabase
+export async function listTicketWorkspaceConversations(input?: {
+  limit?: number;
+  status?: 'active' | 'closed';
+}): Promise<TicketWorkspaceConversation[]> {
+  const limit = Math.max(1, Math.min(input?.limit || 100, 300));
+  let query = supabase
     .from('conversations')
     .select(ticketWorkspaceConversationSelect)
     .order('last_message_at', { ascending: false })
-    .limit(100);
+    .limit(limit);
 
+  if (input?.status === 'active') {
+    query = query.or(
+      'status.ilike.active,status.ilike.open,status.ilike.new,status.ilike.in progress,status.ilike.in_progress,is_active.eq.true'
+    );
+  } else if (input?.status === 'closed') {
+    query = query.in('status', ['closed', 'resolved', 'done']);
+  }
+
+  const { data, error } = await query;
   if (error) throw error;
   return normalizeTicketWorkspaceConversations(data || []);
 }
@@ -66,12 +80,19 @@ export async function listTicketWorkspaceTickets(input: {
   fromIso?: string;
   toIso?: string;
   limit?: number;
+  cursorCreatedAt?: string;
 }): Promise<TicketWorkspaceTicket[]> {
+  const limit = Math.max(1, Math.min(input.limit || 120, 200));
   let query = supabase
     .from('tickets')
     .select(ticketWorkspaceTicketSelect)
     .order('created_at', { ascending: false })
-    .limit(input.limit || 120);
+    .order('id', { ascending: false })
+    .limit(limit);
+
+  if (input.cursorCreatedAt) {
+    query = query.lt('created_at', input.cursorCreatedAt);
+  }
 
   if (input.fromIso && input.toIso) {
     // Persistent statuses that show regardless of date

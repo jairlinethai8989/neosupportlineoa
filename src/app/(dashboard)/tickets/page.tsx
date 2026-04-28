@@ -1,7 +1,7 @@
 'use client';
 import React, { Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { Loader2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import { ResolveTicketModal } from '@/components/inbox/ResolveTicketModal';
 import { TicketsBoard } from '@/components/tickets/TicketsBoard';
 import { TicketsTable } from '@/components/tickets/TicketsTable';
@@ -31,8 +31,31 @@ const pageContainerStyle: React.CSSProperties = {
   position: 'relative',
 };
 
+const paginationWrapStyle: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: '12px',
+  padding: '8px 24px 20px',
+};
+
+const paginationButtonStyle: React.CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: '6px',
+  height: '34px',
+  padding: '0 12px',
+  borderRadius: '10px',
+  border: '1px solid var(--border)',
+  background: 'var(--bg-card)',
+  color: 'var(--text-main)',
+  fontSize: '12px',
+  fontWeight: 700,
+  cursor: 'pointer',
+};
+
 function TicketsContent() {
-  const { t } = useStaffLocale();
+  const { locale, t } = useStaffLocale();
   const searchParams = useSearchParams();
   const filterCustomerId = searchParams.get('customerId');
 
@@ -71,7 +94,15 @@ function TicketsContent() {
     timeRange,
     viewMode,
     isChatActive,
+    ticketPage,
+    hasNextTicketPage,
+    goToNextTicketPage,
+    goToPreviousTicketPage,
   } = useTicketWorkspace(filterCustomerId);
+
+  const previousLabel = locale === 'th' ? 'ก่อนหน้า' : 'Previous';
+  const nextLabel = locale === 'th' ? 'ถัดไป' : 'Next';
+  const pageLabel = locale === 'th' ? 'หน้า' : 'Page';
 
   if (loading) {
     return (
@@ -117,6 +148,40 @@ function TicketsContent() {
           sortConfig={sortConfig}
         />
       )}
+
+      <div style={paginationWrapStyle}>
+        <button
+          type="button"
+          onClick={goToPreviousTicketPage}
+          disabled={ticketPage <= 1 || loading}
+          style={{
+            ...paginationButtonStyle,
+            opacity: ticketPage <= 1 || loading ? 0.45 : 1,
+            cursor: ticketPage <= 1 || loading ? 'not-allowed' : 'pointer',
+          }}
+        >
+          <ChevronLeft size={14} />
+          {previousLabel}
+        </button>
+
+        <div style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: 700 }}>
+          {pageLabel} {ticketPage}
+        </div>
+
+        <button
+          type="button"
+          onClick={goToNextTicketPage}
+          disabled={!hasNextTicketPage || loading}
+          style={{
+            ...paginationButtonStyle,
+            opacity: !hasNextTicketPage || loading ? 0.45 : 1,
+            cursor: !hasNextTicketPage || loading ? 'not-allowed' : 'pointer',
+          }}
+        >
+          {nextLabel}
+          <ChevronRight size={14} />
+        </button>
+      </div>
 
       <ResolveTicketModal
         open={showResolveModal}

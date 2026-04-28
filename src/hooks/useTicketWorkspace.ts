@@ -42,6 +42,7 @@ const DEFAULT_MODULES = [
   'All',
 ];
 const WORKSPACE_TICKETS_FETCH_LIMIT = 120;
+const WORKSPACE_TICKETS_PAGE_SIZE = 40;
 
 function isTicketWithinWorkspaceRange(
   ticket: Pick<TicketWorkspaceTicket, 'created_at'>,
@@ -188,6 +189,9 @@ export function useTicketWorkspace(filterCustomerId: string | null) {
     key: 'created_at',
     direction: 'desc',
   });
+  const [ticketPage, setTicketPage] = useState(1);
+  const [hasNextTicketPage, setHasNextTicketPage] = useState(false);
+  const ticketCursorByPageRef = useRef<Map<number, string | null>>(new Map([[1, null]]));
   const pendingRealtimeTicketIdsRef = useRef<Map<string, number>>(new Map());
 
   const isViewOnly =
@@ -199,9 +203,15 @@ export function useTicketWorkspace(filterCustomerId: string | null) {
     if (!isSilent) setLoading(true);
 
     const { fromIso, toIso } = getTicketWorkspaceDateRange(timeRange, customStart, customEnd);
+    const cursorCreatedAt = ticketCursorByPageRef.current.get(ticketPage) || undefined;
     const [conversationResult, ticketResult] = await Promise.allSettled([
-      listTicketWorkspaceConversations(),
-      listTicketWorkspaceTickets({ fromIso, toIso, limit: WORKSPACE_TICKETS_FETCH_LIMIT }),
+      listTicketWorkspaceConversations({ status: 'active', limit: WORKSPACE_TICKETS_FETCH_LIMIT }),
+      listTicketWorkspaceTickets({
+        fromIso,
+        toIso,
+        limit: WORKSPACE_TICKETS_PAGE_SIZE + 1,
+        cursorCreatedAt,
+      }),
     ]);
 
     const errors: string[] = [];
@@ -218,6 +228,16 @@ export function useTicketWorkspace(filterCustomerId: string | null) {
     }
 
     if (ticketResult.status === 'fulfilled') {
+      const pageTickets = ticketResult.value.slice(0, WORKSPACE_TICKETS_PAGE_SIZE);
+      const hasNext = ticketResult.value.length > WORKSPACE_TICKETS_PAGE_SIZE;
+      const nextCursorSource = pageTickets[pageTickets.length - 1];
+      setHasNextTicketPage(hasNext);
+      if (hasNext && nextCursorSource?.created_at) {
+        ticketCursorByPageRef.current.set(ticketPage + 1, nextCursorSource.created_at);
+      } else {
+        ticketCursorByPageRef.current.delete(ticketPage + 1);
+      }
+
       const now = Date.now();
       for (const [ticketId, expiresAt] of pendingRealtimeTicketIdsRef.current.entries()) {
         if (expiresAt <= now) {
@@ -230,7 +250,7 @@ export function useTicketWorkspace(filterCustomerId: string | null) {
         setTickets((previousTickets) =>
           mergeWorkspaceTicketsForSilentRefresh(
             previousTickets,
-            ticketResult.value,
+            pageTickets,
             pendingRealtimeTicketIds,
             timeRange,
             customStart,
@@ -238,7 +258,7 @@ export function useTicketWorkspace(filterCustomerId: string | null) {
           )
         );
       } else {
-        setTickets(ticketResult.value);
+        setTickets(pageTickets);
       }
     } else {
       console.error('Fetch tickets error:', ticketResult.reason);
@@ -254,7 +274,7 @@ export function useTicketWorkspace(filterCustomerId: string | null) {
     }
 
     if (!isSilent) setLoading(false);
-  }, [customEnd, customStart, timeRange]);
+  }, [customEnd, customStart, ticketPage, timeRange]);
 
   const syncTicketFromRealtime = useCallback(
     async (ticketId: string, fallbackValue?: unknown) => {
@@ -262,7 +282,7 @@ export function useTicketWorkspace(filterCustomerId: string | null) {
       const fallbackTicket = normalizeTicketWorkspaceTicket(fallbackValue);
       pendingRealtimeTicketIdsRef.current.set(ticketId, Date.now() + 15000);
       // Guarantee any new realtime ticket defaults to 'New' if status is mysteriously missing
-      if (fallbackTicket) {
+      if (fallbackTicket && ticketPage === 1) {
         if (!fallbackTicket.status) fallbackTicket.status = 'New';
         setTickets((previousTickets) => upsertWorkspaceTicket(previousTickets, fallbackTicket));
       }
@@ -280,10 +300,18 @@ export function useTicketWorkspace(filterCustomerId: string | null) {
           }
         }
 
-        if (latestTicket && isTicketWithinWorkspaceRange(latestTicket, timeRange, customStart, customEnd)) {
+        if (
+          latestTicket &&
+          ticketPage === 1 &&
+          isTicketWithinWorkspaceRange(latestTicket, timeRange, customStart, customEnd)
+        ) {
           pendingRealtimeTicketIdsRef.current.delete(ticketId);
           setTickets((previousTickets) => upsertWorkspaceTicket(previousTickets, latestTicket));
-        } else if (latestTicket && !isTicketWithinWorkspaceRange(latestTicket, timeRange, customStart, customEnd)) {
+        } else if (
+          latestTicket &&
+          ticketPage === 1 &&
+          !isTicketWithinWorkspaceRange(latestTicket, timeRange, customStart, customEnd)
+        ) {
           // If the real ticket is somehow out of range, remove the optimistic one
           pendingRealtimeTicketIdsRef.current.delete(ticketId);
           setTickets((previousTickets) =>
@@ -295,7 +323,7 @@ export function useTicketWorkspace(filterCustomerId: string | null) {
         setDebugError(error instanceof Error ? error.message : 'Realtime ticket sync failed');
       }
     },
-    [customEnd, customStart, timeRange]
+    [customEnd, customStart, ticketPage, timeRange]
   );
 
   const loadSettings = useCallback(async () => {
@@ -312,6 +340,12 @@ export function useTicketWorkspace(filterCustomerId: string | null) {
       setSettingsLoaded(true);
     }
   }, [settingsLoaded]);
+
+  useEffect(() => {
+    setTicketPage(1);
+    setHasNextTicketPage(false);
+    ticketCursorByPageRef.current = new Map([[1, null]]);
+  }, [timeRange, customStart, customEnd, filterCustomerId]);
 
   useEffect(() => {
     async function fetchUserProfile() {
@@ -418,24 +452,42 @@ export function useTicketWorkspace(filterCustomerId: string | null) {
     return result;
   }, [filterCustomerId, searchTerm, sortConfig, tickets]);
 
+  const conversationByTicketId = useMemo(() => {
+    const map = new Map<string, TicketWorkspaceConversation>();
+    for (const conversation of conversations) {
+      if (conversation.current_ticket_id) {
+        map.set(conversation.current_ticket_id, conversation);
+      }
+    }
+    return map;
+  }, [conversations]);
+
+  const activeConversationByCustomerId = useMemo(() => {
+    const map = new Map<string, TicketWorkspaceConversation>();
+    for (const conversation of conversations) {
+      if (!conversation.customer_id) continue;
+      const normalizedStatus = String(conversation.status || '').toLowerCase();
+      const isActiveLike = ['active', 'open', 'new', 'pending'].includes(normalizedStatus);
+      if (!isActiveLike) continue;
+      if (!conversation.current_ticket_id) {
+        map.set(conversation.customer_id, conversation);
+      }
+    }
+    return map;
+  }, [conversations]);
+
   const getConvId = useCallback(
     (ticket: TicketWorkspaceTicket) => {
-      const linked = conversations.find((conversation) => conversation.current_ticket_id === ticket.id);
+      const linked = conversationByTicketId.get(ticket.id);
       if (linked) return linked.id;
 
-      // STRICT: Only fallback if it's explicitly for this customer and HAS NO OTHER TICKET linked
-      // This prevents multi-ticket overlap
-      const activeForCustomerOnly = conversations.find(
-        (conversation) =>
-          conversation.customer_id === ticket.customer_id &&
-          conversation.status === 'active' &&
-          (!conversation.current_ticket_id || conversation.current_ticket_id === ticket.id)
-      );
+      if (!ticket.customer_id) return undefined;
+      const activeForCustomerOnly = activeConversationByCustomerId.get(ticket.customer_id);
       if (activeForCustomerOnly) return activeForCustomerOnly.id;
 
       return undefined;
     },
-    [conversations]
+    [activeConversationByCustomerId, conversationByTicketId]
   );
 
   const openResolveModal = useCallback((ticket: TicketWorkspaceTicket) => {
@@ -547,15 +599,21 @@ export function useTicketWorkspace(filterCustomerId: string | null) {
     [sortConfig.direction, sortConfig.key]
   );
 
+  const goToNextTicketPage = useCallback(() => {
+    if (!hasNextTicketPage) return;
+    setTicketPage((current) => current + 1);
+  }, [hasNextTicketPage]);
+
+  const goToPreviousTicketPage = useCallback(() => {
+    setTicketPage((current) => Math.max(1, current - 1));
+  }, []);
+
   const isChatActive = useMemo(() => {
-    if (!resolvingTicket || !conversations.length) return false;
-    return conversations.some(
-      (conversation) =>
-        (conversation.current_ticket_id === resolvingTicket.id ||
-          conversation.customer_id === resolvingTicket.customer_id) &&
-        ['active', 'open', 'new', 'pending'].includes((conversation.status || '').toLowerCase())
-    );
-  }, [resolvingTicket, conversations]);
+    if (!resolvingTicket) return false;
+    if (conversationByTicketId.has(resolvingTicket.id)) return true;
+    if (!resolvingTicket.customer_id) return false;
+    return activeConversationByCustomerId.has(resolvingTicket.customer_id);
+  }, [activeConversationByCustomerId, conversationByTicketId, resolvingTicket]);
 
   return {
     availableIssueTypes,
@@ -593,5 +651,9 @@ export function useTicketWorkspace(filterCustomerId: string | null) {
     userProfile,
     viewMode,
     isChatActive,
+    ticketPage,
+    hasNextTicketPage,
+    goToNextTicketPage,
+    goToPreviousTicketPage,
   };
 }

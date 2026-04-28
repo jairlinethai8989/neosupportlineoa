@@ -16,7 +16,12 @@ import type {
 } from '@/types/inbox';
 
 export const inboxConversationSelect = `
-  *,
+  id,
+  status,
+  last_message_at,
+  customer_id,
+  current_ticket_id,
+  is_active,
   customers (id, display_name, line_user_id),
   ticket_data:current_ticket_id (
     id,
@@ -78,7 +83,7 @@ export async function listInboxConversations(limit = 100): Promise<InboxConversa
 export async function listInboxConversationsFallback(limit = 100): Promise<InboxConversation[]> {
   const { data, error } = await supabase
     .from('conversations')
-    .select('*')
+    .select(inboxConversationSelect)
     .order('last_message_at', { ascending: false })
     .limit(limit);
 
@@ -90,6 +95,7 @@ export async function listInboxConversationsV2(input: {
   status?: 'active' | 'closed';
   page?: number;
   pageSize?: number;
+  includeCount?: boolean;
   startDate?: string | null;
   endDate?: string | null;
   search?: string;
@@ -103,9 +109,10 @@ export async function listInboxConversationsV2(input: {
   const activeStatusFilter =
     'status.ilike.active,status.ilike.open,status.ilike.new,status.ilike.in progress,status.ilike.in_progress,is_active.eq.true';
 
+  const selectOptions = input.includeCount === false ? undefined : { count: 'exact' as const };
   const { data, error, count } = await supabase
     .from('conversations')
-    .select(inboxConversationSelect, { count: 'exact' })
+    .select(inboxConversationSelect, selectOptions)
     .or(activeStatusFilter)
     .order('last_message_at', { ascending: false, nullsFirst: false })
     .range(from, to);
@@ -115,7 +122,7 @@ export async function listInboxConversationsV2(input: {
     // Safe fallback query to prevent empty inbox on transient select/schema mismatch.
     const { data: fallbackData, count: fallbackCount, error: fallbackError } = await supabase
       .from('conversations')
-      .select('*', { count: 'exact' })
+      .select(inboxConversationSelect, selectOptions)
       .or(activeStatusFilter)
       .order('last_message_at', { ascending: false, nullsFirst: false })
       .range(from, to);

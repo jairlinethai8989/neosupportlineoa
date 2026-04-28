@@ -63,7 +63,8 @@ export function useRealtimeInbox(options: {
       const { data, count } = await listInboxConversationsV2({
         status: 'active',
         page,
-        pageSize
+        pageSize,
+        includeCount: !opts.silent,
       });
 
       if (data.length === 0) {
@@ -78,7 +79,9 @@ export function useRealtimeInbox(options: {
       }
 
       setConversations(data);
-      setTotalCount(count);
+      if (!opts.silent) {
+        setTotalCount(count);
+      }
     } catch (error) {
       console.error('Fetch Inbox Error:', error);
       try {
