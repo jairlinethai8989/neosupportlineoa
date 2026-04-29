@@ -156,7 +156,7 @@ export const TicketSidebar: React.FC<TicketSidebarProps> = ({
                    opacity: (isProcessing || (isEscalatedOrPending && !!activeMagicLink)) ? 0.6 : 1
                 }}
              >
-                {isProcessing ? <Loader2 size={18} className="animate-spin" /> : <><AlertTriangle size={16} /> Escalate</>}
+                {isProcessing ? <Loader2 size={18} className="animate-spin" /> : <><AlertTriangle size={16} /> ส่งต่อ (Escalate)</>}
              </button>
 
              <button 
@@ -194,7 +194,7 @@ export const TicketSidebar: React.FC<TicketSidebarProps> = ({
                    opacity: (isProcessing || (isEscalatedOrPending && !!activeMagicLink)) ? 0.6 : 1
                 }}
              >
-                {isProcessing ? <Loader2 size={18} className="animate-spin" /> : <><Hourglass size={16} /> Pending</>}
+                {isProcessing ? <Loader2 size={18} className="animate-spin" /> : <><Hourglass size={16} /> ติดปัญหา (Pending)</>}
              </button>
           </div>
 
