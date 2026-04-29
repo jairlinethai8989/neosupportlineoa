@@ -13,6 +13,7 @@ import {
   getInboxDeleteFailedMessage,
   getInboxUploadFailedMessage,
 } from '@/lib/inbox/feedback';
+import { getInboxConversationById } from '@/lib/inbox/queries';
 import { deleteInboxMessage, uploadInboxChatMedia } from '@/lib/inbox/mutations';
 import type { InboxConversation, InboxViewMode } from '@/types/inbox';
 
@@ -63,6 +64,7 @@ function InboxContent() {
   const [viewingImage, setViewingImage] = useState('');
   const [editingImage, setEditingImage] = useState('');
   const [page, setPage] = useState(1);
+  const lastHydratedCidRef = React.useRef<string | null>(null);
 
   const { conversations, hasNextPage, loading: inboxLoading } = useRealtimeInbox({
     page,
@@ -155,15 +157,38 @@ function InboxContent() {
   };
 
   useEffect(() => {
-    if (cid && conversations.length > 0) {
-      const target = conversations.find((conversation) => conversation.id === cid);
-      if (target) {
-        setSelectedChat(target);
+    if (!cid) return;
+
+    const target = conversations.find((conversation) => conversation.id === cid);
+    if (target) {
+      setSelectedChat(target);
+      if (window.innerWidth <= 1000) {
+        setViewMode('chat');
+      }
+      lastHydratedCidRef.current = cid;
+      return;
+    }
+
+    if (lastHydratedCidRef.current === cid) return;
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const fetched = await getInboxConversationById(cid);
+        if (!fetched || cancelled) return;
+        setSelectedChat(fetched);
         if (window.innerWidth <= 1000) {
           setViewMode('chat');
         }
+        lastHydratedCidRef.current = cid;
+      } catch (error) {
+        console.error('Failed to hydrate inbox conversation by cid:', error);
       }
-    }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [cid, conversations]);
 
   useEffect(() => {
