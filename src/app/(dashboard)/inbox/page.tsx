@@ -64,7 +64,7 @@ function InboxContent() {
   const [editingImage, setEditingImage] = useState('');
   const [page, setPage] = useState(1);
 
-  const { conversations, totalPages, loading: inboxLoading } = useRealtimeInbox({
+  const { conversations, hasNextPage, loading: inboxLoading } = useRealtimeInbox({
     page,
     pageSize: 20
   });
@@ -167,6 +167,12 @@ function InboxContent() {
   }, [cid, conversations]);
 
   useEffect(() => {
+    if (!inboxLoading && conversations.length === 0 && page > 1) {
+      setPage(1);
+    }
+  }, [conversations.length, inboxLoading, page]);
+
+  useEffect(() => {
     setSelectedChat((prev) => {
       if (!prev) return prev;
 
@@ -246,7 +252,7 @@ function InboxContent() {
         }}
         viewMode={viewMode}
         currentPage={page}
-        totalPages={totalPages}
+        hasNextPage={hasNextPage}
         onPageChange={setPage}
       />
 

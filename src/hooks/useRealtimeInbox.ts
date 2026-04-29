@@ -50,9 +50,12 @@ export function useRealtimeInbox(options: {
   } = options;
 
   const [conversations, setConversations] = useState<InboxConversation[]>([]);
-  const [totalCount, setTotalCount] = useState(0);
+  const [hasNextPage, setHasNextPage] = useState(false);
   const [loading, setLoading] = useState(true);
   const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const cursorByPageRef = useRef<Map<number, { lastMessageAt: string; id: string } | null>>(
+    new Map([[1, null]])
+  );
 
   const fetchConversations = useCallback(async (opts: { silent?: boolean } = {}) => {
     if (!opts.silent) {
@@ -60,11 +63,12 @@ export function useRealtimeInbox(options: {
     }
 
     try {
-      const { data, count } = await listInboxConversationsV2({
+      const cursor = cursorByPageRef.current.get(page) || undefined;
+      const { data, hasNext, nextCursor } = await listInboxConversationsV2({
         status: 'active',
-        page,
         pageSize,
-        includeCount: !opts.silent,
+        cursorLastMessageAt: cursor?.lastMessageAt || null,
+        cursorId: cursor?.id || null,
       });
 
       if (data.length === 0) {
@@ -73,14 +77,17 @@ export function useRealtimeInbox(options: {
         const activeFallback = fallback.filter(isConversationActiveLike);
         if (activeFallback.length > 0) {
           setConversations(sortConversations(activeFallback));
-          setTotalCount(Math.max(count, activeFallback.length));
+          setHasNextPage(false);
           return;
         }
       }
 
       setConversations(data);
-      if (!opts.silent) {
-        setTotalCount(count);
+      setHasNextPage(hasNext);
+      if (hasNext && nextCursor) {
+        cursorByPageRef.current.set(page + 1, nextCursor);
+      } else {
+        cursorByPageRef.current.delete(page + 1);
       }
     } catch (error) {
       console.error('Fetch Inbox Error:', error);
@@ -88,7 +95,7 @@ export function useRealtimeInbox(options: {
         const fallback = await listInboxConversations(pageSize);
         const activeFallback = fallback.filter(isConversationActiveLike);
         setConversations(sortConversations(activeFallback));
-        setTotalCount(activeFallback.length);
+        setHasNextPage(false);
       } catch (fallbackError) {
         console.error('Fetch Inbox Fallback Error:', fallbackError);
       }
@@ -107,6 +114,12 @@ export function useRealtimeInbox(options: {
       void fetchConversations({ silent: true });
     }, delayMs);
   }, [fetchConversations]);
+
+  useEffect(() => {
+    if (page === 1 && cursorByPageRef.current.get(1) !== null) {
+      cursorByPageRef.current = new Map([[1, null]]);
+    }
+  }, [pageSize]);
 
   useEffect(() => {
     void fetchConversations();
@@ -133,7 +146,6 @@ export function useRealtimeInbox(options: {
 
           if (eventType === 'DELETE') {
             setConversations((current) => current.filter((conversation) => conversation.id !== rowId));
-            setTotalCount((current) => Math.max(current - 1, 0));
             scheduleRefresh(1200);
             return;
           }
@@ -151,10 +163,6 @@ export function useRealtimeInbox(options: {
               }
               return upsertConversation(current, latestConversation, pageSize);
             });
-
-            if (eventType === 'INSERT' && isConversationActiveLike(latestConversation)) {
-              setTotalCount((current) => current + 1);
-            }
 
             // Reconcile pagination counts and ordering from server state.
             scheduleRefresh(1200);
@@ -176,9 +184,8 @@ export function useRealtimeInbox(options: {
 
   return {
     conversations,
-    totalCount,
+    hasNextPage,
     loading,
     refresh: fetchConversations,
-    totalPages: Math.ceil(totalCount / pageSize)
   };
 }

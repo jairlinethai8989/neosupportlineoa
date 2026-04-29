@@ -31,6 +31,21 @@ export const ticketWorkspaceTicketSelect = `
   created_at,
   module,
   issue_type,
+  hospitals!tickets_hospital_id_fkey (id, name),
+  customers!tickets_customer_id_fkey (id, display_name),
+  assigned_agent:profiles!assigned_agent_id (id, display_name:full_name)
+`;
+
+export const ticketWorkspaceTicketDetailSelect = `
+  id,
+  ticket_no,
+  customer_id,
+  subject,
+  status,
+  priority,
+  created_at,
+  module,
+  issue_type,
   hospital_id,
   current_department_id,
   hospitals!tickets_hospital_id_fkey (id, name),
@@ -76,11 +91,28 @@ export async function listTicketWorkspaceConversations(input?: {
   return normalizeTicketWorkspaceConversations(data || []);
 }
 
+export async function listTicketWorkspaceConversationsByTicketIds(
+  ticketIds: string[]
+): Promise<TicketWorkspaceConversation[]> {
+  if (ticketIds.length === 0) return [];
+
+  const { data, error } = await supabase
+    .from('conversations')
+    .select(ticketWorkspaceConversationSelect)
+    .in('current_ticket_id', ticketIds)
+    .order('last_message_at', { ascending: false })
+    .limit(Math.max(20, ticketIds.length * 2));
+
+  if (error) throw error;
+  return normalizeTicketWorkspaceConversations(data || []);
+}
+
 export async function listTicketWorkspaceTickets(input: {
   fromIso?: string;
   toIso?: string;
   limit?: number;
   cursorCreatedAt?: string;
+  cursorId?: string;
 }): Promise<TicketWorkspaceTicket[]> {
   const limit = Math.max(1, Math.min(input.limit || 120, 200));
   let query = supabase
@@ -90,7 +122,11 @@ export async function listTicketWorkspaceTickets(input: {
     .order('id', { ascending: false })
     .limit(limit);
 
-  if (input.cursorCreatedAt) {
+  if (input.cursorCreatedAt && input.cursorId) {
+    query = query.or(
+      `created_at.lt.${input.cursorCreatedAt},and(created_at.eq.${input.cursorCreatedAt},id.lt.${input.cursorId})`
+    );
+  } else if (input.cursorCreatedAt) {
     query = query.lt('created_at', input.cursorCreatedAt);
   }
 
@@ -154,7 +190,7 @@ export async function getTicketWorkspaceTicketById(
 ): Promise<TicketWorkspaceTicket | null> {
   const { data, error } = await supabase
     .from('tickets')
-    .select(ticketWorkspaceTicketSelect)
+    .select(ticketWorkspaceTicketDetailSelect)
     .eq('id', ticketId)
     .single();
 

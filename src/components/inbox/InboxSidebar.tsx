@@ -10,7 +10,7 @@ interface InboxSidebarProps {
   onSelectChat: (chat: InboxConversation) => void;
   viewMode: InboxViewMode;
   currentPage: number;
-  totalPages: number;
+  hasNextPage: boolean;
   onPageChange: (page: number) => void;
 }
 
@@ -28,7 +28,7 @@ export const InboxSidebar: React.FC<InboxSidebarProps> = ({
   onSelectChat,
   viewMode,
   currentPage,
-  totalPages,
+  hasNextPage,
   onPageChange,
 }) => {
   const { t } = useStaffLocale();
@@ -186,7 +186,7 @@ export const InboxSidebar: React.FC<InboxSidebarProps> = ({
         )}
       </div>
 
-      {(totalPages > 1 || conversations.length > 0) && (
+      {(hasNextPage || currentPage > 1 || conversations.length > 0) && (
         <div
           style={{
             padding: '12px 24px',
@@ -198,7 +198,7 @@ export const InboxSidebar: React.FC<InboxSidebarProps> = ({
           }}
         >
           <span style={{ fontSize: '12px', color: 'var(--text-dim)', fontWeight: '700' }}>
-            หน้า {currentPage} / {totalPages || 1}
+            หน้า {currentPage}
           </span>
           <div style={{ display: 'flex', gap: '8px' }}>
             <button
@@ -216,15 +216,15 @@ export const InboxSidebar: React.FC<InboxSidebarProps> = ({
               <ChevronLeft size={16} />
             </button>
             <button
-              disabled={currentPage >= totalPages}
+              disabled={!hasNextPage}
               onClick={() => onPageChange(currentPage + 1)}
               style={{
                 padding: '8px',
                 borderRadius: '8px',
                 background: 'var(--bg-input)',
                 border: '1px solid var(--border)',
-                color: currentPage >= totalPages ? 'var(--text-muted)' : 'var(--text-main)',
-                cursor: currentPage >= totalPages ? 'not-allowed' : 'pointer',
+                color: !hasNextPage ? 'var(--text-muted)' : 'var(--text-main)',
+                cursor: !hasNextPage ? 'not-allowed' : 'pointer',
               }}
             >
               <ChevronRight size={16} />

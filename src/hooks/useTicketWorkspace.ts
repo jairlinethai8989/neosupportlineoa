@@ -19,7 +19,7 @@ import {
   getTicketWorkspaceProfile,
   getTicketWorkspaceTicketById,
   getTicketWorkspaceUser,
-  listTicketWorkspaceConversations,
+  listTicketWorkspaceConversationsByTicketIds,
   listTicketWorkspaceTickets,
 } from '@/lib/tickets/queries';
 import type {
@@ -41,8 +41,8 @@ const DEFAULT_MODULES = [
   'Consultation',
   'All',
 ];
-const WORKSPACE_TICKETS_FETCH_LIMIT = 120;
 const WORKSPACE_TICKETS_PAGE_SIZE = 40;
+type TicketCursor = { createdAt: string; id: string } | null;
 
 function isTicketWithinWorkspaceRange(
   ticket: Pick<TicketWorkspaceTicket, 'created_at'>,
@@ -191,7 +191,7 @@ export function useTicketWorkspace(filterCustomerId: string | null) {
   });
   const [ticketPage, setTicketPage] = useState(1);
   const [hasNextTicketPage, setHasNextTicketPage] = useState(false);
-  const ticketCursorByPageRef = useRef<Map<number, string | null>>(new Map([[1, null]]));
+  const ticketCursorByPageRef = useRef<Map<number, TicketCursor>>(new Map([[1, null]]));
   const pendingRealtimeTicketIdsRef = useRef<Map<string, number>>(new Map());
 
   const isViewOnly =
@@ -203,40 +203,33 @@ export function useTicketWorkspace(filterCustomerId: string | null) {
     if (!isSilent) setLoading(true);
 
     const { fromIso, toIso } = getTicketWorkspaceDateRange(timeRange, customStart, customEnd);
-    const cursorCreatedAt = ticketCursorByPageRef.current.get(ticketPage) || undefined;
-    const [conversationResult, ticketResult] = await Promise.allSettled([
-      listTicketWorkspaceConversations({ status: 'active', limit: WORKSPACE_TICKETS_FETCH_LIMIT }),
-      listTicketWorkspaceTickets({
+    const cursor = ticketCursorByPageRef.current.get(ticketPage) || undefined;
+    const errors: string[] = [];
+
+    try {
+      const ticketResult = await listTicketWorkspaceTickets({
         fromIso,
         toIso,
         limit: WORKSPACE_TICKETS_PAGE_SIZE + 1,
-        cursorCreatedAt,
-      }),
-    ]);
-
-    const errors: string[] = [];
-
-    if (conversationResult.status === 'fulfilled') {
-      setConversations(conversationResult.value);
-    } else {
-      console.error('Fetch conversations error:', conversationResult.reason);
-      errors.push(
-        conversationResult.reason instanceof Error
-          ? conversationResult.reason.message
-          : 'Failed to load conversations'
-      );
-    }
-
-    if (ticketResult.status === 'fulfilled') {
-      const pageTickets = ticketResult.value.slice(0, WORKSPACE_TICKETS_PAGE_SIZE);
-      const hasNext = ticketResult.value.length > WORKSPACE_TICKETS_PAGE_SIZE;
+        cursorCreatedAt: cursor?.createdAt,
+        cursorId: cursor?.id,
+      });
+      const pageTickets = ticketResult.slice(0, WORKSPACE_TICKETS_PAGE_SIZE);
+      const hasNext = ticketResult.length > WORKSPACE_TICKETS_PAGE_SIZE;
       const nextCursorSource = pageTickets[pageTickets.length - 1];
       setHasNextTicketPage(hasNext);
       if (hasNext && nextCursorSource?.created_at) {
-        ticketCursorByPageRef.current.set(ticketPage + 1, nextCursorSource.created_at);
+        ticketCursorByPageRef.current.set(ticketPage + 1, {
+          createdAt: nextCursorSource.created_at,
+          id: nextCursorSource.id,
+        });
       } else {
         ticketCursorByPageRef.current.delete(ticketPage + 1);
       }
+
+      const ticketIds = pageTickets.map((ticket) => ticket.id);
+      const pageConversations = await listTicketWorkspaceConversationsByTicketIds(ticketIds);
+      setConversations(pageConversations);
 
       const now = Date.now();
       for (const [ticketId, expiresAt] of pendingRealtimeTicketIdsRef.current.entries()) {
@@ -260,12 +253,10 @@ export function useTicketWorkspace(filterCustomerId: string | null) {
       } else {
         setTickets(pageTickets);
       }
-    } else {
-      console.error('Fetch tickets error:', ticketResult.reason);
+    } catch (error) {
+      console.error('Fetch tickets/conversations error:', error);
       errors.push(
-        ticketResult.reason instanceof Error
-          ? ticketResult.reason.message
-          : 'Failed to load tickets'
+        error instanceof Error ? error.message : 'Failed to load tickets'
       );
     }
 

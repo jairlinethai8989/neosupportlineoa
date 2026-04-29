@@ -93,48 +93,61 @@ export async function listInboxConversationsFallback(limit = 100): Promise<Inbox
 
 export async function listInboxConversationsV2(input: {
   status?: 'active' | 'closed';
-  page?: number;
   pageSize?: number;
-  includeCount?: boolean;
+  cursorLastMessageAt?: string | null;
+  cursorId?: string | null;
   startDate?: string | null;
   endDate?: string | null;
   search?: string;
-}): Promise<{ data: InboxConversation[]; count: number }> {
-  const page = input.page || 1;
+}): Promise<{ data: InboxConversation[]; hasNext: boolean; nextCursor: { lastMessageAt: string; id: string } | null }> {
   const pageSize = input.pageSize || 20;
-  const from = (page - 1) * pageSize;
-  const to = from + pageSize - 1;
 
   // Include multiple legacy status variants and is_active=true so claimed chats do not disappear.
   const activeStatusFilter =
     'status.ilike.active,status.ilike.open,status.ilike.new,status.ilike.in progress,status.ilike.in_progress,is_active.eq.true';
 
-  const selectOptions = input.includeCount === false ? undefined : { count: 'exact' as const };
-  const { data, error, count } = await supabase
+  let query = supabase
     .from('conversations')
-    .select(inboxConversationSelect, selectOptions)
+    .select(inboxConversationSelect)
     .or(activeStatusFilter)
     .order('last_message_at', { ascending: false, nullsFirst: false })
-    .range(from, to);
+    .order('id', { ascending: false })
+    .limit(pageSize + 1);
+
+  if (input.cursorLastMessageAt && input.cursorId) {
+    query = query.or(
+      `last_message_at.lt.${input.cursorLastMessageAt},and(last_message_at.eq.${input.cursorLastMessageAt},id.lt.${input.cursorId})`
+    );
+  }
+
+  const { data, error } = await query;
 
   if (error) {
     console.error('Inbox Query Error:', error);
     // Safe fallback query to prevent empty inbox on transient select/schema mismatch.
-    const { data: fallbackData, count: fallbackCount, error: fallbackError } = await supabase
+    const { data: fallbackData, error: fallbackError } = await supabase
       .from('conversations')
-      .select(inboxConversationSelect, selectOptions)
+      .select(inboxConversationSelect)
       .or(activeStatusFilter)
       .order('last_message_at', { ascending: false, nullsFirst: false })
-      .range(from, to);
+      .order('id', { ascending: false })
+      .limit(pageSize + 1);
 
     if (fallbackError) {
       console.error('Inbox Fallback Query Error:', fallbackError);
-      return { data: [], count: 0 };
+      return { data: [], hasNext: false, nextCursor: null };
     }
 
+    const normalizedFallback = normalizeInboxConversations((fallbackData || []).slice(0, pageSize));
+    const hasNextFallback = (fallbackData?.length || 0) > pageSize;
+    const nextCursorRow = normalizedFallback[normalizedFallback.length - 1];
     return {
-      data: normalizeInboxConversations(fallbackData || []),
-      count: fallbackCount || (fallbackData?.length || 0),
+      data: normalizedFallback,
+      hasNext: hasNextFallback,
+      nextCursor:
+        hasNextFallback && nextCursorRow?.last_message_at
+          ? { lastMessageAt: nextCursorRow.last_message_at, id: nextCursorRow.id }
+          : null,
     };
   }
 
@@ -143,16 +156,16 @@ export async function listInboxConversationsV2(input: {
   if ((data?.length || 0) === 0 && input.status === 'active') {
     const {
       data: wideData,
-      count: wideCount,
       error: wideError,
     } = await supabase
       .from('conversations')
-      .select(inboxConversationSelect, { count: 'exact' })
+      .select(inboxConversationSelect)
       .order('last_message_at', { ascending: false, nullsFirst: false })
-      .range(from, to);
+      .order('id', { ascending: false })
+      .limit(pageSize + 1);
 
     if (!wideError && (wideData?.length || 0) > 0) {
-      const normalizedWide = normalizeInboxConversations(wideData || []);
+      const normalizedWide = normalizeInboxConversations((wideData || []).slice(0, pageSize));
       const activeLike = normalizedWide.filter((conversation) => {
         const normalizedStatus = String(conversation.status || '').toLowerCase().trim();
         const isClosedLike =
@@ -163,16 +176,29 @@ export async function listInboxConversationsV2(input: {
         return !isClosedLike;
       });
 
+      const hasNextWide = (wideData?.length || 0) > pageSize;
+      const nextCursorWide = activeLike[activeLike.length - 1];
       return {
         data: activeLike,
-        count: wideCount || activeLike.length,
+        hasNext: hasNextWide,
+        nextCursor:
+          hasNextWide && nextCursorWide?.last_message_at
+            ? { lastMessageAt: nextCursorWide.last_message_at, id: nextCursorWide.id }
+            : null,
       };
     }
   }
-  
+
+  const normalized = normalizeInboxConversations((data || []).slice(0, pageSize));
+  const hasNext = (data?.length || 0) > pageSize;
+  const nextCursorRow = normalized[normalized.length - 1];
   return {
-    data: normalizeInboxConversations(data || []),
-    count: count || (data?.length || 0)
+    data: normalized,
+    hasNext,
+    nextCursor:
+      hasNext && nextCursorRow?.last_message_at
+        ? { lastMessageAt: nextCursorRow.last_message_at, id: nextCursorRow.id }
+        : null,
   };
 }
 
