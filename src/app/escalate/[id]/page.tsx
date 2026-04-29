@@ -25,6 +25,8 @@ import {
   verifyEscalationPin,
 } from '@/app/actions/escalationActions';
 import { supabase } from '@/lib/supabase';
+import { useStaffLocale } from '@/contexts/StaffLocaleContext';
+import { translateTicketStatus } from '@/lib/i18n/staff';
 
 type ExternalReportStatus = 'In Progress' | 'Pending';
 
@@ -50,10 +52,6 @@ type TicketData = {
   messages?: any[] | null;
 };
 
-const STATUS_OPTIONS: Array<{ value: ExternalReportStatus; label: string }> = [
-  { value: 'In Progress', label: 'Return to owner for review (In Progress)' },
-  { value: 'Pending', label: 'Blocked (Pending)' },
-];
 
 function formatDateTime(value?: string | null) {
   if (!value) return '-';
@@ -81,6 +79,14 @@ export default function EscalationPortalPage() {
   const [isUnlocked, setIsUnlocked] = useState(false);
   const [isClaimed, setIsClaimed] = useState(false);
   const [ticketData, setTicketData] = useState<TicketData | null>(null);
+
+  const { t, locale, toggleLocale } = useStaffLocale();
+
+  const STATUS_OPTIONS: Array<{ value: ExternalReportStatus; label: string }> = [
+    { value: 'In Progress', label: t('escalation.returnStatusInProgress') },
+    { value: 'Pending', label: t('escalation.returnStatusPending') },
+  ];
+
 
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -133,7 +139,7 @@ export default function EscalationPortalPage() {
       }
 
       setIsClaimed(true);
-      setSuccess('Ticket claimed. You can now submit progress back to owner.');
+      setSuccess(t('escalation.reportSubmitted') || 'Ticket claimed. You can now submit progress back to owner.');
       setTimeout(() => setSuccess(''), 3000);
     } catch (err: any) {
       setError(`Unable to claim ticket: ${err.message}`);
@@ -202,7 +208,7 @@ export default function EscalationPortalPage() {
         return;
       }
 
-      setSuccess('Escalation report submitted. Owner needs to review and resolve ticket.');
+      setSuccess(t('escalation.reportSubmitted') || 'Escalation report submitted.');
       setNotes('');
       setAttachments([]);
     } catch (err: any) {
@@ -226,6 +232,25 @@ export default function EscalationPortalPage() {
           boxShadow: '0 10px 25px -5px rgba(0,0,0,0.05)',
         }}
       >
+        <div style={{ position: 'absolute', top: '16px', right: '16px' }}>
+          <button
+            type="button"
+            onClick={toggleLocale}
+            style={{
+              padding: '6px 12px',
+              borderRadius: '20px',
+              border: '1px solid #e2e8f0',
+              background: '#f8fafc',
+              fontSize: '12px',
+              fontWeight: 800,
+              color: '#64748b',
+              cursor: 'pointer'
+            }}
+          >
+            {locale === 'th' ? 'EN' : 'TH'}
+          </button>
+        </div>
+
         <div
           style={{
             width: '64px',
@@ -241,9 +266,9 @@ export default function EscalationPortalPage() {
         >
           <Lock size={32} />
         </div>
-        <h2 style={{ fontSize: '20px', fontWeight: 800, marginBottom: '8px' }}>Escalation Access</h2>
+        <h2 style={{ fontSize: '20px', fontWeight: 800, marginBottom: '8px' }}>{t('escalation.unlockTicket')}</h2>
         <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '24px' }}>
-          Enter the 4-digit PIN to open escalation ticket details.
+          {t('escalation.unlockDesc')}
         </p>
 
         {error && (
@@ -272,7 +297,7 @@ export default function EscalationPortalPage() {
             maxLength={4}
             value={pin}
             onChange={(event) => setPin(event.target.value.replace(/[^0-9]/g, ''))}
-            placeholder="4-digit PIN"
+            placeholder={t('escalation.pinPlaceholder')}
             style={{
               padding: '16px',
               borderRadius: '12px',
@@ -302,7 +327,7 @@ export default function EscalationPortalPage() {
               gap: '8px',
             }}
           >
-            {loading ? <Loader2 className="animate-spin" size={18} /> : <><Unlock size={18} /> Unlock Ticket</>}
+            {loading ? <Loader2 className="animate-spin" size={18} /> : <><Unlock size={18} /> {t('escalation.unlockTicket')}</>}
           </button>
         </form>
       </div>
@@ -319,13 +344,33 @@ export default function EscalationPortalPage() {
           background: '#ffffff',
           border: '1px solid #e2e8f0',
           boxShadow: '0 10px 25px -5px rgba(0,0,0,0.05)',
+          position: 'relative'
         }}
       >
+        <div style={{ position: 'absolute', top: '16px', right: '16px' }}>
+          <button
+            type="button"
+            onClick={toggleLocale}
+            style={{
+              padding: '6px 12px',
+              borderRadius: '20px',
+              border: '1px solid #e2e8f0',
+              background: '#f8fafc',
+              fontSize: '12px',
+              fontWeight: 800,
+              color: '#64748b',
+              cursor: 'pointer'
+            }}
+          >
+            {locale === 'th' ? 'EN' : 'TH'}
+          </button>
+        </div>
+
         <h2 style={{ fontSize: '20px', fontWeight: 900, marginBottom: '16px', textAlign: 'center' }}>
-          Claim Escalation Ticket
+          {t('escalation.claimTitle')}
         </h2>
         <p style={{ fontSize: '14px', color: '#64748b', textAlign: 'center', marginBottom: '24px' }}>
-          Identify the external receiver before submitting escalation work for #{ticketData?.ticket_no || '-'}.
+          {t('escalation.claimDesc')} #{ticketData?.ticket_no || '-'}
         </p>
 
         <form onSubmit={handleClaim} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -339,13 +384,13 @@ export default function EscalationPortalPage() {
                 marginBottom: '8px',
               }}
             >
-              Receiver name
+              {t('escalation.receiverName')}
             </label>
             <input
               type="text"
               value={receiverName}
               onChange={(event) => setReceiverName(event.target.value)}
-              placeholder="Enter receiver name..."
+              placeholder={t('escalation.receiverPlaceholder')}
               style={{
                 width: '100%',
                 padding: '16px',
@@ -394,7 +439,7 @@ export default function EscalationPortalPage() {
               boxShadow: '0 4px 12px rgba(8, 145, 178, 0.2)',
             }}
           >
-            {loading ? <Loader2 className="animate-spin" size={18} /> : <><ClipboardCheck size={18} /> Claim Job</>}
+            {loading ? <Loader2 className="animate-spin" size={18} /> : <><ClipboardCheck size={18} /> {t('escalation.claimJob')}</>}
           </button>
         </form>
       </div>
@@ -412,8 +457,27 @@ export default function EscalationPortalPage() {
       <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
       <div
         className="glass"
-        style={{ padding: '24px', background: '#ffffff', borderRadius: '24px', border: '1px solid #e2e8f0' }}
+        style={{ padding: '24px', background: '#ffffff', borderRadius: '24px', border: '1px solid #e2e8f0', position: 'relative' }}
       >
+        <div style={{ position: 'absolute', top: '24px', right: '24px', zIndex: 10 }}>
+          <button
+            type="button"
+            onClick={toggleLocale}
+            style={{
+              padding: '6px 12px',
+              borderRadius: '20px',
+              border: '1px solid #e2e8f0',
+              background: '#f8fafc',
+              fontSize: '12px',
+              fontWeight: 800,
+              color: '#64748b',
+              cursor: 'pointer'
+            }}
+          >
+            {locale === 'th' ? 'EN' : 'TH'}
+          </button>
+        </div>
+
         <div
           style={{
             display: 'flex',
@@ -430,9 +494,10 @@ export default function EscalationPortalPage() {
             </div>
             <div>
               <p style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                Service Ticket
+                {t('escalation.serviceTicket')}
               </p>
               <h2 style={{ fontSize: '18px', fontWeight: 900, color: 'var(--text-main)' }}>
+
                 #{ticketData?.ticket_no || '-'}
               </h2>
             </div>
@@ -448,7 +513,7 @@ export default function EscalationPortalPage() {
               letterSpacing: '1px'
             }}
           >
-            {ticketData?.status || 'Unknown'}
+            {translateTicketStatus(ticketData?.status || 'New', locale)}
           </span>
         </div>
 
@@ -469,7 +534,7 @@ export default function EscalationPortalPage() {
 
         <div style={{ marginBottom: '20px' }}>
           <p style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 800, textTransform: 'uppercase', marginBottom: '4px' }}>
-            Subject
+            {t('escalation.subject')}
           </p>
           <p style={{ fontSize: '16px', fontWeight: 800, lineHeight: 1.5 }}>{ticketData?.subject || '-'}</p>
         </div>
@@ -484,7 +549,7 @@ export default function EscalationPortalPage() {
               marginBottom: '10px',
             }}
           >
-            Original Description
+            {t('escalation.originalDescription')}
           </p>
           <p style={{ fontSize: '14px', lineHeight: 1.7, color: '#334155', whiteSpace: 'pre-wrap' }}>
             {ticketData?.description || 'No description'}
@@ -507,7 +572,7 @@ export default function EscalationPortalPage() {
               gap: '8px',
             }}
           >
-            <MessageSquare size={18} color="var(--primary)" /> Chat Workspace (Conversation History)
+            <MessageSquare size={18} color="var(--primary)" /> {t('escalation.chatWorkspace')}
           </h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', maxHeight: '500px', overflowY: 'auto', paddingRight: '8px' }}>
             {ticketData.messages.map((msg, index) => {
@@ -584,7 +649,7 @@ export default function EscalationPortalPage() {
               gap: '8px',
             }}
           >
-            <History size={18} color="var(--primary)" /> Escalation History
+            <History size={18} color="var(--primary)" /> {t('escalation.history')}
           </h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             {ticketData.logs.map((log, index) => (
@@ -634,7 +699,7 @@ export default function EscalationPortalPage() {
             gap: '8px',
           }}
         >
-          <FileText size={18} color="var(--primary)" /> External Report
+          <FileText size={18} color="var(--primary)" /> {t('escalation.externalReport')}
         </h3>
 
         {success && (
@@ -685,7 +750,7 @@ export default function EscalationPortalPage() {
                   marginBottom: '8px',
                 }}
               >
-                Return status
+                {t('escalation.returnStatus')}
               </label>
               <select
                 value={newStatus}
@@ -719,7 +784,7 @@ export default function EscalationPortalPage() {
                   marginBottom: '8px',
                 }}
               >
-                Receiver
+                {t('escalation.receiver')}
               </label>
               <input
                 type="text"
@@ -839,7 +904,7 @@ export default function EscalationPortalPage() {
                   ) : (
                     <>
                       <Camera size={20} color="#94a3b8" />
-                      <span style={{ fontSize: '10px', color: '#94a3b8', fontWeight: 700 }}>Upload</span>
+                      <span style={{ fontSize: '10px', color: '#94a3b8', fontWeight: 700 }}>{t('escalation.upload')}</span>
                     </>
                   )}
                   <input
@@ -879,12 +944,12 @@ export default function EscalationPortalPage() {
             ) : success ? (
               <>
                 <CheckCircle size={18} />
-                Report submitted
+                {t('escalation.reportSubmitted')}
               </>
             ) : (
               <>
                 <Send size={18} />
-                Submit report to owner
+                {t('escalation.submitReport')}
               </>
             )}
           </button>
