@@ -55,6 +55,7 @@ export const ticketWorkspaceTicketDetailSelect = `
 `;
 
 export const ticketWorkspaceProfileSelect = `
+  id,
   role,
   permissions,
   resolution_templates

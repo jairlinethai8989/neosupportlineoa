@@ -105,6 +105,7 @@ export function normalizeTicketWorkspaceTickets(values: unknown[]): TicketWorksp
 export function normalizeTicketWorkspaceProfile(value: unknown): TicketWorkspaceProfile | null {
   if (!isRecord(value)) return null;
   return {
+    user_id: asString(value.id),
     role: asString(value.role),
     permissions: asPermissions(value.permissions),
     resolution_templates: asStringArray(value.resolution_templates),

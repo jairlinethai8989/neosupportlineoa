@@ -56,6 +56,7 @@ export interface TicketWorkspaceTicket {
 }
 
 export interface TicketWorkspaceProfile {
+  user_id?: string | null;
   role?: string | null;
   permissions?: Partial<Record<string, string>> | null;
   resolution_templates?: string[] | null;
