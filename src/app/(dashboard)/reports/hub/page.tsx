@@ -59,7 +59,7 @@ export default function ReportsPage() {
   }, [userProfile]);
 
   const previewDateLabel = useMemo(() => formatPreviewDate(targetDate, locale), [locale, targetDate]);
-  const ticketUnitLabel = useMemo(() => t('tickets.workspaceDescription').split(' ')[0], [t]);
+  const ticketUnitLabel = useMemo(() => t('tickets.unit'), [t]);
 
   // Fetch preview data
   const fetchPreview = async () => {
