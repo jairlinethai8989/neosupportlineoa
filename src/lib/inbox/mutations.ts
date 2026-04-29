@@ -49,14 +49,28 @@ export async function sendInboxAgentMessage(input: {
     },
   ]);
 
-  if (insertError) throw insertError;
+  if (insertError) {
+    const detailSuffix = [
+      insertError.code ? `code=${insertError.code}` : null,
+      insertError.details || null,
+      insertError.hint || null,
+    ]
+      .filter(Boolean)
+      .join(' | ');
+    throw new Error(
+      detailSuffix ? `${insertError.message} (${detailSuffix})` : insertError.message
+    );
+  }
 
   const { error: updateError } = await supabase
     .from('conversations')
     .update({ last_message_at: new Date().toISOString() })
     .eq('id', input.conversationId);
 
-  if (updateError) throw updateError;
+  if (updateError) {
+    // Do not fail send flow when metadata timestamp update is blocked (e.g., RLS).
+    console.warn('Inbox: last_message_at update skipped:', updateError);
+  }
   invalidateAllPreviewCaches();
   return { success: true as const };
 }
@@ -70,7 +84,12 @@ export async function sendInboxSystemMessage(conversationId: string, content: st
       message_type: 'text',
     },
   ]);
-  if (error) throw error;
+  if (error) {
+    const detailSuffix = [error.code ? `code=${error.code}` : null, error.details || null, error.hint || null]
+      .filter(Boolean)
+      .join(' | ');
+    throw new Error(detailSuffix ? `${error.message} (${detailSuffix})` : error.message);
+  }
   invalidateAllPreviewCaches();
   return { success: true as const };
 }

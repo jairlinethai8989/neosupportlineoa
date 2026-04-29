@@ -9,7 +9,18 @@ export interface InboxToastInput {
 }
 
 export function getInboxErrorMessage(error: unknown, fallback = 'Unknown error') {
-  return error instanceof Error ? error.message : fallback;
+  if (error instanceof Error) return error.message;
+  if (typeof error === 'string' && error.trim()) return error;
+  if (error && typeof error === 'object') {
+    const maybeError = error as { message?: unknown; details?: unknown; hint?: unknown; code?: unknown };
+    const message = typeof maybeError.message === 'string' ? maybeError.message : '';
+    const details = typeof maybeError.details === 'string' ? maybeError.details : '';
+    const hint = typeof maybeError.hint === 'string' ? maybeError.hint : '';
+    const code = typeof maybeError.code === 'string' ? maybeError.code : '';
+    const joined = [message, code ? `code=${code}` : '', details, hint].filter(Boolean).join(' | ');
+    if (joined) return joined;
+  }
+  return fallback;
 }
 
 export function getInboxClosedTicketMessage() {
