@@ -213,6 +213,37 @@ export async function getInboxConversationById(id: string): Promise<InboxConvers
   return normalizeInboxConversation(data);
 }
 
+export async function getInboxConversationByTicketId(
+  ticketId: string
+): Promise<InboxConversation | null> {
+  const { data, error } = await supabase
+    .from('conversations')
+    .select(inboxConversationSelect)
+    .eq('current_ticket_id', ticketId)
+    .order('last_message_at', { ascending: false, nullsFirst: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) throw error;
+  if (data) return normalizeInboxConversation(data);
+
+  const { data: messageRow, error: messageError } = await supabase
+    .from('messages')
+    .select('conversation_id')
+    .eq('ticket_id', ticketId)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (messageError) throw messageError;
+  const conversationId =
+    messageRow && typeof messageRow.conversation_id === 'string'
+      ? messageRow.conversation_id
+      : null;
+
+  return conversationId ? getInboxConversationById(conversationId) : null;
+}
+
 export async function listInboxMessages(
   conversationId: string,
   limit = 200

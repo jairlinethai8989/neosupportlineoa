@@ -285,16 +285,16 @@ export function TicketsBoard({
                     const normalizedStatus = String(ticket.status || '').toLowerCase();
                     const isNew = normalizedStatus === 'new';
                     const isInProgress = normalizedStatus === 'in progress';
+                    const chatHref = convId
+                      ? `/inbox?cid=${convId}&tid=${ticket.id}`
+                      : `/inbox?tid=${ticket.id}`;
                     const hospitalName = ticket.hospitals?.name || t('tickets.noHospital');
                     const claimAction = getClaimActionState(ticket.id, claimingId, isViewOnly, {
                       viewOnly: t('tickets.viewOnlyAccess'),
                       claiming: t('tickets.claiming'),
                       claim: t('tickets.claimTicket'),
                     });
-                    const chatAction = getChatActionState(
-                      !convId,
-                      t('tickets.openInboxChat')
-                    );
+                    const chatAction = getChatActionState(false, t('tickets.openInboxChat'));
 
                     return (
                       <motion.div
@@ -366,7 +366,7 @@ export function TicketsBoard({
                           <div style={actionLinksWrapStyle}>
                             {convId && !isInProgress && !['resolved', 'closed', 'pending', 'escalated'].includes(normalizedStatus) && (
                                 <Link
-                                  href={`/inbox?cid=${convId}&tid=${ticket.id}`}
+                                  href={chatHref}
                                 title={t('tickets.openInboxChat')}
                                 className="glass-interactive flex-center"
                                 style={messageButtonStyle}
@@ -396,9 +396,9 @@ export function TicketsBoard({
                           </button>
                         )}
 
-                        {isInProgress && convId && (
+                        {isInProgress && (
                           <Link
-                            href={`/inbox?cid=${convId}&tid=${ticket.id}`}
+                            href={chatHref}
                             className="flex-center"
                             style={{ ...chatAction.style, textDecoration: 'none', gap: '8px' }}
                           >

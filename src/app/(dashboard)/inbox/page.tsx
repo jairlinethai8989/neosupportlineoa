@@ -13,7 +13,7 @@ import {
   getInboxDeleteFailedMessage,
   getInboxUploadFailedMessage,
 } from '@/lib/inbox/feedback';
-import { getInboxConversationById } from '@/lib/inbox/queries';
+import { getInboxConversationById, getInboxConversationByTicketId } from '@/lib/inbox/queries';
 import { deleteInboxMessage, uploadInboxChatMedia } from '@/lib/inbox/mutations';
 import type { InboxConversation, InboxViewMode } from '@/types/inbox';
 
@@ -73,6 +73,7 @@ function InboxContent() {
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const searchParams = useSearchParams();
   const cid = searchParams.get('cid');
+  const tid = searchParams.get('tid');
 
   const {
     agent,
@@ -157,39 +158,46 @@ function InboxContent() {
   };
 
   useEffect(() => {
-    if (!cid) return;
+    if (!cid && !tid) return;
 
-    const target = conversations.find((conversation) => conversation.id === cid);
+    const target = cid
+      ? conversations.find((conversation) => conversation.id === cid)
+      : conversations.find((conversation) => conversation.current_ticket_id === tid);
     if (target) {
       setSelectedChat(target);
       if (window.innerWidth <= 1000) {
         setViewMode('chat');
       }
-      lastHydratedCidRef.current = cid;
+      lastHydratedCidRef.current = cid || `ticket:${tid}`;
       return;
     }
 
-    if (lastHydratedCidRef.current === cid) return;
+    const hydrationKey = cid || `ticket:${tid}`;
+    if (lastHydratedCidRef.current === hydrationKey) return;
 
     let cancelled = false;
     (async () => {
       try {
-        const fetched = await getInboxConversationById(cid);
+        const fetched = cid
+          ? await getInboxConversationById(cid)
+          : tid
+            ? await getInboxConversationByTicketId(tid)
+            : null;
         if (!fetched || cancelled) return;
         setSelectedChat(fetched);
         if (window.innerWidth <= 1000) {
           setViewMode('chat');
         }
-        lastHydratedCidRef.current = cid;
+        lastHydratedCidRef.current = hydrationKey;
       } catch (error) {
-        console.error('Failed to hydrate inbox conversation by cid:', error);
+        console.error('Failed to hydrate inbox conversation:', error);
       }
     })();
 
     return () => {
       cancelled = true;
     };
-  }, [cid, conversations]);
+  }, [cid, tid, conversations]);
 
   useEffect(() => {
     if (!inboxLoading && conversations.length === 0 && page > 1) {
