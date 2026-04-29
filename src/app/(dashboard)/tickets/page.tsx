@@ -138,7 +138,6 @@ function TicketsContent() {
           getConvId={getConvId}
           handleClaim={handleClaim}
           isViewOnly={isViewOnly}
-          openResolveModal={openResolveModal}
         />
       ) : (
         <TicketsTable

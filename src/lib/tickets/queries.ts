@@ -80,7 +80,7 @@ export async function listTicketWorkspaceConversations(input?: {
 
   if (input?.status === 'active') {
     query = query.or(
-      'status.ilike.active,status.ilike.open,status.ilike.new,status.ilike.in progress,status.ilike.in_progress,is_active.eq.true'
+      'is_active.eq.true,status.eq.active,status.eq.open,status.eq.new,status.ilike.*progress*'
     );
   } else if (input?.status === 'closed') {
     query = query.in('status', ['closed', 'resolved', 'done']);

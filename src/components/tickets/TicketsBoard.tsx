@@ -188,20 +188,16 @@ function getClaimActionState(
   return { isClaiming, isDisabled, label, style };
 }
 
-function getResolveActionState(isViewOnly: boolean, labels: { viewOnly: string; resolve: string }) {
+function getChatActionState(isDisabled: boolean, label: string) {
   const style: React.CSSProperties = {
     ...actionButtonBaseStyle,
-    background: isViewOnly ? 'var(--bg-input)' : 'var(--success)',
+    background: isDisabled ? 'var(--bg-input)' : 'var(--primary)',
     color: 'white',
-    cursor: isViewOnly ? 'not-allowed' : 'pointer',
-    opacity: isViewOnly ? 0.5 : 1,
+    cursor: isDisabled ? 'not-allowed' : 'pointer',
+    opacity: isDisabled ? 0.5 : 1,
   };
 
-  return {
-    isDisabled: isViewOnly,
-    label: isViewOnly ? labels.viewOnly : labels.resolve,
-    style,
-  };
+  return { style, label };
 }
 
 function PriorityIndicator({ priority, locale }: { priority: string; locale: 'th' | 'en' }) {
@@ -221,7 +217,6 @@ interface TicketsBoardProps {
   getConvId: (ticket: TicketWorkspaceTicket) => string | undefined;
   handleClaim: (ticketId: string) => void;
   isViewOnly: boolean;
-  openResolveModal: (ticket: TicketWorkspaceTicket) => void;
 }
 
 export function TicketsBoard({
@@ -230,7 +225,6 @@ export function TicketsBoard({
   getConvId,
   handleClaim,
   isViewOnly,
-  openResolveModal,
 }: TicketsBoardProps) {
   const { locale, t } = useStaffLocale();
 
@@ -297,10 +291,10 @@ export function TicketsBoard({
                       claiming: t('tickets.claiming'),
                       claim: t('tickets.claimTicket'),
                     });
-                    const resolveAction = getResolveActionState(isViewOnly, {
-                      viewOnly: t('tickets.viewOnlyAccess'),
-                      resolve: t('tickets.resolveTicket'),
-                    });
+                    const chatAction = getChatActionState(
+                      !convId,
+                      t('tickets.openInboxChat')
+                    );
 
                     return (
                       <motion.div
@@ -370,7 +364,7 @@ export function TicketsBoard({
                           </div>
 
                           <div style={actionLinksWrapStyle}>
-                            {convId && !['resolved', 'closed', 'pending', 'escalated'].includes(normalizedStatus) && (
+                            {convId && !isInProgress && !['resolved', 'closed', 'pending', 'escalated'].includes(normalizedStatus) && (
                                 <Link
                                   href={`/inbox?cid=${convId}&tid=${ticket.id}`}
                                 title={t('tickets.openInboxChat')}
@@ -402,15 +396,15 @@ export function TicketsBoard({
                           </button>
                         )}
 
-                        {isInProgress && (
-                          <button
-                            disabled={resolveAction.isDisabled}
-                            onClick={() => openResolveModal(ticket)}
-                            style={resolveAction.style}
+                        {isInProgress && convId && (
+                          <Link
+                            href={`/inbox?cid=${convId}&tid=${ticket.id}`}
+                            className="flex-center"
+                            style={{ ...chatAction.style, textDecoration: 'none', gap: '8px' }}
                           >
-                            <CheckCircle size={16} />
-                            {resolveAction.label}
-                          </button>
+                            <MessageCircle size={16} />
+                            {chatAction.label}
+                          </Link>
                         )}
                       </motion.div>
                     );

@@ -102,9 +102,10 @@ export async function listInboxConversationsV2(input: {
 }): Promise<{ data: InboxConversation[]; hasNext: boolean; nextCursor: { lastMessageAt: string; id: string } | null }> {
   const pageSize = input.pageSize || 20;
 
-  // Include multiple legacy status variants and is_active=true so claimed chats do not disappear.
+  // Include legacy status variants and is_active=true so claimed chats do not disappear.
+  // Use wildcard progress token to avoid parser issues with status value containing spaces.
   const activeStatusFilter =
-    'status.ilike.active,status.ilike.open,status.ilike.new,status.ilike.in progress,status.ilike.in_progress,is_active.eq.true';
+    'is_active.eq.true,status.eq.active,status.eq.open,status.eq.new,status.ilike.*progress*';
 
   let query = supabase
     .from('conversations')
@@ -128,7 +129,6 @@ export async function listInboxConversationsV2(input: {
     const { data: fallbackData, error: fallbackError } = await supabase
       .from('conversations')
       .select(inboxConversationSelect)
-      .or(activeStatusFilter)
       .order('last_message_at', { ascending: false, nullsFirst: false })
       .order('id', { ascending: false })
       .limit(pageSize + 1);
