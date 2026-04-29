@@ -43,7 +43,7 @@ export default function TicketDetailPage() {
   const [showSurvey, setShowSurvey] = useState<boolean>(false);
   const [hasResponded, setHasResponded] = useState<boolean>(false);
   const [surveyScore, setSurveyScore] = useState<number>(0); // track saved score for UI
-  const [surveyRating, setSurveyRating] = useState<number>(0);
+  const [surveyValue, setSurveyValue] = useState<number>(0);
   const [surveyHover, setSurveyHover] = useState<number>(0);
   const [surveyComment, setSurveyComment] = useState<string>('');
   const [submittingSurvey, setSubmittingSurvey] = useState<boolean>(false);
@@ -285,12 +285,15 @@ export default function TicketDetailPage() {
     async function checkSurvey() {
       const { data } = await supabase
         .from('csat_surveys')
-        .select('score')
+        .select('score, rating')
         .eq('ticket_id', ticketId)
         .maybeSingle();
-      if (data?.score) {
-        setHasResponded(true);
-        setSurveyScore(data.score);
+      if (data) {
+        const val = data.score || data.rating;
+        if (val) {
+          setHasResponded(true);
+          setSurveyScore(val);
+        }
       }
     }
     checkSurvey();
@@ -409,12 +412,13 @@ export default function TicketDetailPage() {
   const currentLevel = statusLevels[String(ticket.status).toLowerCase()] || 1;
 
   const handleSubmitSurvey = async () => {
-    if (surveyRating === 0) return;
+    if (surveyValue === 0) return;
     setSubmittingSurvey(true);
     try {
       const { error } = await supabase.from('csat_surveys').upsert({
         ticket_id: ticketId,
-        score: surveyRating,
+        score: surveyValue,
+        rating: surveyValue, // compatibility
         comment: surveyComment,
         responded_at: new Date().toISOString()
       }, { onConflict: 'ticket_id' });
@@ -422,7 +426,7 @@ export default function TicketDetailPage() {
       if (error) throw error;
       // Update local state immediately — no refresh needed
       setHasResponded(true);
-      setSurveyScore(surveyRating);
+      setSurveyScore(surveyValue);
       // Close modal after short delay so user sees confirmation
       setTimeout(() => setShowSurvey(false), 2000);
     } catch (err: any) {
@@ -454,8 +458,8 @@ export default function TicketDetailPage() {
                  <div style={{ display: 'flex', justifyContent: 'center', gap: '4px', marginBottom: '24px' }}>
                    {[1, 2, 3, 4, 5].map((s) => (
                      <svg key={s} width="32" height="32" viewBox="0 0 24 24"
-                       fill={s <= surveyRating ? '#f59e0b' : '#e2e8f0'}
-                       stroke={s <= surveyRating ? '#f59e0b' : '#e2e8f0'}
+                       fill={s <= (surveyScore || surveyValue) ? '#f59e0b' : '#e2e8f0'}
+                       stroke={s <= (surveyScore || surveyValue) ? '#f59e0b' : '#e2e8f0'}
                        strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
                      >
                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
@@ -480,7 +484,7 @@ export default function TicketDetailPage() {
                    {[1, 2, 3, 4, 5].map((star) => (
                      <button
                        key={star}
-                       onClick={() => setSurveyRating(star)}
+                       onClick={() => setSurveyValue(star)}
                        onMouseEnter={() => setSurveyHover(star)}
                        onMouseLeave={() => setSurveyHover(0)}
                        style={{ 
@@ -490,8 +494,8 @@ export default function TicketDetailPage() {
                      >
                        <svg 
                          width="36" height="36" viewBox="0 0 24 24" 
-                         fill={(surveyHover || surveyRating) >= star ? '#f59e0b' : 'none'} 
-                         stroke={(surveyHover || surveyRating) >= star ? '#f59e0b' : '#cbd5e1'} 
+                         fill={(surveyHover || surveyValue) >= star ? '#f59e0b' : 'none'} 
+                         stroke={(surveyHover || surveyValue) >= star ? '#f59e0b' : '#cbd5e1'} 
                          strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
                        >
                          <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
@@ -500,7 +504,7 @@ export default function TicketDetailPage() {
                    ))}
                  </div>
                  <div style={{ textAlign: 'center', height: '20px', fontSize: '12px', color: '#f59e0b', fontWeight: '700', marginBottom: '24px' }}>
-                   {surveyRating === 5 ? 'ยอดเยี่ยมที่สุด' : surveyRating === 4 ? 'ดีมาก' : surveyRating === 3 ? 'ดี' : surveyRating === 2 ? 'พอใช้' : surveyRating === 1 ? 'ควรปรับปรุง' : ''}
+                   {surveyValue === 5 ? 'ยอดเยี่ยมที่สุด' : surveyValue === 4 ? 'ดีมาก' : surveyValue === 3 ? 'ดี' : surveyValue === 2 ? 'พอใช้' : surveyValue === 1 ? 'ควรปรับปรุง' : ''}
                  </div>
 
                  <textarea 
@@ -526,11 +530,11 @@ export default function TicketDetailPage() {
                    </button>
                    <button 
                      onClick={handleSubmitSurvey}
-                     disabled={submittingSurvey || surveyRating === 0}
+                     disabled={submittingSurvey || surveyValue === 0}
                      style={{ 
                        flex: 2, padding: '14px', borderRadius: '12px', border: 'none',
                        background: 'var(--portal-primary)', color: 'white', fontWeight: '800',
-                       cursor: 'pointer', opacity: (surveyRating === 0 || submittingSurvey) ? 0.5 : 1
+                       cursor: 'pointer', opacity: (surveyValue === 0 || submittingSurvey) ? 0.5 : 1
                      }}
                    >
                      {submittingSurvey ? 'กำลังส่ง...' : 'ส่งผลประเมิน'}
@@ -656,21 +660,21 @@ export default function TicketDetailPage() {
                  </p>
               </div>
               {/* Show CSAT score immediately after survey submission */}
-              {(surveyScore > 0 || (hasResponded && surveyRating > 0)) && (
+              {(surveyScore > 0 || (hasResponded && surveyValue > 0)) && (
                 <div style={{ padding: '12px 16px', borderRadius: '12px', background: '#fffbeb', border: '1px solid #fde68a', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
                   <span style={{ fontSize: '12px', fontWeight: '700', color: '#92400e' }}>คะแนนที่คุณให้:</span>
                   <div style={{ display: 'flex', gap: '2px' }}>
                     {[1, 2, 3, 4, 5].map((s) => (
                       <svg key={s} width="16" height="16" viewBox="0 0 24 24"
-                        fill={s <= (surveyScore || surveyRating) ? '#f59e0b' : '#e2e8f0'}
-                        stroke={s <= (surveyScore || surveyRating) ? '#f59e0b' : '#e2e8f0'}
+                        fill={s <= (surveyScore || surveyValue) ? '#f59e0b' : '#e2e8f0'}
+                        stroke={s <= (surveyScore || surveyValue) ? '#f59e0b' : '#e2e8f0'}
                         strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
                       >
                         <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
                       </svg>
                     ))}
                   </div>
-                  <span style={{ fontSize: '12px', fontWeight: '800', color: '#f59e0b' }}>{surveyScore || surveyRating}/5</span>
+                  <span style={{ fontSize: '12px', fontWeight: '800', color: '#f59e0b' }}>{surveyScore || surveyValue}/5</span>
                 </div>
               )}
               {/* Button to re-open survey if not responded yet */}

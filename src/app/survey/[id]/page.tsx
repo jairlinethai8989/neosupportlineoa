@@ -17,7 +17,7 @@ export default function SurveyPage() {
   const { id } = useParams();
   const router = useRouter();
   const [ticket, setTicket] = useState<any>(null);
-  const [rating, setRating] = useState(0);
+  const [score, setScore] = useState(0);
   const [comment, setComment] = useState('');
   const [hover, setHover] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -39,7 +39,7 @@ export default function SurveyPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (rating === 0) {
+    if (score === 0) {
        alert('กรุณาให้คะแนนความพึงพอใจ');
        return;
     }
@@ -48,7 +48,8 @@ export default function SurveyPage() {
       // Use upsert to handle cases where the survey record doesn't exist yet
       const { error } = await supabase.from('csat_surveys').upsert({
         ticket_id: id,
-        score: rating,
+        score: score,
+        rating: score, // Keep rating for backward compatibility in DB
         comment: comment,
         responded_at: new Date().toISOString()
       }, { onConflict: 'ticket_id' });
@@ -126,7 +127,7 @@ export default function SurveyPage() {
                     <button
                       key={star}
                       type="button"
-                      onClick={() => setRating(star)}
+                      onClick={() => setScore(star)}
                       onMouseEnter={() => setHover(star)}
                       onMouseLeave={() => setHover(0)}
                       className="star-button"
@@ -134,16 +135,16 @@ export default function SurveyPage() {
                     >
                       <Star 
                         size={44} 
-                        fill={(hover || rating) >= star ? 'var(--primary)' : 'transparent'} 
-                        color={(hover || rating) >= star ? 'var(--primary)' : 'rgba(255,255,255,0.1)'} 
+                        fill={(hover || score) >= star ? 'var(--primary)' : 'transparent'} 
+                        color={(hover || score) >= star ? 'var(--primary)' : 'rgba(255,255,255,0.1)'} 
                         strokeWidth={1.5}
-                        style={{ filter: (hover || rating) >= star ? 'drop-shadow(0 0 8px rgba(0, 242, 254, 0.5))' : 'none' }}
+                        style={{ filter: (hover || score) >= star ? 'drop-shadow(0 0 8px rgba(0, 242, 254, 0.5))' : 'none' }}
                       />
                     </button>
                   ))}
                </div>
                <div style={{ textAlign: 'center', marginTop: '12px', fontSize: '12px', color: 'var(--primary)', fontWeight: '600' }}>
-                  {rating === 5 ? 'ยอดเยี่ยมที่สุด' : rating === 4 ? 'ดีมาก' : rating === 3 ? 'ดี' : rating === 2 ? 'พอใช้' : rating === 1 ? 'ควรปรับปรุง' : 'กรุณาเลือกคะแนน'}
+                  {score === 5 ? 'ยอดเยี่ยมที่สุด' : score === 4 ? 'ดีมาก' : score === 3 ? 'ดี' : score === 2 ? 'พอใช้' : score === 1 ? 'ควรปรับปรุง' : 'กรุณาเลือกคะแนน'}
                </div>
             </div>
 
@@ -162,9 +163,9 @@ export default function SurveyPage() {
 
             <button 
               type="submit" 
-              disabled={submitting || rating === 0}
+              disabled={submitting || score === 0}
               className="glass-interactive"
-              style={{ width: '100%', padding: '16px', borderRadius: '12px', background: 'var(--primary)', color: '#0a0e14', border: 'none', fontWeight: '800', fontSize: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', opacity: (rating === 0 || submitting) ? 0.5 : 1 }}
+              style={{ width: '100%', padding: '16px', borderRadius: '12px', background: 'var(--primary)', color: '#0a0e14', border: 'none', fontWeight: '800', fontSize: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', opacity: (score === 0 || submitting) ? 0.5 : 1 }}
             >
               {submitting ? <Loader2 className="animate-spin" /> : (
                 <>

@@ -192,14 +192,14 @@ export const TicketChat: React.FC<TicketChatProps> = ({
                     position: 'relative',
                   }}
                 >
-                  {msg.message_type === 'image' || msg.content?.includes('supabase.co/storage') ? (
+                  {msg.message_type === 'image' || (msg.media_path || msg.content)?.includes('supabase.co/storage') ? (
                     <Image
-                      src={msg.content}
+                      src={(msg.media_path || msg.content) as string}
                       alt="attachment"
                       width={280}
                       height={180}
                       unoptimized
-                      onClick={() => onEditImage(msg.content)}
+                      onClick={() => onEditImage((msg.media_path || msg.content) as string)}
                       title="Click to open image viewer"
                       style={{
                         maxWidth: '280px',

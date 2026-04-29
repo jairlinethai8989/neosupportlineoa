@@ -1,0 +1,33 @@
+
+> neo_line_oa@1.1.2 dev
+> next dev --port 3100
+
+▲ Next.js 16.2.1 (Turbopack)
+- Local:         http://localhost:3100
+- Network:       http://100.107.208.120:3100
+- Environments: .env.local
+✓ Ready in 3.4s
+
+○ Compiling / ...
+ GET / 200 in 14.9s (next.js: 12.7s, application-code: 2.1s)
+○ Compiling /inbox ...
+ GET /inbox 200 in 6.0s (next.js: 5.9s, application-code: 127ms)
+ GET /tickets 200 in 2.7s (next.js: 2.6s, application-code: 126ms)
+ GET /reports/daily 200 in 1218ms (next.js: 1145ms, application-code: 73ms)
+ GET /reports/hub 200 in 973ms (next.js: 892ms, application-code: 80ms)
+ GET / 200 in 355ms (next.js: 139ms, application-code: 216ms)
+ GET /inbox 200 in 1427ms (next.js: 705ms, application-code: 721ms)
+ GET /tickets 200 in 173ms (next.js: 43ms, application-code: 130ms)
+ GET /reports/daily 200 in 94ms (next.js: 5ms, application-code: 89ms)
+ GET /reports/hub 200 in 88ms (next.js: 4ms, application-code: 83ms)
+ GET / 200 in 109ms (next.js: 5ms, application-code: 103ms)
+ GET /inbox 200 in 64ms (next.js: 3ms, application-code: 61ms)
+ GET /tickets 200 in 58ms (next.js: 3ms, application-code: 55ms)
+ GET /reports/daily 200 in 75ms (next.js: 3ms, application-code: 71ms)
+ GET /reports/hub 200 in 59ms (next.js: 3ms, application-code: 56ms)
+ GET / 200 in 69ms (next.js: 3ms, application-code: 66ms)
+ GET /inbox 200 in 81ms (next.js: 4ms, application-code: 77ms)
+ GET /tickets 200 in 59ms (next.js: 3ms, application-code: 56ms)
+ GET /reports/daily 200 in 69ms (next.js: 3ms, application-code: 66ms)
+ GET /reports/hub 200 in 85ms (next.js: 4ms, application-code: 81ms)
+[?25h

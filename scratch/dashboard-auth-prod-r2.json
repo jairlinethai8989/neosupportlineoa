@@ -1,0 +1,19 @@
+{
+  "baseUrl": "http://127.0.0.1:3303",
+  "cold": {
+    "route": "/",
+    "domContentLoadedMs": 130.2,
+    "loadEventMs": 194.8,
+    "responseEndMs": 82.9,
+    "transferSize": 3365,
+    "fcpMs": 208
+  },
+  "warm": {
+    "route": "/",
+    "domContentLoadedMs": 119.6,
+    "loadEventMs": 191.2,
+    "responseEndMs": 74.9,
+    "transferSize": 300,
+    "fcpMs": 196
+  }
+}

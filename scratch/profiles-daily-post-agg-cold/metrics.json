@@ -1,0 +1,16 @@
+{
+  "baseUrl": "http://127.0.0.1:3203",
+  "routes": [
+    "/reports/daily"
+  ],
+  "metrics": [
+    {
+      "route": "/reports/daily",
+      "domContentLoadedMs": 3206.4,
+      "loadEventMs": 3265.9,
+      "responseEndMs": 190.7,
+      "transferSize": 5384,
+      "fcpMs": 2828
+    }
+  ]
+}

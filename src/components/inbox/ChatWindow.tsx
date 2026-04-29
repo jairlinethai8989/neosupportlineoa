@@ -236,19 +236,19 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
                     position: 'relative',
                     transition: 'transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1)'
                  }}>
-                   {msg.content && (msg.message_type === 'image' || (String(msg.content).startsWith('http') && String(msg.content).match(/\.(jpeg|jpg|gif|png|webp|JPG|PNG)$/i))) ? (
+                   {(msg.media_path || msg.content) && (msg.message_type === 'image' || (String(msg.media_path || msg.content).startsWith('http') && String(msg.media_path || msg.content).match(/\.(jpeg|jpg|gif|png|webp|JPG|PNG)$/i))) ? (
                       <div style={{ position: 'relative', overflow: 'hidden', borderRadius: '10px' }}>
                          <img 
-                            src={msg.content} 
+                            src={msg.media_path || msg.content || ''} 
                             loading="lazy"
                             style={{ maxWidth: '100%', borderRadius: '10px', display: 'block', cursor: 'pointer' }} 
-                            onClick={() => onEditImage(msg.content || '')}
+                            onClick={() => onEditImage(msg.media_path || msg.content || '')}
                             alt="Chat attachment" 
                             title="คลิกเพื่อทำการแก้ไขภาพ (Edit/Draw)"
                          />
                       </div>
-                   ) : msg.message_type === 'file' || (msg.content?.startsWith('http') && msg.message_type !== 'text') ? (
-                      <a href={msg.content || ''} target="_blank" rel="noreferrer" style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--primary)', textDecoration: 'none', fontWeight: 'bold' }}>
+                   ) : msg.message_type === 'file' || ((msg.media_path || msg.content)?.startsWith('http') && msg.message_type !== 'text') ? (
+                      <a href={msg.media_path || msg.content || ''} target="_blank" rel="noreferrer" style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--primary)', textDecoration: 'none', fontWeight: 'bold' }}>
                          <Clock size={16} /> ดูไฟล์แนบ
                       </a>
                    ) : (

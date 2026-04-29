@@ -1,0 +1,4 @@
+ALTER TABLE public.messages 
+ADD COLUMN IF NOT EXISTS media_path TEXT,
+ADD COLUMN IF NOT EXISTS media_mime_type TEXT,
+ADD COLUMN IF NOT EXISTS metadata JSONB DEFAULT '{}'::jsonb;

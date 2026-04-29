@@ -1,0 +1,10 @@
+
+> neo_line_oa@1.1.2 dev
+> next dev --port 3101
+
+▲ Next.js 16.2.1 (Turbopack)
+- Local:         http://localhost:3101
+- Network:       http://100.107.208.120:3101
+- Environments: .env.local
+✓ Ready in 2.1s
+[?25h

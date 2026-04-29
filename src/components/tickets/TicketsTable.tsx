@@ -68,18 +68,23 @@ function renderSortIcon(columnKey: SortableColumnKey, sortConfig: TicketWorkspac
   return sortConfig.direction === 'asc' ? <ArrowUp size={12} /> : <ArrowDown size={12} />;
 }
 
-function StatusBadge({ status, locale }: { status: string; locale: 'th' | 'en' }) {
+function getStatusColor(status: string) {
   const normalized = String(status || 'New').toLowerCase();
-  const configs: Record<string, { color: string; label: string }> = {
-    new: { color: 'var(--primary)', label: translateTicketStatus('New', locale) },
-    pending: { color: '#ea5455', label: translateTicketStatus('Pending', locale) },
-    assigned: { color: '#3699FF', label: translateTicketStatus('Assigned', locale) },
-    'in progress': { color: '#ff9f43', label: translateTicketStatus('In Progress', locale) },
-    resolved: { color: '#28c76f', label: translateTicketStatus('Resolved', locale) },
-    closed: { color: '#94a3b8', label: translateTicketStatus('Closed', locale) },
-    escalated: { color: '#7367f0', label: translateTicketStatus('Escalated', locale) },
+  const colors: Record<string, string> = {
+    new: 'var(--primary)',
+    pending: '#ea5455',
+    assigned: '#3699FF',
+    'in progress': '#ff9f43',
+    resolved: '#28c76f',
+    closed: '#94a3b8',
+    escalated: '#7367f0',
   };
-  const config = configs[normalized] || { color: 'gray', label: status };
+  return colors[normalized] || 'gray';
+}
+
+function StatusBadge({ status, locale }: { status: string; locale: 'th' | 'en' }) {
+  const color = getStatusColor(status);
+  const label = translateTicketStatus(status || 'New', locale);
   return (
     <span
       style={{
@@ -88,12 +93,12 @@ function StatusBadge({ status, locale }: { status: string; locale: 'th' | 'en' }
         fontSize: '11px',
         fontWeight: '850',
         textTransform: 'uppercase',
-        background: `${config.color}15`,
-        color: config.color,
-        border: `1px solid ${config.color}30`,
+        background: `${color}15`,
+        color: color,
+        border: `1px solid ${color}30`,
       }}
     >
-      {config.label}
+      {label}
     </span>
   );
 }
@@ -202,7 +207,7 @@ export function TicketsTable({
                         href={`/inbox?cid=${convId}`}
                         title={t('tickets.openInboxChat')}
                         className="glass-interactive flex-center"
-                        style={messageActionButtonStyle}
+                        style={{ ...messageActionButtonStyle, color: getStatusColor(ticket.status || ''), background: `${getStatusColor(ticket.status || '')}15` }}
                       >
                         <MessageCircle size={16} />
                       </Link>

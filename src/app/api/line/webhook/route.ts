@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+﻿/* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import * as line from '@line/bot-sdk';
@@ -77,7 +77,7 @@ export async function POST(req: Request) {
         try {
           await client.replyMessage(event.replyToken, {
             type: 'text',
-            text: `ID ของกลุ่ม/แชทนี้คือ:\n${sourceId}`
+            text: `ID à¸‚à¸­à¸‡à¸à¸¥à¸¸à¹ˆà¸¡/à¹à¸Šà¸—à¸™à¸µà¹‰à¸„à¸·à¸­:\n${sourceId}`
           });
         } catch (e) { console.error('Reply ID failed:', e); }
         continue; // Stop processing this event further
@@ -133,66 +133,23 @@ export async function POST(req: Request) {
       }
 
       if (customer) {
-        // 3. Map/Create Conversation
-        let { data: conversation } = await supabaseAdmin
+        // 3. Accept only app-linked conversations.
+        // Do not create tickets/conversations from direct OA chat messages.
+        const { data: conversation } = await supabaseAdmin
           .from('conversations')
           .select('id, current_ticket_id')
           .eq('customer_id', customer.id)
           .eq('status', 'active')
+          .not('current_ticket_id', 'is', null)
           .order('last_message_at', { ascending: false })
           .limit(1)
           .maybeSingle();
 
         if (!conversation) {
-          // AUTO-LINK: Find the most recent OPEN ticket for this customer before creating conv
-          let { data: recentTicket } = await supabaseAdmin
-            .from('tickets')
-            .select('id, ticket_no')
-            .eq('customer_id', customer.id)
-            .not('status', 'in', '("Resolved","Closed")') // Only link to open ones
-            .order('created_at', { ascending: false })
-            .limit(1)
-            .maybeSingle();
-
-          // CREATE TICKET IF NONE EXISTS
-          if (!recentTicket) {
-             const { data: newTicket } = await supabaseAdmin
-              .from('tickets')
-              .insert([{
-                customer_id: customer.id,
-                subject: `LINE Support: ${messageText?.substring(0, 30)}${messageText?.length > 30 ? '...' : ''}`,
-                status: 'New',
-                priority: 'Medium',
-                current_department_id: '2ebdd410-7f71-4924-8dde-1a923fcf72b2' // แผนกเทคโนโลยีสารสนเทศ (IT Department)
-              }])
-              .select()
-              .single();
-             recentTicket = newTicket;
-          }
-
-          const { data: newConv } = await supabaseAdmin
-            .from('conversations')
-            .insert([{ 
-                customer_id: customer.id, 
-                status: 'active',
-                current_ticket_id: recentTicket?.id || null 
-            }])
-            .select()
-            .single();
-          conversation = newConv;
-          hasDataMutation = true;
-
-          /* 
-          // Notify Group about New Support Request (First Message) - DISABLED per user request for manual control
-          try {
-            const { sendLineGroupNotification } = await import('@/lib/utils/lineNotifications');
-            const alertText = recentTicket?.ticket_no 
-              ? `🆕 [ตั๋วใหม่] #${recentTicket.ticket_no} - ${customer.display_name} แจ้งปัญหาเข้ามาครับ`
-              : `🆕 [ข้อความ] ${customer.display_name} แจ้งปัญหาเข้ามาครับ`;
-            
-            await sendLineGroupNotification(`${alertText}\nข้อความ: ${messageText?.substring(0, 50)}${messageText?.length > 50 ? '...' : ''}\n👉 ตรวจสอบที่หน้าจัดการ: ${process.env.NEXT_PUBLIC_BASE_URL || 'NeoSupport Dashboard'}`);
-          } catch(e) { console.error('Notif failed:', e); }
-          */
+          console.log(
+            `Webhook: Ignored direct LINE OA message for customer ${customer.id} (no active ticket-linked conversation)`
+          );
+          continue;
         }
 
         if (conversation) {
@@ -320,3 +277,4 @@ export async function POST(req: Request) {
 
   return NextResponse.json({ status: 'ok' });
 }
+

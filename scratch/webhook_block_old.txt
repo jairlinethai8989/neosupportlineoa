@@ -1,0 +1,64 @@
+﻿if (customer) {
+        // 3. Map/Create Conversation
+        let { data: conversation } = await supabaseAdmin
+          .from('conversations')
+          .select('id, current_ticket_id')
+          .eq('customer_id', customer.id)
+          .eq('status', 'active')
+          .order('last_message_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (!conversation) {
+          // AUTO-LINK: Find the most recent OPEN ticket for this customer before creating conv
+          let { data: recentTicket } = await supabaseAdmin
+            .from('tickets')
+            .select('id, ticket_no')
+            .eq('customer_id', customer.id)
+            .not('status', 'in', '("Resolved","Closed")') // Only link to open ones
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+          // CREATE TICKET IF NONE EXISTS
+          if (!recentTicket) {
+             const { data: newTicket } = await supabaseAdmin
+              .from('tickets')
+              .insert([{
+                customer_id: customer.id,
+                subject: `LINE Support: ${messageText?.substring(0, 30)}${messageText?.length > 30 ? '...' : ''}`,
+                status: 'New',
+                priority: 'Medium',
+                current_department_id: '2ebdd410-7f71-4924-8dde-1a923fcf72b2' // à¹à¸œà¸™à¸à¹€à¸—à¸„à¹‚à¸™à¹‚à¸¥à¸¢à¸µà¸ªà¸²à¸£à¸ªà¸™à¹€à¸—à¸¨ (IT Department)
+              }])
+              .select()
+              .single();
+             recentTicket = newTicket;
+          }
+
+          const { data: newConv } = await supabaseAdmin
+            .from('conversations')
+            .insert([{ 
+                customer_id: customer.id, 
+                status: 'active',
+                current_ticket_id: recentTicket?.id || null 
+            }])
+            .select()
+            .single();
+          conversation = newConv;
+          hasDataMutation = true;
+
+          /* 
+          // Notify Group about New Support Request (First Message) - DISABLED per user request for manual control
+          try {
+            const { sendLineGroupNotification } = await import('@/lib/utils/lineNotifications');
+            const alertText = recentTicket?.ticket_no 
+              ? `ðŸ†• [à¸•à¸±à¹‹à¸§à¹ƒà¸«à¸¡à¹ˆ] #${recentTicket.ticket_no} - ${customer.display_name} à¹à¸ˆà¹‰à¸‡à¸›à¸±à¸à¸«à¸²à¹€à¸‚à¹‰à¸²à¸¡à¸²à¸„à¸£à¸±à¸š`
+              : `ðŸ†• [à¸‚à¹‰à¸­à¸„à¸§à¸²à¸¡] ${customer.display_name} à¹à¸ˆà¹‰à¸‡à¸›à¸±à¸à¸«à¸²à¹€à¸‚à¹‰à¸²à¸¡à¸²à¸„à¸£à¸±à¸š`;
+            
+            await sendLineGroupNotification(`${alertText}\nà¸‚à¹‰à¸­à¸„à¸§à¸²à¸¡: ${messageText?.substring(0, 50)}${messageText?.length > 50 ? '...' : ''}\nðŸ‘‰ à¸•à¸£à¸§à¸ˆà¸ªà¸­à¸šà¸—à¸µà¹ˆà¸«à¸™à¹‰à¸²à¸ˆà¸±à¸”à¸à¸²à¸£: ${process.env.NEXT_PUBLIC_BASE_URL || 'NeoSupport Dashboard'}`);
+          } catch(e) { console.error('Notif failed:', e); }
+          */
+        }
+
+        

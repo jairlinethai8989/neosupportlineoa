@@ -4,7 +4,7 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   full_name TEXT,
   avatar_url TEXT,
   department TEXT,
-  role TEXT DEFAULT 'Agent', -- 'Admin' or 'Agent'
+  role TEXT DEFAULT 'Agent', -- 'Administrator' or 'Agent'
   status TEXT DEFAULT 'Active', -- 'Active', 'Away', 'Offline'
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );

@@ -1,0 +1,52 @@
+{
+  "baseUrl": "http://127.0.0.1:3203",
+  "routes": [
+    "/",
+    "/inbox",
+    "/tickets",
+    "/reports/daily",
+    "/reports/hub"
+  ],
+  "metrics": [
+    {
+      "route": "/",
+      "domContentLoadedMs": 3965,
+      "loadEventMs": 4008.4,
+      "responseEndMs": 322.4,
+      "transferSize": 5230,
+      "fcpMs": 3768
+    },
+    {
+      "route": "/inbox",
+      "domContentLoadedMs": 2172.4,
+      "loadEventMs": 2415.8,
+      "responseEndMs": 2048.4,
+      "transferSize": 5267,
+      "fcpMs": 2184
+    },
+    {
+      "route": "/tickets",
+      "domContentLoadedMs": 1573,
+      "loadEventMs": 1807.6,
+      "responseEndMs": 1400.6,
+      "transferSize": 5294,
+      "fcpMs": 1580
+    },
+    {
+      "route": "/reports/daily",
+      "domContentLoadedMs": 1034.9,
+      "loadEventMs": 1175.9,
+      "responseEndMs": 910.2,
+      "transferSize": 5385,
+      "fcpMs": 1044
+    },
+    {
+      "route": "/reports/hub",
+      "domContentLoadedMs": 2710.4,
+      "loadEventMs": 2878.1,
+      "responseEndMs": 2559.4,
+      "transferSize": 5282,
+      "fcpMs": 2724
+    }
+  ]
+}

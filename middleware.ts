@@ -6,6 +6,9 @@ import { NextResponse } from 'next/server';
  */
 export async function middleware(request: any) {
   const { pathname } = request.nextUrl;
+  const profileBypassAuth =
+    process.env.NODE_ENV !== 'production' &&
+    process.env.PROFILE_BYPASS_AUTH === '1';
 
   // 1. Skip static assets and internal paths
   if (
@@ -28,6 +31,11 @@ export async function middleware(request: any) {
     if (route === '/api/line/webhook') return pathname === route;
     return pathname.startsWith(route);
   });
+
+  // Local profiling bypass: skip auth checks to capture route performance cleanly.
+  if (profileBypassAuth && !isPublicRoute) {
+    return NextResponse.next();
+  }
 
   // 3. Setup Response & Supabase
   let response = NextResponse.next({
@@ -89,3 +97,4 @@ export const config = {
     '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 };
+

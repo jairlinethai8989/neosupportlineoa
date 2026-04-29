@@ -50,14 +50,20 @@ export const analyticsService = {
   async getAgentPerformance() {
     const { data: agents } = await supabase
       .from('profiles')
-      .select('*, tickets(id, status, rating)');
+      .select('*, tickets(id, status, csat_surveys(score, rating))');
     
-    return agents?.map(agent => ({
-      name: agent.full_name,
-      role: agent.department,
-      tickets: agent.tickets?.length || 0,
-      csat: agent.tickets?.reduce((acc: number, t: any) => acc + (t.rating || 0), 0) / (agent.tickets?.length || 1) || 0
-    })) || [];
+    return agents?.map(agent => {
+      const ticketsWithCSAT = agent.tickets?.filter((t: any) => t.csat_surveys && (t.csat_surveys.score || t.csat_surveys.rating)) || [];
+      const totalScore = ticketsWithCSAT.reduce((acc: number, t: any) => acc + (t.csat_surveys.score || t.csat_surveys.rating || 0), 0);
+      const avgCSAT = ticketsWithCSAT.length > 0 ? totalScore / ticketsWithCSAT.length : 0;
+
+      return {
+        name: agent.full_name,
+        role: agent.department,
+        tickets: agent.tickets?.length || 0,
+        csat: avgCSAT
+      };
+    }) || [];
   },
 
   /**

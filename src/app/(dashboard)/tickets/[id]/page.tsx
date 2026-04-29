@@ -672,7 +672,7 @@ export default function StaffTicketDetailPage() {
   ]);
 
   const handleExportSummary = async () => {
-    if (!ticket) {
+    if (!ticket || !reportRef.current) {
       addToast({
         id: `pdf-invalid-${Date.now()}`,
         type: 'sla',
@@ -682,35 +682,33 @@ export default function StaffTicketDetailPage() {
       return;
     }
 
+    setUpdating(true);
     try {
       addToast({
         id: `pdf-prep-${Date.now()}`,
         type: 'ticket',
         title: 'กำลังเตรียมไฟล์ PDF...',
-        body: 'ระบบกำลังประมวลผลรายงานบนเซิร์ฟเวอร์'
+        body: 'ระบบกำลังประมวลผลรายงาน'
       });
 
-      const response = await fetch(`/api/tickets/${ticket.id}/export-summary`, { method: 'GET' });
-      if (!response.ok) {
-        throw new Error(`Export failed (${response.status})`);
-      }
+      const { html2canvas, jsPDF } = await loadPdfDeps();
+      
+      // Render the hidden template to canvas
+      const canvas = await html2canvas(reportRef.current, {
+        scale: 2, // Higher resolution
+        useCORS: true,
+        logging: false,
+        backgroundColor: '#ffffff'
+      });
 
-      const blob = await response.blob();
-      const fileName =
-        (response.headers.get('content-disposition') || '')
-          .split('filename=')[1]
-          ?.replaceAll('"', '')
-          ?.trim() ||
-        `Service_Report_${ticket.ticket_no || ticket.id}.pdf`;
-
-      const blobUrl = window.URL.createObjectURL(blob);
-      const anchor = document.createElement('a');
-      anchor.href = blobUrl;
-      anchor.download = fileName;
-      document.body.appendChild(anchor);
-      anchor.click();
-      anchor.remove();
-      window.URL.revokeObjectURL(blobUrl);
+      const imgData = canvas.toDataURL('image/jpeg', 1.0);
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+      
+      pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
+      const fileName = `Service_Report_${ticket.ticket_no || ticket.id}.pdf`;
+      pdf.save(fileName);
       
       addToast({
         id: `pdf-success-${Date.now()}`,
@@ -722,24 +720,37 @@ export default function StaffTicketDetailPage() {
       console.error('PDF Export Error:', error);
       addToast({
         id: `pdf-error-${Date.now()}`,
-        type: 'sla', // Using sla for attention-grabbing red if needed, or stick to ticket
+        type: 'sla',
         title: 'ไม่สามารถส่งออกใบงานได้',
         body: 'เกิดข้อผิดพลาดในการสร้างไฟล์ PDF กรุณาลองใหม่อีกครั้ง'
       });
+    } finally {
+      setUpdating(false);
     }
   };
 
   const handlePrintSummary = async () => {
-    if (!ticket) return;
+    if (!ticket || !reportRef.current) return;
 
+    setUpdating(true);
     try {
-      const response = await fetch(`/api/tickets/${ticket.id}/export-summary`, { method: 'GET' });
-      if (!response.ok) {
-        throw new Error(`Print export failed (${response.status})`);
-      }
-      const blob = await response.blob();
-      const blobUrl = window.URL.createObjectURL(blob);
+      const { html2canvas, jsPDF } = await loadPdfDeps();
+      
+      const canvas = await html2canvas(reportRef.current, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: '#ffffff'
+      });
+
+      const imgData = canvas.toDataURL('image/jpeg', 1.0);
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+      
+      pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
+      const blobUrl = pdf.output('bloburl');
       const printWindow = window.open(blobUrl, '_blank');
+      
       if (!printWindow) {
         addToast({
           id: `pdf-print-popup-${Date.now()}`,
@@ -753,7 +764,6 @@ export default function StaffTicketDetailPage() {
       setTimeout(() => {
         printWindow.focus();
         printWindow.print();
-        window.URL.revokeObjectURL(blobUrl);
       }, 500);
     } catch (error) {
       console.error('PDF Print Error:', error);
@@ -763,6 +773,8 @@ export default function StaffTicketDetailPage() {
         title: 'ไม่สามารถพิมพ์รายงานได้',
         body: 'เกิดข้อผิดพลาดระหว่างเตรียมเอกสารสำหรับพิมพ์'
       });
+    } finally {
+      setUpdating(false);
     }
   };
 

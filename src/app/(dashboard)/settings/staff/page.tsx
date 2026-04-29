@@ -72,14 +72,7 @@ export default function StaffManagementPage() {
     settings_staff: 'none',
     settings_sla: 'none',
     settings_master: 'none',
-    settings_audit: 'none',
-    module_doctor: 'none',
-    module_nurse: 'none',
-    module_pharmacy: 'none',
-    module_records: 'none',
-    module_surgery: 'none',
-    module_anesthesia: 'none',
-    module_consult: 'none'
+    settings_audit: 'none'
   };
   const [permissions, setPermissions] = useState<any>(DEFAULT_PERMISSIONS);
   const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' }>({ key: 'full_name', direction: 'asc' });
@@ -589,13 +582,6 @@ export default function StaffManagementPage() {
                 { key: 'notifications', label: t('settingsStaff.permissionLabels.notifications'), icon: Bell },
                 { key: 'customers', label: t('settingsStaff.permissionLabels.customers'), icon: Users },
                 { key: 'reports', label: t('settingsStaff.permissionLabels.reports'), icon: Send },
-                { key: 'module_doctor', label: t('settingsStaff.permissionLabels.moduleDoctor'), icon: LayoutGrid },
-                { key: 'module_nurse', label: t('settingsStaff.permissionLabels.moduleNurse'), icon: LayoutGrid },
-                { key: 'module_pharmacy', label: t('settingsStaff.permissionLabels.modulePharmacy'), icon: LayoutGrid },
-                { key: 'module_records', label: t('settingsStaff.permissionLabels.moduleRecords'), icon: LayoutGrid },
-                { key: 'module_surgery', label: t('settingsStaff.permissionLabels.moduleSurgery'), icon: LayoutGrid },
-                { key: 'module_anesthesia', label: t('settingsStaff.permissionLabels.moduleAnesthesia'), icon: LayoutGrid },
-                { key: 'module_consult', label: t('settingsStaff.permissionLabels.moduleConsult'), icon: LayoutGrid },
                 { key: 'settings_profile', label: t('settingsStaff.permissionLabels.settingsProfile'), icon: User },
                 { key: 'settings_branding', label: t('settingsStaff.permissionLabels.settingsBranding'), icon: Building },
                 { key: 'settings_staff', label: t('settingsStaff.permissionLabels.settingsStaff'), icon: UserPlus },

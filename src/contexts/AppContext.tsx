@@ -17,6 +17,9 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 type RefreshScope = 'all' | 'profile' | 'settings' | 'hospitals' | 'departments';
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
+  const profileBypassAuth =
+    process.env.NODE_ENV !== 'production' &&
+    process.env.NEXT_PUBLIC_PROFILE_BYPASS_AUTH === '1';
   const [userProfile, setUserProfile] = useState<any | null>(null);
   const [companySettings, setCompanySettings] = useState<any | null>(null);
   const [hospitals, setHospitals] = useState<any[]>([]);
@@ -115,9 +118,29 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
         if (cancelled) return;
 
-        if (!user) {
+        if (!user && !profileBypassAuth) {
           setCurrentUserId(null);
           setUserProfile(null);
+          setLoading(false);
+          return;
+        }
+
+        if (!user && profileBypassAuth) {
+          setCurrentUserId(null);
+          setUserProfile({
+            id: 'profile-bypass',
+            role: 'Administrator',
+            full_name: 'Profiling User',
+            permissions: null,
+          });
+          setLoading(false);
+          void Promise.all([fetchSettings(), fetchHospitals(), fetchDepartments()]).catch((err) => {
+            console.error('AppProvider profile bypass background load error:', err);
+          });
+          return;
+        }
+
+        if (!user) {
           setLoading(false);
           return;
         }
@@ -159,7 +182,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       supabase.removeChannel(settingsChannel);
       if (profileChannel) supabase.removeChannel(profileChannel);
     };
-  }, [fetchDepartments, fetchHospitals, fetchProfile, fetchSettings]);
+  }, [fetchDepartments, fetchHospitals, fetchProfile, fetchSettings, profileBypassAuth]);
 
   return (
     <AppContext.Provider
@@ -184,3 +207,4 @@ export function useAppContext() {
   }
   return context;
 }
+

@@ -188,10 +188,10 @@ function getClaimActionState(
   return { isClaiming, isDisabled, label, style };
 }
 
-function getChatActionState(isDisabled: boolean, label: string) {
+function getChatActionState(isDisabled: boolean, label: string, color: string = 'var(--primary)') {
   const style: React.CSSProperties = {
     ...actionButtonBaseStyle,
-    background: isDisabled ? 'var(--bg-input)' : 'var(--primary)',
+    background: isDisabled ? 'var(--bg-input)' : color,
     color: 'white',
     cursor: isDisabled ? 'not-allowed' : 'pointer',
     opacity: isDisabled ? 0.5 : 1,
@@ -294,7 +294,7 @@ export function TicketsBoard({
                       claiming: t('tickets.claiming'),
                       claim: t('tickets.claimTicket'),
                     });
-                    const chatAction = getChatActionState(false, t('tickets.openInboxChat'));
+                    const chatAction = getChatActionState(false, t('tickets.openInboxChat'), config.color);
 
                     return (
                       <motion.div
@@ -369,7 +369,7 @@ export function TicketsBoard({
                                   href={chatHref}
                                 title={t('tickets.openInboxChat')}
                                 className="glass-interactive flex-center"
-                                style={messageButtonStyle}
+                                style={{ ...messageButtonStyle, color: config.color, background: `${config.color}15` }}
                               >
                                 <MessageCircle size={16} />
                               </Link>

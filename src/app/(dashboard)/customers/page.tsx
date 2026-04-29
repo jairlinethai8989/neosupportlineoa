@@ -48,9 +48,9 @@ export default function CustomersPage() {
         .from('customers')
         .select(`
           *,
-          hospitals (
-            name
-          )
+          hospitals (name),
+          departments (name),
+          positions (name)
         `)
         .order('created_at', { ascending: false });
 
@@ -133,8 +133,8 @@ export default function CustomersPage() {
             bValue = b.display_name;
             break;
           case 'organization':
-            aValue = a.hospitals?.name || '';
-            bValue = b.hospitals?.name || '';
+            aValue = `${a.hospitals?.name || ''} ${a.departments?.name || ''}`;
+            bValue = `${b.hospitals?.name || ''} ${b.departments?.name || ''}`;
             break;
           case 'created_at':
             aValue = new Date(a.created_at).getTime();
@@ -357,7 +357,15 @@ export default function CustomersPage() {
                        <td style={{ padding: '16px 20px', background: 'rgba(255, 255, 255, 0.02)' }}>
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                              <span style={{ fontSize: '14px', fontWeight: '700', color: 'var(--primary)' }}>{c.hospitals?.name || 'Unspecified'}</span>
-                             <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{c.department || 'All Departments'}</span>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                 <span style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: '600' }}>
+                                    {c.departments?.name || 'No Department'}
+                                 </span>
+                                 <span style={{ width: '3px', height: '3px', borderRadius: '50%', background: 'var(--text-dim)' }} />
+                                 <span style={{ fontSize: '11px', color: 'var(--text-dim)' }}>
+                                    {c.positions?.name || 'General Staff'}
+                                 </span>
+                              </div>
                           </div>
                        </td>
                        <td style={{ padding: '16px 20px', background: 'rgba(255, 255, 255, 0.02)' }}>

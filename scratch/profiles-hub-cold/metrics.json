@@ -1,0 +1,16 @@
+{
+  "baseUrl": "http://127.0.0.1:3203",
+  "routes": [
+    "/reports/hub"
+  ],
+  "metrics": [
+    {
+      "route": "/reports/hub",
+      "domContentLoadedMs": 3582.2,
+      "loadEventMs": 3615.9,
+      "responseEndMs": 682.3,
+      "transferSize": 5283,
+      "fcpMs": 3356
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "baseUrl": "http://127.0.0.1:3303",
+  "routes": [
+    "/"
+  ],
+  "metrics": [
+    {
+      "route": "/login",
+      "domContentLoadedMs": 2572.9,
+      "loadEventMs": 2634.5,
+      "responseEndMs": 31.3,
+      "transferSize": 4116,
+      "fcpMs": 2676
+    }
+  ]
+}

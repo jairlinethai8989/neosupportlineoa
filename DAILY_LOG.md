@@ -1,8 +1,62 @@
-# บันทึกความคืบหน้าโครงการ NeoSupport V2.0 (ล่าสุด 27 เมษายน 2569)
+# บันทึกความคืบหน้าโครงการ NeoSupport V2.0 (ล่าสุด 29 เมษายน 2569)
 
-วันนี้เราได้เน้นไปที่การเพิ่มประสิทธิภาพการจัดการข้อมูล Master Data, การรักษาความปลอดภัยของระบบบันทึก (Audit Log) และการปรับปรุง UI/UX ให้สมบูรณ์แบบในทุกโหมดสี มีรายละเอียดดังนี้:
+วันนี้เราได้ดำเนินการ Hotfix ระบบ Inbox chat และปรับปรุงความเสถียรในการส่งข้อความ (Stability & Error Handling) ดังนี้:
 
-## ✅ สิ่งที่ทำสำเร็จแล้วในวันนี้ (27 เมษายน 2569)
+## ✅ สิ่งที่ทำสำเร็จแล้วในวันนี้ (29 เมษายน 2569)
+1.  **Inbox Chat Security & Filtering (สำเร็จ):**
+    *   ปรับปรุง `webhook/route.ts` ให้รับเฉพาะข้อความ LINE OA ที่ผ่าน ticket-flow ของระบบเท่านั้น เพื่อป้องกันแชท "No Ticket" ไหลเข้าเองโดยไม่ตั้งใจ
+2.  **Stable Message Sending (สำเร็จ):**
+    *   แก้ไขปัญหา Server-action เด้ง Error ใน Production โดยปรับปรุงการส่งข้อความพนักงานให้มีความเสถียรมากขึ้น
+    *   ปรับปรุงการแสดงผล Error ให้ละเอียดขึ้น (Detailed Error Display) แทนการค้างที่ "Unknown error"
+3.  **Media Schema Hotfix (สำเร็จ):**
+    *   แก้ไขปัญหา `media_mime_type` missing (PGRST204)
+    *   เพิ่มระบบ Fallback สำหรับไฟล์และรูปภาพในกรณีที่ Schema ฐานข้อมูลยังไม่อัปเดต (`media_path` fallback)
+    *   ลดการส่งฟิลด์ `media` ที่ไม่จำเป็นสำหรับข้อความประเภท Text
+4.  **Staff Sender Constraint (สำเร็จ):**
+    *   แก้ไขปัญหา `chk_message_sender` (23514) โดยบังคับส่ง `staff_id` ทุกครั้งที่ `sender_type='agent'`
+    *   ตรวจสอบและเติม `staffId` ให้ครบทุกจุดที่มีการเรียกใช้ (Send message, Upload file, Editor save)
+5.  **Database Cleanup (สำเร็จ):**
+    *   จัดทำ SQL Script (`cleanup_no_ticket_chat_backlog.sql`) สำหรับทำความสะอาดข้อมูลแชทค้างที่ไม่มีใบงาน (Backlog cleanup)
+
+---
+
+## ✅ สิ่งที่ทำสำเร็จแล้วก่อนหน้า (28 เมษายน 2569)
+1.  **CSAT Mismatch Standardization (สำเร็จ):**
+    *   ปรับปรุง `analyticsService.ts` ให้ดึงข้อมูล CSAT จากตาราง `csat_surveys` อย่างถูกต้อง (Fix missing join)
+    *   Standardize การใช้ฟิลด์ `score` เป็นค่าหลัก (Canonical) แทน `rating` ในหน้า Analytics, Survey และ Portal
+    *   รองรับข้อมูลเก่าโดยใช้ `rating` เป็น fallback
+2.  **Role-Based Access for Audit Logs (สำเร็จ):**
+    *   จำกัดสิทธิ์การเข้าถึงและการล้าง Log (Clear Logs) ให้เฉพาะผู้ที่มีบทบาทเป็น `Administrator` เท่านั้น
+    *   ปรับปรุง UI ในหน้า `settings/audit` ให้ซ่อนปุ่มจัดการสำหรับเจ้าหน้าที่ทั่วไป
+3.  **Customer Normalization (สำเร็จ):**
+    *   ปรับโครงสร้างตาราง `customers` ให้เป็นมาตรฐาน
+    *   แก้ไข Logic การรับข้อมูลจาก LINE ให้บันทึกข้อมูลเข้าตาราง `customers` อย่างถูกต้อง
+4.  **Message Polymorphism (สำเร็จ):**
+    *   แยกฟิลด์ `media_path` และ `media_mime_type` ออกจาก `content` เพื่อความยืดหยุ่นในการเก็บข้อมูลสื่อ
+    *   ปรับปรุง Chat UI ใน `ChatWindow.tsx` และ `TicketChat.tsx` ให้รองรับการแสดงผลสื่อจากฟิลด์ใหม่โดยอัตโนมัติ
+5.  **Module Permission Removal (สำเร็จ):**
+    *   นำการกำหนดสิทธิ์แยกตามโมดูล (โมดูล: ห้องทำงานแพทย์, ฯลฯ) ออกจากระบบ Staff Management เนื่องจากไม่จำเป็นต้องใช้
+6.  **SLA Infrastructure & E2E Testing (สำเร็จ):**
+    *   เพิ่มคอลัมน์ `sla_due_at` ในตาราง `tickets` และรัน Migration สำเร็จ
+    *   ทดสอบ E2E Flow (LINE -> Ticket -> Resolve -> Survey) สำเร็จ 100%
+    *   ตรวจสอบ Toaster Notification สำหรับ SLA Warning ทำงานได้ถูกต้องบน UI จริง
+7.  **Performance & Cache Optimization (โดย Codex - Commit fde2887):**
+    *   **Analytics PDF Export:** ย้ายการ Export ออกจาก Client-side ไปยัง API (`/api/reports/analytics/export-pdf`) เพื่อลดภาระ Main-thread และป้องกัน UI ค้าง
+    *   **Standardized Cache Policy:** วางระบบ Cache Policy (TTL) และ Live Cache Utility (`src/lib/cache/policy.ts`, `liveCache.ts`)
+    *   **Cache Invalidation:** ผูกระบบล้าง Cache หลัง Mutation สำคัญ (Tickets, Messages, Webhook) เพื่อป้องกันข้อมูลค้าง
+    *   **Optimized Routes:** ปรับปรุง `/api/dashboard/summary` และ Report Preview ให้ใช้ Policy ใหม่
+
+---
+
+## 🚀 สิ่งที่ยังเหลือ (Next Actions)
+- Tickets/Inbox list query optimization (Select เฉพาะฟิลด์ + Pagination)
+- ตรวจสอบ Export path อื่นๆ ที่ยังเป็น Client-heavy
+- Dashboard/report widget cleanup (Lazy loading/Bundle cleanup)
+- วัดผล Performance หลัง Optimize รอบถัดไป
+
+---
+
+## บันทึกก่อนหน้า (27 เมษายน 2569)
 1. **Hospital Abbreviation System (CRUD):**
    * ปรับปรุงฐานข้อมูลเพิ่มฟิลด์ `abbreviation` (ตัวย่อ) ให้กับข้อมูลโรงพยาบาล
    * พัฒนาหน้าจอจัดการข้อมูล (Master Settings) ให้สามารถ **เพิ่ม/แก้ไข/ลบ** ตัวย่อได้ เพื่อใช้สำหรับดึงข้อมูลลงรายงาน (Report Hub) ให้มีความสั้นกระชับ

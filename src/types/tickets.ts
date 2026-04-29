@@ -121,6 +121,8 @@ export interface TicketDetailMessage {
   ticket_id?: string | null;
   conversation_id?: string | null;
   message_type?: string | null;
+  media_path?: string | null;
+  media_mime_type?: string | null;
   created_at: string;
 }
 
