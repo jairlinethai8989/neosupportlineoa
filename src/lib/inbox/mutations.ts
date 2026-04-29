@@ -37,17 +37,37 @@ export async function sendInboxAgentMessage(input: {
   mediaMimeType?: string;
 }) {
   const messageType = input.messageType || 'text';
-  const { error: insertError } = await supabase.from('messages').insert([
-    {
-      conversation_id: input.conversationId,
-      ticket_id: input.ticketId,
-      sender_type: 'agent',
-      content: messageType === 'text' ? input.content : `[${messageType.toUpperCase()} Attachment]`,
-      message_type: messageType,
-      media_path: messageType !== 'text' ? input.content : null,
-      media_mime_type: input.mediaMimeType || null,
-    },
-  ]);
+  const baseMessage = {
+    conversation_id: input.conversationId,
+    ticket_id: input.ticketId,
+    sender_type: 'agent',
+    content: messageType === 'text' ? input.content : `[${messageType.toUpperCase()} Attachment]`,
+    message_type: messageType,
+  };
+  const messageWithMedia =
+    messageType === 'text'
+      ? baseMessage
+      : {
+          ...baseMessage,
+          media_path: input.content,
+          media_mime_type: input.mediaMimeType || null,
+        };
+
+  let { error: insertError } = await supabase.from('messages').insert([messageWithMedia]);
+
+  if (
+    insertError?.code === 'PGRST204' &&
+    /media_mime_type/i.test(insertError.message || '') &&
+    messageType !== 'text'
+  ) {
+    const { error: retryError } = await supabase.from('messages').insert([
+      {
+        ...baseMessage,
+        media_path: input.content,
+      },
+    ]);
+    insertError = retryError;
+  }
 
   if (insertError) {
     const detailSuffix = [
