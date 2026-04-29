@@ -136,7 +136,7 @@ export async function verifyEscalationPin(ticketId: string, pin: string) {
 
     const { data: messages } = await supabaseAdmin
       .from('messages')
-      .select('content, sender_type, created_at, message_type, media_path')
+      .select('content, sender_type, created_at, message_type')
       .eq('ticket_id', ticketRow.id)
       .order('created_at', { ascending: true });
 

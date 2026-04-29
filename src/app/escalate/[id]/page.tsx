@@ -540,9 +540,9 @@ export default function EscalationPortalPage() {
                     fontWeight: 600,
                     lineHeight: 1.5,
                   }}>
-                    {msg.message_type === 'image' && msg.media_path ? (
-                      <div style={{ cursor: 'pointer' }} onClick={() => window.open(msg.media_path, '_blank')}>
-                        <img src={msg.media_path} style={{ maxWidth: '100%', maxHeight: '300px', borderRadius: '12px' }} alt="attachment" />
+                    {msg.message_type === 'image' ? (
+                      <div style={{ cursor: 'pointer' }} onClick={() => window.open(msg.content, '_blank')}>
+                        <img src={msg.content} style={{ maxWidth: '100%', maxHeight: '300px', borderRadius: '12px' }} alt="attachment" />
                       </div>
                     ) : (
                       msg.content
