@@ -30,6 +30,8 @@ export interface InboxMessage {
   conversation_id: string;
   ticket_id: string | null;
   message_type: string | null;
+  media_path?: string | null;
+  media_mime_type?: string | null;
   created_at: string;
 }
 
