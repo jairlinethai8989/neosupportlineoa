@@ -407,7 +407,7 @@ export function useTicketWorkspace(filterCustomerId: string | null) {
   useEffect(() => {
     if (userProfile?.user_id) {
       const savedMode = localStorage.getItem(`neo_ticket_viewMode_${userProfile.user_id}`);
-      if (savedMode === 'list' || savedMode === 'board') {
+      if (savedMode === 'table' || savedMode === 'board') {
         setViewModeState(savedMode);
       }
     }
