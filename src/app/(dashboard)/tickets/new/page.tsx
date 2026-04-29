@@ -111,17 +111,47 @@ export default function CreateInternalTicketPage() {
         }
       }
 
-      // 2. Generate a temporary Ticket No (if DB trigger is not yet active)
+      // 2. Find or Create Customer record for this staff member
+      let staffCustomerId = null;
+      if (staffProfile?.id) {
+        const staffCustomerKey = `staff_${staffProfile.id}`;
+        const { data: existingCustomer } = await supabase
+          .from('customers')
+          .select('id')
+          .eq('line_user_id', staffCustomerKey)
+          .maybeSingle();
+
+        if (existingCustomer) {
+          staffCustomerId = existingCustomer.id;
+        } else {
+          const { data: newCustomer } = await supabase
+            .from('customers')
+            .insert([{
+              line_user_id: staffCustomerKey,
+              display_name: `${staffProfile.full_name || 'Staff'} (Internal)`,
+              full_name: staffProfile.full_name || 'Internal Staff',
+              hospital_id: selectedHospitalId, // Assign to the selected hospital
+            }])
+            .select('id')
+            .single();
+          
+          if (newCustomer) {
+            staffCustomerId = newCustomer.id;
+          }
+        }
+      }
+
+      // 3. Generate a temporary Ticket No (if DB trigger is not yet active)
       // TIC-YYYYMMDD-RAND
       const datePart = new Date().toISOString().slice(0, 10).replace(/-/g, '');
       const tempNo = `TIC-${datePart}-${Math.floor(1000 + Math.random() * 9000)}`;
 
-      // 3. Create Internal Ticket
+      // 4. Create Internal Ticket
       const ticketPayload = {
         ticket_no: tempNo, 
-        customer_id: null, // Allow null for staff-created tickets
+        customer_id: staffCustomerId, // Use the staff's customer record
         hospital_id: selectedHospitalId, 
-        subject: `👷‍♂️ [Private] ${subject}`,
+        subject: `[Private] ${subject}`,
         description: description || subject,
         status: 'New',
         priority: priority,
