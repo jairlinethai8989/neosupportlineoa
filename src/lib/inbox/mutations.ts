@@ -71,6 +71,22 @@ export async function sendInboxAgentMessage(input: {
     insertError = retryError;
   }
 
+  if (
+    insertError?.code === 'PGRST204' &&
+    /media_path/i.test(insertError.message || '') &&
+    messageType !== 'text'
+  ) {
+    // Legacy schema fallback: keep media URL in content when media_path column is unavailable.
+    // This keeps image/file send working on environments where messages.media_path is not deployed yet.
+    const { error: retryError } = await supabase.from('messages').insert([
+      {
+        ...baseMessage,
+        content: input.content,
+      },
+    ]);
+    insertError = retryError;
+  }
+
   if (insertError) {
     const detailSuffix = [
       insertError.code ? `code=${insertError.code}` : null,
