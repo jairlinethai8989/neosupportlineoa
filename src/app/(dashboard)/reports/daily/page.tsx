@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import Skeleton from '@/components/ui/Skeleton';
 import { useStaffLocale } from '@/contexts/StaffLocaleContext';
+import { useAppContext } from '@/contexts/AppContext';
 import { ExportPreviewModal, type ExportPreviewData } from '@/components/ui/ExportPreviewModal';
 
 type ExportUtilsModule = typeof import('@/lib/utils/exportUtils');
@@ -68,6 +69,7 @@ type DailyPreviewRow = {
 
 export default function DailyReportPage() {
   const { t } = useStaffLocale();
+  const { userProfile } = useAppContext();
   const [tickets, setTickets] = useState<DailyPreviewRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [dateRange, setDateRange] = useState({
@@ -81,6 +83,27 @@ export default function DailyReportPage() {
   const [showFilter, setShowFilter] = useState(false);
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>(INITIAL_COLUMN_WIDTHS);
   
+  useEffect(() => {
+    if (userProfile?.id) {
+      try {
+        const saved = localStorage.getItem(`neo_report_columnWidths_${userProfile.id}`);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          setColumnWidths(prev => ({ ...prev, ...parsed }));
+        }
+      } catch (e) {}
+    }
+  }, [userProfile?.id]);
+
+  useEffect(() => {
+    if (userProfile?.id && columnWidths !== INITIAL_COLUMN_WIDTHS) {
+      const timeoutId = setTimeout(() => {
+        localStorage.setItem(`neo_report_columnWidths_${userProfile.id}`, JSON.stringify(columnWidths));
+      }, 500);
+      return () => clearTimeout(timeoutId);
+    }
+  }, [columnWidths, userProfile?.id]);
+
   const [showPreview, setShowPreview] = useState(false);
   const [previewData, setPreviewData] = useState<ExportPreviewData | null>(null);
 

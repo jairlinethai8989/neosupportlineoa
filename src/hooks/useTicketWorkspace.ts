@@ -168,7 +168,7 @@ export function useTicketWorkspace(filterCustomerId: string | null) {
   const [tickets, setTickets] = useState<TicketWorkspaceTicket[]>([]);
   const [conversations, setConversations] = useState<TicketWorkspaceConversation[]>([]);
   const [loading, setLoading] = useState(true);
-  const [viewMode, setViewMode] = useState<TicketsViewMode>('board');
+  const [viewModeState, setViewModeState] = useState<TicketsViewMode>('board');
   const [searchTerm, setSearchTerm] = useState('');
   const [debugError, setDebugError] = useState<string | null>(null);
   const [claimingId, setClaimingId] = useState<string | null>(null);
@@ -403,6 +403,22 @@ export function useTicketWorkspace(filterCustomerId: string | null) {
       supabase.removeChannel(channel);
     };
   }, [fetchData, loadSettings, syncTicketFromRealtime]);
+
+  useEffect(() => {
+    if (userProfile?.user_id) {
+      const savedMode = localStorage.getItem(`neo_ticket_viewMode_${userProfile.user_id}`);
+      if (savedMode === 'list' || savedMode === 'board') {
+        setViewModeState(savedMode);
+      }
+    }
+  }, [userProfile?.user_id]);
+
+  const setViewMode = useCallback((mode: TicketsViewMode) => {
+    setViewModeState(mode);
+    if (userProfile?.user_id) {
+      localStorage.setItem(`neo_ticket_viewMode_${userProfile.user_id}`, mode);
+    }
+  }, [userProfile?.user_id]);
 
   useEffect(() => {
     if (!latestTicketRealtimeEvent?.ticketId) return;
@@ -640,7 +656,7 @@ export function useTicketWorkspace(filterCustomerId: string | null) {
     sortConfig,
     timeRange,
     userProfile,
-    viewMode,
+    viewMode: viewModeState,
     isChatActive,
     ticketPage,
     hasNextTicketPage,
