@@ -88,6 +88,7 @@ export function useInboxConversation({
     }
 
     async function fetchConversationState() {
+      try {
       const urlParams = new URLSearchParams(window.location.search);
       const urlTicketId = urlParams.get('tid');
       const urlConversationId = urlParams.get('cid');
@@ -176,6 +177,12 @@ export function useInboxConversation({
         }
       } else {
         setCurrentTicket(null);
+      }
+      } catch (error) {
+        console.error('Failed to fetch inbox conversation state:', error);
+        setMessages([]);
+        setCurrentTicket(null);
+        setHasMoreMessages(false);
       }
     }
 

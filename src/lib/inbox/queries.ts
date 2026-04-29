@@ -260,21 +260,50 @@ export async function listInboxMessagesPage(input: {
   beforeCreatedAt?: string | null;
 }): Promise<InboxMessage[]> {
   const limit = input.limit || 50;
-  let query = supabase
+  const before = input.beforeCreatedAt || '9999-12-31T23:59:59.999Z';
+
+  const baseConversationQuery = supabase
     .from('messages')
     .select(inboxMessageSelect)
+    .eq('conversation_id', input.conversationId)
+    .lt('created_at', before)
     .order('created_at', { ascending: false })
-    .limit(limit)
-    .lt('created_at', input.beforeCreatedAt || '9999-12-31T23:59:59.999Z');
+    .limit(limit);
 
-  query = input.ticketId
-    ? query.or(`conversation_id.eq.${input.conversationId},ticket_id.eq.${input.ticketId}`)
-    : query.eq('conversation_id', input.conversationId);
+  if (!input.ticketId) {
+    const { data, error } = await baseConversationQuery;
+    if (error) throw error;
+    return normalizeInboxMessages((data || []).reverse());
+  }
 
-  const { data, error } = await query;
+  const baseTicketQuery = supabase
+    .from('messages')
+    .select(inboxMessageSelect)
+    .eq('ticket_id', input.ticketId)
+    .lt('created_at', before)
+    .order('created_at', { ascending: false })
+    .limit(limit);
 
-  if (error) throw error;
-  return normalizeInboxMessages((data || []).reverse());
+  const [{ data: byConversation, error: convError }, { data: byTicket, error: ticketError }] =
+    await Promise.all([baseConversationQuery, baseTicketQuery]);
+
+  if (convError && ticketError) {
+    throw convError;
+  }
+
+  const merged = [...(byConversation || []), ...(byTicket || [])];
+  const normalized = normalizeInboxMessages(merged);
+
+  const dedupedById = Array.from(
+    new Map(normalized.map((message) => [message.id, message])).values()
+  );
+
+  dedupedById.sort(
+    (left, right) =>
+      new Date(right.created_at).getTime() - new Date(left.created_at).getTime()
+  );
+
+  return dedupedById.slice(0, limit).reverse();
 }
 
 export async function getInboxTicketById(ticketId: string): Promise<InboxTicket | null> {
