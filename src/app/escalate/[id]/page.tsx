@@ -12,6 +12,7 @@ import {
   History,
   Loader2,
   Lock,
+  MessageSquare,
   Send,
   Trash2,
   Unlock,
@@ -46,6 +47,7 @@ type TicketData = {
     name?: string | null;
   } | null;
   logs?: TicketLog[] | null;
+  messages?: any[] | null;
 };
 
 const STATUS_OPTIONS: Array<{ value: ExternalReportStatus; label: string }> = [
@@ -409,55 +411,52 @@ export default function EscalationPortalPage() {
           style={{
             display: 'flex',
             justifyContent: 'space-between',
-            alignItems: 'flex-start',
-            marginBottom: '20px',
+            alignItems: 'center',
+            marginBottom: '16px',
+            paddingBottom: '16px',
+            borderBottom: '1px solid #f1f5f9'
           }}
         >
-          <div>
-            <p style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 800, textTransform: 'uppercase' }}>
-              Ticket No.
-            </p>
-            <h2 style={{ fontSize: '20px', fontWeight: 900, color: 'var(--primary)' }}>
-              #{ticketData?.ticket_no || '-'}
-            </h2>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <div style={{ padding: '8px', background: 'var(--primary-transparent)', borderRadius: '12px', color: 'var(--primary)' }}>
+              <ClipboardCheck size={20} />
+            </div>
+            <div>
+              <p style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                Service Ticket
+              </p>
+              <h2 style={{ fontSize: '18px', fontWeight: 900, color: 'var(--text-main)' }}>
+                #{ticketData?.ticket_no || '-'}
+              </h2>
+            </div>
           </div>
           <span
             style={{
               ...statusBadgeStyle(ticketData?.status),
-              padding: '6px 16px',
+              padding: '6px 14px',
               borderRadius: '20px',
-              fontSize: '12px',
-              fontWeight: 800,
+              fontSize: '11px',
+              fontWeight: 900,
+              textTransform: 'uppercase',
+              letterSpacing: '1px'
             }}
           >
             {ticketData?.status || 'Unknown'}
           </span>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '24px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <div style={{ padding: '8px', background: '#f1f5f9', borderRadius: '10px', color: '#64748b' }}>
-              <User size={16} />
-            </div>
-            <div>
-              <p style={{ fontSize: '10px', color: '#94a3b8', fontWeight: 800, textTransform: 'uppercase' }}>
-                Customer
-              </p>
-              <p style={{ fontSize: '14px', fontWeight: 700 }}>
-                {ticketData?.customers?.display_name || 'N/A'}
-              </p>
-            </div>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '24px', marginBottom: '20px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <User size={14} color="#94a3b8" />
+            <span style={{ fontSize: '13px', fontWeight: 700, color: '#475569' }}>
+              {ticketData?.customers?.display_name || 'N/A'}
+            </span>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <div style={{ padding: '8px', background: '#f1f5f9', borderRadius: '10px', color: '#64748b' }}>
-              <Building2 size={16} />
-            </div>
-            <div>
-              <p style={{ fontSize: '10px', color: '#94a3b8', fontWeight: 800, textTransform: 'uppercase' }}>
-                Hospital
-              </p>
-              <p style={{ fontSize: '14px', fontWeight: 700 }}>{ticketData?.hospitals?.name || 'N/A'}</p>
-            </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Building2 size={14} color="#94a3b8" />
+            <span style={{ fontSize: '13px', fontWeight: 700, color: '#475569' }}>
+              {ticketData?.hospitals?.name || 'N/A'}
+            </span>
           </div>
         </div>
 
@@ -485,6 +484,79 @@ export default function EscalationPortalPage() {
           </p>
         </div>
       </div>
+
+      {ticketData?.messages && ticketData.messages.length > 0 && (
+        <div
+          className="glass"
+          style={{ padding: '24px', background: '#ffffff', borderRadius: '24px', border: '1px solid #e2e8f0' }}
+        >
+          <h3
+            style={{
+              fontSize: '15px',
+              fontWeight: 800,
+              marginBottom: '20px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+            }}
+          >
+            <MessageSquare size={18} color="var(--primary)" /> Chat Workspace (Conversation History)
+          </h3>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', maxHeight: '500px', overflowY: 'auto', paddingRight: '8px' }}>
+            {ticketData.messages.map((msg, index) => {
+              const isStaff = msg.sender_type === 'staff' || msg.sender_type === 'agent' || msg.sender_type === 'system';
+              const isSystem = msg.sender_type === 'system';
+              
+              if (isSystem) {
+                return (
+                  <div key={index} style={{ textAlign: 'center', margin: '8px 0' }}>
+                    <span style={{ fontSize: '11px', color: '#94a3b8', background: '#f8fafc', padding: '4px 12px', borderRadius: '12px', border: '1px solid #f1f5f9' }}>
+                      {msg.content}
+                    </span>
+                  </div>
+                );
+              }
+
+              return (
+                <div 
+                  key={index} 
+                  style={{ 
+                    alignSelf: isStaff ? 'flex-end' : 'flex-start',
+                    maxWidth: '85%',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: isStaff ? 'flex-end' : 'flex-start'
+                  }}
+                >
+                  <div style={{
+                    padding: '12px 16px',
+                    borderRadius: '20px',
+                    borderBottomLeftRadius: isStaff ? '20px' : '4px',
+                    borderBottomRightRadius: isStaff ? '20px' : '20px',
+                    background: isStaff ? 'var(--primary-transparent)' : '#f1f5f9',
+                    border: isStaff ? '1px solid var(--primary-dim)' : '1px solid #e2e8f0',
+                    color: isStaff ? 'var(--primary)' : '#1e293b',
+                    fontSize: '14px',
+                    fontWeight: 600,
+                    lineHeight: 1.5,
+                  }}>
+                    {msg.message_type === 'image' && msg.media_path ? (
+                      <div style={{ cursor: 'pointer' }} onClick={() => window.open(msg.media_path, '_blank')}>
+                        <img src={msg.media_path} style={{ maxWidth: '100%', maxHeight: '300px', borderRadius: '12px' }} alt="attachment" />
+                      </div>
+                    ) : (
+                      msg.content
+                    )}
+                  </div>
+                  <span style={{ fontSize: '10px', color: '#94a3b8', marginTop: '6px', fontWeight: 700, textTransform: 'uppercase' }}>
+                    {isStaff ? 'SUPPORT TEAM' : (ticketData.customers?.display_name || 'CUSTOMER')} • {new Date(msg.created_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {ticketData?.logs && ticketData.logs.length > 0 && (
         <div

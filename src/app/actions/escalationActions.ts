@@ -14,6 +14,7 @@ type EscalationTicketRow = {
   resolution_summary?: string | null;
   customer_id?: string | null;
   hospital_id?: string | null;
+  messages?: any[] | null;
   [key: string]: unknown;
 };
 
@@ -133,7 +134,13 @@ export async function verifyEscalationPin(ticketId: string, pin: string) {
       .order('created_at', { ascending: false })
       .limit(5);
 
-    return { data: { ...ticketRow, customers: customer, hospitals: hospital, logs } };
+    const { data: messages } = await supabaseAdmin
+      .from('messages')
+      .select('content, sender_type, created_at, message_type, media_path')
+      .eq('ticket_id', ticketRow.id)
+      .order('created_at', { ascending: true });
+
+    return { data: { ...ticketRow, customers: customer, hospitals: hospital, logs, messages } };
   } catch (err: any) {
     return { error: `Escalation access check failed: ${err.message}` };
   }
