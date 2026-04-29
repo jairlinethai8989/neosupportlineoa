@@ -38,8 +38,6 @@ export const inboxMessageSelect = `
   conversation_id,
   ticket_id,
   message_type,
-  media_path,
-  media_mime_type,
   created_at
 `;
 
