@@ -377,6 +377,7 @@ export function useInboxConversation({
       await sendInboxAgentMessage({
         conversationId: selectedChat.id,
         ticketId: currentTicket?.id || selectedChat.current_ticket_id || null,
+        staffId: agent.id,
         content: optimisticMessage.content || '',
         messageType: 'text',
       });

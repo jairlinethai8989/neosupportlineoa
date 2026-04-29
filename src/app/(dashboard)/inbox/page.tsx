@@ -125,10 +125,14 @@ function InboxContent() {
 
     setSending(true);
     try {
+      if (!agent?.id) {
+        throw new Error('Agent session is missing');
+      }
       await uploadInboxChatMedia({
         file,
         conversationId: selectedChat.id,
         ticketId: currentTicket?.id || selectedChat.current_ticket_id || null,
+        staffId: agent.id,
       });
     } catch (error: unknown) {
       addToast({
@@ -433,6 +437,9 @@ function InboxContent() {
             onClose={() => setIsEditorOpen(false)}
             onSave={async (blob: Blob) => {
               if (!selectedChat) return;
+              if (!agent?.id) {
+                throw new Error('Agent session is missing');
+              }
 
               setSending(true);
               try {
@@ -444,6 +451,7 @@ function InboxContent() {
                   file, // Pass the new File object
                   conversationId: selectedChat.id,
                   ticketId: currentTicket?.id || selectedChat.current_ticket_id || null,
+                  staffId: agent.id,
                   filePrefix: 'edited'
                 });
 

@@ -32,6 +32,7 @@ function requireNormalizedTicket(ticket: unknown, context: string): InboxTicket 
 export async function sendInboxAgentMessage(input: {
   conversationId: string;
   ticketId: string | null;
+  staffId: string;
   content: string;
   messageType?: string;
   mediaMimeType?: string;
@@ -41,6 +42,7 @@ export async function sendInboxAgentMessage(input: {
     conversation_id: input.conversationId,
     ticket_id: input.ticketId,
     sender_type: 'agent',
+    staff_id: input.staffId,
     content: messageType === 'text' ? input.content : `[${messageType.toUpperCase()} Attachment]`,
     message_type: messageType,
   };
@@ -173,6 +175,7 @@ export async function uploadInboxChatMedia(input: {
   blob?: Blob;
   conversationId: string;
   ticketId: string | null;
+  staffId: string;
   filePrefix?: string;
 }) {
   const media = input.file || input.blob;
@@ -199,6 +202,7 @@ export async function uploadInboxChatMedia(input: {
   await sendInboxAgentMessage({
     conversationId: input.conversationId,
     ticketId: input.ticketId,
+    staffId: input.staffId,
     content: publicUrl,
     messageType,
     mediaMimeType: input.file ? input.file.type : 'image/jpeg',
