@@ -89,6 +89,15 @@ export function useInboxConversation({
 
     async function fetchConversationState() {
       try {
+      const safeLinkConversationToTicket = async (conversationId: string, ticketId: string) => {
+        try {
+          await linkConversationToTicket(conversationId, ticketId);
+        } catch (linkError) {
+          // Link failure should not block displaying existing thread messages.
+          console.warn('Skipped conversation-ticket relink:', linkError);
+        }
+      };
+
       const urlParams = new URLSearchParams(window.location.search);
       const urlTicketId = urlParams.get('tid');
       const urlConversationId = urlParams.get('cid');
@@ -126,7 +135,7 @@ export function useInboxConversation({
           setCurrentTicket(ticket);
           // Auto-link if needed
           if (selectedChat!.current_ticket_id !== urlTicketId) {
-            await linkConversationToTicket(selectedChat!.id, urlTicketId);
+            await safeLinkConversationToTicket(selectedChat!.id, urlTicketId);
           }
           return;
         }
@@ -138,7 +147,7 @@ export function useInboxConversation({
         if (messageTicket) {
           setCurrentTicket(messageTicket);
           if (selectedChat!.current_ticket_id !== messageTicket.id) {
-            await linkConversationToTicket(selectedChat!.id, messageTicket.id);
+            await safeLinkConversationToTicket(selectedChat!.id, messageTicket.id);
           }
           return;
         }
@@ -173,16 +182,14 @@ export function useInboxConversation({
       if (conversationTicket) {
         setCurrentTicket(conversationTicket);
         if (selectedChat!.current_ticket_id !== conversationTicket.id) {
-          await linkConversationToTicket(selectedChat!.id, conversationTicket.id);
+          await safeLinkConversationToTicket(selectedChat!.id, conversationTicket.id);
         }
       } else {
         setCurrentTicket(null);
       }
       } catch (error) {
         console.error('Failed to fetch inbox conversation state:', error);
-        setMessages([]);
         setCurrentTicket(null);
-        setHasMoreMessages(false);
       }
     }
 
