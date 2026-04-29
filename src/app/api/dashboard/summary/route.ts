@@ -13,7 +13,7 @@ type DashboardTicketRow = {
   priority: string | null;
   created_at: string;
   updated_at: string | null;
-  assigned_to: string | null;
+  assigned_agent_id: string | null;
 };
 
 type DashboardLogRow = {
@@ -79,7 +79,7 @@ export async function GET(req: Request) {
         priority,
         created_at,
         updated_at,
-        assigned_to
+        assigned_agent_id
       `;
 
       const { data: ticketsData, error: ticketsError } = await supabaseAdmin
@@ -157,8 +157,8 @@ export async function GET(req: Request) {
         priorityCounts[priority] = (priorityCounts[priority] || 0) + 1;
         createdCountsByDay[createdDateKey] = (createdCountsByDay[createdDateKey] || 0) + 1;
 
-        if (ticket.assigned_to) {
-          agentCounts[ticket.assigned_to] = (agentCounts[ticket.assigned_to] || 0) + 1;
+        if (ticket.assigned_agent_id) {
+          agentCounts[ticket.assigned_agent_id] = (agentCounts[ticket.assigned_agent_id] || 0) + 1;
         }
 
         if ((status === 'Resolved' || status === 'Closed') && ticket.updated_at) {
