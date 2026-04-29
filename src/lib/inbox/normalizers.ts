@@ -109,6 +109,8 @@ export function normalizeInboxMessage(value: unknown): InboxMessage | null {
     conversation_id: asString(value.conversation_id) || '',
     ticket_id: asString(value.ticket_id),
     message_type: asString(value.message_type),
+    media_path: asString(value.media_path),
+    media_mime_type: asString(value.media_mime_type),
     created_at: asString(value.created_at) || new Date(0).toISOString(),
   };
 }
@@ -116,7 +118,7 @@ export function normalizeInboxMessage(value: unknown): InboxMessage | null {
 export function normalizeInboxMessages(values: unknown[]): InboxMessage[] {
   return values
     .map((value) => normalizeInboxMessage(value))
-    .filter((value): value is InboxMessage => Boolean(value?.id && value.conversation_id));
+    .filter((value): value is InboxMessage => Boolean(value?.id));
 }
 
 export function normalizeInboxTicket(value: unknown): InboxTicket | null {

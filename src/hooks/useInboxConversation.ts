@@ -60,6 +60,16 @@ export function useInboxConversation({
   const oldestMessageCursorRef = useRef<string | null>(null);
   const lastRenderedMessageIdRef = useRef<string | null>(null);
 
+  const getThreadTicketId = () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    return (
+      urlParams.get('tid') ||
+      selectedChat?.current_ticket_id ||
+      selectedChat?.ticket_data?.id ||
+      null
+    );
+  };
+
   useEffect(() => {
     const lastMessageId = messages.length > 0 ? messages[messages.length - 1].id : null;
     if (lastMessageId && lastMessageId !== lastRenderedMessageIdRef.current) {
@@ -78,8 +88,18 @@ export function useInboxConversation({
     }
 
     async function fetchConversationState() {
+      const urlParams = new URLSearchParams(window.location.search);
+      const urlTicketId = urlParams.get('tid');
+      const urlConversationId = urlParams.get('cid');
+      const threadTicketId =
+        urlTicketId ||
+        selectedChat!.current_ticket_id ||
+        selectedChat!.ticket_data?.id ||
+        null;
+
       const initialPage = await listInboxMessagesPage({
         conversationId: selectedChat!.id,
+        ticketId: threadTicketId,
         limit: MESSAGE_PAGE_SIZE,
       });
 
@@ -95,9 +115,6 @@ export function useInboxConversation({
           ?.ticket_id || null;
 
       // 1. Prioritize Ticket ID from URL (Deep Link)
-      const urlParams = new URLSearchParams(window.location.search);
-      const urlTicketId = urlParams.get('tid');
-      const urlConversationId = urlParams.get('cid');
       const shouldUseUrlTicket =
         Boolean(urlTicketId) &&
         (!urlConversationId || urlConversationId === selectedChat!.id);
@@ -164,6 +181,54 @@ export function useInboxConversation({
 
     fetchConversationState();
 
+    const appendIncomingMessage = (payload: RealtimePostgresChangesPayload<InboxMessage>) => {
+      const normalizedMessage = normalizeInboxMessage(payload.new);
+      if (!normalizedMessage) return;
+
+      setMessages((prev) => {
+        if (prev.some((message) => message.id === normalizedMessage.id)) {
+          return prev;
+        }
+
+        // Reconcile optimistic agent message to prevent ghost duplicates.
+        const optimisticIndex = prev.findIndex((message) => {
+          if (!message.id.startsWith('temp-')) return false;
+          if (message.sender_type !== 'agent') return false;
+          if (normalizedMessage.sender_type !== 'agent') return false;
+          if (message.staff_id !== normalizedMessage.staff_id) return false;
+          if ((message.content || '').trim() !== (normalizedMessage.content || '').trim()) return false;
+
+          const optimisticAt = new Date(message.created_at).getTime();
+          const serverAt = new Date(normalizedMessage.created_at).getTime();
+          return Math.abs(serverAt - optimisticAt) <= 30_000;
+        });
+
+        if (optimisticIndex >= 0) {
+          const next = [...prev];
+          next[optimisticIndex] = normalizedMessage;
+          return next;
+        }
+
+        return [...prev, normalizedMessage];
+      });
+    };
+
+    const updateIncomingMessage = (payload: RealtimePostgresChangesPayload<InboxMessage>) => {
+      const normalizedMessage = normalizeInboxMessage(payload.new);
+      if (!normalizedMessage) return;
+
+      setMessages((prev) =>
+        prev.map((message) =>
+          message.id === normalizedMessage.id ? normalizedMessage : message
+        )
+      );
+    };
+
+    const deleteIncomingMessage = (payload: RealtimePostgresChangesPayload<InboxMessage>) => {
+      setMessages((prev) => prev.filter((message) => message.id !== (payload.old as InboxMessage).id));
+    };
+
+    const threadTicketId = getThreadTicketId();
     const channel = supabase
       .channel(`chat_realtime_${selectedChat!.id}`)
       .on(
@@ -174,37 +239,7 @@ export function useInboxConversation({
           table: 'messages',
           filter: `conversation_id=eq.${selectedChat!.id}`,
         },
-        (payload: RealtimePostgresChangesPayload<InboxMessage>) => {
-          const normalizedMessage = normalizeInboxMessage(payload.new);
-          if (!normalizedMessage) return;
-
-          setMessages((prev) => {
-            if (prev.some((message) => message.id === normalizedMessage.id)) {
-              return prev;
-            }
-
-            // Reconcile optimistic agent message to prevent ghost duplicates.
-            const optimisticIndex = prev.findIndex((message) => {
-              if (!message.id.startsWith('temp-')) return false;
-              if (message.sender_type !== 'agent') return false;
-              if (normalizedMessage.sender_type !== 'agent') return false;
-              if (message.staff_id !== normalizedMessage.staff_id) return false;
-              if ((message.content || '').trim() !== (normalizedMessage.content || '').trim()) return false;
-
-              const optimisticAt = new Date(message.created_at).getTime();
-              const serverAt = new Date(normalizedMessage.created_at).getTime();
-              return Math.abs(serverAt - optimisticAt) <= 30_000;
-            });
-
-            if (optimisticIndex >= 0) {
-              const next = [...prev];
-              next[optimisticIndex] = normalizedMessage;
-              return next;
-            }
-
-            return [...prev, normalizedMessage];
-          });
-        }
+        appendIncomingMessage
       )
       .on(
         'postgres_changes',
@@ -214,16 +249,7 @@ export function useInboxConversation({
           table: 'messages',
           filter: `conversation_id=eq.${selectedChat!.id}`,
         },
-        (payload: RealtimePostgresChangesPayload<InboxMessage>) => {
-          const normalizedMessage = normalizeInboxMessage(payload.new);
-          if (!normalizedMessage) return;
-
-          setMessages((prev) =>
-            prev.map((message) =>
-              message.id === normalizedMessage.id ? normalizedMessage : message
-            )
-          );
-        }
+        updateIncomingMessage
       )
       .on(
         'postgres_changes',
@@ -233,11 +259,44 @@ export function useInboxConversation({
           table: 'messages',
           filter: `conversation_id=eq.${selectedChat!.id}`,
         },
-        (payload: RealtimePostgresChangesPayload<InboxMessage>) => {
-          setMessages((prev) => prev.filter((message) => message.id !== (payload.old as InboxMessage).id));
-        }
-      )
-      .subscribe();
+        deleteIncomingMessage
+      );
+
+    if (threadTicketId) {
+      channel
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'messages',
+            filter: `ticket_id=eq.${threadTicketId}`,
+          },
+          appendIncomingMessage
+        )
+        .on(
+          'postgres_changes',
+          {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'messages',
+            filter: `ticket_id=eq.${threadTicketId}`,
+          },
+          updateIncomingMessage
+        )
+        .on(
+          'postgres_changes',
+          {
+            event: 'DELETE',
+            schema: 'public',
+            table: 'messages',
+            filter: `ticket_id=eq.${threadTicketId}`,
+          },
+          deleteIncomingMessage
+        );
+    }
+
+    channel.subscribe();
 
     return () => {
       supabase.removeChannel(channel);
@@ -251,6 +310,7 @@ export function useInboxConversation({
     try {
       const olderPage = await listInboxMessagesPage({
         conversationId: selectedChat.id,
+        ticketId: currentTicket?.id || selectedChat.current_ticket_id || selectedChat.ticket_data?.id || null,
         limit: MESSAGE_PAGE_SIZE,
         beforeCreatedAt: oldestMessageCursorRef.current,
       });

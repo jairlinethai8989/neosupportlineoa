@@ -21,7 +21,6 @@ export const inboxConversationSelect = `
   last_message_at,
   customer_id,
   current_ticket_id,
-  is_active,
   customers (id, display_name, line_user_id),
   ticket_data:current_ticket_id (
     id,
@@ -39,6 +38,8 @@ export const inboxMessageSelect = `
   conversation_id,
   ticket_id,
   message_type,
+  media_path,
+  media_mime_type,
   created_at
 `;
 
@@ -102,10 +103,11 @@ export async function listInboxConversationsV2(input: {
 }): Promise<{ data: InboxConversation[]; hasNext: boolean; nextCursor: { lastMessageAt: string; id: string } | null }> {
   const pageSize = input.pageSize || 20;
 
-  // Include legacy status variants and is_active=true so claimed chats do not disappear.
+  // Include legacy status variants so claimed chats do not disappear.
+  // Do not depend on optional schema columns here; some production DBs do not have is_active.
   // Use wildcard progress token to avoid parser issues with status value containing spaces.
   const activeStatusFilter =
-    'is_active.eq.true,status.eq.active,status.eq.open,status.eq.new,status.ilike.*progress*';
+    'status.eq.active,status.eq.open,status.eq.new,status.ilike.*progress*';
 
   let query = supabase
     .from('conversations')
@@ -253,17 +255,23 @@ export async function listInboxMessages(
 
 export async function listInboxMessagesPage(input: {
   conversationId: string;
+  ticketId?: string | null;
   limit?: number;
   beforeCreatedAt?: string | null;
 }): Promise<InboxMessage[]> {
   const limit = input.limit || 50;
-  const { data, error } = await supabase
+  let query = supabase
     .from('messages')
     .select(inboxMessageSelect)
-    .eq('conversation_id', input.conversationId)
     .order('created_at', { ascending: false })
     .limit(limit)
     .lt('created_at', input.beforeCreatedAt || '9999-12-31T23:59:59.999Z');
+
+  query = input.ticketId
+    ? query.or(`conversation_id.eq.${input.conversationId},ticket_id.eq.${input.ticketId}`)
+    : query.eq('conversation_id', input.conversationId);
+
+  const { data, error } = await query;
 
   if (error) throw error;
   return normalizeInboxMessages((data || []).reverse());
