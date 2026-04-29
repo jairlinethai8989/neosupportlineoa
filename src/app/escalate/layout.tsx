@@ -35,7 +35,7 @@ export default function EscalateLayout({ children }: { children: React.ReactNode
           <p style={{ fontSize: '13px', color: '#64748b', fontWeight: 600 }}>External Department Portal</p>
         </div>
 
-        <main style={{ flex: 1, width: '100%', maxWidth: '600px', padding: '0 20px', paddingBottom: '60px' }}>
+        <main style={{ flex: 1, width: '100%', maxWidth: '1200px', padding: '0 20px', paddingBottom: '60px' }}>
           {children}
         </main>
       </body>

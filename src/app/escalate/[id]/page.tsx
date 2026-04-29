@@ -402,7 +402,14 @@ export default function EscalationPortalPage() {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+    <div style={{ 
+      display: 'grid', 
+      gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 450px), 1fr))', 
+      gap: '24px', 
+      alignItems: 'start' 
+    }}>
+      {/* Left Column */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
       <div
         className="glass"
         style={{ padding: '24px', background: '#ffffff', borderRadius: '24px', border: '1px solid #e2e8f0' }}
@@ -558,8 +565,12 @@ export default function EscalationPortalPage() {
         </div>
       )}
 
-      {ticketData?.logs && ticketData.logs.length > 0 && (
-        <div
+      </div>
+
+      {/* Right Column */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+        {ticketData?.logs && ticketData.logs.length > 0 && (
+          <div
           className="glass"
           style={{ padding: '24px', background: '#ffffff', borderRadius: '24px', border: '1px solid #e2e8f0' }}
         >
@@ -878,6 +889,7 @@ export default function EscalationPortalPage() {
             )}
           </button>
         </form>
+      </div>
       </div>
     </div>
   );
