@@ -1,12 +1,11 @@
 import {
   closeConversationAction,
   deleteMessageAction,
-  sendAgentMessageAction,
-  sendSystemMessageAction,
 } from '@/app/actions/messageActions';
 import { ticketService } from '@/lib/services/ticketService';
 import { supabase } from '@/lib/supabase';
 import { normalizeInboxTicket } from '@/lib/inbox/normalizers';
+import { invalidateAllPreviewCaches } from '@/lib/reports/previewCache';
 import type { InboxTicket } from '@/types/inbox';
 
 export interface InboxDeleteMessageResult {
@@ -35,21 +34,51 @@ export async function sendInboxAgentMessage(input: {
   ticketId: string | null;
   content: string;
   messageType?: string;
+  mediaMimeType?: string;
 }) {
-  return sendAgentMessageAction(
-    input.conversationId,
-    input.ticketId,
-    input.content,
-    input.messageType || 'text'
-  );
+  const messageType = input.messageType || 'text';
+  const { error: insertError } = await supabase.from('messages').insert([
+    {
+      conversation_id: input.conversationId,
+      ticket_id: input.ticketId,
+      sender_type: 'agent',
+      content: messageType === 'text' ? input.content : `[${messageType.toUpperCase()} Attachment]`,
+      message_type: messageType,
+      media_path: messageType !== 'text' ? input.content : null,
+      media_mime_type: input.mediaMimeType || null,
+    },
+  ]);
+
+  if (insertError) throw insertError;
+
+  const { error: updateError } = await supabase
+    .from('conversations')
+    .update({ last_message_at: new Date().toISOString() })
+    .eq('id', input.conversationId);
+
+  if (updateError) throw updateError;
+  invalidateAllPreviewCaches();
+  return { success: true as const };
 }
 
 export async function sendInboxSystemMessage(conversationId: string, content: string) {
-  return sendSystemMessageAction(conversationId, content);
+  const { error } = await supabase.from('messages').insert([
+    {
+      conversation_id: conversationId,
+      sender_type: 'system',
+      content,
+      message_type: 'text',
+    },
+  ]);
+  if (error) throw error;
+  invalidateAllPreviewCaches();
+  return { success: true as const };
 }
 
 export async function closeInboxConversation(conversationId: string) {
-  return closeConversationAction(conversationId);
+  const result = await closeConversationAction(conversationId);
+  invalidateAllPreviewCaches();
+  return result;
 }
 
 export async function deleteInboxMessage(messageId: string): Promise<InboxDeleteMessageResult> {
@@ -58,6 +87,7 @@ export async function deleteInboxMessage(messageId: string): Promise<InboxDelete
 
 export async function claimInboxTicket(ticketId: string, agentId?: string): Promise<InboxTicket> {
   const ticket = await ticketService.claimTicket(ticketId, agentId);
+  invalidateAllPreviewCaches();
   return requireNormalizedTicket(ticket, 'claimInboxTicket');
 }
 
@@ -71,6 +101,7 @@ export async function resolveInboxTicket(input: ResolveInboxTicketInput & { conv
     input.conversationId,
     input.surveyLink
   );
+  invalidateAllPreviewCaches();
   return requireNormalizedTicket(ticket, 'resolveInboxTicket');
 }
 
@@ -95,6 +126,7 @@ export async function linkConversationToTicket(conversationId: string, ticketId:
     .eq('id', conversationId);
 
   if (error) throw error;
+  invalidateAllPreviewCaches();
 }
 
 export async function uploadInboxChatMedia(input: {
@@ -130,6 +162,7 @@ export async function uploadInboxChatMedia(input: {
     ticketId: input.ticketId,
     content: publicUrl,
     messageType,
+    mediaMimeType: input.file ? input.file.type : 'image/jpeg',
   });
 
   return publicUrl;
