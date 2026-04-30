@@ -34,6 +34,7 @@ export interface TicketWorkspaceCustomer {
 export interface TicketWorkspaceAssignedAgent {
   id: string;
   display_name: string | null;
+  theme_color?: string | null;
 }
 
 export interface TicketWorkspaceTicket {
@@ -89,6 +90,7 @@ export interface TicketDetailCustomer {
 export interface TicketDetailAssignedAgent {
   id?: string | null;
   display_name?: string | null;
+  theme_color?: string | null;
 }
 
 export interface TicketDetailTicket {
