@@ -12,6 +12,14 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    ".agent/**",
+    "agent-skills/**",
+    "scratch/**",
+    "check_*.js",
+    "scratch_*.js",
+    "backfill_*.js",
+    "delete_*.js",
+    "tests/prepare-e2e.js",
   ]),
 ]);
 

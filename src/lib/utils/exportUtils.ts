@@ -126,9 +126,10 @@ export const exportToPDF = async <T extends ExportRow>(data: T[], fileName: stri
 
     doc.save(`${fileName}_${new Date().getTime()}.pdf`);
 
-  } catch (err: any) {
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Unknown Error';
     console.error('PDF Export Error:', err);
-    alert('PDF Export failed: ' + (err.message || 'Unknown Error'));
+    alert('PDF Export failed: ' + message);
   }
 };
 

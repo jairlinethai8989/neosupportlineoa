@@ -1,10 +1,18 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse } from 'next/server';
 
+type MiddlewareRequest = Request & {
+  nextUrl: { pathname: string };
+  cookies: {
+    getAll: () => Array<{ name: string; value: string }>;
+    set: (cookie: { name: string; value: string; [key: string]: unknown }) => void;
+  };
+};
+
 /**
  * Standard Next.js 16 Middleware for Supabase Auth
  */
-export async function middleware(request: any) {
+export async function middleware(request: MiddlewareRequest) {
   const { pathname } = request.nextUrl;
   const profileBypassAuth =
     process.env.NODE_ENV !== 'production' &&
