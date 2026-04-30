@@ -33,7 +33,7 @@ export const ticketWorkspaceTicketSelect = `
   issue_type,
   hospitals!tickets_hospital_id_fkey (id, name),
   customers!tickets_customer_id_fkey (id, display_name),
-  assigned_agent:profiles!assigned_agent_id (id, display_name:full_name)
+  assigned_agent:profiles!assigned_agent_id (id, display_name:full_name, theme_color)
 `;
 
 export const ticketWorkspaceTicketDetailSelect = `
@@ -50,7 +50,7 @@ export const ticketWorkspaceTicketDetailSelect = `
   current_department_id,
   hospitals!tickets_hospital_id_fkey (id, name),
   customers!tickets_customer_id_fkey (id, display_name),
-  assigned_agent:profiles!assigned_agent_id (id, display_name:full_name),
+  assigned_agent:profiles!assigned_agent_id (id, display_name:full_name, theme_color),
   department_data:departments!current_department_id (id, name)
 `;
 

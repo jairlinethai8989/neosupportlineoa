@@ -52,6 +52,7 @@ function normalizeAssignedAgent(value: unknown): TicketWorkspaceAssignedAgent | 
   return {
     id: asString(value.id) || '',
     display_name: asString(value.display_name),
+    theme_color: asString(value.theme_color),
   };
 }
 
