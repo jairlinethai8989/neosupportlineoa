@@ -10,7 +10,7 @@ import {
 } from '@/lib/inbox/queries';
 import type { InboxConversation } from '@/types/inbox';
 
-function sortConversations(items: InboxConversation[]) {
+export function sortConversations(items: InboxConversation[]) {
   return [...items].sort(
     (left, right) =>
       new Date(right.last_message_at || 0).getTime() -
@@ -18,7 +18,7 @@ function sortConversations(items: InboxConversation[]) {
   );
 }
 
-function isConversationActiveLike(conversation: InboxConversation) {
+export function isConversationActiveLike(conversation: InboxConversation) {
   const status = String(conversation.status || '').toLowerCase().trim();
   return (
     conversation.is_active === true ||
@@ -26,7 +26,7 @@ function isConversationActiveLike(conversation: InboxConversation) {
   );
 }
 
-function upsertConversation(
+export function upsertConversation(
   current: InboxConversation[],
   incoming: InboxConversation,
   maxItems: number

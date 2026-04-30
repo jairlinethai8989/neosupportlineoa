@@ -31,7 +31,7 @@ function escapeHtml(input: unknown): string {
 
 type ExportCellValue = string | number | boolean | null | undefined;
 type ExportRow = Record<string, ExportCellValue>;
-const formatDateTime = (value?: string | null): string =>
+export const formatDateTime = (value?: string | null): string =>
   value ? new Date(value).toLocaleString('th-TH') : '-';
 
 interface TicketLike {

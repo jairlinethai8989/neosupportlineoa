@@ -10,7 +10,7 @@ export interface LiffProfile {
   pictureUrl?: string;
 }
 
-const canUseMockLogin =
+export const canUseMockLogin =
   process.env.NODE_ENV !== 'production' || process.env.NEXT_PUBLIC_ENABLE_LIFF_MOCK === 'true';
 
 export function useLiff() {
