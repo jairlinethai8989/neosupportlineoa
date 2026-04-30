@@ -29,10 +29,25 @@ function escapeHtml(input: unknown): string {
     .replaceAll("'", '&#39;');
 }
 
+type ExportCellValue = string | number | boolean | null | undefined;
+type ExportRow = Record<string, ExportCellValue>;
+const formatDateTime = (value?: string | null): string =>
+  value ? new Date(value).toLocaleString('th-TH') : '-';
+
+interface TicketLike {
+  ticket_no?: string | null;
+  subject?: string | null;
+  customers?: { display_name?: string | null } | null;
+  status?: string | null;
+  priority?: string | null;
+  created_at?: string | null;
+  resolved_at?: string | null;
+}
+
 /**
  * Universal Excel Export
  */
-export const exportToExcel = (data: any[], fileName: string) => {
+export const exportToExcel = <T extends ExportRow>(data: T[], fileName: string) => {
   if (!data || data.length === 0) {
     alert('ไม่มีข้อมูลสำหรับส่งออก (No data to export)');
     return;
@@ -51,7 +66,7 @@ export const exportToExcel = (data: any[], fileName: string) => {
 /**
  * Universal PDF Export with Thai Font Support (Note: Thai chars need embedded font for full rendering)
  */
-export const exportToPDF = async (data: any[], fileName: string, title: string) => {
+export const exportToPDF = async <T extends ExportRow>(data: T[], fileName: string, title: string) => {
 
   try {
     if (!data || data.length === 0) {
@@ -73,7 +88,10 @@ export const exportToPDF = async (data: any[], fileName: string, title: string) 
 
     // Prepare Table Data
     const headers = Object.keys(data[0]);
-    const body = data.map(item => Object.values(item).map(v => String(v || '-')));
+    const body = data.map((item) => {
+      const row = item as Record<string, ExportCellValue>;
+      return headers.map((header) => String(row[header] ?? '-'));
+    });
 
     autoTable(doc, {
       head: [headers],
@@ -142,7 +160,7 @@ export const exportDashboardAsPDF = async (
   }
 };
 
-export const printDataTable = (title: string, data: any[], subtitle?: string) => {
+export const printDataTable = <T extends ExportRow>(title: string, data: T[], subtitle?: string) => {
   if (!data || data.length === 0) {
     alert('ไม่พบข้อมูลสำหรับพิมพ์');
     return;
@@ -151,7 +169,7 @@ export const printDataTable = (title: string, data: any[], subtitle?: string) =>
   const headers = Object.keys(data[0] || {});
   const rows = data
     .map((row) =>
-      `<tr>${headers.map((header) => `<td>${escapeHtml(row[header])}</td>`).join('')}</tr>`
+      `<tr>${headers.map((header) => `<td>${escapeHtml((row as Record<string, ExportCellValue>)[header])}</td>`).join('')}</tr>`
     )
     .join('');
 
@@ -205,15 +223,15 @@ export const printDataTable = (title: string, data: any[], subtitle?: string) =>
 /**
  * Bulk Ticket Export (Helper)
  */
-export const exportTickets = (tickets: any[], format: 'xlsx' | 'pdf') => {
+export const exportTickets = (tickets: TicketLike[], format: 'xlsx' | 'pdf') => {
   const formatted = tickets.map(t => ({
     'Ticket No': t.ticket_no,
     'Subject': t.subject,
     'Customer': t.customers?.display_name || 'N/A',
     'Status': t.status,
     'Priority': t.priority,
-    'Created At': new Date(t.created_at).toLocaleString('th-TH'),
-    'Resolved At': t.resolved_at ? new Date(t.resolved_at).toLocaleString('th-TH') : '-'
+    'Created At': formatDateTime(t.created_at),
+    'Resolved At': formatDateTime(t.resolved_at)
   }));
 
   if (format === 'xlsx') {
@@ -223,15 +241,15 @@ export const exportTickets = (tickets: any[], format: 'xlsx' | 'pdf') => {
   }
 };
 
-export const printTickets = (tickets: any[], title = 'Report: All Tickets') => {
+export const printTickets = (tickets: TicketLike[], title = 'Report: All Tickets') => {
   const formatted = tickets.map((t) => ({
     'Ticket No': t.ticket_no,
     Subject: t.subject,
     Customer: t.customers?.display_name || 'N/A',
     Status: t.status,
     Priority: t.priority,
-    'Created At': new Date(t.created_at).toLocaleString('th-TH'),
-    'Resolved At': t.resolved_at ? new Date(t.resolved_at).toLocaleString('th-TH') : '-',
+    'Created At': formatDateTime(t.created_at),
+    'Resolved At': formatDateTime(t.resolved_at),
   }));
   printDataTable(title, formatted, 'NEO SUPPORT');
 };
