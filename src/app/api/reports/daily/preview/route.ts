@@ -33,7 +33,7 @@ type RawTicket = {
         hospitals: { name: string | null } | { name: string | null }[] | null;
       }[]
     | null;
-  assigned_agent: { display_name: string | null } | { display_name: string | null }[] | null;
+  assigned_agent: { display_name: string | null; theme_color?: string | null } | { display_name: string | null; theme_color?: string | null }[] | null;
 };
 
 type DailyPreviewRow = {
@@ -51,6 +51,7 @@ type DailyPreviewRow = {
   hospital_name: string;
   customer_name: string;
   assignee_name: string;
+  assignee_color: string;
   duration_ms: number;
 };
 
@@ -91,6 +92,7 @@ function normalizeRow(row: RawTicket): DailyPreviewRow {
     hospital_name: hospital?.name || customerHospital?.name || '',
     customer_name: customer?.display_name || '',
     assignee_name: assignee?.display_name || '',
+    assignee_color: assignee?.theme_color || 'var(--primary)',
     duration_ms: getDurationMs(row.created_at, row.resolved_at),
   };
 }
@@ -145,7 +147,7 @@ export async function GET(req: Request) {
           display_name,
           hospitals!hospital_id ( name )
         ),
-        assigned_agent:profiles!assigned_agent_id( display_name:full_name )
+        assigned_agent:profiles!assigned_agent_id( display_name:full_name, theme_color )
       `;
 
       const { data, error } = await supabaseAdmin

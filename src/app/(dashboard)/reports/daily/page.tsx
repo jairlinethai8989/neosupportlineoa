@@ -64,6 +64,7 @@ type DailyPreviewRow = {
   hospital_name: string;
   customer_name: string;
   assignee_name: string;
+  assignee_color: string;
   duration_ms: number;
 };
 
@@ -541,7 +542,22 @@ export default function DailyReportPage() {
                       {ticket.description || '-'}
                     </td>
                     <td style={{ padding: '12px 16px', color: 'var(--primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: '600', ...getColWidth('resolution') }}>{ticket.resolution_summary || '-'}</td>
-                    <td style={{ padding: '12px 16px', ...getColWidth('assignee') }}>{ticket.assignee_name || '-'}</td>
+                    <td style={{ padding: '12px 16px', ...getColWidth('assignee') }}>
+                      {ticket.assignee_name ? (
+                        <span style={{ 
+                          color: '#ffffff', 
+                          background: ticket.assignee_color || 'var(--primary)', 
+                          padding: '4px 10px',
+                          borderRadius: '8px',
+                          fontSize: '11px',
+                          fontWeight: '800',
+                          textTransform: 'uppercase',
+                          textShadow: '0 1px 2px rgba(0,0,0,0.2)'
+                        }}>
+                          {ticket.assignee_name}
+                        </span>
+                      ) : '-'}
+                    </td>
                     <td style={{ padding: '12px 16px', color: 'var(--success)', background: 'var(--primary-transparent)', ...getColWidth('source') }}>{ticket.source || 'Line กลุ่ม'}</td>
                     <td style={{ padding: '12px 16px', fontWeight: '400', ...getColWidth('module') }}>{ticket.module || '-'}</td>
                     <td style={{ padding: '12px 16px', ...getColWidth('type') }}>

@@ -354,12 +354,29 @@ export function TicketsBoard({
                               </span>
                             </div>
                             <div style={entityRowStyle}>
-                              <div style={agentAvatarStyle}>
-                                <CheckCircle size={14} color="var(--primary)" />
-                              </div>
-                              <span style={agentTextStyle}>
-                                {ticket.assigned_agent?.display_name || t('tickets.noData')}
-                              </span>
+                              {ticket.assigned_agent ? (
+                                <span style={{ 
+                                  color: '#ffffff', 
+                                  background: ticket.assigned_agent.theme_color || 'var(--primary)', 
+                                  padding: '4px 10px',
+                                  borderRadius: '8px',
+                                  fontSize: '11px',
+                                  fontWeight: '800',
+                                  textTransform: 'uppercase',
+                                  textShadow: '0 1px 2px rgba(0,0,0,0.2)'
+                                }}>
+                                  {ticket.assigned_agent.display_name}
+                                </span>
+                              ) : (
+                                <>
+                                  <div style={agentAvatarStyle}>
+                                    <CheckCircle size={14} color="var(--primary)" />
+                                  </div>
+                                  <span style={agentTextStyle}>
+                                    {t('tickets.noData')}
+                                  </span>
+                                </>
+                              )}
                             </div>
                           </div>
 

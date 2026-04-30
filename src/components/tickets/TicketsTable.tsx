@@ -221,12 +221,16 @@ export function TicketsTable({
                         className="glass-interactive flex-center"
                         style={{ 
                           ...messageActionButtonStyle, 
+                          width: 'auto',
+                          padding: '0 12px',
+                          gap: '6px',
                           color: getStatusColor(ticket.status || ''), 
                           background: `${getStatusColor(ticket.status || '')}20`,
                           border: `1px solid ${getStatusColor(ticket.status || '')}50`
                         }}
                       >
-                        <MessageCircle size={18} />
+                        <MessageCircle size={16} />
+                        <span style={{ fontSize: '12px', fontWeight: '800' }}>แชท</span>
                       </Link>
                     )}
                     <Link
