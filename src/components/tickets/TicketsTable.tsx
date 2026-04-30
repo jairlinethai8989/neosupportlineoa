@@ -41,7 +41,7 @@ const hospitalCellStyle: React.CSSProperties = {
   fontWeight: '700',
   color: 'var(--primary)',
 };
-const ticketLinkStyle: React.CSSProperties = { fontWeight: '800', color: 'var(--primary)', textDecoration: 'none' };
+const ticketLinkStyle: React.CSSProperties = { fontSize: '13px', fontWeight: '800', color: 'var(--primary)', textDecoration: 'none' };
 const actionWrapStyle: React.CSSProperties = { display: 'flex', gap: '8px' };
 
 const actionButtonBaseStyle: React.CSSProperties = {
@@ -52,8 +52,11 @@ const actionButtonBaseStyle: React.CSSProperties = {
 
 const messageActionButtonStyle: React.CSSProperties = {
   ...actionButtonBaseStyle,
+  width: '36px',
+  height: '36px',
   color: 'var(--primary)',
   background: 'var(--primary-transparent)',
+  border: '1px solid var(--primary)',
 };
 
 const detailsActionButtonStyle: React.CSSProperties = {
@@ -190,7 +193,16 @@ export function TicketsTable({
                 <td style={cellStyle}>{customerName}</td>
                 <td style={cellStyle}>
                   {ticket.assigned_agent ? (
-                    <span style={{ color: 'var(--primary)', fontWeight: '800' }}>
+                    <span style={{ 
+                      color: '#ffffff', 
+                      background: ticket.assigned_agent.theme_color || 'var(--primary)', 
+                      padding: '4px 10px',
+                      borderRadius: '8px',
+                      fontSize: '11px',
+                      fontWeight: '800',
+                      textTransform: 'uppercase',
+                      textShadow: '0 1px 2px rgba(0,0,0,0.2)'
+                    }}>
                       {ticket.assigned_agent.display_name}
                     </span>
                   ) : (
@@ -207,9 +219,14 @@ export function TicketsTable({
                         href={`/inbox?cid=${convId}`}
                         title={t('tickets.openInboxChat')}
                         className="glass-interactive flex-center"
-                        style={{ ...messageActionButtonStyle, color: getStatusColor(ticket.status || ''), background: `${getStatusColor(ticket.status || '')}15` }}
+                        style={{ 
+                          ...messageActionButtonStyle, 
+                          color: getStatusColor(ticket.status || ''), 
+                          background: `${getStatusColor(ticket.status || '')}20`,
+                          border: `1px solid ${getStatusColor(ticket.status || '')}50`
+                        }}
                       >
-                        <MessageCircle size={16} />
+                        <MessageCircle size={18} />
                       </Link>
                     )}
                     <Link

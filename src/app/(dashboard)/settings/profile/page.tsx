@@ -32,6 +32,17 @@ const AVATAR_SEEDS = [
   'Midnight', 'Shadow', 'Ginger', 'Snowball', 'Pepper', 'Sunny', 'Cookie', 'Bear'
 ];
 
+const PROFILE_COLORS = [
+  'var(--primary)',
+  '#28c76f',
+  '#ea5455',
+  '#ff9f43',
+  '#7367f0',
+  '#3699ff',
+  '#e83e8c',
+  '#20c997'
+];
+
 const AVATAR_OPTIONS = AVATAR_SEEDS.map(seed => `https://api.dicebear.com/7.x/adventurer/svg?seed=${seed}`);
 
 const DEPT_BADGES: Record<string, string> = {
@@ -172,6 +183,7 @@ export default function ProfileSettingsPage() {
         full_name: profile.full_name,
         avatar_url: profile.avatar_url,
         department: profile.department,
+        theme_color: profile.theme_color,
         signature_url: profile.signature_url,
         quick_replies: profile.quick_replies || [],
         resolution_templates: profile.resolution_templates || [],
@@ -188,6 +200,7 @@ export default function ProfileSettingsPage() {
           full_name: profile.full_name, 
           department: profile.department,
           avatar_url: profile.avatar_url,
+          theme_color: profile.theme_color,
           signature_url: profile.signature_url
         },
         note: `Updated own profile information`
@@ -384,6 +397,23 @@ export default function ProfileSettingsPage() {
                     <option value="">{t('settingsProfile.selectDepartment')}</option>
                     {companyDepts.map((d: string) => (<option key={d} value={d}>{d}</option>))}
                   </select>
+               </div>
+
+               <div>
+                   <label style={{ display: 'block', fontSize: '10px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '6px' }}>สีประจำตัว (Theme Color)</label>
+                   <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', padding: '12px', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '12px' }}>
+                     {PROFILE_COLORS.map(color => (
+                       <button
+                         key={color}
+                         onClick={() => setProfile({...profile, theme_color: color})}
+                         style={{
+                           width: '32px', height: '32px', borderRadius: '50%', cursor: 'pointer',
+                           background: color, border: profile?.theme_color === color ? '3px solid white' : '2px solid transparent',
+                           boxShadow: profile?.theme_color === color ? `0 0 0 2px ${color}` : 'none'
+                         }}
+                       />
+                     ))}
+                   </div>
                </div>
                
                <button 

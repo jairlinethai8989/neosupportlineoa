@@ -6,6 +6,7 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   department TEXT,
   role TEXT DEFAULT 'Agent', -- 'Administrator' or 'Agent'
   status TEXT DEFAULT 'Active', -- 'Active', 'Away', 'Offline'
+  theme_color TEXT DEFAULT 'var(--primary)',
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
