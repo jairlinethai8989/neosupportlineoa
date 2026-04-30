@@ -14,6 +14,7 @@ type DashboardTicketRow = {
   created_at: string;
   updated_at: string | null;
   assigned_agent_id: string | null;
+  profiles?: { full_name: string | null } | { full_name: string | null }[] | null;
 };
 
 type DashboardLogRow = {
@@ -79,7 +80,8 @@ export async function GET(req: Request) {
         priority,
         created_at,
         updated_at,
-        assigned_agent_id
+        assigned_agent_id,
+        profiles!fk_tickets_agent(full_name)
       `;
 
       const { data: ticketsData, error: ticketsError } = await supabaseAdmin
@@ -158,7 +160,9 @@ export async function GET(req: Request) {
         createdCountsByDay[createdDateKey] = (createdCountsByDay[createdDateKey] || 0) + 1;
 
         if (ticket.assigned_agent_id) {
-          agentCounts[ticket.assigned_agent_id] = (agentCounts[ticket.assigned_agent_id] || 0) + 1;
+          const profileObj = toObject(ticket.profiles);
+          const agentName = profileObj?.full_name || ticket.assigned_agent_id;
+          agentCounts[agentName] = (agentCounts[agentName] || 0) + 1;
         }
 
         if ((status === 'Resolved' || status === 'Closed') && ticket.updated_at) {
