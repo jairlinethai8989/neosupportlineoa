@@ -54,6 +54,8 @@ export function useRealtimeInbox(options: {
   const [loading, setLoading] = useState(true);
   const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const refreshInFlightRef = useRef(false);
+  const refreshQueuedRef = useRef(false);
+  const unmountedRef = useRef(false);
   const cursorByPageRef = useRef<Map<number, { lastMessageAt: string; id: string } | null>>(
     new Map([[1, null]])
   );
@@ -112,10 +114,18 @@ export function useRealtimeInbox(options: {
       clearTimeout(refreshTimerRef.current);
     }
     refreshTimerRef.current = setTimeout(() => {
-      if (refreshInFlightRef.current) return;
+      if (unmountedRef.current) return;
+      if (refreshInFlightRef.current) {
+        refreshQueuedRef.current = true;
+        return;
+      }
       refreshInFlightRef.current = true;
       void fetchConversations({ silent: true }).finally(() => {
         refreshInFlightRef.current = false;
+        if (refreshQueuedRef.current && !unmountedRef.current) {
+          refreshQueuedRef.current = false;
+          scheduleRefresh(120);
+        }
       });
     }, delayMs);
   }, [fetchConversations]);
@@ -131,6 +141,7 @@ export function useRealtimeInbox(options: {
   }, [fetchConversations]);
 
   useEffect(() => {
+    unmountedRef.current = false;
     const channel = supabase
       .channel('inbox-realtime-v6')
       .on(
@@ -180,10 +191,13 @@ export function useRealtimeInbox(options: {
       .subscribe();
 
     return () => {
+      unmountedRef.current = true;
+      refreshQueuedRef.current = false;
+      refreshInFlightRef.current = false;
       if (refreshTimerRef.current) {
         clearTimeout(refreshTimerRef.current);
       }
-      supabase.removeChannel(channel);
+      void supabase.removeChannel(channel);
     };
   }, [page, pageSize, scheduleRefresh]);
 

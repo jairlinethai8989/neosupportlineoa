@@ -10,6 +10,9 @@ export interface LiffProfile {
   pictureUrl?: string;
 }
 
+const canUseMockLogin =
+  process.env.NODE_ENV !== 'production' || process.env.NEXT_PUBLIC_ENABLE_LIFF_MOCK === 'true';
+
 export function useLiff() {
   const [isReady, setIsReady] = useState(false);
   const [profile, setProfile] = useState<LiffProfile | null>(null);
@@ -18,7 +21,6 @@ export function useLiff() {
   useEffect(() => {
     if (!profile?.userId) return;
     const currentProfile = profile;
-
     let isCancelled = false;
 
     async function syncCustomerProfile() {
@@ -38,7 +40,6 @@ export function useLiff() {
     }
 
     void syncCustomerProfile();
-
     return () => {
       isCancelled = true;
     };
@@ -54,7 +55,7 @@ export function useLiff() {
         }
 
         await liff.init({ liffId });
-        
+
         if (liff.isLoggedIn()) {
           const p = await liff.getProfile();
           setProfile({
@@ -63,23 +64,23 @@ export function useLiff() {
             pictureUrl: p.pictureUrl,
           });
           setIsReady(true);
-        } else {
-          // Not logged in.
-          // If in LINE app, automatically login
-          if (liff.isInClient()) {
-             liff.login();
-          } else {
-             // In browser, we keep isReady=false and let the UI show login/mock login buttons
-             setIsReady(true); // set ready but profile is null
-          }
+          return;
         }
+
+        if (liff.isInClient()) {
+          liff.login();
+          return;
+        }
+
+        setIsReady(true);
       } catch (err: any) {
         console.error('LIFF init error:', err);
-        setError('Failed to initialize LIFF: ' + err.message);
+        setError('Failed to initialize LIFF: ' + (err?.message || 'Unknown error'));
         setIsReady(true);
       }
     };
-    initLiff();
+
+    void initLiff();
   }, []);
 
   const login = () => {
@@ -92,9 +93,9 @@ export function useLiff() {
     if (liff.isLoggedIn()) {
       liff.logout();
       window.location.reload();
-    } else {
-      setProfile(null);
+      return;
     }
+    setProfile(null);
   };
 
   const setMockLogin = (userId: string = 'U_MOCK_ADMIN', name: string = 'Mock User') => {
@@ -105,10 +106,9 @@ export function useLiff() {
     setProfile({
       userId,
       displayName: name,
-      pictureUrl: 'https://ui-avatars.com/api/?name=' + name,
+      pictureUrl: `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}`,
     });
   };
 
   return { isReady, profile, error, login, logout, setMockLogin, canUseMockLogin };
 }
-  const canUseMockLogin = process.env.NODE_ENV !== 'production' || process.env.NEXT_PUBLIC_ENABLE_LIFF_MOCK === 'true';
