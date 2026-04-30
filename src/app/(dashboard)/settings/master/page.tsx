@@ -91,7 +91,11 @@ export default function MasterSettingsPage() {
         else if (activeTab === 'issue_types') arrayProp = 'issue_types';
         else arrayProp = 'subject_types';
 
-        const itemsList = (ctxGlobalSettings[arrayProp] || []).map((name: string, index: number) => ({
+        const settingValues = ctxGlobalSettings[arrayProp];
+        const names = Array.isArray(settingValues)
+          ? settingValues.filter((value): value is string => typeof value === 'string')
+          : [];
+        const itemsList = names.map((name: string, index: number) => ({
           id: `item-${index}`,
           name: name,
           is_active: true

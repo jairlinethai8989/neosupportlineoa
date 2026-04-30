@@ -3,6 +3,8 @@ import { createSupabaseServerClient } from '@/lib/supabase-server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 
 export const runtime = 'nodejs';
+type AutoTableDoc = { lastAutoTable?: { finalY?: number } };
+type AutoTablePageContext = { settings: { margin: { left: number } } };
 
 type TicketRow = {
   ticket_no: string | null;
@@ -108,7 +110,7 @@ export async function GET(req: Request) {
     });
 
     autoTable(doc, {
-      startY: (doc as any).lastAutoTable.finalY + 8,
+      startY: (((doc as unknown as AutoTableDoc).lastAutoTable?.finalY) ?? 32) + 8,
       theme: 'striped',
       head: [['Status', 'Count']],
       body: Object.entries(statusCounts).map(([status, count]) => [status, String(count)]),
@@ -118,7 +120,7 @@ export async function GET(req: Request) {
     });
 
     autoTable(doc, {
-      startY: (doc as any).lastAutoTable.finalY + 6,
+      startY: (((doc as unknown as AutoTableDoc).lastAutoTable?.finalY) ?? 32) + 6,
       theme: 'striped',
       head: [['Top Issue Category', 'Count']],
       body: topCategories.length ? topCategories.map(([name, count]) => [name, String(count)]) : [['No data', '0']],
@@ -128,7 +130,7 @@ export async function GET(req: Request) {
     });
 
     autoTable(doc, {
-      startY: (doc as any).lastAutoTable.finalY + 8,
+      startY: (((doc as unknown as AutoTableDoc).lastAutoTable?.finalY) ?? 32) + 8,
       theme: 'grid',
       head: [['Ticket', 'Subject', 'Status', 'Priority', 'Created']],
       body: tickets.slice(0, 120).map((ticket) => [
@@ -147,10 +149,11 @@ export async function GET(req: Request) {
         3: { cellWidth: 24 },
         4: { cellWidth: 28 },
       },
-      didDrawPage: (dataArg: any) => {
+      didDrawPage: (dataArg: unknown) => {
+        const context = dataArg as AutoTablePageContext;
         const pageNumber = doc.getNumberOfPages();
         doc.setFontSize(8);
-        doc.text(`Page ${pageNumber}`, dataArg.settings.margin.left, 290);
+        doc.text(`Page ${pageNumber}`, context.settings.margin.left, 290);
       },
     });
 
@@ -166,7 +169,8 @@ export async function GET(req: Request) {
         'Cache-Control': 'private, no-store',
       },
     });
-  } catch (error: any) {
-    return NextResponse.json({ error: error?.message || 'Internal server error' }, { status: 500 });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Internal server error';
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

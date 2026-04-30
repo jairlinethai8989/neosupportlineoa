@@ -45,9 +45,10 @@ export async function clearSystemLogsAction() {
 
     if (error) throw error;
     return { success: true };
-  } catch (err: any) {
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Unknown error';
     console.error('Clear System Logs Error:', err);
-    return { success: false, error: err.message };
+    return { success: false, error: message };
   }
 }
 
@@ -63,8 +64,9 @@ export async function clearTicketLogsAction() {
 
     if (error) throw error;
     return { success: true };
-  } catch (err: any) {
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Unknown error';
     console.error('Clear Ticket Logs Error:', err);
-    return { success: false, error: err.message };
+    return { success: false, error: message };
   }
 }

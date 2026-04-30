@@ -58,12 +58,14 @@ export async function POST(req: Request) {
       message: 'Message sent successfully to LINE.' 
     });
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('LINE Messaging API Push Error:', error);
-    
-    // Check for specific LINE SDK errors if needed
-    const status = error.statusCode || 500;
-    const errorMessage = error.message || 'Internal Server Error';
+    const status =
+      typeof error === 'object' && error && 'statusCode' in error && typeof (error as { statusCode?: unknown }).statusCode === 'number'
+        ? ((error as { statusCode: number }).statusCode || 500)
+        : 500;
+    const errorMessage =
+      error instanceof Error ? error.message : 'Internal Server Error';
 
     return NextResponse.json({ 
       error: 'Failed to send message via LINE', 

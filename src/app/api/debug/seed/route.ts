@@ -55,7 +55,8 @@ export async function GET() {
     }
 
     return NextResponse.json({ success: true, results });
-  } catch (err: any) {
-    return NextResponse.json({ success: false, error: err.message });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    return NextResponse.json({ success: false, error: message });
   }
 }

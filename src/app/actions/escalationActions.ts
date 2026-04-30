@@ -14,7 +14,7 @@ type EscalationTicketRow = {
   resolution_summary?: string | null;
   customer_id?: string | null;
   hospital_id?: string | null;
-  messages?: any[] | null;
+  messages?: Array<Record<string, unknown>> | null;
   [key: string]: unknown;
 };
 
@@ -141,8 +141,9 @@ export async function verifyEscalationPin(ticketId: string, pin: string) {
       .order('created_at', { ascending: true });
 
     return { data: { ...ticketRow, customers: customer, hospitals: hospital, logs, messages } };
-  } catch (err: any) {
-    return { error: `Escalation access check failed: ${err.message}` };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    return { error: `Escalation access check failed: ${message}` };
   }
 }
 
@@ -182,8 +183,9 @@ export async function claimEscalatedTicket(
       .eq('id', realId);
 
     return { success: true };
-  } catch (err: any) {
-    return { error: `Failed to claim escalation ticket: ${err.message}` };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    return { error: `Failed to claim escalation ticket: ${message}` };
   }
 }
 
@@ -261,7 +263,8 @@ export async function updateEscalatedTicketStatus(
     }
 
     return { success: true };
-  } catch (err: any) {
-    return { error: `Failed to submit escalation report: ${err.message}` };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    return { error: `Failed to submit escalation report: ${message}` };
   }
 }

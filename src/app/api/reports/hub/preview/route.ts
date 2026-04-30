@@ -117,10 +117,10 @@ export async function GET(req: Request) {
           .eq('is_active', true);
         
         if (groups && groups.length > 0) {
-          targetGroupName = groups.map(g => g.name).join(', ');
+          targetGroupName = groups.map((group) => group.name).join(', ');
         }
-      } catch (e) {
-        console.error('Failed to query line_groups table:', e);
+      } catch (error) {
+        console.error('Failed to query line_groups table:', error);
       }
 
       // Fallback if table doesn't exist or is empty
@@ -135,8 +135,8 @@ export async function GET(req: Request) {
             });
             const groupSummary = await client.getGroupSummary(groupId);
             targetGroupName = groupSummary.groupName;
-          } catch (e) {
-            console.error('Failed to fetch LINE group name:', e);
+          } catch (error) {
+            console.error('Failed to fetch LINE group name:', error);
           }
         }
       }
@@ -156,7 +156,8 @@ export async function GET(req: Request) {
       headers['x-cache-key'] = cacheKey;
     }
     return NextResponse.json(summary, { headers });
-  } catch (error: any) {
-    return NextResponse.json({ error: error?.message || 'Internal server error' }, { status: 500 });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Internal server error';
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

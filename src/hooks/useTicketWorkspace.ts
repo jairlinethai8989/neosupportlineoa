@@ -44,8 +44,14 @@ const DEFAULT_MODULES = [
 const WORKSPACE_TICKETS_PAGE_SIZE = 40;
 type TicketCursor = { createdAt: string; id: string } | null;
 
+function getTicketStatus(
+  ticket: Pick<TicketWorkspaceTicket, 'status'> | null | undefined
+): string {
+  return ticket?.status || '';
+}
+
 function isTicketWithinWorkspaceRange(
-  ticket: Pick<TicketWorkspaceTicket, 'created_at'>,
+  ticket: Pick<TicketWorkspaceTicket, 'created_at' | 'status'>,
   timeRange: TicketWorkspaceTimeRange,
   customStart: string,
   customEnd: string
@@ -59,7 +65,7 @@ function isTicketWithinWorkspaceRange(
   const fromMs = new Date(fromIso).getTime();
   const toMs = new Date(toIso).getTime();
 
-  const status = (ticket as any).status || '';
+  const status = getTicketStatus(ticket);
   if (status === 'Escalated' || status === 'Pending') return true;
 
   return createdAtMs >= fromMs && createdAtMs <= toMs;
@@ -96,7 +102,7 @@ function mergeWorkspaceTicketsForSilentRefresh(
     if (!pendingRealtimeTicketIds.has(ticket.id)) return;
     if (fetchedIds.has(ticket.id)) return;
     if (!isTicketWithinWorkspaceRange(ticket, timeRange, customStart, customEnd)) {
-      const status = (ticket as any).status || '';
+      const status = getTicketStatus(ticket);
       if (status !== 'Escalated' && status !== 'Pending') return;
     }
     mergedTickets.unshift(ticket);
@@ -592,7 +598,7 @@ export function useTicketWorkspace(filterCustomerId: string | null) {
         setClaimingId(null);
       }
     },
-    [addToast, isViewOnly]
+    [addToast, fetchData, isViewOnly]
   );
 
   const handleSort = useCallback(

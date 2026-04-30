@@ -12,9 +12,9 @@ export async function GET() {
   const supabase = createClient(supabaseUrl, supabaseKey);
   
   try {
-    const { data: hospitals, error: hErr } = await supabase.from('hospitals').select('*');
-    const { data: depts, error: dErr } = await supabase.from('departments').select('*');
-    const { data: positions, error: pErr } = await supabase.from('positions').select('*');
+    const { data: hospitals } = await supabase.from('hospitals').select('*');
+    const { data: depts } = await supabase.from('departments').select('*');
+    const { data: positions } = await supabase.from('positions').select('*');
 
     const { data: hCols } = await supabase.from('hospitals').select('*').limit(1);
     const { data: dCols } = await supabase.from('departments').select('*').limit(1);
@@ -45,7 +45,8 @@ export async function GET() {
         customers: cCols?.[0] ? Object.keys(cCols[0]) : []
       }
     });
-  } catch (err: any) {
-    return NextResponse.json({ success: false, error: err.message });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    return NextResponse.json({ success: false, error: message });
   }
 }

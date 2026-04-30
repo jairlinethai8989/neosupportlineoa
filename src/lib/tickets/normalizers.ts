@@ -56,6 +56,14 @@ function normalizeAssignedAgent(value: unknown): TicketWorkspaceAssignedAgent | 
   };
 }
 
+function normalizeDepartmentData(value: unknown): { id: string; name: string } | null {
+  if (!isRecord(value)) return null;
+  const id = asString(value.id);
+  const name = asString(value.name);
+  if (!id || !name) return null;
+  return { id, name };
+}
+
 export function normalizeTicketWorkspaceConversation(
   value: unknown
 ): TicketWorkspaceConversation | null {
@@ -91,7 +99,7 @@ export function normalizeTicketWorkspaceTicket(value: unknown): TicketWorkspaceT
     hospitals: normalizeHospital(value.hospitals),
     customers: normalizeCustomer(value.customers),
     assigned_agent: normalizeAssignedAgent(value.assigned_agent),
-    department_data: value.department_data as any,
+    department_data: normalizeDepartmentData(value.department_data),
     current_department_id: asString(value.current_department_id),
     hospital_id: asString(value.hospital_id),
   };

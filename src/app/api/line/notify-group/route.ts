@@ -53,11 +53,12 @@ export async function POST(req: Request) {
       error: 'Invalid request. Provide { message: string } or { altText: string, contents: object }.' 
     }, { status: 400 });
 
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const details = error instanceof Error ? error.message : 'Unknown error';
     console.error('Notify Group Error:', error);
     return NextResponse.json({ 
       error: 'Failed to send group notification', 
-      details: error.message || 'Unknown error' 
+      details
     }, { status: 500 });
   }
 }

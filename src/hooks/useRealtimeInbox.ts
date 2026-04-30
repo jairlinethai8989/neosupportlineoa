@@ -134,7 +134,7 @@ export function useRealtimeInbox(options: {
     if (page === 1 && cursorByPageRef.current.get(1) !== null) {
       cursorByPageRef.current = new Map([[1, null]]);
     }
-  }, [pageSize]);
+  }, [page, pageSize]);
 
   useEffect(() => {
     void fetchConversations();

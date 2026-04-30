@@ -23,6 +23,12 @@ const THAI_MONTHS = [
   'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'
 ];
 
+type DetailTicket = {
+  subject: string;
+  status: string | null;
+  hospitals?: { name?: string | null } | null;
+};
+
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const key = searchParams.get('key');
@@ -113,7 +119,7 @@ export async function GET(req: Request) {
         .eq('is_active', true);
       
       if (groups && groups.length > 0) {
-        activeGroupIds = groups.map(g => g.group_id);
+        activeGroupIds = groups.map((g) => g.group_id);
       }
     } catch (e) {
       console.error('Failed to fetch line groups:', e);
@@ -141,8 +147,8 @@ export async function GET(req: Request) {
     // [SET 2] DETAILED SUMMARY
     if (!targetSet || targetSet === '2') {
       if (details && details.length > 0) {
-        const grouped: Record<string, any[]> = {};
-        details.forEach((t: any) => {
+        const grouped: Record<string, DetailTicket[]> = {};
+        (details as DetailTicket[]).forEach((t) => {
           const hName = t.hospitals?.name || 'ไม่ระบุโรงพยาบาล';
           if (!grouped[hName]) grouped[hName] = [];
           grouped[hName].push(t);
@@ -150,10 +156,10 @@ export async function GET(req: Request) {
 
         const hospitalEntries = Object.entries(grouped).sort((a, b) => a[0].localeCompare(b[0]));
         let currentChunkTickets = 0;
-        let currentChunkContents: any[] = [];
+        let currentChunkContents: unknown[] = [];
         let bubbleIndex = 1;
 
-        const sendChunk = async (contents: any[]) => {
+        const sendChunk = async (contents: unknown[]) => {
           const detailFlex = {
             "type": "bubble", "size": "mega",
             "body": { "type": "box", "layout": "vertical", "contents": contents, "paddingAll": "20px", "backgroundColor": "#262626" }
@@ -188,7 +194,7 @@ export async function GET(req: Request) {
             currentChunkContents.push({ "type": "text", "text": `🛸 MISSION LOG: ชุดที่ ${bubbleIndex}`, "weight": "bold", "size": "sm", "color": "#00F2FE" });
           }
 
-          const hospitalBox: any[] = [
+          const hospitalBox: unknown[] = [
             { "type": "separator", "margin": "md", "color": "#444444" },
             { "type": "text", "text": `🏥 ${hName} (${tickets.length})`, "weight": "bold", "size": "xs", "margin": "md", "color": "#00F2FE" }
           ];
@@ -215,8 +221,9 @@ export async function GET(req: Request) {
 
     return NextResponse.json({ success: true, stats, detailCount: details.length });
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Daily Summary Cron Error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    const message = error instanceof Error ? error.message : 'Internal server error';
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

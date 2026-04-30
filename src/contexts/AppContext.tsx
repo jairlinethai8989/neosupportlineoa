@@ -4,12 +4,28 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import { supabase } from '@/lib/supabase';
 
 interface AppContextType {
-  userProfile: any | null;
-  companySettings: any | null;
-  hospitals: any[];
-  departments: any[];
+  userProfile: UserProfile | null;
+  companySettings: CompanySettings | null;
+  hospitals: Array<Record<string, unknown>>;
+  departments: Array<Record<string, unknown>>;
   loading: boolean;
   refreshData: (type?: 'all' | 'profile' | 'settings' | 'hospitals' | 'departments') => Promise<void>;
+}
+interface UserProfile {
+  id?: string;
+  role?: string;
+  full_name?: string;
+  avatar_url?: string | null;
+  permissions?: Record<string, string> | null;
+  [key: string]: unknown;
+}
+interface CompanySettings {
+  company_name?: string | null;
+  logo_url?: string | null;
+  subject_types?: string[] | null;
+  issue_types?: string[] | null;
+  report_tags?: string[] | null;
+  [key: string]: unknown;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -20,10 +36,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const profileBypassAuth =
     process.env.NODE_ENV !== 'production' &&
     process.env.NEXT_PUBLIC_PROFILE_BYPASS_AUTH === '1';
-  const [userProfile, setUserProfile] = useState<any | null>(null);
-  const [companySettings, setCompanySettings] = useState<any | null>(null);
-  const [hospitals, setHospitals] = useState<any[]>([]);
-  const [departments, setDepartments] = useState<any[]>([]);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [companySettings, setCompanySettings] = useState<CompanySettings | null>(null);
+  const [hospitals, setHospitals] = useState<Array<Record<string, unknown>>>([]);
+  const [departments, setDepartments] = useState<Array<Record<string, unknown>>>([]);
   const [loading, setLoading] = useState(true);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 

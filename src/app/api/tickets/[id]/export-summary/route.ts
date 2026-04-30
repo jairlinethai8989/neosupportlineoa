@@ -26,6 +26,7 @@ type TicketRow = {
   assigned_agent: { display_name: string | null } | null;
   department_data: { name: string | null } | null;
 };
+type AutoTableDoc = { lastAutoTable?: { finalY?: number } };
 
 function asObject<T>(value: T | T[] | null | undefined): T | null {
   if (!value) return null;
@@ -137,7 +138,7 @@ export async function GET(_req: Request, { params }: Params) {
       ]) || [];
 
     autoTable(doc, {
-      startY: (doc as any).lastAutoTable.finalY + 8,
+      startY: (((doc as unknown as AutoTableDoc).lastAutoTable?.finalY) ?? 28) + 8,
       theme: 'striped',
       head: [['Time', 'Sender', 'Message']],
       body: rows.length ? rows : [['-', '-', 'No messages']],
@@ -160,8 +161,8 @@ export async function GET(_req: Request, { params }: Params) {
         'Cache-Control': 'private, no-store',
       },
     });
-  } catch (error: any) {
-    return NextResponse.json({ error: error?.message || 'Internal server error' }, { status: 500 });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Internal server error';
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
-

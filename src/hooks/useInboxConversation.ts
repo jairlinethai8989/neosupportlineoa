@@ -1,4 +1,5 @@
 import {
+  useCallback,
   useEffect,
   useRef,
   useState,
@@ -60,7 +61,7 @@ export function useInboxConversation({
   const oldestMessageCursorRef = useRef<string | null>(null);
   const lastRenderedMessageIdRef = useRef<string | null>(null);
 
-  const getThreadTicketId = () => {
+  const getThreadTicketId = useCallback(() => {
     const urlParams = new URLSearchParams(window.location.search);
     return (
       urlParams.get('tid') ||
@@ -68,7 +69,7 @@ export function useInboxConversation({
       selectedChat?.ticket_data?.id ||
       null
     );
-  };
+  }, [selectedChat?.current_ticket_id, selectedChat?.ticket_data?.id]);
 
   useEffect(() => {
     const lastMessageId = messages.length > 0 ? messages[messages.length - 1].id : null;
@@ -315,7 +316,7 @@ export function useInboxConversation({
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [selectedChat]);
+  }, [getThreadTicketId, selectedChat, setSelectedChat, addToast, agent, currentTicket?.id, selectedModule, resSummary]);
 
   async function handleLoadOlderMessages() {
     if (!selectedChat || !hasMoreMessages || loadingMoreMessages) return;

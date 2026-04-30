@@ -5,6 +5,8 @@ import { createServerClient } from '@supabase/ssr';
 import { invalidateAllLiveCaches } from '@/lib/cache/liveCache';
 import { invalidateAllPreviewCaches } from '@/lib/reports/previewCache';
 
+type TicketUpdatePayload = Record<string, string | null>;
+
 // Helper to authenticate session dynamically on server
 async function getSessionUser() {
   const cookieStore = await cookies();
@@ -100,7 +102,7 @@ export async function updateTicketStatusAction(ticketId: string, newStatus: stri
     .eq('id', ticketId)
     .single();
 
-  const updateData: any = { 
+  const updateData: TicketUpdatePayload = { 
     status: newStatus,
     updated_at: new Date().toISOString()
   };
@@ -148,7 +150,7 @@ export async function transferTicketAction(ticketId: string, toAgentId?: string,
    await verifyAgentRole(user.id);
    const fromAgentId = user.id;
 
-   const updateData: any = { 
+   const updateData: TicketUpdatePayload = { 
      updated_at: new Date().toISOString(),
      status: 'Escalated' 
    };
@@ -200,7 +202,7 @@ export async function resolveTicketAction(
    const user = await getSessionUser();
    const agentId = user.id;
 
-   const updateData: any = { 
+   const updateData: TicketUpdatePayload = { 
      status: 'Resolved',
      resolved_at: new Date().toISOString(),
      resolution_summary: resolutionSummary,

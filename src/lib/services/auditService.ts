@@ -1,13 +1,13 @@
 import { supabase } from '@/lib/supabase';
-import { createSupabaseServerClient } from '@/lib/supabase-server';
+import type { SupabaseClient } from '@supabase/supabase-js';
 
 export interface AuditLogEntry {
   performer_id?: string;
   action_type: string;
   entity_type?: string;
   entity_id?: string;
-  old_data?: any;
-  new_data?: any;
+  old_data?: Record<string, unknown> | null;
+  new_data?: Record<string, unknown> | null;
   note?: string;
 }
 
@@ -15,7 +15,7 @@ export const auditService = {
   /**
    * Log a system activity
    */
-  async log(entry: AuditLogEntry, customClient?: any) {
+  async log(entry: AuditLogEntry, customClient?: SupabaseClient) {
     const client = customClient || supabase;
     try {
       const { data, error } = await client
@@ -42,7 +42,7 @@ export const auditService = {
     agentId?: string, 
     actionType?: string, 
     limit?: number 
-  } = {}, customClient?: any) {
+  } = {}, customClient?: SupabaseClient) {
     const client = customClient || supabase;
     let query = client
       .from('system_logs')
