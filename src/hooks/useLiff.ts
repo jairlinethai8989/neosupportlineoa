@@ -1,5 +1,4 @@
 'use client';
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useEffect } from 'react';
 import liff from '@line/liff';
 import { supabase } from '@/lib/supabase';
@@ -73,9 +72,10 @@ export function useLiff() {
         }
 
         setIsReady(true);
-      } catch (err: any) {
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : 'Unknown error';
         console.error('LIFF init error:', err);
-        setError('Failed to initialize LIFF: ' + (err?.message || 'Unknown error'));
+        setError('Failed to initialize LIFF: ' + message);
         setIsReady(true);
       }
     };

@@ -1,5 +1,4 @@
 'use client';
-/* eslint-disable @next/next/no-img-element */
 import React, { useEffect, useRef, useState } from 'react';
 import {
   X,
@@ -225,7 +224,6 @@ export default function ImageEditorModal({
       if (!blob) throw new Error('ไม่สามารถสร้างไฟล์ภาพได้');
       await onSave(blob);
     } catch (error) {
-      // eslint-disable-next-line no-console
       console.error('Image save failed:', error);
       alert('บันทึกภาพไม่สำเร็จ กรุณาลองอีกครั้ง');
     } finally {
