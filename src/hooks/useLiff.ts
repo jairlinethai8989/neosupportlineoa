@@ -98,6 +98,10 @@ export function useLiff() {
   };
 
   const setMockLogin = (userId: string = 'U_MOCK_ADMIN', name: string = 'Mock User') => {
+    if (!canUseMockLogin) {
+      setError('Mock login is disabled in production.');
+      return;
+    }
     setProfile({
       userId,
       displayName: name,
@@ -105,5 +109,6 @@ export function useLiff() {
     });
   };
 
-  return { isReady, profile, error, login, logout, setMockLogin };
+  return { isReady, profile, error, login, logout, setMockLogin, canUseMockLogin };
 }
+  const canUseMockLogin = process.env.NODE_ENV !== 'production' || process.env.NEXT_PUBLIC_ENABLE_LIFF_MOCK === 'true';

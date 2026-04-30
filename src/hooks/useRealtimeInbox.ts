@@ -53,6 +53,7 @@ export function useRealtimeInbox(options: {
   const [hasNextPage, setHasNextPage] = useState(false);
   const [loading, setLoading] = useState(true);
   const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const refreshInFlightRef = useRef(false);
   const cursorByPageRef = useRef<Map<number, { lastMessageAt: string; id: string } | null>>(
     new Map([[1, null]])
   );
@@ -111,7 +112,11 @@ export function useRealtimeInbox(options: {
       clearTimeout(refreshTimerRef.current);
     }
     refreshTimerRef.current = setTimeout(() => {
-      void fetchConversations({ silent: true });
+      if (refreshInFlightRef.current) return;
+      refreshInFlightRef.current = true;
+      void fetchConversations({ silent: true }).finally(() => {
+        refreshInFlightRef.current = false;
+      });
     }, delayMs);
   }, [fetchConversations]);
 
