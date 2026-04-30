@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { createSupabaseServerClient } from '@/lib/supabase-server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
+import * as line from '@line/bot-sdk';
+
 import {
   buildVersionedPreviewCacheKey,
   getOrSetPreviewCache,
@@ -105,7 +107,44 @@ export async function GET(req: Request) {
         ...row,
         hospitals: Array.isArray(row.hospitals) ? row.hospitals[0] || null : row.hospitals,
       }));
-      return buildPreviewSummary(rows);
+      
+      // Fetch target group names from database
+      let targetGroupName = '';
+      try {
+        const { data: groups } = await supabaseAdmin
+          .from('line_groups')
+          .select('name')
+          .eq('is_active', true);
+        
+        if (groups && groups.length > 0) {
+          targetGroupName = groups.map(g => g.name).join(', ');
+        }
+      } catch (e) {
+        console.error('Failed to query line_groups table:', e);
+      }
+
+      // Fallback if table doesn't exist or is empty
+      if (!targetGroupName) {
+        targetGroupName = 'NEO Support (Default)';
+        const groupId = process.env.LINE_GROUP_ID;
+        if (groupId) {
+          try {
+            const client = new line.Client({
+              channelAccessToken: process.env.LINE_CHANNEL_ACCESS_TOKEN || '',
+              channelSecret: process.env.LINE_CHANNEL_SECRET || '',
+            });
+            const groupSummary = await client.getGroupSummary(groupId);
+            targetGroupName = groupSummary.groupName;
+          } catch (e) {
+            console.error('Failed to fetch LINE group name:', e);
+          }
+        }
+      }
+
+      return {
+        ...buildPreviewSummary(rows),
+        targetGroupName,
+      };
       }
     );
 

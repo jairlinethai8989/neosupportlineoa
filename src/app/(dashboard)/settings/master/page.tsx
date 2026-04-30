@@ -23,7 +23,7 @@ import { auditService } from '@/lib/services/auditService';
 import { useAppContext } from '@/contexts/AppContext';
 import { useStaffLocale } from '@/contexts/StaffLocaleContext';
 
-type Tab = 'hospitals' | 'departments' | 'hospital_depts' | 'positions' | 'modules' | 'issue_types' | 'subject_types';
+type Tab = 'hospitals' | 'departments' | 'hospital_depts' | 'positions' | 'modules' | 'issue_types' | 'subject_types' | 'line_groups';
 
 export default function MasterSettingsPage() {
   const { t } = useStaffLocale();
@@ -104,6 +104,7 @@ export default function MasterSettingsPage() {
 
     let table = '';
     if (activeTab === 'positions') table = 'positions';
+    else if (activeTab === 'line_groups') table = 'line_groups';
 
     if (table) {
       const { data } = await supabase.from(table).select('*').order('name');
@@ -165,6 +166,15 @@ export default function MasterSettingsPage() {
     if (activeTab === 'hospitals') {
       payload.abbreviation = newItemAbbr.trim() || newItemName.slice(0, 10).toUpperCase();
       payload.ticket_prefix = `SRS_${payload.abbreviation}_`;
+    }
+
+    if (activeTab === 'line_groups') {
+      payload.group_id = newItemAbbr.trim();
+      if (!payload.group_id) {
+        alert('กรุณาระบุ LINE Group ID');
+        setSubmitting(false);
+        return;
+      }
     }
 
     if (activeTab === 'hospital_depts') {
@@ -241,6 +251,9 @@ export default function MasterSettingsPage() {
     const updateData: any = { name: editItemName };
     if (activeTab === 'hospitals') {
       updateData.abbreviation = editItemAbbr.trim() || editItemName.slice(0, 10).toUpperCase();
+    }
+    if (activeTab === 'line_groups') {
+      updateData.group_id = editItemAbbr.trim();
     }
 
     const { error } = await supabase.from(table).update(updateData).eq('id', id);
@@ -333,7 +346,8 @@ export default function MasterSettingsPage() {
     positions: { title: t('settingsMaster.tabs.positions'), icon: Briefcase, desc: t('settingsMaster.descriptions.positions') },
     modules: { title: t('settingsMaster.tabs.modules'), icon: FileText, desc: t('settingsMaster.descriptions.modules') },
     issue_types: { title: t('settingsMaster.tabs.issueTypes'), icon: Tag, desc: t('settingsMaster.descriptions.issueTypes') },
-    subject_types: { title: t('settingsMaster.tabs.subjectTypes'), icon: MessageSquare, desc: t('settingsMaster.descriptions.subjectTypes') }
+    subject_types: { title: t('settingsMaster.tabs.subjectTypes'), icon: MessageSquare, desc: t('settingsMaster.descriptions.subjectTypes') },
+    line_groups: { title: t('settingsMaster.tabs.lineGroups'), icon: MessageSquare, desc: t('settingsMaster.descriptions.lineGroups') }
   };
 
   const ActiveIcon = TAB_CONFIG[activeTab].icon;
@@ -351,7 +365,7 @@ export default function MasterSettingsPage() {
 
       {/* Tabs Selector */}
       <div style={{ display: 'flex', gap: '8px', marginBottom: '32px', background: 'rgba(255,255,255,0.03)', padding: '6px', borderRadius: '16px', border: '1px solid var(--border)', width: 'fit-content', flexWrap: 'wrap' }}>
-        {(['hospitals', 'departments', 'hospital_depts', 'positions', 'modules', 'issue_types', 'subject_types'] as Tab[]).map(t => (
+        {(['hospitals', 'departments', 'hospital_depts', 'positions', 'modules', 'issue_types', 'subject_types', 'line_groups'] as Tab[]).map(t => (
           <button
             key={t}
             onClick={() => setActiveTab(t)}
@@ -414,10 +428,10 @@ export default function MasterSettingsPage() {
                    onKeyDown={e => e.key === 'Enter' && handleAdd()}
                  />
                  
-                 {activeTab === 'hospitals' && (
+                 {(activeTab === 'hospitals' || activeTab === 'line_groups') && (
                    <input 
                      type="text" 
-                     placeholder={t('settingsMaster.abbreviation')} 
+                     placeholder={activeTab === 'line_groups' ? 'LINE Group ID' : t('settingsMaster.abbreviation')} 
                      value={newItemAbbr}
                      onChange={e => setNewItemAbbr(e.target.value)}
                      style={{ flex: 1, minWidth: '120px', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', borderRadius: '12px', padding: '14px 20px', color: 'var(--text-main)', fontSize: '15px', outline: 'none' }}
@@ -476,10 +490,10 @@ export default function MasterSettingsPage() {
                                style={{ background: 'rgba(0, 242, 254, 0.05)', border: '1px solid var(--primary)', borderRadius: '8px', padding: '8px 12px', color: 'var(--text-main)', fontSize: '15px', fontWeight: '700', outline: 'none', width: '250px' }}
                                onKeyDown={e => e.key === 'Enter' && handleUpdate(item.id)}
                              />
-                             {activeTab === 'hospitals' && (
+                             {(activeTab === 'hospitals' || activeTab === 'line_groups') && (
                                <input 
                                  type="text" 
-                                 placeholder="ย่อ"
+                                 placeholder={activeTab === 'line_groups' ? 'LINE Group ID' : "ย่อ"}
                                  value={editItemAbbr}
                                  onChange={e => setEditItemAbbr(e.target.value)}
                                  style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', borderRadius: '8px', padding: '8px 12px', color: 'var(--text-main)', fontSize: '14px', outline: 'none', width: '100px' }}
@@ -491,9 +505,14 @@ export default function MasterSettingsPage() {
                            <div>
                               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                 <p style={{ fontSize: '15px', fontWeight: '700', color: item.is_active ? 'var(--text-main)' : 'var(--text-muted)' }}>{item.name}</p>
-                                {activeTab === 'hospitals' && item.abbreviation && (
+                                {(activeTab === 'hospitals' && item.abbreviation) && (
                                   <span style={{ fontSize: '11px', background: 'rgba(255,255,255,0.1)', padding: '2px 6px', borderRadius: '4px', color: 'var(--text-muted)' }}>
                                     {item.abbreviation}
+                                  </span>
+                                )}
+                                {(activeTab === 'line_groups' && item.group_id) && (
+                                  <span style={{ fontSize: '11px', background: 'rgba(255,255,255,0.1)', padding: '2px 6px', borderRadius: '4px', color: 'var(--primary)' }}>
+                                    {item.group_id}
                                   </span>
                                 )}
                               </div>
@@ -543,7 +562,7 @@ export default function MasterSettingsPage() {
                                    if (!canEdit) return;
                                    setEditingId(item.id);
                                    setEditItemName(item.name);
-                                   setEditItemAbbr(item.abbreviation || '');
+                                   setEditItemAbbr(activeTab === 'line_groups' ? item.group_id : (item.abbreviation || ''));
                                  }}
                                  disabled={!canEdit}
                                  style={{ color: 'var(--text-muted)', cursor: canEdit ? 'pointer' : 'not-allowed', opacity: canEdit ? 1 : 0.5 }} 

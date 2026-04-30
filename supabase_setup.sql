@@ -33,4 +33,25 @@ CREATE POLICY "Public profiles are viewable by everyone." ON public.profiles FOR
 CREATE POLICY "Users can update own profile." ON public.profiles FOR UPDATE USING (auth.uid() = id);
 
 CREATE POLICY "Public company settings viewable by everyone." ON public.company_settings FOR SELECT USING (true);
+CREATE POLICY "Public company settings viewable by everyone." ON public.company_settings FOR SELECT USING (true);
 CREATE POLICY "Admins can update company settings." ON public.company_settings FOR UPDATE USING (true); -- Set logic as needed
+
+-- 4. Create Line Groups Table (for Report Hub)
+CREATE TABLE IF NOT EXISTS public.line_groups (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  group_id TEXT UNIQUE NOT NULL,
+  name TEXT NOT NULL,
+  is_active BOOLEAN DEFAULT true,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- Insert existing from .env if possible
+INSERT INTO public.line_groups (group_id, name)
+VALUES ('C86378841bdd29858784a528fe16742d5', 'NEO Support (Default)')
+ON CONFLICT (group_id) DO NOTHING;
+
+ALTER TABLE public.line_groups ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Public line_groups are viewable by everyone." ON public.line_groups FOR SELECT USING (true);
+CREATE POLICY "Admins can update line_groups." ON public.line_groups FOR ALL USING (true);
+

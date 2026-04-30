@@ -383,6 +383,7 @@ const messages: Record<StaffLocale, MessageDictionary> = {
         modules: 'Modules',
         issueTypes: 'ประเภทงาน',
         subjectTypes: 'หัวข้อแจ้งปัญหา',
+        lineGroups: 'กลุ่ม LINE ส่งรายงาน',
       },
       descriptions: {
         hospitals: 'จัดการรายชื่อสถานพยาบาลที่รองรับในระบบ',
@@ -392,6 +393,7 @@ const messages: Record<StaffLocale, MessageDictionary> = {
         modules: 'จัดการชื่อโมดูลหรือโปรแกรมต่าง ๆ',
         issueTypes: 'จัดการประเภทของงาน เช่น REQ, PB, แนะนำ',
         subjectTypes: 'จัดการหัวข้อมาตรฐานสำหรับให้ลูกค้าเลือกในหน้าแจ้งปัญหา',
+        lineGroups: 'จัดการ ID กลุ่ม LINE ที่ต้องการให้ระบบส่งรายงาน',
       },
       messages: {
         sqlGuidance: 'ตรวจสอบความถูกต้องของโครงสร้าง SQL',
@@ -887,8 +889,9 @@ const messages: Record<StaffLocale, MessageDictionary> = {
         hospitalDepartments: 'Hospital departments',
         positions: 'Positions',
         modules: 'Modules',
-        issueTypes: 'Issue types',
-        subjectTypes: 'Subject types',
+        issueTypes: 'Issue Types',
+        subjectTypes: 'Subject Types',
+        lineGroups: 'LINE Report Groups',
       },
       descriptions: {
         hospitals: 'Manage the hospitals and facilities supported by the system.',
@@ -896,8 +899,9 @@ const messages: Record<StaffLocale, MessageDictionary> = {
         hospitalDepartments: 'Reusable service departments available across every hospital.',
         positions: 'Manage staff positions for the reporting forms.',
         modules: 'Manage module or program names.',
-        issueTypes: 'Manage work categories such as REQ, PB, or suggestion.',
-        subjectTypes: 'Manage standard issue subjects shown on the customer form.',
+        issueTypes: 'Manage standard issue types like REQ, PB, etc.',
+        subjectTypes: 'Manage standard subject options for customers.',
+        lineGroups: 'Manage target LINE group IDs for automated reporting.',
       },
       messages: {
         sqlGuidance: 'Verify SQL structure integrity',

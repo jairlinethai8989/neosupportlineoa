@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { analyticsService } from '@/lib/services/analyticsService';
 import { sendLineGroupFlexNotification } from '@/lib/utils/lineNotifications';
 import { DateTime } from 'luxon';
+import { supabaseAdmin } from '@/lib/supabaseAdmin';
 
 /**
  * Enhanced API Cron: Daily Summary Notification with Multiple Message Sets
@@ -103,12 +104,35 @@ export async function GET(req: Request) {
     const targetSet = searchParams.get('set');
     const summaryGroupId = process.env.LINE_GROUP_ID_SUMMARY;
 
+    // Fetch target groups from database
+    let activeGroupIds: string[] = [];
+    try {
+      const { data: groups } = await supabaseAdmin
+        .from('line_groups')
+        .select('group_id')
+        .eq('is_active', true);
+      
+      if (groups && groups.length > 0) {
+        activeGroupIds = groups.map(g => g.group_id);
+      }
+    } catch (e) {
+      console.error('Failed to fetch line groups:', e);
+    }
+
     // --- EXECUTE ONLY REQUESTED SET OR ALL ---
     
     // [SET 1] KPI SUMMARY
     if (!targetSet || targetSet === '1') {
-      await sendLineGroupFlexNotification(`📊 รายงานสรุป KPI (${start.toFormat('dd/MM')})`, kpiFlex);
-      if (summaryGroupId) {
+      if (activeGroupIds.length > 0) {
+        for (const gid of activeGroupIds) {
+          await sendLineGroupFlexNotification(`📊 รายงานสรุป KPI (${start.toFormat('dd/MM')})`, kpiFlex, gid);
+          await new Promise(r => setTimeout(r, 600));
+        }
+      } else {
+        await sendLineGroupFlexNotification(`📊 รายงานสรุป KPI (${start.toFormat('dd/MM')})`, kpiFlex);
+      }
+      
+      if (summaryGroupId && !activeGroupIds.includes(summaryGroupId)) {
         await new Promise(r => setTimeout(r, 600));
         await sendLineGroupFlexNotification(`📊 รายงานสรุป KPI (Executive)`, kpiFlex, summaryGroupId);
       }
@@ -134,8 +158,17 @@ export async function GET(req: Request) {
             "type": "bubble", "size": "mega",
             "body": { "type": "box", "layout": "vertical", "contents": contents, "paddingAll": "20px", "backgroundColor": "#262626" }
           };
-          await sendLineGroupFlexNotification(`📋 รายละเอียดงานชุดที่ ${bubbleIndex}`, detailFlex);
-          if (summaryGroupId) {
+          
+          if (activeGroupIds.length > 0) {
+            for (const gid of activeGroupIds) {
+              await sendLineGroupFlexNotification(`📋 รายละเอียดงานชุดที่ ${bubbleIndex}`, detailFlex, gid);
+              await new Promise(r => setTimeout(r, 600));
+            }
+          } else {
+            await sendLineGroupFlexNotification(`📋 รายละเอียดงานชุดที่ ${bubbleIndex}`, detailFlex);
+          }
+          
+          if (summaryGroupId && !activeGroupIds.includes(summaryGroupId)) {
             await new Promise(r => setTimeout(r, 600));
             await sendLineGroupFlexNotification(`📋 รายละเอียดงานชุดที่ ${bubbleIndex}`, detailFlex, summaryGroupId);
           }

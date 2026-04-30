@@ -38,6 +38,7 @@ type PreviewResponse = {
   newProgress: number;
   resolved: number;
   hospitalGroups: Record<string, number>;
+  targetGroupName?: string;
 };
 
 export default function ReportsPage() {
@@ -51,6 +52,7 @@ export default function ReportsPage() {
     newProgress: 0,
     resolved: 0,
     hospitalGroups: {},
+    targetGroupName: '',
   });
 
   const canSend = useMemo(() => {
@@ -75,6 +77,7 @@ export default function ReportsPage() {
         newProgress: data.newProgress || 0,
         resolved: data.resolved || 0,
         hospitalGroups: data.hospitalGroups || {},
+        targetGroupName: data.targetGroupName || '',
       });
     } catch (e) {
       console.error(e);
@@ -268,6 +271,18 @@ export default function ReportsPage() {
                 {t('reports.cautionNote')}
               </p>
           </div>
+
+          {preview.targetGroupName && (
+            <div style={{ padding: '16px', background: 'rgba(0, 242, 254, 0.03)', borderRadius: '12px', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'rgba(0, 242, 254, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Send size={14} color="var(--primary)" />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: '700', textTransform: 'uppercase' }}>Target LINE Group</span>
+                <span style={{ fontSize: '14px', fontWeight: '800', color: 'var(--primary)' }}>{preview.targetGroupName}</span>
+              </div>
+            </div>
+          )}
 
           {groupedData.total > 0 && !loading && (
              <div style={{ textAlign: 'center', padding: '10px' }}>
