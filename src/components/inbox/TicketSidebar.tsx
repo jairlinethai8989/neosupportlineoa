@@ -104,57 +104,55 @@ export const TicketSidebar: React.FC<TicketSidebarProps> = ({
       </div>
 
       <div className="glass" style={{ padding: '20px', background: 'rgba(255,255,255,0.02)', borderRadius: '16px' }}>
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px' }}>
-          {selectedChat.customers?.avatar_url ? (
-            <Image
-              src={selectedChat.customers.avatar_url}
-              alt={selectedChat.customers?.display_name || 'LINE customer'}
-              width={80}
-              height={80}
-              style={{
-                width: '80px',
-                height: '80px',
-                borderRadius: '24px',
-                objectFit: 'cover',
-                border: '2px solid rgba(255,255,255,0.15)',
-                boxShadow: '0 8px 24px rgba(0,242,254,0.25)',
-              }}
-            />
-          ) : (
-            <div style={{ width: '80px', height: '80px', borderRadius: '24px', background: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 8px 24px rgba(0,242,254,0.3)' }}>
-              <User size={40} color="#0a0e14" />
-            </div>
-          )}
-          <div style={{ textAlign: 'center' }}>
-            <p style={{ fontWeight: '800', fontSize: '18px', marginBottom: '4px' }}>{selectedChat.customers?.display_name || 'LINE User'}</p>
-            <code style={{ fontSize: '10px', color: 'var(--text-muted)', background: 'rgba(0,0,0,0.2)', padding: '2px 8px', borderRadius: '4px' }}>
-              ID: {selectedChat.customers?.line_user_id?.substring(0, 16)}...
-            </code>
-            {(selectedChat.customers?.hospitals?.name ||
-              selectedChat.customers?.departments?.name ||
-              selectedChat.customers?.positions?.name) && (
-              <div style={{ marginTop: '10px', display: 'grid', gap: '6px', textAlign: 'left' }}>
-                {selectedChat.customers?.hospitals?.name && (
-                  <p style={{ margin: 0, fontSize: '12px', color: 'var(--text-main)' }}>
-                    โรงพยาบาล: <strong>{selectedChat.customers.hospitals.name}</strong>
-                  </p>
-                )}
-                {selectedChat.customers?.departments?.name && (
-                  <p style={{ margin: 0, fontSize: '12px', color: 'var(--text-main)' }}>
-                    แผนก: <strong>{selectedChat.customers.departments.name}</strong>
-                  </p>
-                )}
-                {selectedChat.customers?.positions?.name && (
-                  <p style={{ margin: 0, fontSize: '12px', color: 'var(--text-main)' }}>
-                    ตำแหน่ง: <strong>{selectedChat.customers.positions.name}</strong>
-                  </p>
-                )}
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: '160px 1fr',
+            gap: '20px',
+            alignItems: 'center',
+          }}
+        >
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
+            {selectedChat.customers?.avatar_url ? (
+              <Image
+                src={selectedChat.customers.avatar_url}
+                alt={selectedChat.customers?.display_name || 'LINE customer'}
+                width={80}
+                height={80}
+                style={{
+                  width: '80px',
+                  height: '80px',
+                  borderRadius: '24px',
+                  objectFit: 'cover',
+                  border: '2px solid rgba(255,255,255,0.15)',
+                  boxShadow: '0 8px 24px rgba(0,242,254,0.25)',
+                }}
+              />
+            ) : (
+              <div style={{ width: '80px', height: '80px', borderRadius: '24px', background: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 8px 24px rgba(0,242,254,0.3)' }}>
+                <User size={40} color="#0a0e14" />
               </div>
             )}
+            <div style={{ textAlign: 'center' }}>
+              <p style={{ fontWeight: '800', fontSize: '18px', marginBottom: '4px' }}>{selectedChat.customers?.display_name || 'LINE User'}</p>
+              <code style={{ fontSize: '10px', color: 'var(--text-muted)', background: 'rgba(0,0,0,0.2)', padding: '2px 8px', borderRadius: '4px' }}>
+                ID: {selectedChat.customers?.line_user_id?.substring(0, 16)}...
+              </code>
+            </div>
+          </div>
+          <div style={{ display: 'grid', gap: '8px', alignContent: 'center' }}>
+            <p style={{ margin: 0, fontSize: '12px', color: 'var(--text-main)' }}>
+              ?????????: <strong>{selectedChat.customers?.hospitals?.name || '-'}</strong>
+            </p>
+            <p style={{ margin: 0, fontSize: '12px', color: 'var(--text-main)' }}>
+              ????: <strong>{selectedChat.customers?.departments?.name || '-'}</strong>
+            </p>
+            <p style={{ margin: 0, fontSize: '12px', color: 'var(--text-main)' }}>
+              ???????: <strong>{selectedChat.customers?.positions?.name || '-'}</strong>
+            </p>
           </div>
         </div>
       </div>
-
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
         <Layout size={16} color="var(--primary)" />
         <h3 style={{ fontSize: '12px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px' }}>Ticket Info</h3>
