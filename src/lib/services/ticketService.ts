@@ -54,10 +54,10 @@ export const ticketService = {
     return transferTicketAction(ticketId, toAgentId, toTeamId, reason);
   },
 
-  async resolve(ticketId: string, agentId?: string, resolutionSummary?: string, module?: string, issueType?: string, conversationId?: string, surveyLink?: string) {
+  async resolve(ticketId: string, agentId?: string, resolutionSummary?: string, module?: string, issueType?: string, conversationId?: string) {
     assertUuid('ticketId', ticketId);
     assertOptionalUuid('agentId', agentId);
     assertOptionalUuid('conversationId', conversationId);
-    return resolveTicketAction(ticketId, resolutionSummary || '', module, issueType, conversationId, surveyLink);
+    return resolveTicketAction(ticketId, resolutionSummary || '', module, issueType, conversationId);
   }
 };

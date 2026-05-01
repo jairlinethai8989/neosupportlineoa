@@ -145,6 +145,25 @@ export const TicketSidebar: React.FC<TicketSidebarProps> = ({
         )}
       </div>
 
+      {currentTicket && isResolved && (
+        <button
+          onClick={onCopySurvey}
+          className="glass-interactive"
+          style={{
+            width: '100%',
+            height: '44px',
+            borderRadius: '12px',
+            border: '1px solid var(--primary)',
+            background: 'rgba(14,165,233,0.08)',
+            color: 'var(--primary)',
+            fontWeight: 800,
+            cursor: 'pointer',
+          }}
+        >
+          ส่งแบบประเมินลูกค้า
+        </button>
+      )}
+
       {currentTicket && !isResolved && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
           <p style={{ fontSize: '10px', color: 'var(--text-dim)', fontWeight: '900', marginBottom: '4px', textTransform: 'uppercase' }}>Ticket Hand-off</p>

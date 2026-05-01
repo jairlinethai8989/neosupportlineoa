@@ -148,15 +148,14 @@ export async function claimInboxTicket(ticketId: string, agentId?: string): Prom
   return requireNormalizedTicket(ticket, 'claimInboxTicket');
 }
 
-export async function resolveInboxTicket(input: ResolveInboxTicketInput & { conversationId?: string; surveyLink?: string }): Promise<InboxTicket> {
+export async function resolveInboxTicket(input: ResolveInboxTicketInput & { conversationId?: string }): Promise<InboxTicket> {
   const ticket = await ticketService.resolve(
     input.ticketId,
     input.agentId,
     input.resolutionSummary,
     input.module,
     input.issueType,
-    input.conversationId,
-    input.surveyLink
+    input.conversationId
   );
   invalidateAllPreviewCaches();
   return requireNormalizedTicket(ticket, 'resolveInboxTicket');

@@ -564,18 +564,40 @@ function InboxContent() {
               คุณต้องการจบการสนทนานี้ใช่หรือไม่?
             </p>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
-              <button type="button" className="btn-secondary" onClick={() => setShowCloseSessionConfirm(false)}>
-                ยกเลิก
+              <button
+                type="button"
+                onClick={() => setShowCloseSessionConfirm(false)}
+                style={{
+                  height: '42px',
+                  padding: '0 16px',
+                  borderRadius: '10px',
+                  border: '1px solid var(--border)',
+                  background: 'var(--bg-card)',
+                  color: 'var(--text-main)',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                }}
+              >
+                ??????
               </button>
               <button
                 type="button"
-                className="btn-danger"
                 onClick={async () => {
                   setShowCloseSessionConfirm(false);
                   await handleCloseSession();
                 }}
+                style={{
+                  height: '42px',
+                  padding: '0 16px',
+                  borderRadius: '10px',
+                  border: 'none',
+                  background: '#0ea5e9',
+                  color: '#fff',
+                  fontWeight: 800,
+                  cursor: 'pointer',
+                }}
               >
-                ยืนยันจบการสนทนา
+                ????????????????
               </button>
             </div>
           </div>
@@ -621,3 +643,4 @@ export default function InboxPage() {
     </Suspense>
   );
 }
+

@@ -57,34 +57,39 @@ export async function claimTicketServerAction(ticketId: string) {
 
   if (ticketError) throw new Error(ticketError.message);
 
-  if (ticket?.customer_id) {
-     // 1. Check if this ticket already has an active conversation
-     const { data: existingConv } = await supabaseAdmin
-       .from('conversations')
-       .select('id')
-       .eq('current_ticket_id', ticketId)
-       .eq('status', 'active')
-       .maybeSingle();
+  const postClaimTasks: Promise<unknown>[] = [
+    (async () => {
+      await supabaseAdmin.from('ticket_logs').insert([{
+        ticket_id: ticketId,
+        action_type: 'claim',
+        to_status: 'In Progress',
+        performer_id: agentId,
+        note: 'Agent claimed the ticket securely via server action'
+      }]);
+    })(),
+  ];
 
-     if (!existingConv) {
-       // 2. Create a new conversation for this ticket if it doesn't exist
-       // This supports the "1 Ticket : 1 Chat" architecture
-       await supabaseAdmin.from('conversations').insert([{
-         customer_id: ticket.customer_id,
-         current_ticket_id: ticketId,
-         status: 'active',
-         last_message_at: new Date().toISOString()
-       }]);
-     }
+  if (ticket?.customer_id) {
+    postClaimTasks.push((async () => {
+      const { data: existingConv } = await supabaseAdmin
+        .from('conversations')
+        .select('id')
+        .eq('current_ticket_id', ticketId)
+        .eq('status', 'active')
+        .maybeSingle();
+
+      if (!existingConv) {
+        await supabaseAdmin.from('conversations').insert([{
+          customer_id: ticket.customer_id,
+          current_ticket_id: ticketId,
+          status: 'active',
+          last_message_at: new Date().toISOString()
+        }]);
+      }
+    })());
   }
 
-  await supabaseAdmin.from('ticket_logs').insert([{
-    ticket_id: ticketId,
-    action_type: 'claim',
-    to_status: 'In Progress',
-    performer_id: agentId,
-    note: 'Agent claimed the ticket securely via server action'
-  }]);
+  await Promise.all(postClaimTasks);
 
   invalidateAllLiveCaches();
   invalidateAllPreviewCaches();
@@ -196,8 +201,7 @@ export async function resolveTicketAction(
    resolutionSummary: string, 
    module?: string, 
    issueType?: string,
-   conversationId?: string,
-   surveyLink?: string
+   conversationId?: string
 ) {
    const user = await getSessionUser();
    const agentId = user.id;
@@ -271,7 +275,10 @@ export async function resolveTicketAction(
 
      // 3. Send system message if requested (Atomic)
      if (conversationId) {
-        const content = `[SYSTEM] ✅ งานได้รับการแก้ไขแล้ว: ${resolutionSummary}\nโมดูล: ${module || 'N/A'}\n\n👉 ทำประเมินที่นี่: ${surveyLink || 'N/A'}`;
+        const content =
+          `[SYSTEM] งานได้รับการแก้ไขแล้ว: ${resolutionSummary}\n` +
+          `โมดูล: ${module || 'N/A'}\n` +
+          `กรุณาประเมินความพึงพอใจจากหน้าพอร์ทัลลูกค้า`;
         await supabaseAdmin.from('messages').insert([{
            conversation_id: conversationId,
            ticket_id: ticketId,

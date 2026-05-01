@@ -396,6 +396,16 @@ export function useInboxConversation({
     const ticketId = currentTicket?.id || selectedChat?.current_ticket_id;
     if (!ticketId || !agent) return;
 
+    setCurrentTicket((prev) =>
+      prev
+        ? {
+            ...prev,
+            assigned_agent_id: agent.id,
+            status: 'In Progress',
+          }
+        : prev
+    );
+
     try {
       const claimedTicket = await claimInboxTicket(ticketId, agent.id);
       setCurrentTicket(claimedTicket);
@@ -434,16 +444,13 @@ export function useInboxConversation({
     };
 
     try {
-      const surveyLink = `${window.location.origin}/survey/${ticketId}`;
-      
       const resolvedTicket = await resolveInboxTicket({
         ticketId,
         agentId: agent?.id,
         resolutionSummary: resSummary,
         module: selectedModule,
         issueType: selectedIssueType,
-        conversationId: selectedChat.id,
-        surveyLink
+        conversationId: selectedChat.id
       });
 
       setCurrentTicket(resolvedTicket);
@@ -510,3 +517,5 @@ export function useInboxConversation({
     handleCloseSession,
   };
 }
+
+
