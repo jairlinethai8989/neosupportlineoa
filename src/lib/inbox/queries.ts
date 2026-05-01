@@ -30,6 +30,40 @@ export const inboxConversationSelect = `
   )
 `;
 
+const inboxConversationSelectLegacy = `
+  id,
+  status,
+  last_message_at,
+  customer_id,
+  current_ticket_id,
+  customers (id, display_name, line_user_id),
+  ticket_data:current_ticket_id (
+    id,
+    ticket_no,
+    subject,
+    customers:customers!tickets_customer_id_fkey (id, display_name, line_user_id)
+  )
+`;
+
+function isMissingAvatarColumnError(error: unknown): boolean {
+  if (!error || typeof error !== 'object') return false;
+  const maybe = error as { code?: string; message?: string };
+  const message = String(maybe.message || '').toLowerCase();
+  return (
+    maybe.code === 'PGRST204' &&
+    (message.includes('avatar_url') || message.includes('column'))
+  );
+}
+
+async function runConversationQueryWithAvatarFallback<T>(
+  runQuery: (selectClause: string) => any
+): Promise<{ data: T | null; error: unknown }> {
+  const primary = await runQuery(inboxConversationSelect);
+  if (!primary.error) return primary;
+  if (!isMissingAvatarColumnError(primary.error)) return primary;
+  return runQuery(inboxConversationSelectLegacy);
+}
+
 export const inboxMessageSelect = `
   id,
   content,
@@ -69,25 +103,29 @@ export const inboxCompanySettingsSelect = `
 `;
 
 export async function listInboxConversations(limit = 100): Promise<InboxConversation[]> {
-  const { data, error } = await supabase
-    .from('conversations')
-    .select(inboxConversationSelect)
-    .order('last_message_at', { ascending: false })
-    .limit(limit);
+  const { data, error } = await runConversationQueryWithAvatarFallback((selectClause) =>
+    supabase
+      .from('conversations')
+      .select(selectClause)
+      .order('last_message_at', { ascending: false })
+      .limit(limit)
+  );
 
   if (error) throw error;
-  return normalizeInboxConversations(data || []);
+  return normalizeInboxConversations(Array.isArray(data) ? data : []);
 }
 
 export async function listInboxConversationsFallback(limit = 100): Promise<InboxConversation[]> {
-  const { data, error } = await supabase
-    .from('conversations')
-    .select(inboxConversationSelect)
-    .order('last_message_at', { ascending: false })
-    .limit(limit);
+  const { data, error } = await runConversationQueryWithAvatarFallback((selectClause) =>
+    supabase
+      .from('conversations')
+      .select(selectClause)
+      .order('last_message_at', { ascending: false })
+      .limit(limit)
+  );
 
   if (error) throw error;
-  return normalizeInboxConversations(data || []);
+  return normalizeInboxConversations(Array.isArray(data) ? data : []);
 }
 
 export async function listInboxConversationsV2(input: {
@@ -107,39 +145,45 @@ export async function listInboxConversationsV2(input: {
   const activeStatusFilter =
     'status.eq.active,status.eq.open,status.eq.new,status.ilike.*progress*';
 
-  let query = supabase
-    .from('conversations')
-    .select(inboxConversationSelect)
-    .or(activeStatusFilter)
-    .order('last_message_at', { ascending: false, nullsFirst: false })
-    .order('id', { ascending: false })
-    .limit(pageSize + 1);
+  const { data, error } = await runConversationQueryWithAvatarFallback((selectClause) => {
+    let query = supabase
+      .from('conversations')
+      .select(selectClause)
+      .or(activeStatusFilter)
+      .order('last_message_at', { ascending: false, nullsFirst: false })
+      .order('id', { ascending: false })
+      .limit(pageSize + 1);
 
-  if (input.cursorLastMessageAt && input.cursorId) {
-    query = query.or(
-      `last_message_at.lt.${input.cursorLastMessageAt},and(last_message_at.eq.${input.cursorLastMessageAt},id.lt.${input.cursorId})`
-    );
-  }
+    if (input.cursorLastMessageAt && input.cursorId) {
+      query = query.or(
+        `last_message_at.lt.${input.cursorLastMessageAt},and(last_message_at.eq.${input.cursorLastMessageAt},id.lt.${input.cursorId})`
+      );
+    }
 
-  const { data, error } = await query;
+    return query;
+  });
 
   if (error) {
     console.error('Inbox Query Error:', error);
     // Safe fallback query to prevent empty inbox on transient select/schema mismatch.
-    const { data: fallbackData, error: fallbackError } = await supabase
-      .from('conversations')
-      .select(inboxConversationSelect)
-      .order('last_message_at', { ascending: false, nullsFirst: false })
-      .order('id', { ascending: false })
-      .limit(pageSize + 1);
+    const { data: fallbackData, error: fallbackError } =
+      await runConversationQueryWithAvatarFallback((selectClause) =>
+        supabase
+          .from('conversations')
+          .select(selectClause)
+          .order('last_message_at', { ascending: false, nullsFirst: false })
+          .order('id', { ascending: false })
+          .limit(pageSize + 1)
+      );
 
     if (fallbackError) {
       console.error('Inbox Fallback Query Error:', fallbackError);
       return { data: [], hasNext: false, nextCursor: null };
     }
 
-    const normalizedFallback = normalizeInboxConversations((fallbackData || []).slice(0, pageSize));
-    const hasNextFallback = (fallbackData?.length || 0) > pageSize;
+    const fallbackRows = Array.isArray(fallbackData) ? fallbackData : [];
+    const normalizedFallback = normalizeInboxConversations(fallbackRows.slice(0, pageSize));
+    const hasNextFallback = fallbackRows.length > pageSize;
     const nextCursorRow = normalizedFallback[normalizedFallback.length - 1];
     return {
       data: normalizedFallback,
@@ -151,21 +195,24 @@ export async function listInboxConversationsV2(input: {
     };
   }
 
+  const rows = Array.isArray(data) ? data : [];
+
   // Defensive fallback: some environments can return zero rows for strict status filter
   // while conversations exist with non-standard status text.
-  if ((data?.length || 0) === 0 && input.status === 'active') {
-    const {
-      data: wideData,
-      error: wideError,
-    } = await supabase
-      .from('conversations')
-      .select(inboxConversationSelect)
-      .order('last_message_at', { ascending: false, nullsFirst: false })
-      .order('id', { ascending: false })
-      .limit(pageSize + 1);
+  if (rows.length === 0 && input.status === 'active') {
+    const { data: wideData, error: wideError } = await runConversationQueryWithAvatarFallback(
+      (selectClause) =>
+        supabase
+          .from('conversations')
+          .select(selectClause)
+          .order('last_message_at', { ascending: false, nullsFirst: false })
+          .order('id', { ascending: false })
+          .limit(pageSize + 1)
+    );
 
-    if (!wideError && (wideData?.length || 0) > 0) {
-      const normalizedWide = normalizeInboxConversations((wideData || []).slice(0, pageSize));
+    const wideRows = Array.isArray(wideData) ? wideData : [];
+    if (!wideError && wideRows.length > 0) {
+      const normalizedWide = normalizeInboxConversations(wideRows.slice(0, pageSize));
       const activeLike = normalizedWide.filter((conversation) => {
         const normalizedStatus = String(conversation.status || '').toLowerCase().trim();
         const isClosedLike =
@@ -176,7 +223,7 @@ export async function listInboxConversationsV2(input: {
         return !isClosedLike;
       });
 
-      const hasNextWide = (wideData?.length || 0) > pageSize;
+      const hasNextWide = wideRows.length > pageSize;
       const nextCursorWide = activeLike[activeLike.length - 1];
       return {
         data: activeLike,
@@ -189,8 +236,8 @@ export async function listInboxConversationsV2(input: {
     }
   }
 
-  const normalized = normalizeInboxConversations((data || []).slice(0, pageSize));
-  const hasNext = (data?.length || 0) > pageSize;
+  const normalized = normalizeInboxConversations(rows.slice(0, pageSize));
+  const hasNext = rows.length > pageSize;
   const nextCursorRow = normalized[normalized.length - 1];
   return {
     data: normalized,
@@ -203,11 +250,9 @@ export async function listInboxConversationsV2(input: {
 }
 
 export async function getInboxConversationById(id: string): Promise<InboxConversation | null> {
-  const { data, error } = await supabase
-    .from('conversations')
-    .select(inboxConversationSelect)
-    .eq('id', id)
-    .single();
+  const { data, error } = await runConversationQueryWithAvatarFallback((selectClause) =>
+    supabase.from('conversations').select(selectClause).eq('id', id).single()
+  );
 
   if (error) throw error;
   return normalizeInboxConversation(data);
@@ -216,13 +261,15 @@ export async function getInboxConversationById(id: string): Promise<InboxConvers
 export async function getInboxConversationByTicketId(
   ticketId: string
 ): Promise<InboxConversation | null> {
-  const { data, error } = await supabase
-    .from('conversations')
-    .select(inboxConversationSelect)
-    .eq('current_ticket_id', ticketId)
-    .order('last_message_at', { ascending: false, nullsFirst: false })
-    .limit(1)
-    .maybeSingle();
+  const { data, error } = await runConversationQueryWithAvatarFallback((selectClause) =>
+    supabase
+      .from('conversations')
+      .select(selectClause)
+      .eq('current_ticket_id', ticketId)
+      .order('last_message_at', { ascending: false, nullsFirst: false })
+      .limit(1)
+      .maybeSingle()
+  );
 
   if (error) throw error;
   if (data) return normalizeInboxConversation(data);
