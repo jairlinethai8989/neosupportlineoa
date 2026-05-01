@@ -45,6 +45,14 @@ const inboxConversationSelectLegacy = `
   )
 `;
 
+const inboxConversationSelectMinimal = `
+  id,
+  status,
+  last_message_at,
+  customer_id,
+  current_ticket_id
+`;
+
 function isMissingAvatarColumnError(error: unknown): boolean {
   if (!error || typeof error !== 'object') return false;
   const maybe = error as { code?: string; message?: string };
@@ -62,8 +70,12 @@ async function runConversationQueryWithAvatarFallback<T>(
 ): Promise<{ data: T | null; error: unknown }> {
   const primary = await runQuery(inboxConversationSelect);
   if (!primary.error) return primary;
+  const legacy = await runQuery(inboxConversationSelectLegacy);
+  if (!legacy.error) return legacy;
+  const minimal = await runQuery(inboxConversationSelectMinimal);
+  if (!minimal.error) return minimal;
   if (!isMissingAvatarColumnError(primary.error)) return primary;
-  return runQuery(inboxConversationSelectLegacy);
+  return legacy;
 }
 
 export const inboxMessageSelect = `
