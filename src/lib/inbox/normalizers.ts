@@ -86,6 +86,12 @@ function mergeInboxCustomerSources(
         : fallbackCustomer.display_name || primaryCustomer.display_name,
     line_user_id: primaryCustomer.line_user_id || fallbackCustomer.line_user_id,
     avatar_url: primaryCustomer.avatar_url || fallbackCustomer.avatar_url,
+    hospital_id: primaryCustomer.hospital_id || fallbackCustomer.hospital_id,
+    department_id: primaryCustomer.department_id || fallbackCustomer.department_id,
+    position_id: primaryCustomer.position_id || fallbackCustomer.position_id,
+    hospitals: primaryCustomer.hospitals || fallbackCustomer.hospitals,
+    departments: primaryCustomer.departments || fallbackCustomer.departments,
+    positions: primaryCustomer.positions || fallbackCustomer.positions,
   };
 }
 

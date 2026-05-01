@@ -22,6 +22,10 @@ const ChatAttachmentModal = React.lazy(() => import('@/components/chat/ChatAttac
 const ImageEditorModal = React.lazy(() => import('@/components/modals/ImageEditorModal'));
 const ImageViewerModal = React.lazy(() => import('@/components/modals/ImageViewerModal'));
 
+function isSurveyEligibleStatus(status: unknown) {
+  return status === 'Resolved' || status === 'Closed';
+}
+
 export default function TicketDetailPage() {
   const { id } = useParams();
   const ticketId = Array.isArray(id) ? id[0] : id;
@@ -52,6 +56,7 @@ export default function TicketDetailPage() {
   // Use a ref so realtime handler always has the latest conversationId
   // without needing to re-subscribe every time state changes
   const conversationIdRef = useRef<string | null>(null);
+  const hasRespondedRef = useRef(false);
 
   const scrollToLatest = (behavior: ScrollBehavior = 'smooth') => {
     messagesEndRef.current?.scrollIntoView({ behavior, block: 'end' });
@@ -63,6 +68,34 @@ export default function TicketDetailPage() {
       target.scrollHeight - target.scrollTop - target.clientHeight;
     setShowJumpToLatest(distanceFromBottom > 80);
   };
+
+  useEffect(() => {
+    hasRespondedRef.current = hasResponded;
+  }, [hasResponded]);
+
+  const loadSurveyState = React.useCallback(async () => {
+    if (!ticketId) return null;
+
+    const { data } = await supabase
+      .from('csat_surveys')
+      .select('score, rating, responded_at')
+      .eq('ticket_id', ticketId)
+      .maybeSingle();
+
+    const value = data?.score || data?.rating || 0;
+    const responded = Boolean(data?.responded_at || value);
+
+    if (responded) {
+      setHasResponded(true);
+      if (value) setSurveyScore(value);
+    }
+
+    return {
+      responded,
+      value,
+      hasSurveyRecord: Boolean(data),
+    };
+  }, [ticketId]);
 
   useEffect(() => {
     if (!ticketId) return;
@@ -154,11 +187,19 @@ export default function TicketDetailPage() {
           if (data) setMessages(data);
         };
 
-        const [lRes] = await Promise.all([
+        const [lRes, surveyState] = await Promise.all([
            supabase.from('ticket_logs').select('*').eq('ticket_id', ticketId).order('created_at', { ascending: false }),
+           loadSurveyState(),
         ]);
 
         if (lRes.data) setLogs(lRes.data);
+        if (
+          surveyState &&
+          !surveyState.responded &&
+          isSurveyEligibleStatus((ticketData || tBase).status)
+        ) {
+          setShowSurvey(true);
+        }
         await loadMessages(cid);
 
       } catch (err: any) {
@@ -227,10 +268,33 @@ export default function TicketDetailPage() {
           schema: 'public',
           table: 'tickets',
           filter: `id=eq.${ticketId}`
-        }, (payload: any) => {
-          setTicket((prev: any) => prev ? ({ ...prev, ...payload.new }) : prev);
+        }, async (payload: any) => {
+          const nextTicket = payload.new;
+          setTicket((prev: any) => prev ? ({ ...prev, ...nextTicket }) : prev);
           supabase.from('ticket_logs').select('*').eq('ticket_id', ticketId).order('created_at', { ascending: false })
             .then(({ data }: any) => { if (data) setLogs(data); });
+          if (isSurveyEligibleStatus(nextTicket?.status) && !hasRespondedRef.current) {
+            setShowSurvey(true);
+            await loadSurveyState();
+          }
+        })
+        .on('postgres_changes', {
+          event: '*',
+          schema: 'public',
+          table: 'csat_surveys',
+          filter: `ticket_id=eq.${ticketId}`
+        }, async (payload: any) => {
+          const nextSurvey = payload.new;
+          const value = nextSurvey?.score || nextSurvey?.rating || 0;
+          const responded = Boolean(nextSurvey?.responded_at || value);
+          if (responded) {
+            setHasResponded(true);
+            if (value) setSurveyScore(value);
+            return;
+          }
+          if (!hasRespondedRef.current && isSurveyEligibleStatus(ticket?.status || payload.old?.status)) {
+            setShowSurvey(true);
+          }
         })
         .subscribe();
       
@@ -266,7 +330,7 @@ export default function TicketDetailPage() {
       window.clearInterval(poller);
       if (channelRef) supabase.removeChannel(channelRef);
     };
-  }, [ticketId, isReady]);
+  }, [isReady, loadSurveyState, ticket?.status, ticketId]);
 
   useEffect(() => {
     if (!ticketId) return;
@@ -282,25 +346,11 @@ export default function TicketDetailPage() {
 
   useEffect(() => {
     if (!ticketId) return;
-    async function checkSurvey() {
-      const { data } = await supabase
-        .from('csat_surveys')
-        .select('score, rating')
-        .eq('ticket_id', ticketId)
-        .maybeSingle();
-      if (data) {
-        const val = data.score || data.rating;
-        if (val) {
-          setHasResponded(true);
-          setSurveyScore(val);
-        }
-      }
-    }
-    checkSurvey();
-  }, [ticketId]);
+    void loadSurveyState();
+  }, [loadSurveyState, ticketId]);
 
   useEffect(() => {
-    if (ticket?.status === 'Resolved' && !hasResponded) {
+    if (isSurveyEligibleStatus(ticket?.status) && !hasResponded) {
       const timer = setTimeout(() => setShowSurvey(true), 1500);
       return () => clearTimeout(timer);
     }
