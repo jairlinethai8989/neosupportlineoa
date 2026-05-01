@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import Image from 'next/image';
 import {
   AlertCircle,
   AlertTriangle,
@@ -104,9 +105,26 @@ export const TicketSidebar: React.FC<TicketSidebarProps> = ({
 
       <div className="glass" style={{ padding: '20px', background: 'rgba(255,255,255,0.02)', borderRadius: '16px' }}>
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px' }}>
-          <div style={{ width: '80px', height: '80px', borderRadius: '24px', background: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 8px 24px rgba(0,242,254,0.3)' }}>
-            <User size={40} color="#0a0e14" />
-          </div>
+          {selectedChat.customers?.avatar_url ? (
+            <Image
+              src={selectedChat.customers.avatar_url}
+              alt={selectedChat.customers?.display_name || 'LINE customer'}
+              width={80}
+              height={80}
+              style={{
+                width: '80px',
+                height: '80px',
+                borderRadius: '24px',
+                objectFit: 'cover',
+                border: '2px solid rgba(255,255,255,0.15)',
+                boxShadow: '0 8px 24px rgba(0,242,254,0.25)',
+              }}
+            />
+          ) : (
+            <div style={{ width: '80px', height: '80px', borderRadius: '24px', background: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 8px 24px rgba(0,242,254,0.3)' }}>
+              <User size={40} color="#0a0e14" />
+            </div>
+          )}
           <div style={{ textAlign: 'center' }}>
             <p style={{ fontWeight: '800', fontSize: '18px', marginBottom: '4px' }}>{selectedChat.customers?.display_name || 'LINE User'}</p>
             <code style={{ fontSize: '10px', color: 'var(--text-muted)', background: 'rgba(0,0,0,0.2)', padding: '2px 8px', borderRadius: '4px' }}>

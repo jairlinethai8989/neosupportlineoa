@@ -21,12 +21,12 @@ export const inboxConversationSelect = `
   last_message_at,
   customer_id,
   current_ticket_id,
-  customers (id, display_name, line_user_id),
+  customers (id, display_name, line_user_id, avatar_url),
   ticket_data:current_ticket_id (
     id,
     ticket_no,
     subject,
-    customers:customers!tickets_customer_id_fkey (id, display_name, line_user_id)
+    customers:customers!tickets_customer_id_fkey (id, display_name, line_user_id, avatar_url)
   )
 `;
 

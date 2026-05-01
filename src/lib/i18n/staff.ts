@@ -599,7 +599,7 @@ const messages: Record<StaffLocale, MessageDictionary> = {
       resolveTicket: 'Resolve/Close Ticket',
       customerInfo: 'Customer Info',
       ticketInfo: 'Ticket Info',
-      noTicket: '?????????????????????????',
+      noTicket: 'No linked ticket yet',
       confirmEndChatTitle: 'Confirm End Chat',
       confirmEndChatBody: 'Do you want to end this conversation?',
       confirmEndChatButton: 'Confirm End Chat',
