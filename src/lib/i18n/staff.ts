@@ -88,7 +88,10 @@ const messages: Record<StaffLocale, MessageDictionary> = {
       resolveTicket: 'สรุปงาน/ปิดงาน',
       customerInfo: 'ข้อมูลลูกค้า',
       ticketInfo: 'ข้อมูลใบงาน',
-      noTicket: 'ยังไม่มีใบงานที่เชื่อมโยง',
+      noTicket: '?????????????????????????',
+      confirmEndChatTitle: '\u0e22\u0e37\u0e19\u0e22\u0e31\u0e19\u0e01\u0e32\u0e23\u0e08\u0e1a\u0e01\u0e32\u0e23\u0e2a\u0e19\u0e17\u0e19\u0e32',
+      confirmEndChatBody: '\u0e04\u0e38\u0e13\u0e15\u0e49\u0e2d\u0e07\u0e01\u0e32\u0e23\u0e08\u0e1a\u0e01\u0e32\u0e23\u0e2a\u0e19\u0e17\u0e19\u0e32\u0e19\u0e35\u0e49\u0e43\u0e0a\u0e48\u0e2b\u0e23\u0e37\u0e2d\u0e44\u0e21\u0e48?',
+      confirmEndChatButton: '\u0e22\u0e37\u0e19\u0e22\u0e31\u0e19\u0e08\u0e1a\u0e01\u0e32\u0e23\u0e2a\u0e19\u0e17\u0e19\u0e32',
     },
     notificationsHub: {
       title: 'ศูนย์การแจ้งเตือน',
@@ -596,7 +599,10 @@ const messages: Record<StaffLocale, MessageDictionary> = {
       resolveTicket: 'Resolve/Close Ticket',
       customerInfo: 'Customer Info',
       ticketInfo: 'Ticket Info',
-      noTicket: 'No linked ticket yet',
+      noTicket: '?????????????????????????',
+      confirmEndChatTitle: 'Confirm End Chat',
+      confirmEndChatBody: 'Do you want to end this conversation?',
+      confirmEndChatButton: 'Confirm End Chat',
     },
     notificationsHub: {
       title: 'Notification Hub',
@@ -1111,3 +1117,4 @@ export function translateAuditAction(actionType: string, locale: StaffLocale): s
     'settingsAudit.headers.action'
   );
 }
+
