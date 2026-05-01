@@ -56,7 +56,9 @@ function isMissingAvatarColumnError(error: unknown): boolean {
 }
 
 async function runConversationQueryWithAvatarFallback<T>(
-  runQuery: (selectClause: string) => any
+  runQuery: (
+    selectClause: string
+  ) => PromiseLike<{ data: T | null; error: unknown }> | { data: T | null; error: unknown }
 ): Promise<{ data: T | null; error: unknown }> {
   const primary = await runQuery(inboxConversationSelect);
   if (!primary.error) return primary;
@@ -139,17 +141,10 @@ export async function listInboxConversationsV2(input: {
 }): Promise<{ data: InboxConversation[]; hasNext: boolean; nextCursor: { lastMessageAt: string; id: string } | null }> {
   const pageSize = input.pageSize || 20;
 
-  // Include legacy status variants so claimed chats do not disappear.
-  // Do not depend on optional schema columns here; some production DBs do not have is_active.
-  // Use wildcard progress token to avoid parser issues with status value containing spaces.
-  const activeStatusFilter =
-    'status.eq.active,status.eq.open,status.eq.new,status.ilike.*progress*';
-
   const { data, error } = await runConversationQueryWithAvatarFallback((selectClause) => {
     let query = supabase
       .from('conversations')
       .select(selectClause)
-      .or(activeStatusFilter)
       .order('last_message_at', { ascending: false, nullsFirst: false })
       .order('id', { ascending: false })
       .limit(pageSize + 1);

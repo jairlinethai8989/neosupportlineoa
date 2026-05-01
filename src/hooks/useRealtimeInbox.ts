@@ -20,9 +20,25 @@ export function sortConversations(items: InboxConversation[]) {
 
 export function isConversationActiveLike(conversation: InboxConversation) {
   const status = String(conversation.status || '').toLowerCase().trim();
+  if (!status) return true;
+  const closedLike = ['closed', 'resolved', 'done', 'ended', 'end', 'archived'];
+  if (closedLike.includes(status)) return false;
   return (
     conversation.is_active === true ||
-    ['active', 'open', 'new', 'in progress', 'in_progress'].includes(status)
+    [
+      'active',
+      'open',
+      'new',
+      'in progress',
+      'in_progress',
+      'pending',
+      'escalated',
+      'claimed',
+      'claim',
+      'ongoing',
+      'on_going',
+    ].includes(status) ||
+    !closedLike.includes(status)
   );
 }
 
@@ -85,7 +101,8 @@ export function useRealtimeInbox(options: {
         }
       }
 
-      setConversations(data);
+      const visibleData = page === 1 ? data.filter(isConversationActiveLike) : data;
+      setConversations(visibleData);
       setHasNextPage(hasNext);
       if (hasNext && nextCursor) {
         cursorByPageRef.current.set(page + 1, nextCursor);
