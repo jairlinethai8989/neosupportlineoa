@@ -124,13 +124,14 @@ export const TicketSidebar: React.FC<TicketSidebarProps> = ({
         ) : (
           <div
             style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+              display: 'flex',
+              flexWrap: 'wrap',
               gap: '20px',
               alignItems: 'center',
+              justifyContent: 'space-between',
             }}
           >
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', flex: '0 0 140px', marginInline: 'auto' }}>
               {customer?.avatar_url ? (
                 <Image
                   src={customer.avatar_url}
@@ -158,7 +159,7 @@ export const TicketSidebar: React.FC<TicketSidebarProps> = ({
                 </code>
               </div>
             </div>
-            <div style={{ display: 'grid', gap: '8px', alignContent: 'center' }}>
+            <div style={{ display: 'grid', gap: '10px', alignContent: 'center', flex: '1 1 180px', minWidth: '0' }}>
               <p style={{ margin: 0, fontSize: '12px', color: 'var(--text-main)' }}>
                 {metaLabels.hospital}: <strong>{customer?.hospitals?.name || '-'}</strong>
               </p>
