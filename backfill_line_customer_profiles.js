@@ -26,8 +26,11 @@ const lineClient = new line.Client({
 
 function parseArgs(argv) {
   const args = {
-    dryRun: false,
+    dryRun: true,
+    confirm: false,
     limit: null,
+    onlyIds: [],
+    onlyLineIds: [],
   };
 
   for (let index = 0; index < argv.length; index += 1) {
@@ -35,6 +38,16 @@ function parseArgs(argv) {
 
     if (arg === '--dry-run') {
       args.dryRun = true;
+      continue;
+    }
+
+    if (arg === '--apply') {
+      args.dryRun = false;
+      continue;
+    }
+
+    if (arg === '--confirm') {
+      args.confirm = true;
       continue;
     }
 
@@ -50,7 +63,38 @@ function parseArgs(argv) {
       }
 
       index += 1;
+      continue;
     }
+
+    if (arg === '--only-ids') {
+      const nextValue = argv[index + 1];
+      if (!nextValue) {
+        throw new Error('Expected comma-separated IDs after --only-ids');
+      }
+      args.onlyIds = nextValue
+        .split(',')
+        .map((item) => item.trim())
+        .filter(Boolean);
+      index += 1;
+      continue;
+    }
+
+    if (arg === '--only-line-ids') {
+      const nextValue = argv[index + 1];
+      if (!nextValue) {
+        throw new Error('Expected comma-separated line_user_id values after --only-line-ids');
+      }
+      args.onlyLineIds = nextValue
+        .split(',')
+        .map((item) => item.trim())
+        .filter(Boolean);
+      index += 1;
+      continue;
+    }
+  }
+
+  if (!args.dryRun && !args.confirm) {
+    throw new Error('Apply mode requires --confirm for safety.');
   }
 
   return args;
@@ -61,10 +105,10 @@ function needsBackfill(customer) {
   return !displayName || displayName.toLowerCase() === 'line user';
 }
 
-async function fetchTargetCustomers(limit) {
+async function fetchTargetCustomers(limit, filters) {
   let query = supabase
     .from('customers')
-    .select('id, line_user_id, display_name')
+    .select('id, line_user_id, display_name, metadata')
     .not('line_user_id', 'is', null)
     .order('updated_at', { ascending: true, nullsFirst: true });
 
@@ -77,7 +121,12 @@ async function fetchTargetCustomers(limit) {
     throw error;
   }
 
-  return (data || []).filter(needsBackfill);
+  const rows = (data || []).filter(needsBackfill);
+  return rows.filter((row) => {
+    if (filters.onlyIds.length > 0 && !filters.onlyIds.includes(row.id)) return false;
+    if (filters.onlyLineIds.length > 0 && !filters.onlyLineIds.includes(row.line_user_id)) return false;
+    return true;
+  });
 }
 
 async function detectCustomerAvatarColumn() {
@@ -110,9 +159,22 @@ async function getLineProfile(lineUserId) {
   }
 }
 
-async function updateCustomer(customerId, profile, dryRun, options) {
+async function updateCustomer(customer, profile, dryRun, options) {
+  const currentMetadata =
+    customer && typeof customer.metadata === 'object' && customer.metadata !== null
+      ? customer.metadata
+      : {};
+
   const payload = {
     display_name: profile.displayName,
+    metadata: {
+      ...currentMetadata,
+      line_profile: {
+        display_name: profile.displayName,
+        picture_url: profile.pictureUrl,
+        synced_at: new Date().toISOString(),
+      },
+    },
     updated_at: new Date().toISOString(),
   };
 
@@ -127,7 +189,7 @@ async function updateCustomer(customerId, profile, dryRun, options) {
   const { error } = await supabase
     .from('customers')
     .update(payload)
-    .eq('id', customerId);
+    .eq('id', customer.id);
 
   if (error) {
     throw error;
@@ -139,10 +201,14 @@ async function updateCustomer(customerId, profile, dryRun, options) {
 async function main() {
   const args = parseArgs(process.argv.slice(2));
   const hasAvatarColumn = await detectCustomerAvatarColumn();
-  const candidates = await fetchTargetCustomers(args.limit);
+  const candidates = await fetchTargetCustomers(args.limit, {
+    onlyIds: args.onlyIds,
+    onlyLineIds: args.onlyLineIds,
+  });
 
   console.log(`Found ${candidates.length} customer(s) needing LINE profile backfill.`);
   console.log(`Schema check: avatar_url column ${hasAvatarColumn ? 'detected' : 'not detected'}, display_name sync enabled.`);
+  console.log(`Mode: ${args.dryRun ? 'PREVIEW' : 'APPLY'}${args.dryRun ? '' : ' (confirmed)'}`);
   if (candidates.length === 0) {
     return;
   }
@@ -177,7 +243,7 @@ async function main() {
       continue;
     }
 
-    const result = await updateCustomer(customer.id, profileResult, args.dryRun, {
+    const result = await updateCustomer(customer, profileResult, args.dryRun, {
       hasAvatarColumn,
     });
     updatedCount += 1;
