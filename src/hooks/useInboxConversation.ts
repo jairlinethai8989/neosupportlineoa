@@ -27,7 +27,9 @@ import {
   getInboxClaimSuccessToast,
   getInboxCloseSuccessToast,
   getInboxClosedTicketMessage,
+  getInboxErrorToast,
   getInboxResolveSuccessToast,
+  getInboxWarningToast,
   type InboxToastInput,
 } from '@/lib/inbox/feedback';
 import type { InboxAgent, InboxConversation, InboxMessage, InboxTicket } from '@/types/inbox';
@@ -355,7 +357,7 @@ export function useInboxConversation({
     if (!newMessage.trim() || !selectedChat || !agent) return;
 
     if (currentTicket?.status === 'Resolved' || currentTicket?.status === 'Closed') {
-      alert(getInboxClosedTicketMessage());
+      addToast(getInboxWarningToast('ไม่สามารถส่งข้อความได้', getInboxClosedTicketMessage()));
       return;
     }
 
@@ -384,7 +386,7 @@ export function useInboxConversation({
       });
     } catch (error: unknown) {
       setMessages((prev) => prev.filter((message) => message.id !== optimisticMessage.id));
-      alert(getInboxActionFailedMessage('Failed', error));
+      addToast(getInboxErrorToast('ส่งข้อความไม่สำเร็จ', getInboxActionFailedMessage('Failed', error)));
     } finally {
       setSending(false);
     }
@@ -399,7 +401,7 @@ export function useInboxConversation({
       setCurrentTicket(claimedTicket);
       addToast(getInboxClaimSuccessToast(claimedTicket));
     } catch (error: unknown) {
-      alert(getInboxActionFailedMessage('Failed to claim', error));
+      addToast(getInboxErrorToast('รับงานไม่สำเร็จ', getInboxActionFailedMessage('Failed to claim', error)));
     }
   }
 
@@ -461,7 +463,7 @@ export function useInboxConversation({
         setShowResolveModal(false);
         addToast(getInboxResolveSuccessToast());
       } else {
-        alert(getInboxActionFailedMessage('Failed', error));
+        addToast(getInboxErrorToast('ปิดงานไม่สำเร็จ', getInboxActionFailedMessage('Failed', error)));
       }
     } finally {
       setSending(false);
@@ -469,14 +471,14 @@ export function useInboxConversation({
   }
 
   async function handleCloseSession() {
-    if (!selectedChat || !confirm('คุณต้องการจบการสนทนานี้ใช่หรือไม่?')) return;
+    if (!selectedChat) return;
 
     try {
       await closeInboxConversation(selectedChat.id);
       setSelectedChat((prev) => (prev ? { ...prev, status: 'closed', is_active: false } : null));
       addToast(getInboxCloseSuccessToast());
     } catch (error: unknown) {
-      alert(getInboxActionFailedMessage('Failed', error));
+      addToast(getInboxErrorToast('จบการสนทนาไม่สำเร็จ', getInboxActionFailedMessage('Failed', error)));
     }
   }
 

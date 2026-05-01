@@ -65,3 +65,21 @@ export function getInboxCloseSuccessToast(): InboxToastInput {
     body: 'คุณสามารถปิดงานต่อได้จากแถบด้านขวา',
   };
 }
+
+export function getInboxErrorToast(title: string, error: unknown): InboxToastInput {
+  return {
+    id: `inbox-error-${title.toLowerCase().replace(/\s+/g, '-')}`,
+    type: 'message',
+    title,
+    body: getInboxErrorMessage(error),
+  };
+}
+
+export function getInboxWarningToast(title: string, body: string): InboxToastInput {
+  return {
+    id: `inbox-warning-${title.toLowerCase().replace(/\s+/g, '-')}`,
+    type: 'message',
+    title,
+    body,
+  };
+}

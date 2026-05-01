@@ -64,7 +64,17 @@ function InboxContent() {
   const [viewingImage, setViewingImage] = useState('');
   const [editingImage, setEditingImage] = useState('');
   const [page, setPage] = useState(1);
+  const [showCloseSessionConfirm, setShowCloseSessionConfirm] = useState(false);
+  const [pendingDeleteMessageId, setPendingDeleteMessageId] = useState<string | null>(null);
   const lastHydratedCidRef = React.useRef<string | null>(null);
+  const showInfoToast = (title: string, body: string) => {
+    addToast({
+      id: `inbox-info-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`,
+      type: 'message',
+      title,
+      body,
+    });
+  };
 
   const { conversations, hasNextPage, loading: inboxLoading } = useRealtimeInbox({
     page,
@@ -339,12 +349,7 @@ function InboxContent() {
               viewMode={viewMode}
               setViewMode={setViewMode}
               onDeleteMessage={async (messageId: string) => {
-                if (confirm(t('common.messages.deleteConfirm'))) {
-                  const result = await deleteInboxMessage(messageId);
-                  if (!result.success) {
-                    alert(getInboxDeleteFailedMessage(result.error));
-                  }
-                }
+                setPendingDeleteMessageId(messageId);
               }}
               messagesEndRef={messagesEndRef}
             />
@@ -379,19 +384,20 @@ function InboxContent() {
             viewMode={viewMode}
             setViewMode={setViewMode}
             onFetchGlobalHistory={() =>
-              alert('ฟีเจอร์ประวัติการสนทนากลางยังอยู่ระหว่างการพัฒนา')
+              showInfoToast('ฟีเจอร์ยังไม่พร้อม', 'ฟีเจอร์ประวัติการสนทนากลางยังอยู่ระหว่างการพัฒนา')
             }
             onResolve={handleResolve}
-            onTransfer={() => alert('ฟีเจอร์โอนงานกำลังอยู่ระหว่างการพัฒนา')}
-            onCloseSession={handleCloseSession}
+            onTransfer={() => showInfoToast('ฟีเจอร์ยังไม่พร้อม', 'ฟีเจอร์โอนงานกำลังอยู่ระหว่างการพัฒนา')}
+            onCloseSession={() => setShowCloseSessionConfirm(true)}
             onCopySurvey={() => {
               const surveyTicketId = currentTicket?.id || selectedChat.current_ticket_id;
               if (!surveyTicketId) return;
               navigator.clipboard.writeText(
                 `${window.location.origin}/survey/${surveyTicketId}`
               );
-              alert('คัดลอกลิงก์ประเมินแล้ว');
+              showInfoToast('คัดลอกแล้ว', 'คัดลอกลิงก์ประเมินเรียบร้อย');
             }}
+            onWarn={showInfoToast}
           />
           </Suspense>
         )}
@@ -460,13 +466,120 @@ function InboxContent() {
                 setEditingImage('');
               } catch (error: unknown) {
                 console.error('Inbox editor save failed:', error);
-                alert(getInboxUploadFailedMessage(error));
+                showInfoToast('อัปโหลดรูปไม่สำเร็จ', getInboxUploadFailedMessage(error));
               } finally {
                 setSending(false);
               }
             }}
           />
         </Suspense>
+      )}
+
+      {pendingDeleteMessageId && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 2300,
+            background: 'rgba(5, 15, 30, 0.55)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '16px',
+          }}
+        >
+          <div
+            style={{
+              width: '100%',
+              maxWidth: '460px',
+              background: 'var(--bg-card)',
+              border: '1px solid var(--border)',
+              borderRadius: '18px',
+              boxShadow: '0 20px 60px rgba(0,0,0,0.35)',
+              padding: '22px',
+            }}
+          >
+            <h3 style={{ margin: 0, fontSize: '20px', fontWeight: 900, color: 'var(--text-main)' }}>
+              ยืนยันการลบข้อความ
+            </h3>
+            <p style={{ marginTop: '12px', marginBottom: '18px', color: 'var(--text-muted)', lineHeight: 1.6 }}>
+              {t('common.messages.deleteConfirm')}
+            </p>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+              <button type="button" className="btn-secondary" onClick={() => setPendingDeleteMessageId(null)}>
+                ยกเลิก
+              </button>
+              <button
+                type="button"
+                className="btn-danger"
+                onClick={async () => {
+                  const messageId = pendingDeleteMessageId;
+                  setPendingDeleteMessageId(null);
+                  if (!messageId) return;
+                  const result = await deleteInboxMessage(messageId);
+                  if (!result.success) {
+                    showInfoToast('ลบข้อความไม่สำเร็จ', getInboxDeleteFailedMessage(result.error));
+                  }
+                }}
+              >
+                ยืนยันลบข้อความ
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showCloseSessionConfirm && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 2200,
+            background: 'rgba(5, 15, 30, 0.55)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '16px',
+          }}
+        >
+          <div
+            style={{
+              width: '100%',
+              maxWidth: '460px',
+              background: 'var(--bg-card)',
+              border: '1px solid var(--border)',
+              borderRadius: '18px',
+              boxShadow: '0 20px 60px rgba(0,0,0,0.35)',
+              padding: '22px',
+            }}
+          >
+            <h3 style={{ margin: 0, fontSize: '20px', fontWeight: 900, color: 'var(--text-main)' }}>
+              ยืนยันการจบการสนทนา
+            </h3>
+            <p style={{ marginTop: '12px', marginBottom: '18px', color: 'var(--text-muted)', lineHeight: 1.6 }}>
+              คุณต้องการจบการสนทนานี้ใช่หรือไม่?
+            </p>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+              <button type="button" className="btn-secondary" onClick={() => setShowCloseSessionConfirm(false)}>
+                ยกเลิก
+              </button>
+              <button
+                type="button"
+                className="btn-danger"
+                onClick={async () => {
+                  setShowCloseSessionConfirm(false);
+                  await handleCloseSession();
+                }}
+              >
+                ยืนยันจบการสนทนา
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       <style
