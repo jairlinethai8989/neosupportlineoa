@@ -116,6 +116,115 @@ export const inboxCompanySettingsSelect = `
   issue_types
 `;
 
+type EnrichCustomerRow = {
+  id: string;
+  display_name: string | null;
+  line_user_id: string | null;
+};
+
+type EnrichTicketRow = {
+  id: string;
+  ticket_no: string | null;
+  subject: string | null;
+  customer_id: string | null;
+};
+
+async function enrichConversationsIfNeeded(
+  conversations: InboxConversation[]
+): Promise<InboxConversation[]> {
+  const needsCustomer = conversations.some((item) => !item.customers?.display_name);
+  const needsTicket = conversations.some(
+    (item) => item.current_ticket_id && !item.ticket_data?.ticket_no
+  );
+  if (!needsCustomer && !needsTicket) return conversations;
+
+  const customerIds = Array.from(
+    new Set(
+      conversations
+        .map((item) => item.customer_id)
+        .filter((id): id is string => Boolean(id))
+    )
+  );
+
+  const ticketIds = Array.from(
+    new Set(
+      conversations
+        .map((item) => item.current_ticket_id)
+        .filter((id): id is string => Boolean(id))
+    )
+  );
+
+  const [customerResult, ticketResult] = await Promise.all([
+    customerIds.length
+      ? supabase
+          .from('customers')
+          .select('id,display_name,line_user_id')
+          .in('id', customerIds)
+      : Promise.resolve({ data: [], error: null }),
+    ticketIds.length
+      ? supabase
+          .from('tickets')
+          .select('id,ticket_no,subject,customer_id')
+          .in('id', ticketIds)
+      : Promise.resolve({ data: [], error: null }),
+  ]);
+
+  const customerMap = new Map<string, EnrichCustomerRow>();
+  (customerResult.data as Array<Record<string, unknown>> | null || []).forEach((row) => {
+    if (typeof row?.id === 'string') {
+      customerMap.set(row.id, {
+        id: row.id,
+        display_name: typeof row.display_name === 'string' ? row.display_name : null,
+        line_user_id: typeof row.line_user_id === 'string' ? row.line_user_id : null,
+      });
+    }
+  });
+
+  const ticketMap = new Map<string, EnrichTicketRow>();
+  (ticketResult.data as Array<Record<string, unknown>> | null || []).forEach((row) => {
+    if (typeof row?.id === 'string') {
+      ticketMap.set(row.id, {
+        id: row.id,
+        ticket_no: typeof row.ticket_no === 'string' ? row.ticket_no : null,
+        subject: typeof row.subject === 'string' ? row.subject : null,
+        customer_id: typeof row.customer_id === 'string' ? row.customer_id : null,
+      });
+    }
+  });
+
+  return conversations.map((conversation) => {
+    const ticketFromMap = conversation.current_ticket_id
+      ? ticketMap.get(conversation.current_ticket_id)
+      : null;
+    const customerFromMap = conversation.customer_id
+      ? customerMap.get(conversation.customer_id)
+      : ticketFromMap?.customer_id
+        ? customerMap.get(ticketFromMap.customer_id)
+        : null;
+
+    return {
+      ...conversation,
+      customers:
+        conversation.customers?.display_name || !customerFromMap
+          ? conversation.customers
+          : {
+              id: customerFromMap.id,
+              display_name: customerFromMap.display_name,
+              line_user_id: customerFromMap.line_user_id,
+              avatar_url: conversation.customers?.avatar_url || null,
+            },
+      ticket_data:
+        conversation.ticket_data?.ticket_no || !ticketFromMap
+          ? conversation.ticket_data
+          : {
+              id: ticketFromMap.id,
+              ticket_no: ticketFromMap.ticket_no,
+              subject: ticketFromMap.subject,
+            },
+    };
+  });
+}
+
 export async function listInboxConversations(limit = 100): Promise<InboxConversation[]> {
   const { data, error } = await runConversationQueryWithAvatarFallback((selectClause) =>
     supabase
@@ -126,7 +235,8 @@ export async function listInboxConversations(limit = 100): Promise<InboxConversa
   );
 
   if (error) throw error;
-  return normalizeInboxConversations(Array.isArray(data) ? data : []);
+  const normalized = normalizeInboxConversations(Array.isArray(data) ? data : []);
+  return enrichConversationsIfNeeded(normalized);
 }
 
 export async function listInboxConversationsFallback(limit = 100): Promise<InboxConversation[]> {
@@ -139,7 +249,8 @@ export async function listInboxConversationsFallback(limit = 100): Promise<Inbox
   );
 
   if (error) throw error;
-  return normalizeInboxConversations(Array.isArray(data) ? data : []);
+  const normalized = normalizeInboxConversations(Array.isArray(data) ? data : []);
+  return enrichConversationsIfNeeded(normalized);
 }
 
 export async function listInboxConversationsV2(input: {
@@ -189,7 +300,9 @@ export async function listInboxConversationsV2(input: {
     }
 
     const fallbackRows = Array.isArray(fallbackData) ? fallbackData : [];
-    const normalizedFallback = normalizeInboxConversations(fallbackRows.slice(0, pageSize));
+    const normalizedFallback = await enrichConversationsIfNeeded(
+      normalizeInboxConversations(fallbackRows.slice(0, pageSize))
+    );
     const hasNextFallback = fallbackRows.length > pageSize;
     const nextCursorRow = normalizedFallback[normalizedFallback.length - 1];
     return {
@@ -219,7 +332,9 @@ export async function listInboxConversationsV2(input: {
 
     const wideRows = Array.isArray(wideData) ? wideData : [];
     if (!wideError && wideRows.length > 0) {
-      const normalizedWide = normalizeInboxConversations(wideRows.slice(0, pageSize));
+      const normalizedWide = await enrichConversationsIfNeeded(
+        normalizeInboxConversations(wideRows.slice(0, pageSize))
+      );
       const activeLike = normalizedWide.filter((conversation) => {
         const normalizedStatus = String(conversation.status || '').toLowerCase().trim();
         const isClosedLike =
@@ -243,7 +358,9 @@ export async function listInboxConversationsV2(input: {
     }
   }
 
-  const normalized = normalizeInboxConversations(rows.slice(0, pageSize));
+  const normalized = await enrichConversationsIfNeeded(
+    normalizeInboxConversations(rows.slice(0, pageSize))
+  );
   const hasNext = rows.length > pageSize;
   const nextCursorRow = normalized[normalized.length - 1];
   return {
