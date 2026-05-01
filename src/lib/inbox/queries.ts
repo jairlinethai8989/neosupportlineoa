@@ -21,12 +21,12 @@ export const inboxConversationSelect = `
   last_message_at,
   customer_id,
   current_ticket_id,
-  customers (id, display_name, line_user_id, avatar_url),
+  customers (id, display_name, line_user_id, avatar_url, metadata),
   ticket_data:current_ticket_id (
     id,
     ticket_no,
     subject,
-    customers:customers!tickets_customer_id_fkey (id, display_name, line_user_id, avatar_url)
+    customers:customers!tickets_customer_id_fkey (id, display_name, line_user_id, avatar_url, metadata)
   )
 `;
 
@@ -36,12 +36,12 @@ const inboxConversationSelectLegacy = `
   last_message_at,
   customer_id,
   current_ticket_id,
-  customers (id, display_name, line_user_id),
+  customers (id, display_name, line_user_id, metadata),
   ticket_data:current_ticket_id (
     id,
     ticket_no,
     subject,
-    customers:customers!tickets_customer_id_fkey (id, display_name, line_user_id)
+    customers:customers!tickets_customer_id_fkey (id, display_name, line_user_id, metadata)
   )
 `;
 
@@ -120,6 +120,7 @@ type EnrichCustomerRow = {
   id: string;
   display_name: string | null;
   line_user_id: string | null;
+  avatar_url?: string | null;
 };
 
 type EnrichTicketRow = {
@@ -158,7 +159,7 @@ async function enrichConversationsIfNeeded(
     customerIds.length
       ? supabase
           .from('customers')
-          .select('id,display_name,line_user_id')
+          .select('id,display_name,line_user_id,avatar_url,metadata')
           .in('id', customerIds)
       : Promise.resolve({ data: [], error: null }),
     ticketIds.length
@@ -176,6 +177,17 @@ async function enrichConversationsIfNeeded(
         id: row.id,
         display_name: typeof row.display_name === 'string' ? row.display_name : null,
         line_user_id: typeof row.line_user_id === 'string' ? row.line_user_id : null,
+        avatar_url:
+          typeof row.avatar_url === 'string'
+            ? row.avatar_url
+            : typeof (row.metadata as Record<string, unknown> | null)?.line_profile === 'object'
+              ? (row.metadata as { line_profile?: { picture_url?: unknown } }).line_profile &&
+                typeof (row.metadata as { line_profile?: { picture_url?: unknown } }).line_profile
+                  ?.picture_url === 'string'
+                ? ((row.metadata as { line_profile?: { picture_url?: string } }).line_profile
+                    ?.picture_url || null)
+                : null
+              : null,
       });
     }
   });
@@ -211,7 +223,7 @@ async function enrichConversationsIfNeeded(
               id: customerFromMap.id,
               display_name: customerFromMap.display_name,
               line_user_id: customerFromMap.line_user_id,
-              avatar_url: conversation.customers?.avatar_url || null,
+              avatar_url: conversation.customers?.avatar_url || customerFromMap.avatar_url || null,
             },
       ticket_data:
         conversation.ticket_data?.ticket_no || !ticketFromMap

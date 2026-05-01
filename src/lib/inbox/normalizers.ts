@@ -36,11 +36,15 @@ function asPermissions(value: unknown): Partial<Record<string, string>> | null {
 export function normalizeInboxCustomer(value: unknown): InboxCustomer | null {
   if (!isRecord(value)) return null;
 
+  const metadata = isRecord(value.metadata) ? value.metadata : null;
+  const lineProfile = metadata && isRecord(metadata.line_profile) ? metadata.line_profile : null;
+  const avatarFromMetadata = lineProfile ? asString(lineProfile.picture_url) : null;
+
   return {
     id: asString(value.id) || '',
     display_name: asString(value.display_name),
     line_user_id: asString(value.line_user_id),
-    avatar_url: asString(value.avatar_url),
+    avatar_url: asString(value.avatar_url) || avatarFromMetadata,
   };
 }
 

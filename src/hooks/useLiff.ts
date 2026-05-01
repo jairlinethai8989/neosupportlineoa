@@ -26,12 +26,33 @@ export function useLiff() {
       const payload = {
         line_user_id: currentProfile.userId,
         display_name: currentProfile.displayName,
+        avatar_url: currentProfile.pictureUrl || null,
+        metadata: {
+          line_profile: {
+            display_name: currentProfile.displayName,
+            picture_url: currentProfile.pictureUrl || null,
+            synced_at: new Date().toISOString(),
+          },
+        },
         updated_at: new Date().toISOString(),
       };
 
-      const { error: syncError } = await supabase
+      let { error: syncError } = await supabase
         .from('customers')
         .upsert(payload, { onConflict: 'line_user_id' });
+
+      if (syncError?.code === 'PGRST204' && String(syncError.message || '').includes('avatar_url')) {
+        const fallbackPayload = {
+          line_user_id: currentProfile.userId,
+          display_name: currentProfile.displayName,
+          metadata: payload.metadata,
+          updated_at: new Date().toISOString(),
+        };
+        const fallback = await supabase
+          .from('customers')
+          .upsert(fallbackPayload, { onConflict: 'line_user_id' });
+        syncError = fallback.error;
+      }
 
       if (!isCancelled && syncError) {
         console.error('LIFF profile sync error:', syncError);

@@ -19,13 +19,70 @@ async function getLineProfileSnapshot(userId: string) {
     const profile = await client.getProfile(userId);
     return {
       display_name: profile.displayName || 'LINE User',
+      avatar_url: profile.pictureUrl || null,
     };
   } catch (error) {
     console.warn(`Webhook: Failed to fetch LINE profile for ${userId}`, error);
     return {
       display_name: 'LINE User',
+      avatar_url: null,
     };
   }
+}
+
+async function upsertCustomerProfile(
+  supabaseAdmin: any,
+  input: {
+    line_user_id: string;
+    display_name: string;
+    avatar_url: string | null;
+    metadata?: Record<string, unknown>;
+  }
+) {
+  const admin: any = supabaseAdmin;
+  const baseMetadata: Record<string, unknown> = {
+    ...(input.metadata || {}),
+    line_profile: {
+      display_name: input.display_name,
+      picture_url: input.avatar_url,
+      synced_at: new Date().toISOString(),
+    },
+  };
+
+  let { data, error } = await admin
+    .from('customers')
+    .upsert(
+      {
+        line_user_id: input.line_user_id,
+        display_name: input.display_name,
+        avatar_url: input.avatar_url,
+        metadata: baseMetadata,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: 'line_user_id' }
+    )
+    .select('id, display_name, line_user_id, avatar_url, metadata')
+    .single();
+
+  if (error && error.code === 'PGRST204' && String(error.message || '').includes('avatar_url')) {
+    const fallback = await admin
+      .from('customers')
+      .upsert(
+        {
+          line_user_id: input.line_user_id,
+          display_name: input.display_name,
+          metadata: baseMetadata,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: 'line_user_id' }
+      )
+      .select('id, display_name, line_user_id, metadata')
+      .single();
+    data = fallback.data;
+    error = fallback.error;
+  }
+
+  return { data, error };
 }
 
 export async function POST(req: Request) {
@@ -99,36 +156,20 @@ export async function POST(req: Request) {
       const lineProfile = await getLineProfileSnapshot(lineUserId);
 
       // 2. Map Customer
-      let { data: customer } = await supabaseAdmin
-        .from('customers')
-        .select('id, display_name')
-        .eq('line_user_id', lineUserId)
-        .maybeSingle();
-
-      if (!customer) {
-        const { data: newCustomer } = await supabaseAdmin
-          .from('customers')
-          .insert([{ 
-             line_user_id: lineUserId, 
-             display_name: lineProfile.display_name,
-             metadata: { original_event: event } 
-          }])
-          .select()
-          .single();
-        customer = newCustomer;
-        hasDataMutation = true;
-      } else if (customer.display_name !== lineProfile.display_name) {
-        const { data: updatedCustomer } = await supabaseAdmin
-          .from('customers')
-          .update({
-            display_name: lineProfile.display_name,
-            updated_at: new Date().toISOString(),
-          })
-          .eq('id', customer.id)
-          .select('id, display_name')
-          .single();
-
-        customer = updatedCustomer || customer;
+      const { data: customer, error: customerUpsertError } = await upsertCustomerProfile(
+        supabaseAdmin,
+        {
+          line_user_id: lineUserId,
+          display_name: lineProfile.display_name,
+          avatar_url: lineProfile.avatar_url,
+          metadata: { original_event: event },
+        }
+      );
+      if (customerUpsertError) {
+        console.error('Webhook: customer profile sync failed:', customerUpsertError);
+        continue;
+      }
+      if (customer) {
         hasDataMutation = true;
       }
 
