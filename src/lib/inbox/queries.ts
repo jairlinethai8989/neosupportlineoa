@@ -21,12 +21,36 @@ export const inboxConversationSelect = `
   last_message_at,
   customer_id,
   current_ticket_id,
-  customers (id, display_name, line_user_id, avatar_url, metadata),
+  customers (
+    id,
+    display_name,
+    line_user_id,
+    avatar_url,
+    metadata,
+    hospital_id,
+    department_id,
+    position_id,
+    hospitals:hospital_id (id, name),
+    departments:department_id (id, name),
+    positions:position_id (id, name)
+  ),
   ticket_data:current_ticket_id (
     id,
     ticket_no,
     subject,
-    customers:customers!tickets_customer_id_fkey (id, display_name, line_user_id, avatar_url, metadata)
+    customers:customers!tickets_customer_id_fkey (
+      id,
+      display_name,
+      line_user_id,
+      avatar_url,
+      metadata,
+      hospital_id,
+      department_id,
+      position_id,
+      hospitals:hospital_id (id, name),
+      departments:department_id (id, name),
+      positions:position_id (id, name)
+    )
   )
 `;
 
@@ -36,12 +60,34 @@ const inboxConversationSelectLegacy = `
   last_message_at,
   customer_id,
   current_ticket_id,
-  customers (id, display_name, line_user_id, metadata),
+  customers (
+    id,
+    display_name,
+    line_user_id,
+    metadata,
+    hospital_id,
+    department_id,
+    position_id,
+    hospitals:hospital_id (id, name),
+    departments:department_id (id, name),
+    positions:position_id (id, name)
+  ),
   ticket_data:current_ticket_id (
     id,
     ticket_no,
     subject,
-    customers:customers!tickets_customer_id_fkey (id, display_name, line_user_id, metadata)
+    customers:customers!tickets_customer_id_fkey (
+      id,
+      display_name,
+      line_user_id,
+      metadata,
+      hospital_id,
+      department_id,
+      position_id,
+      hospitals:hospital_id (id, name),
+      departments:department_id (id, name),
+      positions:position_id (id, name)
+    )
   )
 `;
 
@@ -121,6 +167,12 @@ type EnrichCustomerRow = {
   display_name: string | null;
   line_user_id: string | null;
   avatar_url?: string | null;
+  hospital_id?: string | null;
+  department_id?: string | null;
+  position_id?: string | null;
+  hospitals?: { id: string; name: string | null } | null;
+  departments?: { id: string; name: string | null } | null;
+  positions?: { id: string; name: string | null } | null;
 };
 
 type EnrichTicketRow = {
@@ -159,7 +211,19 @@ async function enrichConversationsIfNeeded(
     customerIds.length
       ? supabase
           .from('customers')
-          .select('id,display_name,line_user_id,avatar_url,metadata')
+          .select(`
+            id,
+            display_name,
+            line_user_id,
+            avatar_url,
+            metadata,
+            hospital_id,
+            department_id,
+            position_id,
+            hospitals:hospital_id (id, name),
+            departments:department_id (id, name),
+            positions:position_id (id, name)
+          `)
           .in('id', customerIds)
       : Promise.resolve({ data: [], error: null }),
     ticketIds.length
@@ -177,6 +241,30 @@ async function enrichConversationsIfNeeded(
         id: row.id,
         display_name: typeof row.display_name === 'string' ? row.display_name : null,
         line_user_id: typeof row.line_user_id === 'string' ? row.line_user_id : null,
+        hospital_id: typeof row.hospital_id === 'string' ? row.hospital_id : null,
+        department_id: typeof row.department_id === 'string' ? row.department_id : null,
+        position_id: typeof row.position_id === 'string' ? row.position_id : null,
+        hospitals:
+          row.hospitals && typeof row.hospitals === 'object'
+            ? {
+                id: typeof (row.hospitals as Record<string, unknown>).id === 'string' ? (row.hospitals as Record<string, unknown>).id as string : '',
+                name: typeof (row.hospitals as Record<string, unknown>).name === 'string' ? (row.hospitals as Record<string, unknown>).name as string : null,
+              }
+            : null,
+        departments:
+          row.departments && typeof row.departments === 'object'
+            ? {
+                id: typeof (row.departments as Record<string, unknown>).id === 'string' ? (row.departments as Record<string, unknown>).id as string : '',
+                name: typeof (row.departments as Record<string, unknown>).name === 'string' ? (row.departments as Record<string, unknown>).name as string : null,
+              }
+            : null,
+        positions:
+          row.positions && typeof row.positions === 'object'
+            ? {
+                id: typeof (row.positions as Record<string, unknown>).id === 'string' ? (row.positions as Record<string, unknown>).id as string : '',
+                name: typeof (row.positions as Record<string, unknown>).name === 'string' ? (row.positions as Record<string, unknown>).name as string : null,
+              }
+            : null,
         avatar_url:
           typeof row.avatar_url === 'string'
             ? row.avatar_url
@@ -224,6 +312,12 @@ async function enrichConversationsIfNeeded(
               display_name: customerFromMap.display_name,
               line_user_id: customerFromMap.line_user_id,
               avatar_url: conversation.customers?.avatar_url || customerFromMap.avatar_url || null,
+              hospital_id: customerFromMap.hospital_id || null,
+              department_id: customerFromMap.department_id || null,
+              position_id: customerFromMap.position_id || null,
+              hospitals: customerFromMap.hospitals || null,
+              departments: customerFromMap.departments || null,
+              positions: customerFromMap.positions || null,
             },
       ticket_data:
         conversation.ticket_data?.ticket_no || !ticketFromMap

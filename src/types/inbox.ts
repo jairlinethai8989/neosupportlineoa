@@ -5,6 +5,12 @@ export interface InboxCustomer {
   display_name: string | null;
   line_user_id: string | null;
   avatar_url?: string | null;
+  hospital_id?: string | null;
+  department_id?: string | null;
+  position_id?: string | null;
+  hospitals?: { id: string; name: string | null } | null;
+  departments?: { id: string; name: string | null } | null;
+  positions?: { id: string; name: string | null } | null;
 }
 
 export interface InboxConversation {

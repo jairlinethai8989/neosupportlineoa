@@ -40,11 +40,27 @@ export function normalizeInboxCustomer(value: unknown): InboxCustomer | null {
   const lineProfile = metadata && isRecord(metadata.line_profile) ? metadata.line_profile : null;
   const avatarFromMetadata = lineProfile ? asString(lineProfile.picture_url) : null;
 
+  const hospitals = isRecord(value.hospitals)
+    ? { id: asString(value.hospitals.id) || '', name: asString(value.hospitals.name) }
+    : null;
+  const departments = isRecord(value.departments)
+    ? { id: asString(value.departments.id) || '', name: asString(value.departments.name) }
+    : null;
+  const positions = isRecord(value.positions)
+    ? { id: asString(value.positions.id) || '', name: asString(value.positions.name) }
+    : null;
+
   return {
     id: asString(value.id) || '',
     display_name: asString(value.display_name),
     line_user_id: asString(value.line_user_id),
     avatar_url: asString(value.avatar_url) || avatarFromMetadata,
+    hospital_id: asString(value.hospital_id),
+    department_id: asString(value.department_id),
+    position_id: asString(value.position_id),
+    hospitals,
+    departments,
+    positions,
   };
 }
 

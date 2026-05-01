@@ -130,6 +130,27 @@ export const TicketSidebar: React.FC<TicketSidebarProps> = ({
             <code style={{ fontSize: '10px', color: 'var(--text-muted)', background: 'rgba(0,0,0,0.2)', padding: '2px 8px', borderRadius: '4px' }}>
               ID: {selectedChat.customers?.line_user_id?.substring(0, 16)}...
             </code>
+            {(selectedChat.customers?.hospitals?.name ||
+              selectedChat.customers?.departments?.name ||
+              selectedChat.customers?.positions?.name) && (
+              <div style={{ marginTop: '10px', display: 'grid', gap: '6px', textAlign: 'left' }}>
+                {selectedChat.customers?.hospitals?.name && (
+                  <p style={{ margin: 0, fontSize: '12px', color: 'var(--text-main)' }}>
+                    โรงพยาบาล: <strong>{selectedChat.customers.hospitals.name}</strong>
+                  </p>
+                )}
+                {selectedChat.customers?.departments?.name && (
+                  <p style={{ margin: 0, fontSize: '12px', color: 'var(--text-main)' }}>
+                    แผนก: <strong>{selectedChat.customers.departments.name}</strong>
+                  </p>
+                )}
+                {selectedChat.customers?.positions?.name && (
+                  <p style={{ margin: 0, fontSize: '12px', color: 'var(--text-main)' }}>
+                    ตำแหน่ง: <strong>{selectedChat.customers.positions.name}</strong>
+                  </p>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>
