@@ -558,10 +558,10 @@ function InboxContent() {
             }}
           >
             <h3 style={{ margin: 0, fontSize: '20px', fontWeight: 900, color: 'var(--text-main)' }}>
-              ยืนยันการจบการสนทนา
+              Confirm End Chat
             </h3>
             <p style={{ marginTop: '12px', marginBottom: '18px', color: 'var(--text-muted)', lineHeight: 1.6 }}>
-              คุณต้องการจบการสนทนานี้ใช่หรือไม่?
+              Do you want to end this conversation?
             </p>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
               <button
@@ -578,7 +578,7 @@ function InboxContent() {
                   cursor: 'pointer',
                 }}
               >
-                ??????
+                Cancel
               </button>
               <button
                 type="button"
@@ -597,7 +597,7 @@ function InboxContent() {
                   cursor: 'pointer',
                 }}
               >
-                ????????????????
+                Confirm End Chat
               </button>
             </div>
           </div>
@@ -643,4 +643,5 @@ export default function InboxPage() {
     </Suspense>
   );
 }
+
 
