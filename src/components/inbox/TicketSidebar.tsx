@@ -142,13 +142,13 @@ export const TicketSidebar: React.FC<TicketSidebarProps> = ({
           </div>
           <div style={{ display: 'grid', gap: '8px', alignContent: 'center' }}>
             <p style={{ margin: 0, fontSize: '12px', color: 'var(--text-main)' }}>
-              ?????????: <strong>{selectedChat.customers?.hospitals?.name || '-'}</strong>
+              Hospital: <strong>{selectedChat.customers?.hospitals?.name || '-'}</strong>
             </p>
             <p style={{ margin: 0, fontSize: '12px', color: 'var(--text-main)' }}>
-              ????: <strong>{selectedChat.customers?.departments?.name || '-'}</strong>
+              Department: <strong>{selectedChat.customers?.departments?.name || '-'}</strong>
             </p>
             <p style={{ margin: 0, fontSize: '12px', color: 'var(--text-main)' }}>
-              ???????: <strong>{selectedChat.customers?.positions?.name || '-'}</strong>
+              Position: <strong>{selectedChat.customers?.positions?.name || '-'}</strong>
             </p>
           </div>
         </div>
