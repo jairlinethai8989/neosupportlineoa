@@ -80,7 +80,7 @@ const PieTooltip = ({ active, payload }: any) => {
 type DashboardChartsSectionProps = {
   trendData: TrendPoint[];
   statusData: ChartDatum[];
-  priorityData: ChartDatum[];
+  hospitalData: ChartDatum[];
   agentData: AgentDatum[];
   recentLogs: RecentLog[];
   totalAll: number;
@@ -91,6 +91,7 @@ type DashboardChartsSectionProps = {
     statusDistribution: string;
     allTab: string;
     priorityBreakdown: string;
+    hospitalWorkload: string;
     agentWorkload: string;
     recentActivity: string;
     noResults: string;
@@ -100,7 +101,7 @@ type DashboardChartsSectionProps = {
 export function DashboardChartsSection({
   trendData,
   statusData,
-  priorityData,
+  hospitalData,
   agentData,
   recentLogs,
   totalAll,
@@ -212,19 +213,19 @@ export function DashboardChartsSection({
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '24px' }}>
         <div className="glass" style={{ padding: '24px', display: 'flex', flexDirection: 'column' }}>
           <div style={{ marginBottom: '16px' }}>
-            <h2 style={{ fontSize: '16px', fontWeight: '800', marginBottom: '2px' }}>{labels.priorityBreakdown}</h2>
-            <p style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>PRIORITY BREAKDOWN</p>
+            <h2 style={{ fontSize: '16px', fontWeight: '800', marginBottom: '2px' }}>{labels.hospitalWorkload}</h2>
+            <p style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>HOSPITAL WORKLOAD</p>
           </div>
           <div style={{ flex: 1, minHeight: '220px' }}>
-            {priorityData.length > 0 ? (
+            {hospitalData.length > 0 ? (
               <ResponsiveContainer width="100%" height={220}>
-                <BarChart data={priorityData} margin={{ top: 5, right: 10, bottom: 5, left: -10 }}>
+                <BarChart data={hospitalData} margin={{ top: 5, right: 10, bottom: 5, left: -10 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(128,128,128,0.1)" />
-                  <XAxis dataKey="name" stroke="var(--text-muted)" fontSize={10} tickLine={false} axisLine={false} />
+                  <XAxis dataKey="name" stroke="var(--text-muted)" fontSize={10} tickLine={false} axisLine={false} interval={0} angle={-15} textAnchor="end" height={50} />
                   <YAxis stroke="var(--text-muted)" fontSize={10} tickLine={false} axisLine={false} allowDecimals={false} />
                   <Tooltip content={<CustomTooltip />} />
                   <Bar dataKey="value" radius={[6, 6, 0, 0]}>
-                    {priorityData.map((entry, index) => (
+                    {hospitalData.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={entry.fill} />
                     ))}
                   </Bar>
@@ -243,7 +244,7 @@ export function DashboardChartsSection({
             <h2 style={{ fontSize: '16px', fontWeight: '800', marginBottom: '2px' }}>{labels.agentWorkload}</h2>
             <p style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>AGENT WORKLOAD • TOP 5</p>
           </div>
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '12px', justifyContent: 'center' }}>
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '12px', justifyContent: 'flex-start' }}>
             {agentData.length > 0 ? (
               agentData.map((agent, idx) => {
                 const maxVal = Math.max(...agentData.map((a) => a.value));

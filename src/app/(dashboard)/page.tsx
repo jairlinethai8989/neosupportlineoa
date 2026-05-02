@@ -77,6 +77,7 @@ const PRIORITY_COLORS: Record<string, string> = {
   'Medium': '#4facfe',
   'Low': '#28c76f',
 };
+const HOSPITAL_COLORS = ['#4facfe', '#00f2fe', '#28c76f', '#ff9f43', '#7367f0', '#ea5455', '#7bdff2', '#9b87f5'];
 
 const KPICard = ({ title, value, icon: Icon, color, trend, trendLabel }: any) => (
   <div className="glass-interactive" style={{ padding: '24px', flex: 1, minWidth: '200px' }}>
@@ -163,6 +164,7 @@ export default function Home() {
   const [trendRows, setTrendRows] = useState<TrendRow[]>([]);
   const [statusRows, setStatusRows] = useState<ValueRow[]>([]);
   const [priorityRows, setPriorityRows] = useState<ValueRow[]>([]);
+  const [hospitalRows, setHospitalRows] = useState<ValueRow[]>([]);
   const [agentRows, setAgentRows] = useState<AgentRow[]>([]);
   const [exportTicketsRows, setExportTicketsRows] = useState<any[]>([]);
   const [exportTicketsKey, setExportTicketsKey] = useState<string>('');
@@ -264,6 +266,7 @@ export default function Home() {
         setTrendRows(payload.trendByDay || []);
         setStatusRows(payload.statusData || []);
         setPriorityRows(payload.priorityData || []);
+        setHospitalRows(payload.hospitalData || []);
         setAgentRows(payload.agentData || []);
         setRecentLogs([]);
 
@@ -282,6 +285,7 @@ export default function Home() {
         setTrendRows([]);
         setStatusRows([]);
         setPriorityRows([]);
+        setHospitalRows([]);
         setAgentRows([]);
         setRecentLogs([]);
       } finally {
@@ -346,6 +350,15 @@ export default function Home() {
         fill: PRIORITY_COLORS[name] || '#4facfe',
       })),
     [priorityRows]
+  );
+  const hospitalData = useMemo(
+    () =>
+      hospitalRows.map(({ name, value }, index) => ({
+        name,
+        value,
+        fill: HOSPITAL_COLORS[index % HOSPITAL_COLORS.length],
+      })),
+    [hospitalRows]
   );
 
   const agentData = useMemo(
@@ -617,7 +630,7 @@ export default function Home() {
         <DashboardChartsSection
           trendData={trendData}
           statusData={statusData}
-          priorityData={priorityData}
+          hospitalData={hospitalData}
           agentData={agentData}
           recentLogs={recentLogs}
           totalAll={stats.totalAll}
@@ -628,6 +641,7 @@ export default function Home() {
             statusDistribution: t('dashboard.statusDistribution'),
             allTab: t('dashboard.tabs.all'),
             priorityBreakdown: t('dashboard.priorityBreakdown'),
+            hospitalWorkload: t('dashboard.hospitalWorkload'),
             agentWorkload: t('dashboard.agentWorkload'),
             recentActivity: t('dashboard.recentActivity'),
             noResults: t('common.messages.noResults'),

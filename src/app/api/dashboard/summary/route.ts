@@ -14,6 +14,7 @@ type DashboardTicketRow = {
   created_at: string;
   updated_at: string | null;
   assigned_agent_id: string | null;
+  hospitals?: { name: string | null } | { name: string | null }[] | null;
   profiles?: { full_name: string | null } | { full_name: string | null }[] | null;
 };
 
@@ -81,6 +82,7 @@ export async function GET(req: Request) {
         created_at,
         updated_at,
         assigned_agent_id,
+        hospitals(name),
         profiles!fk_tickets_agent(full_name)
       `;
 
@@ -136,6 +138,7 @@ export async function GET(req: Request) {
 
       const statusCounts: Record<string, number> = {};
       const priorityCounts: Record<string, number> = {};
+      const hospitalCounts: Record<string, number> = {};
       const agentCounts: Record<string, number> = {};
       const createdCountsByDay: Record<string, number> = {};
       const resolvedCountsByDay: Record<string, number> = {};
@@ -157,6 +160,9 @@ export async function GET(req: Request) {
 
         statusCounts[status] = (statusCounts[status] || 0) + 1;
         priorityCounts[priority] = (priorityCounts[priority] || 0) + 1;
+        const hospitalObj = toObject(ticket.hospitals);
+        const hospitalName = hospitalObj?.name || 'Unknown';
+        hospitalCounts[hospitalName] = (hospitalCounts[hospitalName] || 0) + 1;
         createdCountsByDay[createdDateKey] = (createdCountsByDay[createdDateKey] || 0) + 1;
 
         if (ticket.assigned_agent_id) {
@@ -186,6 +192,10 @@ export async function GET(req: Request) {
 
       const statusData = Object.entries(statusCounts).map(([name, value]) => ({ name, value }));
       const priorityData = Object.entries(priorityCounts).map(([name, value]) => ({ name, value }));
+      const hospitalData = Object.entries(hospitalCounts)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 8)
+        .map(([name, value]) => ({ name, value }));
       const agentData = Object.entries(agentCounts)
         .sort((a, b) => b[1] - a[1])
         .slice(0, 5)
@@ -212,6 +222,7 @@ export async function GET(req: Request) {
         trendByDay,
         statusData,
         priorityData,
+        hospitalData,
         agentData,
         recentLogs,
       };
