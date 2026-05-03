@@ -45,6 +45,22 @@ function normalizeSchedules(raw: unknown): ReportScheduleRow[] {
     .filter((row): row is ReportScheduleRow => row !== null);
 }
 
+function isMissingBroadcastColumnError(error: unknown): boolean {
+  if (!error || typeof error !== 'object') return false;
+  const maybeError = error as { message?: unknown; details?: unknown; hint?: unknown; code?: unknown };
+  const joined = [
+    typeof maybeError.message === 'string' ? maybeError.message : '',
+    typeof maybeError.details === 'string' ? maybeError.details : '',
+    typeof maybeError.hint === 'string' ? maybeError.hint : '',
+    typeof maybeError.code === 'string' ? maybeError.code : '',
+  ]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase();
+
+  return joined.includes('report_broadcast_');
+}
+
 export function normalizeBroadcastSettings(raw: unknown): ReportBroadcastSettings {
   const data = (raw || {}) as Record<string, unknown>;
   return {
@@ -96,16 +112,37 @@ export async function getReportBroadcastSettings(): Promise<ReportBroadcastSetti
       schedules: row.report_broadcast_schedules,
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : '';
-    if (message.includes('report_broadcast_')) {
+    if (isMissingBroadcastColumnError(error)) {
       return DEFAULT_SETTINGS;
     }
     throw error;
   }
 }
 
+export async function isReportBroadcastSchemaReady(): Promise<boolean> {
+  try {
+    await ensureCompanySettingsRow();
+    return true;
+  } catch (error) {
+    if (isMissingBroadcastColumnError(error)) {
+      return false;
+    }
+    throw error;
+  }
+}
+
 export async function saveReportBroadcastSettings(input: ReportBroadcastSettings): Promise<void> {
-  const row = await ensureCompanySettingsRow();
+  let row: Awaited<ReturnType<typeof ensureCompanySettingsRow>>;
+  try {
+    row = await ensureCompanySettingsRow();
+  } catch (error) {
+    if (isMissingBroadcastColumnError(error)) {
+      throw new Error(
+        'Report broadcast settings columns are missing. Please run add_report_broadcast_settings.sql in Supabase before saving schedules.'
+      );
+    }
+    throw error;
+  }
   const normalized = normalizeBroadcastSettings(input);
   const { error } = await supabaseAdmin
     .from('company_settings')
@@ -116,7 +153,14 @@ export async function saveReportBroadcastSettings(input: ReportBroadcastSettings
       updated_at: new Date().toISOString(),
     })
     .eq('id', row.id);
-  if (error) throw error;
+  if (error) {
+    if (isMissingBroadcastColumnError(error)) {
+      throw new Error(
+        'Report broadcast settings columns are missing. Please run add_report_broadcast_settings.sql in Supabase before saving schedules.'
+      );
+    }
+    throw error;
+  }
 }
 
 export function getDefaultReportBroadcastSettings(): ReportBroadcastSettings {

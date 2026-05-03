@@ -1,14 +1,38 @@
 'use client';
+
 import React, { useEffect, useMemo, useState } from 'react';
-import { Send, Eye, FileText, AlertCircle, CheckCircle2, Calendar, ChevronRight, ShieldCheck, Zap, BarChart2, Plus, Trash2 } from 'lucide-react';
+import {
+  Send,
+  Eye,
+  FileText,
+  AlertCircle,
+  CheckCircle2,
+  Calendar,
+  ChevronRight,
+  ShieldCheck,
+  Zap,
+  BarChart2,
+  Plus,
+  Trash2,
+} from 'lucide-react';
 import { useStaffLocale } from '@/contexts/StaffLocaleContext';
 import { useAppContext } from '@/contexts/AppContext';
 
 type ReportSet = '1' | '2';
 type ReportBroadcastMode = 'manual' | 'auto';
 type ReportScheduleRow = { id: string; time: string; set: ReportSet; enabled: boolean };
-type ReportBroadcastSettings = { mode: ReportBroadcastMode; groupId: string | null; schedules: ReportScheduleRow[] };
+type ReportBroadcastSettings = {
+  mode: ReportBroadcastMode;
+  groupId: string | null;
+  schedules: ReportScheduleRow[];
+};
 type LineGroup = { id: string; name: string; group_id: string; is_active: boolean };
+type SettingsResponse = {
+  settings?: ReportBroadcastSettings;
+  groups?: LineGroup[];
+  schemaReady?: boolean;
+  error?: string;
+};
 type PreviewResponse = {
   total: number;
   newProgress: number;
@@ -29,7 +53,11 @@ function toYmd(date: Date): string {
 function formatPreviewDate(ymd: string, locale: 'th' | 'en'): string {
   const date = new Date(`${ymd}T00:00:00`);
   const intlLocale = locale === 'th' ? 'th-TH' : 'en-US';
-  return new Intl.DateTimeFormat(intlLocale, { day: '2-digit', month: 'long', year: 'numeric' }).format(date);
+  return new Intl.DateTimeFormat(intlLocale, {
+    day: '2-digit',
+    month: 'long',
+    year: 'numeric',
+  }).format(date);
 }
 
 function makeScheduleRow(): ReportScheduleRow {
@@ -47,23 +75,36 @@ export default function ReportsPage() {
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState<string | null>(null);
   const [targetDate, setTargetDate] = useState(() => toYmd(new Date()));
-  const [preview, setPreview] = useState<PreviewResponse>({ total: 0, newProgress: 0, resolved: 0, hospitalGroups: {}, targetGroupName: '' });
+  const [preview, setPreview] = useState<PreviewResponse>({
+    total: 0,
+    newProgress: 0,
+    resolved: 0,
+    hospitalGroups: {},
+    targetGroupName: '',
+  });
   const [settings, setSettings] = useState<ReportBroadcastSettings>(defaultSettings);
   const [lineGroups, setLineGroups] = useState<LineGroup[]>([]);
   const [savingSettings, setSavingSettings] = useState(false);
+  const [schemaReady, setSchemaReady] = useState(true);
+  const [settingsError, setSettingsError] = useState('');
 
   const canSend = useMemo(() => {
     if (userProfile?.role === 'Administrator') return true;
     return userProfile?.permissions?.reports === 'edit';
   }, [userProfile]);
 
-  const previewDateLabel = useMemo(() => formatPreviewDate(targetDate, locale), [locale, targetDate]);
+  const previewDateLabel = useMemo(
+    () => formatPreviewDate(targetDate, locale),
+    [locale, targetDate]
+  );
   const ticketUnitLabel = useMemo(() => t('tickets.unit'), [t]);
 
   const fetchPreview = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/reports/hub/preview?date=${targetDate}`, { cache: 'no-store' });
+      const res = await fetch(`/api/reports/hub/preview?date=${targetDate}`, {
+        cache: 'no-store',
+      });
       if (!res.ok) throw new Error(`Preview API failed (${res.status})`);
       const data = (await res.json()) as PreviewResponse;
       setPreview({
@@ -73,9 +114,15 @@ export default function ReportsPage() {
         hospitalGroups: data.hospitalGroups || {},
         targetGroupName: data.targetGroupName || '',
       });
-    } catch (e) {
-      console.error(e);
-      setPreview({ total: 0, newProgress: 0, resolved: 0, hospitalGroups: {}, targetGroupName: '' });
+    } catch (error) {
+      console.error(error);
+      setPreview({
+        total: 0,
+        newProgress: 0,
+        resolved: 0,
+        hospitalGroups: {},
+        targetGroupName: '',
+      });
     } finally {
       setLoading(false);
     }
@@ -85,11 +132,15 @@ export default function ReportsPage() {
     try {
       const res = await fetch('/api/reports/hub/settings', { cache: 'no-store' });
       if (!res.ok) return;
-      const data = await res.json();
+      const data = (await res.json()) as SettingsResponse;
       setSettings(data.settings || defaultSettings);
       setLineGroups(data.groups || []);
+      setSchemaReady(data.schemaReady !== false);
+      setSettingsError('');
     } catch (error) {
       console.error('load settings failed', error);
+      setSchemaReady(false);
+      setSettingsError('โหลดค่าการส่งรายงานอัตโนมัติไม่สำเร็จ');
     }
   };
 
@@ -106,12 +157,18 @@ export default function ReportsPage() {
     for (const [name, count] of Object.entries(preview.hospitalGroups || {})) {
       normalizedHospitalGroups[name || t('reports.unspecifiedHospital')] = count;
     }
-    return { total: preview.total, newProgress: preview.newProgress, resolved: preview.resolved, hospitalGroups: normalizedHospitalGroups };
+    return {
+      total: preview.total,
+      newProgress: preview.newProgress,
+      resolved: preview.resolved,
+      hospitalGroups: normalizedHospitalGroups,
+    };
   }, [preview, t]);
 
   const persistSettings = async (next: ReportBroadcastSettings) => {
     setSettings(next);
     if (!canSend) return;
+    setSettingsError('');
     setSavingSettings(true);
     try {
       const res = await fetch('/api/reports/hub/settings', {
@@ -119,11 +176,17 @@ export default function ReportsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ settings: next }),
       });
-      if (!res.ok) throw new Error('save failed');
+      const data = (await res.json()) as { error?: string };
+      if (!res.ok) {
+        throw new Error(data.error || 'บันทึกไม่สำเร็จ');
+      }
       await fetchPreview();
     } catch (error) {
       console.error(error);
-      alert(t('common.messages.saveFailed'));
+      const message =
+        error instanceof Error && error.message ? error.message : 'บันทึกไม่สำเร็จ';
+      setSettingsError(message);
+      alert(message);
     } finally {
       setSavingSettings(false);
     }
@@ -134,19 +197,24 @@ export default function ReportsPage() {
       alert('กรุณาเลือกกลุ่ม LINE ปลายทางก่อน');
       return;
     }
+
     const reportName = set === '1' ? t('reports.set1Title') : t('reports.set2Title');
     if (!window.confirm(`${t('common.messages.confirmAction')}: ${reportName} ?`)) return;
 
     setSending(set);
     try {
-      const res = await fetch(`/api/cron/daily-summary?key=NEO_CRON_2026&set=${set}&date=${targetDate}`, { cache: 'no-store' });
+      const res = await fetch(
+        `/api/cron/daily-summary?key=NEO_CRON_2026&set=${set}&date=${targetDate}`,
+        { cache: 'no-store' }
+      );
       const data = await res.json();
       if (data.success) {
         alert(`${t('common.messages.success')}: "${reportName}"`);
       } else {
         alert(`${t('common.messages.error')}: ${data.error || 'Unknown Error'}`);
       }
-    } catch (e) {
+    } catch (error) {
+      console.error(error);
       alert(t('common.messages.error'));
     } finally {
       setSending(null);
@@ -154,75 +222,242 @@ export default function ReportsPage() {
   };
 
   const selectedGroupName = useMemo(() => {
-    return lineGroups.find((g) => g.group_id === settings.groupId)?.name || preview.targetGroupName || '';
+    return (
+      lineGroups.find((group) => group.group_id === settings.groupId)?.name ||
+      preview.targetGroupName ||
+      ''
+    );
   }, [lineGroups, preview.targetGroupName, settings.groupId]);
 
   return (
-    <div style={{ animation: 'fadeIn 0.5s ease-out', maxWidth: '1000px', margin: '0 auto', paddingBottom: '40px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '32px' }}>
+    <div
+      style={{
+        animation: 'fadeIn 0.5s ease-out',
+        maxWidth: '1000px',
+        margin: '0 auto',
+        paddingBottom: '40px',
+      }}
+    >
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'flex-end',
+          marginBottom: '32px',
+        }}
+      >
         <div>
-          <h1 style={{ fontSize: '28px', fontWeight: '800', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <h1
+            style={{
+              fontSize: '28px',
+              fontWeight: '800',
+              marginBottom: '4px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '12px',
+            }}
+          >
             <ShieldCheck color="var(--primary)" size={32} />
             {t('reports.hubTitle')}
           </h1>
-          <p style={{ color: 'var(--text-muted)', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.1em' }}>LINE REPORTING HUB • PREVIEW & BROADCAST</p>
+          <p
+            style={{
+              color: 'var(--text-muted)',
+              fontSize: '11px',
+              textTransform: 'uppercase',
+              letterSpacing: '0.1em',
+            }}
+          >
+            LINE REPORTING HUB • PREVIEW & BROADCAST
+          </p>
         </div>
 
-        <div className="glass" style={{ padding: '8px 16px', borderRadius: '14px', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '12px' }}>
+        <div
+          className="glass"
+          style={{
+            padding: '8px 16px',
+            borderRadius: '14px',
+            border: '1px solid var(--border)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+          }}
+        >
           <Calendar size={18} color="var(--primary)" />
           <input
             type="date"
             value={targetDate}
             onChange={(e) => setTargetDate(e.target.value)}
-            style={{ background: 'transparent', border: 'none', color: 'var(--text-main)', fontSize: '14px', fontWeight: '700', outline: 'none', cursor: 'pointer' }}
+            style={{
+              background: 'transparent',
+              border: 'none',
+              color: 'var(--text-main)',
+              fontSize: '14px',
+              fontWeight: '700',
+              outline: 'none',
+              cursor: 'pointer',
+            }}
           />
         </div>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 350px', gap: '24px' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-          <div className="glass-premium" style={{ padding: '24px', position: 'relative', overflow: 'hidden' }}>
+          <div
+            className="glass-premium"
+            style={{ padding: '24px', position: 'relative', overflow: 'hidden' }}
+          >
             <div style={{ position: 'absolute', top: '-10px', right: '-10px', opacity: 0.1 }}>
               <BarChart2 size={120} color="var(--primary)" />
             </div>
-            <h3 style={{ fontSize: '16px', fontWeight: '800', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <h3
+              style={{
+                fontSize: '16px',
+                fontWeight: '800',
+                marginBottom: '20px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+              }}
+            >
               <Eye size={18} color="var(--primary)" />
               {t('reports.previewFor')}: {previewDateLabel}
             </h3>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px' }}>
-              <div style={{ background: 'rgba(255,255,255,0.03)', padding: '16px', borderRadius: '12px', border: '1px solid var(--border)' }}>
-                <p style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: '700', textTransform: 'uppercase' }}>{t('dashboard.tabs.all')}</p>
-                <p style={{ fontSize: '24px', fontWeight: '900' }}>{loading ? '...' : groupedData.total}</p>
+              <div
+                style={{
+                  background: 'rgba(255,255,255,0.03)',
+                  padding: '16px',
+                  borderRadius: '12px',
+                  border: '1px solid var(--border)',
+                }}
+              >
+                <p
+                  style={{
+                    fontSize: '10px',
+                    color: 'var(--text-muted)',
+                    fontWeight: '700',
+                    textTransform: 'uppercase',
+                  }}
+                >
+                  {t('dashboard.tabs.all')}
+                </p>
+                <p style={{ fontSize: '24px', fontWeight: '900' }}>
+                  {loading ? '...' : groupedData.total}
+                </p>
               </div>
-              <div style={{ background: 'rgba(0, 242, 254, 0.05)', padding: '16px', borderRadius: '12px', border: '1px solid var(--primary)' }}>
-                <p style={{ fontSize: '10px', color: 'var(--primary)', fontWeight: '700', textTransform: 'uppercase' }}>{t('dashboard.inProgress')}</p>
-                <p style={{ fontSize: '24px', fontWeight: '900', color: 'var(--primary)' }}>{loading ? '...' : groupedData.newProgress}</p>
+              <div
+                style={{
+                  background: 'rgba(0, 242, 254, 0.05)',
+                  padding: '16px',
+                  borderRadius: '12px',
+                  border: '1px solid var(--primary)',
+                }}
+              >
+                <p
+                  style={{
+                    fontSize: '10px',
+                    color: 'var(--primary)',
+                    fontWeight: '700',
+                    textTransform: 'uppercase',
+                  }}
+                >
+                  {t('dashboard.inProgress')}
+                </p>
+                <p
+                  style={{
+                    fontSize: '24px',
+                    fontWeight: '900',
+                    color: 'var(--primary)',
+                  }}
+                >
+                  {loading ? '...' : groupedData.newProgress}
+                </p>
               </div>
-              <div style={{ background: 'rgba(40, 199, 111, 0.05)', padding: '16px', borderRadius: '12px', border: '1px solid var(--success)' }}>
-                <p style={{ fontSize: '10px', color: 'var(--success)', fontWeight: '700', textTransform: 'uppercase' }}>{t('dashboard.resolved')}</p>
-                <p style={{ fontSize: '24px', fontWeight: '900', color: 'var(--success)' }}>{loading ? '...' : groupedData.resolved}</p>
+              <div
+                style={{
+                  background: 'rgba(40, 199, 111, 0.05)',
+                  padding: '16px',
+                  borderRadius: '12px',
+                  border: '1px solid var(--success)',
+                }}
+              >
+                <p
+                  style={{
+                    fontSize: '10px',
+                    color: 'var(--success)',
+                    fontWeight: '700',
+                    textTransform: 'uppercase',
+                  }}
+                >
+                  {t('dashboard.resolved')}
+                </p>
+                <p
+                  style={{
+                    fontSize: '24px',
+                    fontWeight: '900',
+                    color: 'var(--success)',
+                  }}
+                >
+                  {loading ? '...' : groupedData.resolved}
+                </p>
               </div>
             </div>
           </div>
 
           <div className="glass" style={{ padding: '24px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-              <h3 style={{ fontSize: '14px', fontWeight: '800' }}>{t('reports.hospitalGrouping')}</h3>
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: '16px',
+              }}
+            >
+              <h3 style={{ fontSize: '14px', fontWeight: '800' }}>
+                {t('reports.hospitalGrouping')}
+              </h3>
               {loading && <Zap size={16} className="animate-pulse" color="var(--primary)" />}
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               {Object.entries(groupedData.hospitalGroups).length === 0 && !loading ? (
-                <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
+                <div
+                  style={{
+                    textAlign: 'center',
+                    padding: '40px',
+                    color: 'var(--text-muted)',
+                  }}
+                >
                   <Zap size={32} style={{ opacity: 0.1, marginBottom: '12px' }} />
                   <p>{t('reports.noDataRange')}</p>
                 </div>
               ) : (
                 Object.entries(groupedData.hospitalGroups).map(([name, count]) => (
-                  <div key={name} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', background: 'rgba(255,255,255,0.02)', borderRadius: '10px', border: '1px solid var(--border)' }}>
+                  <div
+                    key={name}
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      padding: '12px 16px',
+                      background: 'rgba(255,255,255,0.02)',
+                      borderRadius: '10px',
+                      border: '1px solid var(--border)',
+                    }}
+                  >
                     <span style={{ fontSize: '14px', fontWeight: '600' }}>{name}</span>
-                    <span style={{ fontSize: '12px', fontWeight: '800', background: 'var(--primary)', color: 'black', padding: '2px 10px', borderRadius: '20px' }}>
+                    <span
+                      style={{
+                        fontSize: '12px',
+                        fontWeight: '800',
+                        background: 'var(--primary)',
+                        color: 'black',
+                        padding: '2px 10px',
+                        borderRadius: '20px',
+                      }}
+                    >
                       {count} {ticketUnitLabel}
                     </span>
                   </div>
@@ -234,13 +469,26 @@ export default function ReportsPage() {
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           <div className="glass" style={{ padding: '16px', border: '1px solid var(--border)' }}>
-            <p style={{ fontSize: '12px', marginBottom: '8px', fontWeight: 800 }}>โหมดการส่งรายงาน</p>
+            <p style={{ fontSize: '12px', marginBottom: '8px', fontWeight: 800 }}>
+              โหมดการส่งรายงาน
+            </p>
             <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
               <button
                 disabled={!canSend || savingSettings}
                 className="glass-interactive"
                 onClick={() => persistSettings({ ...settings, mode: 'manual' })}
-                style={{ flex: 1, borderRadius: 10, padding: '10px', border: 'none', cursor: 'pointer', background: settings.mode === 'manual' ? 'var(--primary)' : 'rgba(255,255,255,0.05)', color: settings.mode === 'manual' ? 'black' : 'var(--text-main)' }}
+                style={{
+                  flex: 1,
+                  borderRadius: 10,
+                  padding: '10px',
+                  border: 'none',
+                  cursor: 'pointer',
+                  background:
+                    settings.mode === 'manual'
+                      ? 'var(--primary)'
+                      : 'rgba(255,255,255,0.05)',
+                  color: settings.mode === 'manual' ? 'black' : 'var(--text-main)',
+                }}
               >
                 Manual
               </button>
@@ -248,18 +496,40 @@ export default function ReportsPage() {
                 disabled={!canSend || savingSettings}
                 className="glass-interactive"
                 onClick={() => persistSettings({ ...settings, mode: 'auto' })}
-                style={{ flex: 1, borderRadius: 10, padding: '10px', border: 'none', cursor: 'pointer', background: settings.mode === 'auto' ? 'var(--primary)' : 'rgba(255,255,255,0.05)', color: settings.mode === 'auto' ? 'black' : 'var(--text-main)' }}
+                style={{
+                  flex: 1,
+                  borderRadius: 10,
+                  padding: '10px',
+                  border: 'none',
+                  cursor: 'pointer',
+                  background:
+                    settings.mode === 'auto'
+                      ? 'var(--primary)'
+                      : 'rgba(255,255,255,0.05)',
+                  color: settings.mode === 'auto' ? 'black' : 'var(--text-main)',
+                }}
               >
                 Auto
               </button>
             </div>
 
-            <p style={{ fontSize: '12px', marginBottom: '8px', fontWeight: 800 }}>กลุ่ม LINE ปลายทาง</p>
+            <p style={{ fontSize: '12px', marginBottom: '8px', fontWeight: 800 }}>
+              กลุ่ม LINE ปลายทาง
+            </p>
             <select
               value={settings.groupId || ''}
               disabled={!canSend || savingSettings}
-              onChange={(e) => persistSettings({ ...settings, groupId: e.target.value || null })}
-              style={{ width: '100%', borderRadius: 10, padding: '10px', border: '1px solid var(--border)', background: 'rgba(255,255,255,0.04)', color: 'var(--text-main)' }}
+              onChange={(e) =>
+                persistSettings({ ...settings, groupId: e.target.value || null })
+              }
+              style={{
+                width: '100%',
+                borderRadius: 10,
+                padding: '10px',
+                border: '1px solid var(--border)',
+                background: 'rgba(255,255,255,0.04)',
+                color: 'var(--text-main)',
+              }}
             >
               <option value="">-- เลือกกลุ่ม --</option>
               {lineGroups.map((group) => (
@@ -269,10 +539,55 @@ export default function ReportsPage() {
               ))}
             </select>
 
-            <p style={{ fontSize: '12px', margin: '14px 0 8px', fontWeight: 800 }}>ช่วงเวลาส่งอัตโนมัติ</p>
+            {schemaReady === false && (
+              <div
+                style={{
+                  marginTop: '12px',
+                  padding: '10px 12px',
+                  borderRadius: 10,
+                  border: '1px solid rgba(234, 84, 85, 0.25)',
+                  background: 'rgba(234, 84, 85, 0.06)',
+                  color: 'var(--danger)',
+                  fontSize: '12px',
+                  lineHeight: 1.5,
+                }}
+              >
+                ยังบันทึกเวลาอัตโนมัติไม่ได้ เนื่องจากฐานข้อมูลยังไม่มีคอลัมน์ตั้งค่ารายงานใหม่
+                กรุณารันไฟล์ <strong>add_report_broadcast_settings.sql</strong> ใน Supabase ก่อน
+              </div>
+            )}
+
+            {settingsError && (
+              <div
+                style={{
+                  marginTop: '12px',
+                  padding: '10px 12px',
+                  borderRadius: 10,
+                  border: '1px solid rgba(251, 192, 45, 0.25)',
+                  background: 'rgba(251, 192, 45, 0.08)',
+                  color: '#9a6a00',
+                  fontSize: '12px',
+                  lineHeight: 1.5,
+                }}
+              >
+                {settingsError}
+              </div>
+            )}
+
+            <p style={{ fontSize: '12px', margin: '14px 0 8px', fontWeight: 800 }}>
+              ช่วงเวลาส่งอัตโนมัติ
+            </p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {settings.schedules.map((row) => (
-                <div key={row.id} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: 8, alignItems: 'center' }}>
+                <div
+                  key={row.id}
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: '1fr 1fr auto',
+                    gap: 8,
+                    alignItems: 'center',
+                  }}
+                >
                   <input
                     type="time"
                     value={row.time}
@@ -280,10 +595,18 @@ export default function ReportsPage() {
                     onChange={(e) =>
                       persistSettings({
                         ...settings,
-                        schedules: settings.schedules.map((r) => (r.id === row.id ? { ...r, time: e.target.value } : r)),
+                        schedules: settings.schedules.map((item) =>
+                          item.id === row.id ? { ...item, time: e.target.value } : item
+                        ),
                       })
                     }
-                    style={{ borderRadius: 10, padding: '10px', border: '1px solid var(--border)', background: 'rgba(255,255,255,0.04)', color: 'var(--text-main)' }}
+                    style={{
+                      borderRadius: 10,
+                      padding: '10px',
+                      border: '1px solid var(--border)',
+                      background: 'rgba(255,255,255,0.04)',
+                      color: 'var(--text-main)',
+                    }}
                   />
                   <select
                     value={row.set}
@@ -291,18 +614,41 @@ export default function ReportsPage() {
                     onChange={(e) =>
                       persistSettings({
                         ...settings,
-                        schedules: settings.schedules.map((r) => (r.id === row.id ? { ...r, set: e.target.value === '2' ? '2' : '1' } : r)),
+                        schedules: settings.schedules.map((item) =>
+                          item.id === row.id
+                            ? { ...item, set: e.target.value === '2' ? '2' : '1' }
+                            : item
+                        ),
                       })
                     }
-                    style={{ borderRadius: 10, padding: '10px', border: '1px solid var(--border)', background: 'rgba(255,255,255,0.04)', color: 'var(--text-main)' }}
+                    style={{
+                      borderRadius: 10,
+                      padding: '10px',
+                      border: '1px solid var(--border)',
+                      background: 'rgba(255,255,255,0.04)',
+                      color: 'var(--text-main)',
+                    }}
                   >
                     <option value="1">SET 1</option>
                     <option value="2">SET 2</option>
                   </select>
                   <button
                     disabled={!canSend || savingSettings}
-                    onClick={() => persistSettings({ ...settings, schedules: settings.schedules.filter((r) => r.id !== row.id) })}
-                    style={{ borderRadius: 10, border: '1px solid var(--border)', background: 'rgba(255,255,255,0.04)', color: 'var(--danger)', width: 40, height: 40, cursor: 'pointer' }}
+                    onClick={() =>
+                      persistSettings({
+                        ...settings,
+                        schedules: settings.schedules.filter((item) => item.id !== row.id),
+                      })
+                    }
+                    style={{
+                      borderRadius: 10,
+                      border: '1px solid var(--border)',
+                      background: 'rgba(255,255,255,0.04)',
+                      color: 'var(--danger)',
+                      width: 40,
+                      height: 40,
+                      cursor: 'pointer',
+                    }}
                   >
                     <Trash2 size={16} />
                   </button>
@@ -310,8 +656,24 @@ export default function ReportsPage() {
               ))}
               <button
                 disabled={!canSend || savingSettings}
-                onClick={() => persistSettings({ ...settings, schedules: [...settings.schedules, makeScheduleRow()] })}
-                style={{ borderRadius: 10, border: '1px dashed var(--border)', background: 'transparent', color: 'var(--primary)', padding: '10px', cursor: 'pointer', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 8 }}
+                onClick={() =>
+                  persistSettings({
+                    ...settings,
+                    schedules: [...settings.schedules, makeScheduleRow()],
+                  })
+                }
+                style={{
+                  borderRadius: 10,
+                  border: '1px dashed var(--border)',
+                  background: 'transparent',
+                  color: 'var(--primary)',
+                  padding: '10px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  gap: 8,
+                }}
               >
                 <Plus size={14} /> เพิ่มแถวเวลา
               </button>
@@ -323,7 +685,16 @@ export default function ReportsPage() {
               <FileText color="#FBC02D" size={24} />
               <h4 style={{ fontWeight: '800', fontSize: '15px' }}>REPORT SET 1</h4>
             </div>
-            <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '24px', lineHeight: '1.6' }}>{t('reports.set1Desc')}</p>
+            <p
+              style={{
+                fontSize: '12px',
+                color: 'var(--text-muted)',
+                marginBottom: '24px',
+                lineHeight: '1.6',
+              }}
+            >
+              {t('reports.set1Desc')}
+            </p>
             <button
               disabled={sending !== null || groupedData.total === 0 || loading || !canSend}
               onClick={() => handleSendReport('1')}
@@ -332,7 +703,11 @@ export default function ReportsPage() {
                 width: '100%',
                 padding: '14px',
                 borderRadius: '12px',
-                background: !canSend ? 'rgba(255,255,255,0.05)' : sending === '1' ? 'var(--bg-card)' : '#FBC02D',
+                background: !canSend
+                  ? 'rgba(255,255,255,0.05)'
+                  : sending === '1'
+                    ? 'var(--bg-card)'
+                    : '#FBC02D',
                 color: !canSend ? 'var(--text-muted)' : 'black',
                 fontWeight: '900',
                 border: 'none',
@@ -344,16 +719,36 @@ export default function ReportsPage() {
                 opacity: groupedData.total === 0 || loading ? 0.5 : 1,
               }}
             >
-              {sending === '1' ? t('common.loading') : !canSend ? `🔒 ${t('notificationsHub.tipBody').split(' ')[0]}` : <><Send size={18} /> {t('reports.sendSet1')}</>}
+              {sending === '1' ? (
+                t('common.loading')
+              ) : !canSend ? (
+                `🔒 ${t('notificationsHub.tipBody').split(' ')[0]}`
+              ) : (
+                <>
+                  <Send size={18} /> {t('reports.sendSet1')}
+                </>
+              )}
             </button>
           </div>
 
-          <div className="glass-premium" style={{ padding: '24px', border: '1px solid var(--primary)' }}>
+          <div
+            className="glass-premium"
+            style={{ padding: '24px', border: '1px solid var(--primary)' }}
+          >
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
               <Send color="var(--primary)" size={24} />
               <h4 style={{ fontWeight: '800', fontSize: '15px' }}>REPORT SET 2</h4>
             </div>
-            <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '24px', lineHeight: '1.6' }}>{t('reports.set2Desc')}</p>
+            <p
+              style={{
+                fontSize: '12px',
+                color: 'var(--text-muted)',
+                marginBottom: '24px',
+                lineHeight: '1.6',
+              }}
+            >
+              {t('reports.set2Desc')}
+            </p>
             <button
               disabled={sending !== null || groupedData.total === 0 || loading || !canSend}
               onClick={() => handleSendReport('2')}
@@ -362,7 +757,11 @@ export default function ReportsPage() {
                 width: '100%',
                 padding: '14px',
                 borderRadius: '12px',
-                background: !canSend ? 'rgba(255,255,255,0.05)' : sending === '2' ? 'var(--bg-card)' : 'var(--primary)',
+                background: !canSend
+                  ? 'rgba(255,255,255,0.05)'
+                  : sending === '2'
+                    ? 'var(--bg-card)'
+                    : 'var(--primary)',
                 color: !canSend ? 'var(--text-muted)' : 'black',
                 fontWeight: '900',
                 border: 'none',
@@ -374,30 +773,90 @@ export default function ReportsPage() {
                 opacity: groupedData.total === 0 || loading ? 0.5 : 1,
               }}
             >
-              {sending === '2' ? t('common.loading') : !canSend ? `🔒 ${t('notificationsHub.tipBody').split(' ')[0]}` : <><ChevronRight size={18} /> {t('reports.sendSet2')}</>}
+              {sending === '2' ? (
+                t('common.loading')
+              ) : !canSend ? (
+                `🔒 ${t('notificationsHub.tipBody').split(' ')[0]}`
+              ) : (
+                <>
+                  <ChevronRight size={18} /> {t('reports.sendSet2')}
+                </>
+              )}
             </button>
           </div>
 
-          <div style={{ padding: '16px', background: 'rgba(234, 84, 85, 0.05)', borderRadius: '12px', border: '1px solid rgba(234, 84, 85, 0.1)', display: 'flex', gap: '12px' }}>
+          <div
+            style={{
+              padding: '16px',
+              background: 'rgba(234, 84, 85, 0.05)',
+              borderRadius: '12px',
+              border: '1px solid rgba(234, 84, 85, 0.1)',
+              display: 'flex',
+              gap: '12px',
+            }}
+          >
             <AlertCircle size={20} color="var(--danger)" style={{ flexShrink: 0 }} />
-            <p style={{ fontSize: '11px', color: 'var(--danger)', fontWeight: '600' }}>{t('reports.cautionNote')}</p>
+            <p style={{ fontSize: '11px', color: 'var(--danger)', fontWeight: '600' }}>
+              {t('reports.cautionNote')}
+            </p>
           </div>
 
           {selectedGroupName && (
-            <div style={{ padding: '16px', background: 'rgba(0, 242, 254, 0.03)', borderRadius: '12px', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'rgba(0, 242, 254, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div
+              style={{
+                padding: '16px',
+                background: 'rgba(0, 242, 254, 0.03)',
+                borderRadius: '12px',
+                border: '1px solid var(--border)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px',
+              }}
+            >
+              <div
+                style={{
+                  width: '32px',
+                  height: '32px',
+                  borderRadius: '50%',
+                  background: 'rgba(0, 242, 254, 0.1)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
                 <Send size={14} color="var(--primary)" />
               </div>
               <div style={{ display: 'flex', flexDirection: 'column' }}>
-                <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: '700', textTransform: 'uppercase' }}>Target LINE Group</span>
-                <span style={{ fontSize: '14px', fontWeight: '800', color: 'var(--primary)' }}>{selectedGroupName}</span>
+                <span
+                  style={{
+                    fontSize: '10px',
+                    color: 'var(--text-muted)',
+                    fontWeight: '700',
+                    textTransform: 'uppercase',
+                  }}
+                >
+                  Target LINE Group
+                </span>
+                <span style={{ fontSize: '14px', fontWeight: '800', color: 'var(--primary)' }}>
+                  {selectedGroupName}
+                </span>
               </div>
             </div>
           )}
 
           {groupedData.total > 0 && !loading && (
             <div style={{ textAlign: 'center', padding: '10px' }}>
-              <p style={{ fontSize: '11px', color: 'var(--success)', fontWeight: '700', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+              <p
+                style={{
+                  fontSize: '11px',
+                  color: 'var(--success)',
+                  fontWeight: '700',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px',
+                }}
+              >
                 <CheckCircle2 size={14} /> {t('reports.dataReady')}
               </p>
             </div>

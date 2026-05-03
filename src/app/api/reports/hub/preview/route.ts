@@ -24,8 +24,8 @@ function parseDateParam(value: string | null): string | null {
 
 function buildDayRangeUtc(ymd: string) {
   return {
-    startIso: `${ymd}T00:00:00.000Z`,
-    endIso: `${ymd}T23:59:59.999Z`,
+    startIso: `${ymd}T00:00:00.000+07:00`,
+    endIso: `${ymd}T23:59:59.999+07:00`,
   };
 }
 

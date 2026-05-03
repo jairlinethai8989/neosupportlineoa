@@ -4,6 +4,7 @@ import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import {
   getDefaultReportBroadcastSettings,
   getReportBroadcastSettings,
+  isReportBroadcastSchemaReady,
   normalizeBroadcastSettings,
   saveReportBroadcastSettings,
 } from '@/lib/reports/broadcastSettings';
@@ -32,14 +33,18 @@ export async function GET() {
     if (groupsError) throw groupsError;
 
     let settings = getDefaultReportBroadcastSettings();
+    let schemaReady = true;
     try {
       settings = await getReportBroadcastSettings();
+      schemaReady = await isReportBroadcastSchemaReady();
     } catch (settingsError) {
       console.error('Failed to load report broadcast settings:', settingsError);
+      schemaReady = false;
     }
 
     return NextResponse.json({
       settings,
+      schemaReady,
       groups: (groups || []).filter((g) => g.is_active),
     });
   } catch (error) {
