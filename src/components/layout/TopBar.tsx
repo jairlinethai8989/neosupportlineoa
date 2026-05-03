@@ -4,7 +4,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { useAppContext } from '@/contexts/AppContext';
-import { useNotificationContext, NotifTab } from '@/contexts/NotificationContext';
+import { useNotificationContext } from '@/contexts/NotificationContext';
 import type { AppNotification } from '@/hooks/useNotifications';
 import { useStaffLocale } from '@/contexts/StaffLocaleContext';
 import {
@@ -27,7 +27,7 @@ import {
 } from 'lucide-react';
 import { TopBarClock } from '@/components/layout/TopBarClock';
 
-const ACTION_ICONS: Record<string, any> = {
+const ACTION_ICONS: Record<string, React.ComponentType<{ size?: number; color?: string }>> = {
   ticket: Ticket,
   sla: AlertCircle,
   sla_warning: AlertCircle,
@@ -74,7 +74,7 @@ export function TopBar({ isSidebarOpen, setIsSidebarOpen, isSidebarCollapsed, se
   const [showNotifications, setShowNotifications] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showThemes, setShowThemes] = useState(false);
-  const [activeTab, setActiveTab] = useState<NotifTab>('all');
+  const [activeTab, setActiveTab] = useState<'all' | 'unread' | 'sla'>('all');
   const [theme, setTheme] = useState(() => {
     if (typeof window === 'undefined') return 'dark';
     return localStorage.getItem('theme') || 'light';
@@ -307,7 +307,7 @@ export function TopBar({ isSidebarOpen, setIsSidebarOpen, isSidebarCollapsed, se
                 </div>
 
                 <div style={{ display: 'flex', gap: '4px', background: 'var(--bg-input)', borderRadius: '24px', padding: '3px' }}>
-                  {(['all', 'unread', 'sla'] as NotifTab[]).map((tab) => (
+                  {(['all', 'unread', 'sla'] as const).map((tab) => (
                     <button
                       key={tab}
                       className={`notif-tab${activeTab === tab ? ' active' : ''}`}

@@ -33,6 +33,73 @@ const ResolveTicketModal = dynamic(() =>
   { ssr: false }
 );
 
+function InlineConfirmModal({
+  title,
+  body,
+  cancelLabel,
+  confirmLabel,
+  onCancel,
+  onConfirm,
+  confirmClassName,
+  confirmStyle,
+  zIndex = 2200,
+}: {
+  title: string;
+  body: string;
+  cancelLabel: string;
+  confirmLabel: string;
+  onCancel: () => void;
+  onConfirm: () => void | Promise<void>;
+  confirmClassName?: string;
+  confirmStyle?: React.CSSProperties;
+  zIndex?: number;
+}) {
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      style={{
+        position: 'fixed',
+        inset: 0,
+        zIndex,
+        background: 'rgba(5, 15, 30, 0.55)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '16px',
+      }}
+    >
+      <div
+        style={{
+          width: '100%',
+          maxWidth: '460px',
+          background: 'var(--bg-card)',
+          border: '1px solid var(--border)',
+          borderRadius: '18px',
+          boxShadow: '0 20px 60px rgba(0,0,0,0.35)',
+          padding: '22px',
+        }}
+      >
+        <h3 style={{ margin: 0, fontSize: '20px', fontWeight: 900, color: 'var(--text-main)' }}>{title}</h3>
+        <p style={{ marginTop: '12px', marginBottom: '18px', color: 'var(--text-muted)', lineHeight: 1.6 }}>{body}</p>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+          <button type="button" className="btn-secondary" onClick={onCancel}>
+            {cancelLabel}
+          </button>
+          <button
+            type="button"
+            className={confirmClassName}
+            onClick={() => void onConfirm()}
+            style={confirmStyle}
+          >
+            {confirmLabel}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function hasSelectedConversationChanged(
   prev: InboxConversation | null,
   next: InboxConversation
@@ -480,132 +547,48 @@ function InboxContent() {
       )}
 
       {pendingDeleteMessageId && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          style={{
-            position: 'fixed',
-            inset: 0,
-            zIndex: 2300,
-            background: 'rgba(5, 15, 30, 0.55)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '16px',
+        <InlineConfirmModal
+          zIndex={2300}
+          title={t('inbox.confirmDeleteMessageTitle') || 'ยืนยันการลบข้อความ'}
+          body={t('common.messages.deleteConfirm')}
+          cancelLabel={t('common.cancel')}
+          confirmLabel={t('inbox.confirmDeleteMessageButton') || 'ยืนยันลบข้อความ'}
+          confirmClassName="btn-danger"
+          onCancel={() => setPendingDeleteMessageId(null)}
+          onConfirm={async () => {
+            const messageId = pendingDeleteMessageId;
+            setPendingDeleteMessageId(null);
+            if (!messageId) return;
+            const result = await deleteInboxMessage(messageId);
+            if (!result.success) {
+              showInfoToast('ลบข้อความไม่สำเร็จ', getInboxDeleteFailedMessage(result.error));
+            }
           }}
-        >
-          <div
-            style={{
-              width: '100%',
-              maxWidth: '460px',
-              background: 'var(--bg-card)',
-              border: '1px solid var(--border)',
-              borderRadius: '18px',
-              boxShadow: '0 20px 60px rgba(0,0,0,0.35)',
-              padding: '22px',
-            }}
-          >
-            <h3 style={{ margin: 0, fontSize: '20px', fontWeight: 900, color: 'var(--text-main)' }}>
-              ยืนยันการลบข้อความ
-            </h3>
-            <p style={{ marginTop: '12px', marginBottom: '18px', color: 'var(--text-muted)', lineHeight: 1.6 }}>
-              {t('common.messages.deleteConfirm')}
-            </p>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
-              <button type="button" className="btn-secondary" onClick={() => setPendingDeleteMessageId(null)}>
-                ยกเลิก
-              </button>
-              <button
-                type="button"
-                className="btn-danger"
-                onClick={async () => {
-                  const messageId = pendingDeleteMessageId;
-                  setPendingDeleteMessageId(null);
-                  if (!messageId) return;
-                  const result = await deleteInboxMessage(messageId);
-                  if (!result.success) {
-                    showInfoToast('ลบข้อความไม่สำเร็จ', getInboxDeleteFailedMessage(result.error));
-                  }
-                }}
-              >
-                ยืนยันลบข้อความ
-              </button>
-            </div>
-          </div>
-        </div>
+        />
       )}
 
       {showCloseSessionConfirm && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          style={{
-            position: 'fixed',
-            inset: 0,
-            zIndex: 2200,
-            background: 'rgba(5, 15, 30, 0.55)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '16px',
+        <InlineConfirmModal
+          title={t('inbox.confirmEndChatTitle')}
+          body={t('inbox.confirmEndChatBody')}
+          cancelLabel={t('common.cancel')}
+          confirmLabel={t('inbox.confirmEndChatButton')}
+          onCancel={() => setShowCloseSessionConfirm(false)}
+          onConfirm={async () => {
+            setShowCloseSessionConfirm(false);
+            await handleCloseSession();
           }}
-        >
-          <div
-            style={{
-              width: '100%',
-              maxWidth: '460px',
-              background: 'var(--bg-card)',
-              border: '1px solid var(--border)',
-              borderRadius: '18px',
-              boxShadow: '0 20px 60px rgba(0,0,0,0.35)',
-              padding: '22px',
-            }}
-          >
-            <h3 style={{ margin: 0, fontSize: '20px', fontWeight: 900, color: 'var(--text-main)' }}>
-              {t('inbox.confirmEndChatTitle')}
-            </h3>
-            <p style={{ marginTop: '12px', marginBottom: '18px', color: 'var(--text-muted)', lineHeight: 1.6 }}>
-              {t('inbox.confirmEndChatBody')}
-            </p>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
-              <button
-                type="button"
-                onClick={() => setShowCloseSessionConfirm(false)}
-                style={{
-                  height: '42px',
-                  padding: '0 16px',
-                  borderRadius: '10px',
-                  border: '1px solid var(--border)',
-                  background: 'var(--bg-card)',
-                  color: 'var(--text-main)',
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                }}
-              >
-                {t('common.cancel')}
-              </button>
-              <button
-                type="button"
-                onClick={async () => {
-                  setShowCloseSessionConfirm(false);
-                  await handleCloseSession();
-                }}
-                style={{
-                  height: '42px',
-                  padding: '0 16px',
-                  borderRadius: '10px',
-                  border: 'none',
-                  background: '#0ea5e9',
-                  color: '#fff',
-                  fontWeight: 800,
-                  cursor: 'pointer',
-                }}
-              >
-                {t('inbox.confirmEndChatButton')}
-              </button>
-            </div>
-          </div>
-        </div>
+          confirmStyle={{
+            height: '42px',
+            padding: '0 16px',
+            borderRadius: '10px',
+            border: 'none',
+            background: '#0ea5e9',
+            color: '#fff',
+            fontWeight: 800,
+            cursor: 'pointer',
+          }}
+        />
       )}
 
       <style

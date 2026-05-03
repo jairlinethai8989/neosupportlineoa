@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 /* eslint-disable @next/next/no-img-element */
 import React, { type FormEvent, type RefObject } from 'react';
 import { 
@@ -14,6 +14,7 @@ import {
   Clock,
   AlertTriangle
 } from 'lucide-react';
+import { useStaffLocale } from '@/contexts/StaffLocaleContext';
 import type {
   InboxAgent,
   InboxConversation,
@@ -77,6 +78,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
   onLoadOlderMessages,
   messagesEndRef
 }) => {
+  const { t } = useStaffLocale();
   if (!selectedChat) {
     return (
       <div className="glass inbox-chat-panel animate-page-in" style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
@@ -87,7 +89,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
           </div>
           <div style={{ textAlign: 'center' }}>
             <h3 style={{ fontSize: '22px', fontWeight: '900', marginBottom: '8px', letterSpacing: '-0.5px' }}>NeoSupport Central Hub</h3>
-            <p style={{ color: 'var(--text-muted)', maxWidth: '340px', fontSize: '14px', lineHeight: '1.6' }}>เลือกการสนทนาจากรายการทางด้านซ้ายเพื่อเริ่มต้นจัดการปัญหาของลูกค้าแบบเรียลไทม์</p>
+            <p style={{ color: 'var(--text-muted)', maxWidth: '340px', fontSize: '14px', lineHeight: '1.6' }}>{t('inbox.selectChatSubtitle')}</p>
           </div>
         </div>
       </div>
@@ -155,7 +157,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
                     textTransform: 'uppercase',
                   }}
                 >
-                  {isSessionActive ? 'Active Session' : 'Closed Session'}
+                  {isSessionActive ? (t('inbox.activeSession') || 'Active Session') : (t('inbox.closedSession') || 'Closed Session')}
                 </span>
               </div>
            </div>
@@ -176,7 +178,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
       >
         {(hasMoreMessages || loadingMoreMessages) && (
           <div style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '12px' }}>
-            {loadingMoreMessages ? 'Loading older messages...' : 'Scroll up to load older messages'}
+            {loadingMoreMessages ? (t('inbox.loadingOlderMessages') || 'Loading older messages...') : (t('inbox.scrollToLoadOlder') || 'Scroll up to load older messages')}
           </div>
         )}
         {hasMoreMessages && (
@@ -200,13 +202,13 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
                 opacity: loadingMoreMessages ? 0.6 : 1,
               }}
             >
-              {loadingMoreMessages ? 'Loading...' : 'Load older'}
+              {loadingMoreMessages ? (t('common.messages.loading') || 'Loading...') : (t('inbox.loadOlder') || 'Load older')}
             </button>
           </div>
         )}
         {messages.length === 0 && (
           <div style={{ margin: 'auto', textAlign: 'center', color: 'var(--text-muted)' }}>
-            <p style={{ fontSize: '14px' }}>กำลังรอข้อความใหม่…</p>
+            <p style={{ fontSize: '14px' }}>{t('inbox.waitingNewMessage') || 'กำลังรอข้อความใหม่...'}</p>
           </div>
         )}
         {messages.filter((message) => message.message_type !== 'unsent').map((msg, index) => {
@@ -244,12 +246,12 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
                             style={{ maxWidth: '100%', borderRadius: '10px', display: 'block', cursor: 'pointer' }} 
                             onClick={() => onEditImage(msg.media_path || msg.content || '')}
                             alt="Chat attachment" 
-                            title="คลิกเพื่อทำการแก้ไขภาพ (Edit/Draw)"
+                            title={t('inbox.imageEditHint') || 'คลิกเพื่อทำการแก้ไขภาพ (Edit/Draw)'}
                          />
                       </div>
                    ) : msg.message_type === 'file' || ((msg.media_path || msg.content)?.startsWith('http') && msg.message_type !== 'text') ? (
                       <a href={msg.media_path || msg.content || ''} target="_blank" rel="noreferrer" style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--primary)', textDecoration: 'none', fontWeight: 'bold' }}>
-                         <Clock size={16} /> ดูไฟล์แนบ
+                         <Clock size={16} /> {t('inbox.viewAttachment') || 'ดูไฟล์แนบ'}
                       </a>
                    ) : (
                       msg.content
@@ -300,12 +302,12 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
         {showCanned && (
           <div className="glass animate-fade-in" style={{ position: 'absolute', bottom: '100%', left: '24px', right: '24px', marginBottom: '8px', padding: '12px', display: 'flex', flexDirection: 'column', gap: '4px', zIndex: 100, maxHeight: '200px', overflowY: 'auto', boxShadow: '0 -10px 25px rgba(0,0,0,0.5)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', padding: '0 8px' }}>
-              <p style={{ fontSize: '11px', fontWeight: '800', color: 'var(--primary)', textTransform: 'uppercase' }}>ข้อความสำเร็จรูป (QUICK REPLIES)</p>
+              <p style={{ fontSize: '11px', fontWeight: '800', color: 'var(--primary)', textTransform: 'uppercase' }}>{t('inbox.quickReplies') || 'ข้อความสำเร็จรูป (QUICK REPLIES)'}</p>
               <button 
                 type="button" 
                 onClick={(e) => { e.preventDefault(); onAddCanned(); }} 
                 style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', fontWeight: '800' }}>
-                 <Plus size={12} /> เพิ่มใหม่
+                 <Plus size={12} /> {t('common.add')}
               </button>
             </div>
             {cannedResponses.map((res, i) => (
@@ -334,33 +336,33 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
             <div className="glass animate-fade-in" style={{ padding: '12px 20px', background: 'rgba(255, 120, 0, 0.1)', border: '1px solid rgba(255,120,0,0.2)', borderRadius: '14px', marginBottom: '12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                  <AlertTriangle size={16} color="#ff9f43" />
-                 <p style={{ fontSize: '13px', color: '#ff9f43', fontWeight: '800' }}>ใบงานยังไม่มีผู้ดูแล</p>
+                 <p style={{ fontSize: '13px', color: '#ff9f43', fontWeight: '800' }}>{t('inbox.unassignedTicketNotice') || 'ใบงานยังไม่มีผู้ดูแล'}</p>
               </div>
               <button 
                 onClick={onClaim}
                 style={{ padding: '6px 16px', borderRadius: '8px', background: 'var(--primary)', color: 'black', border: 'none', fontSize: '11px', fontWeight: '900', cursor: 'pointer' }}
               >
-                 กดรับงาน (Claim)
+                 {t('inbox.claimTicket')}
               </button>
             </div>
          )}
          <form onSubmit={onSendMessage}>
           <div className="glass" style={{ padding: '6px 14px', display: 'flex', alignItems: 'center', gap: '12px', background: 'var(--bg-input)', borderRadius: '14px', border: '1px solid var(--border)' }}>
-             <button type="button" onClick={() => setShowCanned(!showCanned)} title="ข้อความสำเร็จรูป" aria-label="Quick replies" className="glass-interactive flex-center" style={{ width: '36px', height: '36px', background: 'none', border: 'none', color: showCanned ? 'var(--primary)' : 'var(--text-muted)', cursor: 'pointer' }}><MessageSquare size={19} aria-hidden="true" /></button>
-             <button type="button" onClick={onAttachClick} title="แนบไฟล์หรือวางรูปภาพ (Ctrl+V)" aria-label="Attach file or paste image" className="glass-interactive flex-center" style={{ width: '36px', height: '36px', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}><Paperclip size={20} aria-hidden="true" /></button>
+             <button type="button" onClick={() => setShowCanned(!showCanned)} title={t('inbox.quickReplies') || 'ข้อความสำเร็จรูป'} aria-label="Quick replies" className="glass-interactive flex-center" style={{ width: '36px', height: '36px', background: 'none', border: 'none', color: showCanned ? 'var(--primary)' : 'var(--text-muted)', cursor: 'pointer' }}><MessageSquare size={19} aria-hidden="true" /></button>
+             <button type="button" onClick={onAttachClick} title={t('inbox.attachHint') || 'แนบไฟล์หรือวางรูปภาพ (Ctrl+V)'} aria-label="Attach file or paste image" className="glass-interactive flex-center" style={{ width: '36px', height: '36px', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}><Paperclip size={20} aria-hidden="true" /></button>
 
            <input 
               type="text" 
               value={newMessage}
               onChange={(e) => setNewMessage(e.target.value)}
               placeholder={
-                 isResolved 
-                   ? "ใบงานถูกปิดแล้ว (Read Only)" 
-                   : isViewOnly 
-                     ? "คุณมีสิทธิ์อ่านเท่านั้น (View Only)" 
+                 isResolved
+                   ? (t('inbox.readOnlyPlaceholder') || 'ใบงานถูกปิดแล้ว (Read Only)')
+                   : isViewOnly
+                     ? (t('inbox.viewOnlyPlaceholder') || 'คุณมีสิทธิ์อ่านเท่านั้น (View Only)')
                      : isRestricted
-                       ? "กรุณากดรับงานก่อนเริ่มการสนทนา"
-                       : "พิมพ์ข้อความ หรือวางรูปภาพ Ctrl+V..."
+                       ? (t('inbox.claimBeforeChatPlaceholder') || 'กรุณากดรับงานก่อนเริ่มการสนทนา')
+                       : (t('inbox.typeMessagePlaceholder') || 'พิมพ์ข้อความ หรือวางรูปภาพ Ctrl+V...')
                } 
               disabled={isResolved || isViewOnly || isRestricted}
               style={{ flex: 1, background: 'none', border: 'none', outline: 'none', color: 'var(--text-main)', padding: '12px 0', fontSize: '14px', opacity: (isResolved || isRestricted) ? 0.4 : 1 }}
@@ -390,4 +392,5 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
   </div>
   );
 };
+
 
