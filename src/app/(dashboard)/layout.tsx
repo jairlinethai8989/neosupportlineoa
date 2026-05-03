@@ -1,66 +1,15 @@
 'use client';
 /* eslint-disable @next/next/no-img-element */
-/* eslint-disable @typescript-eslint/no-explicit-any */
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import {
-  AlertTriangle,
-  Bell,
-  CheckCheck,
-  CheckCircle2,
-  ChevronDown,
-  Clock,
-  Languages,
-  Loader2,
-  LogOut,
-  Menu,
-  MessageSquare,
-  Palette,
-  Ticket,
-  Volume2,
-  VolumeX,
-  Zap,
-  ArrowRight,
-} from 'lucide-react';
-import { supabase } from '@/lib/supabase';
+import React, { useState } from 'react';
+import { Loader2 } from 'lucide-react';
 import MainSidebar from '@/components/layout/MainSidebar';
 import { TopBar } from '@/components/layout/TopBar';
 import ToastContainer from '@/components/notifications/ToastContainer';
 import { AppProvider, useAppContext } from '@/contexts/AppContext';
-import { NotificationProvider, useNotificationContext } from '@/contexts/NotificationContext';
-import { StaffLocaleProvider, useStaffLocale } from '@/contexts/StaffLocaleContext';
-import type { AppNotification } from '@/hooks/useNotifications';
-
-
-
-const ACTION_ICONS: Record<string, any> = {
-  Created: Ticket,
-  Claimed: Zap,
-  Transferred: ArrowRight,
-  Resolved: CheckCheck,
-  Message: MessageSquare,
-  sla: AlertTriangle,
-  sla_warning: Clock,
-  ticket: Ticket,
-  message: MessageSquare,
-};
-
-const ACTION_COLORS: Record<string, string> = {
-  ticket: 'var(--primary)',
-  message: 'var(--success)',
-};
-
-const THEMES = [
-  { id: 'dark', label: 'Dark', color: '#0a0e14', iconColor: '#7367f0' },
-  { id: 'light', label: 'Light', color: '#ffffff', iconColor: '#ffcd3c' },
-  { id: 'blue', label: 'Blue', color: '#0f172a', iconColor: '#38bdf8' },
-  { id: 'cyan', label: 'Cyan', color: '#081a26', iconColor: '#06b6d4' },
-  { id: 'gray', label: 'Gray', color: '#111827', iconColor: '#f3f4f6' },
-] as const;
-
+import { NotificationProvider } from '@/contexts/NotificationContext';
+import { StaffLocaleProvider } from '@/contexts/StaffLocaleContext';
 
 function DashboardInner({ children }: { children: React.ReactNode }) {
-  const router = useRouter();
   const { userProfile: agent, loading: appLoading } = useAppContext();
 
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
