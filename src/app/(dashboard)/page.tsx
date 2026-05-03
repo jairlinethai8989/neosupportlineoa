@@ -208,16 +208,30 @@ export default function Home() {
         status,
         priority,
         created_at,
-        resolved_at,
-        assigned_to
+        updated_at,
+        customers!tickets_customer_id_fkey (display_name),
+        assigned_agent:profiles!assigned_agent_id (full_name)
       `;
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('tickets')
         .select(exportSelect)
         .gte('created_at', dateWindow.from.toISOString())
-        .lte('created_at', dateWindow.to.toISOString());
+        .lte('created_at', dateWindow.to.toISOString())
+        .order('created_at', { ascending: false });
 
-      rows = data || [];
+      if (error) {
+        console.error('Export fetch error:', error.message);
+        alert(t('dashboard.exportError') || 'ไม่สามารถดึงข้อมูลได้ กรุณาลองใหม่อีกครั้ง');
+        return;
+      }
+
+      // Flatten joined fields for export
+      rows = (data || []).map((row: any) => ({
+        ...row,
+        customer_name: row.customers?.display_name || '-',
+        agent_name: row.assigned_agent?.full_name || '-',
+        resolved_at: row.updated_at,
+      }));
       setExportTicketsRows(rows);
       setExportTicketsKey(currentWindowKey);
     }
