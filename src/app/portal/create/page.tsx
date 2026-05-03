@@ -143,12 +143,6 @@ export default function CreateTicketPage() {
             }
          }
 
-         // 5. Notify Group
-         try {
-            const { sendLineGroupNotification } = await import('@/lib/utils/lineNotifications');
-            await sendLineGroupNotification(`🆕 ตั๋วใหม่จาก Portal: ${subject}\nลูกค้า: ${customerData.display_name}`);
-         } catch { }
-
          router.replace(`/portal/tickets/${createdTicket.id}`);
 
       } catch (err: any) {

@@ -17,17 +17,19 @@ const getLineClient = () => {
  * Send a notification message to the internal LINE group
  */
 export async function sendLineGroupNotification(message: string, targetGroupId?: string) {
-  const groupId = targetGroupId || process.env.LINE_GROUP_ID;
+  const groupId = targetGroupId;
   const client = getLineClient();
-  if (!groupId || !client) return;
+  if (!groupId || !client) return false;
 
   try {
     await client.pushMessage(groupId, {
       type: 'text',
       text: message,
     });
+    return true;
   } catch (error: any) {
     console.error(`Error sending LINE notification to group ${groupId}:`, error.message || error);
+    return false;
   }
 }
 
@@ -35,9 +37,9 @@ export async function sendLineGroupNotification(message: string, targetGroupId?:
  * Send a Flex Message notification to the internal LINE group
  */
 export async function sendLineGroupFlexNotification(altText: string, contents: any, targetGroupId?: string) {
-  const groupId = targetGroupId || process.env.LINE_GROUP_ID;
+  const groupId = targetGroupId;
   const client = getLineClient();
-  if (!groupId || !client) return;
+  if (!groupId || !client) return false;
 
   try {
     await client.pushMessage(groupId, {
@@ -45,7 +47,9 @@ export async function sendLineGroupFlexNotification(altText: string, contents: a
       altText,
       contents,
     });
+    return true;
   } catch (error: any) {
     console.error(`Error sending LINE Flex notification to group ${groupId}:`, error.message || error);
+    return false;
   }
 }

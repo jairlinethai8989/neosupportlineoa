@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { sendLineGroupNotification, sendLineGroupFlexNotification } from '@/lib/utils/lineNotifications';
 import { createSupabaseServerClient } from '@/lib/supabase-server';
+import { getReportBroadcastSettings } from '@/lib/reports/broadcastSettings';
 
 /**
  * API Route: Send notification to the internal LINE staff group
@@ -28,10 +29,14 @@ export async function POST(req: Request) {
 
   try {
     const body = await req.json();
+    const settings = await getReportBroadcastSettings();
+    if (!settings.groupId) {
+      return NextResponse.json({ error: 'No target LINE group configured in settings.' }, { status: 400 });
+    }
 
     // Flex Message mode
     if (body.altText && body.contents) {
-      await sendLineGroupFlexNotification(body.altText, body.contents);
+      await sendLineGroupFlexNotification(body.altText, body.contents, settings.groupId);
       return NextResponse.json({ 
         status: 'success', 
         type: 'flex',
@@ -41,7 +46,7 @@ export async function POST(req: Request) {
 
     // Plain text mode
     if (body.message && typeof body.message === 'string') {
-      await sendLineGroupNotification(body.message);
+      await sendLineGroupNotification(body.message, settings.groupId);
       return NextResponse.json({ 
         status: 'success', 
         type: 'text',
