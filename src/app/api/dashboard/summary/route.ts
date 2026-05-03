@@ -76,29 +76,42 @@ export async function GET(req: Request) {
       : CACHE_POLICY.live.dashboardSummaryTtlMs;
 
     const payload = await getOrSetLiveCache(cacheKey, ttlMs, async () => {
-      const ticketSelect = `
-        status,
-        priority,
-        created_at,
-        updated_at,
-        assigned_agent_id,
-        hospitals(name),
-        profiles!fk_tickets_agent(full_name)
-      `;
+      // 1. Fetch Aggregated Data via RPC
+      const { data: rpcData, error: rpcError } = await supabaseAdmin
+        .rpc('get_dashboard_summary', {
+          p_start_date: fromIso,
+          p_end_date: toIso
+        });
 
-      const { data: ticketsData, error: ticketsError } = await supabaseAdmin
-        .from('tickets')
-        .select(ticketSelect)
-        .gte('created_at', fromIso)
-        .lte('created_at', toIso);
-
-      if (ticketsError) {
-        throw new Error(ticketsError.message);
+      if (rpcError) {
+        throw new Error(`RPC Error: ${rpcError.message}`);
       }
 
-      const tickets = (ticketsData || []) as DashboardTicketRow[];
-      let logs: DashboardLogRow[] = [];
+      // If the RPC fails or returns null for some reason, provide defaults
+      const rawPayload = rpcData || {
+        stats: { totalToday: 0, yesterdayCount: 0, newTickets: 0, inProgress: 0, pending: 0, escalated: 0, resolved: 0, totalAll: 0 },
+        statusData: [], priorityData: [], hospitalData: [], agentData: [], createdCountsByDay: {}, resolvedCountsByDay: {}
+      };
 
+      const { stats, statusData, priorityData, hospitalData, agentData, createdCountsByDay, resolvedCountsByDay } = rawPayload as any;
+
+      // Calculate Trend Percentage
+      const trendPct = stats.yesterdayCount > 0 
+        ? Math.round(((stats.totalToday - stats.yesterdayCount) / stats.yesterdayCount) * 100) 
+        : null;
+
+      // Merge and sort dates for trend chart
+      const trendDates = new Set([...Object.keys(createdCountsByDay || {}), ...Object.keys(resolvedCountsByDay || {})]);
+      const trendByDay = Array.from(trendDates)
+        .sort()
+        .map((dateKey) => ({
+          dateKey,
+          created: createdCountsByDay[dateKey] || 0,
+          resolved: resolvedCountsByDay[dateKey] || 0,
+        }));
+
+      // 2. Fetch Recent Logs (only if requested)
+      let recentLogs: any[] = [];
       if (includeLogs) {
         const ticketLogSelect = `
           id,
@@ -116,107 +129,25 @@ export async function GET(req: Request) {
           .order('created_at', { ascending: false })
           .limit(10);
 
-        if (logsError) {
-          throw new Error(logsError.message);
-        }
-        logs = (logsData || []) as DashboardLogRow[];
-      }
-
-      const now = new Date();
-      const todayStart = new Date(now);
-      todayStart.setHours(0, 0, 0, 0);
-      const yesterdayStart = new Date(todayStart);
-      yesterdayStart.setDate(yesterdayStart.getDate() - 1);
-
-      let totalToday = 0;
-      let yesterdayCount = 0;
-      let newTickets = 0;
-      let inProgress = 0;
-      let pending = 0;
-      let escalated = 0;
-      let resolved = 0;
-
-      const statusCounts: Record<string, number> = {};
-      const priorityCounts: Record<string, number> = {};
-      const hospitalCounts: Record<string, number> = {};
-      const agentCounts: Record<string, number> = {};
-      const createdCountsByDay: Record<string, number> = {};
-      const resolvedCountsByDay: Record<string, number> = {};
-
-      for (const ticket of tickets) {
-        const status = ticket.status || '';
-        const priority = ticket.priority || 'Medium';
-        const createdAt = new Date(ticket.created_at);
-        const createdDateKey = getDateKeyFromIso(ticket.created_at);
-
-        if (createdAt >= todayStart) totalToday += 1;
-        if (createdAt >= yesterdayStart && createdAt < todayStart) yesterdayCount += 1;
-
-        if (status === 'New') newTickets += 1;
-        else if (status === 'In Progress') inProgress += 1;
-        else if (status === 'Pending') pending += 1;
-        else if (status === 'Escalated') escalated += 1;
-        else if (status === 'Resolved' || status === 'Closed') resolved += 1;
-
-        statusCounts[status] = (statusCounts[status] || 0) + 1;
-        priorityCounts[priority] = (priorityCounts[priority] || 0) + 1;
-        const hospitalObj = toObject(ticket.hospitals);
-        const hospitalName = hospitalObj?.name || 'Unknown';
-        hospitalCounts[hospitalName] = (hospitalCounts[hospitalName] || 0) + 1;
-        createdCountsByDay[createdDateKey] = (createdCountsByDay[createdDateKey] || 0) + 1;
-
-        if (ticket.assigned_agent_id) {
-          const profileObj = toObject(ticket.profiles);
-          const agentName = profileObj?.full_name || ticket.assigned_agent_id;
-          agentCounts[agentName] = (agentCounts[agentName] || 0) + 1;
-        }
-
-        if ((status === 'Resolved' || status === 'Closed') && ticket.updated_at) {
-          const resolvedDateKey = getDateKeyFromIso(ticket.updated_at);
-          resolvedCountsByDay[resolvedDateKey] = (resolvedCountsByDay[resolvedDateKey] || 0) + 1;
-        }
-      }
-
-      const trendPct =
-        yesterdayCount > 0 ? Math.round(((totalToday - yesterdayCount) / yesterdayCount) * 100) : null;
-
-      const trendByDay = Object.keys(createdCountsByDay)
-        .concat(Object.keys(resolvedCountsByDay))
-        .filter((value, index, arr) => arr.indexOf(value) === index)
-        .sort()
-        .map((dateKey) => ({
-          dateKey,
-          created: createdCountsByDay[dateKey] || 0,
-          resolved: resolvedCountsByDay[dateKey] || 0,
+        if (logsError) throw new Error(logsError.message);
+        
+        recentLogs = (logsData || []).map((log: any) => ({
+          action_type: log.action_type || '',
+          note: log.note || '',
+          created_at: log.created_at,
+          tickets: { ticket_no: toObject(log.tickets)?.ticket_no || '' },
         }));
-
-      const statusData = Object.entries(statusCounts).map(([name, value]) => ({ name, value }));
-      const priorityData = Object.entries(priorityCounts).map(([name, value]) => ({ name, value }));
-      const hospitalData = Object.entries(hospitalCounts)
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 8)
-        .map(([name, value]) => ({ name, value }));
-      const agentData = Object.entries(agentCounts)
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 5)
-        .map(([name, value]) => ({ name, value }));
-
-      const recentLogs = logs.map((log) => ({
-        action_type: log.action_type || '',
-        note: log.note || '',
-        created_at: log.created_at,
-        tickets: { ticket_no: toObject(log.tickets)?.ticket_no || '' },
-      }));
+      }
 
       return {
         stats: {
-          totalToday,
-          newTickets,
-          inProgress,
-          pending,
-          escalated,
-          resolved,
-          totalAll: tickets.length,
+          totalToday: stats.totalToday,
+          newTickets: stats.newTickets,
+          inProgress: stats.inProgress,
+          pending: stats.pending,
+          escalated: stats.escalated,
+          resolved: stats.resolved,
+          totalAll: stats.totalAll,
           trendPct,
         },
         trendByDay,

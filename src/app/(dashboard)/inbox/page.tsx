@@ -1,6 +1,7 @@
 'use client';
 
 import React, { Suspense, useEffect, useState } from 'react';
+import dynamic from 'next/dynamic';
 import { useSearchParams } from 'next/navigation';
 import { Loader2, MessageSquare } from 'lucide-react';
 import { useStaffLocale } from '@/contexts/StaffLocaleContext';
@@ -17,16 +18,19 @@ import { getInboxConversationById, getInboxConversationByTicketId } from '@/lib/
 import { deleteInboxMessage, uploadInboxChatMedia } from '@/lib/inbox/mutations';
 import type { InboxConversation, InboxViewMode } from '@/types/inbox';
 
-const ImageEditorModal = React.lazy(() => import('@/components/modals/ImageEditorModal'));
-const ImageViewerModal = React.lazy(() => import('@/components/modals/ImageViewerModal'));
-const ChatWindow = React.lazy(() =>
-  import('@/components/inbox/ChatWindow').then((module) => ({ default: module.ChatWindow }))
+const ImageEditorModal = dynamic(() => import('@/components/modals/ImageEditorModal'), { ssr: false });
+const ImageViewerModal = dynamic(() => import('@/components/modals/ImageViewerModal'), { ssr: false });
+const ChatWindow = dynamic(() =>
+  import('@/components/inbox/ChatWindow').then((module) => module.ChatWindow),
+  { ssr: false }
 );
-const TicketSidebar = React.lazy(() =>
-  import('@/components/inbox/TicketSidebar').then((module) => ({ default: module.TicketSidebar }))
+const TicketSidebar = dynamic(() =>
+  import('@/components/inbox/TicketSidebar').then((module) => module.TicketSidebar),
+  { ssr: false }
 );
-const ResolveTicketModal = React.lazy(() =>
-  import('@/components/inbox/ResolveTicketModal').then((module) => ({ default: module.ResolveTicketModal }))
+const ResolveTicketModal = dynamic(() =>
+  import('@/components/inbox/ResolveTicketModal').then((module) => module.ResolveTicketModal),
+  { ssr: false }
 );
 
 function hasSelectedConversationChanged(

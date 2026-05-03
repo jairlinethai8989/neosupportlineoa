@@ -53,7 +53,7 @@ function isGroupItem(item: SidebarItem): item is SidebarGroupItem {
   return 'children' in item;
 }
 
-export default function MainSidebar({ onClickLink, isCollapsed = false }: SidebarProps) {
+function MainSidebarComponent({ onClickLink, isCollapsed = false }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const { companySettings: company, userProfile: profile } = useAppContext();
@@ -534,3 +534,5 @@ export default function MainSidebar({ onClickLink, isCollapsed = false }: Sideba
     </aside>
   );
 }
+
+export default React.memo(MainSidebarComponent);

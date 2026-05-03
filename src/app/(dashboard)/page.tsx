@@ -252,8 +252,8 @@ export default function Home() {
   useEffect(() => {
     let cancelled = false;
 
-    async function fetchDashboard() {
-      setIsLoading(true);
+    async function fetchDashboard(backgroundRefresh = false) {
+      if (!backgroundRefresh) setIsLoading(true);
       try {
         const from = encodeURIComponent(dateWindow.from.toISOString());
         const to = encodeURIComponent(dateWindow.to.toISOString());
@@ -268,7 +268,8 @@ export default function Home() {
         setPriorityRows(payload.priorityData || []);
         setHospitalRows(payload.hospitalData || []);
         setAgentRows(payload.agentData || []);
-        setRecentLogs([]);
+        
+        if (!backgroundRefresh) setRecentLogs([]);
 
         // Load recent logs after first paint; do not block summary rendering.
         void fetch(`/api/dashboard/summary?from=${from}&to=${to}&includeLogs=1`, { cache: 'no-store' })
@@ -289,16 +290,16 @@ export default function Home() {
         setAgentRows([]);
         setRecentLogs([]);
       } finally {
-        if (!cancelled) setIsLoading(false);
+        if (!cancelled && !backgroundRefresh) setIsLoading(false);
       }
     }
-    fetchDashboard();
+    fetchDashboard(false);
 
     let refreshTimer: ReturnType<typeof setTimeout> | null = null;
     const scheduleRefresh = () => {
       if (refreshTimer) clearTimeout(refreshTimer);
       refreshTimer = setTimeout(() => {
-        void fetchDashboard();
+        void fetchDashboard(true);
       }, 300);
     };
 

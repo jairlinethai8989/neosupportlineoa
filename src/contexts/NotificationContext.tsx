@@ -11,6 +11,8 @@ import {
   LatestTicketRealtimeEvent,
 } from '@/hooks/useNotifications';
 
+export type NotifTab = 'all' | 'unread' | 'sla';
+
 interface NotificationContextValue {
   notifications: AppNotification[];
   toasts: ToastNotif[];
