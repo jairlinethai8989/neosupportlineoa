@@ -243,7 +243,15 @@ export default function ReportsPage() {
       ''
     );
   }, [lineGroups, preview.targetGroupName, settings.groupId]);
-  const isAutoMode = settings.mode === 'auto';
+  const isManualMode = settings.mode === 'manual';
+  const confirmScheduleChangeLabel =
+    locale === 'th'
+      ? 'à¸¢à¸·à¸™à¸¢à¸±à¸™à¸à¸²à¸£à¹€à¸›à¸¥à¸µà¹ˆà¸¢à¸™à¸Šà¹ˆà¸§à¸‡à¹€à¸§à¸¥à¸²à¸ªà¹ˆà¸‡à¸­à¸±à¸•à¹‚à¸™à¸¡à¸±à¸•à¸´à¹ƒà¸Šà¹ˆà¸«à¸£à¸·à¸­à¹„à¸¡à¹ˆ?'
+      : 'Confirm schedule time change?';
+  const confirmAddScheduleLabel =
+    locale === 'th'
+      ? 'à¸¢à¸·à¸™à¸¢à¸±à¸™à¹€à¸žà¸´à¹ˆà¸¡à¹à¸–à¸§à¹€à¸§à¸¥à¸²à¸­à¸±à¸•à¹‚à¸™à¸¡à¸±à¸•à¸´à¹ƒà¸Šà¹ˆà¸«à¸£à¸·à¸­à¹„à¸¡à¹ˆ?'
+      : 'Confirm adding a new schedule row?';
 
   const persistSettings = async (next: ReportBroadcastSettings) => {
     setSettings(next);
@@ -638,14 +646,15 @@ export default function ReportsPage() {
                   <input
                     type="time"
                     value={row.time}
-                    disabled={!canSend || savingSettings || isAutoMode}
+                    disabled={!canSend || savingSettings || isManualMode}
                     onChange={(e) =>
-                      void persistSettings({
-                        ...settings,
-                        schedules: settings.schedules.map((item) =>
-                          item.id === row.id ? { ...item, time: e.target.value } : item
-                        ),
-                      })
+                      void (window.confirm(confirmScheduleChangeLabel) &&
+                        persistSettings({
+                          ...settings,
+                          schedules: settings.schedules.map((item) =>
+                            item.id === row.id ? { ...item, time: e.target.value } : item
+                          ),
+                        }))
                     }
                     style={{
                       borderRadius: 10,
@@ -654,20 +663,21 @@ export default function ReportsPage() {
                       background: 'rgba(255,255,255,0.04)',
                       color: 'var(--text-main)',
                     }}
-                    lang="en-GB"
+                    lang="fr-CA"
                   />
                   <select
                     value={row.set}
-                    disabled={!canSend || savingSettings || isAutoMode}
+                    disabled={!canSend || savingSettings || isManualMode}
                     onChange={(e) =>
-                      void persistSettings({
-                        ...settings,
-                        schedules: settings.schedules.map((item) =>
-                          item.id === row.id
-                            ? { ...item, set: e.target.value === '2' ? '2' : '1' }
-                            : item
-                        ),
-                      })
+                      void (window.confirm(confirmScheduleChangeLabel) &&
+                        persistSettings({
+                          ...settings,
+                          schedules: settings.schedules.map((item) =>
+                            item.id === row.id
+                              ? { ...item, set: e.target.value === '2' ? '2' : '1' }
+                              : item
+                          ),
+                        }))
                     }
                     style={{
                       borderRadius: 10,
@@ -681,7 +691,7 @@ export default function ReportsPage() {
                     <option value="2">SET 2</option>
                   </select>
                   <button
-                    disabled={!canSend || savingSettings || isAutoMode}
+                    disabled={!canSend || savingSettings || isManualMode}
                     onClick={() =>
                       void persistSettings({
                         ...settings,
@@ -703,12 +713,13 @@ export default function ReportsPage() {
                 </div>
               ))}
               <button
-                disabled={!canSend || savingSettings || isAutoMode}
+                disabled={!canSend || savingSettings || isManualMode}
                 onClick={() =>
-                  void persistSettings({
-                    ...settings,
-                    schedules: [...settings.schedules, makeScheduleRow()],
-                  })
+                  void (window.confirm(confirmAddScheduleLabel) &&
+                    persistSettings({
+                      ...settings,
+                      schedules: [...settings.schedules, makeScheduleRow()],
+                    }))
                 }
                 style={{
                   borderRadius: 10,
