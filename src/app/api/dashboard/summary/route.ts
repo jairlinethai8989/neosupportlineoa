@@ -87,8 +87,9 @@ export async function GET(req: Request) {
         throw new Error(`RPC Error: ${rpcError.message}`);
       }
 
-      // If the RPC fails or returns null for some reason, provide defaults
-      const rawPayload = rpcData || {
+      // If the RPC returns a string (PostgREST behavior), parse it first
+      const parsed = typeof rpcData === 'string' ? JSON.parse(rpcData) : rpcData;
+      const rawPayload = parsed || {
         stats: { totalToday: 0, yesterdayCount: 0, newTickets: 0, inProgress: 0, pending: 0, escalated: 0, resolved: 0, totalAll: 0 },
         statusData: [], priorityData: [], hospitalData: [], agentData: [], createdCountsByDay: {}, resolvedCountsByDay: {}
       };

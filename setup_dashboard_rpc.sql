@@ -53,12 +53,12 @@ BEGIN
     'agentData', COALESCE((
       SELECT json_agg(json_build_object('name', agent_name, 'value', cnt))
       FROM (
-        SELECT COALESCE(p.full_name, t.assigned_agent_id) as agent_name, COUNT(t.id) as cnt
+        SELECT COALESCE(p.full_name, t.assigned_agent_id::text) as agent_name, COUNT(t.id) as cnt
         FROM tickets t
         LEFT JOIN profiles p ON t.assigned_agent_id = p.id
         WHERE t.created_at >= p_start_date AND t.created_at <= p_end_date
           AND t.assigned_agent_id IS NOT NULL
-        GROUP BY COALESCE(p.full_name, t.assigned_agent_id)
+        GROUP BY COALESCE(p.full_name, t.assigned_agent_id::text)
         ORDER BY cnt DESC
         LIMIT 5
       ) a_q
