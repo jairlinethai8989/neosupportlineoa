@@ -243,6 +243,7 @@ export default function ReportsPage() {
       ''
     );
   }, [lineGroups, preview.targetGroupName, settings.groupId]);
+  const isAutoMode = settings.mode === 'auto';
 
   const persistSettings = async (next: ReportBroadcastSettings) => {
     setSettings(next);
@@ -262,7 +263,7 @@ export default function ReportsPage() {
       }
 
       setSchemaReady(true);
-      await fetchBroadcastSettings();
+      void fetchBroadcastSettings();
     } catch (error) {
       console.error('save settings failed', error);
       const message =
@@ -527,7 +528,7 @@ export default function ReportsPage() {
             </p>
             <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
               <button
-                disabled={!canSend || savingSettings}
+                disabled={!canSend}
                 className="glass-interactive"
                 onClick={() => persistSettings({ ...settings, mode: 'manual' })}
                 style={{
@@ -544,7 +545,7 @@ export default function ReportsPage() {
                 Manual
               </button>
               <button
-                disabled={!canSend || savingSettings}
+                disabled={!canSend}
                 className="glass-interactive"
                 onClick={() => persistSettings({ ...settings, mode: 'auto' })}
                 style={{
@@ -637,7 +638,7 @@ export default function ReportsPage() {
                   <input
                     type="time"
                     value={row.time}
-                    disabled={!canSend || savingSettings}
+                    disabled={!canSend || savingSettings || isAutoMode}
                     onChange={(e) =>
                       void persistSettings({
                         ...settings,
@@ -653,10 +654,11 @@ export default function ReportsPage() {
                       background: 'rgba(255,255,255,0.04)',
                       color: 'var(--text-main)',
                     }}
+                    lang="en-GB"
                   />
                   <select
                     value={row.set}
-                    disabled={!canSend || savingSettings}
+                    disabled={!canSend || savingSettings || isAutoMode}
                     onChange={(e) =>
                       void persistSettings({
                         ...settings,
@@ -679,7 +681,7 @@ export default function ReportsPage() {
                     <option value="2">SET 2</option>
                   </select>
                   <button
-                    disabled={!canSend || savingSettings}
+                    disabled={!canSend || savingSettings || isAutoMode}
                     onClick={() =>
                       void persistSettings({
                         ...settings,
@@ -701,7 +703,7 @@ export default function ReportsPage() {
                 </div>
               ))}
               <button
-                disabled={!canSend || savingSettings}
+                disabled={!canSend || savingSettings || isAutoMode}
                 onClick={() =>
                   void persistSettings({
                     ...settings,
