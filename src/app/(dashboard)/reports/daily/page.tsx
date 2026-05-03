@@ -33,6 +33,7 @@ type ReportColumn = {
 };
 
 const INITIAL_COLUMN_WIDTHS: Record<string, number> = {
+  sequence: 72,
   status: 84,
   date: 120,
   hospital: 170,
@@ -110,6 +111,7 @@ export default function DailyReportPage() {
 
   const columns: ReportColumn[] = useMemo(
     () => [
+      { id: 'sequence', label: t('reports.columns.sequence') || 'ลำดับ', sortKey: 'sequence' },
       { id: 'status', label: t('reports.columns.status'), sortKey: 'status' },
       { id: 'date', label: t('reports.columns.date'), sortKey: 'date' },
       { id: 'hospital', label: t('reports.columns.hospital'), sortKey: 'hospital' },
@@ -528,6 +530,9 @@ export default function DailyReportPage() {
               ) : (
                 processedTickets.map((ticket, idx) => (
                   <tr key={ticket.id || idx} style={{ borderBottom: '1px solid var(--border)', background: idx % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.02)' }}>
+                    <td style={{ padding: '12px 16px', textAlign: 'center', fontWeight: '700', ...getColWidth('sequence') }}>
+                      {idx + 1}
+                    </td>
                     <td style={{ padding: '12px 16px', textAlign: 'center', ...getColWidth('status') }}>
                       {ticket.status === 'Resolved' || ticket.status === 'Closed' ? '✅' : (ticket.status === 'New' ? '⚪' : '🔄')}
                     </td>
