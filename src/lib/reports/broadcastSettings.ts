@@ -74,7 +74,6 @@ async function ensureCompanySettingsRow() {
   const { data: baseRow, error: baseError } = await supabaseAdmin
     .from('company_settings')
     .select('id')
-    .order('created_at', { ascending: true })
     .limit(1)
     .maybeSingle();
   if (baseError) throw baseError;

@@ -79,7 +79,7 @@ export async function GET(req: Request) {
       }
     }
 
-    const cacheKey = buildVersionedPreviewCacheKey(`hub:${date}`);
+    const cacheKey = buildVersionedPreviewCacheKey(`hub:v2:${date}`);
     const cacheHitBeforeLoad = readPreviewCache(cacheKey) !== null;
     const summary = await getOrSetPreviewCache(
       cacheKey,
@@ -89,8 +89,8 @@ export async function GET(req: Request) {
       const ticketPreviewSelect = 'id, status, hospitals(name)';
 
       const orFilter = [
-        `and(created_at.gte."${startIso}",created_at.lte."${endIso}")`,
-        `and(resolved_at.gte."${startIso}",resolved_at.lte."${endIso}")`,
+        `and(created_at.gte.${startIso},created_at.lte.${endIso})`,
+        `and(resolved_at.gte.${startIso},resolved_at.lte.${endIso})`,
       ].join(',');
 
       const { data, error } = await supabaseAdmin

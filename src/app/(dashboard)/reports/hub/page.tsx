@@ -2,37 +2,52 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import {
-  Send,
+  AlertCircle,
+  BarChart2,
+  Calendar,
+  CheckCircle2,
+  ChevronRight,
   Eye,
   FileText,
-  AlertCircle,
-  CheckCircle2,
-  Calendar,
-  ChevronRight,
-  ShieldCheck,
-  Zap,
-  BarChart2,
   Plus,
+  Send,
+  ShieldCheck,
   Trash2,
+  Zap,
 } from 'lucide-react';
 import { useStaffLocale } from '@/contexts/StaffLocaleContext';
 import { useAppContext } from '@/contexts/AppContext';
 
 type ReportSet = '1' | '2';
 type ReportBroadcastMode = 'manual' | 'auto';
-type ReportScheduleRow = { id: string; time: string; set: ReportSet; enabled: boolean };
+
+type ReportScheduleRow = {
+  id: string;
+  time: string;
+  set: ReportSet;
+  enabled: boolean;
+};
+
 type ReportBroadcastSettings = {
   mode: ReportBroadcastMode;
   groupId: string | null;
   schedules: ReportScheduleRow[];
 };
-type LineGroup = { id: string; name: string; group_id: string; is_active: boolean };
+
+type LineGroup = {
+  id: string;
+  name: string;
+  group_id: string;
+  is_active: boolean;
+};
+
 type SettingsResponse = {
   settings?: ReportBroadcastSettings;
   groups?: LineGroup[];
   schemaReady?: boolean;
   error?: string;
 };
+
 type PreviewResponse = {
   total: number;
   newProgress: number;
@@ -41,7 +56,11 @@ type PreviewResponse = {
   targetGroupName?: string;
 };
 
-const defaultSettings: ReportBroadcastSettings = { mode: 'manual', groupId: null, schedules: [] };
+const DEFAULT_SETTINGS: ReportBroadcastSettings = {
+  mode: 'manual',
+  groupId: null,
+  schedules: [],
+};
 
 function toYmd(date: Date): string {
   const year = date.getFullYear();
@@ -72,8 +91,9 @@ function makeScheduleRow(): ReportScheduleRow {
 export default function ReportsPage() {
   const { t, locale } = useStaffLocale();
   const { userProfile } = useAppContext();
+
   const [loading, setLoading] = useState(false);
-  const [sending, setSending] = useState<string | null>(null);
+  const [sending, setSending] = useState<ReportSet | null>(null);
   const [targetDate, setTargetDate] = useState(() => toYmd(new Date()));
   const [preview, setPreview] = useState<PreviewResponse>({
     total: 0,
@@ -82,7 +102,7 @@ export default function ReportsPage() {
     hospitalGroups: {},
     targetGroupName: '',
   });
-  const [settings, setSettings] = useState<ReportBroadcastSettings>(defaultSettings);
+  const [settings, setSettings] = useState<ReportBroadcastSettings>(DEFAULT_SETTINGS);
   const [lineGroups, setLineGroups] = useState<LineGroup[]>([]);
   const [savingSettings, setSavingSettings] = useState(false);
   const [schemaReady, setSchemaReady] = useState(true);
@@ -97,7 +117,50 @@ export default function ReportsPage() {
     () => formatPreviewDate(targetDate, locale),
     [locale, targetDate]
   );
-  const ticketUnitLabel = useMemo(() => t('tickets.unit'), [t]);
+
+  const hospitalLabel = useMemo(
+    () => (locale === 'th' ? 'สรุปรายโรงพยาบาล' : 'Hospital Summary'),
+    [locale]
+  );
+  const reportModeLabel = useMemo(
+    () => (locale === 'th' ? 'โหมดการส่งรายงาน' : 'Report delivery mode'),
+    [locale]
+  );
+  const lineGroupLabel = useMemo(
+    () => (locale === 'th' ? 'กลุ่ม LINE ปลายทาง' : 'Target LINE group'),
+    [locale]
+  );
+  const scheduleLabel = useMemo(
+    () => (locale === 'th' ? 'ช่วงเวลาส่งอัตโนมัติ' : 'Automatic schedule'),
+    [locale]
+  );
+  const selectGroupPlaceholder = useMemo(
+    () => (locale === 'th' ? '-- เลือกกลุ่ม --' : '-- Select group --'),
+    [locale]
+  );
+  const addScheduleRowLabel = useMemo(
+    () => (locale === 'th' ? 'เพิ่มแถวเวลา' : 'Add schedule row'),
+    [locale]
+  );
+  const scheduleSchemaWarning = useMemo(
+    () =>
+      locale === 'th'
+        ? 'ยังบันทึกเวลาอัตโนมัติไม่ได้ กรุณาตรวจว่ารัน add_report_broadcast_settings.sql ใน Supabase ตรง environment นี้แล้ว'
+        : 'Automatic schedules are not ready yet. Please make sure add_report_broadcast_settings.sql was executed in this Supabase environment.',
+    [locale]
+  );
+  const loadSettingsErrorLabel = useMemo(
+    () => (locale === 'th' ? 'โหลดค่าการส่งรายงานอัตโนมัติไม่สำเร็จ' : 'Failed to load broadcast settings'),
+    [locale]
+  );
+  const saveSettingsErrorLabel = useMemo(
+    () => (locale === 'th' ? 'บันทึกไม่สำเร็จ' : 'Failed to save settings'),
+    [locale]
+  );
+  const chooseGroupFirstLabel = useMemo(
+    () => (locale === 'th' ? 'กรุณาเลือกกลุ่ม LINE ปลายทางก่อน' : 'Please choose a target LINE group first'),
+    [locale]
+  );
 
   const fetchPreview = async () => {
     setLoading(true);
@@ -105,8 +168,11 @@ export default function ReportsPage() {
       const res = await fetch(`/api/reports/hub/preview?date=${targetDate}`, {
         cache: 'no-store',
       });
-      if (!res.ok) throw new Error(`Preview API failed (${res.status})`);
-      const data = (await res.json()) as PreviewResponse;
+      const data = (await res.json()) as Partial<PreviewResponse> & { error?: string };
+      if (!res.ok) {
+        throw new Error(data.error || `Preview API failed (${res.status})`);
+      }
+
       setPreview({
         total: data.total || 0,
         newProgress: data.newProgress || 0,
@@ -115,7 +181,7 @@ export default function ReportsPage() {
         targetGroupName: data.targetGroupName || '',
       });
     } catch (error) {
-      console.error(error);
+      console.error('fetch preview failed', error);
       setPreview({
         total: 0,
         newProgress: 0,
@@ -131,16 +197,21 @@ export default function ReportsPage() {
   const fetchBroadcastSettings = async () => {
     try {
       const res = await fetch('/api/reports/hub/settings', { cache: 'no-store' });
-      if (!res.ok) return;
-      const data = (await res.json()) as SettingsResponse;
-      setSettings(data.settings || defaultSettings);
+      const data = (await res.json().catch(() => ({}))) as SettingsResponse;
+      if (!res.ok) {
+        throw new Error(data.error || loadSettingsErrorLabel);
+      }
+
+      setSettings(data.settings || DEFAULT_SETTINGS);
       setLineGroups(data.groups || []);
       setSchemaReady(data.schemaReady !== false);
       setSettingsError('');
     } catch (error) {
       console.error('load settings failed', error);
       setSchemaReady(false);
-      setSettingsError('โหลดค่าการส่งรายงานอัตโนมัติไม่สำเร็จ');
+      setSettingsError(
+        error instanceof Error && error.message ? error.message : loadSettingsErrorLabel
+      );
     }
   };
 
@@ -165,9 +236,18 @@ export default function ReportsPage() {
     };
   }, [preview, t]);
 
+  const selectedGroupName = useMemo(() => {
+    return (
+      lineGroups.find((group) => group.group_id === settings.groupId)?.name ||
+      preview.targetGroupName ||
+      ''
+    );
+  }, [lineGroups, preview.targetGroupName, settings.groupId]);
+
   const persistSettings = async (next: ReportBroadcastSettings) => {
     setSettings(next);
     if (!canSend) return;
+
     setSettingsError('');
     setSavingSettings(true);
     try {
@@ -176,15 +256,17 @@ export default function ReportsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ settings: next }),
       });
-      const data = (await res.json()) as { error?: string };
+      const data = (await res.json().catch(() => ({}))) as { error?: string };
       if (!res.ok) {
-        throw new Error(data.error || 'บันทึกไม่สำเร็จ');
+        throw new Error(data.error || saveSettingsErrorLabel);
       }
-      await fetchPreview();
+
+      setSchemaReady(true);
+      await fetchBroadcastSettings();
     } catch (error) {
-      console.error(error);
+      console.error('save settings failed', error);
       const message =
-        error instanceof Error && error.message ? error.message : 'บันทึกไม่สำเร็จ';
+        error instanceof Error && error.message ? error.message : saveSettingsErrorLabel;
       setSettingsError(message);
       alert(message);
     } finally {
@@ -194,7 +276,7 @@ export default function ReportsPage() {
 
   const handleSendReport = async (set: ReportSet) => {
     if (!settings.groupId) {
-      alert('กรุณาเลือกกลุ่ม LINE ปลายทางก่อน');
+      alert(chooseGroupFirstLabel);
       return;
     }
 
@@ -207,34 +289,27 @@ export default function ReportsPage() {
         `/api/cron/daily-summary?key=NEO_CRON_2026&set=${set}&date=${targetDate}`,
         { cache: 'no-store' }
       );
-      const data = await res.json();
+      const data = (await res.json().catch(() => ({}))) as { success?: boolean; error?: string };
+
       if (data.success) {
         alert(`${t('common.messages.success')}: "${reportName}"`);
       } else {
         alert(`${t('common.messages.error')}: ${data.error || 'Unknown Error'}`);
       }
     } catch (error) {
-      console.error(error);
+      console.error('send report failed', error);
       alert(t('common.messages.error'));
     } finally {
       setSending(null);
     }
   };
 
-  const selectedGroupName = useMemo(() => {
-    return (
-      lineGroups.find((group) => group.group_id === settings.groupId)?.name ||
-      preview.targetGroupName ||
-      ''
-    );
-  }, [lineGroups, preview.targetGroupName, settings.groupId]);
-
   return (
     <div
       style={{
         animation: 'fadeIn 0.5s ease-out',
-        maxWidth: '1000px',
-        margin: '0 auto',
+        width: '100%',
+        maxWidth: 'none',
         paddingBottom: '40px',
       }}
     >
@@ -244,6 +319,8 @@ export default function ReportsPage() {
           justifyContent: 'space-between',
           alignItems: 'flex-end',
           marginBottom: '32px',
+          gap: '24px',
+          flexWrap: 'wrap',
         }}
       >
         <div>
@@ -268,7 +345,7 @@ export default function ReportsPage() {
               letterSpacing: '0.1em',
             }}
           >
-            LINE REPORTING HUB • PREVIEW & BROADCAST
+            {t('reports.hubSubtitle')}
           </p>
         </div>
 
@@ -301,7 +378,14 @@ export default function ReportsPage() {
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 350px', gap: '24px' }}>
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'minmax(0, 1fr) minmax(360px, 420px)',
+          gap: '24px',
+          alignItems: 'start',
+        }}
+      >
         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
           <div
             className="glass-premium"
@@ -325,84 +409,53 @@ export default function ReportsPage() {
             </h3>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px' }}>
-              <div
-                style={{
-                  background: 'rgba(255,255,255,0.03)',
-                  padding: '16px',
-                  borderRadius: '12px',
+              {[
+                {
+                  label: t('dashboard.tabs.all'),
+                  value: groupedData.total,
+                  color: 'var(--text-main)',
                   border: '1px solid var(--border)',
-                }}
-              >
-                <p
-                  style={{
-                    fontSize: '10px',
-                    color: 'var(--text-muted)',
-                    fontWeight: '700',
-                    textTransform: 'uppercase',
-                  }}
-                >
-                  {t('dashboard.tabs.all')}
-                </p>
-                <p style={{ fontSize: '24px', fontWeight: '900' }}>
-                  {loading ? '...' : groupedData.total}
-                </p>
-              </div>
-              <div
-                style={{
-                  background: 'rgba(0, 242, 254, 0.05)',
-                  padding: '16px',
-                  borderRadius: '12px',
+                  background: 'rgba(255,255,255,0.03)',
+                },
+                {
+                  label: t('dashboard.inProgress'),
+                  value: groupedData.newProgress,
+                  color: 'var(--primary)',
                   border: '1px solid var(--primary)',
-                }}
-              >
-                <p
-                  style={{
-                    fontSize: '10px',
-                    color: 'var(--primary)',
-                    fontWeight: '700',
-                    textTransform: 'uppercase',
-                  }}
-                >
-                  {t('dashboard.inProgress')}
-                </p>
-                <p
-                  style={{
-                    fontSize: '24px',
-                    fontWeight: '900',
-                    color: 'var(--primary)',
-                  }}
-                >
-                  {loading ? '...' : groupedData.newProgress}
-                </p>
-              </div>
-              <div
-                style={{
-                  background: 'rgba(40, 199, 111, 0.05)',
-                  padding: '16px',
-                  borderRadius: '12px',
+                  background: 'rgba(0, 242, 254, 0.05)',
+                },
+                {
+                  label: t('dashboard.resolved'),
+                  value: groupedData.resolved,
+                  color: 'var(--success)',
                   border: '1px solid var(--success)',
-                }}
-              >
-                <p
+                  background: 'rgba(40, 199, 111, 0.05)',
+                },
+              ].map((card) => (
+                <div
+                  key={card.label}
                   style={{
-                    fontSize: '10px',
-                    color: 'var(--success)',
-                    fontWeight: '700',
-                    textTransform: 'uppercase',
+                    background: card.background,
+                    padding: '16px',
+                    borderRadius: '12px',
+                    border: card.border,
                   }}
                 >
-                  {t('dashboard.resolved')}
-                </p>
-                <p
-                  style={{
-                    fontSize: '24px',
-                    fontWeight: '900',
-                    color: 'var(--success)',
-                  }}
-                >
-                  {loading ? '...' : groupedData.resolved}
-                </p>
-              </div>
+                  <p
+                    style={{
+                      fontSize: '10px',
+                      color: card.color,
+                      fontWeight: '700',
+                      textTransform: 'uppercase',
+                    }}
+                  >
+                    {card.label}
+                  </p>
+                  <p style={{ fontSize: '24px', fontWeight: '900', color: card.color }}>
+                    {loading ? '...' : card.value}
+                  </p>
+                </div>
+              ))}
             </div>
           </div>
 
@@ -415,9 +468,7 @@ export default function ReportsPage() {
                 marginBottom: '16px',
               }}
             >
-              <h3 style={{ fontSize: '14px', fontWeight: '800' }}>
-                {t('reports.hospitalGrouping')}
-              </h3>
+              <h3 style={{ fontSize: '14px', fontWeight: '800' }}>{hospitalLabel}</h3>
               {loading && <Zap size={16} className="animate-pulse" color="var(--primary)" />}
             </div>
 
@@ -445,6 +496,7 @@ export default function ReportsPage() {
                       background: 'rgba(255,255,255,0.02)',
                       borderRadius: '10px',
                       border: '1px solid var(--border)',
+                      gap: '12px',
                     }}
                   >
                     <span style={{ fontSize: '14px', fontWeight: '600' }}>{name}</span>
@@ -456,9 +508,10 @@ export default function ReportsPage() {
                         color: 'black',
                         padding: '2px 10px',
                         borderRadius: '20px',
+                        whiteSpace: 'nowrap',
                       }}
                     >
-                      {count} {ticketUnitLabel}
+                      {count} {t('tickets.unit')}
                     </span>
                   </div>
                 ))
@@ -470,7 +523,7 @@ export default function ReportsPage() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           <div className="glass" style={{ padding: '16px', border: '1px solid var(--border)' }}>
             <p style={{ fontSize: '12px', marginBottom: '8px', fontWeight: 800 }}>
-              โหมดการส่งรายงาน
+              {reportModeLabel}
             </p>
             <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
               <button
@@ -484,9 +537,7 @@ export default function ReportsPage() {
                   border: 'none',
                   cursor: 'pointer',
                   background:
-                    settings.mode === 'manual'
-                      ? 'var(--primary)'
-                      : 'rgba(255,255,255,0.05)',
+                    settings.mode === 'manual' ? 'var(--primary)' : 'rgba(255,255,255,0.05)',
                   color: settings.mode === 'manual' ? 'black' : 'var(--text-main)',
                 }}
               >
@@ -503,9 +554,7 @@ export default function ReportsPage() {
                   border: 'none',
                   cursor: 'pointer',
                   background:
-                    settings.mode === 'auto'
-                      ? 'var(--primary)'
-                      : 'rgba(255,255,255,0.05)',
+                    settings.mode === 'auto' ? 'var(--primary)' : 'rgba(255,255,255,0.05)',
                   color: settings.mode === 'auto' ? 'black' : 'var(--text-main)',
                 }}
               >
@@ -514,14 +563,12 @@ export default function ReportsPage() {
             </div>
 
             <p style={{ fontSize: '12px', marginBottom: '8px', fontWeight: 800 }}>
-              กลุ่ม LINE ปลายทาง
+              {lineGroupLabel}
             </p>
             <select
               value={settings.groupId || ''}
               disabled={!canSend || savingSettings}
-              onChange={(e) =>
-                persistSettings({ ...settings, groupId: e.target.value || null })
-              }
+              onChange={(e) => void persistSettings({ ...settings, groupId: e.target.value || null })}
               style={{
                 width: '100%',
                 borderRadius: 10,
@@ -531,7 +578,7 @@ export default function ReportsPage() {
                 color: 'var(--text-main)',
               }}
             >
-              <option value="">-- เลือกกลุ่ม --</option>
+              <option value="">{selectGroupPlaceholder}</option>
               {lineGroups.map((group) => (
                 <option key={group.id} value={group.group_id}>
                   {group.name}
@@ -552,8 +599,7 @@ export default function ReportsPage() {
                   lineHeight: 1.5,
                 }}
               >
-                ยังบันทึกเวลาอัตโนมัติไม่ได้ เนื่องจากฐานข้อมูลยังไม่มีคอลัมน์ตั้งค่ารายงานใหม่
-                กรุณารันไฟล์ <strong>add_report_broadcast_settings.sql</strong> ใน Supabase ก่อน
+                {scheduleSchemaWarning}
               </div>
             )}
 
@@ -575,7 +621,7 @@ export default function ReportsPage() {
             )}
 
             <p style={{ fontSize: '12px', margin: '14px 0 8px', fontWeight: 800 }}>
-              ช่วงเวลาส่งอัตโนมัติ
+              {scheduleLabel}
             </p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {settings.schedules.map((row) => (
@@ -593,7 +639,7 @@ export default function ReportsPage() {
                     value={row.time}
                     disabled={!canSend || savingSettings}
                     onChange={(e) =>
-                      persistSettings({
+                      void persistSettings({
                         ...settings,
                         schedules: settings.schedules.map((item) =>
                           item.id === row.id ? { ...item, time: e.target.value } : item
@@ -612,7 +658,7 @@ export default function ReportsPage() {
                     value={row.set}
                     disabled={!canSend || savingSettings}
                     onChange={(e) =>
-                      persistSettings({
+                      void persistSettings({
                         ...settings,
                         schedules: settings.schedules.map((item) =>
                           item.id === row.id
@@ -635,7 +681,7 @@ export default function ReportsPage() {
                   <button
                     disabled={!canSend || savingSettings}
                     onClick={() =>
-                      persistSettings({
+                      void persistSettings({
                         ...settings,
                         schedules: settings.schedules.filter((item) => item.id !== row.id),
                       })
@@ -657,7 +703,7 @@ export default function ReportsPage() {
               <button
                 disabled={!canSend || savingSettings}
                 onClick={() =>
-                  persistSettings({
+                  void persistSettings({
                     ...settings,
                     schedules: [...settings.schedules, makeScheduleRow()],
                   })
@@ -675,7 +721,7 @@ export default function ReportsPage() {
                   gap: 8,
                 }}
               >
-                <Plus size={14} /> เพิ่มแถวเวลา
+                <Plus size={14} /> {addScheduleRowLabel}
               </button>
             </div>
           </div>
@@ -697,7 +743,7 @@ export default function ReportsPage() {
             </p>
             <button
               disabled={sending !== null || groupedData.total === 0 || loading || !canSend}
-              onClick={() => handleSendReport('1')}
+              onClick={() => void handleSendReport('1')}
               className="glass-interactive"
               style={{
                 width: '100%',
@@ -720,9 +766,7 @@ export default function ReportsPage() {
               }}
             >
               {sending === '1' ? (
-                t('common.loading')
-              ) : !canSend ? (
-                `🔒 ${t('notificationsHub.tipBody').split(' ')[0]}`
+                t('common.messages.loading')
               ) : (
                 <>
                   <Send size={18} /> {t('reports.sendSet1')}
@@ -731,10 +775,7 @@ export default function ReportsPage() {
             </button>
           </div>
 
-          <div
-            className="glass-premium"
-            style={{ padding: '24px', border: '1px solid var(--primary)' }}
-          >
+          <div className="glass-premium" style={{ padding: '24px', border: '1px solid var(--primary)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
               <Send color="var(--primary)" size={24} />
               <h4 style={{ fontWeight: '800', fontSize: '15px' }}>REPORT SET 2</h4>
@@ -751,7 +792,7 @@ export default function ReportsPage() {
             </p>
             <button
               disabled={sending !== null || groupedData.total === 0 || loading || !canSend}
-              onClick={() => handleSendReport('2')}
+              onClick={() => void handleSendReport('2')}
               className="glass-interactive"
               style={{
                 width: '100%',
@@ -774,9 +815,7 @@ export default function ReportsPage() {
               }}
             >
               {sending === '2' ? (
-                t('common.loading')
-              ) : !canSend ? (
-                `🔒 ${t('notificationsHub.tipBody').split(' ')[0]}`
+                t('common.messages.loading')
               ) : (
                 <>
                   <ChevronRight size={18} /> {t('reports.sendSet2')}
@@ -835,7 +874,7 @@ export default function ReportsPage() {
                     textTransform: 'uppercase',
                   }}
                 >
-                  Target LINE Group
+                  {lineGroupLabel}
                 </span>
                 <span style={{ fontSize: '14px', fontWeight: '800', color: 'var(--primary)' }}>
                   {selectedGroupName}
