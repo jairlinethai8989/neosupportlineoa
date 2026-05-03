@@ -182,6 +182,7 @@ const messages: Record<StaffLocale, MessageDictionary> = {
       cautionNote: 'การกดปุ่ม "ส่ง" จะทำการส่งรายงานไปยังกลุ่ม LINE ทันที กรุณาตรวจสอบวันที่และจำนวนจาก Preview ให้ถูกต้อง',
       dataReady: 'ข้อมูลพร้อมสำหรับการส่งรายงาน',
       columns: {
+        sequence: 'ลำดับ',
         status: 'สถานะ',
         date: 'วันที่แจ้ง',
         hospital: 'โรงพยาบาล',
@@ -739,6 +740,7 @@ const messages: Record<StaffLocale, MessageDictionary> = {
       cautionNote: 'Clicking "Send" will broadcast reports to LINE group immediately. Please verify date and count from Preview.',
       dataReady: 'Data is ready for reporting',
       columns: {
+        sequence: 'No.',
         status: 'Status',
         date: 'Created Date',
         hospital: 'Hospital',
