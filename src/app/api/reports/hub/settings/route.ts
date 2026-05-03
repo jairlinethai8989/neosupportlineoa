@@ -25,12 +25,18 @@ export async function GET() {
     const auth = await requireStaffAuth();
     if (!auth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const settings = await getReportBroadcastSettings();
-    const { data: groups, error } = await supabaseAdmin
+    const { data: groups, error: groupsError } = await supabaseAdmin
       .from('line_groups')
       .select('id, name, group_id, is_active')
       .order('name');
-    if (error) throw error;
+    if (groupsError) throw groupsError;
+
+    let settings = getDefaultReportBroadcastSettings();
+    try {
+      settings = await getReportBroadcastSettings();
+    } catch (settingsError) {
+      console.error('Failed to load report broadcast settings:', settingsError);
+    }
 
     return NextResponse.json({
       settings,
@@ -38,10 +44,6 @@ export async function GET() {
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to load settings';
-    // Handle missing migration gracefully so UI still opens
-    if (message.includes('report_broadcast_')) {
-      return NextResponse.json({ settings: getDefaultReportBroadcastSettings(), groups: [] });
-    }
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

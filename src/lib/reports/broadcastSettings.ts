@@ -55,31 +55,53 @@ export function normalizeBroadcastSettings(raw: unknown): ReportBroadcastSetting
 }
 
 async function ensureCompanySettingsRow() {
-  const { data, error } = await supabaseAdmin
+  const { data: baseRow, error: baseError } = await supabaseAdmin
     .from('company_settings')
-    .select('id, report_broadcast_mode, report_broadcast_group_id, report_broadcast_schedules')
+    .select('id')
     .order('created_at', { ascending: true })
     .limit(1)
     .maybeSingle();
-  if (error) throw error;
-  if (data) return data;
+  if (baseError) throw baseError;
 
-  const { data: inserted, error: insertError } = await supabaseAdmin
+  const activeRow =
+    baseRow ||
+    (
+      await supabaseAdmin
+        .from('company_settings')
+        .insert([{}])
+        .select('id')
+        .single()
+    ).data;
+
+  if (!activeRow?.id) {
+    throw new Error('Unable to initialize company_settings row');
+  }
+
+  const { data, error } = await supabaseAdmin
     .from('company_settings')
-    .insert([{}])
     .select('id, report_broadcast_mode, report_broadcast_group_id, report_broadcast_schedules')
-    .single();
-  if (insertError) throw insertError;
-  return inserted;
+    .eq('id', activeRow.id)
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) throw new Error('Unable to load company_settings row');
+  return data;
 }
 
 export async function getReportBroadcastSettings(): Promise<ReportBroadcastSettings> {
-  const row = await ensureCompanySettingsRow();
-  return normalizeBroadcastSettings({
-    mode: row.report_broadcast_mode,
-    groupId: row.report_broadcast_group_id,
-    schedules: row.report_broadcast_schedules,
-  });
+  try {
+    const row = await ensureCompanySettingsRow();
+    return normalizeBroadcastSettings({
+      mode: row.report_broadcast_mode,
+      groupId: row.report_broadcast_group_id,
+      schedules: row.report_broadcast_schedules,
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : '';
+    if (message.includes('report_broadcast_')) {
+      return DEFAULT_SETTINGS;
+    }
+    throw error;
+  }
 }
 
 export async function saveReportBroadcastSettings(input: ReportBroadcastSettings): Promise<void> {
