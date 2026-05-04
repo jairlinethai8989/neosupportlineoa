@@ -11,6 +11,7 @@ import {
   CheckCheck, 
   Ticket,
   User,
+  Users,
   Shield,
   Info,
   Clock,
@@ -56,6 +57,7 @@ export default function AuditLogPage() {
   // Filters
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedAgent, setSelectedAgent] = useState('all');
+  const [selectedAction, setSelectedAction] = useState('all');
   const [limit, setLimit] = useState(50);
   const [clearing, setClearing] = useState(false);
   const [selectedLog, setSelectedLog] = useState<any>(null);
