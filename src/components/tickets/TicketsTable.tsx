@@ -81,6 +81,7 @@ function getStatusColor(status: string) {
     resolved: '#28c76f',
     closed: '#94a3b8',
     escalated: '#7367f0',
+    'fix completed': '#00cfe8',
   };
   return colors[normalized] || 'gray';
 }

@@ -5,7 +5,7 @@ import { supabaseAdmin } from '@/lib/supabaseAdmin';
 const ESCALATION_PIN = '1234';
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-type ExternalWorkStatus = 'In Progress' | 'Pending';
+type ExternalWorkStatus = 'In Progress' | 'Pending' | 'Fix Completed';
 
 type EscalationTicketRow = {
   id: string;
@@ -31,7 +31,9 @@ function hasValidPin(pin: string) {
 }
 
 function sanitizeExternalStatus(status: string): ExternalWorkStatus {
-  return status === 'Pending' ? 'Pending' : 'In Progress';
+  if (status === 'Pending') return 'Pending';
+  if (status === 'Fix Completed') return 'Fix Completed';
+  return 'In Progress';
 }
 
 function buildExternalReport(input: {

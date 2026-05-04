@@ -28,7 +28,7 @@ import { supabase } from '@/lib/supabase';
 import { useStaffLocale } from '@/contexts/StaffLocaleContext';
 import { translateTicketStatus } from '@/lib/i18n/staff';
 
-type ExternalReportStatus = 'In Progress' | 'Pending';
+type ExternalReportStatus = 'In Progress' | 'Pending' | 'Fix Completed';
 
 type TicketLog = {
   action_type?: string | null;
@@ -65,6 +65,12 @@ function statusBadgeStyle(status: string | null | undefined): React.CSSPropertie
       color: '#065f46',
     };
   }
+  if (status === 'Fix Completed') {
+    return {
+      background: '#e0f7fa',
+      color: '#006064',
+    };
+  }
   return {
     background: '#fef3c7',
     color: '#92400e',
@@ -85,6 +91,7 @@ export default function EscalationPortalPage() {
   const STATUS_OPTIONS: Array<{ value: ExternalReportStatus; label: string }> = [
     { value: 'In Progress', label: t('escalation.returnStatusInProgress') },
     { value: 'Pending', label: t('escalation.returnStatusPending') },
+    { value: 'Fix Completed', label: t('escalation.returnStatusFixed') },
   ];
 
 

@@ -8,13 +8,14 @@ import { useStaffLocale } from '@/contexts/StaffLocaleContext';
 import { translateTicketPriority, translateTicketStatus } from '@/lib/i18n/staff';
 import type { TicketWorkspaceTicket } from '@/types/tickets';
 
-const WORKFLOW = ['New', 'In Progress', 'Resolved', 'Escalated', 'Pending'] as const;
+const WORKFLOW = ['New', 'In Progress', 'Escalated', 'Fix Completed', 'Resolved', 'Pending'] as const;
 
 const STATUS_CONFIG: Record<string, { color: string; glow: string }> = {
   New: { color: 'var(--primary)', glow: 'rgba(8, 145, 178, 0.4)' },
   'In Progress': { color: 'var(--warning, #ff9f43)', glow: 'rgba(255, 159, 67, 0.4)' },
   Resolved: { color: 'var(--success, #28c76f)', glow: 'rgba(40, 199, 111, 0.4)' },
   Escalated: { color: 'var(--secondary, #8b5cf6)', glow: 'rgba(139, 92, 246, 0.4)' },
+  'Fix Completed': { color: '#00cfe8', glow: 'rgba(0, 207, 232, 0.4)' },
   Pending: { color: '#ef4444', glow: 'rgba(239, 68, 68, 0.4)' },
 };
 

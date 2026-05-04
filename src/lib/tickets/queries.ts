@@ -134,7 +134,7 @@ export async function listTicketWorkspaceTickets(input: {
   if (input.fromIso && input.toIso) {
     // Persistent statuses that always show regardless of date range
     // In Progress = not yet closed, must always be visible
-    const persistentStatuses = 'Escalated,Pending,In Progress';
+    const persistentStatuses = 'Escalated,Pending,In Progress,Fix Completed';
     // Combine: (In date range) OR (Status is one of the persistent/pinned statuses)
     const filter = `and(created_at.gte.${input.fromIso},created_at.lte.${input.toIso}),status.in.(${persistentStatuses})`;
     query = query.or(filter);

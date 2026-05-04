@@ -532,6 +532,7 @@ const messages: Record<StaffLocale, MessageDictionary> = {
         pending: 'รอดำเนินการ',
         assigned: 'มอบหมายแล้ว',
         closed: 'ปิดงาน',
+        fixCompleted: 'แก้ไขเสร็จสิ้น',
       },
       priorities: {
         high: 'สูง',
@@ -549,6 +550,7 @@ const messages: Record<StaffLocale, MessageDictionary> = {
       returnStatus: 'สถานะงานที่ส่งคืน',
       returnStatusInProgress: 'ส่งกลับให้เจ้าของพิจารณา (In Progress)',
       returnStatusPending: 'ติดปัญหา (Pending)',
+      returnStatusFixed: 'แก้ไขเรียบร้อย (Ready to Close)',
       receiver: 'ผู้รับเรื่อง',
       workLog: 'บันทึกการดำเนินงาน',
       workLogPlaceholder: 'อธิบายสิ่งที่ได้ดำเนินการไปแล้ว หรือปัญหาที่พบ...',
@@ -1090,6 +1092,7 @@ const messages: Record<StaffLocale, MessageDictionary> = {
         pending: 'Pending',
         assigned: 'Assigned',
         closed: 'Closed',
+        fixCompleted: 'Fix Completed',
       },
       priorities: {
         high: 'High',
@@ -1107,6 +1110,7 @@ const messages: Record<StaffLocale, MessageDictionary> = {
       returnStatus: 'Return status',
       returnStatusInProgress: 'Return to owner for review (In Progress)',
       returnStatusPending: 'Blocked (Pending)',
+      returnStatusFixed: 'Fix Completed (Ready to Close)',
       receiver: 'Receiver',
       workLog: 'Work log',
       workLogPlaceholder: 'Describe what has been done or what is blocked...',
@@ -1157,6 +1161,7 @@ export function translateTicketStatus(status: string, locale: StaffLocale): stri
       pending: 'tickets.statuses.pending',
       assigned: 'tickets.statuses.assigned',
       closed: 'tickets.statuses.closed',
+      'fix completed': 'tickets.statuses.fixCompleted',
     },
     'tickets.statuses.new'
   );

@@ -66,7 +66,7 @@ function isTicketWithinWorkspaceRange(
   const toMs = new Date(toIso).getTime();
 
   const status = getTicketStatus(ticket);
-  if (status === 'Escalated' || status === 'Pending' || status === 'In Progress') return true;
+  if (status === 'Escalated' || status === 'Pending' || status === 'In Progress' || status === 'Fix Completed') return true;
 
   return createdAtMs >= fromMs && createdAtMs <= toMs;
 }
@@ -103,7 +103,7 @@ function mergeWorkspaceTicketsForSilentRefresh(
     if (fetchedIds.has(ticket.id)) return;
     if (!isTicketWithinWorkspaceRange(ticket, timeRange, customStart, customEnd)) {
       const status = getTicketStatus(ticket);
-      if (status !== 'Escalated' && status !== 'Pending' && status !== 'In Progress') return;
+      if (status !== 'Escalated' && status !== 'Pending' && status !== 'In Progress' && status !== 'Fix Completed') return;
     }
     mergedTickets.unshift(ticket);
   });
@@ -453,9 +453,10 @@ export function useTicketWorkspace(filterCustomerId: string | null) {
 
     // Priority pin: In Progress, Escalated, Pending always float to top (0 = pinned, 1 = normal)
     const STATUS_PRIORITY: Record<string, number> = {
-      'in progress': 0,
-      'escalated': 0,
-      'pending': 0,
+      'fix completed': 0, // NEW: Fixed jobs go first so owner closes them
+      'in progress': 1,
+      'escalated': 1,
+      'pending': 1,
     };
     const getPriority = (ticket: TicketWorkspaceTicket) =>
       STATUS_PRIORITY[String(ticket.status || '').toLowerCase()] ?? 1;
