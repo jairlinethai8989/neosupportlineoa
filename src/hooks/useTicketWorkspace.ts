@@ -66,7 +66,7 @@ function isTicketWithinWorkspaceRange(
   const toMs = new Date(toIso).getTime();
 
   const status = getTicketStatus(ticket);
-  if (status === 'Escalated' || status === 'Pending') return true;
+  if (status === 'Escalated' || status === 'Pending' || status === 'In Progress') return true;
 
   return createdAtMs >= fromMs && createdAtMs <= toMs;
 }
@@ -103,7 +103,7 @@ function mergeWorkspaceTicketsForSilentRefresh(
     if (fetchedIds.has(ticket.id)) return;
     if (!isTicketWithinWorkspaceRange(ticket, timeRange, customStart, customEnd)) {
       const status = getTicketStatus(ticket);
-      if (status !== 'Escalated' && status !== 'Pending') return;
+      if (status !== 'Escalated' && status !== 'Pending' && status !== 'In Progress') return;
     }
     mergedTickets.unshift(ticket);
   });
@@ -451,9 +451,22 @@ export function useTicketWorkspace(filterCustomerId: string | null) {
       });
     }
 
-    if (!sortConfig.key) return result;
+    // Priority pin: In Progress, Escalated, Pending always float to top (0 = pinned, 1 = normal)
+    const STATUS_PRIORITY: Record<string, number> = {
+      'in progress': 0,
+      'escalated': 0,
+      'pending': 0,
+    };
+    const getPriority = (ticket: TicketWorkspaceTicket) =>
+      STATUS_PRIORITY[String(ticket.status || '').toLowerCase()] ?? 1;
 
     result.sort((left, right) => {
+      // 1. Pinned group first
+      const priorityDiff = getPriority(left) - getPriority(right);
+      if (priorityDiff !== 0) return priorityDiff;
+
+      // 2. Within same group, apply the user's chosen sort
+      if (!sortConfig.key) return 0;
       const leftValue = getTicketWorkspaceSortValue(left, sortConfig.key);
       const rightValue = getTicketWorkspaceSortValue(right, sortConfig.key);
 
