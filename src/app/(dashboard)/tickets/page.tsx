@@ -145,6 +145,9 @@ function TicketsContent() {
           getConvId={getConvId}
           handleSort={handleSort}
           sortConfig={sortConfig}
+          claimingId={claimingId}
+          handleClaim={handleClaim}
+          isViewOnly={isViewOnly}
         />
       )}
 

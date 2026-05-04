@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { ArrowDown, ArrowUp, ArrowUpDown, ExternalLink, MessageCircle } from 'lucide-react';
+import { ArrowDown, ArrowUp, ArrowUpDown, ExternalLink, Loader2, MessageCircle, Zap } from 'lucide-react';
 import Link from 'next/link';
 import { useStaffLocale } from '@/contexts/StaffLocaleContext';
 import { translateTicketStatus } from '@/lib/i18n/staff';
@@ -111,6 +111,9 @@ interface TicketsTableProps {
   getConvId: (ticket: TicketWorkspaceTicket) => string | undefined;
   handleSort: (key: string) => void;
   sortConfig: TicketWorkspaceSortConfig;
+  claimingId: string | null;
+  handleClaim: (ticketId: string) => void;
+  isViewOnly: boolean;
 }
 
 export function TicketsTable({
@@ -118,6 +121,9 @@ export function TicketsTable({
   getConvId,
   handleSort,
   sortConfig,
+  claimingId,
+  handleClaim,
+  isViewOnly,
 }: TicketsTableProps) {
   const { locale, t } = useStaffLocale();
 
@@ -214,7 +220,36 @@ export function TicketsTable({
                 </td>
                 <td style={cellStyle}>
                   <div style={actionWrapStyle}>
-                    {convId && !['resolved', 'closed', 'pending', 'escalated'].includes(String(ticket.status || '').toLowerCase()) && (
+                    {/* ปุ่มรับงาน: แสดงเฉพาะ New */}
+                    {String(ticket.status || '').toLowerCase() === 'new' && (
+                      <button
+                        disabled={claimingId === ticket.id || isViewOnly}
+                        onClick={() => handleClaim(ticket.id)}
+                        className="glass-interactive flex-center"
+                        style={{
+                          height: '36px',
+                          padding: '0 14px',
+                          borderRadius: '10px',
+                          border: 'none',
+                          background: (claimingId === ticket.id || isViewOnly) ? 'var(--border)' : 'var(--primary)',
+                          color: (claimingId === ticket.id || isViewOnly) ? 'var(--text-muted)' : '#000',
+                          fontSize: '12px',
+                          fontWeight: '850',
+                          cursor: (claimingId === ticket.id || isViewOnly) ? 'not-allowed' : 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          opacity: isViewOnly ? 0.5 : 1,
+                          boxShadow: (claimingId === ticket.id || isViewOnly) ? 'none' : '0 4px 14px rgba(8,145,178,0.3)',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        {claimingId === ticket.id
+                          ? <><Loader2 className="animate-spin" size={14} />{t('tickets.claiming')}</>
+                          : <><Zap size={14} />{t('tickets.claimTicket')}</>}
+                      </button>
+                    )}
+                    {convId && !['new', 'resolved', 'closed', 'pending', 'escalated'].includes(String(ticket.status || '').toLowerCase()) && (
                       <Link
                         href={`/inbox?cid=${convId}`}
                         title={t('tickets.openInboxChat')}
