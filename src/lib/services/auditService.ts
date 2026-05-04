@@ -48,7 +48,7 @@ export const auditService = {
       .from('system_logs')
       .select(`
         *,
-        performer:profiles!performer_id(full_name, avatar_url)
+        performer:profiles!performer_id(full_name, avatar_url, role)
       `)
       .order('created_at', { ascending: false });
 

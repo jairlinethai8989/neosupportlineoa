@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { X, AlertTriangle, Ticket, MessageSquare, Clock } from 'lucide-react';
 import { ToastNotif, NotifType } from '@/hooks/useNotifications';
+import { useStaffLocale } from '@/contexts/StaffLocaleContext';
 
 interface ToastItemProps {
   toast: ToastNotif;
@@ -9,35 +9,37 @@ interface ToastItemProps {
   duration?: number;
 }
 
-const TYPE_CONFIG: Record<string, { icon: React.ElementType; color: string; bg: string; label: string }> = {
-  sla: {
-    icon: AlertTriangle,
-    color: '#ef4444',
-    bg: 'rgba(239, 68, 68, 0.12)',
-    label: 'SLA หลุดกำหนด',
-  },
-  sla_warning: {
-    icon: Clock,
-    color: '#f59e0b',
-    bg: 'rgba(245, 158, 11, 0.12)',
-    label: 'SLA ใกล้หมด',
-  },
-  ticket: {
-    icon: Ticket,
-    color: '#3699FF',
-    bg: 'rgba(54, 153, 255, 0.12)',
-    label: 'ใบงาน',
-  },
-  message: {
-    icon: MessageSquare,
-    color: '#34d399',
-    bg: 'rgba(52, 211, 153, 0.12)',
-    label: 'ข้อความ',
-  },
-};
 
 export default function ToastItem({ toast, onDismiss }: ToastItemProps) {
   const router = useRouter();
+  const { t } = useStaffLocale();
+
+  const TYPE_CONFIG: Record<string, { icon: React.ElementType; color: string; bg: string; label: string }> = {
+    sla: {
+      icon: AlertTriangle,
+      color: '#ef4444',
+      bg: 'rgba(239, 68, 68, 0.12)',
+      label: t('notificationsHub.types.sla'),
+    },
+    sla_warning: {
+      icon: Clock,
+      color: '#f59e0b',
+      bg: 'rgba(245, 158, 11, 0.12)',
+      label: t('notificationsHub.types.sla_warning'),
+    },
+    ticket: {
+      icon: Ticket,
+      color: '#3699FF',
+      bg: 'rgba(54, 153, 255, 0.12)',
+      label: t('notificationsHub.types.ticket'),
+    },
+    message: {
+      icon: MessageSquare,
+      color: '#34d399',
+      bg: 'rgba(52, 211, 153, 0.12)',
+      label: t('notificationsHub.types.message'),
+    },
+  };
   // SLA toasts stay longer by default
   const effectiveDuration = toast.duration ?? (toast.type === 'sla' ? 8000 : toast.type === 'sla_warning' ? 6000 : 5000);
 

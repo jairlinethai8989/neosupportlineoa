@@ -10,6 +10,7 @@ import {
   SoundTestResult,
   LatestTicketRealtimeEvent,
 } from '@/hooks/useNotifications';
+import { useStaffLocale } from './StaffLocaleContext';
 
 export type NotifTab = 'all' | 'unread' | 'sla';
 
@@ -17,6 +18,7 @@ interface NotificationContextValue {
   notifications: AppNotification[];
   toasts: ToastNotif[];
   unreadCount: number;
+  slaAlertCount: number;
   markAsRead: (id: string) => void;
   markAllRead: () => void;
   clearNotifications: () => void;
@@ -38,6 +40,7 @@ const NotificationContext = createContext<NotificationContextValue>({
   notifications: [],
   toasts: [],
   unreadCount: 0,
+  slaAlertCount: 0,
   markAsRead: () => {},
   markAllRead: () => {},
   clearNotifications: () => {},
@@ -64,7 +67,8 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     });
   }, []);
 
-  const notif = useNotifications(agentId);
+  const { locale } = useStaffLocale();
+  const notif = useNotifications(agentId, locale);
 
   return (
     <NotificationContext.Provider value={{ ...notif, agentId }}>

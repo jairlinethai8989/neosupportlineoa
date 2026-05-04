@@ -306,6 +306,14 @@ export default function MasterSettingsPage() {
         const { error } = await supabase.from('company_settings').update({ [arrayProp]: newList }).eq('id', globalSettings.id);
         if (!error) {
            await refreshData('settings');
+           const { data: { user } } = await supabase.auth.getUser();
+           await auditService.log({
+             performer_id: user?.id,
+             action_type: 'MASTER_DELETE',
+             entity_type: table.toUpperCase(),
+             new_data: { name: itemToDelete.name },
+             note: `Deleted ${activeTab} item: ${itemToDelete.name}`
+           });
            addToast({
              id: `master-del-${id}`,
              type: 'ticket',

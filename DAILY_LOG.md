@@ -1,6 +1,22 @@
-# บันทึกความคืบหน้าโครงการ NeoSupport V2.0 (ล่าสุด 30 เมษายน 2569)
+# บันทึกความคืบหน้าโครงการ NeoSupport V2.0 (ล่าสุด 1 พฤษภาคม 2569)
 
-## ✅ สิ่งที่ทำสำเร็จแล้วในวันนี้ (30 เมษายน 2569)
+## ✅ สิ่งที่ทำสำเร็จแล้วในวันนี้ (1 พฤษภาคม 2569)
+
+1.  **Customer Meta UI & Inbox Sidebar Polish (โดย Codex - Commit fd1778e, dc7df1b):**
+    *   **Enhanced Profile Display:** เพิ่มการแสดงผลรูปโปรไฟล์, Display Name, LINE ID และข้อมูลสังกัด (รพ., แผนก, ตำแหน่ง) ในหน้า Inbox Sidebar
+    *   **Optimized Two-Column Layout:** ปรับปรุงโครงสร้าง Grid จาก Auto-fit เป็น Fixed/Flexible structure เพื่อป้องกันคอลัมน์ยุบผิดรูปในหน้าจอที่แคบ
+    *   **Skeleton Loading:** เพิ่มสถานะการโหลดข้อมูลลูกค้าให้ดูพรีเมียมและลดการกระตุกของ UI
+    *   **Localization Alignment:** แก้ไขปัญหาตัวอักษรเพี้ยนและปรับให้ Label รองรับการสลับภาษา TH/EN อย่างถูกต้อง
+2.  **Type Debt & API Hardening (โดย Codex - Commit 8c97e8c):**
+    *   **Refactor API Routes:** ปรับปรุงไฟล์ใน `src/app/api/*` (ยกเว้นก้อน reports) จากการใช้ `any` เป็น `unknown` เพื่อความปลอดภัยของข้อมูล (Type-safety)
+    *   **Standardized Error Handling:** นำแพตเทิร์นการจัดการ Error มาตรฐานมาใช้ใน API ทุกจุดที่ปรับปรุง
+    *   **Hooks Regression Protection:** ปรับปรุง `useInboxConversation`, `useRealtimeInbox` และ `useTicketWorkspace` เพื่อให้ระบบแชทและจัดการใบงานมีความเสถียรสูงสุด
+    *   **Lint Debt Cleanup:** เคลียร์ปัญหา Lint ใน `src/lib/*` และ `src/hooks/*` เพื่อลด Technical Debt
+    *   **Build Integrity:** ยืนยันความถูกต้องผ่าน `npm run build` และ `eslint` สำเร็จครบถ้วน
+
+---
+
+## ✅ สิ่งที่ทำสำเร็จแล้วก่อนหน้า (30 เมษายน 2569)
 
 1.  **Dashboard Agent Workload Fix (สำเร็จ):**
     *   ปรับปรุง API Endpoint ของหน้า Dashboard (`/api/dashboard/summary/route.ts`) ในส่วน "ภาระงานเจ้าหน้าที่ (Agent Workload)"

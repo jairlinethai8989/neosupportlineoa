@@ -57,7 +57,7 @@ function MainSidebarComponent({ onClickLink, isCollapsed = false }: SidebarProps
   const pathname = usePathname();
   const router = useRouter();
   const { companySettings: company, userProfile: profile } = useAppContext();
-  const { unreadCount, newTicketsCount } = useNotificationContext();
+  const { unreadCount, newTicketsCount, slaAlertCount } = useNotificationContext();
   const { t } = useStaffLocale();
 
   const [inboxCount, setInboxCount] = useState(0);
@@ -225,6 +225,7 @@ function MainSidebarComponent({ onClickLink, isCollapsed = false }: SidebarProps
               { name: 'Branding', label: t('sidebar.menu.branding'), path: '/settings/branding' },
               { name: 'Staff', label: t('sidebar.menu.staff'), path: '/settings/staff' },
               { name: 'SLA', label: t('sidebar.menu.sla'), path: '/settings/sla' },
+              { name: 'Templates', label: t('sidebar.menu.templates'), path: '/settings/templates' },
               { name: 'Master', label: t('sidebar.menu.master'), path: '/settings/master' },
               { name: 'Security', label: t('sidebar.menu.audit'), path: '/settings/audit' },
             ],
@@ -232,7 +233,7 @@ function MainSidebarComponent({ onClickLink, isCollapsed = false }: SidebarProps
         ] satisfies SidebarItem[],
       },
     ],
-    [inboxCount, newTicketsCount, t, unreadCount]
+    [inboxCount, newTicketsCount, t, unreadCount, slaAlertCount]
   );
 
   const filteredMenuSections = useMemo(
@@ -452,18 +453,38 @@ function MainSidebarComponent({ onClickLink, isCollapsed = false }: SidebarProps
                   <item.icon size={18} />
                   {!isCollapsed && <span style={{ fontSize: '13px', flex: 1 }}>{item.label}</span>}
                   {!isCollapsed && item.count !== undefined && item.count > 0 && (
-                    <span
-                      style={{
-                        fontSize: '10px',
-                        background: 'var(--danger)',
-                        color: 'white',
-                        padding: '2px 8px',
-                        borderRadius: '10px',
-                        fontWeight: '700',
-                      }}
-                    >
-                      {item.count}
-                    </span>
+                    <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                      {item.name === 'Notifications' && slaAlertCount > 0 && (
+                        <span
+                          style={{
+                            fontSize: '10px',
+                            background: '#ea5455',
+                            color: 'white',
+                            padding: '2px 4px',
+                            borderRadius: '6px',
+                            fontWeight: '900',
+                            display: 'flex',
+                            alignItems: 'center',
+                            boxShadow: '0 0 10px rgba(234, 84, 85, 0.4)',
+                            animation: 'sidebar-pulse 2s infinite'
+                          }}
+                        >
+                          🔥
+                        </span>
+                      )}
+                      <span
+                        style={{
+                          fontSize: '10px',
+                          background: isActive ? 'var(--primary)' : 'rgba(255,255,255,0.1)',
+                          color: isActive ? '#000' : 'white',
+                          padding: '2px 8px',
+                          borderRadius: '10px',
+                          fontWeight: '700',
+                        }}
+                      >
+                        {item.count}
+                      </span>
+                    </div>
                   )}
                 </Link>
               );
@@ -527,6 +548,11 @@ function MainSidebarComponent({ onClickLink, isCollapsed = false }: SidebarProps
             @keyframes tooltipIn {
               from { opacity: 0; transform: translateX(-10px); }
               to { opacity: 1; transform: translateX(0); }
+            }
+            @keyframes sidebar-pulse {
+              0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(234, 84, 85, 0.4); }
+              50% { transform: scale(1.1); box-shadow: 0 0 0 6px rgba(234, 84, 85, 0); }
+              100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(234, 84, 85, 0); }
             }
           `,
         }}

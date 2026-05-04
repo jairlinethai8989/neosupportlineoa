@@ -17,6 +17,13 @@ import {
   Activity,
   FileSpreadsheet,
   FileText,
+  Trash2,
+  Lock,
+  Plus,
+  Edit3,
+  MessageSquarePlus,
+  Mail,
+  X,
   ChevronRight
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
@@ -49,9 +56,21 @@ export default function AuditLogPage() {
   // Filters
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedAgent, setSelectedAgent] = useState('all');
-  const [selectedAction, setSelectedAction] = useState('all');
   const [limit, setLimit] = useState(50);
   const [clearing, setClearing] = useState(false);
+  const [selectedLog, setSelectedLog] = useState<any>(null);
+  const [showDetails, setShowDetails] = useState(false);
+
+  // Calculate summary stats for the dashboard view
+  const stats = React.useMemo(() => {
+    const total = logs.length;
+    const uniquePerformers = new Set(logs.map(l => l.performer_id).filter(Boolean)).size;
+    const criticalActions = logs.filter(l => 
+      ['staff_delete', 'staff_permission_update', 'master_delete', 'branding_update', 'sla_update'].includes(l.action_type?.toLowerCase())
+    ).length;
+    
+    return { total, uniquePerformers, criticalActions };
+  }, [logs]);
 
   const fetchLogs = useCallback(async () => {
     setLoading(true);
@@ -113,8 +132,21 @@ export default function AuditLogPage() {
       case 'resolve': return <CheckCheck size={14} color="#28c76f" />;
       case 'status_change': return <History size={14} color="#00f2fe" />;
       case 'staff_create': return <User size={14} color="#7367f0" />;
+      case 'staff_delete': return <Trash2 size={14} color="#ea5455" />;
+      case 'staff_permission_update': return <Lock size={14} color="#7367f0" />;
       case 'branding_update': return <Activity size={14} color="#ffcd3c" />;
       case 'dept_create': return <Shield size={14} color="#00f2fe" />;
+      case 'sla_update': return <Clock size={14} color="#ff9f43" />;
+      case 'master_create': return <Plus size={14} color="#28c76f" />;
+      case 'master_update': return <Edit3 size={14} color="#7367f0" />;
+      case 'master_delete': return <Trash2 size={14} color="#ea5455" />;
+      case 'master_toggle': return <Activity size={14} color="#ff9f43" />;
+      case 'profile_update': return <User size={14} color="#7367f0" />;
+      case 'template_add': return <MessageSquarePlus size={14} color="#28c76f" />;
+      case 'template_delete': return <Trash2 size={14} color="#ea5455" />;
+      case 'reopen': return <ArrowRight size={14} color="#00f2fe" />;
+      case 'note': return <FileText size={14} color="#ffcd3c" />;
+      case 'message': return <Mail size={14} color="#7367f0" />;
       default: return <Info size={14} color="#b4b7bd" />;
     }
   };
@@ -230,7 +262,7 @@ export default function AuditLogPage() {
   return (
     <div className="audit-page" style={{ animation: 'fadeIn 0.5s ease-out' }}>
       {/* Header Section */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '32px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '24px' }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '8px' }}>
              <div className="glass" style={{ padding: '12px', borderRadius: '14px', background: 'var(--primary-glow)' }}>
@@ -274,6 +306,37 @@ export default function AuditLogPage() {
              {t('settingsAudit.exportPdf')}
            </button>
         </div>
+      </div>
+
+      {/* Summary Dashboard Section */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px', marginBottom: '32px' }}>
+         <div className="glass" style={{ padding: '24px', display: 'flex', alignItems: 'center', gap: '20px', border: '1px solid var(--border)' }}>
+            <div style={{ background: 'rgba(0, 242, 254, 0.1)', padding: '14px', borderRadius: '16px' }}>
+               <Activity size={24} color="var(--primary)" />
+            </div>
+            <div>
+               <p style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>Total Events</p>
+               <h3 style={{ fontSize: '24px', fontWeight: '900' }}>{stats.total} <span style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: '500' }}>logs</span></h3>
+            </div>
+         </div>
+         <div className="glass" style={{ padding: '24px', display: 'flex', alignItems: 'center', gap: '20px', border: '1px solid var(--border)' }}>
+            <div style={{ background: 'rgba(115, 103, 240, 0.1)', padding: '14px', borderRadius: '16px' }}>
+               <Users size={24} color="#7367f0" />
+            </div>
+            <div>
+               <p style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>Active Staff</p>
+               <h3 style={{ fontSize: '24px', fontWeight: '900' }}>{stats.uniquePerformers} <span style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: '500' }}>actors</span></h3>
+            </div>
+         </div>
+         <div className="glass" style={{ padding: '24px', display: 'flex', alignItems: 'center', gap: '20px', border: '1px solid var(--border)' }}>
+            <div style={{ background: 'rgba(234, 84, 85, 0.1)', padding: '14px', borderRadius: '16px' }}>
+               <Shield size={24} color="#ea5455" />
+            </div>
+            <div>
+               <p style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>Critical Actions</p>
+               <h3 style={{ fontSize: '24px', fontWeight: '900' }}>{stats.criticalActions} <span style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: '500' }}>security</span></h3>
+            </div>
+         </div>
       </div>
 
       {/* Custom Tab Navigation */}
@@ -327,6 +390,43 @@ export default function AuditLogPage() {
                >
                  <option value="all" style={{ background: 'var(--bg-deep)' }}>{t('settingsAudit.allAgents')}</option>
                  {agents.map(a => <option key={a.id} value={a.id} style={{ background: 'var(--bg-deep)' }}>{a.full_name}</option>)}
+               </select>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', background: 'rgba(255,255,255,0.02)', padding: '4px 12px', borderRadius: '12px', border: '1px solid var(--border)' }}>
+               <Activity size={16} color="var(--primary)" opacity={0.6} />
+               <select 
+                 value={selectedAction}
+                 onChange={(e) => setSelectedAction(e.target.value)}
+                 style={{ background: 'none', border: 'none', color: 'var(--text-main)', fontSize: '14px', padding: '8px 0', outline: 'none', cursor: 'pointer', fontWeight: '600' }}
+               >
+                 <option value="all" style={{ background: 'var(--bg-deep)' }}>{t('settingsAudit.headers.action')}: {t('dashboard.tabs.all')}</option>
+                 {activeTab === 'ticket' ? (
+                   <>
+                     <option value="claim" style={{ background: 'var(--bg-deep)' }}>{translateAuditAction('claim', locale)}</option>
+                     <option value="transfer" style={{ background: 'var(--bg-deep)' }}>{translateAuditAction('transfer', locale)}</option>
+                     <option value="resolve" style={{ background: 'var(--bg-deep)' }}>{translateAuditAction('resolve', locale)}</option>
+                     <option value="status_change" style={{ background: 'var(--bg-deep)' }}>{translateAuditAction('status_change', locale)}</option>
+                     <option value="reopen" style={{ background: 'var(--bg-deep)' }}>{translateAuditAction('reopen', locale)}</option>
+                     <option value="note" style={{ background: 'var(--bg-deep)' }}>{translateAuditAction('note', locale)}</option>
+                     <option value="message" style={{ background: 'var(--bg-deep)' }}>{translateAuditAction('message', locale)}</option>
+                   </>
+                 ) : (
+                   <>
+                     <option value="STAFF_CREATE" style={{ background: 'var(--bg-deep)' }}>{translateAuditAction('staff_create', locale)}</option>
+                     <option value="STAFF_DELETE" style={{ background: 'var(--bg-deep)' }}>{translateAuditAction('staff_delete', locale)}</option>
+                     <option value="STAFF_PERMISSION_UPDATE" style={{ background: 'var(--bg-deep)' }}>{translateAuditAction('staff_permission_update', locale)}</option>
+                     <option value="BRANDING_UPDATE" style={{ background: 'var(--bg-deep)' }}>{translateAuditAction('branding_update', locale)}</option>
+                     <option value="SLA_UPDATE" style={{ background: 'var(--bg-deep)' }}>{translateAuditAction('sla_update', locale)}</option>
+                     <option value="MASTER_CREATE" style={{ background: 'var(--bg-deep)' }}>{translateAuditAction('master_create', locale)}</option>
+                     <option value="MASTER_UPDATE" style={{ background: 'var(--bg-deep)' }}>{translateAuditAction('master_update', locale)}</option>
+                     <option value="MASTER_DELETE" style={{ background: 'var(--bg-deep)' }}>{translateAuditAction('master_delete', locale)}</option>
+                     <option value="MASTER_TOGGLE" style={{ background: 'var(--bg-deep)' }}>{translateAuditAction('master_toggle', locale)}</option>
+                     <option value="PROFILE_UPDATE" style={{ background: 'var(--bg-deep)' }}>{translateAuditAction('profile_update', locale)}</option>
+                     <option value="TEMPLATE_ADD" style={{ background: 'var(--bg-deep)' }}>{translateAuditAction('template_add', locale)}</option>
+                     <option value="TEMPLATE_DELETE" style={{ background: 'var(--bg-deep)' }}>{translateAuditAction('template_delete', locale)}</option>
+                   </>
+                 )}
                </select>
             </div>
 
@@ -426,6 +526,19 @@ export default function AuditLogPage() {
                                 <span style={{ color: 'var(--primary)', fontWeight: '700' }}>🎯 {t('settingsAudit.transferTo')}: {log.target_user.full_name}</span>
                              )}
                              <span style={{ opacity: 0.7, fontStyle: 'italic', maxWidth: '300px' }}>{log.note || '-'}</span>
+                             {activeTab === 'system' && (log.new_data || log.old_data) && (
+                               <button 
+                                 onClick={(e) => {
+                                   e.stopPropagation();
+                                   setSelectedLog(log);
+                                   setShowDetails(true);
+                                 }}
+                                 className="glass-interactive"
+                                 style={{ padding: '4px 8px', borderRadius: '6px', fontSize: '10px', width: 'fit-content', background: 'rgba(0, 242, 254, 0.1)', color: 'var(--primary)', border: 'none', fontWeight: '800', marginTop: '4px' }}
+                               >
+                                 {t('common.messages.confirmAction')} (Details)
+                               </button>
+                             )}
                           </div>
                        </td>
                     </tr>
@@ -433,6 +546,55 @@ export default function AuditLogPage() {
                )}
             </tbody>
          </table>
+
+         {/* Details Modal */}
+         {showDetails && selectedLog && (
+           <div className="flex-center" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', zIndex: 1000, backdropFilter: 'blur(10px)' }}>
+             <div className="glass" style={{ width: '90%', maxWidth: '800px', maxHeight: '800px', overflowY: 'auto', padding: '32px', position: 'relative' }}>
+                <button 
+                  onClick={() => setShowDetails(false)}
+                  style={{ position: 'absolute', right: '24px', top: '24px', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}
+                >
+                  <X size={24} />
+                </button>
+                
+                <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '32px' }}>
+                   <div style={{ background: 'var(--primary-glow)', padding: '12px', borderRadius: '12px' }}>
+                      {getActionIcon(selectedLog.action_type)}
+                   </div>
+                   <div>
+                      <h2 style={{ fontSize: '20px', fontWeight: '800' }}>{getActionLabel(selectedLog.action_type)}</h2>
+                      <p style={{ color: 'var(--text-muted)', fontSize: '13px' }}>{formatDate(selectedLog.created_at)} • {selectedLog.performer?.full_name}</p>
+                   </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: selectedLog.old_data ? '1fr 1fr' : '1fr', gap: '24px' }}>
+                   {selectedLog.old_data && (
+                     <div>
+                        <h3 style={{ fontSize: '12px', fontWeight: '900', color: 'var(--danger)', marginBottom: '12px', textTransform: 'uppercase' }}>Old Data</h3>
+                        <pre style={{ background: 'rgba(0,0,0,0.3)', padding: '16px', borderRadius: '12px', fontSize: '12px', color: 'var(--text-muted)', overflowX: 'auto', border: '1px solid var(--border)' }}>
+                           {JSON.stringify(selectedLog.old_data, null, 2)}
+                        </pre>
+                     </div>
+                   )}
+                   {selectedLog.new_data && (
+                     <div>
+                        <h3 style={{ fontSize: '12px', fontWeight: '900', color: 'var(--success)', marginBottom: '12px', textTransform: 'uppercase' }}>New Data</h3>
+                        <pre style={{ background: 'rgba(0,0,0,0.3)', padding: '16px', borderRadius: '12px', fontSize: '12px', color: 'var(--primary)', overflowX: 'auto', border: '1px solid var(--primary-glow)' }}>
+                           {JSON.stringify(selectedLog.new_data, null, 2)}
+                        </pre>
+                     </div>
+                   )}
+                </div>
+
+                {selectedLog.note && (
+                  <div style={{ marginTop: '24px', padding: '16px', background: 'rgba(255,255,255,0.02)', borderRadius: '12px', border: '1px solid var(--border)' }}>
+                     <p style={{ fontSize: '13px', color: 'var(--text-muted)', fontStyle: 'italic' }}>Note: {selectedLog.note}</p>
+                  </div>
+                )}
+             </div>
+           </div>
+         )}
       </div>
 
       <style dangerouslySetInnerHTML={{ __html: `

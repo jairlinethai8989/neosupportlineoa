@@ -263,6 +263,13 @@ export default function ProfileSettingsPage() {
       }).eq('id', profile.id);
 
       if (!error) {
+        await auditService.log({
+          performer_id: profile.id,
+          action_type: 'TEMPLATE_DELETE',
+          entity_type: 'PROFILE_TEMPLATE',
+          new_data: { type, index },
+          note: `Removed ${type === 'quick' ? 'Quick Reply' : 'Resolution Template'}`
+        });
         setToastMsg(t('common.messages.deleteSuccess'));
         setShowToast(true);
         setTimeout(() => setShowToast(false), 2000);

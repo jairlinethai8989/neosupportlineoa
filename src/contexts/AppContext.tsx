@@ -25,6 +25,8 @@ interface CompanySettings {
   subject_types?: string[] | null;
   issue_types?: string[] | null;
   report_tags?: string[] | null;
+  global_quick_replies?: Array<{id: string, title: string, content: string, category: string}> | null;
+  global_resolution_templates?: Array<{id: string, title: string, content: string, category: string}> | null;
   [key: string]: unknown;
 }
 

@@ -2,6 +2,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
+import { type StaffLocale, getStaffMessage } from '@/lib/i18n/staff';
 import { isSlaBreached, slaMinutesRemaining } from '@/lib/utils/slaUtils';
 
 import type { 
@@ -42,10 +43,11 @@ export interface LatestTicketRealtimeEvent {
   occurredAt: number;
 }
 
-export function useNotifications(agentId: string | null) {
+export function useNotifications(agentId: string | null, locale: StaffLocale = 'th') {
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [toasts, setToasts] = useState<ToastNotif[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [slaAlertCount, setSlaAlertCount] = useState(0);
   const [newTicketsCount, setNewTicketsCount] = useState(0);
   const [latestTicketRealtimeEvent, setLatestTicketRealtimeEvent] = useState<LatestTicketRealtimeEvent | null>(null);
   const [isMuted, setIsMuted] = useState(true); // Default to muted (browser policy friendly)
@@ -207,6 +209,7 @@ export function useNotifications(agentId: string | null) {
   // ---------------------------------------------------------------
   const recalcUnread = useCallback((notifs: AppNotification[]) => {
     setUnreadCount(notifs.filter((n) => !n.isRead).length);
+    setSlaAlertCount(notifs.filter((n) => (n.type === 'sla' || n.type === 'sla_warning') && !n.isRead).length);
   }, []);
 
   const getReadIds = useCallback((): string[] => {
@@ -273,6 +276,7 @@ export function useNotifications(agentId: string | null) {
       const next = prev.map(n => ({ ...n, isRead: true }));
       localStorage.setItem(STORAGE_KEY, JSON.stringify(next.map(n => n.id)));
       setUnreadCount(0);
+      setSlaAlertCount(0);
       return next;
     });
   }, []);
@@ -282,8 +286,9 @@ export function useNotifications(agentId: string | null) {
     setNotifications([]);
     setToasts([]);
     setUnreadCount(0);
+    setSlaAlertCount(0);
 
-    if (typeof window !== 'undefined') {
+    if (typeof window === 'undefined') {
       const existingReadIds = getReadIds();
       const mergedReadIds = Array.from(new Set([...existingReadIds, ...currentIds]));
       localStorage.setItem(STORAGE_KEY, JSON.stringify(mergedReadIds.slice(-1000)));
@@ -328,7 +333,9 @@ export function useNotifications(agentId: string | null) {
     if (soundMode === 'voice') {
       try {
         await playVoiceClip(soundVoice);
-        const voiceLabel = soundVoice === 'female' ? 'เสียงผู้หญิง' : 'เสียงผู้ชาย';
+        const voiceLabel = soundVoice === 'female' 
+          ? getStaffMessage(locale, 'notificationsHub.alerts.voiceFemale') 
+          : getStaffMessage(locale, 'notificationsHub.alerts.voiceMale');
         return { ok: true, hint: `กำลังใช้ ${voiceLabel} จากไฟล์ MP3 ในระบบ • ${hint}` };
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
@@ -392,15 +399,15 @@ export function useNotifications(agentId: string | null) {
       const id = row.id?.toString() ?? `${row.ticket_id}-${row.created_at}`;
       const isRead = readIds.includes(id);
 
-      let title = 'อัปเดตใบงาน';
+      let title = getStaffMessage(locale, 'notificationsHub.alerts.updateTitle');
       const type: NotifType = 'ticket';
 
       if (row.action_type === 'transfer' && row.to_user_id === agentId) {
-        title = `โอนงานมาให้คุณ — #${row.tickets?.ticket_no ?? ''}`;
+        title = getStaffMessage(locale, 'notificationsHub.alerts.transferBody').replace('#{no}', `#${row.tickets?.ticket_no ?? ''}`);
       } else if (row.action_type === 'claim') {
-        title = `รับงานแล้ว — #${row.tickets?.ticket_no ?? ''}`;
+        title = getStaffMessage(locale, 'notificationsHub.alerts.claimBody').replace('#{no}', `#${row.tickets?.ticket_no ?? ''}`);
       } else if (row.action_type === 'resolve') {
-        title = `ปิดงาน — #${row.tickets?.ticket_no ?? ''}`;
+        title = getStaffMessage(locale, 'notificationsHub.alerts.resolveBody').replace('#{no}', `#${row.tickets?.ticket_no ?? ''}`);
       }
 
       return {
@@ -481,8 +488,8 @@ export function useNotifications(agentId: string | null) {
         slaNotifs.push({
           id,
           type: 'sla',
-          title: `🚨 SLA เกินกำหนดแล้ว — #${t.ticket_no}`,
-          body: t.subject ?? 'ใบงานนี้เกิน SLA แล้ว กรุณาจัดการด่วน',
+          title: getStaffMessage(locale, 'notificationsHub.alerts.slaBreachedTitle').replace('#{no}', `#${t.ticket_no}`),
+          body: getStaffMessage(locale, 'notificationsHub.alerts.slaBreachedBody'),
           ticketNo: t.ticket_no,
           ticketId: t.id,
           createdAt: t.sla_due_at,
@@ -495,8 +502,8 @@ export function useNotifications(agentId: string | null) {
           addToast({
             id: `toast-${id}-${Date.now()}`,
             type: 'sla',
-            title: `🚨 SLA หลุดกำหนด — #${t.ticket_no}`,
-            body: t.subject ?? 'กรุณาจัดการด่วน',
+            title: getStaffMessage(locale, 'notificationsHub.alerts.slaBreachedTitle').replace('#{no}', `#${t.ticket_no}`),
+            body: t.subject || getStaffMessage(locale, 'notificationsHub.alerts.slaBreachedBody'),
             ticketId: t.id,
             ticketNo: t.ticket_no,
             duration: 8000,
@@ -509,8 +516,8 @@ export function useNotifications(agentId: string | null) {
         slaNotifs.push({
           id,
           type: 'sla_warning',
-          title: `⚠️ SLA ใกล้หมด (${mins} นาที) — #${t.ticket_no}`,
-          body: t.subject ?? `เหลือเวลาอีก ${mins} นาที`,
+          title: getStaffMessage(locale, 'notificationsHub.alerts.slaWarningTitle').replace('{mins}', String(mins)).replace('#{no}', `#${t.ticket_no}`),
+          body: t.subject || getStaffMessage(locale, 'notificationsHub.alerts.slaWarningBody').replace('{mins}', String(mins)),
           ticketNo: t.ticket_no,
           ticketId: t.id,
           createdAt: t.sla_due_at,
@@ -523,7 +530,7 @@ export function useNotifications(agentId: string | null) {
           addToast({
             id: `toast-${id}-${Date.now()}`,
             type: 'sla_warning',
-            title: `⚠️ SLA ใกล้หมด เหลือ ${mins} นาที`,
+            title: getStaffMessage(locale, 'notificationsHub.alerts.slaWarningTitle').replace('{mins}', String(mins)).replace('#{no}', `#${t.ticket_no}`),
             body: `#${t.ticket_no} · ${t.subject ?? ''}`,
             ticketId: t.id,
             ticketNo: t.ticket_no,
@@ -537,8 +544,8 @@ export function useNotifications(agentId: string | null) {
         slaNotifs.push({
           id,
           type: 'sla_warning',
-          title: `🕰️ SLA เหลือ ${mins} นาที — #${t.ticket_no}`,
-          body: t.subject ?? `โปรดเตรียมดำเนินการก่อน SLA หมด`,
+          title: getStaffMessage(locale, 'notificationsHub.alerts.slaUpcomingTitle').replace('{mins}', String(mins)).replace('#{no}', `#${t.ticket_no}`),
+          body: t.subject || getStaffMessage(locale, 'notificationsHub.alerts.slaUpcomingBody'),
           ticketNo: t.ticket_no,
           ticketId: t.id,
           createdAt: t.sla_due_at,
@@ -642,8 +649,8 @@ export function useNotifications(agentId: string | null) {
           addToast({
             id: `toast-msg-${Date.now()}`,
             type: 'message',
-            title: '💬 ข้อความใหม่จากลูกค้า',
-            body: (row.content as string)?.slice(0, 60) ?? 'มีข้อความใหม่',
+            title: getStaffMessage(locale, 'notificationsHub.alerts.newMessageTitle'),
+            body: (row.content as string)?.slice(0, 60) || getStaffMessage(locale, 'notificationsHub.alerts.newMessageBody'),
             conversationId: row.conversation_id,
           });
         }
@@ -670,8 +677,8 @@ export function useNotifications(agentId: string | null) {
           addToast({
             id: `toast-ticket-${Date.now()}`,
             type: 'ticket',
-            title: '🆕 มีใบงานใหม่เข้าสู่ระบบ',
-            body: row.subject || `ใบงาน #${row.ticket_no} กำลังรอการรับงาน`,
+            title: getStaffMessage(locale, 'notificationsHub.alerts.newTicketTitle'),
+            body: row.subject || getStaffMessage(locale, 'notificationsHub.alerts.newTicketBody').replace('#{no}', `#${row.ticket_no}`),
             ticketId: row.id,
             ticketNo: row.ticket_no,
           });
@@ -759,6 +766,7 @@ export function useNotifications(agentId: string | null) {
     notifications, 
     toasts, 
     unreadCount, 
+    slaAlertCount,
     newTicketsCount,
     latestTicketRealtimeEvent,
     isMuted,

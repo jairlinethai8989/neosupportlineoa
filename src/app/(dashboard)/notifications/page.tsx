@@ -25,6 +25,7 @@ import { useNotificationContext } from '@/contexts/NotificationContext';
 import { useStaffLocale } from '@/contexts/StaffLocaleContext';
 import { useRouter } from 'next/navigation';
 import type { AppNotification } from '@/hooks/useNotifications';
+import { toast } from 'react-hot-toast';
 
 // ---------------------------------------------------------------
 // Helpers
@@ -99,7 +100,10 @@ function SlaBadge({ minutesRemaining, t }: { minutesRemaining?: number, t: any }
 export default function NotificationsPage() {
   const { t } = useStaffLocale();
   const router = useRouter();
-  const { notifications, unreadCount, markAllRead, clearNotifications, markAsRead } = useNotificationContext();
+  const { 
+    notifications, unreadCount, markAllRead, clearNotifications, markAsRead,
+    isMuted, toggleMute, soundMode, setSoundMode, soundVoice, setSoundVoice, testSound
+  } = useNotificationContext();
   
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState<'all' | 'unread' | 'sla'>('all');
@@ -168,6 +172,108 @@ export default function NotificationsPage() {
     { key: 'sla', label: `🔥 ${t('dashboard.tabs.sla')}${(slaBreached.length + slaWarning.length) > 0 ? ` (${slaBreached.length + slaWarning.length})` : ''}` },
   ];
 
+  // ---------------------------------------------------------------
+  // Sound Widget Component
+  // ---------------------------------------------------------------
+  function SoundSettingsWidget() {
+    const [testing, setTesting] = useState(false);
+
+    const handleTest = async () => {
+      setTesting(true);
+      const res = await testSound();
+      if (!res.ok) {
+        toast.error(res.detail, { duration: 5000 });
+      }
+      setTesting(false);
+    };
+
+    return (
+      <div className="glass" style={{ padding: '20px', borderRadius: '20px', border: '1px solid var(--border)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <Volume2 size={18} color="var(--primary)" />
+            <h2 style={{ fontSize: '15px', fontWeight: '800' }}>{t('settingsNotifications.soundTitle')}</h2>
+          </div>
+          <button 
+            onClick={toggleMute}
+            style={{ 
+              background: isMuted ? 'rgba(234, 84, 85, 0.1)' : 'rgba(40, 199, 111, 0.1)',
+              border: 'none', padding: '6px 10px', borderRadius: '8px', cursor: 'pointer',
+              display: 'flex', alignItems: 'center', gap: '6px', transition: 'all 0.2s'
+            }}
+          >
+            {isMuted ? <VolumeX size={14} color="#ea5455" /> : <Volume2 size={14} color="#28c76f" />}
+            <span style={{ fontSize: '11px', fontWeight: '800', color: isMuted ? '#ea5455' : '#28c76f' }}>
+              {isMuted ? t('common.off') : t('common.on')}
+            </span>
+          </button>
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', background: 'rgba(255,255,255,0.03)', padding: '4px', borderRadius: '12px' }}>
+            <button 
+              onClick={() => setSoundMode('beep')}
+              style={{
+                padding: '10px', borderRadius: '9px', border: 'none', fontSize: '12px', fontWeight: '700', cursor: 'pointer',
+                background: soundMode === 'beep' ? 'rgba(0, 242, 254, 0.1)' : 'transparent',
+                color: soundMode === 'beep' ? 'var(--primary)' : 'var(--text-dim)',
+                transition: 'all 0.2s'
+              }}
+            >
+              {t('settingsNotifications.soundBeep')}
+            </button>
+            <button 
+              onClick={() => setSoundMode('voice')}
+              style={{
+                padding: '10px', borderRadius: '9px', border: 'none', fontSize: '12px', fontWeight: '700', cursor: 'pointer',
+                background: soundMode === 'voice' ? 'rgba(0, 242, 254, 0.1)' : 'transparent',
+                color: soundMode === 'voice' ? 'var(--primary)' : 'var(--text-dim)',
+                transition: 'all 0.2s'
+              }}
+            >
+              {t('settingsNotifications.soundVoice')}
+            </button>
+          </div>
+
+          {soundMode === 'voice' && (
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', padding: '12px', background: 'rgba(255,255,255,0.02)', borderRadius: '12px', border: '1px solid var(--border)' }}>
+              <button 
+                onClick={() => setSoundVoice('female')}
+                style={{ 
+                  display: 'flex', alignItems: 'center', gap: '8px', background: 'transparent', border: 'none', cursor: 'pointer',
+                  color: soundVoice === 'female' ? 'var(--primary)' : 'var(--text-muted)', fontSize: '12px', fontWeight: '700'
+                }}
+              >
+                <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: soundVoice === 'female' ? 'var(--primary)' : 'transparent', border: '1px solid var(--border)' }} />
+                {t('notificationsHub.alerts.voiceFemale')}
+              </button>
+              <button 
+                onClick={() => setSoundVoice('male')}
+                style={{ 
+                  display: 'flex', alignItems: 'center', gap: '8px', background: 'transparent', border: 'none', cursor: 'pointer',
+                  color: soundVoice === 'male' ? 'var(--primary)' : 'var(--text-muted)', fontSize: '12px', fontWeight: '700'
+                }}
+              >
+                <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: soundVoice === 'male' ? 'var(--primary)' : 'transparent', border: '1px solid var(--border)' }} />
+                {t('notificationsHub.alerts.voiceMale')}
+              </button>
+            </div>
+          )}
+
+          <button 
+            onClick={handleTest}
+            disabled={testing}
+            className="glass-interactive"
+            style={{ width: '100%', padding: '12px', borderRadius: '12px', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border)', color: 'var(--primary)', fontSize: '13px', fontWeight: '800', cursor: testing ? 'default' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+          >
+            {testing ? <Loader2 size={16} className="animate-spin" /> : <Volume2 size={16} />}
+            {t('settingsNotifications.testSound')}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div style={{ animation: 'fadeIn 0.5s ease-out' }}>
       {/* Header */}
@@ -229,7 +335,7 @@ export default function NotificationsPage() {
               style={{ padding: '10px 16px', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '8px', color: '#ff9f43', border: '1px solid rgba(255, 159, 67, 0.3)', background: 'rgba(255, 159, 67, 0.08)', cursor: 'pointer', fontWeight: '800', fontSize: '13px' }}
             >
               <Trash2 size={16} />
-              Clear all
+              {t('notificationsHub.clearAll')}
             </button>
           )}
         </div>
@@ -432,6 +538,9 @@ export default function NotificationsPage() {
               </div>
             </div>
           </div>
+
+          {/* Sound Settings Widget */}
+          <SoundSettingsWidget />
 
           <div className="glass" style={{ padding: '20px', borderRadius: '20px', border: '1px solid var(--border)', background: 'linear-gradient(135deg, rgba(54, 153, 255, 0.04) 0%, rgba(0, 242, 254, 0.04) 100%)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
