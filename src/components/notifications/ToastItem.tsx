@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ToastNotif, NotifType } from '@/hooks/useNotifications';
 import { useStaffLocale } from '@/contexts/StaffLocaleContext';
+import { AlertTriangle, Clock, Ticket, MessageSquare, X } from 'lucide-react';
 
 interface ToastItemProps {
   toast: ToastNotif;
