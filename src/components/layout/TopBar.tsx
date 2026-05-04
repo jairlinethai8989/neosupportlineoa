@@ -413,7 +413,8 @@ export function TopBar({ isSidebarOpen, setIsSidebarOpen, isSidebarCollapsed, se
                           <p
                             style={{
                               fontSize: '11px',
-                              color: 'var(--text-muted)',
+                              color: 'var(--text-main)',
+                              opacity: 0.7,
                               overflow: 'hidden',
                               textOverflow: 'ellipsis',
                               whiteSpace: 'nowrap',
@@ -423,7 +424,7 @@ export function TopBar({ isSidebarOpen, setIsSidebarOpen, isSidebarCollapsed, se
                             {notif.body}
                           </p>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px' }}>
-                            <p style={{ fontSize: '10px', color: 'var(--text-dim)', opacity: 0.6 }}>
+                            <p style={{ fontSize: '10px', color: 'var(--text-main)', opacity: 0.5, fontWeight: '600' }}>
                               {timeAgo(notif.createdAt, t)}
                             </p>
                           </div>

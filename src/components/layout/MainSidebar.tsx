@@ -475,8 +475,8 @@ function MainSidebarComponent({ onClickLink, isCollapsed = false }: SidebarProps
                       <span
                         style={{
                           fontSize: '10px',
-                          background: isActive ? 'var(--primary)' : 'rgba(255,255,255,0.1)',
-                          color: isActive ? '#000' : 'white',
+                          background: isActive ? 'var(--primary)' : 'var(--primary-transparent)',
+                          color: isActive ? '#fff' : 'var(--primary)',
                           padding: '2px 8px',
                           borderRadius: '10px',
                           fontWeight: '700',

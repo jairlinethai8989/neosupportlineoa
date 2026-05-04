@@ -181,7 +181,8 @@ export default function ToastItem({ toast, onDismiss }: ToastItemProps) {
           <p
             style={{
               fontSize: '11px',
-              color: 'var(--text-muted)',
+              color: 'var(--text-main)',
+              opacity: 0.8,
               marginTop: '2px',
               whiteSpace: 'nowrap',
               overflow: 'hidden',

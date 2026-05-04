@@ -412,14 +412,14 @@ export default function NotificationsPage() {
                           <span style={{ fontSize: '10px', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '0.08em', color: iconColor, opacity: 0.9 }}>
                             {getNotificationTypeLabel(notif.type, t)}
                           </span>
-                          <span style={{ fontSize: '10px', color: 'var(--text-dim)' }}>•</span>
-                          <span style={{ fontSize: '10px', color: 'var(--text-dim)', fontWeight: '600' }}>{timeAgo(notif.createdAt, t)}</span>
+                          <span style={{ fontSize: '10px', color: 'var(--text-main)', opacity: 0.5 }}>•</span>
+                          <span style={{ fontSize: '10px', color: 'var(--text-main)', opacity: 0.6, fontWeight: '600' }}>{timeAgo(notif.createdAt, t)}</span>
                           {notif.minutesRemaining !== undefined && <SlaBadge minutesRemaining={notif.minutesRemaining} t={t} />}
                         </div>
                         <h3 style={{ fontSize: '14px', fontWeight: !notif.isRead ? '800' : '600', color: 'var(--text-main)', marginBottom: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           {notif.title}
                         </h3>
-                        <p style={{ fontSize: '12px', color: 'var(--text-dim)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        <p style={{ fontSize: '12px', color: 'var(--text-main)', opacity: 0.7, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           {notif.body}
                         </p>
                       </div>
