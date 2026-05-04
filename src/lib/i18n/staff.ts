@@ -225,7 +225,6 @@ const messages: Record<StaffLocale, MessageDictionary> = {
         staff: 'จัดการทีมงาน',
         sla: 'ตั้งค่า SLA',
         master: 'ข้อมูลพื้นฐาน',
-        templates: 'จัดการเทมเพลต',
         audit: 'บันทึกการใช้งาน',
       },
     },
@@ -610,31 +609,6 @@ const messages: Record<StaffLocale, MessageDictionary> = {
         sqlGuidance: 'ตรวจสอบความถูกต้องของโครงสร้าง SQL',
       },
     },
-    settingsTemplates: {
-      title: 'จัดการเทมเพลต',
-      subtitle: 'จัดการข้อความตอบกลับด่วนและสรุปงาน',
-      addTemplate: 'เพิ่มเทมเพลต',
-      editTemplate: 'แก้ไขเทมเพลต',
-      empty: 'ยังไม่มีเทมเพลตในหมวดนี้',
-      tabs: {
-        quickReplies: 'ข้อความตอบกลับด่วน',
-        resolutions: 'สรุปการปิดงาน',
-      },
-      descriptions: {
-        quickReplies: 'จัดการข้อความที่ใช้บ่อย เพื่อให้เจ้าหน้าที่สามารถเลือกตอบแชทลูกค้าได้ทันที',
-        resolutions: 'จัดการรูปแบบสรุปงานมาตรฐาน เพื่อใช้บันทึกตอนปิดใบงานให้เป็นรูปแบบเดียวกัน',
-      },
-      fields: {
-        title: 'ชื่อเทมเพลต (สั้น)',
-        category: 'หมวดหมู่',
-        content: 'เนื้อหาข้อความ',
-      },
-      placeholders: {
-        title: 'เช่น การทักทาย, แจ้งสถานะ',
-        category: 'เช่น ทั่วไป, การเงิน',
-        content: 'ระบุเนื้อหาที่ต้องการให้แสดงผล...',
-      }
-    },
     settingsAudit: {
       title: 'แดชบอร์ดประวัติการใช้งาน',
       subtitle: 'ตรวจสอบความโปร่งใสและกิจกรรมทั้งหมดภายในระบบ',
@@ -907,7 +881,6 @@ const messages: Record<StaffLocale, MessageDictionary> = {
         staff: 'Staff',
         sla: 'SLA',
         master: 'Master Data',
-        templates: 'Manage Templates',
         audit: 'Audit Log',
       },
     },
@@ -1291,31 +1264,6 @@ const messages: Record<StaffLocale, MessageDictionary> = {
       messages: {
         sqlGuidance: 'Verify SQL structure integrity',
       },
-    },
-    settingsTemplates: {
-      title: 'Manage Templates',
-      subtitle: 'Manage quick replies and resolution summaries',
-      addTemplate: 'Add Template',
-      editTemplate: 'Edit Template',
-      empty: 'No templates in this category yet',
-      tabs: {
-        quickReplies: 'Quick Replies',
-        resolutions: 'Resolution Summaries',
-      },
-      descriptions: {
-        quickReplies: 'Manage frequently used messages so agents can reply to customers instantly.',
-        resolutions: 'Manage standard resolution summaries to ensure consistent reporting when closing tickets.',
-      },
-      fields: {
-        title: 'Template Title',
-        category: 'Category',
-        content: 'Message Content',
-      },
-      placeholders: {
-        title: 'e.g., Greeting, Status Update',
-        category: 'e.g., General, Billing',
-        content: 'Enter the content you want to display...',
-      }
     },
     settingsAudit: {
       title: 'Audit Log Dashboard',

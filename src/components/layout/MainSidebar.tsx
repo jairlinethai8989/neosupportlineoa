@@ -225,7 +225,6 @@ function MainSidebarComponent({ onClickLink, isCollapsed = false }: SidebarProps
               { name: 'Branding', label: t('sidebar.menu.branding'), path: '/settings/branding' },
               { name: 'Staff', label: t('sidebar.menu.staff'), path: '/settings/staff' },
               { name: 'SLA', label: t('sidebar.menu.sla'), path: '/settings/sla' },
-              { name: 'Templates', label: t('sidebar.menu.templates'), path: '/settings/templates' },
               { name: 'Master', label: t('sidebar.menu.master'), path: '/settings/master' },
               { name: 'Security', label: t('sidebar.menu.audit'), path: '/settings/audit' },
             ],
