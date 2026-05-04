@@ -182,7 +182,7 @@ export default function NotificationsPage() {
       setTesting(true);
       const res = await testSound();
       if (!res.ok) {
-        toast.error(res.detail, { duration: 5000 });
+        console.error('[SoundTest]', res.detail);
       }
       setTesting(false);
     };
