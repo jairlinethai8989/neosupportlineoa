@@ -13,6 +13,69 @@ const config = {
 };
 
 const client = new line.Client(config);
+const MENU_KEYWORDS = new Set(['menu', 'help', 'portal', 'เมนู', 'แจ้งงาน', 'ขอเมนู']);
+const APP_BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://neoworkspace.vercel.app';
+const IMAGEMAP_BASE_URL =
+  process.env.LINE_PORTAL_IMAGEMAP_BASE_URL ||
+  `${APP_BASE_URL.replace(/\/$/, '')}/line/imagemap-portal-menu`;
+const PORTAL_URL = `${APP_BASE_URL.replace(/\/$/, '')}/portal`;
+const CREATE_URL = `${PORTAL_URL}/create`;
+const HISTORY_URL = PORTAL_URL;
+const CONTACT_URL = `${APP_BASE_URL.replace(/\/$/, '')}/inbox`;
+
+function normalizeIncomingText(text: string) {
+  return text.trim().toLowerCase();
+}
+
+function buildPortalImagemapMessage(): line.ImageMapMessage {
+  return {
+    type: 'imagemap',
+    baseUrl: IMAGEMAP_BASE_URL,
+    altText: 'Neo Support Portal Menu',
+    baseSize: { width: 3000, height: 1000 },
+    actions: [
+      {
+        type: 'uri',
+        linkUri: PORTAL_URL,
+        area: { x: 0, y: 0, width: 1000, height: 1000 },
+      },
+      {
+        type: 'uri',
+        linkUri: CREATE_URL,
+        area: { x: 1000, y: 0, width: 1000, height: 1000 },
+      },
+      {
+        type: 'uri',
+        linkUri: CONTACT_URL,
+        area: { x: 2000, y: 0, width: 1000, height: 1000 },
+      },
+    ],
+  };
+}
+
+function buildPortalFallbackText(): line.TextMessage {
+  return {
+    type: 'text',
+    text:
+      'เมนูบริการลูกค้า\n' +
+      `แจ้งปัญหาใหม่: ${CREATE_URL}\n` +
+      `ดูสถานะ/ประวัติ: ${HISTORY_URL}\n` +
+      `ติดต่อเจ้าหน้าที่: ${CONTACT_URL}\n\n` +
+      'พิมพ์ "เมนู" เพื่อเรียกเมนูนี้อีกครั้ง',
+  };
+}
+
+async function replyPortalEntry(replyToken: string) {
+  try {
+    await client.replyMessage(replyToken, [
+      buildPortalImagemapMessage(),
+      buildPortalFallbackText(),
+    ]);
+  } catch (error) {
+    console.error('Webhook: Failed to send imagemap entry menu', error);
+    await client.replyMessage(replyToken, buildPortalFallbackText());
+  }
+}
 
 async function getLineProfileSnapshot(userId: string) {
   try {
@@ -126,9 +189,20 @@ export async function POST(req: Request) {
   let hasDataMutation = false;
 
   for (const event of events) {
+    if (event.type === 'follow') {
+      if (event.replyToken) {
+        await replyPortalEntry(event.replyToken);
+      }
+      continue;
+    }
+
     // 0. QUICK CHECK: Get Group ID Command
     if (event.type === 'message' && event.message.type === 'text') {
-      const text = event.message.text.toLowerCase().trim();
+      const text = normalizeIncomingText(event.message.text);
+      if (MENU_KEYWORDS.has(text)) {
+        await replyPortalEntry(event.replyToken);
+        continue;
+      }
       if (text === 'get group id') {
         const sourceId = event.source.groupId || event.source.roomId || event.source.userId;
         try {
