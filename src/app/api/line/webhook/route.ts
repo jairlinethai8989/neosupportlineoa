@@ -1,4 +1,4 @@
-﻿/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import * as line from '@line/bot-sdk';
@@ -32,22 +32,22 @@ function buildPortalImagemapMessage(): line.ImageMapMessage {
     type: 'imagemap',
     baseUrl: IMAGEMAP_BASE_URL,
     altText: 'Neo Support Portal Menu',
-    baseSize: { width: 3000, height: 1000 },
+    baseSize: { width: 1040, height: 356 },
     actions: [
       {
         type: 'uri',
         linkUri: PORTAL_URL,
-        area: { x: 0, y: 0, width: 1000, height: 1000 },
+        area: { x: 0, y: 0, width: 347, height: 356 },
       },
       {
         type: 'uri',
         linkUri: CREATE_URL,
-        area: { x: 1000, y: 0, width: 1000, height: 1000 },
+        area: { x: 347, y: 0, width: 347, height: 356 },
       },
       {
         type: 'uri',
         linkUri: CONTACT_URL,
-        area: { x: 2000, y: 0, width: 1000, height: 1000 },
+        area: { x: 694, y: 0, width: 346, height: 356 },
       },
     ],
   };
