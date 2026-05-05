@@ -32,6 +32,7 @@ export async function middleware(request: MiddlewareRequest) {
     '/login',
     '/portal',
     '/survey',
+    '/line/imagemap-portal-menu',
     '/api/line/webhook', 
     '/api/cron',        // Allow daily summaries and other crons
   ];
