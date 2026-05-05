@@ -2,7 +2,8 @@ import {
   claimTicketServerAction, 
   updateTicketStatusAction, 
   transferTicketAction, 
-  resolveTicketAction 
+  resolveTicketAction,
+  reviewFixCompletedAction,
 } from '@/app/actions/ticketActions';
 
 const UUID_PATTERN =
@@ -59,5 +60,10 @@ export const ticketService = {
     assertOptionalUuid('agentId', agentId);
     assertOptionalUuid('conversationId', conversationId);
     return resolveTicketAction(ticketId, resolutionSummary || '', module, issueType, conversationId);
+  },
+
+  async reviewFixCompleted(ticketId: string, decision: 'accept' | 'reject', note?: string) {
+    assertUuid('ticketId', ticketId);
+    return reviewFixCompletedAction(ticketId, decision, note);
   }
 };

@@ -18,6 +18,7 @@ interface TicketHeaderProps {
   isChatActive: boolean;
   onUpdate: () => void;
   onResolveClick: () => void;
+  onRejectFixCompleted: () => void;
   onExportClick: () => void;
 }
 
@@ -29,6 +30,7 @@ export const TicketHeader: React.FC<TicketHeaderProps> = ({
   isChatActive,
   onUpdate,
   onResolveClick,
+  onRejectFixCompleted,
   onExportClick,
 }) => {
   const router = useRouter();
@@ -38,6 +40,7 @@ export const TicketHeader: React.FC<TicketHeaderProps> = ({
   const isResolvedOrClosed = isResolvedOrClosedStatus(status);
   const isOwnerOrAdmin = isTicketOwnerOrAdmin(ticket, user);
   const canResolve = canResolveTicket(status, isOwnerOrAdmin, isChatActive);
+  const canReviewFixCompleted = status === 'Fix Completed' && isOwnerOrAdmin;
 
   return (
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
@@ -136,7 +139,44 @@ export const TicketHeader: React.FC<TicketHeaderProps> = ({
             <CheckCircle size={18} /> End Chat First
           </button>
         )}
-        {canResolve && (
+        {canReviewFixCompleted && (
+          <>
+            <button
+              onClick={onRejectFixCompleted}
+              className="glass-interactive flex-center"
+              style={{
+                padding: '0 20px',
+                height: '44px',
+                borderRadius: '12px',
+                border: '1px solid #f59e0b',
+                background: 'rgba(245, 158, 11, 0.12)',
+                color: '#f59e0b',
+                fontWeight: '900',
+                gap: '8px',
+              }}
+            >
+              ส่งกลับแก้ต่อ
+            </button>
+            <button
+              onClick={onResolveClick}
+              className="glass-interactive flex-center"
+              style={{
+                padding: '0 20px',
+                height: '44px',
+                borderRadius: '12px',
+                border: 'none',
+                background: '#22c55e',
+                color: 'white',
+                fontWeight: '900',
+                gap: '8px',
+                boxShadow: '0 4px 12px rgba(34, 197, 94, 0.3)',
+              }}
+            >
+              <CheckCircle size={18} /> ยืนยันผลและปิดงาน
+            </button>
+          </>
+        )}
+        {!canReviewFixCompleted && canResolve && (
           <button
             onClick={onResolveClick}
             className="glass-interactive flex-center"

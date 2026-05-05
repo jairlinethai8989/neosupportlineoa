@@ -671,6 +671,30 @@ export default function StaffTicketDetailPage() {
     user?.id,
   ]);
 
+  const handleRejectFixCompleted = useCallback(async () => {
+    if (!ticketId || !ticket || !user?.id) return;
+    const note = window.prompt('ระบุเหตุผลที่ส่งกลับแก้ไข (ไม่บังคับ):', '') || '';
+    if (!window.confirm('ยืนยันส่งงานกลับเพื่อแก้ไขต่อ?')) return;
+
+    setUpdating(true);
+    try {
+      await ticketService.reviewFixCompleted(ticketId, 'reject', note);
+      setTicket((prev) => (prev ? { ...prev, status: 'In Progress' } : prev));
+      setStatus('In Progress');
+      addToast({
+        id: `ticket-fix-rejected-${Date.now()}`,
+        type: 'ticket',
+        title: 'ส่งกลับแก้ไขแล้ว',
+        body: `ใบงาน #${ticket.ticket_no || ticketId} ถูกส่งกลับเป็น In Progress`,
+      });
+      await fetchData();
+    } catch (error) {
+      addToast(getTicketDetailActionFailedToast('update ticket', error));
+    } finally {
+      setUpdating(false);
+    }
+  }, [addToast, fetchData, ticket, ticketId, user?.id]);
+
   const handleExportSummary = async () => {
     if (!ticket || !reportRef.current) {
       addToast({
@@ -809,6 +833,9 @@ export default function StaffTicketDetailPage() {
         onResolveClick={() => {
           setShowResolveModal(true);
           setResSummary('');
+        }}
+        onRejectFixCompleted={() => {
+          void handleRejectFixCompleted();
         }}
         onExportClick={() => setShowExportModal(true)}
       />

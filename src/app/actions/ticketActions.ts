@@ -298,3 +298,71 @@ export async function resolveTicketAction(
    invalidateAllPreviewCaches();
    return ticket;
 }
+
+export async function reviewFixCompletedAction(
+  ticketId: string,
+  decision: 'accept' | 'reject',
+  note?: string
+) {
+  const user = await getSessionUser();
+  await verifyAgentRole(user.id);
+
+  const { data: currentTicket, error: currentError } = await supabaseAdmin
+    .from('tickets')
+    .select('id, status, assigned_agent_id')
+    .eq('id', ticketId)
+    .single();
+
+  if (currentError || !currentTicket) {
+    throw new Error(currentError?.message || 'Ticket not found');
+  }
+
+  if (currentTicket.status !== 'Fix Completed') {
+    throw new Error('Ticket is not in Fix Completed state');
+  }
+
+  if (decision === 'accept') {
+    // Accept path intentionally keeps flow on existing resolve modal.
+    return currentTicket;
+  }
+
+  const { data: updated, error: updateError } = await supabaseAdmin
+    .from('tickets')
+    .update({
+      status: 'In Progress',
+      resolved_at: null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', ticketId)
+    .select()
+    .single();
+
+  if (updateError) throw new Error(updateError.message);
+
+  await supabaseAdmin.from('ticket_logs').insert([
+    {
+      ticket_id: ticketId,
+      action_type: 'status_change',
+      from_status: 'Fix Completed',
+      to_status: 'In Progress',
+      performer_id: user.id,
+      note: note?.trim() || 'Owner requested more work after verification review',
+    },
+  ]);
+
+  if (currentTicket.assigned_agent_id && currentTicket.assigned_agent_id !== user.id) {
+    await supabaseAdmin.from('notifications').insert([
+      {
+        user_id: currentTicket.assigned_agent_id,
+        title: `Ticket ${ticketId} returned for rework`,
+        body: note?.trim() || 'Owner requested more work after verification review',
+        type: 'ticket',
+        metadata: { ticket_id: ticketId, decision: 'reject' },
+      },
+    ]);
+  }
+
+  invalidateAllLiveCaches();
+  invalidateAllPreviewCaches();
+  return updated;
+}
