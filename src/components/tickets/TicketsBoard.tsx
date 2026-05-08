@@ -8,7 +8,9 @@ import { useStaffLocale } from '@/contexts/StaffLocaleContext';
 import { translateTicketPriority, translateTicketStatus } from '@/lib/i18n/staff';
 import type { TicketWorkspaceTicket } from '@/types/tickets';
 
-const WORKFLOW = ['New', 'In Progress', 'Escalated', 'Fix Completed', 'Resolved', 'Pending'] as const;
+// Column order in the workspace board.
+// Keep "Resolved" ("ปิดแล้ว") next to "In Progress" ("กำลังดำเนินงาน") for faster scanning.
+const WORKFLOW = ['New', 'In Progress', 'Resolved', 'Escalated', 'Fix Completed', 'Pending'] as const;
 
 const STATUS_CONFIG: Record<string, { color: string; glow: string }> = {
   New: { color: 'var(--primary)', glow: 'rgba(8, 145, 178, 0.4)' },
