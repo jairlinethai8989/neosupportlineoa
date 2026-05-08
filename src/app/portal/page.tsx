@@ -25,6 +25,10 @@ import Skeleton from '@/components/ui/Skeleton';
 
 const ProfileRegistrationModal = React.lazy(() => import('@/components/portal/ProfileRegistrationModal'));
 
+function isSurveyEligibleStatus(status: unknown) {
+  return status === 'Resolved' || status === 'Closed';
+}
+
 export default function PortalPage() {
   const { profile, isReady, error: liffError, setMockLogin } = useLiff();
   const [tickets, setTickets] = useState<any[]>([]);
@@ -35,9 +39,73 @@ export default function PortalPage() {
   const [showAllHistory, setShowAllHistory] = useState(false);
   const [historyPage, setHistoryPage] = useState(1);
   const [totalHistory, setTotalHistory] = useState(0);
+  const [showSurvey, setShowSurvey] = useState(false);
+  const [pendingSurveyTicket, setPendingSurveyTicket] = useState<any | null>(null);
+  const [surveyValue, setSurveyValue] = useState(0);
+  const [surveyHover, setSurveyHover] = useState(0);
+  const [surveyComment, setSurveyComment] = useState('');
+  const [submittingSurvey, setSubmittingSurvey] = useState(false);
   const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const inFlightRef = useRef(false);
   const ITEMS_PER_PAGE = 5;
+
+  const refreshPendingSurvey = useCallback(
+    async (customerId: string, knownTickets?: any[]) => {
+      const resolvedTickets =
+        (knownTickets || [])
+          .filter((ticket) => isSurveyEligibleStatus(ticket.status))
+          .sort(
+            (left, right) =>
+              new Date(right.resolved_at || right.created_at).getTime() -
+              new Date(left.resolved_at || left.created_at).getTime()
+          );
+
+      const candidates =
+        resolvedTickets.length > 0
+          ? resolvedTickets
+          : (
+              await supabase
+                .from('tickets')
+                .select('id, ticket_no, subject, status, created_at, resolved_at')
+                .eq('customer_id', customerId)
+                .in('status', ['Resolved', 'Closed'])
+                .order('resolved_at', { ascending: false, nullsFirst: false })
+                .limit(10)
+            ).data || [];
+
+      if (candidates.length === 0) {
+        setPendingSurveyTicket(null);
+        setShowSurvey(false);
+        return;
+      }
+
+      const candidateIds = candidates.map((ticket) => ticket.id);
+      const { data: surveyRows } = await supabase
+        .from('csat_surveys')
+        .select('ticket_id, score, rating, responded_at')
+        .in('ticket_id', candidateIds);
+
+      const surveyByTicketId = new Map(
+        (surveyRows || []).map((row) => [row.ticket_id, row])
+      );
+
+      const pendingTicket =
+        candidates.find((ticket) => {
+          const survey = surveyByTicketId.get(ticket.id);
+          const hasScore = Boolean(survey?.score || survey?.rating);
+          return !survey || (!survey.responded_at && !hasScore);
+        }) || null;
+
+      setPendingSurveyTicket(pendingTicket);
+      setShowSurvey(Boolean(pendingTicket));
+      if (!pendingTicket) {
+        setSurveyValue(0);
+        setSurveyHover(0);
+        setSurveyComment('');
+      }
+    },
+    []
+  );
 
   const fetchTickets = useCallback(async (silent = false) => {
     if (!profile?.userId) return;
@@ -78,7 +146,10 @@ export default function PortalPage() {
             .order('created_at', { ascending: false })
             .range(from, to);
 
-          if (ticketData) setTickets(ticketData);
+          if (ticketData) {
+            setTickets(ticketData);
+            await refreshPendingSurvey(customer.id, ticketData);
+          }
           if (count !== null) setTotalHistory(count);
         } else {
           setNeedsRegistration(true);
@@ -92,7 +163,7 @@ export default function PortalPage() {
       inFlightRef.current = false;
       setFetching(false);
     }
-  }, [ITEMS_PER_PAGE, customerData, historyPage, profile?.userId]);
+  }, [ITEMS_PER_PAGE, customerData, historyPage, profile?.userId, refreshPendingSurvey]);
 
   useEffect(() => {
     if (profile?.userId) {
@@ -139,6 +210,9 @@ export default function PortalPage() {
         }
         refreshTimerRef.current = setTimeout(() => {
           void fetchTickets(true);
+          setTimeout(() => {
+            void refreshPendingSurvey(customerData.id);
+          }, 500);
         }, 350);
       })
       .subscribe();
@@ -146,7 +220,75 @@ export default function PortalPage() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [customerData?.id]);
+  }, [customerData?.id, fetchTickets, refreshPendingSurvey]);
+
+  // Fallback polling: some environments (e.g. LINE desktop / restrictive networks)
+  // may not receive Realtime events reliably. Poll lightly to ensure CSAT shows up.
+  useEffect(() => {
+    if (!customerData?.id) return;
+
+    let interval: ReturnType<typeof setInterval> | null = null;
+    let stopped = false;
+
+    const start = () => {
+      if (interval) return;
+      interval = setInterval(() => {
+        if (stopped) return;
+        // Keep this cheap: silent refresh, then re-evaluate survey candidates.
+        void fetchTickets(true);
+      }, 5000);
+    };
+
+    const stop = () => {
+      if (!interval) return;
+      clearInterval(interval);
+      interval = null;
+    };
+
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') start();
+      else stop();
+    };
+
+    onVisibility();
+    document.addEventListener('visibilitychange', onVisibility);
+
+    return () => {
+      stopped = true;
+      document.removeEventListener('visibilitychange', onVisibility);
+      stop();
+    };
+  }, [customerData?.id, fetchTickets]);
+
+  const handleSubmitSurvey = async () => {
+    if (!pendingSurveyTicket?.id || surveyValue === 0) return;
+    setSubmittingSurvey(true);
+    try {
+      const { error } = await supabase.from('csat_surveys').upsert(
+        {
+          ticket_id: pendingSurveyTicket.id,
+          score: surveyValue,
+          rating: surveyValue,
+          comment: surveyComment,
+          responded_at: new Date().toISOString(),
+        },
+        { onConflict: 'ticket_id' }
+      );
+
+      if (error) throw error;
+
+      setShowSurvey(false);
+      setPendingSurveyTicket(null);
+      setSurveyValue(0);
+      setSurveyHover(0);
+      setSurveyComment('');
+      await fetchTickets(true);
+    } catch (err: any) {
+      alert('ไม่สามารถบันทึกการประเมินได้: ' + err.message);
+    } finally {
+      setSubmittingSurvey(false);
+    }
+  };
 
   if (!isReady || (profile && fetching && !needsRegistration)) {
     return (
@@ -211,6 +353,136 @@ export default function PortalPage() {
   return (
     <>
     <div>
+      {showSurvey && pendingSurveyTicket && (
+        <div
+          className="flex-center"
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%',
+            background: 'rgba(15, 23, 42, 0.8)',
+            backdropFilter: 'blur(8px)',
+            zIndex: 1000,
+            padding: '20px',
+          }}
+        >
+          <div
+            className="portal-glass"
+            style={{
+              width: '100%',
+              maxWidth: '400px',
+              padding: '32px',
+              background: 'white',
+              animation: 'fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
+            }}
+          >
+            <div style={{ textAlign: 'center', marginBottom: '24px' }}>
+              <div
+                style={{
+                  display: 'inline-flex',
+                  padding: '12px',
+                  background: '#f0f9ff',
+                  borderRadius: '50%',
+                  marginBottom: '16px',
+                  color: 'var(--portal-primary)',
+                }}
+              >
+                <Clock size={24} />
+              </div>
+              <h3 style={{ fontSize: '20px', fontWeight: '900', color: '#1e293b', marginBottom: '8px' }}>
+                ประเมินความพึงพอใจ
+              </h3>
+              <p style={{ fontSize: '14px', color: '#64748b' }}>
+                งานหมายเลข #{pendingSurveyTicket.ticket_no} ได้รับการแก้ไขแล้ว ช่วยให้คะแนนเราหน่อยนะครับ
+              </p>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', marginBottom: '12px' }}>
+              {[1, 2, 3, 4, 5].map((star) => (
+                <button
+                  key={star}
+                  onClick={() => setSurveyValue(star)}
+                  onMouseEnter={() => setSurveyHover(star)}
+                  onMouseLeave={() => setSurveyHover(0)}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', outline: 'none', transition: 'transform 0.2s', padding: '4px' }}
+                >
+                  <svg
+                    width="36"
+                    height="36"
+                    viewBox="0 0 24 24"
+                    fill={(surveyHover || surveyValue) >= star ? '#f59e0b' : 'none'}
+                    stroke={(surveyHover || surveyValue) >= star ? '#f59e0b' : '#cbd5e1'}
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+                  </svg>
+                </button>
+              ))}
+            </div>
+
+            <div style={{ textAlign: 'center', height: '20px', fontSize: '12px', color: '#f59e0b', fontWeight: '700', marginBottom: '24px' }}>
+              {surveyValue === 5 ? 'ยอดเยี่ยมที่สุด' : surveyValue === 4 ? 'ดีมาก' : surveyValue === 3 ? 'ดี' : surveyValue === 2 ? 'พอใช้' : surveyValue === 1 ? 'ควรปรับปรุง' : ''}
+            </div>
+
+            <textarea
+              placeholder="ข้อเสนอแนะเพิ่มเติม (ถ้ามี)..."
+              value={surveyComment}
+              onChange={(event) => setSurveyComment(event.target.value)}
+              style={{
+                width: '100%',
+                minHeight: '80px',
+                padding: '12px',
+                borderRadius: '12px',
+                border: '1px solid #e2e8f0',
+                fontSize: '14px',
+                marginBottom: '24px',
+                outline: 'none',
+                resize: 'none',
+              }}
+            />
+
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button
+                onClick={() => setShowSurvey(false)}
+                style={{
+                  flex: 1,
+                  padding: '14px',
+                  borderRadius: '12px',
+                  border: '1px solid #e2e8f0',
+                  background: 'white',
+                  color: '#64748b',
+                  fontWeight: '700',
+                  cursor: 'pointer',
+                }}
+              >
+                ข้ามก่อน
+              </button>
+              <button
+                onClick={handleSubmitSurvey}
+                disabled={submittingSurvey || surveyValue === 0}
+                style={{
+                  flex: 2,
+                  padding: '14px',
+                  borderRadius: '12px',
+                  border: 'none',
+                  background: 'var(--portal-primary)',
+                  color: 'white',
+                  fontWeight: '800',
+                  cursor: 'pointer',
+                  opacity: submittingSurvey || surveyValue === 0 ? 0.5 : 1,
+                }}
+              >
+                {submittingSurvey ? 'กำลังส่ง...' : 'ส่งผลประเมิน'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div style={{ marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
          <div>
             <p style={{ color: 'var(--portal-primary)', fontWeight: '700', letterSpacing: '0.5px', textTransform: 'uppercase', fontSize: '10px', marginBottom: '4px' }}>Support Portal</p>
