@@ -63,6 +63,7 @@ function InlineConfirmModal({
         inset: 0,
         zIndex,
         background: 'rgba(5, 15, 30, 0.55)',
+        backdropFilter: 'blur(10px)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -70,27 +71,55 @@ function InlineConfirmModal({
       }}
     >
       <div
+        className="glass animate-page-in"
         style={{
           width: '100%',
           maxWidth: '460px',
           background: 'var(--bg-card)',
           border: '1px solid var(--border)',
-          borderRadius: '18px',
-          boxShadow: '0 20px 60px rgba(0,0,0,0.35)',
-          padding: '22px',
+          borderRadius: '24px',
+          boxShadow: '0 40px 100px rgba(0,0,0,0.5)',
+          padding: '32px',
         }}
       >
-        <h3 style={{ margin: 0, fontSize: '20px', fontWeight: 900, color: 'var(--text-main)' }}>{title}</h3>
-        <p style={{ marginTop: '12px', marginBottom: '18px', color: 'var(--text-muted)', lineHeight: 1.6 }}>{body}</p>
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
-          <button type="button" className="btn-secondary" onClick={onCancel}>
+        <h3 style={{ margin: 0, fontSize: '22px', fontWeight: 900, color: 'var(--text-main)', letterSpacing: '-0.5px' }}>{title}</h3>
+        <p style={{ marginTop: '16px', marginBottom: '32px', color: 'var(--text-muted)', lineHeight: 1.6, fontSize: '15px' }}>{body}</p>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+          <button 
+            type="button" 
+            className="glass-interactive flex-center" 
+            onClick={onCancel}
+            style={{
+              padding: '0 24px',
+              height: '46px',
+              borderRadius: '14px',
+              border: '1px solid var(--border)',
+              background: 'rgba(255,255,255,0.03)',
+              color: 'var(--text-main)',
+              fontSize: '14px',
+              fontWeight: 700,
+              cursor: 'pointer'
+            }}
+          >
             {cancelLabel}
           </button>
           <button
             type="button"
-            className={confirmClassName}
+            className={`glass-interactive flex-center ${confirmClassName || ''}`}
             onClick={() => void onConfirm()}
-            style={confirmStyle}
+            style={{
+              padding: '0 28px',
+              height: '46px',
+              borderRadius: '14px',
+              border: 'none',
+              background: confirmClassName === 'btn-danger' ? 'var(--danger)' : 'var(--primary)',
+              color: confirmClassName === 'btn-danger' ? 'white' : 'black',
+              fontSize: '14px',
+              fontWeight: 900,
+              cursor: 'pointer',
+              boxShadow: confirmClassName === 'btn-danger' ? '0 10px 20px rgba(239, 68, 68, 0.15)' : '0 10px 20px rgba(54, 153, 255, 0.15)',
+              ...confirmStyle
+            }}
           >
             {confirmLabel}
           </button>
@@ -577,16 +606,6 @@ function InboxContent() {
           onConfirm={async () => {
             setShowCloseSessionConfirm(false);
             await handleCloseSession();
-          }}
-          confirmStyle={{
-            height: '42px',
-            padding: '0 16px',
-            borderRadius: '10px',
-            border: 'none',
-            background: '#0ea5e9',
-            color: '#fff',
-            fontWeight: 800,
-            cursor: 'pointer',
           }}
         />
       )}
