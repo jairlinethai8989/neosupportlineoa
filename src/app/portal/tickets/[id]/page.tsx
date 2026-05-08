@@ -57,6 +57,7 @@ export default function TicketDetailPage() {
   // without needing to re-subscribe every time state changes
   const conversationIdRef = useRef<string | null>(null);
   const hasRespondedRef = useRef(false);
+  const ticketStatusRef = useRef<string | null>(null);
 
   const scrollToLatest = (behavior: ScrollBehavior = 'smooth') => {
     messagesEndRef.current?.scrollIntoView({ behavior, block: 'end' });
@@ -72,6 +73,10 @@ export default function TicketDetailPage() {
   useEffect(() => {
     hasRespondedRef.current = hasResponded;
   }, [hasResponded]);
+
+  useEffect(() => {
+    ticketStatusRef.current = ticket?.status || null;
+  }, [ticket?.status]);
 
   const loadSurveyState = React.useCallback(async () => {
     if (!ticketId) return null;
@@ -209,11 +214,11 @@ export default function TicketDetailPage() {
       }
     }
 
-    // Run fetch first, then subscribe
+    // Subscribe first, then fetch to avoid missing the resolve/csat events
+    // during the initial loading window.
     let channelRef: any = null;
-    
-    fetchTicketData().then(() => {
-      const channel = supabase
+
+    const channel = supabase
         .channel(`portal-ticket-${ticketId}`)
         // Listen to ALL message inserts — filter inside handler using ref
         .on('postgres_changes', {
@@ -275,7 +280,12 @@ export default function TicketDetailPage() {
             .then(({ data }: any) => { if (data) setLogs(data); });
           if (isSurveyEligibleStatus(nextTicket?.status) && !hasRespondedRef.current) {
             setShowSurvey(true);
+            // Fallback: refresh survey record right away and again shortly after
+            // in case csat row is inserted milliseconds after status update.
             await loadSurveyState();
+            setTimeout(() => {
+              void loadSurveyState();
+            }, 500);
           }
         })
         .on('postgres_changes', {
@@ -292,14 +302,14 @@ export default function TicketDetailPage() {
             if (value) setSurveyScore(value);
             return;
           }
-          if (!hasRespondedRef.current && isSurveyEligibleStatus(ticket?.status || payload.old?.status)) {
+          if (!hasRespondedRef.current && isSurveyEligibleStatus(ticketStatusRef.current || payload.old?.status)) {
             setShowSurvey(true);
           }
         })
         .subscribe();
-      
-      channelRef = channel;
-    });
+
+    channelRef = channel;
+    void fetchTicketData();
 
     const poller = window.setInterval(() => {
       const cid = conversationIdRef.current;
@@ -330,7 +340,7 @@ export default function TicketDetailPage() {
       window.clearInterval(poller);
       if (channelRef) supabase.removeChannel(channelRef);
     };
-  }, [isReady, loadSurveyState, ticket?.status, ticketId]);
+  }, [isReady, loadSurveyState, ticketId]);
 
   useEffect(() => {
     if (!ticketId) return;
