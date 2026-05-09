@@ -4,6 +4,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import { supabase } from '@/lib/supabase';
 
 interface AppContextType {
+  authUserId: string | null;
   userProfile: UserProfile | null;
   companySettings: CompanySettings | null;
   hospitals: Array<Record<string, unknown>>;
@@ -205,6 +206,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   return (
     <AppContext.Provider
       value={{
+        authUserId: currentUserId,
         userProfile,
         companySettings,
         hospitals,

@@ -1,6 +1,5 @@
 'use client';
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import { supabase } from '@/lib/supabase';
+import React, { createContext, useContext } from 'react';
 import {
   useNotifications,
   AppNotification,
@@ -11,6 +10,7 @@ import {
   LatestTicketRealtimeEvent,
 } from '@/hooks/useNotifications';
 import { useStaffLocale } from './StaffLocaleContext';
+import { useAppContext } from './AppContext';
 
 export type NotifTab = 'all' | 'unread' | 'sla';
 
@@ -59,13 +59,12 @@ const NotificationContext = createContext<NotificationContextValue>({
 });
 
 export function NotificationProvider({ children }: { children: React.ReactNode }) {
-  const [agentId, setAgentId] = useState<string | null>(null);
-
-  useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      setAgentId(data.user?.id ?? null);
-    });
-  }, []);
+  const { authUserId, userProfile } = useAppContext();
+  const fallbackProfileId =
+    typeof userProfile?.id === 'string' && userProfile.id !== 'profile-bypass'
+      ? userProfile.id
+      : null;
+  const agentId = authUserId || fallbackProfileId;
 
   const { locale } = useStaffLocale();
   const notif = useNotifications(agentId, locale);
