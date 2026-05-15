@@ -247,7 +247,7 @@ export function TicketsBoard({
   const topScrollRef = React.useRef<HTMLDivElement>(null);
   const isSyncingRef = React.useRef(false);
 
-  const syncScroll = (source: React.RefObject<HTMLDivElement>, target: React.RefObject<HTMLDivElement>) => {
+  const syncScroll = (source: React.RefObject<HTMLDivElement | null>, target: React.RefObject<HTMLDivElement | null>) => {
     if (isSyncingRef.current) {
       isSyncingRef.current = false;
       return;
