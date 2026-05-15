@@ -131,27 +131,7 @@ function TicketsContent() {
         viewMode={viewMode}
       />
 
-      {viewMode === 'board' ? (
-        <TicketsBoard
-          claimingId={claimingId}
-          filteredTickets={filteredTickets}
-          getConvId={getConvId}
-          handleClaim={handleClaim}
-          isViewOnly={isViewOnly}
-        />
-      ) : (
-        <TicketsTable
-          filteredTickets={filteredTickets}
-          getConvId={getConvId}
-          handleSort={handleSort}
-          sortConfig={sortConfig}
-          claimingId={claimingId}
-          handleClaim={handleClaim}
-          isViewOnly={isViewOnly}
-        />
-      )}
-
-      <div style={paginationWrapStyle}>
+      <div style={{ ...paginationWrapStyle, padding: '12px 24px' }}>
         <button
           type="button"
           onClick={goToPreviousTicketPage}
@@ -184,6 +164,26 @@ function TicketsContent() {
           <ChevronRight size={14} />
         </button>
       </div>
+
+      {viewMode === 'board' ? (
+        <TicketsBoard
+          claimingId={claimingId}
+          filteredTickets={filteredTickets}
+          getConvId={getConvId}
+          handleClaim={handleClaim}
+          isViewOnly={isViewOnly}
+        />
+      ) : (
+        <TicketsTable
+          filteredTickets={filteredTickets}
+          getConvId={getConvId}
+          handleSort={handleSort}
+          sortConfig={sortConfig}
+          claimingId={claimingId}
+          handleClaim={handleClaim}
+          isViewOnly={isViewOnly}
+        />
+      )}
 
       <ResolveTicketModal
         open={showResolveModal}

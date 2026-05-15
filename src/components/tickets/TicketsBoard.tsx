@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { CheckCircle, ExternalLink, Loader2, MessageCircle, User, Zap } from 'lucide-react';
+import { CheckCircle, ExternalLink, Headphones, Loader2, MessageCircle, User, UserCheck, Zap } from 'lucide-react';
 import Link from 'next/link';
 import { useStaffLocale } from '@/contexts/StaffLocaleContext';
 import { translateTicketPriority, translateTicketStatus } from '@/lib/i18n/staff';
@@ -22,6 +22,17 @@ const STATUS_CONFIG: Record<string, { color: string; glow: string }> = {
 };
 
 const FALLBACK_STATUS_CONFIG = { color: 'var(--text-muted)', glow: 'rgba(0,0,0,0.1)' };
+
+function getTicketDuration(createdAt: string) {
+  const diff = Date.now() - new Date(createdAt).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 60) return `${mins} นาที`;
+  const hours = Math.floor(mins / 60);
+  const remainingMins = mins % 60;
+  if (hours < 24) return `${hours} ชม. ${remainingMins} น.`;
+  const days = Math.floor(hours / 24);
+  return `${days} วัน`;
+}
 
 const boardContainerStyle: React.CSSProperties = {
   display: 'flex',
@@ -64,14 +75,14 @@ const columnTicketsWrapStyle: React.CSSProperties = {
 };
 
 const cardStyle: React.CSSProperties = {
-  padding: '12px 16px',
-  borderRadius: '18px',
+  padding: '6px 10px',
+  borderRadius: '14px',
   background: 'var(--bg-card)',
   border: '1px solid var(--border)',
   display: 'flex',
   flexDirection: 'column',
-  gap: '8px',
-  boxShadow: '0 4px 12px rgba(0,0,0,0.06)',
+  gap: '2px',
+  boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
 };
 
 const cardTopRowStyle: React.CSSProperties = {
@@ -99,7 +110,8 @@ const cardFooterStyle: React.CSSProperties = {
   display: 'flex',
   justifyContent: 'space-between',
   alignItems: 'center',
-  paddingTop: '16px',
+  paddingTop: '6px',
+  marginTop: '2px',
   borderTop: '1px solid var(--border)',
 };
 
@@ -117,17 +129,18 @@ const avatarBaseStyle: React.CSSProperties = {
 
 const customerAvatarStyle: React.CSSProperties = {
   ...avatarBaseStyle,
-  background: 'var(--bg-card)',
-  border: '1px solid var(--border)',
+  background: 'rgba(255, 159, 67, 0.1)',
+  border: '1px solid rgba(255, 159, 67, 0.2)',
 };
 
 const agentAvatarStyle: React.CSSProperties = {
   ...avatarBaseStyle,
-  background: 'var(--primary-transparent)',
+  background: 'rgba(0, 207, 232, 0.1)',
+  border: '1px solid rgba(0, 207, 232, 0.2)',
 };
 
-const customerTextStyle: React.CSSProperties = { fontSize: '13px', color: 'var(--text-main)', fontWeight: '700' };
-const agentTextStyle: React.CSSProperties = { fontSize: '12px', color: 'var(--primary)', fontWeight: '800' };
+const customerTextStyle: React.CSSProperties = { fontSize: '11px', color: 'var(--text-main)', fontWeight: '700' };
+const agentTextStyle: React.CSSProperties = { fontSize: '11px', color: 'var(--primary)', fontWeight: '800' };
 const actionLinksWrapStyle: React.CSSProperties = { display: 'flex', gap: '10px' };
 
 const iconButtonBaseStyle: React.CSSProperties = {
@@ -143,15 +156,15 @@ const detailsButtonStyle: React.CSSProperties = { ...iconButtonBaseStyle, color:
 
 const actionButtonBaseStyle: React.CSSProperties = {
   width: '100%',
-  padding: '14px',
-  borderRadius: '14px',
+  padding: '8px',
+  borderRadius: '10px',
   border: 'none',
-  fontSize: '13px',
-  fontWeight: '850',
+  fontSize: '12px',
+  fontWeight: '800',
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
-  gap: '8px',
+  gap: '6px',
 };
 
 const emptyColumnStyle: React.CSSProperties = {
@@ -207,9 +220,9 @@ function PriorityIndicator({ priority, locale }: { priority: string; locale: 'th
   const colors: Record<string, string> = { High: '#ea5455', Medium: '#ff9f43', Low: '#00cfe8' };
   const color = colors[priority] || 'gray';
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-      <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: color }} />
-      <span style={{ fontSize: '13px' }}>{translateTicketPriority(priority, locale)}</span>
+    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+      <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: color }} />
+      <span style={{ fontSize: '11px', fontWeight: '600' }}>{translateTicketPriority(priority, locale)}</span>
     </div>
   );
 }
@@ -230,9 +243,52 @@ export function TicketsBoard({
   isViewOnly,
 }: TicketsBoardProps) {
   const { locale, t } = useStaffLocale();
+  const boardRef = React.useRef<HTMLDivElement>(null);
+  const topScrollRef = React.useRef<HTMLDivElement>(null);
+  const isSyncingRef = React.useRef(false);
+
+  const syncScroll = (source: React.RefObject<HTMLDivElement>, target: React.RefObject<HTMLDivElement>) => {
+    if (isSyncingRef.current) {
+      isSyncingRef.current = false;
+      return;
+    }
+    if (source.current && target.current) {
+      isSyncingRef.current = true;
+      target.current.scrollLeft = source.current.scrollLeft;
+    }
+  };
 
   return (
-    <div className="board-scroll-container glass" style={boardContainerStyle}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%' }}>
+      {/* Top Scrollbar Sync */}
+      <div 
+        ref={topScrollRef}
+        onScroll={() => syncScroll(topScrollRef, boardRef)}
+        className="custom-scrollbar"
+        style={{ 
+          overflowX: 'auto', 
+          width: '100%', 
+          height: '24px',
+          borderRadius: '12px',
+          background: 'rgba(255,255,255,0.05)',
+          border: '1px solid var(--border)'
+        }}
+      >
+        <div style={{ width: 'max-content', height: '1px', display: 'flex', gap: '28px' }}>
+          {WORKFLOW.map((id) => (
+            <div key={id} style={{ minWidth: '340px' }} />
+          ))}
+          {/* Compensate for board padding */}
+          <div style={{ minWidth: '48px' }} /> 
+        </div>
+      </div>
+
+      <div 
+        ref={boardRef}
+        className="board-scroll-container glass" 
+        onScroll={() => syncScroll(boardRef, topScrollRef)}
+        style={boardContainerStyle}
+      >
       <div style={boardColumnsWrapStyle}>
         {WORKFLOW.map((columnId) => {
           const columnTickets = filteredTickets.filter(
@@ -310,35 +366,44 @@ export function TicketsBoard({
                         className="glass-interactive"
                         style={{ ...cardStyle, borderLeft: `6px solid ${config.color}` }}
                       >
-                        <div style={cardTopRowStyle}>
-                          <div style={{ display: 'flex', flexDirection: 'column' }}>
-                            <Link href={`/tickets/${ticket.id}`} style={ticketLinkStyle}>
-                              #{ticket.ticket_no}
-                            </Link>
-                            {ticket.created_at && (
-                              <span style={{ fontSize: '10px', color: 'var(--text-dim)', fontWeight: '600', marginTop: '2px' }}>
-                                📅 {new Date(ticket.created_at).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: '2-digit' })} • {new Date(ticket.created_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })} น.
-                              </span>
-                            )}
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', width: '100%', marginBottom: '6px' }}>
+                            {/* Row 1: Ticket No & Priority */}
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <Link href={`/tickets/${ticket.id}`} style={ticketLinkStyle}>
+                                #{ticket.ticket_no}
+                              </Link>
+                              <PriorityIndicator priority={ticket.priority || ''} locale={locale} />
+                            </div>
+                            
+                            {/* Row 2: Date/Time & Duration */}
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              {ticket.created_at && (
+                                <span style={{ fontSize: '9px', color: 'var(--text-dim)', fontWeight: '600' }}>
+                                  {new Date(ticket.created_at).toLocaleDateString('th-TH', { day: '2-digit', month: '2-digit', year: '2-digit' })} • {new Date(ticket.created_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })} น.
+                                </span>
+                              )}
+                              {ticket.created_at && (
+                                <span style={{ fontSize: '9px', color: 'var(--primary)', fontWeight: '800', background: 'var(--primary-transparent)', padding: '2px 6px', borderRadius: '6px' }}>
+                                  ⏱️ {getTicketDuration(ticket.created_at)}
+                                </span>
+                              )}
+                            </div>
                           </div>
-                          <PriorityIndicator priority={ticket.priority || ''} locale={locale} />
-                        </div>
 
-                        <div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-muted)', marginBottom: '4px' }}>
-                            <span style={{ fontSize: '14px' }}>◌</span>
-                            <span style={{ fontSize: '13px', fontWeight: '700', color: 'var(--warning, #ff9f43)' }}>
-                              {hospitalName}
-                            </span>
+                          <div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--text-muted)', marginBottom: '2px' }}>
+                              <span style={{ fontSize: '12px', fontWeight: '700', color: 'var(--warning, #ff9f43)' }}>
+                                {hospitalName}
+                              </span>
+                            </div>
+                            <h4 style={{ ...subjectStyle, fontSize: '12px', marginBottom: '2px' }}>{ticket.subject}</h4>
                           </div>
-                          <h4 style={subjectStyle}>{ticket.subject}</h4>
-                        </div>
 
                         <div style={cardFooterStyle}>
                           <div style={entityRowWrapStyle}>
-                            <div style={entityRowStyle}>
-                              <div style={customerAvatarStyle}>
-                                <User size={14} color="var(--text-muted)" />
+                            <div style={{ ...entityRowStyle, cursor: 'help' }} title="ผู้แจ้งงาน">
+                              <div style={customerAvatarStyle} title="ผู้แจ้งงาน">
+                                <User size={12} color="#ff9f43" />
                               </div>
                               <span style={customerTextStyle}>
                                 {(() => {
@@ -356,43 +421,60 @@ export function TicketsBoard({
                                 })()}
                               </span>
                             </div>
-                            <div style={entityRowStyle}>
-                              {ticket.assigned_agent ? (
-                                <span style={{ 
-                                  color: '#ffffff', 
-                                  background: ticket.assigned_agent.theme_color || 'var(--primary)', 
-                                  padding: '4px 10px',
-                                  borderRadius: '8px',
-                                  fontSize: '11px',
-                                  fontWeight: '800',
-                                  textTransform: 'uppercase',
-                                  textShadow: '0 1px 2px rgba(0,0,0,0.2)'
-                                }}>
-                                  {ticket.assigned_agent.display_name}
-                                </span>
-                              ) : (
-                                <>
-                                  <div style={agentAvatarStyle}>
-                                    <CheckCircle size={14} color="var(--primary)" />
+                            <div style={{ ...entityRowStyle, cursor: 'help' }} title="ผู้รับงาน">
+                                  <div style={agentAvatarStyle} title="ผู้รับงาน">
+                                    <UserCheck size={12} color="var(--primary)" />
                                   </div>
-                                  <span style={agentTextStyle}>
-                                    {t('tickets.noData')}
-                                  </span>
-                                </>
-                              )}
+                                  {ticket.assigned_agent ? (
+                                    <span style={{ 
+                                      color: '#ffffff', 
+                                      background: ticket.assigned_agent.theme_color || 'var(--primary)', 
+                                      padding: '4px 10px',
+                                      borderRadius: '8px',
+                                      fontSize: '11px',
+                                      fontWeight: '800',
+                                      textTransform: 'uppercase',
+                                      textShadow: '0 1px 2px rgba(0,0,0,0.2)'
+                                    }}>
+                                      {ticket.assigned_agent.display_name}
+                                    </span>
+                                  ) : (
+                                    <span style={agentTextStyle}>
+                                      {t('tickets.noData')}
+                                    </span>
+                                  )}
                             </div>
                           </div>
 
                           <div style={actionLinksWrapStyle}>
-                            {convId && !isInProgress && !['resolved', 'closed', 'pending', 'escalated'].includes(normalizedStatus) && (
+                            {isNew && (
+                                <button
+                                    disabled={claimAction.isDisabled}
+                                    onClick={() => handleClaim(ticket.id)}
+                                    title={claimAction.label}
+                                    className="glass-interactive flex-center"
+                                    style={{ 
+                                        ...messageButtonStyle, 
+                                        background: 'var(--primary)', 
+                                        color: 'black',
+                                        boxShadow: '0 4px 12px rgba(0, 242, 254, 0.2)',
+                                        border: 'none',
+                                        cursor: claimAction.isDisabled ? 'not-allowed' : 'pointer'
+                                    }}
+                                >
+                                    {claimAction.isClaiming ? <Loader2 className="animate-spin" size={16} /> : <Zap size={16} />}
+                                </button>
+                            )}
+
+                            {!isNew && (isInProgress || (convId && !['resolved', 'closed', 'pending', 'escalated'].includes(normalizedStatus))) && (
                                 <Link
                                   href={chatHref}
-                                title={t('tickets.openInboxChat')}
-                                className="glass-interactive flex-center"
-                                style={{ ...messageButtonStyle, color: config.color, background: `${config.color}15` }}
-                              >
-                                <MessageCircle size={16} />
-                              </Link>
+                                  title={t('tickets.openInboxChat')}
+                                  className="glass-interactive flex-center"
+                                  style={{ ...messageButtonStyle, color: 'white', background: config.color, border: 'none' }}
+                                >
+                                  <MessageCircle size={16} />
+                                </Link>
                             )}
                             <Link
                               href={`/tickets/${ticket.id}`}
@@ -404,28 +486,6 @@ export function TicketsBoard({
                             </Link>
                           </div>
                         </div>
-
-                        {isNew && (
-                          <button
-                            disabled={claimAction.isDisabled}
-                            onClick={() => handleClaim(ticket.id)}
-                            style={claimAction.style}
-                          >
-                            {claimAction.isClaiming ? <Loader2 className="animate-spin" size={16} /> : <Zap size={16} />}
-                            {claimAction.label}
-                          </button>
-                        )}
-
-                        {isInProgress && (
-                          <Link
-                            href={chatHref}
-                            className="flex-center"
-                            style={{ ...chatAction.style, textDecoration: 'none', gap: '8px' }}
-                          >
-                            <MessageCircle size={16} />
-                            {chatAction.label}
-                          </Link>
-                        )}
                       </motion.div>
                     );
                   })}
@@ -444,5 +504,6 @@ export function TicketsBoard({
         })}
       </div>
     </div>
+  </div>
   );
 }

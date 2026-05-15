@@ -41,7 +41,7 @@ const DEFAULT_MODULES = [
   'Consultation',
   'All',
 ];
-const WORKSPACE_TICKETS_PAGE_SIZE = 40;
+const WORKSPACE_TICKETS_PAGE_SIZE = 10;
 type TicketCursor = { createdAt: string; id: string } | null;
 
 function getTicketStatus(
