@@ -213,7 +213,6 @@ export default function CreateInternalTicketPage() {
     }
   };
 
-  return (
   const [isHospitalOpen, setIsHospitalOpen] = useState(false);
   const [isSubjectOpen, setIsSubjectOpen] = useState(false);
   const hospitalRef = useRef<HTMLDivElement>(null);
