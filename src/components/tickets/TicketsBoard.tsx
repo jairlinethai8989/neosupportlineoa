@@ -37,6 +37,7 @@ function getTicketDuration(createdAt: string) {
 const boardContainerStyle: React.CSSProperties = {
   display: 'flex',
   overflowX: 'auto',
+  overflowY: 'auto',
   padding: '24px',
   flex: 1,
   width: '100%',
@@ -62,16 +63,17 @@ const columnStyle: React.CSSProperties = {
   flexShrink: 0,
   display: 'flex',
   flexDirection: 'column',
-  gap: '20px',
   background: 'var(--bg-input)',
   borderRadius: '24px',
-  padding: '12px',
+  padding: '0',
+  position: 'relative',
 };
 
 const columnTicketsWrapStyle: React.CSSProperties = {
   display: 'flex',
   flexDirection: 'column',
   gap: '16px',
+  padding: '0 12px 12px 12px',
 };
 
 const cardStyle: React.CSSProperties = {
@@ -270,8 +272,11 @@ export function TicketsBoard({
           width: '100%', 
           height: '24px',
           borderRadius: '12px',
-          background: 'rgba(255,255,255,0.05)',
-          border: '1px solid var(--border)'
+          background: 'var(--bg-topbar)',
+          border: '1px solid var(--border)',
+          position: 'sticky',
+          top: 0,
+          zIndex: 30,
         }}
       >
         <div style={{ width: 'max-content', height: '1px', display: 'flex', gap: '28px' }}>
@@ -304,10 +309,14 @@ export function TicketsBoard({
                   justifyContent: 'space-between',
                   alignItems: 'center',
                   padding: '16px 20px',
-                  background: `${config.color}15`,
-                  borderRadius: '18px',
+                  background: `linear-gradient(to bottom, var(--bg-input) 0%, var(--bg-input) 100%), ${config.color}25`,
+                  borderRadius: '18px 18px 0 0',
                   borderBottom: `3px solid ${config.color}`,
                   boxShadow: `0 4px 12px ${config.color}10`,
+                  position: 'sticky',
+                  top: '24px',
+                  zIndex: 20,
+                  marginBottom: '16px',
                 }}
               >
                 <h3

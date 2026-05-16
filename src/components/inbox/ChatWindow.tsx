@@ -244,7 +244,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
             const canDelete = Boolean((isOwn || isAdmin) && msg.sender_type === 'agent' && onDeleteMessage);
 
             return (
-              <div key={msg.id} className="animate-content-slide" style={{ 
+              <div key={msg.id} className="animate-content-slide message-row-container" style={{ 
                 alignSelf: msg.sender_type === 'agent' ? 'flex-end' : 'flex-start', 
                 maxWidth: '80%',
                 animationDelay: `${Math.min(0.3, (index % 10) * 0.05)}s` 
@@ -283,38 +283,14 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
                    ) : (
                       msg.content
                    )}
-
-                   {canDelete && (
-                     <button 
-                       onClick={() => onDeleteMessage && onDeleteMessage(msg.id)}
-                       className="glass-interactive flex-center"
-                       style={{
-                         position: 'absolute',
-                         right: msg.sender_type === 'agent' ? 'auto' : '-10px',
-                         left: msg.sender_type === 'agent' ? '-10px' : 'auto',
-                         top: '-10px',
-                         width: '24px',
-                         height: '24px',
-                         borderRadius: '50%',
-                         background: 'rgba(255, 68, 68, 0.9)',
-                         color: 'white',
-                         border: 'none',
-                         cursor: 'pointer',
-                         boxShadow: '0 2px 8px rgba(255, 68, 68, 0.3)',
-                         zIndex: 10
-                       }}
-                       title="Unsend"
-                     >
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2M10 11v6M14 11v6"/></svg>
-                     </button>
-                   )}
                 </div>
                 <p style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '6px', textAlign: msg.sender_type === 'agent' ? 'right' : 'left', opacity: 0.7, display: 'flex', alignItems: 'center', justifyContent: msg.sender_type === 'agent' ? 'flex-end' : 'flex-start', gap: '4px' }}>
                    {new Date(msg.created_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', hour12: false })}
                    {canDelete && (
                       <span 
                         onClick={() => onDeleteMessage && onDeleteMessage(msg.id)}
-                        style={{ color: 'var(--danger)', cursor: 'pointer', marginLeft: '8px', textDecoration: 'underline' }}>
+                        className="unsend-btn"
+                        style={{ color: 'var(--text-muted)', cursor: 'pointer', marginLeft: '12px', textDecoration: 'underline' }}>
                         Unsend
                       </span>
                    )}
@@ -419,5 +395,3 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
   </div>
   );
 };
-
-
