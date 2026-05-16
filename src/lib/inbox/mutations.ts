@@ -7,6 +7,7 @@ import { supabase } from '@/lib/supabase';
 import { normalizeInboxTicket } from '@/lib/inbox/normalizers';
 import { invalidateAllPreviewCaches } from '@/lib/reports/previewCache';
 import type { InboxTicket } from '@/types/inbox';
+import { compressImage } from '@/lib/utils/imageCompression';
 
 export interface InboxDeleteMessageResult {
   success: boolean;
@@ -193,16 +194,26 @@ export async function uploadInboxChatMedia(input: {
   staffId: string;
   filePrefix?: string;
 }) {
-  const media = input.file || input.blob;
+  let media = input.file || input.blob;
   if (!media) throw new Error('No media provided for upload');
 
-  const fileExt = input.file ? input.file.name.split('.').pop() : 'jpg';
+  // Compress if it's an image
+  if (media.type.startsWith('image/')) {
+    try {
+      media = await compressImage(media, { quality: 1.0 });
+    } catch (err) {
+      console.error('Image compression failed, uploading original:', err);
+    }
+  }
+
+  const isImage = media.type.startsWith('image/') || media.type === 'image/webp';
+  const fileExt = isImage ? 'webp' : (input.file ? input.file.name.split('.').pop() : 'bin');
   const fileName = `${input.filePrefix || 'inbox'}_${input.conversationId}_${Date.now()}.${fileExt}`;
   
   const { error: uploadError } = await supabase.storage
     .from('chat_media')
     .upload(fileName, media, { 
-      contentType: input.file ? input.file.type : 'image/jpeg',
+      contentType: media.type,
       upsert: true
     });
 

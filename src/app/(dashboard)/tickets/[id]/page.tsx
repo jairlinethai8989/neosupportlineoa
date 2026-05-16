@@ -16,6 +16,8 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { User, Clock, ChevronRight } from 'lucide-react';
 import { deleteMessageAction, closeConversationAction } from '@/app/actions/messageActions';
+import { sendPortalMessageAction } from '@/app/actions/portalActions';
+import { compressImage } from '@/lib/utils/imageCompression';
 import { useNotificationContext } from '@/contexts/NotificationContext';
 import {
   getTicketDetailActionFailedToast,
@@ -523,9 +525,23 @@ export default function StaffTicketDetailPage() {
     const file = event.target.files[0];
     setSending(true);
     try {
-      const extension = file.name.split('.').pop() || 'dat';
-      const fileName = `admin_${ticketId}_${Date.now()}.${extension}`;
-      const { error: uploadError } = await supabase.storage.from('chat_media').upload(fileName, file);
+      let fileToUpload: File | Blob = file;
+      let contentType = file.type;
+      let ext = file.name.split('.').pop() || 'dat';
+
+      if (contentType.startsWith('image/')) {
+        try {
+          const compressed = await compressImage(file, { quality: 1.0 });
+          fileToUpload = compressed;
+          contentType = 'image/webp';
+          ext = 'webp';
+        } catch (err) {
+          console.error('Staff detail file compression failed:', err);
+        }
+      }
+
+      const fileName = `admin_${ticketId}_${Date.now()}.${ext}`;
+      const { error: uploadError } = await supabase.storage.from('chat_media').upload(fileName, fileToUpload, { contentType });
       if (uploadError) throw uploadError;
 
       const {
@@ -538,7 +554,7 @@ export default function StaffTicketDetailPage() {
           ticket_id: ticketId,
           sender_type: 'agent',
           staff_id: user?.id,
-          message_type: file.type.startsWith('image/') ? 'image' : 'file',
+          message_type: contentType.startsWith('image/') ? 'image' : 'file',
           content: publicUrl,
         },
       ]);
@@ -557,15 +573,28 @@ export default function StaffTicketDetailPage() {
 
     setSending(true);
     try {
-      // 1. Convert Blob to File object as per Codex recommendation
-      const file = new File([blob], `edited_${ticketId}_${Date.now()}.jpg`, { type: 'image/jpeg' });
+      // 1. Convert Blob to File object
+      let fileToUpload: File | Blob = new File([blob], `edited_${ticketId}_${Date.now()}.jpg`, { type: 'image/jpeg' });
+      let contentType = 'image/jpeg';
+      let ext = 'jpg';
+
+      // 2. Compress to WebP 100%
+      try {
+        const compressed = await compressImage(fileToUpload as File, { quality: 1.0 });
+        fileToUpload = compressed;
+        contentType = 'image/webp';
+        ext = 'webp';
+      } catch (err) {
+        console.error('Staff detail editor compression failed:', err);
+      }
       
-      const fileName = `${Date.now()}_${file.name}`;
+      const fileName = `edited_${Date.now()}_${Math.random().toString(36).substr(2, 5)}.${ext}`;
       
-      // 2. Upload the new File object (edited version)
-      const { error: uploadError } = await supabase.storage.from('chat_media').upload(fileName, file, {
+      // 3. Upload the new File object
+      const { error: uploadError } = await supabase.storage.from('chat_media').upload(fileName, fileToUpload, {
         cacheControl: '3600',
-        upsert: false
+        upsert: false,
+        contentType
       });
       if (uploadError) throw uploadError;
 

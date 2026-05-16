@@ -13,6 +13,7 @@ import {
    CheckCircle
 } from 'lucide-react';
 import { calculateSlaDeadline } from '@/lib/utils/slaUtils';
+import { compressImage } from '@/lib/utils/imageCompression';
 const ChatAttachmentModal = React.lazy(() => import('@/components/chat/ChatAttachmentModal'));
 
 export default function CreateTicketPage() {
@@ -131,23 +132,37 @@ export default function CreateTicketPage() {
          const conversationId = newConv?.id;
 
          // 4. Initial Messages
-         if (conversationId) {
-            if (file) {
-               const fileExt = file.name.split('.').pop() || 'jpg';
-               const fileName = `${createdTicket.id}_${Date.now()}.${fileExt}`;
-               const { error: uploadError } = await supabase.storage.from('chat_media').upload(fileName, file);
-               if (!uploadError) {
-                  const { data: { publicUrl } } = supabase.storage.from('chat_media').getPublicUrl(fileName);
-                  await supabase.from('messages').insert([{
-                     ticket_id: createdTicket.id,
-                     conversation_id: conversationId,
-                     sender_type: 'customer',
-                     customer_id: customerData.id,
-                     message_type: 'image',
-                     content: publicUrl
-                  }]);
-               }
-            }
+          if (conversationId) {
+             if (file) {
+                let fileToUpload: File | Blob = file;
+                let contentType = file.type;
+                let ext = file.name.split('.').pop() || 'jpg';
+
+                if (contentType.startsWith('image/')) {
+                   try {
+                      const compressed = await compressImage(file, { quality: 1.0 });
+                      fileToUpload = compressed;
+                      contentType = 'image/webp';
+                      ext = 'webp';
+                   } catch (err) {
+                      console.error('Portal create compression failed:', err);
+                   }
+                }
+
+                const fileName = `${createdTicket.id}_${Date.now()}.${ext}`;
+                const { error: uploadError } = await supabase.storage.from('chat_media').upload(fileName, fileToUpload, { contentType });
+                if (!uploadError) {
+                   const { data: { publicUrl } } = supabase.storage.from('chat_media').getPublicUrl(fileName);
+                   await supabase.from('messages').insert([{
+                      ticket_id: createdTicket.id,
+                      conversation_id: conversationId,
+                      sender_type: 'customer',
+                      customer_id: customerData.id,
+                      message_type: 'image',
+                      content: publicUrl
+                   }]);
+                }
+             }
 
             if (description.trim()) {
                await supabase.from('messages').insert([{

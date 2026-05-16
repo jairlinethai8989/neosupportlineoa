@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Image Compression Test</title>
+    <style>
+        body { font-family: sans-serif; background: #0a0e14; color: white; padding: 40px; }
+        .comparison { display: flex; gap: 20px; }
+        .box { flex: 1; border: 1px solid #333; padding: 10px; border-radius: 8px; background: rgba(255,255,255,0.05); }
+        img { max-width: 100%; border-radius: 4px; }
+        h2 { color: #00F2FE; }
+        .stats { margin-top: 10px; font-size: 14px; color: #aaa; }
+    </style>
+</head>
+<body>
+    <h1>🚀 Image Compression Test (Client-Side)</h1>
+    <div class="comparison">
+        <div class="box">
+            <h2>Original (PNG)</h2>
+            <img id="original" src="" />
+            <div id="orig-stats" class="stats">Loading...</div>
+        </div>
+        <div class="box">
+            <h2>Compressed (WebP @ 0.75)</h2>
+            <img id="compressed" src="" />
+            <div id="comp-stats" class="stats">Processing...</div>
+        </div>
+    </div>
+
+    <script>
+        const IMG_URL = "test.png";
+        const originalImg = document.getElementById('original');
+        const compressedImg = document.getElementById('compressed');
+
+        originalImg.onload = () => {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            
+            // Auto-Resize to max 1280px width
+            const MAX_WIDTH = 1280;
+            let width = originalImg.naturalWidth;
+            let height = originalImg.naturalHeight;
+            
+            if (width > MAX_WIDTH) {
+                height = (MAX_WIDTH / width) * height;
+                width = MAX_WIDTH;
+            }
+            
+            canvas.width = width;
+            canvas.height = height;
+            ctx.drawImage(originalImg, 0, 0, width, height);
+            
+            const webpData = canvas.toDataURL('image/webp', 1.00);
+            compressedImg.src = webpData;
+            
+            document.getElementById('orig-stats').innerText = `Resolution: ${originalImg.naturalWidth}x${originalImg.naturalHeight}`;
+            
+            // Estimate size
+            const head = "data:image/webp;base64,";
+            const size = Math.round((webpData.length - head.length) * 3 / 4 / 1024);
+            document.getElementById('comp-stats').innerText = `Resolution: ${width}x${height} | Estimated Size: ~${size} KB (100% Quality)`;
+        };
+        
+        originalImg.src = IMG_URL;
+    </script>
+</body>
+</html>

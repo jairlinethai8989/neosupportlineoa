@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { useLiff } from '@/hooks/useLiff';
 import { sendPortalMessageAction } from '@/app/actions/portalActions';
+import { compressImage } from '@/lib/utils/imageCompression';
 
 const ChatAttachmentModal = React.lazy(() => import('@/components/chat/ChatAttachmentModal'));
 const ImageEditorModal = React.lazy(() => import('@/components/modals/ImageEditorModal'));
@@ -406,9 +407,23 @@ export default function TicketDetailPage() {
   const handleConfirmAttachment = async (file: File, type: 'image' | 'video' | 'file') => {
     setSending(true);
     try {
-      const fileExt = file.name.split('.').pop() || 'jpg';
-      const fileName = `${ticketId}_${Date.now()}.${fileExt}`;
-      const { error: uploadError } = await supabase.storage.from('chat_media').upload(fileName, file);
+      let fileToUpload: File | Blob = file;
+      let contentType = file.type;
+      let ext = file.name.split('.').pop() || 'jpg';
+
+      if (contentType.startsWith('image/')) {
+        try {
+          const compressed = await compressImage(file, { quality: 1.0 });
+          fileToUpload = compressed;
+          contentType = 'image/webp';
+          ext = 'webp';
+        } catch (err) {
+          console.error('Portal detail compression failed:', err);
+        }
+      }
+
+      const fileName = `${ticketId}_${Date.now()}.${ext}`;
+      const { error: uploadError } = await supabase.storage.from('chat_media').upload(fileName, fileToUpload, { contentType });
       if (uploadError) throw uploadError;
 
       if (!profile?.userId) throw new Error('LINE profile not loaded');

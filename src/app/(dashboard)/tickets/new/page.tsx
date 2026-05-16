@@ -21,6 +21,7 @@ import Link from 'next/link';
 import { useStaffLocale } from '@/contexts/StaffLocaleContext';
 import { getStaffMessage, translateTicketPriority } from '@/lib/i18n/staff';
 import { calculateSlaDeadline } from '@/lib/utils/slaUtils';
+import { compressImage } from '@/lib/utils/imageCompression';
 
 export default function CreateInternalTicketPage() {
   const router = useRouter();
@@ -112,10 +113,26 @@ export default function CreateInternalTicketPage() {
       // 1. Upload Attachments if any
       const uploadedUrls: string[] = [];
       for (const att of attachments) {
-        const fileName = `${Date.now()}_${att.file.name}`;
+        let fileToUpload = att.file;
+        let contentType = att.file.type;
+        let ext = att.file.name.split('.').pop();
+
+        // Compress if image
+        if (contentType.startsWith('image/')) {
+          try {
+            const compressed = await compressImage(att.file, { quality: 1.0 });
+            fileToUpload = compressed;
+            contentType = 'image/webp';
+            ext = 'webp';
+          } catch (err) {
+            console.error('Ticket attachment compression failed:', err);
+          }
+        }
+
+        const fileName = `${Date.now()}_${Math.random().toString(36).substr(2, 5)}.${ext}`;
         const { error: uploadError } = await supabase.storage
           .from('chat_media')
-          .upload(fileName, att.file);
+          .upload(fileName, fileToUpload, { contentType });
         
         if (!uploadError) {
           const { data: { publicUrl } } = supabase.storage.from('chat_media').getPublicUrl(fileName);
