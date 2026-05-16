@@ -226,12 +226,41 @@ function getChatActionState(isDisabled: boolean, label: string, color: string = 
 }
 
 function PriorityIndicator({ priority, locale }: { priority: string; locale: 'th' | 'en' }) {
-  const colors: Record<string, string> = { High: '#ea5455', Medium: '#ff9f43', Low: '#00cfe8' };
-  const color = colors[priority] || 'gray';
+  // Map both English and Thai keys to ensure colors match regardless of data source
+  const colors: Record<string, string> = { 
+    critical: '#ea5455', // Red
+    'วิกฤต': '#ea5455',   // Red (Thai)
+    high: '#ff9f43',     // Orange
+    'สูง': '#ff9f43',      // Orange (Thai)
+    medium: '#00cfe8',   // Blue
+    'ปกติ': '#00cfe8',     // Blue (Thai)
+    low: '#b9c3cd',      // Grey
+    'ต่ำ': '#b9c3cd'       // Grey (Thai)
+  };
+
+  const p = String(priority || 'medium').toLowerCase().trim();
+  const color = colors[p] || '#b9c3cd';
+
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-      <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: color }} />
-      <span style={{ fontSize: '11px', fontWeight: '600' }}>{translateTicketPriority(priority, locale)}</span>
+    <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+      <div 
+        style={{ 
+          width: '7px', 
+          height: '7px', 
+          borderRadius: '50%', 
+          background: color, 
+          boxShadow: color !== '#b9c3cd' ? `0 0 10px ${color}60` : 'none',
+          transition: 'all 0.3s ease'
+        }} 
+      />
+      <span style={{ 
+        fontSize: '11px', 
+        fontWeight: '850', 
+        color: color,
+        textShadow: color !== '#b9c3cd' ? `0 0 10px ${color}20` : 'none'
+      }}>
+        {translateTicketPriority(priority, locale)}
+      </span>
     </div>
   );
 }

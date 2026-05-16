@@ -12,6 +12,7 @@ import {
    Camera,
    CheckCircle
 } from 'lucide-react';
+import { calculateSlaDeadline } from '@/lib/utils/slaUtils';
 const ChatAttachmentModal = React.lazy(() => import('@/components/chat/ChatAttachmentModal'));
 
 export default function CreateTicketPage() {
@@ -81,17 +82,34 @@ export default function CreateTicketPage() {
          const randomSuffix = Math.random().toString(36).substring(2, 8).toUpperCase();
          const ticketNo = `${hospitalAbbr}-${dateStr}-${randomSuffix}`;
 
-         // 2. Insert Ticket
+         // 2. Calculate SLA Deadline
+         let slaDueAt = null;
+         try {
+            const { data: slaRule } = await supabase
+               .from('sla_rules')
+               .select('response_time_minutes, resolution_time_minutes')
+               .eq('priority', 'Medium')
+               .maybeSingle();
+            
+            if (slaRule) {
+               const duration = slaRule.resolution_time_minutes || slaRule.response_time_minutes || 60;
+               slaDueAt = calculateSlaDeadline(new Date(), duration).toISOString();
+            }
+         } catch (e) {
+            console.warn('SLA Calculation skipped:', e);
+         }
+
+         // 3. Insert Ticket
          const ticketPayload: any = {
             ticket_no: ticketNo,
             customer_id: customerData.id,
             hospital_id: customerData.hospital_id,
-            // Keep subject and additional details separated for downstream reports/audits.
             subject: subject.trim(),
             description: description,
             status: 'New',
             priority: 'Medium',
-            created_at: new Date().toISOString()
+            created_at: new Date().toISOString(),
+            sla_due_at: slaDueAt
          };
 
          const { data: newTicket, error: ticketError } = await supabase.from('tickets').insert([ticketPayload]).select();

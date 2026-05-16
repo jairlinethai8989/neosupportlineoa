@@ -20,6 +20,7 @@ import {
 import Link from 'next/link';
 import { useStaffLocale } from '@/contexts/StaffLocaleContext';
 import { getStaffMessage, translateTicketPriority } from '@/lib/i18n/staff';
+import { calculateSlaDeadline } from '@/lib/utils/slaUtils';
 
 export default function CreateInternalTicketPage() {
   const router = useRouter();
@@ -157,17 +158,36 @@ export default function CreateInternalTicketPage() {
       const datePart = new Date().toISOString().slice(0, 10).replace(/-/g, '');
       const tempNo = `TIC-${datePart}-${Math.floor(1000 + Math.random() * 9000)}`;
 
-      // 4. Create Internal Ticket
+      // 4. Calculate SLA Deadline
+      let slaDueAt = null;
+      try {
+        const { data: slaRule } = await supabase
+          .from('sla_rules')
+          .select('response_time_minutes, resolution_time_minutes')
+          .eq('priority', priority)
+          .maybeSingle();
+        
+        if (slaRule) {
+          // Use resolution_time_minutes as the primary deadline for the dashboard
+          const duration = slaRule.resolution_time_minutes || slaRule.response_time_minutes || 60;
+          slaDueAt = calculateSlaDeadline(new Date(), duration).toISOString();
+        }
+      } catch (e) {
+        console.warn('SLA Calculation skipped:', e);
+      }
+
+      // 5. Create Internal Ticket
       const ticketPayload = {
         ticket_no: tempNo, 
-        customer_id: staffCustomerId, // Use the staff's customer record
+        customer_id: staffCustomerId, 
         hospital_id: selectedHospitalId, 
         subject: `[Private] ${subject}`,
         description: description || subject,
         status: 'New',
         priority: priority,
         assigned_agent_id: staffProfile?.id,
-        source: 'Internal'
+        source: 'Internal',
+        sla_due_at: slaDueAt
       };
 
       const { data: newTicket, error: ticketError } = await supabase
