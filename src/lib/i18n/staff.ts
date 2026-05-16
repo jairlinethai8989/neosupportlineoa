@@ -543,6 +543,7 @@ const messages: Record<StaffLocale, MessageDictionary> = {
         fixCompleted: 'แก้ไขเสร็จสิ้น',
       },
       priorities: {
+        critical: 'วิกฤต',
         high: 'สูง',
         medium: 'กลาง',
         low: 'ต่ำ',
@@ -1111,6 +1112,7 @@ const messages: Record<StaffLocale, MessageDictionary> = {
         fixCompleted: 'Fix Completed',
       },
       priorities: {
+        critical: 'Critical',
         high: 'High',
         medium: 'Medium',
         low: 'Low',
@@ -1188,6 +1190,7 @@ export function translateTicketPriority(priority: string, locale: StaffLocale): 
     locale,
     priority,
     {
+      critical: 'tickets.priorities.critical',
       high: 'tickets.priorities.high',
       medium: 'tickets.priorities.medium',
       low: 'tickets.priorities.low',

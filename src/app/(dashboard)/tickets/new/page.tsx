@@ -14,9 +14,12 @@ import {
   Paperclip,
   Image as ImageIcon,
   X,
-  File
+  File,
+  ChevronDown
 } from 'lucide-react';
 import Link from 'next/link';
+import { useStaffLocale } from '@/contexts/StaffLocaleContext';
+import { getStaffMessage, translateTicketPriority } from '@/lib/i18n/staff';
 
 export default function CreateInternalTicketPage() {
   const router = useRouter();
@@ -28,6 +31,7 @@ export default function CreateInternalTicketPage() {
   const [description, setDescription] = useState('');
   const [priority, setPriority] = useState('Medium');
   const [attachments, setAttachments] = useState<any[]>([]);
+  const [subjectTypes, setSubjectTypes] = useState<string[]>([]);
   
   // UI State
   const [hospitals, setHospitals] = useState<any[]>([]);
@@ -46,20 +50,27 @@ export default function CreateInternalTicketPage() {
         setStaffProfile(p);
       }
 
-      // 2. Fetch Hospitals for Selection
-      const { data, error: fetchErr } = await supabase
-        .from('hospitals')
-        .select('*')
-        .eq('is_active', true)
-        .order('name', { ascending: true });
+      // 2. Fetch Hospitals and Company Settings
+      const [{ data: hData }, { data: settings }] = await Promise.all([
+        supabase.from('hospitals').select('*').eq('is_active', true).order('name', { ascending: true }),
+        supabase.from('company_settings').select('subject_types').maybeSingle()
+      ]);
       
-      if (!fetchErr) {
-        setHospitals(data || []);
-      }
+      setHospitals(hData || []);
+      setSubjectTypes(settings?.subject_types || ['ลบ', 'แก้ไขออเดอร์', 'แจ้ง error', 'เรื่องอื่นๆ']);
       setLoadingHospitals(false);
     }
     init();
   }, []);
+
+  const { locale, t } = useStaffLocale();
+
+  const PRIORITY_COLORS: Record<string, string> = {
+    Low: '#00cfe8',
+    Medium: '#ff9f43',
+    High: '#ea5455',
+    Critical: '#8b5cf6',
+  };
 
   const filteredHospitals = hospitals.filter(h => 
     h.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -203,7 +214,7 @@ export default function CreateInternalTicketPage() {
   };
 
   return (
-    <div style={{ animation: 'fadeIn 0.5s ease-out', maxWidth: '800px', margin: '0 auto', paddingBottom: '100px' }}>
+    <div style={{ animation: 'fadeIn 0.5s ease-out', maxWidth: '100%', margin: '0', padding: '24px 32px 100px' }}>
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '32px' }}>
         <Link href="/tickets" className="glass-interactive flex-center" style={{ width: '40px', height: '40px', borderRadius: '12px', border: '1px solid var(--border)', color: 'var(--text-main)' }}>
@@ -284,10 +295,30 @@ export default function CreateInternalTicketPage() {
 
           {/* 2. Subject */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            <label style={{ fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px' }}>หัวข้อ (Subject)</label>
+            <label style={{ fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px' }}>หัวข้อที่ต้องการแจ้ง (SUBJECT)</label>
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '4px' }}>
+              {subjectTypes.slice(0, 5).map(st => (
+                <button
+                  key={st}
+                  type="button"
+                  onClick={() => setSubject(st)}
+                  style={{
+                    padding: '6px 12px',
+                    borderRadius: '8px',
+                    border: '1px solid var(--border)',
+                    fontSize: '11px',
+                    background: subject === st ? 'var(--primary-transparent)' : 'rgba(255,255,255,0.03)',
+                    color: subject === st ? 'var(--primary)' : 'var(--text-muted)',
+                    cursor: 'pointer'
+                  }}
+                >
+                  {st}
+                </button>
+              ))}
+            </div>
             <input 
               type="text" 
-              placeholder="สรุปสั้นๆ เช่น ตรวจสอบระบบด่วน, สั่งสินค้าเพิ่มเติม..." 
+              placeholder="เลือกหัวข้อ หรือ พิมพ์สรุปสั้นๆ..." 
               value={subject}
               onChange={e => setSubject(e.target.value)}
               className="focus-ring"
@@ -307,9 +338,9 @@ export default function CreateInternalTicketPage() {
 
           {/* 3. Description */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            <label style={{ fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px' }}>รายละเอียด (Description)</label>
+            <label style={{ fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px' }}>รายละเอียดเพิ่มเติม (DESCRIPTION)</label>
             <textarea 
-              placeholder="ระบุรายละเอียดที่พนักงานตรวจสอบ หรือรายละเอียดงาน..." 
+              placeholder="แจ้งรายละเอียดของปัญหา…" 
               value={description}
               onChange={e => setDescription(e.target.value)}
               className="focus-ring"
@@ -370,7 +401,7 @@ export default function CreateInternalTicketPage() {
 
           {/* 5. Priority */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            <label style={{ fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px' }}>ความสำคัญ (Priority)</label>
+            <label style={{ fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px' }}>{getStaffMessage(locale, 'dashboard.priorityBreakdown')} (PRIORITY)</label>
             <div style={{ display: 'flex', gap: '12px' }}>
               {['Low', 'Medium', 'High', 'Critical'].map(p => (
                 <button 
@@ -381,15 +412,16 @@ export default function CreateInternalTicketPage() {
                     flex: 1, 
                     padding: '12px', 
                     borderRadius: '12px', 
-                    border: '1px solid var(--border)', 
-                    background: priority === p ? 'var(--primary)' : 'transparent', 
-                    color: priority === p ? 'black' : 'var(--text-muted)', 
+                    border: priority === p ? `1px solid ${PRIORITY_COLORS[p]}` : '1px solid var(--border)', 
+                    background: priority === p ? PRIORITY_COLORS[p] : 'transparent', 
+                    color: priority === p ? (p === 'Critical' || p === 'High' ? 'white' : 'black') : 'var(--text-muted)', 
                     fontWeight: priority === p ? '900' : '600', 
-                    fontSize: '12px',
-                    transition: 'all 0.2s'
+                    fontSize: '13px',
+                    transition: 'all 0.2s',
+                    boxShadow: priority === p ? `0 4px 12px ${PRIORITY_COLORS[p]}40` : 'none'
                   }}
                 >
-                  {p}
+                  {translateTicketPriority(p, locale)}
                 </button>
               ))}
             </div>
@@ -419,7 +451,7 @@ export default function CreateInternalTicketPage() {
           >
             {submitting ? <Loader2 className="animate-spin" size={24} /> : (
               <>
-                <ShieldCheck size={24} /> ยืนยันสร้างใบงาน (Create Ticket)
+                <ShieldCheck size={24} /> {getStaffMessage(locale, 'inbox.confirmPendingButton').replace('Pending', locale === 'th' ? 'สร้างใบงาน' : 'Create Ticket')}
               </>
             )}
           </button>
