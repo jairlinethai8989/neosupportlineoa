@@ -214,6 +214,27 @@ export default function CreateInternalTicketPage() {
   };
 
   return (
+  const [isHospitalOpen, setIsHospitalOpen] = useState(false);
+  const [isSubjectOpen, setIsSubjectOpen] = useState(false);
+  const hospitalRef = useRef<HTMLDivElement>(null);
+  const subjectRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (hospitalRef.current && !hospitalRef.current.contains(event.target as Node)) {
+        setIsHospitalOpen(false);
+      }
+      if (subjectRef.current && !subjectRef.current.contains(event.target as Node)) {
+        setIsSubjectOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const selectedHospital = hospitals.find(h => h.id === selectedHospitalId);
+
+  return (
     <div style={{ animation: 'fadeIn 0.5s ease-out', maxWidth: '100%', margin: '0', padding: '24px 32px 100px' }}>
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '32px' }}>
@@ -235,105 +256,178 @@ export default function CreateInternalTicketPage() {
             </div>
           )}
 
-          {/* 1. Hospital Selection (Replaced Customer) */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            <label style={{ fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px' }}>เลือกโรงพยาบาล (Select Hospital)</label>
-            <div style={{ position: 'relative' }}>
-              <Search style={{ position: 'absolute', left: '16px', top: '16px', color: 'var(--text-muted)' }} size={18} />
-              <input 
-                type="text" 
-                placeholder="พิมพ์ชื่อโรงพยาบาล หรือ ตัวย่อ..." 
-                value={searchTerm}
-                onChange={e => setSearchTerm(e.target.value)}
-                style={{ 
-                  width: '100%', 
-                  background: 'var(--bg-card)', 
-                  border: '1.5px solid var(--border)', 
-                  borderRadius: '16px', 
-                  padding: '16px 16px 16px 48px', 
-                  color: 'var(--text-main)',
-                  outline: 'none',
-                  fontSize: '15px',
-                  boxShadow: '0 2px 8px rgba(0,0,0,0.02)',
-                  transition: 'all 0.2s'
-                }}
-                className="focus-ring"
-              />
-            </div>
-            
-            {loadingHospitals ? (
-              <div className="flex-center" style={{ padding: '20px' }}><Loader2 className="animate-spin" size={20} color="var(--primary)" /></div>
-            ) : (
-              <div className="no-scrollbar" style={{ maxHeight: '200px', overflowY: 'auto', border: '1px solid var(--border)', borderRadius: '16px', background: 'rgba(0,0,0,0.1)' }}>
-                {filteredHospitals.length > 0 ? filteredHospitals.map(h => (
-                  <div 
-                    key={h.id} 
-                    onClick={() => { setSelectedHospitalId(h.id); setSearchTerm(h.name); }}
-                    style={{ 
-                      padding: '12px 16px', 
-                      cursor: 'pointer', 
-                      display: 'flex', 
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      background: selectedHospitalId === h.id ? 'rgba(54, 153, 255, 0.1)' : 'transparent',
-                      borderBottom: '1px solid rgba(255,255,255,0.05)',
-                      transition: 'all 0.2s'
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <Building size={16} style={{ color: selectedHospitalId === h.id ? 'var(--primary)' : 'var(--text-muted)' }} />
-                      <span style={{ fontSize: '14px', fontWeight: selectedHospitalId === h.id ? '800' : '600' }}>{h.name}</span>
-                    </div>
-                    {h.abbreviation && <span style={{ fontSize: '10px', color: 'var(--text-muted)', background: 'rgba(255,255,255,0.05)', padding: '2px 8px', borderRadius: '6px' }}>{h.abbreviation}</span>}
-                  </div>
-                )) : (
-                  <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>ไม่พบรายชื่อโรงพยาบาล</div>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* 2. Subject */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            <label style={{ fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px' }}>หัวข้อที่ต้องการแจ้ง (SUBJECT)</label>
-            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '4px' }}>
-              {subjectTypes.slice(0, 5).map(st => (
-                <button
-                  key={st}
-                  type="button"
-                  onClick={() => setSubject(st)}
-                  style={{
-                    padding: '6px 12px',
-                    borderRadius: '8px',
-                    border: '1px solid var(--border)',
-                    fontSize: '11px',
-                    background: subject === st ? 'var(--primary-transparent)' : 'rgba(255,255,255,0.03)',
-                    color: subject === st ? 'var(--primary)' : 'var(--text-muted)',
-                    cursor: 'pointer'
-                  }}
-                >
-                  {st}
-                </button>
-              ))}
-            </div>
-            <input 
-              type="text" 
-              placeholder="เลือกหัวข้อ หรือ พิมพ์สรุปสั้นๆ..." 
-              value={subject}
-              onChange={e => setSubject(e.target.value)}
-              className="focus-ring"
+          {/* 1. Hospital Selection Listbox */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', position: 'relative' }} ref={hospitalRef}>
+            <label style={{ fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px' }}>เลือกโรงพยาบาล (SELECT HOSPITAL)</label>
+            <div 
+              onClick={() => setIsHospitalOpen(!isHospitalOpen)}
+              className="glass-interactive"
               style={{ 
                 padding: '16px', 
                 borderRadius: '16px', 
                 background: 'var(--bg-card)', 
                 border: '1.5px solid var(--border)', 
-                color: 'var(--text-main)', 
-                fontSize: '15px', 
-                outline: 'none',
-                boxShadow: '0 2px 8px rgba(0,0,0,0.02)',
+                display: 'flex', 
+                justifyContent: 'space-between', 
+                alignItems: 'center', 
+                cursor: 'pointer',
                 transition: 'all 0.2s'
               }}
-            />
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <Building size={18} style={{ color: selectedHospital ? 'var(--primary)' : 'var(--text-muted)' }} />
+                <span style={{ fontSize: '15px', color: selectedHospital ? 'var(--text-main)' : 'var(--text-muted)', fontWeight: selectedHospital ? '700' : '400' }}>
+                  {selectedHospital ? selectedHospital.name : 'ค้นหาหรือเลือกโรงพยาบาล...'}
+                </span>
+              </div>
+              <ChevronDown size={18} style={{ color: 'var(--text-muted)', transform: isHospitalOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
+            </div>
+
+            {isHospitalOpen && (
+              <div style={{ 
+                position: 'absolute', 
+                top: '100%', 
+                left: 0, 
+                right: 0, 
+                zIndex: 100, 
+                marginTop: '8px', 
+                background: 'var(--bg-card)', 
+                border: '1px solid var(--border)', 
+                borderRadius: '16px', 
+                boxShadow: '0 10px 40px rgba(0,0,0,0.2)',
+                overflow: 'hidden',
+                animation: 'slideDown 0.2s ease-out'
+              }}>
+                <div style={{ padding: '12px', borderBottom: '1px solid var(--border)', position: 'relative' }}>
+                   <Search style={{ position: 'absolute', left: '24px', top: '24px', color: 'var(--text-muted)' }} size={16} />
+                   <input 
+                      type="text" 
+                      placeholder="พิมพ์เพื่อค้นหา..." 
+                      autoFocus
+                      value={searchTerm}
+                      onChange={e => setSearchTerm(e.target.value)}
+                      style={{ 
+                        width: '100%', 
+                        background: 'rgba(255,255,255,0.03)', 
+                        border: '1px solid var(--border)', 
+                        borderRadius: '12px', 
+                        padding: '10px 10px 10px 36px', 
+                        color: 'var(--text-main)', 
+                        outline: 'none',
+                        fontSize: '14px'
+                      }}
+                   />
+                </div>
+                <div className="custom-scrollbar" style={{ maxHeight: '250px', overflowY: 'auto' }}>
+                  {filteredHospitals.length > 0 ? filteredHospitals.map(h => (
+                    <div 
+                      key={h.id}
+                      onClick={() => { setSelectedHospitalId(h.id); setIsHospitalOpen(false); }}
+                      style={{ 
+                        padding: '12px 20px', 
+                        cursor: 'pointer', 
+                        display: 'flex', 
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        background: selectedHospitalId === h.id ? 'rgba(0, 242, 254, 0.08)' : 'transparent',
+                        transition: 'all 0.2s',
+                        borderBottom: '1px solid rgba(255,255,255,0.03)'
+                      }}
+                      onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.03)'}
+                      onMouseLeave={(e) => e.currentTarget.style.background = selectedHospitalId === h.id ? 'rgba(0, 242, 254, 0.08)' : 'transparent'}
+                    >
+                      <span style={{ fontSize: '14px', fontWeight: selectedHospitalId === h.id ? '700' : '400', color: selectedHospitalId === h.id ? 'var(--primary)' : 'var(--text-main)' }}>{h.name}</span>
+                      {h.abbreviation && <span style={{ fontSize: '10px', color: 'var(--text-muted)', background: 'rgba(255,255,255,0.05)', padding: '2px 6px', borderRadius: '4px' }}>{h.abbreviation}</span>}
+                    </div>
+                  )) : (
+                    <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>ไม่พบรายชื่อโรงพยาบาล</div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* 2. Subject Selection Listbox */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', position: 'relative' }} ref={subjectRef}>
+            <label style={{ fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px' }}>หัวข้อที่ต้องการแจ้ง (SUBJECT)</label>
+            <div 
+              onClick={() => setIsSubjectOpen(!isSubjectOpen)}
+              className="glass-interactive"
+              style={{ 
+                padding: '16px', 
+                borderRadius: '16px', 
+                background: 'var(--bg-card)', 
+                border: '1.5px solid var(--border)', 
+                display: 'flex', 
+                justifyContent: 'space-between', 
+                alignItems: 'center', 
+                cursor: 'pointer',
+                transition: 'all 0.2s'
+              }}
+            >
+              <span style={{ fontSize: '15px', color: subject ? 'var(--text-main)' : 'var(--text-muted)', fontWeight: subject ? '700' : '400' }}>
+                {subject ? subject : 'เลือกหัวข้อเรื่องที่ต้องการแจ้ง...'}
+              </span>
+              <ChevronDown size={18} style={{ color: 'var(--text-muted)', transform: isSubjectOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
+            </div>
+
+            {isSubjectOpen && (
+              <div style={{ 
+                position: 'absolute', 
+                top: '100%', 
+                left: 0, 
+                right: 0, 
+                zIndex: 100, 
+                marginTop: '8px', 
+                background: 'var(--bg-card)', 
+                border: '1px solid var(--border)', 
+                borderRadius: '16px', 
+                boxShadow: '0 10px 40px rgba(0,0,0,0.2)',
+                overflow: 'hidden',
+                animation: 'slideDown 0.2s ease-out'
+              }}>
+                <div className="custom-scrollbar" style={{ maxHeight: '200px', overflowY: 'auto' }}>
+                  {subjectTypes.map((st, idx) => (
+                    <div 
+                      key={idx}
+                      onClick={() => { setSubject(st); setIsSubjectOpen(false); }}
+                      style={{ 
+                        padding: '14px 20px', 
+                        cursor: 'pointer', 
+                        fontSize: '14px',
+                        background: subject === st ? 'rgba(0, 242, 254, 0.08)' : 'transparent',
+                        color: subject === st ? 'var(--primary)' : 'var(--text-main)',
+                        transition: 'all 0.2s',
+                        borderBottom: '1px solid rgba(255,255,255,0.03)'
+                      }}
+                      onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.03)'}
+                      onMouseLeave={(e) => e.currentTarget.style.background = subject === st ? 'rgba(0, 242, 254, 0.08)' : 'transparent'}
+                    >
+                      {st}
+                    </div>
+                  ))}
+                  <div style={{ padding: '12px', borderTop: '1px solid var(--border)' }}>
+                    <input 
+                      type="text" 
+                      placeholder="ระบุหัวข้ออื่นๆ..." 
+                      value={subjectTypes.includes(subject) ? '' : subject}
+                      onChange={e => setSubject(e.target.value)}
+                      onKeyDown={e => e.key === 'Enter' && setIsSubjectOpen(false)}
+                      style={{ 
+                        width: '100%', 
+                        background: 'transparent', 
+                        border: '1px dashed var(--border)', 
+                        borderRadius: '8px', 
+                        padding: '8px 12px', 
+                        color: 'var(--text-main)', 
+                        fontSize: '13px',
+                        outline: 'none'
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* 3. Description */}
@@ -345,7 +439,7 @@ export default function CreateInternalTicketPage() {
               onChange={e => setDescription(e.target.value)}
               className="focus-ring"
               style={{ 
-                height: '120px', 
+                height: '100px', 
                 padding: '16px', 
                 borderRadius: '16px', 
                 background: 'var(--bg-card)', 
@@ -360,16 +454,16 @@ export default function CreateInternalTicketPage() {
             />
           </div>
 
-          {/* 4. Attachments (New Feature) */}
+          {/* 4. Attachments */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            <label style={{ fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px' }}>แนบภาพหรือไฟล์ (Attachments)</label>
+            <label style={{ fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px' }}>แนบภาพหรือไฟล์ (ATTACHMENTS)</label>
             <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
                {attachments.map(att => (
-                 <div key={att.id} style={{ position: 'relative', width: '80px', height: '80px', borderRadius: '12px', overflow: 'hidden', border: '1px solid var(--border)', background: 'rgba(255,255,255,0.05)' }}>
+                 <div key={att.id} style={{ position: 'relative', width: '70px', height: '70px', borderRadius: '12px', overflow: 'hidden', border: '1px solid var(--border)', background: 'rgba(255,255,255,0.05)' }}>
                     {att.preview ? (
                       <img src={att.preview} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="preview" />
                     ) : (
-                      <div className="flex-center" style={{ height: '100%', color: 'var(--text-muted)' }}><File size={24} /></div>
+                      <div className="flex-center" style={{ height: '100%', color: 'var(--text-muted)' }}><File size={20} /></div>
                     )}
                     <button 
                       type="button" 
@@ -383,10 +477,10 @@ export default function CreateInternalTicketPage() {
                  type="button"
                  onClick={() => fileInputRef.current?.click()}
                  className="glass-interactive"
-                 style={{ width: '80px', height: '80px', borderRadius: '12px', border: '2px dashed var(--border)', color: 'var(--text-muted)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '4px', cursor: 'pointer' }}
+                 style={{ width: '70px', height: '70px', borderRadius: '12px', border: '2px dashed var(--border)', color: 'var(--text-muted)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '2px', cursor: 'pointer' }}
                >
-                 <Paperclip size={20} />
-                 <span style={{ fontSize: '10px' }}>เพิ่มไฟล์</span>
+                 <Paperclip size={18} />
+                 <span style={{ fontSize: '9px' }}>เพิ่มไฟล์</span>
                </button>
                <input 
                  type="file" 
@@ -463,10 +557,14 @@ export default function CreateInternalTicketPage() {
           from { opacity: 0; transform: translateY(20px); }
           to { opacity: 1; transform: translateY(0); }
         }
+        @keyframes slideDown {
+          from { opacity: 0; transform: translateY(-10px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
         .focus-ring:focus {
           border-color: var(--primary) !important;
           box-shadow: 0 0 0 4px var(--primary-transparent) !important;
-          background: white !important;
+          background: rgba(255,255,255,0.02) !important;
         }
       `}} />
     </div>
