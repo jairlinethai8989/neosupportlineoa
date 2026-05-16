@@ -45,12 +45,22 @@ export interface LatestTicketRealtimeEvent {
 
 export function useNotifications(agentId: string | null, role: string | null = null, locale: StaffLocale = 'th') {
   // --- States ---
-  const [notifications, setNotifications] = useState<AppNotification[]>([]);
+  const [logNotifs, setLogNotifs] = useState<AppNotification[]>([]);
+  const [slaNotifs, setSlaNotifs] = useState<AppNotification[]>([]);
   const [toasts, setToasts] = useState<ToastNotif[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [slaAlertCount, setSlaAlertCount] = useState(0);
   const [newTicketsCount, setNewTicketsCount] = useState(0);
   const [latestTicketRealtimeEvent, setLatestTicketRealtimeEvent] = useState<LatestTicketRealtimeEvent | null>(null);
+
+  const notifications = useMemo(() => {
+    return [...slaNotifs, ...logNotifs].sort((a, b) => {
+      // SLA breached first, then warning, then by date
+      const priority = (n: AppNotification) => n.type === 'sla' ? 0 : n.type === 'sla_warning' ? 1 : 2;
+      if (priority(a) !== priority(b)) return priority(a) - priority(b);
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    });
+  }, [logNotifs, slaNotifs]);
   
   // Notification Preferences (Per User)
   const [prefNewTicket, setPrefNewTicket] = useState(true);
@@ -327,42 +337,47 @@ export function useNotifications(agentId: string | null, role: string | null = n
   }, []);
 
   const markAsRead = useCallback((id: string) => {
-    setNotifications(prev => {
-      const next = prev.map(n => n.id === id ? { ...n, isRead: true } : n);
-      recalcUnread(next);
-      if (typeof window !== 'undefined') {
-        const readIds = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]') as string[];
-        if (!readIds.includes(id)) {
-          localStorage.setItem(STORAGE_KEY, JSON.stringify([...readIds, id]));
-        }
-      }
-      return next;
-    });
-  }, [recalcUnread]);
+    const update = (list: AppNotification[]) => list.map(n => n.id === id ? { ...n, isRead: true } : n);
+    setLogNotifs(prev => update(prev));
+    setSlaNotifs(prev => update(prev));
 
-  const markAllRead = useCallback(() => {
-    setNotifications(prev => {
-      const next = prev.map(n => ({ ...n, isRead: true }));
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(next.map(n => n.id)));
-      setUnreadCount(0);
-      setSlaAlertCount(0);
-      return next;
-    });
+    if (typeof window !== 'undefined') {
+      const readIds = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]') as string[];
+      if (!readIds.includes(id)) {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify([...readIds, id]));
+      }
+    }
   }, []);
 
+  const markAllRead = useCallback(() => {
+    const update = (list: AppNotification[]) => list.map(n => ({ ...n, isRead: true }));
+    setLogNotifs(prev => update(prev));
+    setSlaNotifs(prev => update(prev));
+
+    if (typeof window !== 'undefined') {
+      const allIds = [...logNotifs, ...slaNotifs].map(n => n.id);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(allIds));
+    }
+  }, [logNotifs, slaNotifs]);
+
   const clearNotifications = useCallback(() => {
-    const currentIds = notifications.map(n => n.id);
-    setNotifications([]);
+    const currentIds = [...logNotifs, ...slaNotifs].map(n => n.id);
+    setLogNotifs([]);
+    setSlaNotifs([]);
     setToasts([]);
-    setUnreadCount(0);
-    setSlaAlertCount(0);
     if (typeof window !== 'undefined') {
       const existingReadIds = getReadIds();
       const mergedReadIds = Array.from(new Set([...existingReadIds, ...currentIds]));
       localStorage.setItem(STORAGE_KEY, JSON.stringify(mergedReadIds.slice(-1000)));
       localStorage.setItem(CLEAR_BEFORE_KEY, String(Date.now()));
     }
-  }, [getReadIds, notifications]);
+  }, [getReadIds, logNotifs, slaNotifs]);
+
+  // Effect to sync unread counts whenever notifications change
+  useEffect(() => {
+    setUnreadCount(notifications.filter(n => !n.isRead).length);
+    setSlaAlertCount(notifications.filter(n => (n.type === 'sla' || n.type === 'sla_warning') && !n.isRead).length);
+  }, [notifications]);
 
   // --- 5. Data Fetching ---
   const fetchLogs = useCallback(async () => {
@@ -401,9 +416,8 @@ export function useNotifications(agentId: string | null, role: string | null = n
         }
         return { id, type: 'ticket', title, body: row.tickets?.subject ?? row.note ?? '-', ticketNo: row.tickets?.ticket_no, ticketId: row.ticket_id, createdAt: row.created_at, isRead };
       });
-    setNotifications(notifs);
-    recalcUnread(notifs);
-  }, [agentId, getClearBeforeMs, getReadIds, recalcUnread, locale]);
+    setLogNotifs(notifs);
+  }, [agentId, role, getClearBeforeMs, getReadIds, locale]);
 
   const fetchNewTicketsCount = useCallback(async () => {
     const { count } = await supabase
@@ -450,14 +464,9 @@ export function useNotifications(agentId: string | null, role: string | null = n
       }
     }
     if (slaNotifs.length > 0) {
-      setNotifications(prev => {
-        const withoutOldSla = prev.filter(n => !n.id.startsWith('sla-'));
-        const merged = [...slaNotifs, ...withoutOldSla.filter(n => !slaNotifs.find(s => s.id === n.id))];
-        recalcUnread(merged);
-        return merged;
-      });
+      setSlaNotifs(slaNotifs);
     }
-  }, [agentId, getReadIds, getWarnedIds, saveWarnedId, addToast, recalcUnread, locale, isMuted, playBeep, prefSlaWarning]);
+  }, [getReadIds, getWarnedIds, saveWarnedId, addToast, locale, isMuted, playBeep, prefSlaWarning]);
 
   const scheduleFetchLogs = useCallback((delayMs = 300) => {
     if (logsRefreshTimerRef.current) clearTimeout(logsRefreshTimerRef.current);
