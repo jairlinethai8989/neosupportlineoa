@@ -43,7 +43,7 @@ export interface LatestTicketRealtimeEvent {
   occurredAt: number;
 }
 
-export function useNotifications(agentId: string | null, locale: StaffLocale = 'th') {
+export function useNotifications(agentId: string | null, role: string | null = null, locale: StaffLocale = 'th') {
   // --- States ---
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [toasts, setToasts] = useState<ToastNotif[]>([]);
@@ -369,12 +369,18 @@ export function useNotifications(agentId: string | null, locale: StaffLocale = '
     if (!agentId) return;
     const readIds = getReadIds();
     const clearBeforeMs = getClearBeforeMs();
-    const { data } = await supabase
+    const isAdmin = role === 'Administrator';
+    let query = supabase
       .from('ticket_logs')
       .select('*, tickets(ticket_no, subject)')
-      .or(`to_user_id.eq.${agentId},performer_id.eq.${agentId}`)
       .order('created_at', { ascending: false })
       .limit(30);
+
+    if (!isAdmin) {
+      query = query.or(`to_user_id.eq.${agentId},performer_id.eq.${agentId}`);
+    }
+
+    const { data } = await query;
     if (!data) return;
     const notifs: AppNotification[] = data
       .filter((row) => {
@@ -408,18 +414,22 @@ export function useNotifications(agentId: string | null, locale: StaffLocale = '
   }, []);
 
   const fetchSlaBreaches = useCallback(async () => {
-    if (!agentId) return;
-    const readIds = getReadIds();
-    const warnedIds = getWarnedIds();
+    const isAdmin = role === 'Administrator';
     const twoHoursFromNow = new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString();
-    const { data } = await supabase
+    
+    let query = supabase
       .from('tickets')
       .select('id, ticket_no, subject, sla_due_at, status, priority')
-      .eq('assigned_agent_id', agentId)
       .lt('sla_due_at', twoHoursFromNow)
       .not('status', 'in', '("Resolved","Closed")')
       .order('sla_due_at', { ascending: true })
-      .limit(10);
+      .limit(20);
+
+    if (!isAdmin) {
+      query = query.eq('assigned_agent_id', agentId);
+    }
+
+    const { data } = await query;
     if (!data) return;
     const slaNotifs: AppNotification[] = [];
     for (const t of data) {
@@ -525,7 +535,7 @@ export function useNotifications(agentId: string | null, locale: StaffLocale = '
       if (slaRefreshTimerRef.current) clearTimeout(slaRefreshTimerRef.current);
       if (newTicketsCountTimerRef.current) clearTimeout(newTicketsCountTimerRef.current);
     };
-  }, [agentId, fetchLogs, fetchNewTicketsCount, scheduleFetchLogs, scheduleFetchNewTicketsCount, scheduleFetchSlaBreaches, addToast, playNewTicketSound, prefTransfer, prefNewMessage, locale]);
+  }, [agentId, role, fetchLogs, fetchNewTicketsCount, scheduleFetchLogs, scheduleFetchNewTicketsCount, scheduleFetchSlaBreaches, addToast, playNewTicketSound, prefTransfer, prefNewMessage, locale]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;

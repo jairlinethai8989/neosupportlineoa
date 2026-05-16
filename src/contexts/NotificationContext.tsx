@@ -77,7 +77,8 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   const agentId = authUserId || fallbackProfileId;
 
   const { locale } = useStaffLocale();
-  const notif = useNotifications(agentId, locale);
+  const role = userProfile?.role || null;
+  const notif = useNotifications(agentId, role, locale);
 
   return (
     <NotificationContext.Provider value={{ ...notif, agentId }}>
