@@ -160,6 +160,26 @@ const messages: Record<StaffLocale, MessageDictionary> = {
       quickTip: 'Quick Tip',
       tipBody: 'คลิกการแจ้งเตือนเพื่อไปยังใบงานหรือห้องแชทโดยตรง ระบบจะทำเครื่องหมายว่าอ่านแล้วทันที',
       goToList: 'ตั้งค่าโปรไฟล์',
+      types: {
+        sla: 'วิกฤต (SLA)',
+        sla_warning: 'ใกล้เกิน SLA',
+        ticket: 'ใบงาน',
+        message: 'ข้อความแชท',
+      },
+      alerts: {
+        newTicketTitle: 'ใบงานใหม่',
+        newMessageTitle: 'ข้อความใหม่จากลูกค้า',
+        slaBreachedTitle: 'ใบงาน #{no} เกิน SLA!',
+        slaBreachedBody: 'ใบงานนี้เกินกำหนดเวลาตอบกลับ/ปิดงานแล้ว',
+        slaWarningTitle: 'ใบงาน #{no} เหลือ {mins} นาที',
+        slaWarningBody: 'ใบงานนี้ใกล้จะเกินกำหนด SLA ในอีก {mins} นาที',
+        updateTitle: 'ใบงานได้รับการอัปเดต',
+        transferBody: 'ใบงาน #{no} ถูกโอนมาให้คุณ',
+        claimBody: 'คุณได้รับงาน #{no} เรียบร้อย',
+        resolveBody: 'ใบงาน #{no} ถูกปิดงานแล้ว',
+        voiceFemale: 'เสียงผู้หญิง',
+        voiceMale: 'เสียงผู้ชาย',
+      }
     },
     reports: {
       dailyTitle: 'รายงานสรุปปัญหาประจำวัน',
@@ -729,6 +749,26 @@ const messages: Record<StaffLocale, MessageDictionary> = {
       quickTip: 'Quick Tip',
       tipBody: 'Click notifications to go to the ticket or chat room directly. System will mark as read immediately.',
       goToList: 'Profile Settings',
+      types: {
+        sla: 'SLA Breach',
+        sla_warning: 'SLA Warning',
+        ticket: 'Ticket',
+        message: 'Message',
+      },
+      alerts: {
+        newTicketTitle: 'New Ticket',
+        newMessageTitle: 'New Message',
+        slaBreachedTitle: 'Ticket #{no} SLA Breached!',
+        slaBreachedBody: 'This ticket has exceeded its SLA deadline.',
+        slaWarningTitle: 'Ticket #{no} - {mins}m left',
+        slaWarningBody: 'This ticket will breach SLA in {mins} minutes.',
+        updateTitle: 'Ticket Updated',
+        transferBody: 'Ticket #{no} transferred to you',
+        claimBody: 'You claimed ticket #{no}',
+        resolveBody: 'Ticket #{no} resolved',
+        voiceFemale: 'Female Voice',
+        voiceMale: 'Male Voice',
+      }
     },
     reports: {
       dailyTitle: 'Daily Issues & Resolution Tracker',

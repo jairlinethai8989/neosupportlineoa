@@ -137,18 +137,18 @@ export default function ToastItem({ toast, onDismiss }: ToastItemProps) {
 
         {/* Text */}
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
-            <span
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '8px' }}>
+            <p
               style={{
-                fontSize: '9px',
-                fontWeight: '900',
-                color: cfg.color,
-                textTransform: 'uppercase',
-                letterSpacing: '0.1em',
+                fontSize: '13px',
+                fontWeight: '700',
+                color: 'var(--text-main)',
+                lineHeight: '1.4',
+                marginTop: '2px'
               }}
             >
-              {cfg.label}
-            </span>
+              {toast.body}
+            </p>
             <button
               onClick={(e) => { e.stopPropagation(); handleDismiss(); }}
               style={{
@@ -162,35 +162,9 @@ export default function ToastItem({ toast, onDismiss }: ToastItemProps) {
                 flexShrink: 0,
               }}
             >
-              <X size={12} />
+              <X size={14} />
             </button>
           </div>
-          <p
-            style={{
-              fontSize: '13px',
-              fontWeight: '700',
-              marginTop: '4px',
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              color: 'var(--text-main)',
-            }}
-          >
-            {toast.title}
-          </p>
-          <p
-            style={{
-              fontSize: '11px',
-              color: 'var(--text-main)',
-              opacity: 0.8,
-              marginTop: '2px',
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-            }}
-          >
-            {toast.body}
-          </p>
         </div>
       </div>
 
