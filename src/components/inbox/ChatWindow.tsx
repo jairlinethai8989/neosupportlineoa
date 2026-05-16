@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 /* eslint-disable @next/next/no-img-element */
 import React, { type FormEvent, type RefObject } from 'react';
 import { 
@@ -12,7 +12,9 @@ import {
   Pencil, 
   Trash2, 
   Clock,
-  AlertTriangle
+  AlertTriangle,
+  PanelRightClose,
+  PanelRightOpen
 } from 'lucide-react';
 import { useStaffLocale } from '@/contexts/StaffLocaleContext';
 import type {
@@ -49,6 +51,8 @@ interface ChatWindowProps {
   loadingMoreMessages: boolean;
   onLoadOlderMessages: () => Promise<void>;
   messagesEndRef: RefObject<HTMLDivElement | null>;
+  isSidebarCollapsed?: boolean;
+  onToggleSidebar?: () => void;
 }
 
 export const ChatWindow: React.FC<ChatWindowProps> = ({
@@ -76,7 +80,9 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
   hasMoreMessages,
   loadingMoreMessages,
   onLoadOlderMessages,
-  messagesEndRef
+  messagesEndRef,
+  isSidebarCollapsed = false,
+  onToggleSidebar
 }) => {
   const { t } = useStaffLocale();
   if (!selectedChat) {
@@ -167,6 +173,27 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
             onClick={() => setViewMode('details')}
             className="show-mobile glass-interactive flex-center" style={{ width: '38px', height: '38px', borderRadius: '10px', border: '1px solid var(--border)', color: 'var(--text-muted)' }}>
               <Info size={18} aria-hidden="true" />
+           </button>
+           
+           <button 
+            onClick={() => onToggleSidebar?.()}
+            className="hidden-mobile glass-interactive" 
+            style={{ 
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '0 14px',
+              height: '38px', 
+              borderRadius: '12px', 
+              border: `1px solid ${isSidebarCollapsed ? 'var(--primary)' : 'var(--border)'}`, 
+              color: isSidebarCollapsed ? 'var(--primary)' : 'var(--text-muted)',
+              background: isSidebarCollapsed ? 'rgba(54, 153, 255, 0.08)' : 'rgba(255, 255, 255, 0.02)',
+              fontSize: '12px',
+              fontWeight: '800',
+              transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+            }}>
+              {isSidebarCollapsed ? <PanelRightOpen size={16} aria-hidden="true" /> : <PanelRightClose size={16} aria-hidden="true" />}
+              <span style={{ whiteSpace: 'nowrap' }}>{isSidebarCollapsed ? t('inbox.showInfo') : t('inbox.hideInfo')}</span>
            </button>
         </div>
       </div>

@@ -44,6 +44,7 @@ export interface LatestTicketRealtimeEvent {
 }
 
 export function useNotifications(agentId: string | null, locale: StaffLocale = 'th') {
+  // --- States ---
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [toasts, setToasts] = useState<ToastNotif[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -60,6 +61,8 @@ export function useNotifications(agentId: string | null, locale: StaffLocale = '
   const [isMuted, setIsMuted] = useState(true); // Default to muted (browser policy friendly)
   const [soundMode, setSoundModeState] = useState<NotificationSoundMode>('beep');
   const [soundVoice, setSoundVoiceState] = useState<NotificationVoiceOption>('female');
+
+  // --- Refs ---
   const isFirstLoad = useRef(true);
   const audioContextRef = useRef<AudioContext | null>(null);
   const audioPrimedRef = useRef(false);
@@ -71,21 +74,18 @@ export function useNotifications(agentId: string | null, locale: StaffLocale = '
   const slaRefreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const newTicketsCountTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // --- 1. Basic Audio Helpers ---
   const getAudioContext = useCallback((): AudioContext | null => {
     if (typeof window === 'undefined') return null;
-
     const AnyWindow = window as unknown as {
       AudioContext?: typeof AudioContext;
       webkitAudioContext?: typeof AudioContext;
     };
-
     const Ctx = AnyWindow.AudioContext ?? AnyWindow.webkitAudioContext;
     if (!Ctx) return null;
-
     if (!audioContextRef.current) {
       audioContextRef.current = new Ctx();
     }
-
     return audioContextRef.current;
   }, []);
 
@@ -95,7 +95,6 @@ export function useNotifications(agentId: string | null, locale: StaffLocale = '
     if (ctx.state !== 'running') {
       await ctx.resume();
     }
-
     if (typeof window !== 'undefined') {
       (Object.keys(VOICE_AUDIO_SRC) as NotificationVoiceOption[]).forEach((voice) => {
         if (!voiceAudioRef.current[voice]) {
@@ -105,26 +104,22 @@ export function useNotifications(agentId: string | null, locale: StaffLocale = '
         }
       });
     }
-
     if (audioPrimedRef.current) return;
-
     const primeVoiceClip = async (voice: NotificationVoiceOption) => {
       const audio = voiceAudioRef.current[voice];
       if (!audio) return;
-
       try {
         audio.muted = true;
         audio.currentTime = 0;
         await audio.play();
         audio.pause();
       } catch {
-        // Ignore: some browsers may still block until a stronger user gesture.
+        // Ignore
       } finally {
         audio.currentTime = 0;
         audio.muted = false;
       }
     };
-
     await Promise.all((Object.keys(VOICE_AUDIO_SRC) as NotificationVoiceOption[]).map(primeVoiceClip));
     audioPrimedRef.current = true;
   }, [getAudioContext]);
@@ -136,7 +131,6 @@ export function useNotifications(agentId: string | null, locale: StaffLocale = '
       if (ctx.state !== 'running') {
         await ctx.resume();
       }
-
       const now = ctx.currentTime;
       const masterGain = ctx.createGain();
       masterGain.gain.setValueAtTime(1, now);
@@ -155,12 +149,10 @@ export function useNotifications(agentId: string | null, locale: StaffLocale = '
         osc.frequency.setValueAtTime(frequency, start);
         osc.connect(toneGain);
         toneGain.connect(masterGain);
-
         toneGain.gain.setValueAtTime(0.0001, start);
         toneGain.gain.exponentialRampToValueAtTime(peakGain, start + 0.015);
         toneGain.gain.exponentialRampToValueAtTime(peakGain * 0.65, start + duration * 0.45);
         toneGain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
-
         osc.start(start);
         osc.stop(start + duration + 0.02);
       };
@@ -170,7 +162,6 @@ export function useNotifications(agentId: string | null, locale: StaffLocale = '
         playTone(now + 0.035, 0.18, 1975.53, 'sine', 0.035);
         return;
       }
-
       playTone(now + 0.02, 0.24, 1046.5, 'triangle', 0.12);
       playTone(now + 0.035, 0.2, 2093, 'sine', 0.04);
       playTone(now + 0.28, 0.34, 783.99, 'triangle', 0.11);
@@ -179,11 +170,55 @@ export function useNotifications(agentId: string | null, locale: StaffLocale = '
     [getAudioContext]
   );
 
+  const announceMuteState = useCallback((muted: boolean) => {
+    if (muted) return;
+    void playBeep('confirm');
+  }, [playBeep]);
+
+  // --- 2. Action Helpers ---
+  const playVoiceClip = useCallback(async (voice: NotificationVoiceOption) => {
+    if (typeof window === 'undefined') {
+      throw new Error('Voice playback requires a browser environment');
+    }
+    let template = voiceAudioRef.current[voice];
+    if (!template) {
+      template = new Audio(VOICE_AUDIO_SRC[voice]);
+      template.preload = 'auto';
+      voiceAudioRef.current[voice] = template;
+    }
+    template.pause();
+    template.currentTime = 0;
+    template.volume = 1;
+    await template.play();
+  }, []);
+
+  const playNewTicketSound = useCallback(() => {
+    if (isMuted || !prefNewTicket) return;
+    if (soundMode === 'voice') {
+      void playVoiceClip(soundVoice).catch(() => {
+        void playBeep('newTicket');
+      });
+      return;
+    }
+    void playBeep('newTicket');
+  }, [isMuted, playBeep, playVoiceClip, soundMode, soundVoice, prefNewTicket]);
+
+  const showBrowserNotification = useCallback((title: string, body: string) => {
+    if (typeof window === 'undefined' || !('Notification' in window)) return;
+    if (Notification.permission === 'granted') {
+      new Notification(title, { body, icon: '/logo.png' });
+    } else if (Notification.permission !== 'denied') {
+      Notification.requestPermission().then(p => {
+        if (p === 'granted') new Notification(title, { body, icon: '/logo.png' });
+      });
+    }
+  }, []);
+
+  // --- 3. Preferences & Settings ---
   const toggleMute = useCallback(() => {
     setIsMuted(prev => {
       const next = !prev;
       localStorage.setItem('neo_notif_muted', String(next));
-      // Sync to DB
       if (agentId) {
         void supabase.from('profiles').update({ notif_sound_enabled: !next }).eq('id', agentId);
       }
@@ -193,20 +228,6 @@ export function useNotifications(agentId: string | null, locale: StaffLocale = '
       return next;
     });
   }, [agentId, announceMuteState, primeAudio]);
-
-  const updatePreference = useCallback(async (key: string, value: boolean) => {
-    if (!agentId) return;
-    
-    // Update local state
-    if (key === 'new_ticket') setPrefNewTicket(value);
-    if (key === 'new_message') setPrefNewMessage(value);
-    if (key === 'transfer') setPrefTransfer(value);
-    if (key === 'sla_warning') setPrefSlaWarning(value);
-
-    // Sync to DB
-    const dbKey = `notif_event_${key}`;
-    await supabase.from('profiles').update({ [dbKey]: value }).eq('id', agentId);
-  }, [agentId]);
 
   const setSoundMode = useCallback((next: NotificationSoundMode) => {
     setSoundModeState(next);
@@ -228,27 +249,38 @@ export function useNotifications(agentId: string | null, locale: StaffLocale = '
     }
   }, [agentId]);
 
-  const playVoiceClip = useCallback(async (voice: NotificationVoiceOption) => {
-    if (typeof window === 'undefined') {
-      throw new Error('Voice playback requires a browser environment');
+  const updatePreference = useCallback(async (key: string, value: boolean) => {
+    if (!agentId) return;
+    if (key === 'new_ticket') setPrefNewTicket(value);
+    if (key === 'new_message') setPrefNewMessage(value);
+    if (key === 'transfer') setPrefTransfer(value);
+    if (key === 'sla_warning') setPrefSlaWarning(value);
+    const dbKey = `notif_event_${key}`;
+    await supabase.from('profiles').update({ [dbKey]: value }).eq('id', agentId);
+  }, [agentId]);
+
+  const testSound = useCallback(async (): Promise<SoundTestResult> => {
+    const hint = 'ถ้าไม่ได้ยิน ให้ตรวจว่าแท็บ/เว็บไม่ถูก Mute และ Site settings > Sound เป็น Allow';
+    if (soundMode === 'voice') {
+      try {
+        await playVoiceClip(soundVoice);
+        const voiceLabel = soundVoice === 'female' 
+          ? getStaffMessage(locale, 'notificationsHub.alerts.voiceFemale') 
+          : getStaffMessage(locale, 'notificationsHub.alerts.voiceMale');
+        return { ok: true, hint: `กำลังใช้ ${voiceLabel} • ${hint}` };
+      } catch (err) {
+        return { ok: false, code: 'AUDIO_PLAYBACK_FAILED', detail: String(err), hint };
+      }
     }
-
-    let template = voiceAudioRef.current[voice];
-    if (!template) {
-      template = new Audio(VOICE_AUDIO_SRC[voice]);
-      template.preload = 'auto';
-      voiceAudioRef.current[voice] = template;
+    try {
+      await playBeep('newTicket');
+      return { ok: true, hint };
+    } catch (err) {
+      return { ok: false, code: 'AUDIO_RESUME_BLOCKED', detail: String(err), hint };
     }
+  }, [playBeep, playVoiceClip, soundMode, soundVoice, locale]);
 
-    template.pause();
-    template.currentTime = 0;
-    template.volume = 1;
-    await template.play();
-  }, []);
-
-  // ---------------------------------------------------------------
-  // Helpers
-  // ---------------------------------------------------------------
+  // --- 4. Notification Helpers ---
   const recalcUnread = useCallback((notifs: AppNotification[]) => {
     setUnreadCount(notifs.filter((n) => !n.isRead).length);
     setSlaAlertCount(notifs.filter((n) => (n.type === 'sla' || n.type === 'sla_warning') && !n.isRead).length);
@@ -276,29 +308,24 @@ export function useNotifications(agentId: string | null, locale: StaffLocale = '
     if (typeof window === 'undefined') return;
     const ids = JSON.parse(localStorage.getItem(WARNED_SLA_KEY) || '[]') as string[];
     if (!ids.includes(id)) {
-      // Keep only last 100 warned IDs to avoid unbounded growth
       const next = [...ids, id].slice(-100);
       localStorage.setItem(WARNED_SLA_KEY, JSON.stringify(next));
     }
   }, []);
 
-  // ---------------------------------------------------------------
-  // Browser Push
-  // ---------------------------------------------------------------
-  const showBrowserNotification = useCallback((title: string, body: string) => {
-    if (typeof window === 'undefined' || !('Notification' in window)) return;
-    if (Notification.permission === 'granted') {
-      new Notification(title, { body, icon: '/logo.png' });
-    } else if (Notification.permission !== 'denied') {
-      Notification.requestPermission().then(p => {
-        if (p === 'granted') new Notification(title, { body, icon: '/logo.png' });
-      });
-    }
+  const addToast = useCallback((toast: ToastNotif) => {
+    if (toast.type === 'message' && !prefNewMessage) return;
+    if (toast.type === 'ticket' && !prefNewTicket) return;
+    if ((toast.type === 'sla' || toast.type === 'sla_warning') && !prefSlaWarning) return;
+    
+    setToasts(prev => [toast, ...prev].slice(0, MAX_TOASTS));
+    showBrowserNotification(toast.title, toast.body);
+  }, [showBrowserNotification, prefNewMessage, prefNewTicket, prefSlaWarning]);
+
+  const dismissToast = useCallback((id: string) => {
+    setToasts(prev => prev.filter(t => t.id !== id));
   }, []);
 
-  // ---------------------------------------------------------------
-  // Read / Dismiss
-  // ---------------------------------------------------------------
   const markAsRead = useCallback((id: string) => {
     setNotifications(prev => {
       const next = prev.map(n => n.id === id ? { ...n, isRead: true } : n);
@@ -324,13 +351,12 @@ export function useNotifications(agentId: string | null, locale: StaffLocale = '
   }, []);
 
   const clearNotifications = useCallback(() => {
-    const currentIds = notifications.map((notification) => notification.id);
+    const currentIds = notifications.map(n => n.id);
     setNotifications([]);
     setToasts([]);
     setUnreadCount(0);
     setSlaAlertCount(0);
-
-    if (typeof window === 'undefined') {
+    if (typeof window !== 'undefined') {
       const existingReadIds = getReadIds();
       const mergedReadIds = Array.from(new Set([...existingReadIds, ...currentIds]));
       localStorage.setItem(STORAGE_KEY, JSON.stringify(mergedReadIds.slice(-1000)));
@@ -338,104 +364,18 @@ export function useNotifications(agentId: string | null, locale: StaffLocale = '
     }
   }, [getReadIds, notifications]);
 
-  const dismissToast = useCallback((id: string) => {
-    setToasts(prev => prev.filter(t => t.id !== id));
-  }, []);
-
-    if (toast.type === 'message') {
-      if (!prefNewMessage) return;
-    }
-    
-    if (toast.type === 'ticket') {
-      if (!prefNewTicket) return;
-    }
-
-    if (toast.type === 'sla' || toast.type === 'sla_warning') {
-      if (!prefSlaWarning) return;
-    }
-    
-    showBrowserNotification(toast.title, toast.body);
-  }, [showBrowserNotification, prefNewMessage, prefNewTicket, prefSlaWarning]);
-
-  const playNewTicketSound = useCallback(() => {
-    if (isMuted || !prefNewTicket) return;
-    if (soundMode === 'voice') {
-      void playVoiceClip(soundVoice).catch(() => {
-        void playBeep('newTicket');
-      });
-      return;
-    }
-    void playBeep('newTicket');
-  }, [isMuted, playBeep, playVoiceClip, soundMode, soundVoice]);
-
-  const announceMuteState = useCallback((muted: boolean) => {
-    if (muted) return;
-    void playBeep('confirm');
-  }, [playBeep]);
-
-  const testSound = useCallback(async (): Promise<SoundTestResult> => {
-    const hint =
-      'ถ้าไม่ได้ยิน ให้ตรวจว่าแท็บ/เว็บไม่ถูก Mute และ Site settings > Sound เป็น Allow รวมถึงเสียงของเครื่อง (Volume mixer / output device)';
-
-    if (soundMode === 'voice') {
-      try {
-        await playVoiceClip(soundVoice);
-        const voiceLabel = soundVoice === 'female' 
-          ? getStaffMessage(locale, 'notificationsHub.alerts.voiceFemale') 
-          : getStaffMessage(locale, 'notificationsHub.alerts.voiceMale');
-        return { ok: true, hint: `กำลังใช้ ${voiceLabel} จากไฟล์ MP3 ในระบบ • ${hint}` };
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
-        return {
-          ok: false,
-          code: 'AUDIO_PLAYBACK_FAILED',
-          detail: `เล่นไฟล์เสียงแจ้งเตือนไม่สำเร็จ (${msg})`,
-          hint,
-        };
-      }
-    }
-
-    const ctx = getAudioContext();
-    if (!ctx) {
-      return {
-        ok: false,
-        code: 'NO_AUDIO_CONTEXT',
-        detail: 'เบราว์เซอร์/อุปกรณ์นี้ไม่รองรับการเล่นเสียงผ่าน WebAudio',
-        hint,
-      };
-    }
-
-    try {
-      await playBeep('newTicket');
-      return { ok: true, hint };
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      return {
-        ok: false,
-        code: 'AUDIO_RESUME_BLOCKED',
-        detail: `เบราว์เซอร์บล็อกการเล่นเสียงชั่วคราว (${msg})`,
-        hint,
-      };
-    }
-  }, [getAudioContext, playBeep, playVoiceClip, soundMode, soundVoice]);
-
-  // ---------------------------------------------------------------
-  // Fetch ticket_logs for this agent
-  // ---------------------------------------------------------------
+  // --- 5. Data Fetching ---
   const fetchLogs = useCallback(async () => {
     if (!agentId) return;
     const readIds = getReadIds();
     const clearBeforeMs = getClearBeforeMs();
-
     const { data } = await supabase
       .from('ticket_logs')
       .select('*, tickets(ticket_no, subject)')
       .or(`to_user_id.eq.${agentId},performer_id.eq.${agentId}`)
       .order('created_at', { ascending: false })
       .limit(30);
-
     if (!data) return;
-
     const notifs: AppNotification[] = data
       .filter((row) => {
         if (!clearBeforeMs) return true;
@@ -443,35 +383,21 @@ export function useNotifications(agentId: string | null, locale: StaffLocale = '
         return Number.isFinite(createdAtMs) && createdAtMs > clearBeforeMs;
       })
       .map((row) => {
-      const id = row.id?.toString() ?? `${row.ticket_id}-${row.created_at}`;
-      const isRead = readIds.includes(id);
-
-      let title = getStaffMessage(locale, 'notificationsHub.alerts.updateTitle');
-      const type: NotifType = 'ticket';
-
-      if (row.action_type === 'transfer' && row.to_user_id === agentId) {
-        title = getStaffMessage(locale, 'notificationsHub.alerts.transferBody').replace('#{no}', `#${row.tickets?.ticket_no ?? ''}`);
-      } else if (row.action_type === 'claim') {
-        title = getStaffMessage(locale, 'notificationsHub.alerts.claimBody').replace('#{no}', `#${row.tickets?.ticket_no ?? ''}`);
-      } else if (row.action_type === 'resolve') {
-        title = getStaffMessage(locale, 'notificationsHub.alerts.resolveBody').replace('#{no}', `#${row.tickets?.ticket_no ?? ''}`);
-      }
-
-      return {
-        id,
-        type,
-        title,
-        body: row.tickets?.subject ?? row.note ?? '-',
-        ticketNo: row.tickets?.ticket_no,
-        ticketId: row.ticket_id,
-        createdAt: row.created_at,
-        isRead,
-      };
-    });
-
+        const id = row.id?.toString() ?? `${row.ticket_id}-${row.created_at}`;
+        const isRead = readIds.includes(id);
+        let title = getStaffMessage(locale, 'notificationsHub.alerts.updateTitle');
+        if (row.action_type === 'transfer' && row.to_user_id === agentId) {
+          title = getStaffMessage(locale, 'notificationsHub.alerts.transferBody').replace('#{no}', `#${row.tickets?.ticket_no ?? ''}`);
+        } else if (row.action_type === 'claim') {
+          title = getStaffMessage(locale, 'notificationsHub.alerts.claimBody').replace('#{no}', `#${row.tickets?.ticket_no ?? ''}`);
+        } else if (row.action_type === 'resolve') {
+          title = getStaffMessage(locale, 'notificationsHub.alerts.resolveBody').replace('#{no}', `#${row.tickets?.ticket_no ?? ''}`);
+        }
+        return { id, type: 'ticket', title, body: row.tickets?.subject ?? row.note ?? '-', ticketNo: row.tickets?.ticket_no, ticketId: row.ticket_id, createdAt: row.created_at, isRead };
+      });
     setNotifications(notifs);
     recalcUnread(notifs);
-  }, [agentId, getClearBeforeMs, getReadIds, recalcUnread]);
+  }, [agentId, getClearBeforeMs, getReadIds, recalcUnread, locale]);
 
   const fetchNewTicketsCount = useCallback(async () => {
     const { count } = await supabase
@@ -481,37 +407,11 @@ export function useNotifications(agentId: string | null, locale: StaffLocale = '
     if (count !== null) setNewTicketsCount(count);
   }, []);
 
-  const scheduleFetchLogs = useCallback(
-    (delayMs = 300) => {
-      if (logsRefreshTimerRef.current) clearTimeout(logsRefreshTimerRef.current);
-      logsRefreshTimerRef.current = setTimeout(() => {
-        void fetchLogs();
-      }, delayMs);
-    },
-    [fetchLogs]
-  );
-
-  const scheduleFetchNewTicketsCount = useCallback(
-    (delayMs = 800) => {
-      if (newTicketsCountTimerRef.current) clearTimeout(newTicketsCountTimerRef.current);
-      newTicketsCountTimerRef.current = setTimeout(() => {
-        void fetchNewTicketsCount();
-      }, delayMs);
-    },
-    [fetchNewTicketsCount]
-  );
-
-  // ---------------------------------------------------------------
-  // SLA Monitor — breached + warning (< 30 min)
-  // ---------------------------------------------------------------
   const fetchSlaBreaches = useCallback(async () => {
     if (!agentId) return;
     const readIds = getReadIds();
     const warnedIds = getWarnedIds();
-
-    // Fetch tickets within 2 hours of due (covers both warning + breached)
     const twoHoursFromNow = new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString();
-
     const { data } = await supabase
       .from('tickets')
       .select('id, ticket_no, subject, sla_due_at, status, priority')
@@ -520,321 +420,124 @@ export function useNotifications(agentId: string | null, locale: StaffLocale = '
       .not('status', 'in', '("Resolved","Closed")')
       .order('sla_due_at', { ascending: true })
       .limit(10);
-
     if (!data) return;
-
     const slaNotifs: AppNotification[] = [];
-
     for (const t of data) {
       const mins = slaMinutesRemaining(t);
       const breached = isSlaBreached(t);
-
       if (breached) {
-        // --- Breached SLA Notification ---
         const id = `sla-breach-${t.id}`;
-        slaNotifs.push({
-          id,
-          type: 'sla',
-          title: getStaffMessage(locale, 'notificationsHub.alerts.slaBreachedTitle').replace('#{no}', `#${t.ticket_no}`),
-          body: getStaffMessage(locale, 'notificationsHub.alerts.slaBreachedBody'),
-          ticketNo: t.ticket_no,
-          ticketId: t.id,
-          createdAt: t.sla_due_at,
-          isRead: readIds.includes(id),
-          minutesRemaining: mins,
-        });
-
-        // Toast once per breach
+        slaNotifs.push({ id, type: 'sla', title: getStaffMessage(locale, 'notificationsHub.alerts.slaBreachedTitle').replace('#{no}', `#${t.ticket_no}`), body: getStaffMessage(locale, 'notificationsHub.alerts.slaBreachedBody'), ticketNo: t.ticket_no, ticketId: t.id, createdAt: t.sla_due_at, isRead: readIds.includes(id), minutesRemaining: mins });
         if (!warnedIds.includes(id) && !isFirstLoad.current) {
-          addToast({
-            id: `toast-${id}-${Date.now()}`,
-            type: 'sla',
-            title: getStaffMessage(locale, 'notificationsHub.alerts.slaBreachedTitle').replace('#{no}', `#${t.ticket_no}`),
-            body: t.subject || getStaffMessage(locale, 'notificationsHub.alerts.slaBreachedBody'),
-            ticketId: t.id,
-            ticketNo: t.ticket_no,
-            duration: 8000,
-          });
+          addToast({ id: `toast-${id}-${Date.now()}`, type: 'sla', title: getStaffMessage(locale, 'notificationsHub.alerts.slaBreachedTitle').replace('#{no}', `#${t.ticket_no}`), body: t.subject || getStaffMessage(locale, 'notificationsHub.alerts.slaBreachedBody'), ticketId: t.id, ticketNo: t.ticket_no, duration: 8000 });
           if (prefSlaWarning && !isMuted) void playBeep('newTicket');
           saveWarnedId(id);
         }
       } else if (mins <= 30) {
-        // --- SLA Warning (≤ 30 min remaining) ---
         const id = `sla-warn-${t.id}`;
-        slaNotifs.push({
-          id,
-          type: 'sla_warning',
-          title: getStaffMessage(locale, 'notificationsHub.alerts.slaWarningTitle').replace('{mins}', String(mins)).replace('#{no}', `#${t.ticket_no}`),
-          body: t.subject || getStaffMessage(locale, 'notificationsHub.alerts.slaWarningBody').replace('{mins}', String(mins)),
-          ticketNo: t.ticket_no,
-          ticketId: t.id,
-          createdAt: t.sla_due_at,
-          isRead: readIds.includes(id),
-          minutesRemaining: mins,
-        });
-
-        // Toast once per warning window
+        slaNotifs.push({ id, type: 'sla_warning', title: getStaffMessage(locale, 'notificationsHub.alerts.slaWarningTitle').replace('{mins}', String(mins)).replace('#{no}', `#${t.ticket_no}`), body: t.subject || getStaffMessage(locale, 'notificationsHub.alerts.slaWarningBody').replace('{mins}', String(mins)), ticketNo: t.ticket_no, ticketId: t.id, createdAt: t.sla_due_at, isRead: readIds.includes(id), minutesRemaining: mins });
         if (!warnedIds.includes(id) && !isFirstLoad.current) {
-          addToast({
-            id: `toast-${id}-${Date.now()}`,
-            type: 'sla_warning',
-            title: getStaffMessage(locale, 'notificationsHub.alerts.slaWarningTitle').replace('{mins}', String(mins)).replace('#{no}', `#${t.ticket_no}`),
-            body: `#${t.ticket_no} · ${t.subject ?? ''}`,
-            ticketId: t.id,
-            ticketNo: t.ticket_no,
-            duration: 6000,
-          });
+          addToast({ id: `toast-${id}-${Date.now()}`, type: 'sla_warning', title: getStaffMessage(locale, 'notificationsHub.alerts.slaWarningTitle').replace('{mins}', String(mins)).replace('#{no}', `#${t.ticket_no}`), body: `#${t.ticket_no} · ${t.subject ?? ''}`, ticketId: t.id, ticketNo: t.ticket_no, duration: 6000 });
           if (prefSlaWarning && !isMuted) void playBeep('newTicket');
           saveWarnedId(id);
         }
-      } else if (mins <= 60) {
-        // --- SLA Upcoming (≤ 60 min) — add to notification list only, no toast ---
-        const id = `sla-upcoming-${t.id}`;
-        slaNotifs.push({
-          id,
-          type: 'sla_warning',
-          title: getStaffMessage(locale, 'notificationsHub.alerts.slaUpcomingTitle').replace('{mins}', String(mins)).replace('#{no}', `#${t.ticket_no}`),
-          body: t.subject || getStaffMessage(locale, 'notificationsHub.alerts.slaUpcomingBody'),
-          ticketNo: t.ticket_no,
-          ticketId: t.id,
-          createdAt: t.sla_due_at,
-          isRead: readIds.includes(id),
-          minutesRemaining: mins,
-        });
       }
     }
-
     if (slaNotifs.length > 0) {
       setNotifications(prev => {
-        // Replace existing SLA notifs + add new ones at top
         const withoutOldSla = prev.filter(n => !n.id.startsWith('sla-'));
         const merged = [...slaNotifs, ...withoutOldSla.filter(n => !slaNotifs.find(s => s.id === n.id))];
         recalcUnread(merged);
         return merged;
       });
     }
-  }, [agentId, getReadIds, getWarnedIds, saveWarnedId, addToast, recalcUnread]);
+  }, [agentId, getReadIds, getWarnedIds, saveWarnedId, addToast, recalcUnread, locale, isMuted, playBeep, prefSlaWarning]);
 
-  const scheduleFetchSlaBreaches = useCallback(
-    (delayMs = 1200) => {
-      if (slaRefreshTimerRef.current) clearTimeout(slaRefreshTimerRef.current);
-      slaRefreshTimerRef.current = setTimeout(() => {
-        void fetchSlaBreaches();
-      }, delayMs);
-    },
-    [fetchSlaBreaches]
-  );
+  const scheduleFetchLogs = useCallback((delayMs = 300) => {
+    if (logsRefreshTimerRef.current) clearTimeout(logsRefreshTimerRef.current);
+    logsRefreshTimerRef.current = setTimeout(() => { void fetchLogs(); }, delayMs);
+  }, [fetchLogs]);
 
-  // ---------------------------------------------------------------
-  // Initial load + Realtime subscriptions
-  // ---------------------------------------------------------------
+  const scheduleFetchNewTicketsCount = useCallback((delayMs = 800) => {
+    if (newTicketsCountTimerRef.current) clearTimeout(newTicketsCountTimerRef.current);
+    newTicketsCountTimerRef.current = setTimeout(() => { void fetchNewTicketsCount(); }, delayMs);
+  }, [fetchNewTicketsCount]);
+
+  const scheduleFetchSlaBreaches = useCallback((delayMs = 1200) => {
+    if (slaRefreshTimerRef.current) clearTimeout(slaRefreshTimerRef.current);
+    slaRefreshTimerRef.current = setTimeout(() => { void fetchSlaBreaches(); }, delayMs);
+  }, [fetchSlaBreaches]);
+
+  // --- 6. Effects ---
   useEffect(() => {
     if (!agentId) return;
-
-    // Initial load: keep first paint responsive, then queue heavier checks.
-    setTimeout(() => {
-      void fetchLogs();
-      void fetchNewTicketsCount();
-      scheduleFetchSlaBreaches(1600);
-    }, 0);
-
-    // Load mute state
+    setTimeout(() => { void fetchLogs(); void fetchNewTicketsCount(); scheduleFetchSlaBreaches(1600); }, 0);
     if (typeof window !== 'undefined') {
-      const stored = localStorage.getItem('neo_notif_muted');
-      if (stored !== null) {
-        setTimeout(() => setIsMuted(stored === 'true'), 0);
-      }
-
-      const storedMode = localStorage.getItem(SOUND_MODE_KEY);
-      if (storedMode === 'beep' || storedMode === 'voice') {
-        setTimeout(() => setSoundModeState(storedMode), 0);
-      }
-
-      const storedVoice = localStorage.getItem(SOUND_VOICE_KEY);
-      if (storedVoice === 'female' || storedVoice === 'male') {
-        setTimeout(() => setSoundVoiceState(storedVoice), 0);
-      }
+      const m = localStorage.getItem('neo_notif_muted'); if (m !== null) setIsMuted(m === 'true');
+      const mode = localStorage.getItem(SOUND_MODE_KEY); if (mode === 'beep' || mode === 'voice') setSoundModeState(mode as any);
+      const voice = localStorage.getItem(SOUND_VOICE_KEY); if (voice === 'female' || voice === 'male') setSoundVoiceState(voice as any);
     }
-
-    // Load from profile if available
     const loadFromProfile = async () => {
-      const { data, error } = await supabase.from('profiles').select('notif_sound_enabled, notif_sound_mode, notif_sound_voice, notif_event_new_ticket, notif_event_new_message, notif_event_transfer, notif_event_sla_warning').eq('id', agentId).maybeSingle();
-      if (error || !data) return;
-
+      const { data } = await supabase.from('profiles').select('*').eq('id', agentId).maybeSingle();
+      if (!data) return;
       if (data.notif_sound_enabled !== undefined) setIsMuted(!data.notif_sound_enabled);
-      if (data.notif_sound_mode) setSoundModeState(data.notif_sound_mode as NotificationSoundMode);
-      if (data.notif_sound_voice) setSoundVoiceState(data.notif_sound_voice as NotificationVoiceOption);
-      
+      if (data.notif_sound_mode) setSoundModeState(data.notif_sound_mode);
+      if (data.notif_sound_voice) setSoundVoiceState(data.notif_sound_voice);
       if (data.notif_event_new_ticket !== undefined) setPrefNewTicket(data.notif_event_new_ticket);
       if (data.notif_event_new_message !== undefined) setPrefNewMessage(data.notif_event_new_message);
       if (data.notif_event_transfer !== undefined) setPrefTransfer(data.notif_event_transfer);
       if (data.notif_event_sla_warning !== undefined) setPrefSlaWarning(data.notif_event_sla_warning);
     };
-
     void loadFromProfile();
 
-    // Subscribe: new ticket_logs targeting this agent
-    const logChannel = supabase
-      .channel(`notif-logs-${agentId}`)
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'ticket_logs' },
-        (payload) => {
-          const row = payload.new as any;
-          if (row.to_user_id !== agentId && row.performer_id !== agentId) return;
-          scheduleFetchLogs(250);
-          scheduleFetchSlaBreaches(900);
-          if (isFirstLoad.current || !prefTransfer) return;
+    const logChannel = supabase.channel(`logs-${agentId}`).on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'ticket_logs' }, (p) => {
+      const row = p.new as any; if (row.to_user_id !== agentId && row.performer_id !== agentId) return;
+      scheduleFetchLogs(250); scheduleFetchSlaBreaches(900);
+      if (isFirstLoad.current || !prefTransfer) return;
+      addToast({ id: `t-log-${Date.now()}`, type: 'ticket', title: 'ใบงานได้รับการอัปเดต', body: row.note || 'ดูรายละเอียดในกล่องข้อความ', ticketId: row.ticket_id });
+    }).subscribe();
 
-          let title = 'ใบงานได้รับการอัปเดต';
-          if (row.action_type === 'transfer' && row.to_user_id === agentId) {
-            title = '📨 มีใบงานโอนมาให้คุณ';
-          } else if (row.action_type === 'resolve') {
-            title = '✅ ใบงานได้รับการปิดแล้ว';
-          }
+    const msgChannel = supabase.channel(`msgs-${agentId}`).on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (p) => {
+      const row = p.new as any; if (row.sender_type !== 'customer' || row.message_type === 'system') return;
+      if (isFirstLoad.current || !prefNewMessage) return;
+      addToast({ id: `t-msg-${Date.now()}`, type: 'message', title: getStaffMessage(locale, 'notificationsHub.alerts.newMessageTitle'), body: (row.content as string)?.slice(0, 60), conversationId: row.conversation_id });
+    }).subscribe();
 
-          addToast({
-            id: `toast-log-${Date.now()}`,
-            type: 'ticket',
-            title,
-            body: row.note || 'ดูรายละเอียดในกล่องข้อความ',
-            ticketId: row.ticket_id,
-          });
-        }
-      )
-      .subscribe();
+    const ticketChannel = supabase.channel('tickets').on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'tickets' }, (p) => {
+      const row = p.new as any; scheduleFetchNewTicketsCount(400);
+      if ((row.status || '').toLowerCase() !== 'new' || isFirstLoad.current) return;
+      setLatestTicketRealtimeEvent({ ticketId: String(row.id), payload: row, occurredAt: Date.now() });
+      addToast({ id: `t-tkt-${Date.now()}`, type: 'ticket', title: getStaffMessage(locale, 'notificationsHub.alerts.newTicketTitle'), body: row.subject, ticketId: row.id, ticketNo: row.ticket_no });
+      playNewTicketSound();
+    }).on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'tickets' }, (p) => {
+      const ns = String((p.new as any).status).toLowerCase();
+      const ps = String((p.old as any).status).toLowerCase();
+      if (ns === 'new' || ps === 'new') scheduleFetchNewTicketsCount(450);
+    }).on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'tickets' }, () => { scheduleFetchNewTicketsCount(450); }).subscribe();
 
-    // Subscribe: new customer messages in all conversations
-    const msgChannel = supabase
-      .channel(`notif-msg-${agentId}`)
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' },
-        async (payload) => {
-          const row = payload.new as any;
-          if (row.sender_type !== 'customer') return;
-          if (row.message_type === 'system') return;
-          if (isFirstLoad.current || !prefNewMessage) return;
-
-          addToast({
-            id: `toast-msg-${Date.now()}`,
-            type: 'message',
-            title: getStaffMessage(locale, 'notificationsHub.alerts.newMessageTitle'),
-            body: (row.content as string)?.slice(0, 60) || getStaffMessage(locale, 'notificationsHub.alerts.newMessageBody'),
-            conversationId: row.conversation_id,
-          });
-        }
-      )
-      .subscribe();
-
-    // Subscribe: NEW tickets (global alert for all agents)
-    const ticketChannel = supabase
-      .channel('notif-all-tickets')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'tickets' },
-        (payload) => {
-          const row = payload.new as any;
-          scheduleFetchNewTicketsCount(400);
-          const normalizedStatus = (row.status || '').toLowerCase();
-          if (normalizedStatus !== 'new') return;
-          if (isFirstLoad.current) return;
-
-          setLatestTicketRealtimeEvent({
-            ticketId: String(row.id || ''),
-            payload: row,
-            occurredAt: Date.now(),
-          });
-
-          addToast({
-            id: `toast-ticket-${Date.now()}`,
-            type: 'ticket',
-            title: getStaffMessage(locale, 'notificationsHub.alerts.newTicketTitle'),
-            body: row.subject || getStaffMessage(locale, 'notificationsHub.alerts.newTicketBody').replace('#{no}', `#${row.ticket_no}`),
-            ticketId: row.id,
-            ticketNo: row.ticket_no,
-          });
-
-          playNewTicketSound();
-        }
-      )
-      // Also listen to updates to capture status changes (e.g., ticket claimed)
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'tickets' },
-        (payload) => {
-          const nextStatus = String((payload.new as any)?.status || '').toLowerCase();
-          const previousStatus = String((payload.old as any)?.status || '').toLowerCase();
-          if (nextStatus === 'new' || previousStatus === 'new') {
-            scheduleFetchNewTicketsCount(450);
-          }
-        }
-      )
-      // Also listen to deletes
-      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'tickets' },
-        () => {
-          scheduleFetchNewTicketsCount(450);
-        }
-      )
-      .subscribe();
-
-    // SLA polling every 90 seconds (more responsive than 2min)
-    const slaInterval = setInterval(() => {
-      scheduleFetchSlaBreaches(0);
-    }, 120_000);
-
-    // Mark first-load done after 2.5s
-    const firstLoadTimer = setTimeout(() => {
-      isFirstLoad.current = false;
-    }, 2500);
+    const slaInterval = setInterval(() => { scheduleFetchSlaBreaches(0); }, 120_000);
+    const firstLoadTimer = setTimeout(() => { isFirstLoad.current = false; }, 2500);
 
     return () => {
-      supabase.removeChannel(logChannel);
-      supabase.removeChannel(msgChannel);
-      supabase.removeChannel(ticketChannel);
-      clearInterval(slaInterval);
-      clearTimeout(firstLoadTimer);
+      supabase.removeChannel(logChannel); supabase.removeChannel(msgChannel); supabase.removeChannel(ticketChannel);
+      clearInterval(slaInterval); clearTimeout(firstLoadTimer);
       if (logsRefreshTimerRef.current) clearTimeout(logsRefreshTimerRef.current);
       if (slaRefreshTimerRef.current) clearTimeout(slaRefreshTimerRef.current);
       if (newTicketsCountTimerRef.current) clearTimeout(newTicketsCountTimerRef.current);
     };
-  }, [
-    agentId,
-    fetchLogs,
-    fetchNewTicketsCount,
-    addToast,
-    playNewTicketSound,
-    scheduleFetchLogs,
-    scheduleFetchNewTicketsCount,
-    scheduleFetchSlaBreaches,
-  ]);
+  }, [agentId, fetchLogs, fetchNewTicketsCount, scheduleFetchLogs, scheduleFetchNewTicketsCount, scheduleFetchSlaBreaches, addToast, playNewTicketSound, prefTransfer, prefNewMessage, locale]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
-
-    const unlockAudio = () => {
-      void primeAudio().catch(() => {});
-    };
-
+    const unlockAudio = () => { void primeAudio().catch(() => {}); };
     window.addEventListener('pointerdown', unlockAudio, { passive: true });
     window.addEventListener('keydown', unlockAudio);
-
-    return () => {
-      window.removeEventListener('pointerdown', unlockAudio);
-      window.removeEventListener('keydown', unlockAudio);
-    };
+    return () => { window.removeEventListener('pointerdown', unlockAudio); window.removeEventListener('keydown', unlockAudio); };
   }, [primeAudio]);
 
-    latestTicketRealtimeEvent,
-    isMuted,
-    soundMode,
-    soundVoice,
-    prefNewTicket,
-    prefNewMessage,
-    prefTransfer,
-    prefSlaWarning,
-    setSoundMode,
-    setSoundVoice,
-    updatePreference,
-    testSound,
-    toggleMute,
-    markAsRead, 
-    markAllRead, 
-    clearNotifications,
-    dismissToast, 
-    addToast 
+  return {
+    notifications, toasts, unreadCount, slaAlertCount, newTicketsCount, latestTicketRealtimeEvent, isMuted, soundMode, soundVoice,
+    prefNewTicket, prefNewMessage, prefTransfer, prefSlaWarning, setSoundMode, setSoundVoice, updatePreference, testSound, toggleMute,
+    markAsRead, markAllRead, clearNotifications, dismissToast, addToast
   };
 }
-

@@ -196,6 +196,8 @@ function InboxContent() {
     handleDeleteCanned,
   } = useInboxProfileSettings();
 
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+
   const {
     messages,
     newMessage,
@@ -379,7 +381,7 @@ function InboxContent() {
   return (
     <div
       className="animate-page-in inbox-layout"
-      style={{ display: 'flex', height: 'calc(100vh - 120px)', gap: '24px' }}
+      style={{ display: 'flex', height: 'calc(100vh - 120px)', gap: isSidebarCollapsed ? '0px' : '24px', transition: 'gap 0.3s' }}
     >
       <InboxSidebar
         conversations={conversations}
@@ -452,6 +454,8 @@ function InboxContent() {
                 setPendingDeleteMessageId(messageId);
               }}
               messagesEndRef={messagesEndRef}
+              isSidebarCollapsed={isSidebarCollapsed}
+              onToggleSidebar={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
             />
           </Suspense>
         ) : (
@@ -473,7 +477,17 @@ function InboxContent() {
 
       <div
         className={`inbox-details-sidebar ${viewMode === 'details' ? 'showing' : ''}`}
-        style={{ width: '460px', display: 'flex', flexDirection: 'column', gap: '24px' }}
+        style={{ 
+          width: isSidebarCollapsed ? '0px' : '460px', 
+          display: 'flex', 
+          flexDirection: 'column', 
+          gap: '24px',
+          transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+          overflow: 'hidden',
+          opacity: isSidebarCollapsed ? 0 : 1,
+          pointerEvents: isSidebarCollapsed ? 'none' : 'auto',
+          marginLeft: isSidebarCollapsed ? '0px' : '0px'
+        }}
       >
         {selectedChat && (
           <Suspense fallback={<div className="flex-center" style={{ minHeight: 220 }}><Loader2 className="animate-spin" /></div>}>

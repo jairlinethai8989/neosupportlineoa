@@ -138,6 +138,8 @@ const messages: Record<StaffLocale, MessageDictionary> = {
       claimBeforeChatPlaceholder: 'กรุณากดรับงานก่อนเริ่มการสนทนา',
       typeMessagePlaceholder: 'พิมพ์ข้อความ หรือวางรูปภาพ Ctrl+V...',
       pinCode: 'รหัส PIN',
+      showInfo: 'แสดงข้อมูล',
+      hideInfo: 'ซ่อนข้อมูล',
     },
     notificationsHub: {
       title: 'ศูนย์การแจ้งเตือน',
@@ -704,6 +706,8 @@ const messages: Record<StaffLocale, MessageDictionary> = {
       claimBeforeChatPlaceholder: 'Please claim this ticket before replying',
       typeMessagePlaceholder: 'Type a message or paste image with Ctrl+V...',
       pinCode: 'PIN Code',
+      showInfo: 'Show Info',
+      hideInfo: 'Hide Info',
     },
     notificationsHub: {
       title: 'Notification Hub',

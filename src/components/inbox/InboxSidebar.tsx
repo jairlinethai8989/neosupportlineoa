@@ -117,33 +117,12 @@ export const InboxSidebar: React.FC<InboxSidebarProps> = ({
                   alignItems: 'center',
                 }}
               >
-                <div
-                  style={{
-                    width: '42px',
-                    height: '42px',
-                    borderRadius: '12px',
-                    background: 'linear-gradient(135deg, oklch(70% 0.1 200), oklch(80% 0.15 190))',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: '16px',
-                    fontWeight: '900',
-                    color: '#0a0e14',
-                    flexShrink: 0,
-                    boxShadow:
-                      selectedChat?.id === chat.id
-                        ? '0 4px 10px rgba(0, 242, 254, 0.15)'
-                        : 'none',
-                  }}
-                >
-                  {chat.customers?.display_name?.charAt(0) || 'L'}
-                </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '2px' }}>
                     <p
                       style={{
-                        fontWeight: '800',
-                        fontSize: '14px',
+                        fontWeight: '750',
+                        fontSize: '12px',
                         color:
                           selectedChat?.id === chat.id ? 'var(--primary)' : 'var(--text-main)',
                         whiteSpace: 'nowrap',
@@ -151,10 +130,9 @@ export const InboxSidebar: React.FC<InboxSidebarProps> = ({
                         textOverflow: 'ellipsis',
                       }}
                     >
-                      {chat.ticket_data?.ticket_no ? `#${chat.ticket_data.ticket_no} ` : ''}
                       {chat.customers?.display_name || 'LINE User'}
                     </p>
-                    <p style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
+                    <p style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: '600' }}>
                       {chat.last_message_at
                         ? new Date(chat.last_message_at).toLocaleTimeString('th-TH', {
                             hour: '2-digit',
@@ -164,20 +142,51 @@ export const InboxSidebar: React.FC<InboxSidebarProps> = ({
                         : '-'}
                     </p>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <p className="truncate" style={{ fontSize: '11px', color: 'var(--text-muted)', maxWidth: '140px' }}>
-                      {active ? 'กำลังสนทนา' : 'ปิดการสนทนาแล้ว'}
-                    </p>
-                    <span
-                      title={active ? 'Active session' : 'Closed session'}
-                      style={{
-                        width: '8px',
-                        height: '8px',
-                        borderRadius: '50%',
-                        background: active ? 'var(--success)' : 'var(--text-muted)',
-                        boxShadow: active ? '0 0 10px rgba(40, 199, 111, 0.7)' : 'none',
-                      }}
-                    />
+                  
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1px' }}>
+                    {chat.customers?.hospitals?.name && (
+                      <span style={{ 
+                        fontSize: '10px', 
+                        color: 'var(--text-dim)',
+                        fontWeight: '700',
+                        maxWidth: '220px',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                        opacity: 0.8
+                      }}>
+                        {chat.customers.hospitals.name}
+                      </span>
+                    )}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', minHeight: '12px' }}>
+                      {chat.ticket_data?.subject ? (
+                        <span style={{ 
+                          fontSize: '10px', 
+                          color: 'var(--text-muted)',
+                          fontWeight: '500',
+                          maxWidth: '210px',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                          fontStyle: 'italic'
+                        }}>
+                          {chat.ticket_data.subject}
+                        </span>
+                      ) : (
+                        <div />
+                      )}
+                      <span
+                        title={active ? 'Active session' : 'Closed session'}
+                        style={{
+                          width: '8px',
+                          height: '8px',
+                          borderRadius: '50%',
+                          background: active ? 'var(--success)' : 'var(--text-muted)',
+                          boxShadow: active ? '0 0 10px rgba(40, 199, 111, 0.7)' : 'none',
+                          flexShrink: 0,
+                        }}
+                      />
+                    </div>
                   </div>
                 </div>
               </div>
