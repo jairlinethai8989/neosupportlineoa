@@ -414,9 +414,9 @@ export function useNotifications(agentId: string | null, role: string | null = n
   }, []);
 
   const fetchSlaBreaches = useCallback(async () => {
-    const isAdmin = role === 'Administrator';
     const twoHoursFromNow = new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString();
     
+    // Everyone sees all SLA breaches by default (as requested)
     let query = supabase
       .from('tickets')
       .select('id, ticket_no, subject, sla_due_at, status, priority')
@@ -424,10 +424,6 @@ export function useNotifications(agentId: string | null, role: string | null = n
       .not('status', 'in', '("Resolved","Closed")')
       .order('sla_due_at', { ascending: true })
       .limit(20);
-
-    if (!isAdmin) {
-      query = query.eq('assigned_agent_id', agentId);
-    }
 
     const { data } = await query;
     if (!data) return;
