@@ -37,12 +37,12 @@ function getTicketDuration(createdAt: string) {
 const boardContainerStyle: React.CSSProperties = {
   display: 'flex',
   overflowX: 'auto',
-  overflowY: 'auto',
+  overflowY: 'visible',
   padding: '24px',
-  flex: 1,
+  height: 'auto',
+  minHeight: '800px',
   width: '100%',
   maxWidth: '100%',
-  minHeight: '600px',
   background: 'var(--bg-card)',
   borderRadius: '32px',
   border: '1px solid var(--border)',
@@ -60,6 +60,8 @@ const boardColumnsWrapStyle: React.CSSProperties = {
 const columnStyle: React.CSSProperties = {
   minWidth: '340px',
   maxWidth: '340px',
+  maxHeight: 'calc(100vh - 120px)',
+  height: 'auto',
   flexShrink: 0,
   display: 'flex',
   flexDirection: 'column',
@@ -67,13 +69,17 @@ const columnStyle: React.CSSProperties = {
   borderRadius: '24px',
   padding: '0',
   position: 'relative',
+  overflow: 'hidden',
 };
 
 const columnTicketsWrapStyle: React.CSSProperties = {
+  flex: 1,
   display: 'flex',
   flexDirection: 'column',
   gap: '16px',
-  padding: '0 12px 12px 12px',
+  padding: '16px 12px 24px',
+  overflowY: 'auto',
+  overflowX: 'hidden',
 };
 
 const cardStyle: React.CSSProperties = {
@@ -85,6 +91,7 @@ const cardStyle: React.CSSProperties = {
   flexDirection: 'column',
   gap: '2px',
   boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+  flexShrink: 0,
 };
 
 const cardTopRowStyle: React.CSSProperties = {
@@ -246,52 +253,12 @@ export function TicketsBoard({
 }: TicketsBoardProps) {
   const { locale, t } = useStaffLocale();
   const boardRef = React.useRef<HTMLDivElement>(null);
-  const topScrollRef = React.useRef<HTMLDivElement>(null);
-  const isSyncingRef = React.useRef(false);
-
-  const syncScroll = (source: React.RefObject<HTMLDivElement | null>, target: React.RefObject<HTMLDivElement | null>) => {
-    if (isSyncingRef.current) {
-      isSyncingRef.current = false;
-      return;
-    }
-    if (source.current && target.current) {
-      isSyncingRef.current = true;
-      target.current.scrollLeft = source.current.scrollLeft;
-    }
-  };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%' }}>
-      {/* Top Scrollbar Sync */}
-      <div 
-        ref={topScrollRef}
-        onScroll={() => syncScroll(topScrollRef, boardRef)}
-        className="custom-scrollbar"
-        style={{ 
-          overflowX: 'auto', 
-          width: '100%', 
-          height: '24px',
-          borderRadius: '12px',
-          background: 'var(--bg-topbar)',
-          border: '1px solid var(--border)',
-          position: 'sticky',
-          top: 0,
-          zIndex: 30,
-        }}
-      >
-        <div style={{ width: 'max-content', height: '1px', display: 'flex', gap: '28px' }}>
-          {WORKFLOW.map((id) => (
-            <div key={id} style={{ minWidth: '340px' }} />
-          ))}
-          {/* Compensate for board padding */}
-          <div style={{ minWidth: '48px' }} /> 
-        </div>
-      </div>
-
       <div 
         ref={boardRef}
-        className="board-scroll-container glass" 
-        onScroll={() => syncScroll(boardRef, topScrollRef)}
+        className="board-scroll-container custom-scrollbar glass" 
         style={boardContainerStyle}
       >
       <div style={boardColumnsWrapStyle}>
@@ -308,15 +275,13 @@ export function TicketsBoard({
                   display: 'flex',
                   justifyContent: 'space-between',
                   alignItems: 'center',
-                  padding: '16px 20px',
-                  background: `linear-gradient(to bottom, var(--bg-input) 0%, var(--bg-input) 100%), ${config.color}25`,
-                  borderRadius: '18px 18px 0 0',
-                  borderBottom: `3px solid ${config.color}`,
-                  boxShadow: `0 4px 12px ${config.color}10`,
-                  position: 'sticky',
-                  top: '24px',
-                  zIndex: 20,
-                  marginBottom: '16px',
+                  padding: '18px 20px',
+                  background: 'var(--bg-input)',
+                  borderRadius: '24px 24px 0 0',
+                  borderBottom: `2px solid ${config.color}`,
+                  boxShadow: '0 4px 15px rgba(0,0,0,0.05)',
+                  zIndex: 5,
+                  flexShrink: 0,
                 }}
               >
                 <h3
@@ -346,7 +311,7 @@ export function TicketsBoard({
                 </span>
               </div>
 
-              <div style={columnTicketsWrapStyle}>
+              <div style={columnTicketsWrapStyle} className="column-scroll-container">
                 <AnimatePresence mode="popLayout">
                   {columnTickets.map((ticket) => {
                     const convId = getConvId(ticket);
@@ -368,9 +333,9 @@ export function TicketsBoard({
                       <motion.div
                         key={ticket.id}
                         layout
-                        initial={{ opacity: 0, y: 20, scale: 0.95 }}
-                        animate={{ opacity: 1, y: 0, scale: 1 }}
-                        exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.2 } }}
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, transition: { duration: 0.2 } }}
                         whileHover={{ y: -4, boxShadow: '0 20px 40px rgba(0,0,0,0.12)' }}
                         className="glass-interactive"
                         style={{ ...cardStyle, borderLeft: `6px solid ${config.color}` }}

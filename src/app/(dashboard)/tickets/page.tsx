@@ -131,39 +131,6 @@ function TicketsContent() {
         viewMode={viewMode}
       />
 
-      <div style={{ ...paginationWrapStyle, padding: '12px 24px' }}>
-        <button
-          type="button"
-          onClick={goToPreviousTicketPage}
-          disabled={ticketPage <= 1 || loading}
-          style={{
-            ...paginationButtonStyle,
-            opacity: ticketPage <= 1 || loading ? 0.45 : 1,
-            cursor: ticketPage <= 1 || loading ? 'not-allowed' : 'pointer',
-          }}
-        >
-          <ChevronLeft size={14} />
-          {previousLabel}
-        </button>
-
-        <div style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: 700 }}>
-          {pageLabel} {ticketPage}
-        </div>
-
-        <button
-          type="button"
-          onClick={goToNextTicketPage}
-          disabled={!hasNextTicketPage || loading}
-          style={{
-            ...paginationButtonStyle,
-            opacity: !hasNextTicketPage || loading ? 0.45 : 1,
-            cursor: !hasNextTicketPage || loading ? 'not-allowed' : 'pointer',
-          }}
-        >
-          {nextLabel}
-          <ChevronRight size={14} />
-        </button>
-      </div>
 
       {viewMode === 'board' ? (
         <TicketsBoard

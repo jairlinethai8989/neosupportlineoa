@@ -463,3 +463,46 @@ input[type='date']::-webkit-calendar-picker-indicator { filter: invert(1); curso
 .unsend-btn:hover {
   color: var(--danger) !important;
 }
+
+/* Premium Column Scrollbar */
+.column-scroll-container::-webkit-scrollbar {
+  width: 10px;
+}
+
+.column-scroll-container::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 10px;
+}
+
+.column-scroll-container::-webkit-scrollbar-thumb {
+  background: rgba(0, 242, 254, 0.3);
+  border-radius: 10px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+.column-scroll-container::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 242, 254, 0.6);
+  border: 1px solid rgba(0, 242, 254, 0.4);
+}
+
+/* Custom Horizontal Scrollbar for Board */
+.custom-scrollbar::-webkit-scrollbar {
+  height: 12px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 10px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(0, 242, 254, 0.3);
+  border-radius: 10px;
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 242, 254, 0.6);
+}
