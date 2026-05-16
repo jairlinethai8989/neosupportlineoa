@@ -30,8 +30,13 @@ interface NotificationContextValue {
   isMuted: boolean;
   soundMode: NotificationSoundMode;
   soundVoice: NotificationVoiceOption;
+  prefNewTicket: boolean;
+  prefNewMessage: boolean;
+  prefTransfer: boolean;
+  prefSlaWarning: boolean;
   setSoundMode: (mode: NotificationSoundMode) => void;
   setSoundVoice: (voice: NotificationVoiceOption) => void;
+  updatePreference: (key: string, value: boolean) => void;
   testSound: () => Promise<SoundTestResult>;
   toggleMute: () => void;
 }
@@ -52,8 +57,13 @@ const NotificationContext = createContext<NotificationContextValue>({
   isMuted: true,
   soundMode: 'beep',
   soundVoice: 'female',
+  prefNewTicket: true,
+  prefNewMessage: true,
+  prefTransfer: true,
+  prefSlaWarning: true,
   setSoundMode: () => {},
   setSoundVoice: () => {},
+  updatePreference: () => {},
   testSound: async () => ({ ok: false, code: 'NO_AUDIO_CONTEXT', detail: 'Not initialized', hint: '' }),
   toggleMute: () => {},
 });

@@ -16,6 +16,11 @@ export default function NotificationSettingsPage() {
     soundVoice,
     setSoundMode,
     setSoundVoice,
+    prefNewTicket,
+    prefNewMessage,
+    prefTransfer,
+    prefSlaWarning,
+    updatePreference,
     testSound,
     addToast,
   } = useNotificationContext();
@@ -341,6 +346,83 @@ export default function NotificationSettingsPage() {
               <div style={{ color: 'var(--text-muted)', marginTop: '4px' }}>
                 {locale === 'th' ? t('common.thai') : t('common.english')}
               </div>
+            </div>
+          </div>
+
+          <div className="glass" style={{ padding: '32px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
+              <div
+                className="flex-center"
+                style={{
+                  width: '44px',
+                  height: '44px',
+                  borderRadius: '14px',
+                  background: 'rgba(255,171,0,0.08)',
+                  color: 'var(--warning)',
+                  border: '1px solid var(--border)',
+                }}
+              >
+                <Bell size={20} />
+              </div>
+              <div>
+                <h2 style={{ fontSize: '18px', fontWeight: '850', margin: 0 }}>
+                  {t('settingsNotifications.eventsTitle')}
+                </h2>
+                <p style={{ color: 'var(--text-muted)', fontSize: '13px', margin: '4px 0 0 0' }}>
+                  {t('settingsNotifications.eventsDescription')}
+                </p>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              {[
+                { id: 'new_ticket', label: t('settingsNotifications.eventNewTicket'), value: prefNewTicket },
+                { id: 'new_message', label: t('settingsNotifications.eventNewMessage'), value: prefNewMessage },
+                { id: 'transfer', label: t('settingsNotifications.eventTransfer'), value: prefTransfer },
+                { id: 'sla_warning', label: t('settingsNotifications.eventSlaWarning'), value: prefSlaWarning },
+              ].map((event) => (
+                <div 
+                  key={event.id}
+                  className="glass-interactive"
+                  onClick={() => updatePreference(event.id, !event.value)}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '16px 20px',
+                    borderRadius: '16px',
+                    border: '1px solid var(--border)',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <span style={{ fontSize: '14px', fontWeight: '600' }}>{event.label}</span>
+                  <div 
+                    style={{
+                      width: '44px',
+                      height: '24px',
+                      borderRadius: '12px',
+                      background: event.value ? 'var(--primary)' : 'var(--bg-input)',
+                      position: 'relative',
+                      transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                      border: '1px solid var(--border)'
+                    }}
+                  >
+                    <div 
+                      style={{
+                        width: '18px',
+                        height: '18px',
+                        borderRadius: '50%',
+                        background: 'white',
+                        position: 'absolute',
+                        top: '2px',
+                        left: event.value ? '22px' : '2px',
+                        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                        boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                      }}
+                    />
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         </div>
