@@ -550,9 +550,13 @@ export function useNotifications(agentId: string | null, role: string | null = n
     return () => { window.removeEventListener('pointerdown', unlockAudio); window.removeEventListener('keydown', unlockAudio); };
   }, [primeAudio]);
 
-  return {
+  return useMemo(() => ({
     notifications, toasts, unreadCount, slaAlertCount, newTicketsCount, latestTicketRealtimeEvent, isMuted, soundMode, soundVoice,
     prefNewTicket, prefNewMessage, prefTransfer, prefSlaWarning, setSoundMode, setSoundVoice, updatePreference, testSound, toggleMute,
     markAsRead, markAllRead, clearNotifications, dismissToast, addToast
-  };
+  }), [
+    notifications, toasts, unreadCount, slaAlertCount, newTicketsCount, latestTicketRealtimeEvent, isMuted, soundMode, soundVoice,
+    prefNewTicket, prefNewMessage, prefTransfer, prefSlaWarning, setSoundMode, setSoundVoice, updatePreference, testSound, toggleMute,
+    markAsRead, markAllRead, clearNotifications, dismissToast, addToast
+  ]);
 }

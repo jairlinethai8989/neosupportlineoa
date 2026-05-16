@@ -80,8 +80,13 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   const role = userProfile?.role || null;
   const notif = useNotifications(agentId, role, locale);
 
+  const value = React.useMemo(() => ({
+    ...notif,
+    agentId
+  }), [notif, agentId]);
+
   return (
-    <NotificationContext.Provider value={{ ...notif, agentId }}>
+    <NotificationContext.Provider value={value}>
       {children}
     </NotificationContext.Provider>
   );
