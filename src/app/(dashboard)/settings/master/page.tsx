@@ -18,12 +18,13 @@ import {
   Tag,
   MessageSquare
 } from 'lucide-react';
+import { FileSpreadsheet } from 'lucide-react';
 import { useNotificationContext } from '@/contexts/NotificationContext';
 import { auditService } from '@/lib/services/auditService';
 import { useAppContext } from '@/contexts/AppContext';
 import { useStaffLocale } from '@/contexts/StaffLocaleContext';
 
-type Tab = 'hospitals' | 'departments' | 'hospital_depts' | 'positions' | 'modules' | 'issue_types' | 'subject_types' | 'line_groups';
+type Tab = 'hospitals' | 'departments' | 'hospital_depts' | 'positions' | 'modules' | 'issue_types' | 'subject_types' | 'line_groups' | 'google_sheets';
 
 export default function MasterSettingsPage() {
   const { t } = useStaffLocale();
@@ -81,6 +82,11 @@ export default function MasterSettingsPage() {
       return;
     }
 
+    if (activeTab === 'google_sheets') {
+      setItems([]);
+      setLoading(false);
+      return;
+    }
     setLoading(true);
 
     // Handle company_settings based tabs
@@ -359,7 +365,8 @@ export default function MasterSettingsPage() {
     modules: { title: t('settingsMaster.tabs.modules'), icon: FileText, desc: t('settingsMaster.descriptions.modules') },
     issue_types: { title: t('settingsMaster.tabs.issueTypes'), icon: Tag, desc: t('settingsMaster.descriptions.issueTypes') },
     subject_types: { title: t('settingsMaster.tabs.subjectTypes'), icon: MessageSquare, desc: t('settingsMaster.descriptions.subjectTypes') },
-    line_groups: { title: t('settingsMaster.tabs.lineGroups'), icon: MessageSquare, desc: t('settingsMaster.descriptions.lineGroups') }
+    line_groups: { title: t('settingsMaster.tabs.lineGroups'), icon: MessageSquare, desc: t('settingsMaster.descriptions.lineGroups') },
+    google_sheets: { title: 'Google Sheets', icon: FileSpreadsheet, desc: 'ตั้งค่าการเชื่อมโยงรายงานไปยัง Google Sheets ประจำวัน' }
   };
 
   const ActiveIcon = TAB_CONFIG[activeTab].icon;
@@ -377,7 +384,7 @@ export default function MasterSettingsPage() {
 
       {/* Tabs Selector */}
       <div style={{ display: 'flex', gap: '8px', marginBottom: '32px', background: 'rgba(255,255,255,0.03)', padding: '6px', borderRadius: '16px', border: '1px solid var(--border)', width: 'fit-content', flexWrap: 'wrap' }}>
-        {(['hospitals', 'departments', 'hospital_depts', 'positions', 'modules', 'issue_types', 'subject_types', 'line_groups'] as Tab[]).map(t => (
+        {(['hospitals', 'departments', 'hospital_depts', 'positions', 'modules', 'issue_types', 'subject_types', 'line_groups', 'google_sheets'] as Tab[]).map(t => (
           <button
             key={t}
             onClick={() => setActiveTab(t)}
@@ -403,7 +410,10 @@ export default function MasterSettingsPage() {
       </div>
 
       {/* Main Content Card */}
-      <div className="glass" style={{ borderRadius: '24px', overflow: 'hidden' }}>
+      {activeTab === 'google_sheets' ? (
+        <GoogleSheetsConfigForm globalSettings={globalSettings} onSaveSuccess={() => refreshData('settings')} />
+      ) : (
+        <div className="glass" style={{ borderRadius: '24px', overflow: 'hidden' }}>
          {/* List Toolbar */}
          <div style={{ padding: '24px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
             <div style={{ position: 'relative', flex: 1, maxWidth: '300px' }}>
@@ -592,9 +602,229 @@ export default function MasterSettingsPage() {
          </div>
       </div>
 
+      )}
+
       <style dangerouslySetInnerHTML={{ __html: `
         .hover-item:hover { background: rgba(255,255,255,0.015); }
         .p-2 { padding: 8px; }
+      `}} />
+    </div>
+  );
+}
+
+function GoogleSheetsConfigForm({ globalSettings, onSaveSuccess }: { globalSettings: any; onSaveSuccess: () => void }) {
+  const { t } = useStaffLocale();
+  const { addToast } = useNotificationContext();
+  const [sheetsUrl, setSheetsUrl] = useState(globalSettings?.google_sheets_url || '');
+  const [saving, setSaving] = useState(false);
+  const [dbError, setDbError] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    if (globalSettings?.google_sheets_url) {
+      setSheetsUrl(globalSettings.google_sheets_url);
+    }
+  }, [globalSettings]);
+
+  const handleSave = async () => {
+    if (sheetsUrl && !sheetsUrl.startsWith('http')) {
+      alert('กรุณากรอก URL ที่ถูกต้อง');
+      return;
+    }
+    setSaving(true);
+    setDbError(null);
+    try {
+      const { error } = await supabase
+        .from('company_settings')
+        .update({ google_sheets_url: sheetsUrl })
+        .eq('id', globalSettings.id);
+
+      if (error) {
+        console.error('Save error:', error);
+        if (error.code === '42703' || error.message?.includes('column "google_sheets_url" of relation')) {
+          setDbError('column_missing');
+        } else {
+          alert('ไม่สามารถบันทึกได้: ' + error.message);
+        }
+      } else {
+        onSaveSuccess();
+        addToast({
+          id: `gsheets-save-success-${Date.now()}`,
+          type: 'ticket',
+          title: 'บันทึกสำเร็จ',
+          body: 'บันทึก Google Sheets URL เรียบร้อยแล้ว ✨'
+        });
+      }
+    } catch (e: any) {
+      console.error(e);
+      alert('เกิดข้อผิดพลาดในการบันทึกข้อมูล');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const appsScriptCode = `function doPost(e) {
+  try {
+    var jsonString = e.postData.contents;
+    var data = JSON.parse(jsonString);
+    var rows = data.rows;
+    
+    if (!rows || rows.length === 0) {
+      return ContentService.createTextOutput(JSON.stringify({ status: "success", count: 0, message: "No data received" }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+    
+    var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+    
+    if (sheet.getLastRow() === 0) {
+      var headers = Object.keys(rows[0]);
+      sheet.appendRow(headers);
+      
+      var headerRange = sheet.getRange(1, 1, 1, headers.length);
+      headerRange.setFontWeight("bold");
+      headerRange.setBackground("#e2efda");
+      headerRange.setHorizontalAlignment("center");
+      sheet.setFrozenRows(1);
+    }
+    
+    var headerKeys = Object.keys(rows[0]);
+    for (var i = 0; i < rows.length; i++) {
+      var rowData = rows[i];
+      var values = [];
+      for (var j = 0; j < headerKeys.length; j++) {
+        values.push(rowData[headerKeys[j]] || "");
+      }
+      sheet.appendRow(values);
+    }
+    
+    var numCols = headerKeys.length;
+    for (var col = 1; col <= numCols; col++) {
+      sheet.autoResizeColumn(col);
+    }
+    
+    return ContentService.createTextOutput(JSON.stringify({ status: "success", count: rows.length }))
+      .setMimeType(ContentService.MimeType.JSON);
+      
+  } catch (err) {
+    return ContentService.createTextOutput(JSON.stringify({ status: "error", message: err.toString() }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+}
+
+function doGet(e) {
+  return ContentService.createTextOutput("Google Sheets Web App is Active! Ready to receive POST exports.")
+    .setMimeType(ContentService.MimeType.TEXT);
+}`;
+
+  const copyToClipboard = () => {
+    navigator.clipboard.writeText(appsScriptCode);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+    addToast({
+      id: `copy-script-${Date.now()}`,
+      type: 'ticket',
+      title: 'คัดลอกแล้ว',
+      body: 'คัดลอกโค้ดสคริปต์ไปยังคลิปบอร์ดแล้ว 📋'
+    });
+  };
+
+  return (
+    <div style={{ padding: '32px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
+      <div style={{ display: 'flex', gap: '20px', alignItems: 'center', flexWrap: 'wrap' }}>
+        <div style={{ flex: 1, minWidth: '300px' }}>
+          <label style={{ display: 'block', fontSize: '14px', fontWeight: '800', color: 'var(--text-main)', marginBottom: '8px' }}>
+            Google Sheets Web App URL
+          </label>
+          <input
+            type="url"
+            placeholder="https://script.google.com/macros/s/.../exec"
+            value={sheetsUrl}
+            onChange={(e) => setSheetsUrl(e.target.value)}
+            style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', borderRadius: '12px', padding: '14px 20px', color: 'var(--text-main)', fontSize: '14px', outline: 'none' }}
+          />
+        </div>
+        <button
+          onClick={handleSave}
+          disabled={saving}
+          style={{ alignSelf: 'flex-end', background: '#10b981', color: 'white', border: 'none', padding: '14px 28px', borderRadius: '12px', fontWeight: '900', fontSize: '14px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', height: '48px', transition: 'all 0.2s', boxShadow: '0 4px 12px rgba(16, 185, 129, 0.2)' }}
+        >
+          {saving ? <Loader2 size={18} className="animate-spin" /> : <Check size={18} />}
+          บันทึกการตั้งค่า
+        </button>
+      </div>
+
+      {dbError === 'column_missing' && (
+        <div style={{ background: 'rgba(234, 84, 85, 0.1)', border: '1px solid var(--danger)', padding: '24px', borderRadius: '16px', color: 'var(--danger)' }}>
+          <h4 style={{ fontWeight: '800', fontSize: '15px', marginBottom: '8px', color: 'var(--danger)' }}>
+            ⚠️ ตรวจพบตารางฐานข้อมูลรุ่นเก่า (Database Schema Update Required)
+          </h4>
+          <p style={{ fontSize: '13px', lineHeight: '1.5', marginBottom: '16px', color: 'rgba(234, 84, 85, 0.85)' }}>
+            ระบบตรวจพบว่าตาราง <code>company_settings</code> ในฐานข้อมูล Supabase ของคุณยังไม่มีคอลัมน์ <code>google_sheets_url</code> เพื่อจัดเก็บข้อมูลนี้ กรุณาคัดลอกและรันคำสั่ง SQL ด้านล่างนี้ในหน้า <strong>SQL Editor</strong> บน <strong>Supabase Dashboard</strong> ของคุณ จากนั้นลองกดบันทึกอีกครั้ง:
+          </p>
+          <pre style={{ background: 'rgba(0,0,0,0.4)', padding: '12px 16px', borderRadius: '8px', border: '1px solid rgba(234, 84, 85, 0.2)', fontSize: '12px', fontWeight: '700', overflowX: 'auto', color: 'var(--text-main)' }}>
+            ALTER TABLE public.company_settings ADD COLUMN IF NOT EXISTS google_sheets_url TEXT;
+          </pre>
+        </div>
+      )}
+
+      {/* Guide & Steps */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }} className="grid-responsive">
+        {/* Step List */}
+        <div className="glass" style={{ padding: '24px', borderRadius: '16px', border: '1px solid var(--border)' }}>
+          <h4 style={{ fontWeight: '900', fontSize: '15px', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px', color: '#10b981' }}>
+            <FileSpreadsheet size={20} />
+            ขั้นตอนการติดตั้งระบบบันทึกข้อมูล
+          </h4>
+          <ol style={{ margin: 0, paddingLeft: '20px', display: 'flex', flexDirection: 'column', gap: '14px', fontSize: '13px', color: 'var(--text-muted)', lineHeight: '1.6' }}>
+            <li>
+              <strong>สร้างและเตรียมสเปรดชีต:</strong><br />
+              เปิด Google Sheets ของคุณขึ้นมาก่อน (แนะนำให้เปิดไฟล์สเปรดชีตเปล่าที่ต้องการเก็บบันทึก)
+            </li>
+            <li>
+              <strong>สร้างสคริปต์ที่ผูกกับตาราง:</strong><br />
+              เลือกเมนู <strong>ส่วนขยาย (Extensions) &gt; Apps Script</strong> เพื่อให้สคริปต์ผูกเข้ากับชีตโดยตรง (ห้ามสร้างเป็น standalone script)
+            </li>
+            <li>
+              <strong>คัดลอกโค้ดไปวาง:</strong><br />
+              กดปุ่ม <span style={{ color: '#10b981', fontWeight: '700' }}>"คัดลอกโค้ดสคริปต์"</span> ทางด้านขวา แล้วลบโค้ดเดิมทั้งหมดในหน้าโปรแกรมแก้ไขออก จากนั้นวางโค้ดสคริปต์ลงไปและกด <strong>บันทึก (Save)</strong>
+            </li>
+            <li>
+              <strong>เผยแพร่เป็นเว็บแอป:</strong><br />
+              คลิก <strong>การใช้งานได้จริง (Deploy) &gt; การทำงานใหม่ (New deployment)</strong> เลือกประเภทเป็น <strong>เว็บแอป (Web app)</strong>
+            </li>
+            <li>
+              <strong>ตั้งค่าสิทธิ์ให้เป็นสาธารณะ:</strong><br />
+              ตั้งค่าช่อง <strong>ผู้ที่มีสิทธิ์เข้าถึง (Who has access)</strong> ให้เป็น <strong>ทุกคน (Anyone)</strong> จากนั้นกด Deploy เพื่อเผยแพร่
+            </li>
+            <li>
+              <strong>คัดลอกลิงก์มาบันทึก:</strong><br />
+              คัดลอก <strong>URL เว็บแอป (Web app URL)</strong> ที่ได้จาก Google มาวางในช่องด้านบนนี้แล้วกด <span style={{ color: '#10b981', fontWeight: '700' }}>"บันทึกการตั้งค่า"</span>
+            </li>
+          </ol>
+        </div>
+
+        {/* Code Block display */}
+        <div className="glass" style={{ padding: '24px', borderRadius: '16px', border: '1px solid var(--border)', display: 'flex', flexDirection: 'column' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+            <h4 style={{ fontWeight: '900', fontSize: '15px', color: 'var(--text-main)' }}>
+              โค้ด Google Apps Script 🚀
+            </h4>
+            <button
+              onClick={copyToClipboard}
+              style={{ background: copied ? 'rgba(16, 185, 129, 0.1)' : 'rgba(255,255,255,0.05)', color: copied ? '#10b981' : 'var(--text-main)', border: '1px solid ' + (copied ? '#10b981' : 'var(--border)'), padding: '6px 12px', borderRadius: '8px', fontSize: '11px', fontWeight: '700', cursor: 'pointer', transition: 'all 0.2s' }}
+            >
+              {copied ? 'คัดลอกแล้ว! ✅' : 'คัดลอกโค้ดสคริปต์ 📋'}
+            </button>
+          </div>
+          <pre style={{ flex: 1, background: 'rgba(0,0,0,0.3)', padding: '16px', borderRadius: '12px', border: '1px solid var(--border)', fontSize: '11px', lineHeight: '1.5', fontFamily: 'monospace', overflowY: 'auto', maxHeight: '350px', color: '#a6e22e' }}>
+            {appsScriptCode}
+          </pre>
+        </div>
+      </div>
+      <style dangerouslySetInnerHTML={{ __html: `
+        @media (max-width: 768px) {
+          .grid-responsive { grid-template-columns: 1fr !important; }
+        }
       `}} />
     </div>
   );

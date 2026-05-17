@@ -61,9 +61,9 @@ export function ExportPreviewModal({
           padding: '32px',
           boxShadow: '0 40px 100px rgba(0,0,0,0.8)',
           position: 'relative',
-          border: '1px solid rgba(255,255,255,0.08)',
+          border: '1px solid rgba(255,255,255,0.12)',
           borderRadius: '28px',
-          background: 'linear-gradient(180deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.01) 100%)',
+          background: 'linear-gradient(180deg, var(--bg-sidebar, #141b27) 0%, var(--bg-deep, #0a0e14) 100%)',
         }}
       >
         <button
