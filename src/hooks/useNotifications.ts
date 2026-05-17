@@ -485,15 +485,40 @@ export function useNotifications(agentId: string | null, role: string | null = n
     slaRefreshTimerRef.current = setTimeout(() => { void fetchSlaBreaches(); }, delayMs);
   }, [fetchSlaBreaches]);
 
+  // Create stable refs for callbacks and dynamic preferences to prevent realtime re-subscription loops
+  const prefTransferRef = useRef(prefTransfer);
+  const prefNewMessageRef = useRef(prefNewMessage);
+  const addToastRef = useRef(addToast);
+  const playNewTicketSoundRef = useRef(playNewTicketSound);
+  const fetchLogsRef = useRef(fetchLogs);
+  const fetchNewTicketsCountRef = useRef(fetchNewTicketsCount);
+  const scheduleFetchLogsRef = useRef(scheduleFetchLogs);
+  const scheduleFetchNewTicketsCountRef = useRef(scheduleFetchNewTicketsCount);
+  const scheduleFetchSlaBreachesRef = useRef(scheduleFetchSlaBreaches);
+
+  // Sync refs with the latest state values on render
+  useEffect(() => { prefTransferRef.current = prefTransfer; }, [prefTransfer]);
+  useEffect(() => { prefNewMessageRef.current = prefNewMessage; }, [prefNewMessage]);
+  useEffect(() => { addToastRef.current = addToast; }, [addToast]);
+  useEffect(() => { playNewTicketSoundRef.current = playNewTicketSound; }, [playNewTicketSound]);
+  useEffect(() => { fetchLogsRef.current = fetchLogs; }, [fetchLogs]);
+  useEffect(() => { fetchNewTicketsCountRef.current = fetchNewTicketsCount; }, [fetchNewTicketsCount]);
+  useEffect(() => { scheduleFetchLogsRef.current = scheduleFetchLogs; }, [scheduleFetchLogs]);
+  useEffect(() => { scheduleFetchNewTicketsCountRef.current = scheduleFetchNewTicketsCount; }, [scheduleFetchNewTicketsCount]);
+  useEffect(() => { scheduleFetchSlaBreachesRef.current = scheduleFetchSlaBreaches; }, [scheduleFetchSlaBreaches]);
+
   // --- 6. Effects ---
+  
+  // Effect 1: Load configuration and profile settings once on mount or when agentId changes
   useEffect(() => {
     if (!agentId) return;
-    setTimeout(() => { void fetchLogs(); void fetchNewTicketsCount(); scheduleFetchSlaBreaches(1600); }, 0);
+    
     if (typeof window !== 'undefined') {
       const m = localStorage.getItem('neo_notif_muted'); if (m !== null) setIsMuted(m === 'true');
       const mode = localStorage.getItem(SOUND_MODE_KEY); if (mode === 'beep' || mode === 'voice') setSoundModeState(mode as any);
       const voice = localStorage.getItem(SOUND_VOICE_KEY); if (voice === 'female' || voice === 'male') setSoundVoiceState(voice as any);
     }
+
     const loadFromProfile = async () => {
       const { data } = await supabase.from('profiles').select('*').eq('id', agentId).maybeSingle();
       if (!data) return;
@@ -506,33 +531,44 @@ export function useNotifications(agentId: string | null, role: string | null = n
       if (data.notif_event_sla_warning !== undefined) setPrefSlaWarning(data.notif_event_sla_warning);
     };
     void loadFromProfile();
+  }, [agentId]);
+
+  // Effect 2: Setup real-time subscriptions and initialize log/SLA fetching
+  useEffect(() => {
+    if (!agentId) return;
+    
+    setTimeout(() => { 
+      void fetchLogsRef.current(); 
+      void fetchNewTicketsCountRef.current(); 
+      scheduleFetchSlaBreachesRef.current(1600); 
+    }, 0);
 
     const logChannel = supabase.channel(`logs-${agentId}`).on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'ticket_logs' }, (p) => {
       const row = p.new as any; if (row.to_user_id !== agentId && row.performer_id !== agentId) return;
-      scheduleFetchLogs(250); scheduleFetchSlaBreaches(900);
-      if (isFirstLoad.current || !prefTransfer) return;
-      addToast({ id: `t-log-${Date.now()}`, type: 'ticket', title: 'ใบงานได้รับการอัปเดต', body: row.note || 'ดูรายละเอียดในกล่องข้อความ', ticketId: row.ticket_id });
+      scheduleFetchLogsRef.current(250); scheduleFetchSlaBreachesRef.current(900);
+      if (isFirstLoad.current || !prefTransferRef.current) return;
+      addToastRef.current({ id: `t-log-${Date.now()}`, type: 'ticket', title: 'ใบงานได้รับการอัปเดต', body: row.note || 'ดูรายละเอียดในกล่องข้อความ', ticketId: row.ticket_id });
     }).subscribe();
 
     const msgChannel = supabase.channel(`msgs-${agentId}`).on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (p) => {
       const row = p.new as any; if (row.sender_type !== 'customer' || row.message_type === 'system') return;
-      if (isFirstLoad.current || !prefNewMessage) return;
-      addToast({ id: `t-msg-${Date.now()}`, type: 'message', title: getStaffMessage(locale, 'notificationsHub.alerts.newMessageTitle'), body: (row.content as string)?.slice(0, 60), conversationId: row.conversation_id });
+      if (isFirstLoad.current || !prefNewMessageRef.current) return;
+      addToastRef.current({ id: `t-msg-${Date.now()}`, type: 'message', title: getStaffMessage(locale, 'notificationsHub.alerts.newMessageTitle'), body: (row.content as string)?.slice(0, 60), conversationId: row.conversation_id });
     }).subscribe();
 
     const ticketChannel = supabase.channel('tickets').on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'tickets' }, (p) => {
-      const row = p.new as any; scheduleFetchNewTicketsCount(400);
+      const row = p.new as any; scheduleFetchNewTicketsCountRef.current(400);
       if ((row.status || '').toLowerCase() !== 'new' || isFirstLoad.current) return;
       setLatestTicketRealtimeEvent({ ticketId: String(row.id), payload: row, occurredAt: Date.now() });
-      addToast({ id: `t-tkt-${Date.now()}`, type: 'ticket', title: getStaffMessage(locale, 'notificationsHub.alerts.newTicketTitle'), body: row.subject, ticketId: row.id, ticketNo: row.ticket_no });
-      playNewTicketSound();
+      addToastRef.current({ id: `t-tkt-${Date.now()}`, type: 'ticket', title: getStaffMessage(locale, 'notificationsHub.alerts.newTicketTitle'), body: row.subject, ticketId: row.id, ticketNo: row.ticket_no });
+      playNewTicketSoundRef.current();
     }).on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'tickets' }, (p) => {
       const ns = String((p.new as any).status).toLowerCase();
       const ps = String((p.old as any).status).toLowerCase();
-      if (ns === 'new' || ps === 'new') scheduleFetchNewTicketsCount(450);
-    }).on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'tickets' }, () => { scheduleFetchNewTicketsCount(450); }).subscribe();
+      if (ns === 'new' || ps === 'new') scheduleFetchNewTicketsCountRef.current(450);
+    }).on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'tickets' }, () => { scheduleFetchNewTicketsCountRef.current(450); }).subscribe();
 
-    const slaInterval = setInterval(() => { scheduleFetchSlaBreaches(0); }, 120_000);
+    const slaInterval = setInterval(() => { scheduleFetchSlaBreachesRef.current(0); }, 120_000);
     const firstLoadTimer = setTimeout(() => { isFirstLoad.current = false; }, 2500);
 
     return () => {
@@ -542,7 +578,7 @@ export function useNotifications(agentId: string | null, role: string | null = n
       if (slaRefreshTimerRef.current) clearTimeout(slaRefreshTimerRef.current);
       if (newTicketsCountTimerRef.current) clearTimeout(newTicketsCountTimerRef.current);
     };
-  }, [agentId, role, fetchLogs, fetchNewTicketsCount, scheduleFetchLogs, scheduleFetchNewTicketsCount, scheduleFetchSlaBreaches, addToast, playNewTicketSound, prefTransfer, prefNewMessage, locale]);
+  }, [agentId, role, locale]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
