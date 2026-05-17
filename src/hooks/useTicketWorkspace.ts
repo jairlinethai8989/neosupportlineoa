@@ -66,7 +66,7 @@ function isTicketWithinWorkspaceRange(
   const toMs = new Date(toIso).getTime();
 
   const status = getTicketStatus(ticket);
-  if (status === 'Escalated' || status === 'Pending' || status === 'In Progress' || status === 'Fix Completed') return true;
+  if (status === 'New' || status === 'Assigned' || status === 'In Progress' || status === 'Escalated' || status === 'Fix Completed' || status === 'Pending') return true;
 
   return createdAtMs >= fromMs && createdAtMs <= toMs;
 }
@@ -103,7 +103,7 @@ function mergeWorkspaceTicketsForSilentRefresh(
     if (fetchedIds.has(ticket.id)) return;
     if (!isTicketWithinWorkspaceRange(ticket, timeRange, customStart, customEnd)) {
       const status = getTicketStatus(ticket);
-      if (status !== 'Escalated' && status !== 'Pending' && status !== 'In Progress' && status !== 'Fix Completed') return;
+      if (status !== 'New' && status !== 'Assigned' && status !== 'In Progress' && status !== 'Escalated' && status !== 'Fix Completed' && status !== 'Pending') return;
     }
     mergedTickets.unshift(ticket);
   });
