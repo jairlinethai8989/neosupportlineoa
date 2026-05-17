@@ -28,6 +28,11 @@
     *   **Interactive Sidebar Highlights:** อัปเดต `InboxSidebar.tsx` ให้เมื่อเจ้าหน้าที่เลือกการ์ดสนทนา พื้นหลังของการ์ดจะเปลี่ยนเป็นเฉดสีของโรงพยาบาลนั้นๆ พร้อมแถบไฮไลท์สีขอบด้านซ้ายแบบ 4px Solid ที่เป็น HSL ตรงตามแบรนด์
     *   **Premium Glassmorphic Badges:** เปลี่ยนการแสดงผลชื่อโรงพยาบาลเดิมที่เป็นตัวอักษรธรรมดา ให้เป็น **Glassmorphic Badge/Pill** ที่มีสีพื้นหลัง Border และสีตัวอักษรเป็นเฉดสีเฉพาะตามโรงพยาบาล พร้อมมีเงาเรืองแสงสีฟุ้ง (Soft Glowing Shadow) ทำให้หน้าจอสนทนาสวยงาม หรูหรา ทันสมัยระดับมือโปร
     *   **Localhost Verified:** ทำการทดสอบผ่าน Browser Subagent ในสภาพแวดล้อม Local Production Server (Port 3000) ยืนยันการลงสีถูกต้อง สลับเปลี่ยนเฉดสีได้อย่างลื่นไหล รวดเร็ว และรองรับ Dark theme อย่างสมบูรณ์แบบ
+8.  **Tickets Board Horizontal Mouse Drag-to-Scroll (สำเร็จ):**
+    *   **Mouse Event Bindings:** ผูกอีเวนต์เมาส์ `onMouseDown`, `onMouseLeave`, `onMouseUp` และ `onMouseMove` เข้ากับบอร์ดหลัก (.board-scroll-container) ใน `TicketsBoard.tsx` เพื่อให้เจ้าหน้าที่สามารถคลิกเมาส์ค้าง (Left Click) แล้วเลื่อนขยับบอร์ด Kanban ไปทางซ้าย-ขวาได้อย่างลื่นไหลเป็นธรรมชาติ
+    *   **Grab/Grabbing Cursor States:** สลับเปลี่ยนสถานะของ Cursor เป็น `grab` (รูปฝ่ามือแบ) ในสถานะปกติเพื่อบอกผู้ใช้ว่าลากได้ และ `grabbing` (รูปมือจับค้าง) ขณะลากพร้อมทั้งใช้ CSS `user-select: none` ชั่วคราวเพื่อป้องกันการไฮไลท์ตัวอักษรปนเปื้อนขณะลากบอร์ด
+    *   **Interactive Exclusions:** ยกเว้นการเปิด Drag-Scroll หากเจ้าหน้าที่ทำการคลิกบริเวณที่เป็นองค์ประกอบอินเทอร์แอคทีฟ เช่น ปุ่มกดต่างๆ (`button`), ลิงก์ใบงาน (`a`), และอินพุต (`input`) เพื่อให้ระบบการกดเปิดแชท/ปุ่มทำงานได้ถูกต้อง 100% ตามปกติ
+    *   **Production Verified & pass all checks:** ดำเนินการ build production และทดสอบบน browser subagent สำเร็จลุล่วง พร้อมรัน TypeScript Typecheck และ Vitest ผ่านฉลุย 100%
 
 ---
 
