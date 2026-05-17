@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { CheckCircle, ExternalLink, Headphones, Loader2, MessageCircle, User, UserCheck, Zap } from 'lucide-react';
+import { CheckCircle, ChevronLeft, ChevronRight, ExternalLink, Headphones, Loader2, MessageCircle, User, UserCheck, Zap } from 'lucide-react';
 import Link from 'next/link';
 import { useStaffLocale } from '@/contexts/StaffLocaleContext';
 import { translateTicketPriority, translateTicketStatus } from '@/lib/i18n/staff';
@@ -282,6 +282,7 @@ export function TicketsBoard({
 }: TicketsBoardProps) {
   const { locale, t } = useStaffLocale();
   const boardRef = React.useRef<HTMLDivElement>(null);
+  const [columnPages, setColumnPages] = React.useState<Record<string, number>>({});
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%' }}>
@@ -296,6 +297,15 @@ export function TicketsBoard({
             (ticket) => (ticket.status || '').toLowerCase() === columnId.toLowerCase()
           );
           const config = STATUS_CONFIG[columnId] || FALLBACK_STATUS_CONFIG;
+
+          const COLUMN_PAGE_SIZE = 10;
+          const currentPage = columnPages[columnId] || 1;
+          const totalPages = Math.ceil(columnTickets.length / COLUMN_PAGE_SIZE);
+
+          const paginatedTickets = columnTickets.slice(
+            (currentPage - 1) * COLUMN_PAGE_SIZE,
+            currentPage * COLUMN_PAGE_SIZE
+          );
 
           return (
             <div key={columnId} style={columnStyle}>
@@ -326,23 +336,72 @@ export function TicketsBoard({
                   <span style={{ width: '12px', height: '12px', borderRadius: '50%', background: config.color }} />
                   {translateTicketStatus(columnId, locale)}
                 </h3>
-                <span
-                  style={{
-                    fontSize: '12px',
-                    fontWeight: '900',
-                    color: config.color,
-                    background: 'rgba(255,255,255,0.05)',
-                    padding: '2px 8px',
-                    borderRadius: '8px',
-                  }}
-                >
-                  {columnTickets.length}
-                </span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  {totalPages > 1 && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginRight: '4px' }}>
+                      <button
+                        onClick={() => setColumnPages((prev) => ({ ...prev, [columnId]: Math.max(1, currentPage - 1) }))}
+                        disabled={currentPage === 1}
+                        style={{
+                          background: 'rgba(255,255,255,0.05)',
+                          border: '1px solid var(--border)',
+                          borderRadius: '6px',
+                          color: currentPage === 1 ? 'var(--text-dim)' : 'var(--text-main)',
+                          cursor: currentPage === 1 ? 'not-allowed' : 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          padding: '4px',
+                          opacity: currentPage === 1 ? 0.3 : 1,
+                          transition: 'all 0.2s',
+                        }}
+                        title={locale === 'th' ? 'ก่อนหน้า' : 'Previous'}
+                      >
+                        <ChevronLeft size={12} />
+                      </button>
+                      <span style={{ fontSize: '10px', fontWeight: '800', color: 'var(--text-muted)', minWidth: '24px', textAlign: 'center' }}>
+                        {currentPage}/{totalPages}
+                      </span>
+                      <button
+                        onClick={() => setColumnPages((prev) => ({ ...prev, [columnId]: Math.min(totalPages, currentPage + 1) }))}
+                        disabled={currentPage === totalPages}
+                        style={{
+                          background: 'rgba(255,255,255,0.05)',
+                          border: '1px solid var(--border)',
+                          borderRadius: '6px',
+                          color: currentPage === totalPages ? 'var(--text-dim)' : 'var(--text-main)',
+                          cursor: currentPage === totalPages ? 'not-allowed' : 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          padding: '4px',
+                          opacity: currentPage === totalPages ? 0.3 : 1,
+                          transition: 'all 0.2s',
+                        }}
+                        title={locale === 'th' ? 'ถัดไป' : 'Next'}
+                      >
+                        <ChevronRight size={12} />
+                      </button>
+                    </div>
+                  )}
+                  <span
+                    style={{
+                      fontSize: '12px',
+                      fontWeight: '900',
+                      color: config.color,
+                      background: 'rgba(255,255,255,0.05)',
+                      padding: '2px 8px',
+                      borderRadius: '8px',
+                    }}
+                  >
+                    {columnTickets.length}
+                  </span>
+                </div>
               </div>
 
               <div style={columnTicketsWrapStyle} className="column-scroll-container">
                 <AnimatePresence mode="popLayout">
-                  {columnTickets.map((ticket) => {
+                  {paginatedTickets.map((ticket) => {
                     const convId = getConvId(ticket);
                     const normalizedStatus = String(ticket.status || '').toLowerCase();
                     const isNew = normalizedStatus === 'new';
