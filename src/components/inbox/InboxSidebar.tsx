@@ -3,6 +3,7 @@ import React from 'react';
 import { Search, Mail, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useStaffLocale } from '@/contexts/StaffLocaleContext';
 import type { InboxConversation, InboxViewMode } from '@/types/inbox';
+import { getHospitalColorStyles } from '@/lib/inbox/colors';
 
 interface InboxSidebarProps {
   conversations: InboxConversation[];
@@ -95,6 +96,8 @@ export const InboxSidebar: React.FC<InboxSidebarProps> = ({
         ) : (
           conversations.map((chat) => {
             const active = isConversationActive(chat);
+            const hospitalName = chat.customers?.hospitals?.name;
+            const colors = getHospitalColorStyles(hospitalName);
 
             return (
               <div
@@ -106,10 +109,10 @@ export const InboxSidebar: React.FC<InboxSidebarProps> = ({
                   borderBottom: '1px solid var(--border)',
                   cursor: 'pointer',
                   background:
-                    selectedChat?.id === chat.id ? 'rgba(54, 153, 255, 0.1)' : 'transparent',
+                    selectedChat?.id === chat.id ? colors.bg : 'transparent',
                   borderLeft:
                     selectedChat?.id === chat.id
-                      ? '4px solid var(--primary)'
+                      ? `4px solid ${colors.accent}`
                       : '4px solid transparent',
                   transition: 'all 0.2s ease',
                   display: 'flex',
@@ -124,7 +127,7 @@ export const InboxSidebar: React.FC<InboxSidebarProps> = ({
                         fontWeight: '750',
                         fontSize: '12px',
                         color:
-                          selectedChat?.id === chat.id ? 'var(--primary)' : 'var(--text-main)',
+                          selectedChat?.id === chat.id ? colors.accent : 'var(--text-main)',
                         whiteSpace: 'nowrap',
                         overflow: 'hidden',
                         textOverflow: 'ellipsis',
@@ -144,18 +147,27 @@ export const InboxSidebar: React.FC<InboxSidebarProps> = ({
                   </div>
                   
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '1px' }}>
-                    {chat.customers?.hospitals?.name && (
+                    {hospitalName && (
                       <span style={{ 
-                        fontSize: '10px', 
-                        color: 'var(--text-dim)',
-                        fontWeight: '700',
-                        maxWidth: '220px',
+                        display: 'inline-block',
+                        padding: '2px 8px',
+                        borderRadius: '6px',
+                        fontSize: '9px',
+                        fontWeight: '800',
+                        background: colors.bg,
+                        color: colors.text,
+                        border: `1px solid ${colors.border}`,
+                        maxWidth: 'fit-content',
                         overflow: 'hidden',
                         textOverflow: 'ellipsis',
                         whiteSpace: 'nowrap',
-                        opacity: 0.8
+                        marginTop: '3px',
+                        marginBottom: '3px',
+                        letterSpacing: '0.3px',
+                        boxShadow: `0 2px 8px ${colors.bg}`,
+                        opacity: 0.95
                       }}>
-                        {chat.customers.hospitals.name}
+                        {hospitalName}
                       </span>
                     )}
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', minHeight: '12px' }}>
