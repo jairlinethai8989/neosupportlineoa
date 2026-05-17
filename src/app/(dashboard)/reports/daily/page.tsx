@@ -348,9 +348,10 @@ export default function DailyReportPage() {
     if (e) e.preventDefault();
     if (!gSheetsUrl || !gSheetsUrl.startsWith('http')) {
       addToast({
+        id: `gsheets-invalid-url-${Date.now()}`,
+        type: 'ticket',
         title: 'URL ไม่ถูกต้อง',
-        message: 'กรุณากรอก Google Sheets Web App URL ที่ถูกต้อง',
-        type: 'error'
+        body: 'กรุณากรอก Google Sheets Web App URL ที่ถูกต้อง'
       });
       return;
     }
@@ -378,17 +379,19 @@ export default function DailyReportPage() {
       }
 
       addToast({
+        id: `gsheets-success-${Date.now()}`,
+        type: 'ticket',
         title: 'ส่งออกสำเร็จ',
-        message: `ส่งออกข้อมูลจำนวน ${data.count} แถวไปยัง Google Sheets เรียบร้อยแล้ว`,
-        type: 'success'
+        body: `ส่งออกข้อมูลจำนวน ${data.count} แถวไปยัง Google Sheets เรียบร้อยแล้ว`
       });
       setShowGSheetsModal(false);
     } catch (error: any) {
       console.error('Google Sheets Export failed:', error);
       addToast({
+        id: `gsheets-fail-${Date.now()}`,
+        type: 'sla_warning',
         title: 'ส่งออกล้มเหลว',
-        message: error.message || 'เกิดข้อผิดพลาดในการส่งข้อมูลไปยัง Google Sheets',
-        type: 'error'
+        body: error.message || 'เกิดข้อผิดพลาดในการส่งข้อมูลไปยัง Google Sheets'
       });
     } finally {
       setIsExportingGSheets(false);
