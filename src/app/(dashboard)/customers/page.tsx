@@ -21,10 +21,14 @@ import {
   X,
   Clock,
   ExternalLink,
-  FileText
+  FileText,
+  MessageSquare,
+  Copy,
+  Calendar
 } from 'lucide-react';
 import Link from 'next/link';
 import Skeleton from '@/components/ui/Skeleton';
+import { getHospitalColorStyles } from '@/lib/inbox/colors';
 
 export default function CustomersPage() {
   const [customers, setCustomers] = useState<any[]>([]);
@@ -38,6 +42,10 @@ export default function CustomersPage() {
   const [selectedCustomer, setSelectedCustomer] = useState<any | null>(null);
   const [customerTickets, setCustomerTickets] = useState<any[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
+
+  // Profile Modal State
+  const [profileCustomer, setProfileCustomer] = useState<any | null>(null);
+  const [copiedId, setCopiedId] = useState(false);
 
   const fetchCustomers = async () => {
     setLoading(true);
@@ -408,8 +416,11 @@ export default function CustomersPage() {
                           >
                              <Ticket size={18} />
                           </button>
-                          <Link 
-                            href={`/inbox?customerId=${c.id}`}
+                          <button 
+                            onClick={() => {
+                              setProfileCustomer(c);
+                              setCopiedId(false);
+                            }}
                             className="glass-interactive flex-center" 
                             style={{ 
                               display: 'inline-flex', 
@@ -418,11 +429,14 @@ export default function CustomersPage() {
                               borderRadius: '12px', 
                               border: '1px solid var(--border)', 
                               color: 'var(--text-muted)',
-                              marginLeft: '8px'
+                              marginLeft: '8px',
+                              background: 'none',
+                              cursor: 'pointer'
                             }}
+                            title="View Customer Profile"
                           >
                              <ArrowRight size={18} />
-                          </Link>
+                          </button>
                        </td>
                     </tr>
                   ))}
@@ -555,6 +569,262 @@ export default function CustomersPage() {
            </div>
          </div>
       )}
+
+      {/* 5. Customer Profile Modal */}
+      {profileCustomer && (() => {
+        const brand = getHospitalColorStyles(profileCustomer.hospitals?.name);
+        return (
+          <div style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(15, 23, 42, 0.75)',
+            backdropFilter: 'blur(10px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 10000,
+            padding: '20px',
+            animation: 'modalFadeIn 0.3s ease'
+          }}>
+            <div style={{
+              width: '100%',
+              maxWidth: '540px',
+              background: 'var(--card-bg)',
+              borderRadius: '28px',
+              border: `1px solid ${brand.border}`,
+              display: 'flex',
+              flexDirection: 'column',
+              overflow: 'hidden',
+              boxShadow: `0 25px 50px -12px rgba(0, 0, 0, 0.6), 0 0 40px -10px ${brand.border}`,
+              animation: 'modalContentIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)'
+            }}>
+              {/* Modal Header */}
+              <div style={{ 
+                padding: '24px 28px', 
+                borderBottom: '1px solid var(--border)', 
+                display: 'flex', 
+                justifyContent: 'space-between', 
+                alignItems: 'center',
+                background: `linear-gradient(to bottom, ${brand.bg}, transparent)`
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <UserIcon size={20} color={brand.accent} />
+                  <h3 style={{ fontSize: '18px', fontWeight: '800', color: 'var(--text-main)' }}>ข้อมูลโปรไฟล์ลูกค้า</h3>
+                </div>
+                <button 
+                  onClick={() => setProfileCustomer(null)}
+                  style={{ width: '36px', height: '36px', borderRadius: '10px', border: 'none', background: 'rgba(255,255,255,0.05)', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              {/* Modal Content */}
+              <div style={{ padding: '32px 28px', overflowY: 'auto' }}>
+                
+                {/* 1. Avatar & Quick Info */}
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: '28px', textAlign: 'center' }}>
+                  <div style={{ 
+                    width: '100px', 
+                    height: '100px', 
+                    borderRadius: '30px', 
+                    background: brand.bg, 
+                    overflow: 'hidden', 
+                    border: `2px solid ${brand.accent}`,
+                    boxShadow: `0 0 20px -5px ${brand.accent}`,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    marginBottom: '16px',
+                    position: 'relative'
+                  }}>
+                    {profileCustomer.avatar_url ? (
+                       <img src={profileCustomer.avatar_url} alt="avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    ) : <UserIcon size={44} color="var(--text-muted)" />}
+                  </div>
+
+                  <h4 style={{ fontSize: '20px', fontWeight: '900', color: 'var(--text-main)', marginBottom: '4px' }}>
+                    {profileCustomer.full_name || profileCustomer.display_name}
+                  </h4>
+                  
+                  {profileCustomer.display_name && profileCustomer.full_name && (
+                    <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '12px' }}>
+                      LINE Display: {profileCustomer.display_name}
+                    </p>
+                  )}
+
+                  <span style={{ 
+                     display: 'inline-flex', 
+                     alignItems: 'center', 
+                     gap: '6px', 
+                     padding: '6px 14px', 
+                     borderRadius: '10px', 
+                     fontSize: '11px', 
+                     fontWeight: '850', 
+                     background: 'rgba(40, 199, 111, 0.1)', 
+                     color: 'var(--success)',
+                     border: '1px solid rgba(40, 199, 111, 0.2)',
+                     letterSpacing: '0.5px'
+                  }}>
+                     <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--success)' }} />
+                     CONNECTED TO LINE OA
+                  </span>
+                </div>
+
+                {/* 2. Detail Grid */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '24px' }}>
+                  
+                  {/* Hospital */}
+                  <div className="glass" style={{ padding: '16px', borderRadius: '16px', border: '1px solid var(--border)', background: 'rgba(255, 255, 255, 0.01)' }}>
+                    <p style={{ fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <Building size={12} color={brand.accent} /> โรงพยาบาล
+                    </p>
+                    <p style={{ fontSize: '14px', fontWeight: '850', color: brand.text }}>
+                      {profileCustomer.hospitals?.name || 'ไม่ระบุ'}
+                    </p>
+                  </div>
+
+                  {/* Department */}
+                  <div className="glass" style={{ padding: '16px', borderRadius: '16px', border: '1px solid var(--border)', background: 'rgba(255, 255, 255, 0.01)' }}>
+                    <p style={{ fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <MapPin size={12} color="var(--primary)" /> แผนก / หน่วยงาน
+                    </p>
+                    <p style={{ fontSize: '14px', fontWeight: '750', color: 'var(--text-main)' }}>
+                      {profileCustomer.departments?.name || 'ไม่ระบุ'}
+                    </p>
+                  </div>
+
+                  {/* Position */}
+                  <div className="glass" style={{ padding: '16px', borderRadius: '16px', border: '1px solid var(--border)', background: 'rgba(255, 255, 255, 0.01)' }}>
+                    <p style={{ fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <UserIcon size={12} color="var(--success)" /> ตำแหน่งงาน
+                    </p>
+                    <p style={{ fontSize: '14px', fontWeight: '750', color: 'var(--text-main)' }}>
+                      {profileCustomer.positions?.name || 'ไม่ระบุ'}
+                    </p>
+                  </div>
+
+                  {/* Registered Date */}
+                  <div className="glass" style={{ padding: '16px', borderRadius: '16px', border: '1px solid var(--border)', background: 'rgba(255, 255, 255, 0.01)' }}>
+                    <p style={{ fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <Calendar size={12} color="#ff9f43" /> วันที่ลงทะเบียน
+                    </p>
+                    <p style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-main)' }}>
+                      {new Date(profileCustomer.created_at).toLocaleDateString('th-TH', { dateStyle: 'medium' })}
+                    </p>
+                  </div>
+
+                  {/* LINE Username */}
+                  <div className="glass" style={{ padding: '16px', borderRadius: '16px', border: '1px solid var(--border)', background: 'rgba(255, 255, 255, 0.01)', gridColumn: 'span 2' }}>
+                    <p style={{ fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '6px' }}>
+                      LINE Username
+                    </p>
+                    <p style={{ fontSize: '14px', fontWeight: '700', color: 'var(--text-main)', fontFamily: 'monospace' }}>
+                      {profileCustomer.line_username || 'ไม่พบบันทึก'}
+                    </p>
+                  </div>
+
+                  {/* LINE User ID */}
+                  <div className="glass" style={{ 
+                    padding: '16px', 
+                    borderRadius: '16px', 
+                    border: '1px solid var(--border)', 
+                    background: 'rgba(255, 255, 255, 0.01)', 
+                    gridColumn: 'span 2',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center'
+                  }}>
+                    <div style={{ flex: 1, marginRight: '12px' }}>
+                      <p style={{ fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '6px' }}>
+                        LINE User ID
+                      </p>
+                      <p style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text-dim)', fontFamily: 'monospace', wordBreak: 'break-all' }}>
+                        {profileCustomer.line_user_id || 'ไม่พบบันทึก'}
+                      </p>
+                    </div>
+                    {profileCustomer.line_user_id && (
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(profileCustomer.line_user_id);
+                          setCopiedId(true);
+                          setTimeout(() => setCopiedId(false), 2000);
+                        }}
+                        style={{
+                          width: '36px',
+                          height: '36px',
+                          borderRadius: '10px',
+                          border: '1px solid var(--border)',
+                          background: 'rgba(255, 255, 255, 0.05)',
+                          color: copiedId ? 'var(--success)' : 'var(--text-muted)',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          transition: 'all 0.2s ease',
+                          flexShrink: 0
+                        }}
+                        title="Copy User ID"
+                      >
+                        {copiedId ? <span style={{ fontSize: '11px', fontWeight: '800' }}>✓</span> : <Copy size={16} />}
+                      </button>
+                    )}
+                  </div>
+
+                </div>
+
+              </div>
+
+              {/* Modal Footer Actions */}
+              <div style={{ padding: '20px 28px', borderTop: '1px solid var(--border)', display: 'flex', gap: '12px', justifyContent: 'flex-end', background: 'rgba(255, 255, 255, 0.01)' }}>
+                <button
+                  onClick={() => {
+                    openHistory(profileCustomer);
+                    setProfileCustomer(null);
+                  }}
+                  style={{
+                    padding: '0 20px',
+                    height: '48px',
+                    borderRadius: '12px',
+                    border: '1px solid var(--border)',
+                    background: 'rgba(255, 255, 255, 0.02)',
+                    color: 'var(--text-main)',
+                    fontWeight: '700',
+                    fontSize: '14px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <Ticket size={16} /> ประวัติการแจ้งงาน
+                </button>
+                <Link
+                  href={`/inbox?customerId=${profileCustomer.id}`}
+                  style={{
+                    padding: '0 24px',
+                    height: '48px',
+                    borderRadius: '12px',
+                    border: 'none',
+                    background: brand.gradient,
+                    color: 'black',
+                    fontWeight: '850',
+                    fontSize: '14px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    textDecoration: 'none',
+                    boxShadow: `0 4px 15px -3px ${brand.accent}`
+                  }}
+                >
+                  <MessageSquare size={16} /> เปิดห้องแชทลูกค้า
+                </Link>
+              </div>
+
+            </div>
+          </div>
+        );
+      })()}
 
       <style dangerouslySetInnerHTML={{ __html: `
         @keyframes modalFadeIn { from { opacity: 0; } to { opacity: 1; } }
