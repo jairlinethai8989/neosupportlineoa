@@ -81,6 +81,37 @@ function normalizeExportRow(row: RawTicket) {
   };
 }
 
+async function fetchWithPostRedirect(url: string, options: RequestInit): Promise<Response> {
+  let currentUrl = url;
+  let response = await fetch(currentUrl, {
+    ...options,
+    redirect: 'manual',
+  });
+
+  let redirectCount = 0;
+  const maxRedirects = 5;
+
+  while (
+    (response.status === 301 || response.status === 302 || response.status === 307 || response.status === 308) &&
+    redirectCount < maxRedirects
+  ) {
+    const redirectUrl = response.headers.get('location');
+    if (!redirectUrl) break;
+
+    currentUrl = new URL(redirectUrl, currentUrl).toString();
+    redirectCount++;
+
+    console.log(`[Google Sheets API] Following manual redirect #${redirectCount} to: ${currentUrl}`);
+
+    response = await fetch(currentUrl, {
+      ...options,
+      redirect: 'manual',
+    });
+  }
+
+  return response;
+}
+
 export async function POST(req: Request) {
   try {
     const body = await req.json();
@@ -140,8 +171,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: true, count: 0, message: 'No tickets found for the selected date range.' });
     }
 
-    // Forward the payload to the Google Apps Script Web App
-    const response = await fetch(targetUrl, {
+    // Forward the payload to the Google Apps Script Web App using our robust redirect handler
+    const response = await fetchWithPostRedirect(targetUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -150,6 +181,11 @@ export async function POST(req: Request) {
     });
 
     if (!response.ok) {
+      if (response.status === 401) {
+        throw new Error(
+          'สิทธิ์การเข้าถึงล้มเหลว (401 Unauthorized): กรุณาตรวจสอบการตั้งค่าการแชร์ของ Google Sheets Web App ว่าได้เลือก "ผู้มีสิทธิ์เข้าถึง (Who has access)" เป็น "ทุกคน (Anyone)" และ "เรียกใช้ในฐานะ (Execute as)" เป็น "ฉัน (Me)" แล้วหรือยัง และต้องแน่ใจว่ากดยอมรับการอนุญาตสิทธิ์เข้าถึงของบัญชี Google แล้ว'
+        );
+      }
       throw new Error(`Google Apps Script responded with status: ${response.status}`);
     }
 
