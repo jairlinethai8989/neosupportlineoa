@@ -62,7 +62,7 @@ export function useRealtimeInbox(options: {
 } = {}) {
   const {
     page = 1,
-    pageSize = 20
+    pageSize = 10
   } = options;
 
   const [conversations, setConversations] = useState<InboxConversation[]>([]);

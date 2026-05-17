@@ -1,6 +1,6 @@
 'use client';
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { supabase } from '@/lib/supabase';
 import { type StaffLocale, getStaffMessage } from '@/lib/i18n/staff';
 import { isSlaBreached, slaMinutesRemaining } from '@/lib/utils/slaUtils';
@@ -375,8 +375,8 @@ export function useNotifications(agentId: string | null, role: string | null = n
 
   // Effect to sync unread counts whenever notifications change
   useEffect(() => {
-    setUnreadCount(notifications.filter(n => !n.isRead).length);
-    setSlaAlertCount(notifications.filter(n => (n.type === 'sla' || n.type === 'sla_warning') && !n.isRead).length);
+    setUnreadCount(notifications.filter((n: AppNotification) => !n.isRead).length);
+    setSlaAlertCount(notifications.filter((n: AppNotification) => (n.type === 'sla' || n.type === 'sla_warning') && !n.isRead).length);
   }, [notifications]);
 
   // --- 5. Data Fetching ---
@@ -441,6 +441,8 @@ export function useNotifications(agentId: string | null, role: string | null = n
 
     const { data } = await query;
     if (!data) return;
+    const readIds = getReadIds();
+    const warnedIds = getWarnedIds();
     const slaNotifs: AppNotification[] = [];
     for (const t of data) {
       const mins = slaMinutesRemaining(t);

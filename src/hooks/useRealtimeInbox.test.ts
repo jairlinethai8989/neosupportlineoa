@@ -8,15 +8,11 @@ function makeConversation(
   return {
     id: overrides.id ?? 'conv-1',
     customer_id: overrides.customer_id ?? 'cust-1',
-    title: overrides.title ?? 'Test',
     status: overrides.status ?? 'active',
     current_ticket_id: overrides.current_ticket_id ?? null,
-    created_at: overrides.created_at ?? new Date(0).toISOString(),
-    updated_at: overrides.updated_at ?? new Date(0).toISOString(),
     is_active: overrides.is_active ?? true,
     last_message_at: overrides.last_message_at ?? new Date(0).toISOString(),
     customers: overrides.customers ?? null,
-    tickets: overrides.tickets ?? null,
   };
 }
 

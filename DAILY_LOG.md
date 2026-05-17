@@ -1,6 +1,25 @@
-# บันทึกความคืบหน้าโครงการ NeoSupport V2.0 (ล่าสุด 16 พฤษภาคม 2569)
+# บันทึกความคืบหน้าโครงการ NeoSupport V2.0 (ล่าสุด 17 พฤษภาคม 2569)
 
-## ✅ สิ่งที่ทำสำเร็จแล้วในวันนี้ (16 พฤษภาคม 2569)
+## ✅ สิ่งที่ทำสำเร็จแล้วในวันนี้ (17 พฤษภาคม 2569)
+
+1.  **Tickets/Inbox List Query Optimization (สำเร็จ):**
+    *   **Lightweight Select Clauses:** พัฒนาตัวเลือก `inboxConversationSelectForList` และ `inboxConversationSelectForListLegacy` สำหรับหน้าแชทลิสต์ (InboxSidebar) ดึงเฉพาะข้อมูลที่แสดงจริงบนหน้าจอ ทำให้ payload เล็กลงอย่างมหาศาลและลดภาระการทำงานของ Supabase/Database
+    *   **Redundant Join Elimination:** นำการดึงข้อมูล `customers` ที่ซ้อนอยู่ในกึ่งกลาง `ticket_data` ออก เนื่องจากระบบหลักดึงข้อมูลนี้ที่ root-level อยู่แล้ว ช่วยลดความซ้ำซ้อนและป้องกันการรัน join ซ้ำในตาราง `customers`, `hospitals`, `departments`, `positions`
+    *   **Dynamic Fallback Parameterization:** ปรับปรุงฟังก์ชัน `runConversationQueryWithAvatarFallback` ให้รองรับ parameter `{ isList: true }` เพื่อเลือกใช้งาน select clause ที่สอดคล้องกับความเร็วและความเสถียร (รักษาความยืดหยุ่นรองรับกรณีที่ไม่มีฟิลด์ `avatar_url`)
+2.  **Client-Side Background Enrichment & Visual UX (สำเร็จ):**
+    *   **Instant UI Transition:** แก้ไขฟังก์ชัน `onSelectChat` ในหน้า `inbox/page.tsx` ให้เมื่อเจ้าหน้าที่คลิกเลือกแชท ระบบจะเปิดหน้าต่างสนทนาและโหลดข้อมูลทันทีจากแชทลิสต์ เพื่อให้ได้ UX ที่เร็วสูงสุดโดยไม่รู้สึกติดขัด
+    *   **Background Hydration:** พัฒนาระบบ lazy-enrichment เพื่อยิง query ดึงรายละเอียดข้อมูลแผนก (Department) และตำแหน่ง (Position) ทั้งหมดของลูกค้าในเบื้องหลัง (Background Fetching) และเติมเต็มให้หน้ากากฝั่งขวา (TicketSidebar) โดยไม่มี Layout Shift หรือกระตุก
+3.  **Codebase Type Safety & Testing Polish (สำเร็จ):**
+    *   **Notification Hook Hotfix:** แก้ไข TypeScript errors ใน `useNotifications.ts` ที่ค้างอยู่จากเซสชันก่อนหน้า ได้แก่ การเพิ่ม React `useMemo` ที่ขาดหายไป, การแก้ไข scope ของ `readIds` / `warnedIds` ที่เป็นตัวแปรแต่อ้างอิงผิดพลาด, และกำหนด type parameters ให้กับ filter functions
+    *   **Test Suit Mock Alignment:** ปรับปรุง helper `makeConversation` ใน `useRealtimeInbox.test.ts` ให้ตรงตาม `InboxConversation` interface เพื่อการทดสอบที่สมบูรณ์
+    *   **100% Type Safe & Test Passing:** รันการตรวจสอบความปลอดภัยของ TypeScript (`npx tsc --noEmit`) และผลลัพธ์ผ่าน 100% ไม่มีข้อผิดพลาดใดๆ ตกค้าง พร้อมทั้ง Vitest Unit Tests ทั้งหมดรันและผ่าน 100%
+4.  **Standardized Pagination & Page Size (สำเร็จ):**
+    *   **Inbox Chat Pagination:** ปรับปรุงค่า Page Size ตั้งต้นในการดึงข้อมูลแชทใน `queries.ts`, `useRealtimeInbox.ts` และ `inbox/page.tsx` จาก 20 รายการ ให้เป็น **10 รายการ** ตามความต้องการระบบเพื่อประสิทธิภาพและความสะอาดตาของหน้าจอ
+    *   **Ticket Workspace Pagination:** ปรับปรุงความจุหน้ากระดาษของการ์ดใบงาน (`WORKSPACE_TICKETS_PAGE_SIZE`) ใน `useTicketWorkspace.ts` จาก 100 รายการ ให้เป็น **10 รายการ** เพื่อให้การ์ดดูเรียบร้อย ไม่ยาวเกินไป และโหลดข้อมูลได้รวดเร็วมากยิ่งขึ้น
+
+---
+
+## ✅ สิ่งที่ทำสำเร็จแล้วเมื่อวาน (16 พฤษภาคม 2569)
 
 > **[Trigger: Redeploying to fix build failure from d51e350]**
 
@@ -154,7 +173,6 @@
 ---
 
 ## 🚀 สิ่งที่ยังเหลือ (Next Actions)
-- Tickets/Inbox list query optimization (Select เฉพาะฟิลด์ + Pagination)
 - ตรวจสอบ Export path อื่นๆ ที่ยังเป็น Client-heavy
 - Dashboard/report widget cleanup (Lazy loading/Bundle cleanup)
 - วัดผล Performance หลัง Optimize รอบถัดไป

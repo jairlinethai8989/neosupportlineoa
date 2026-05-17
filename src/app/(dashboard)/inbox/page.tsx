@@ -178,7 +178,7 @@ function InboxContent() {
 
   const { conversations, hasNextPage, loading: inboxLoading } = useRealtimeInbox({
     page,
-    pageSize: 20
+    pageSize: 10
   });
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const searchParams = useSearchParams();
@@ -386,7 +386,7 @@ function InboxContent() {
       <InboxSidebar
         conversations={conversations}
         selectedChat={selectedChat}
-        onSelectChat={(conversation) => {
+        onSelectChat={async (conversation) => {
           setSelectedChat(conversation);
           setViewMode('chat');
           const params = new URLSearchParams(window.location.search);
@@ -398,6 +398,16 @@ function InboxContent() {
             '',
             query ? `${window.location.pathname}?${query}` : window.location.pathname
           );
+
+          // Asynchronously enrich selected chat details in the background
+          try {
+            const enriched = await getInboxConversationById(conversation.id);
+            if (enriched) {
+              setSelectedChat((prev) => (prev?.id === conversation.id ? enriched : prev));
+            }
+          } catch (e) {
+            console.error('Failed to enrich selected conversation:', e);
+          }
         }}
         viewMode={viewMode}
         currentPage={page}
