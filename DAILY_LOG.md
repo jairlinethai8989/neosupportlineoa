@@ -23,10 +23,16 @@
     *   **Ticket Status Enrichment:** ปรับแต่งคิวรีและ Normalizers ใน `queries.ts`, `normalizers.ts` และ `inbox.ts` (Types) เพื่อทำการดึงฟิลด์ `status` ของใบงานที่เชื่อมโยงกับห้องแชทนั้นๆ มาใช้ในการวิเคราะห์
     *   **Hide Closed Tickets Chat:** ปรับปรุงเงื่อนไข `isConversationActiveLike` ใน `useRealtimeInbox.ts` เพื่อคัดกรองห้องแชทที่มีใบงานถูกปิดเสร็จสิ้นแล้ว (สถานะ Resolved, Closed, Canceled) ออกจากช่องแชทคิวหลักโดยอัตโนมัติ เพื่อป้องกันแชทเก่ารบกวนหน้าจอ (เจ้าหน้าที่ยังสามารถเข้าไปดูประวัติแชทเก่าๆ ได้โดยตรงผ่านเมนูประวัติการทำงานของใบงานนั้นๆ ตามความต้องการ)
     *   **Unit Tests Expansion:** อัปเดตชุดทดสอบหน่วย (`useRealtimeInbox.test.ts`) ให้ครอบคลุมความถูกต้องของกรณีคัดกรองแชทที่มีใบงานปิดไปแล้ว ผลการรันเทสผ่านฉลุย 100%
+7.  **Dynamic Hospital Color Branding (สำเร็จ):**
+    *   **Shared Color Utility:** พัฒนาฟังก์ชัน `getHospitalColorStyles` ใน `src/lib/inbox/colors.ts` คำนวณรหัสสี HSL Hashing จากชื่อโรงพยาบาลในแบบเรียลไทม์ ทำให้โรงพยาบาลแต่ละแห่งได้รับเฉดสีพาสเทล/นีออนเฉพาะตัวที่ไม่ซ้ำกัน สว่าง ชัดเจน และเข้ากับ Glassmorphism Dark Mode ได้อย่างลงตัว
+    *   **Interactive Sidebar Highlights:** อัปเดต `InboxSidebar.tsx` ให้เมื่อเจ้าหน้าที่เลือกการ์ดสนทนา พื้นหลังของการ์ดจะเปลี่ยนเป็นเฉดสีของโรงพยาบาลนั้นๆ พร้อมแถบไฮไลท์สีขอบด้านซ้ายแบบ 4px Solid ที่เป็น HSL ตรงตามแบรนด์
+    *   **Premium Glassmorphic Badges:** เปลี่ยนการแสดงผลชื่อโรงพยาบาลเดิมที่เป็นตัวอักษรธรรมดา ให้เป็น **Glassmorphic Badge/Pill** ที่มีสีพื้นหลัง Border และสีตัวอักษรเป็นเฉดสีเฉพาะตามโรงพยาบาล พร้อมมีเงาเรืองแสงสีฟุ้ง (Soft Glowing Shadow) ทำให้หน้าจอสนทนาสวยงาม หรูหรา ทันสมัยระดับมือโปร
+    *   **Localhost Verified:** ทำการทดสอบผ่าน Browser Subagent ในสภาพแวดล้อม Local Production Server (Port 3000) ยืนยันการลงสีถูกต้อง สลับเปลี่ยนเฉดสีได้อย่างลื่นไหล รวดเร็ว และรองรับ Dark theme อย่างสมบูรณ์แบบ
 
 ---
 
 ## ✅ สิ่งที่ทำสำเร็จแล้วเมื่อวาน (16 พฤษภาคม 2569)
+
 
 > **[Trigger: Redeploying to fix build failure from d51e350]**
 
