@@ -33,6 +33,11 @@
     *   **Grab/Grabbing Cursor States:** สลับเปลี่ยนสถานะของ Cursor เป็น `grab` (รูปฝ่ามือแบ) ในสถานะปกติเพื่อบอกผู้ใช้ว่าลากได้ และ `grabbing` (รูปมือจับค้าง) ขณะลากพร้อมทั้งใช้ CSS `user-select: none` ชั่วคราวเพื่อป้องกันการไฮไลท์ตัวอักษรปนเปื้อนขณะลากบอร์ด
     *   **Interactive Exclusions:** ยกเว้นการเปิด Drag-Scroll หากเจ้าหน้าที่ทำการคลิกบริเวณที่เป็นองค์ประกอบอินเทอร์แอคทีฟ เช่น ปุ่มกดต่างๆ (`button`), ลิงก์ใบงาน (`a`), และอินพุต (`input`) เพื่อให้ระบบการกดเปิดแชท/ปุ่มทำงานได้ถูกต้อง 100% ตามปกติ
     *   **Production Verified & pass all checks:** ดำเนินการ build production และทดสอบบน browser subagent สำเร็จลุล่วง พร้อมรัน TypeScript Typecheck และ Vitest ผ่านฉลุย 100%
+9.  **Chat Window Smart Input Locking & Close Ticket Warnings (สำเร็จ):**
+    *   **Unassigned Ticket Global Lock:** ปรับแต่งการตรวจสอบตัวแปรใน [ChatWindow.tsx](file:///d:/Project%20APP/AntiGravity/neo_line_oa/src/components/inbox/ChatWindow.tsx) ให้ทำงานผ่าน `isUnassigned` (เช็กการไม่มีผู้ดูแลตั๋วโดยตรง) แทนการจำกัดเฉพาะบทบาท ทำให้เมื่อใบงานยังไม่มีผู้รับงาน ช่องพิมพ์แชท, ปุ่มแนบไฟล์, และเมนู Quick Replies จะถูกล็อคปิดและ Faded เอาต์ (Opacity 0.4) สำหรับพนักงานทุกบทบาท (รวมถึง Administrator) อย่างปลอดภัยจนกว่าจะมีเจ้าหน้าที่คลิก "รับงาน"
+    *   **Session Ended Smart Lock:** พัฒนาระบบตรวจสอบความเคลื่อนไหวของบทสนทนา เมื่อเจ้าหน้าที่คลิกปุ่ม "จบการสนทนา" (End Chat) และเซสชันกลายเป็น `!isSessionActive` (ปิดเซสชันแล้ว) บล็อกพิมพ์ข้อความและทางเลือกสื่อสารทั้งหมดจะถูกล็อคปิดทันทีอย่างสมบูรณ์แบบ ป้องกันการแชทต่อโดยไม่ได้ตั้งใจ
+    *   **Premium Resolution Warning Banner:** สำหรับแชทที่ถูกปิดเซสชันการสนทนาแล้วแต่ใบงานยังไม่ได้รับการ Resolved ระบบจะทำการ Render แถบแจ้งเตือนระดับวิกฤตสีแดงเรืองแสง (Glassmorphic Red Warning Banner) ตรงด้านบนช่องแชทเพื่อเตือนความจำว่า **"จบการสนทนาแล้ว อย่าลืมกดปิดใบงาน"** พร้อมเปลี่ยนตัว Placeholder ของช่องพิมพ์แชทให้เตือนด้วยประโยคเดียวกันตามที่ระบุในเป้าหมายอย่างชัดเจน
+    *   **Bi-lingual Translation Mapping:** เพิ่มคู่ปุ่มแปลภาษาทั้งในภาษาไทยและภาษาอังกฤษ (`sessionEndedWarning`, `sessionEndedPlaceholder`) ลงในคลังแปลภาษาหลัก [staff.ts](file:///d:/Project%20APP/AntiGravity/neo_line_oa/src/lib/i18n/staff.ts) เพื่อรักษาระบบสนับสนุนสองภาษาของ NeoSupport เสมอ
 
 ---
 
