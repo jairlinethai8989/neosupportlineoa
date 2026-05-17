@@ -482,7 +482,7 @@ export default function CustomersPage() {
            <div style={{
              width: '100%',
              maxWidth: '700px',
-             background: 'var(--card-bg)',
+             background: 'var(--bg-sidebar)',
              borderRadius: '24px',
              border: '1px solid var(--border)',
              display: 'flex',
@@ -577,7 +577,7 @@ export default function CustomersPage() {
           <div style={{
             position: 'fixed',
             inset: 0,
-            background: 'rgba(15, 23, 42, 0.75)',
+            background: 'rgba(15, 23, 42, 0.65)',
             backdropFilter: 'blur(10px)',
             display: 'flex',
             alignItems: 'center',
@@ -589,13 +589,13 @@ export default function CustomersPage() {
             <div style={{
               width: '100%',
               maxWidth: '540px',
-              background: 'var(--card-bg)',
+              background: 'var(--bg-sidebar)',
               borderRadius: '28px',
-              border: `1px solid ${brand.border}`,
+              border: `1px solid var(--border)`,
               display: 'flex',
               flexDirection: 'column',
               overflow: 'hidden',
-              boxShadow: `0 25px 50px -12px rgba(0, 0, 0, 0.6), 0 0 40px -10px ${brand.border}`,
+              boxShadow: `0 25px 50px -12px rgba(0, 0, 0, 0.3), 0 0 40px -10px ${brand.border}`,
               animation: 'modalContentIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)'
             }}>
               {/* Modal Header */}
@@ -628,7 +628,7 @@ export default function CustomersPage() {
                     width: '100px', 
                     height: '100px', 
                     borderRadius: '30px', 
-                    background: brand.bg, 
+                    background: 'var(--bg-deep)', 
                     overflow: 'hidden', 
                     border: `2px solid ${brand.accent}`,
                     boxShadow: `0 0 20px -5px ${brand.accent}`,
@@ -661,12 +661,12 @@ export default function CustomersPage() {
                      borderRadius: '10px', 
                      fontSize: '11px', 
                      fontWeight: '850', 
-                     background: 'rgba(40, 199, 111, 0.1)', 
-                     color: 'var(--success)',
-                     border: '1px solid rgba(40, 199, 111, 0.2)',
+                     background: 'rgba(16, 185, 129, 0.1)', 
+                     color: '#10b981',
+                     border: '1px solid rgba(16, 185, 129, 0.2)',
                      letterSpacing: '0.5px'
                   }}>
-                     <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--success)' }} />
+                     <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#10b981' }} />
                      CONNECTED TO LINE OA
                   </span>
                 </div>
@@ -675,17 +675,18 @@ export default function CustomersPage() {
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '24px' }}>
                   
                   {/* Hospital */}
-                  <div className="glass" style={{ padding: '16px', borderRadius: '16px', border: '1px solid var(--border)', background: 'rgba(255, 255, 255, 0.01)' }}>
+                  <div className="glass" style={{ padding: '16px', borderRadius: '16px', border: '1px solid var(--border)', background: 'var(--bg-deep)' }}>
                     <p style={{ fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
                       <Building size={12} color={brand.accent} /> โรงพยาบาล
                     </p>
-                    <p style={{ fontSize: '14px', fontWeight: '850', color: brand.text }}>
+                    <p style={{ fontSize: '14px', fontWeight: '850', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: brand.accent, boxShadow: `0 0 10px ${brand.accent}` }} />
                       {profileCustomer.hospitals?.name || 'ไม่ระบุ'}
                     </p>
                   </div>
 
                   {/* Department */}
-                  <div className="glass" style={{ padding: '16px', borderRadius: '16px', border: '1px solid var(--border)', background: 'rgba(255, 255, 255, 0.01)' }}>
+                  <div className="glass" style={{ padding: '16px', borderRadius: '16px', border: '1px solid var(--border)', background: 'var(--bg-deep)' }}>
                     <p style={{ fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
                       <MapPin size={12} color="var(--primary)" /> แผนก / หน่วยงาน
                     </p>
@@ -695,7 +696,7 @@ export default function CustomersPage() {
                   </div>
 
                   {/* Position */}
-                  <div className="glass" style={{ padding: '16px', borderRadius: '16px', border: '1px solid var(--border)', background: 'rgba(255, 255, 255, 0.01)' }}>
+                  <div className="glass" style={{ padding: '16px', borderRadius: '16px', border: '1px solid var(--border)', background: 'var(--bg-deep)' }}>
                     <p style={{ fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
                       <UserIcon size={12} color="var(--success)" /> ตำแหน่งงาน
                     </p>
@@ -705,7 +706,7 @@ export default function CustomersPage() {
                   </div>
 
                   {/* Registered Date */}
-                  <div className="glass" style={{ padding: '16px', borderRadius: '16px', border: '1px solid var(--border)', background: 'rgba(255, 255, 255, 0.01)' }}>
+                  <div className="glass" style={{ padding: '16px', borderRadius: '16px', border: '1px solid var(--border)', background: 'var(--bg-deep)' }}>
                     <p style={{ fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
                       <Calendar size={12} color="#ff9f43" /> วันที่ลงทะเบียน
                     </p>
@@ -715,7 +716,7 @@ export default function CustomersPage() {
                   </div>
 
                   {/* LINE Username */}
-                  <div className="glass" style={{ padding: '16px', borderRadius: '16px', border: '1px solid var(--border)', background: 'rgba(255, 255, 255, 0.01)', gridColumn: 'span 2' }}>
+                  <div className="glass" style={{ padding: '16px', borderRadius: '16px', border: '1px solid var(--border)', background: 'var(--bg-deep)', gridColumn: 'span 2' }}>
                     <p style={{ fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '6px' }}>
                       LINE Username
                     </p>
@@ -729,7 +730,7 @@ export default function CustomersPage() {
                     padding: '16px', 
                     borderRadius: '16px', 
                     border: '1px solid var(--border)', 
-                    background: 'rgba(255, 255, 255, 0.01)', 
+                    background: 'var(--bg-deep)', 
                     gridColumn: 'span 2',
                     display: 'flex',
                     justifyContent: 'space-between',
@@ -739,7 +740,7 @@ export default function CustomersPage() {
                       <p style={{ fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '6px' }}>
                         LINE User ID
                       </p>
-                      <p style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text-dim)', fontFamily: 'monospace', wordBreak: 'break-all' }}>
+                      <p style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text-main)', fontFamily: 'monospace', wordBreak: 'break-all' }}>
                         {profileCustomer.line_user_id || 'ไม่พบบันทึก'}
                       </p>
                     </div>
@@ -787,7 +788,7 @@ export default function CustomersPage() {
                     height: '48px',
                     borderRadius: '12px',
                     border: '1px solid var(--border)',
-                    background: 'rgba(255, 255, 255, 0.02)',
+                    background: 'var(--bg-deep)',
                     color: 'var(--text-main)',
                     fontWeight: '700',
                     fontSize: '14px',
@@ -807,7 +808,7 @@ export default function CustomersPage() {
                     borderRadius: '12px',
                     border: 'none',
                     background: brand.gradient,
-                    color: 'black',
+                    color: '#ffffff',
                     fontWeight: '850',
                     fontSize: '14px',
                     display: 'flex',
