@@ -3,12 +3,13 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   Download, Loader2, Table as TableIcon, AlignLeft, Filter,
-  ArrowUpDown, Search, X, Calendar, ChevronRight
+  ArrowUpDown, Search, X, Calendar, ChevronRight, Share2
 } from 'lucide-react';
 import Skeleton from '@/components/ui/Skeleton';
 import { useStaffLocale } from '@/contexts/StaffLocaleContext';
 import { useAppContext } from '@/contexts/AppContext';
 import { ExportPreviewModal, type ExportPreviewData } from '@/components/ui/ExportPreviewModal';
+import { useNotificationContext } from '@/contexts/NotificationContext';
 
 type ExportUtilsModule = typeof import('@/lib/utils/exportUtils');
 
@@ -106,8 +107,23 @@ export default function DailyReportPage() {
     }
   }, [columnWidths, userProfile?.id]);
 
+  const { addToast } = useNotificationContext();
+
   const [showPreview, setShowPreview] = useState(false);
   const [previewData, setPreviewData] = useState<ExportPreviewData | null>(null);
+
+  // Google Sheets Export States
+  const [isExportingGSheets, setIsExportingGSheets] = useState(false);
+  const [showGSheetsModal, setShowGSheetsModal] = useState(false);
+  const [gSheetsUrl, setGSheetsUrl] = useState('');
+
+  // Load saved Google Sheets webhook URL from localStorage on mount
+  useEffect(() => {
+    try {
+      const savedUrl = localStorage.getItem('neo_gsheets_webhook_url');
+      if (savedUrl) setGSheetsUrl(savedUrl);
+    } catch (e) {}
+  }, []);
 
   const columns: ReportColumn[] = useMemo(
     () => [
@@ -328,6 +344,57 @@ export default function DailyReportPage() {
     }
   };
 
+  const executeGSheetsExport = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!gSheetsUrl || !gSheetsUrl.startsWith('http')) {
+      addToast({
+        title: 'URL ไม่ถูกต้อง',
+        message: 'กรุณากรอก Google Sheets Web App URL ที่ถูกต้อง',
+        type: 'error'
+      });
+      return;
+    }
+
+    setIsExportingGSheets(true);
+    try {
+      // Save URL to localStorage
+      localStorage.setItem('neo_gsheets_webhook_url', gSheetsUrl);
+
+      const res = await fetch('/api/reports/daily/google-sheets', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          start: dateRange.start,
+          end: dateRange.end,
+          targetUrl: gSheetsUrl
+        })
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to export');
+      }
+
+      addToast({
+        title: 'ส่งออกสำเร็จ',
+        message: `ส่งออกข้อมูลจำนวน ${data.count} แถวไปยัง Google Sheets เรียบร้อยแล้ว`,
+        type: 'success'
+      });
+      setShowGSheetsModal(false);
+    } catch (error: any) {
+      console.error('Google Sheets Export failed:', error);
+      addToast({
+        title: 'ส่งออกล้มเหลว',
+        message: error.message || 'เกิดข้อผิดพลาดในการส่งข้อมูลไปยัง Google Sheets',
+        type: 'error'
+      });
+    } finally {
+      setIsExportingGSheets(false);
+    }
+  };
+
   const executePrint = async () => {
     const { printDataTable } = await loadExportUtils();
     const formatData = processedTickets.map(ticket => {
@@ -472,6 +539,29 @@ export default function DailyReportPage() {
             {isExporting ? <Loader2 size={18} className="animate-spin" /> : <Download size={18} />}
             {t('reports.exportExcel')}
           </button>
+
+          <button
+            onClick={() => setShowGSheetsModal(true)}
+            disabled={isExportingGSheets || processedTickets.length === 0}
+            className="glass-interactive"
+            style={{
+              height: '44px',
+              padding: '0 20px',
+              borderRadius: '12px',
+              border: 'none',
+              background: 'linear-gradient(135deg, #107c41 0%, #1f9a55 100%)',
+              color: 'white',
+              fontWeight: '700',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              boxShadow: '0 8px 20px rgba(16, 124, 65, 0.25)',
+              transition: 'all 0.2s ease'
+            }}
+          >
+            {isExportingGSheets ? <Loader2 size={18} className="animate-spin" /> : <Share2 size={18} />}
+            GOOGLE SHEETS
+          </button>
         </div>
       </div>
 
@@ -597,6 +687,165 @@ export default function DailyReportPage() {
           data={previewData}
           loading={isExporting}
         />
+      )}
+
+      {showGSheetsModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0, 0, 0, 0.6)',
+          backdropFilter: 'blur(8px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 9999,
+        }}>
+          <div style={{
+            background: 'var(--bg-sidebar)',
+            border: '1px solid var(--border)',
+            width: '100%',
+            maxWidth: '520px',
+            borderRadius: '20px',
+            boxShadow: '0 20px 50px rgba(0,0,0,0.3)',
+            overflow: 'hidden',
+          }}>
+            {/* Header */}
+            <div style={{
+              background: 'linear-gradient(135deg, #107c41 0%, #1f9a55 100%)',
+              padding: '24px 30px',
+              color: 'white',
+              position: 'relative'
+            }}>
+              <h3 style={{ fontSize: '18px', fontWeight: '800', margin: 0, display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <Share2 size={20} />
+                EXPORT TO GOOGLE SHEETS
+              </h3>
+              <p style={{ fontSize: '12px', opacity: 0.8, margin: '6px 0 0 0', fontWeight: '500' }}>
+                ส่งออกรายงานสรุปปัญหาประจำวันไปยัง Google Sheets ของคุณโดยตรง
+              </p>
+              <button 
+                onClick={() => setShowGSheetsModal(false)}
+                style={{
+                  position: 'absolute',
+                  top: '20px',
+                  right: '20px',
+                  background: 'rgba(255, 255, 255, 0.1)',
+                  border: 'none',
+                  borderRadius: '50%',
+                  width: '32px',
+                  height: '32px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: 'white',
+                  cursor: 'pointer',
+                  transition: 'background 0.2s'
+                }}
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* Form Content */}
+            <form onSubmit={executeGSheetsExport} style={{ padding: '30px' }}>
+              <div style={{ marginBottom: '24px' }}>
+                <label style={{ 
+                  display: 'block', 
+                  fontSize: '13px', 
+                  fontWeight: '700', 
+                  color: 'var(--text-main)', 
+                  marginBottom: '10px' 
+                }}>
+                  Google Apps Script Web App URL
+                </label>
+                <input
+                  type="url"
+                  required
+                  placeholder="https://script.google.com/macros/s/.../exec"
+                  value={gSheetsUrl}
+                  onChange={(e) => setGSheetsUrl(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '12px 16px',
+                    borderRadius: '12px',
+                    border: '1px solid var(--border)',
+                    background: 'var(--bg-deep)',
+                    color: 'var(--text-main)',
+                    fontSize: '13px',
+                    fontWeight: '600',
+                    outline: 'none',
+                  }}
+                />
+              </div>
+
+              {/* Instructions */}
+              <div style={{
+                background: 'var(--bg-deep)',
+                borderLeft: '4px solid #107c41',
+                padding: '16px',
+                borderRadius: '8px',
+                fontSize: '12px',
+                lineHeight: '1.6',
+                color: 'var(--text-muted)',
+                marginBottom: '28px'
+              }}>
+                <span style={{ fontWeight: '800', color: 'var(--text-main)', display: 'block', marginBottom: '6px' }}>
+                  💡 วิธีการเปิดใช้งาน Google Sheets:
+                </span>
+                <ol style={{ margin: 0, paddingLeft: '18px' }}>
+                  <li>เปิด Google Sheet ของคุณ และเลือกเมนู <strong>ส่วนขยาย (Extensions) &gt; Apps Script</strong></li>
+                  <li>คัดลอกโค้ด Apps Script จากแผนงานช่วยเหลือไปวางแล้วกดบันทึก</li>
+                  <li>คลิก <strong>การใช้งานได้จริง (Deploy) &gt; การทำงานใหม่ (New deployment)</strong> เลือกประเภทเป็น <strong>เว็บแอป (Web app)</strong></li>
+                  <li>ตั้งค่าการเข้าถึงให้เป็น <strong>ทุกคน (Anyone)</strong> จากนั้นกด Deploy แล้วคัดลอก URL เว็บแอปมาวางที่นี่</li>
+                </ol>
+              </div>
+
+              {/* Actions */}
+              <div style={{ display: 'flex', justifyItems: 'center', justifyContent: 'flex-end', gap: '12px' }}>
+                <button
+                  type="button"
+                  onClick={() => setShowGSheetsModal(false)}
+                  style={{
+                    padding: '10px 20px',
+                    borderRadius: '10px',
+                    border: '1px solid var(--border)',
+                    background: 'transparent',
+                    color: 'var(--text-muted)',
+                    fontWeight: '700',
+                    fontSize: '13px',
+                    cursor: 'pointer'
+                  }}
+                >
+                  ยกเลิก
+                </button>
+                <button
+                  type="submit"
+                  disabled={isExportingGSheets || !gSheetsUrl}
+                  style={{
+                    padding: '10px 24px',
+                    borderRadius: '10px',
+                    border: 'none',
+                    background: 'linear-gradient(135deg, #107c41 0%, #1f9a55 100%)',
+                    color: 'white',
+                    fontWeight: '700',
+                    fontSize: '13px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    boxShadow: '0 4px 12px rgba(16, 124, 65, 0.2)'
+                  }}
+                >
+                  {isExportingGSheets ? <Loader2 size={16} className="animate-spin" /> : <Share2 size={16} />}
+                  เริ่มส่งออกข้อมูล
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
     </>
   );
