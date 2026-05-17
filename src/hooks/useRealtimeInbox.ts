@@ -23,6 +23,15 @@ export function isConversationActiveLike(conversation: InboxConversation) {
   if (!status) return true;
   const closedLike = ['closed', 'resolved', 'done', 'ended', 'end', 'archived'];
   if (closedLike.includes(status)) return false;
+
+  // Filter out conversations where the current/associated ticket has been closed, resolved, or canceled
+  if (conversation.ticket_data?.status) {
+    const ticketStatus = String(conversation.ticket_data.status).toLowerCase().trim();
+    if (['resolved', 'closed', 'canceled'].includes(ticketStatus)) {
+      return false;
+    }
+  }
+
   return (
     conversation.is_active === true ||
     [

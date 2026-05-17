@@ -13,6 +13,7 @@ function makeConversation(
     is_active: overrides.is_active ?? true,
     last_message_at: overrides.last_message_at ?? new Date(0).toISOString(),
     customers: overrides.customers ?? null,
+    ticket_data: overrides.ticket_data ?? null,
   };
 }
 
@@ -20,6 +21,20 @@ describe('useRealtimeInbox helpers', () => {
   it('detects active-like conversations by status', () => {
     expect(isConversationActiveLike(makeConversation({ status: 'in_progress', is_active: false }))).toBe(true);
     expect(isConversationActiveLike(makeConversation({ status: 'closed', is_active: false }))).toBe(false);
+  });
+
+  it('excludes conversations with closed or resolved tickets', () => {
+    const activeConv = makeConversation({
+      status: 'active',
+      ticket_data: { id: 't1', ticket_no: 'T-100', subject: 'Problem', status: 'In Progress' }
+    });
+    const closedConv = makeConversation({
+      status: 'active',
+      ticket_data: { id: 't2', ticket_no: 'T-200', subject: 'Solved', status: 'Resolved' }
+    });
+    
+    expect(isConversationActiveLike(activeConv)).toBe(true);
+    expect(isConversationActiveLike(closedConv)).toBe(false);
   });
 
   it('sorts by last_message_at desc', () => {

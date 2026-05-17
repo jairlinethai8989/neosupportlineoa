@@ -114,6 +114,7 @@ export function normalizeInboxConversation(value: unknown): InboxConversation | 
       id: asString(ticketData.id) || '',
       ticket_no: asString(ticketData.ticket_no),
       subject: asString(ticketData.subject),
+      status: asString(ticketData.status),
     } : null,
   };
 }

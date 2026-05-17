@@ -19,6 +19,10 @@
 5.  **Persistent Outstanding Tickets Pinning (สำเร็จ):**
     *   **Unclosed Tickets Pinned globally:** ปรับปรุงเงื่อนไข `persistentStatuses` ใน `queries.ts` และการกรองข้อมูลใน `useTicketWorkspace.ts` เพื่อทำการตรึงใบงานที่ยังไม่ได้ถูกปิดงานทั้งหมด (ได้แก่ **New (ใบงานใหม่)**, **Assigned**, **In Progress**, **Escalated**, **Fix Completed**, และ **Pending**) ให้คงอยู่เสมอดังความต้องการของระบบ
     *   **Bypassing Date Filters:** เมื่อเจ้าหน้าที่เปลี่ยนตัวกรองเวลา (เช่น วันนี้, สัปดาห์นี้, หรือช่วงเวลาที่เลือก) ใบงานค้างทั้งหมดในคอลัมน์ที่ไม่ถูกปิดงานจะไม่ถูกกรองทิ้ง ทำให้ยังคงถูกตรึงไว้อย่างสมบูรณ์ เพื่อยืนยันและติดตามงานค้างได้แบบเรียลไทม์
+6.  **Inbox Active-Only Chat List Filtering (สำเร็จ):**
+    *   **Ticket Status Enrichment:** ปรับแต่งคิวรีและ Normalizers ใน `queries.ts`, `normalizers.ts` และ `inbox.ts` (Types) เพื่อทำการดึงฟิลด์ `status` ของใบงานที่เชื่อมโยงกับห้องแชทนั้นๆ มาใช้ในการวิเคราะห์
+    *   **Hide Closed Tickets Chat:** ปรับปรุงเงื่อนไข `isConversationActiveLike` ใน `useRealtimeInbox.ts` เพื่อคัดกรองห้องแชทที่มีใบงานถูกปิดเสร็จสิ้นแล้ว (สถานะ Resolved, Closed, Canceled) ออกจากช่องแชทคิวหลักโดยอัตโนมัติ เพื่อป้องกันแชทเก่ารบกวนหน้าจอ (เจ้าหน้าที่ยังสามารถเข้าไปดูประวัติแชทเก่าๆ ได้โดยตรงผ่านเมนูประวัติการทำงานของใบงานนั้นๆ ตามความต้องการ)
+    *   **Unit Tests Expansion:** อัปเดตชุดทดสอบหน่วย (`useRealtimeInbox.test.ts`) ให้ครอบคลุมความถูกต้องของกรณีคัดกรองแชทที่มีใบงานปิดไปแล้ว ผลการรันเทสผ่านฉลุย 100%
 
 ---
 

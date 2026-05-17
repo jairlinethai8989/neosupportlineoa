@@ -37,7 +37,8 @@ export const inboxConversationSelect = `
   ticket_data:current_ticket_id (
     id,
     ticket_no,
-    subject
+    subject,
+    status
   )
 `;
 
@@ -62,7 +63,8 @@ const inboxConversationSelectLegacy = `
   ticket_data:current_ticket_id (
     id,
     ticket_no,
-    subject
+    subject,
+    status
   )
 `;
 
@@ -82,7 +84,8 @@ export const inboxConversationSelectForList = `
   ticket_data:current_ticket_id (
     id,
     ticket_no,
-    subject
+    subject,
+    status
   )
 `;
 
@@ -101,7 +104,8 @@ const inboxConversationSelectForListLegacy = `
   ticket_data:current_ticket_id (
     id,
     ticket_no,
-    subject
+    subject,
+    status
   )
 `;
 
@@ -198,6 +202,7 @@ type EnrichTicketRow = {
   id: string;
   ticket_no: string | null;
   subject: string | null;
+  status: string | null;
   customer_id: string | null;
 };
 
@@ -248,7 +253,7 @@ async function enrichConversationsIfNeeded(
     ticketIds.length
       ? supabase
           .from('tickets')
-          .select('id,ticket_no,subject,customer_id')
+          .select('id,ticket_no,subject,status,customer_id')
           .in('id', ticketIds)
       : Promise.resolve({ data: [], error: null }),
   ]);
@@ -306,6 +311,7 @@ async function enrichConversationsIfNeeded(
         id: row.id,
         ticket_no: typeof row.ticket_no === 'string' ? row.ticket_no : null,
         subject: typeof row.subject === 'string' ? row.subject : null,
+        status: typeof row.status === 'string' ? row.status : null,
         customer_id: typeof row.customer_id === 'string' ? row.customer_id : null,
       });
     }
@@ -345,6 +351,7 @@ async function enrichConversationsIfNeeded(
               id: ticketFromMap.id,
               ticket_no: ticketFromMap.ticket_no,
               subject: ticketFromMap.subject,
+              status: ticketFromMap.status,
             },
     };
   });
