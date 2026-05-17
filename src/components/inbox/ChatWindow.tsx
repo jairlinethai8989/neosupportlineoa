@@ -349,10 +349,54 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
               </button>
             </div>
          )}
+         {!isSessionActive && !isResolved && (
+            <div className="glass animate-fade-in" style={{ padding: '12px 20px', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.2)', borderRadius: '14px', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+               <AlertTriangle size={16} color="#ef4444" />
+               <p style={{ fontSize: '13px', color: '#ef4444', fontWeight: '800' }}>
+                 {t('inbox.sessionEndedWarning') || 'จบการสนทนาแล้ว อย่าลืมกดปิดใบงาน'}
+               </p>
+            </div>
+         )}
          <form onSubmit={onSendMessage}>
           <div className="glass" style={{ padding: '6px 14px', display: 'flex', alignItems: 'center', gap: '12px', background: 'var(--bg-input)', borderRadius: '14px', border: '1px solid var(--border)' }}>
-             <button type="button" onClick={() => setShowCanned(!showCanned)} title={t('inbox.quickReplies') || 'ข้อความสำเร็จรูป'} aria-label="Quick replies" className="glass-interactive flex-center" style={{ width: '36px', height: '36px', background: 'none', border: 'none', color: showCanned ? 'var(--primary)' : 'var(--text-muted)', cursor: 'pointer' }}><MessageSquare size={19} aria-hidden="true" /></button>
-             <button type="button" onClick={onAttachClick} title={t('inbox.attachHint') || 'แนบไฟล์หรือวางรูปภาพ (Ctrl+V)'} aria-label="Attach file or paste image" className="glass-interactive flex-center" style={{ width: '36px', height: '36px', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}><Paperclip size={20} aria-hidden="true" /></button>
+             <button 
+               type="button" 
+               onClick={() => setShowCanned(!showCanned)} 
+               disabled={isResolved || isUnassigned || !isSessionActive}
+               title={t('inbox.quickReplies') || 'ข้อความสำเร็จรูป'} 
+               aria-label="Quick replies" 
+               className="glass-interactive flex-center" 
+               style={{ 
+                 width: '36px', 
+                 height: '36px', 
+                 background: 'none', 
+                 border: 'none', 
+                 color: showCanned ? 'var(--primary)' : 'var(--text-muted)', 
+                 cursor: (isResolved || isUnassigned || !isSessionActive) ? 'not-allowed' : 'pointer',
+                 opacity: (isResolved || isUnassigned || !isSessionActive) ? 0.4 : 1
+               }}
+             >
+               <MessageSquare size={19} aria-hidden="true" />
+             </button>
+             <button 
+               type="button" 
+               onClick={onAttachClick} 
+               disabled={isResolved || isUnassigned || !isSessionActive}
+               title={t('inbox.attachHint') || 'แนบไฟล์หรือวางรูปภาพ (Ctrl+V)'} 
+               aria-label="Attach file or paste image" 
+               className="glass-interactive flex-center" 
+               style={{ 
+                 width: '36px', 
+                 height: '36px', 
+                 background: 'none', 
+                 border: 'none', 
+                 color: 'var(--text-muted)', 
+                 cursor: (isResolved || isUnassigned || !isSessionActive) ? 'not-allowed' : 'pointer',
+                 opacity: (isResolved || isUnassigned || !isSessionActive) ? 0.4 : 1 
+               }}
+             >
+               <Paperclip size={20} aria-hidden="true" />
+             </button>
 
            <input 
               type="text" 
@@ -363,16 +407,18 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
                    ? (t('inbox.readOnlyPlaceholder') || 'ใบงานถูกปิดแล้ว (Read Only)')
                    : isViewOnly
                      ? (t('inbox.viewOnlyPlaceholder') || 'คุณมีสิทธิ์อ่านเท่านั้น (View Only)')
-                     : isRestricted
+                     : isUnassigned
                        ? (t('inbox.claimBeforeChatPlaceholder') || 'กรุณากดรับงานก่อนเริ่มการสนทนา')
-                       : (t('inbox.typeMessagePlaceholder') || 'พิมพ์ข้อความ หรือวางรูปภาพ Ctrl+V...')
+                       : !isSessionActive
+                         ? (t('inbox.sessionEndedPlaceholder') || 'จบการสนทนาแล้ว อย่าลืมกดปิดใบงาน')
+                         : (t('inbox.typeMessagePlaceholder') || 'พิมพ์ข้อความ หรือวางรูปภาพ Ctrl+V...')
                } 
-              disabled={isResolved || isViewOnly || isRestricted}
-              style={{ flex: 1, background: 'none', border: 'none', outline: 'none', color: 'var(--text-main)', padding: '12px 0', fontSize: '14px', opacity: (isResolved || isRestricted) ? 0.4 : 1 }}
+              disabled={isResolved || isViewOnly || isUnassigned || !isSessionActive}
+              style={{ flex: 1, background: 'none', border: 'none', outline: 'none', color: 'var(--text-main)', padding: '12px 0', fontSize: '14px', opacity: (isResolved || isUnassigned || !isSessionActive) ? 0.4 : 1 }}
            />
            <button 
              type="submit"
-             disabled={sending || !newMessage.trim() || isResolved || isRestricted}
+             disabled={sending || !newMessage.trim() || isResolved || isUnassigned || !isSessionActive}
              style={{ 
                background: 'var(--primary)', 
                border: 'none', 
@@ -383,9 +429,9 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
                display: 'flex', 
                alignItems: 'center', 
                justifyContent: 'center', 
-               cursor: 'pointer',
+               cursor: (sending || !newMessage.trim() || isResolved || isUnassigned || !isSessionActive) ? 'not-allowed' : 'pointer',
                transition: 'all 0.2s',
-               opacity: (sending || !newMessage.trim() || isResolved || isRestricted) ? 0.4 : 1 
+               opacity: (sending || !newMessage.trim() || isResolved || isUnassigned || !isSessionActive) ? 0.4 : 1 
              }}>
               {sending ? <Loader2 size={18} className="animate-spin" aria-hidden="true" /> : <Send size={18} aria-hidden="true" />}
            </button>
