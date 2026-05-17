@@ -48,6 +48,7 @@ const boardContainerStyle: React.CSSProperties = {
   border: '1px solid var(--border)',
   WebkitOverflowScrolling: 'touch',
   touchAction: 'pan-x',
+  cursor: 'grab',
 };
 
 const boardColumnsWrapStyle: React.CSSProperties = {
@@ -284,12 +285,70 @@ export function TicketsBoard({
   const boardRef = React.useRef<HTMLDivElement>(null);
   const [columnPages, setColumnPages] = React.useState<Record<string, number>>({});
 
+  // Mouse Drag to Scroll Horizontal Board
+  const isDown = React.useRef(false);
+  const startX = React.useRef(0);
+  const scrollLeft = React.useRef(0);
+
+  const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    const target = e.target as HTMLElement;
+    if (
+      target.closest('button') || 
+      target.closest('a') || 
+      target.closest('input')
+    ) {
+      return;
+    }
+    
+    isDown.current = true;
+    const board = boardRef.current;
+    if (board) {
+      board.style.cursor = 'grabbing';
+      board.style.userSelect = 'none';
+      startX.current = e.pageX - board.offsetLeft;
+      scrollLeft.current = board.scrollLeft;
+    }
+  };
+
+  const handleMouseLeave = () => {
+    isDown.current = false;
+    const board = boardRef.current;
+    if (board) {
+      board.style.cursor = 'grab';
+      board.style.removeProperty('user-select');
+    }
+  };
+
+  const handleMouseUp = () => {
+    isDown.current = false;
+    const board = boardRef.current;
+    if (board) {
+      board.style.cursor = 'grab';
+      board.style.removeProperty('user-select');
+    }
+  };
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!isDown.current) return;
+    e.preventDefault();
+    const board = boardRef.current;
+    if (board) {
+      const x = e.pageX - board.offsetLeft;
+      const walk = (x - startX.current) * 1.5; // multiplier for speed
+      board.scrollLeft = scrollLeft.current - walk;
+    }
+  };
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%' }}>
       <div 
         ref={boardRef}
         className="board-scroll-container custom-scrollbar glass" 
         style={boardContainerStyle}
+        onMouseDown={handleMouseDown}
+        onMouseLeave={handleMouseLeave}
+        onMouseUp={handleMouseUp}
+        onMouseMove={handleMouseMove}
       >
       <div style={boardColumnsWrapStyle}>
         {WORKFLOW.map((columnId) => {
