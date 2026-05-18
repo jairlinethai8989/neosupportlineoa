@@ -36,8 +36,7 @@ import { translateAuditAction, translateTicketStatus } from '@/lib/i18n/staff';
 import { clearSystemLogsAction, clearTicketLogsAction } from '@/app/actions/auditActions';
 import { useNotificationContext } from '@/contexts/NotificationContext';
 
-// Export utils
-import * as XLSX from 'xlsx';
+// Export utils (loaded dynamically to keep page bundle size small)
 
 export default function AuditLogPage() {
   const { t, locale } = useStaffLocale();
@@ -182,7 +181,7 @@ export default function AuditLogPage() {
     });
   };
 
-  const handleExportExcel = () => {
+  const handleExportExcel = async () => {
     const dataToExport = filteredLogs.map(log => ({
       [t('settingsAudit.headers.time')]: formatDate(log.created_at),
       [t('settingsAudit.headers.actor')]: log.performer?.full_name || t('settingsAudit.systemFallback'),
@@ -195,10 +194,21 @@ export default function AuditLogPage() {
        })
     }));
 
-    const ws = XLSX.utils.json_to_sheet(dataToExport);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Audit Logs');
-    XLSX.writeFile(wb, `${t('settingsAudit.messages.exportPrefix')}_${activeTab}_${new Date().getTime()}.xlsx`);
+    try {
+      const XLSX = await import('xlsx');
+      const ws = XLSX.utils.json_to_sheet(dataToExport);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Audit Logs');
+      XLSX.writeFile(wb, `${t('settingsAudit.messages.exportPrefix')}_${activeTab}_${new Date().getTime()}.xlsx`);
+    } catch (err) {
+      console.error('Audit Log Excel Export Error:', err);
+      addToast({
+        id: `audit-excel-err-${Date.now()}`,
+        type: 'ticket',
+        title: t('settingsAudit.error') || 'Error',
+        body: 'Failed to load Excel export module',
+      });
+    }
   };
 
   const handleExportPDF = async () => {

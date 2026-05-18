@@ -1,4 +1,4 @@
-import * as XLSX from 'xlsx';
+// XLSX is loaded dynamically only when needed to optimize bundle size
 type PdfModules = {
   jsPDF: (typeof import('jspdf'))['jsPDF'];
   autoTable: typeof import('jspdf-autotable')['default'];
@@ -47,12 +47,13 @@ interface TicketLike {
 /**
  * Universal Excel Export
  */
-export const exportToExcel = <T extends ExportRow>(data: T[], fileName: string) => {
+export const exportToExcel = async <T extends ExportRow>(data: T[], fileName: string) => {
   if (!data || data.length === 0) {
     alert('ไม่มีข้อมูลสำหรับส่งออก (No data to export)');
     return;
   }
   try {
+    const XLSX = await import('xlsx');
     const worksheet = XLSX.utils.json_to_sheet(data);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Report');
