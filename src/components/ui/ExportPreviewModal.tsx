@@ -31,10 +31,10 @@ export function ExportPreviewModal({
   loading,
 }: ExportPreviewModalProps) {
   if (!isOpen) return null;
-  const modalTitleColor = '#f8fafc';
-  const modalTextColor = 'rgba(226, 232, 240, 0.95)';
-  const modalMutedColor = 'rgba(148, 163, 184, 0.95)';
-  const modalDimColor = 'rgba(148, 163, 184, 0.82)';
+  const modalTitleColor = 'var(--text-main)';
+  const modalTextColor = 'var(--text-main)';
+  const modalMutedColor = 'var(--text-muted)';
+  const modalDimColor = 'var(--text-dim)';
 
   const isExcel = data.format === 'excel';
   const handleDownload = onDownload || onConfirm;
@@ -59,11 +59,11 @@ export function ExportPreviewModal({
           width: '100%',
           maxWidth: '500px',
           padding: '32px',
-          boxShadow: '0 40px 100px rgba(0,0,0,0.8)',
+          boxShadow: '0 40px 100px rgba(0,0,0,0.4)',
           position: 'relative',
-          border: '1px solid rgba(255,255,255,0.12)',
+          border: '1px solid var(--border)',
           borderRadius: '28px',
-          background: 'linear-gradient(180deg, var(--bg-sidebar, #141b27) 0%, var(--bg-deep, #0a0e14) 100%)',
+          background: 'linear-gradient(180deg, var(--bg-sidebar) 0%, var(--bg-deep) 100%)',
         }}
       >
         <button
@@ -131,10 +131,10 @@ export function ExportPreviewModal({
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '32px' }}>
           <div
             style={{
-              background: 'rgba(255,255,255,0.02)',
+              background: 'var(--bg-input)',
               borderRadius: '20px',
               padding: '20px',
-              border: '1px solid rgba(255,255,255,0.05)',
+              border: '1px solid var(--border)',
               display: 'flex',
               flexDirection: 'column',
               gap: '12px',
@@ -167,7 +167,7 @@ export function ExportPreviewModal({
               </span>
             </div>
 
-            <div style={{ marginTop: '4px', paddingTop: '12px', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+            <div style={{ marginTop: '4px', paddingTop: '12px', borderTop: '1px solid var(--border)' }}>
               <span style={{ fontSize: '10px', color: modalDimColor, fontWeight: '800', textTransform: 'uppercase', marginBottom: '8px', display: 'block' }}>
                 คอลัมน์ ({data.columns.length})
               </span>
@@ -178,10 +178,10 @@ export function ExportPreviewModal({
                     style={{
                       fontSize: '10px',
                       padding: '4px 10px',
-                      background: 'rgba(255,255,255,0.05)',
+                      background: 'var(--bg-card)',
                       borderRadius: '6px',
-                      color: modalTextColor,
-                      border: '1px solid rgba(255,255,255,0.03)',
+                      color: 'var(--text-muted)',
+                      border: '1px solid var(--border)',
                     }}
                   >
                     {col}
@@ -213,8 +213,8 @@ export function ExportPreviewModal({
               flex: 1,
               padding: '16px',
               borderRadius: '16px',
-              background: 'rgba(255,255,255,0.03)',
-              color: modalTextColor,
+              background: 'var(--bg-card)',
+              color: 'var(--text-main)',
               border: '1px solid var(--border)',
               fontWeight: '700',
               fontSize: '15px',
@@ -233,7 +233,7 @@ export function ExportPreviewModal({
                 flex: 1,
                 padding: '16px',
                 borderRadius: '16px',
-                background: 'rgba(54, 153, 255, 0.12)',
+                background: 'var(--primary-transparent)',
                 color: 'var(--primary)',
                 border: '1px solid var(--primary)',
                 fontWeight: '900',

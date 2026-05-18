@@ -18,10 +18,10 @@ export default function SummaryExportModal({
   ticketNo,
 }: SummaryExportModalProps) {
   const [loading, setLoading] = useState(false);
-  const modalTitleColor = '#f8fafc';
-  const modalTextColor = 'rgba(226, 232, 240, 0.95)';
-  const modalMutedColor = 'rgba(148, 163, 184, 0.95)';
-  const modalDimColor = 'rgba(148, 163, 184, 0.82)';
+  const modalTitleColor = 'var(--text-main)';
+  const modalTextColor = 'var(--text-main)';
+  const modalMutedColor = 'var(--text-muted)';
+  const modalDimColor = 'var(--text-dim)';
 
   const handleDownload = async () => {
     setLoading(true);
@@ -70,11 +70,11 @@ export default function SummaryExportModal({
           width: '100%',
           maxWidth: '460px',
           padding: '32px',
-          boxShadow: '0 40px 100px rgba(0,0,0,0.8)',
+          boxShadow: '0 40px 100px rgba(0,0,0,0.4)',
           position: 'relative',
-          border: '1px solid rgba(255,255,255,0.08)',
+          border: '1px solid var(--border)',
           borderRadius: '28px',
-          background: 'linear-gradient(180deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.01) 100%)',
+          background: 'linear-gradient(180deg, var(--bg-sidebar) 0%, var(--bg-deep) 100%)',
         }}
       >
         <button
@@ -104,14 +104,14 @@ export default function SummaryExportModal({
             style={{
               width: '80px',
               height: '80px',
-              background: 'rgba(6, 182, 212, 0.1)',
-              color: '#06b6d4',
+              background: 'var(--primary-transparent)',
+              color: 'var(--primary)',
               borderRadius: '24px',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               margin: '0 auto 24px',
-              boxShadow: '0 15px 35px rgba(6, 182, 212, 0.2)',
+              boxShadow: '0 15px 35px var(--primary-glow)',
             }}
           >
             <FileText size={36} />
@@ -127,10 +127,10 @@ export default function SummaryExportModal({
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '32px' }}>
           <div
             style={{
-              background: 'rgba(255,255,255,0.02)',
+              background: 'var(--bg-input)',
               borderRadius: '20px',
               padding: '20px',
-              border: '1px solid rgba(255,255,255,0.05)',
+              border: '1px solid var(--border)',
               display: 'flex',
               flexDirection: 'column',
               gap: '12px',
@@ -172,7 +172,7 @@ export default function SummaryExportModal({
               flex: 1,
               padding: '16px',
               borderRadius: '16px',
-              background: 'rgba(255,255,255,0.03)',
+              background: 'var(--bg-card)',
               color: modalTextColor,
               border: '1px solid var(--border)',
               fontWeight: '700',
@@ -192,7 +192,7 @@ export default function SummaryExportModal({
                 flex: 1,
                 padding: '16px',
                 borderRadius: '16px',
-                background: 'rgba(54, 153, 255, 0.12)',
+                background: 'var(--primary-transparent)',
                 color: 'var(--primary)',
                 border: '1px solid var(--primary)',
                 fontWeight: '900',
@@ -218,7 +218,7 @@ export default function SummaryExportModal({
               padding: '16px',
               borderRadius: '16px',
               background: 'var(--primary)',
-              color: 'black',
+              color: 'var(--bg-deep)',
               border: 'none',
               fontWeight: '900',
               fontSize: '15px',
@@ -226,7 +226,7 @@ export default function SummaryExportModal({
               alignItems: 'center',
               justifyContent: 'center',
               gap: '10px',
-              boxShadow: '0 10px 25px var(--primary-transparent)',
+              boxShadow: '0 10px 25px var(--primary-glow)',
               opacity: loading ? 0.7 : 1,
               cursor: 'pointer',
             }}

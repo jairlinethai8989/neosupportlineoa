@@ -301,6 +301,15 @@ export default function DailyReportPage() {
   const executeExport = async () => {
     setIsExporting(true);
     setShowPreview(false);
+    
+    const toastId = `excel-export-${Date.now()}`;
+    addToast({
+      id: toastId,
+      type: 'ticket',
+      title: 'กำลังส่งออกข้อมูล Excel',
+      body: 'ระบบกำลังจัดเตรียมไฟล์ข้อมูลการรายงาน กรุณารอสักครู่... ⏳'
+    });
+
     try {
       const res = await fetch(
         `/api/reports/daily/export?start=${dateRange.start}&end=${dateRange.end}`,
@@ -326,9 +335,22 @@ export default function DailyReportPage() {
       anchor.click();
       anchor.remove();
       window.URL.revokeObjectURL(blobUrl);
-    } catch (error) {
+
+      // Show success toast
+      addToast({
+        id: `excel-success-${Date.now()}`,
+        type: 'ticket',
+        title: 'ส่งออก Excel สำเร็จ',
+        body: `ดาวน์โหลดไฟล์ ${fileName} เรียบร้อยแล้ว 🎉`
+      });
+    } catch (error: any) {
       console.error('Daily export failed:', error);
-      alert('Export failed. Please try again.');
+      addToast({
+        id: `excel-fail-${Date.now()}`,
+        type: 'sla_warning',
+        title: 'ส่งออก Excel ล้มเหลว',
+        body: error.message || 'เกิดข้อผิดพลาดในการสร้างไฟล์ Excel กรุณาลองใหม่อีกครั้ง'
+      });
     } finally {
       setIsExporting(false);
     }
@@ -350,6 +372,14 @@ export default function DailyReportPage() {
 
   const executeGSheetsExportDirect = async (sheetsUrl: string) => {
     setIsExportingGSheets(true);
+    const toastId = `gsheets-export-${Date.now()}`;
+    addToast({
+      id: toastId,
+      type: 'ticket',
+      title: 'กำลังส่งออก Google Sheets',
+      body: 'ระบบกำลังนำส่งข้อมูลไปยัง Google Sheets... ⏳'
+    });
+
     try {
       const res = await fetch('/api/reports/daily/google-sheets', {
         method: 'POST',
@@ -371,7 +401,7 @@ export default function DailyReportPage() {
       addToast({
         id: `gsheets-success-${Date.now()}`,
         type: 'ticket',
-        title: 'ส่งออกสำเร็จ',
+        title: 'ส่งออก Google Sheets สำเร็จ',
         body: `ส่งออกข้อมูลจำนวน ${data.count} แถวไปยัง Google Sheets เรียบร้อยแล้ว 📊`
       });
     } catch (error: any) {
@@ -379,14 +409,14 @@ export default function DailyReportPage() {
       addToast({
         id: `gsheets-fail-${Date.now()}`,
         type: 'sla_warning',
-        title: 'ส่งออกล้มเหลว',
+        title: 'ส่งออก Google Sheets ล้มเหลว',
         body: error.message || 'เกิดข้อผิดพลาดในการส่งข้อมูลไปยัง Google Sheets'
       });
     } finally {
       setIsExportingGSheets(false);
     }
   };
-
+  
   const executePrint = async () => {
     const { printDataTable } = await loadExportUtils();
     const formatData = processedTickets.map(ticket => {
@@ -526,7 +556,20 @@ export default function DailyReportPage() {
             onClick={handleExportExcel}
             disabled={isExporting || processedTickets.length === 0}
             className="glass-interactive"
-            style={{ height: '44px', padding: '0 20px', borderRadius: '12px', border: 'none', background: 'var(--success)', color: 'white', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 8px 20px rgba(16, 185, 129, 0.25)' }}
+            style={{
+              height: '44px',
+              padding: '0 20px',
+              borderRadius: '12px',
+              border: 'none',
+              background: 'var(--success)',
+              color: 'white',
+              fontWeight: '700',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              boxShadow: '0 8px 20px rgba(16, 185, 129, 0.25)',
+              cursor: (isExporting || processedTickets.length === 0) ? 'not-allowed' : 'pointer'
+            }}
           >
             {isExporting ? <Loader2 size={18} className="animate-spin" /> : <Download size={18} />}
             {t('reports.exportExcel')}
@@ -548,7 +591,8 @@ export default function DailyReportPage() {
               alignItems: 'center',
               gap: '8px',
               boxShadow: '0 8px 20px rgba(16, 124, 65, 0.25)',
-              transition: 'all 0.2s ease'
+              transition: 'all 0.2s ease',
+              cursor: (isExportingGSheets || processedTickets.length === 0) ? 'not-allowed' : 'pointer'
             }}
           >
             {isExportingGSheets ? <Loader2 size={18} className="animate-spin" /> : <Share2 size={18} />}
