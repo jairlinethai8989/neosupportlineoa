@@ -101,12 +101,29 @@ async function fetchWithPostRedirect(url: string, options: RequestInit): Promise
     currentUrl = new URL(redirectUrl, currentUrl).toString();
     redirectCount++;
 
-    console.log(`[Google Sheets API] Following manual redirect #${redirectCount} to: ${currentUrl}`);
+    console.log(`[Google Sheets API] Following manual redirect #${redirectCount} (Status ${response.status}) to: ${currentUrl}`);
 
-    response = await fetch(currentUrl, {
+    // Create a new set of options for the redirect request
+    const redirectOptions: RequestInit = {
       ...options,
       redirect: 'manual',
-    });
+    };
+
+    // Standard HTTP client behavior for 301/302 redirects:
+    // Change method from POST to GET and strip the body/Content-Type to prevent 405 Method Not Allowed
+    if (response.status === 301 || response.status === 302) {
+      redirectOptions.method = 'GET';
+      delete redirectOptions.body;
+
+      if (redirectOptions.headers) {
+        const newHeaders = { ...redirectOptions.headers } as Record<string, string>;
+        delete newHeaders['Content-Type'];
+        delete newHeaders['content-type'];
+        redirectOptions.headers = newHeaders;
+      }
+    }
+
+    response = await fetch(currentUrl, redirectOptions);
   }
 
   return response;
