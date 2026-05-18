@@ -344,28 +344,58 @@ export function useTicketWorkspace(filterCustomerId: string | null) {
     ticketCursorByPageRef.current = new Map([[1, null]]);
   }, [timeRange, customStart, customEnd, filterCustomerId]);
 
-  useEffect(() => {
-    async function fetchUserProfile() {
-      const user = await getTicketWorkspaceUser();
-      if (!user) return;
+  // Keep active reference to syncTicketFromRealtime and fetchData to avoid resetting Supabase subscriptions
+  const syncRef = useRef(syncTicketFromRealtime);
+  syncRef.current = syncTicketFromRealtime;
 
-      const profile = await getTicketWorkspaceProfile(user.id);
-      setUserProfile(profile);
-      if (profile?.resolution_templates) {
-        setPersonalResTemplates(profile.resolution_templates);
+  const fetchDataRef = useRef(fetchData);
+  fetchDataRef.current = fetchData;
+
+  // 1. Initial Load for Profile and Settings (Runs exactly ONCE on mount)
+  useEffect(() => {
+    async function initWorkspace() {
+      try {
+        const user = await getTicketWorkspaceUser();
+        if (user) {
+          const profile = await getTicketWorkspaceProfile(user.id);
+          setUserProfile(profile);
+          if (profile?.resolution_templates) {
+            setPersonalResTemplates(profile.resolution_templates);
+          }
+        }
+      } catch (error) {
+        console.error('Error loading profile on mount:', error);
+      }
+
+      try {
+        const companyData = await getTicketWorkspaceCompanySettings();
+        setAvailableModules(companyData?.modules?.length ? companyData.modules : DEFAULT_MODULES);
+        setAvailableIssueTypes(companyData?.issue_types?.length ? companyData.issue_types : []);
+        setSettingsLoaded(true);
+      } catch (error) {
+        console.error('Error loading company settings on mount:', error);
+        setAvailableModules(DEFAULT_MODULES);
+        setAvailableIssueTypes([]);
+        setSettingsLoaded(true);
       }
     }
 
-    fetchUserProfile();
-    fetchData();
-    loadSettings();
+    initWorkspace();
+  }, []);
 
+  // 2. Fetch Data when filters or page changes
+  useEffect(() => {
+    void fetchDataRef.current();
+  }, [timeRange, customStart, customEnd, ticketPage, filterCustomerId]);
+
+  // 3. Supabase Realtime Channel Subscription (Set up exactly ONCE on mount)
+  useEffect(() => {
     let realtimeTimer: ReturnType<typeof setTimeout> | null = null;
 
     const scheduleDataRefresh = () => {
       if (realtimeTimer) clearTimeout(realtimeTimer);
       realtimeTimer = setTimeout(() => {
-        void fetchData(true);
+        void fetchDataRef.current(true);
       }, 4000);
     };
 
@@ -375,14 +405,14 @@ export function useTicketWorkspace(filterCustomerId: string | null) {
         const ticketId = String(payload.new.id || '');
         if (!ticketId) return;
 
-        void syncTicketFromRealtime(ticketId, payload.new);
+        void syncRef.current(ticketId, payload.new);
         scheduleDataRefresh();
       })
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'tickets' }, (payload) => {
         const ticketId = String(payload.new.id || payload.old.id || '');
         if (!ticketId) return;
 
-        void syncTicketFromRealtime(ticketId, payload.new);
+        void syncRef.current(ticketId, payload.new);
         scheduleDataRefresh();
       })
       .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'tickets' }, (payload) => {
@@ -408,7 +438,7 @@ export function useTicketWorkspace(filterCustomerId: string | null) {
       if (realtimeTimer) clearTimeout(realtimeTimer);
       supabase.removeChannel(channel);
     };
-  }, [fetchData, loadSettings, syncTicketFromRealtime]);
+  }, []);
 
   useEffect(() => {
     if (userProfile?.user_id) {
