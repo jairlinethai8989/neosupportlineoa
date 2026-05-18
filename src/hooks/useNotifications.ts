@@ -44,6 +44,11 @@ export interface LatestTicketRealtimeEvent {
 }
 
 export function useNotifications(agentId: string | null, role: string | null = null, locale: StaffLocale = 'th') {
+  // User-specific localStorage keys to isolate notification clear/read state between users
+  const userStorageKey = useMemo(() => agentId ? `neo_notif_read_ids_v1_${agentId}` : 'neo_notif_read_ids_v1', [agentId]);
+  const userClearBeforeKey = useMemo(() => agentId ? `neo_notif_clear_before_ms_v1_${agentId}` : 'neo_notif_clear_before_ms_v1', [agentId]);
+  const userWarnedSlaKey = useMemo(() => agentId ? `neo_sla_warned_ids_v1_${agentId}` : 'neo_sla_warned_ids_v1', [agentId]);
+
   // --- States ---
   const [logNotifs, setLogNotifs] = useState<AppNotification[]>([]);
   const [slaNotifs, setSlaNotifs] = useState<AppNotification[]>([]);
@@ -298,30 +303,30 @@ export function useNotifications(agentId: string | null, role: string | null = n
 
   const getReadIds = useCallback((): string[] => {
     if (typeof window === 'undefined') return [];
-    try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); } catch { return []; }
-  }, []);
+    try { return JSON.parse(localStorage.getItem(userStorageKey) || '[]'); } catch { return []; }
+  }, [userStorageKey]);
 
   const getClearBeforeMs = useCallback((): number => {
     if (typeof window === 'undefined') return 0;
-    const raw = localStorage.getItem(CLEAR_BEFORE_KEY);
+    const raw = localStorage.getItem(userClearBeforeKey);
     if (!raw) return 0;
     const parsed = Number.parseInt(raw, 10);
     return Number.isFinite(parsed) ? parsed : 0;
-  }, []);
+  }, [userClearBeforeKey]);
 
   const getWarnedIds = useCallback((): string[] => {
     if (typeof window === 'undefined') return [];
-    try { return JSON.parse(localStorage.getItem(WARNED_SLA_KEY) || '[]'); } catch { return []; }
-  }, []);
+    try { return JSON.parse(localStorage.getItem(userWarnedSlaKey) || '[]'); } catch { return []; }
+  }, [userWarnedSlaKey]);
 
   const saveWarnedId = useCallback((id: string) => {
     if (typeof window === 'undefined') return;
-    const ids = JSON.parse(localStorage.getItem(WARNED_SLA_KEY) || '[]') as string[];
+    const ids = JSON.parse(localStorage.getItem(userWarnedSlaKey) || '[]') as string[];
     if (!ids.includes(id)) {
       const next = [...ids, id].slice(-100);
-      localStorage.setItem(WARNED_SLA_KEY, JSON.stringify(next));
+      localStorage.setItem(userWarnedSlaKey, JSON.stringify(next));
     }
-  }, []);
+  }, [userWarnedSlaKey]);
 
   const addToast = useCallback((toast: ToastNotif) => {
     if (toast.type === 'message' && !prefNewMessage) return;
@@ -342,12 +347,12 @@ export function useNotifications(agentId: string | null, role: string | null = n
     setSlaNotifs(prev => update(prev));
 
     if (typeof window !== 'undefined') {
-      const readIds = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]') as string[];
+      const readIds = JSON.parse(localStorage.getItem(userStorageKey) || '[]') as string[];
       if (!readIds.includes(id)) {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify([...readIds, id]));
+        localStorage.setItem(userStorageKey, JSON.stringify([...readIds, id]));
       }
     }
-  }, []);
+  }, [userStorageKey]);
 
   const markAllRead = useCallback(() => {
     const update = (list: AppNotification[]) => list.map(n => ({ ...n, isRead: true }));
@@ -356,9 +361,9 @@ export function useNotifications(agentId: string | null, role: string | null = n
 
     if (typeof window !== 'undefined') {
       const allIds = [...logNotifs, ...slaNotifs].map(n => n.id);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(allIds));
+      localStorage.setItem(userStorageKey, JSON.stringify(allIds));
     }
-  }, [logNotifs, slaNotifs]);
+  }, [logNotifs, slaNotifs, userStorageKey]);
 
   const clearNotifications = useCallback(() => {
     const currentIds = [...logNotifs, ...slaNotifs].map(n => n.id);
@@ -368,10 +373,10 @@ export function useNotifications(agentId: string | null, role: string | null = n
     if (typeof window !== 'undefined') {
       const existingReadIds = getReadIds();
       const mergedReadIds = Array.from(new Set([...existingReadIds, ...currentIds]));
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(mergedReadIds.slice(-1000)));
-      localStorage.setItem(CLEAR_BEFORE_KEY, String(Date.now()));
+      localStorage.setItem(userStorageKey, JSON.stringify(mergedReadIds.slice(-1000)));
+      localStorage.setItem(userClearBeforeKey, String(Date.now()));
     }
-  }, [getReadIds, logNotifs, slaNotifs]);
+  }, [getReadIds, logNotifs, slaNotifs, userStorageKey, userClearBeforeKey]);
 
   // Effect to sync unread counts whenever notifications change
   useEffect(() => {

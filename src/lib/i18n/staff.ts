@@ -162,6 +162,8 @@ const messages: Record<StaffLocale, MessageDictionary> = {
       quickTip: 'Quick Tip',
       tipBody: 'คลิกการแจ้งเตือนเพื่อไปยังใบงานหรือห้องแชทโดยตรง ระบบจะทำเครื่องหมายว่าอ่านแล้วทันที',
       goToList: 'ตั้งค่าโปรไฟล์',
+      clearAll: 'ล้างแจ้งเตือนทั้งหมด',
+      clearConfirm: 'คุณแน่ใจหรือไม่ว่าต้องการล้างการแจ้งเตือนทั้งหมด?',
       types: {
         sla: 'วิกฤต (SLA)',
         sla_warning: 'ใกล้เกิน SLA',
@@ -753,6 +755,8 @@ const messages: Record<StaffLocale, MessageDictionary> = {
       quickTip: 'Quick Tip',
       tipBody: 'Click notifications to go to the ticket or chat room directly. System will mark as read immediately.',
       goToList: 'Profile Settings',
+      clearAll: 'Clear All',
+      clearConfirm: 'Are you sure you want to clear all notifications?',
       types: {
         sla: 'SLA Breach',
         sla_warning: 'SLA Warning',

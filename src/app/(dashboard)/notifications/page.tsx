@@ -162,7 +162,7 @@ export default function NotificationsPage() {
 
   const handleClearNotifications = () => {
     if (typeof window === 'undefined') return;
-    const shouldClear = window.confirm('Clear all notifications from this list?');
+    const shouldClear = window.confirm(t('notificationsHub.clearConfirm') || 'Clear all notifications from this list?');
     if (!shouldClear) return;
     clearNotifications();
   };
