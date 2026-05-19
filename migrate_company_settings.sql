@@ -26,23 +26,23 @@ CREATE TABLE IF NOT EXISTS public.ticket_subject_types (
 -- 2. Migrate existing data from JSONB arrays
 -- Handle modules
 INSERT INTO public.ticket_modules (name)
-SELECT DISTINCT jsonb_array_elements_text(modules) 
+SELECT DISTINCT unnest(modules) 
 FROM public.company_settings 
-WHERE modules IS NOT NULL AND jsonb_array_length(modules) > 0
+WHERE modules IS NOT NULL AND array_length(modules, 1) > 0
 ON CONFLICT (name) DO NOTHING;
 
 -- Handle issue_types
 INSERT INTO public.ticket_issue_types (name)
-SELECT DISTINCT jsonb_array_elements_text(issue_types) 
+SELECT DISTINCT unnest(issue_types) 
 FROM public.company_settings 
-WHERE issue_types IS NOT NULL AND jsonb_array_length(issue_types) > 0
+WHERE issue_types IS NOT NULL AND array_length(issue_types, 1) > 0
 ON CONFLICT (name) DO NOTHING;
 
 -- Handle subject_types
 INSERT INTO public.ticket_subject_types (name)
-SELECT DISTINCT jsonb_array_elements_text(subject_types) 
+SELECT DISTINCT unnest(subject_types) 
 FROM public.company_settings 
-WHERE subject_types IS NOT NULL AND jsonb_array_length(subject_types) > 0
+WHERE subject_types IS NOT NULL AND array_length(subject_types, 1) > 0
 ON CONFLICT (name) DO NOTHING;
 
 -- 3. Set up RLS Policies for the new tables
