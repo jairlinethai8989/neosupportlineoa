@@ -53,9 +53,21 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const fetchSettings = useCallback(async () => {
-    const { data, error } = await supabase.from('company_settings').select('*').limit(1).maybeSingle();
-    if (error) throw error;
-    setCompanySettings(data);
+    const [settingsRes, modulesRes, issuesRes, subjectsRes] = await Promise.all([
+      supabase.from('company_settings').select('*').limit(1).maybeSingle(),
+      supabase.from('ticket_modules').select('name').eq('is_active', true),
+      supabase.from('ticket_issue_types').select('name').eq('is_active', true),
+      supabase.from('ticket_subject_types').select('name').eq('is_active', true)
+    ]);
+    
+    if (settingsRes.error) throw settingsRes.error;
+    
+    const data = settingsRes.data || {};
+    data.modules = modulesRes.data?.map(d => d.name) || [];
+    data.issue_types = issuesRes.data?.map(d => d.name) || [];
+    data.subject_types = subjectsRes.data?.map(d => d.name) || [];
+    
+    setCompanySettings(data as CompanySettings);
   }, []);
 
   const fetchHospitals = useCallback(async () => {
