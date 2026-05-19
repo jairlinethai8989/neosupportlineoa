@@ -135,8 +135,8 @@ export default function AdvancedAnalyticsPage() {
           .order('created_at', { ascending: false }),
         supabase
           .from('csat_surveys')
-          .select('rating, score, created_at')
-          .or('rating.not.is.null,score.not.is.null')
+          .select('score, created_at')
+          .not('score', 'is', null)
           .gte('created_at', dateRange.start)
           .lte('created_at', dateRange.end)
       ]);
@@ -194,8 +194,8 @@ export default function AdvancedAnalyticsPage() {
     // 5. CSAT
     const csatRaw = (window as any)._csat_data || [];
     const csatData = csatRaw.reduce((acc: any, c: any) => {
-      // Standardization: use 'score' as canonical, fallback to 'rating' for legacy data
-      const score = c.score || c.rating || 0;
+      // Canonical standardization: exclusively read 'score' field
+      const score = c.score || 0;
       if (score === 0) return acc;
       acc[score] = (acc[score] || 0) + 1;
       return acc;

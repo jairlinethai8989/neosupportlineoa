@@ -49,7 +49,6 @@ export default function SurveyPage() {
       const { error } = await supabase.from('csat_surveys').upsert({
         ticket_id: id,
         score: score,
-        rating: score, // Keep rating for backward compatibility in DB
         comment: comment,
         responded_at: new Date().toISOString()
       }, { onConflict: 'ticket_id' });
