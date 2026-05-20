@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 declare module 'next/dynamic' {
   import type { ComponentType } from 'react';
 

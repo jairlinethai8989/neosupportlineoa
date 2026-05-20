@@ -16,7 +16,6 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { User, Clock, ChevronRight } from 'lucide-react';
 import { deleteMessageAction, closeConversationAction } from '@/app/actions/messageActions';
-import { sendPortalMessageAction } from '@/app/actions/portalActions';
 import { compressImage } from '@/lib/utils/imageCompression';
 import { useNotificationContext } from '@/contexts/NotificationContext';
 import {
@@ -1143,6 +1142,7 @@ export default function StaffTicketDetailPage() {
                <div style={{ width: '280px', textAlign: 'center' }}>
                   <div style={{ height: '80px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '8px' }}>
                     {resolverProfile?.signature_url ? (
+                      // eslint-disable-next-line @next/next/no-img-element
                       <img 
                         src={resolverProfile.signature_url} 
                         style={{ maxHeight: '70px', maxWidth: '200px' }} 

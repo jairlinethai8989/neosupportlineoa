@@ -190,7 +190,6 @@ export function useTicketWorkspace(filterCustomerId: string | null) {
   const [timeRange, setTimeRange] = useState<TicketWorkspaceTimeRange>('today');
   const [customStart, setCustomStart] = useState('');
   const [customEnd, setCustomEnd] = useState('');
-  const [settingsLoaded, setSettingsLoaded] = useState(false);
   const [sortConfig, setSortConfig] = useState<TicketWorkspaceSortConfig>({
     key: 'created_at',
     direction: 'desc',
@@ -323,20 +322,6 @@ export function useTicketWorkspace(filterCustomerId: string | null) {
     [customEnd, customStart, ticketPage, timeRange]
   );
 
-  const loadSettings = useCallback(async () => {
-    if (settingsLoaded) return;
-    try {
-      const companyData = await getTicketWorkspaceCompanySettings();
-      setAvailableModules(companyData?.modules?.length ? companyData.modules : DEFAULT_MODULES);
-      setAvailableIssueTypes(companyData?.issue_types?.length ? companyData.issue_types : []);
-      setSettingsLoaded(true);
-    } catch (error) {
-      console.error('Load ticket workspace settings error:', error);
-      setAvailableModules(DEFAULT_MODULES);
-      setAvailableIssueTypes([]);
-      setSettingsLoaded(true);
-    }
-  }, [settingsLoaded]);
 
   useEffect(() => {
     setTicketPage(1);

@@ -22,6 +22,7 @@ test.describe('E2E: LIFF to Ticket Workflow', () => {
     // Inject Mock LIFF before navigation
     await context.addInitScript((uid) => {
       // Mock the liff object before useLiff hook runs
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (window as any).liffMockProfile = {
         userId: uid,
         displayName: 'E2E Test Customer',
@@ -59,7 +60,7 @@ test.describe('E2E: LIFF to Ticket Workflow', () => {
       await expect(page).toHaveURL(/\/portal\/tickets\/.*/, { timeout: 10000 });
       console.log('Ticket created successfully!');
       
-    } catch (e) {
+    } catch {
       console.log('Portal step failed (Expected if customer data missing). Proceeding to seed...');
       // If invisible, we'll continue anyway for the dashboard part 
       // (assuming some tickets exist or we create one via API)

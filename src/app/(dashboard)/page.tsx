@@ -37,6 +37,7 @@ type DashboardStats = {
   resolved: number;
   totalAll: number;
   trendPct: number | null;
+  avgCsat: number;
 };
 type TrendRow = { dateKey: string; created: number; resolved: number };
 type ValueRow = { name: string; value: number };
@@ -52,6 +53,7 @@ const EMPTY_STATS: DashboardStats = {
   resolved: 0,
   totalAll: 0,
   trendPct: null,
+  avgCsat: 0,
 };
 
 let exportUtilsPromise: Promise<ExportUtilsModule> | null = null;
@@ -649,6 +651,7 @@ export default function Home() {
           agentData={agentData}
           recentLogs={recentLogs}
           totalAll={stats.totalAll}
+          avgCsat={stats.avgCsat}
           labels={{
             ticketTrend: t('dashboard.ticketTrend'),
             newTickets: t('dashboard.newTickets'),

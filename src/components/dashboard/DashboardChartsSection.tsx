@@ -1,5 +1,6 @@
 'use client';
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import React from 'react';
 import {
   ResponsiveContainer,
@@ -84,6 +85,7 @@ type DashboardChartsSectionProps = {
   agentData: AgentDatum[];
   recentLogs: RecentLog[];
   totalAll: number;
+  avgCsat: number;
   labels: {
     ticketTrend: string;
     newTickets: string;
@@ -105,6 +107,7 @@ export function DashboardChartsSection({
   agentData,
   recentLogs,
   totalAll,
+  avgCsat,
   labels,
 }: DashboardChartsSectionProps) {
   return (
@@ -170,9 +173,27 @@ export function DashboardChartsSection({
         </div>
 
         <div className="glass" style={{ padding: '24px', display: 'flex', flexDirection: 'column' }}>
-          <div style={{ marginBottom: '16px' }}>
-            <h2 style={{ fontSize: '16px', fontWeight: '800', marginBottom: '2px' }}>{labels.statusDistribution}</h2>
-            <p style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>STATUS DISTRIBUTION</p>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
+            <div>
+              <h2 style={{ fontSize: '16px', fontWeight: '800', marginBottom: '2px' }}>{labels.statusDistribution}</h2>
+              <p style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>STATUS DISTRIBUTION</p>
+            </div>
+            {avgCsat > 0 && (
+              <div style={{
+                background: 'rgba(255, 159, 67, 0.15)',
+                border: '1px solid rgba(255, 159, 67, 0.3)',
+                color: '#ff9f43',
+                padding: '4px 10px',
+                borderRadius: '8px',
+                fontSize: '11px',
+                fontWeight: '800',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px'
+              }}>
+                <span>⭐ CSAT {avgCsat.toFixed(1)}</span>
+              </div>
+            )}
           </div>
           <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
             {statusData.length > 0 ? (
@@ -187,9 +208,23 @@ export function DashboardChartsSection({
                     <Tooltip content={<PieTooltip />} />
                   </PieChart>
                 </ResponsiveContainer>
-                <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -60%)', textAlign: 'center' }}>
-                  <p style={{ fontSize: '28px', fontWeight: '900' }}>{totalAll}</p>
-                  <p style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: '700' }}>{labels.allTab}</p>
+                <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', textAlign: 'center' }}>
+                  <p style={{ fontSize: '28px', fontWeight: '900', lineHeight: 1 }}>{totalAll}</p>
+                  <p style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: '700', marginTop: '2px', textTransform: 'uppercase' }}>{labels.allTab}</p>
+                  {avgCsat > 0 && (
+                    <div style={{
+                      marginTop: '6px',
+                      fontSize: '11px',
+                      fontWeight: '800',
+                      color: '#ff9f43',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '2px'
+                    }}>
+                      <span>⭐ {avgCsat.toFixed(1)}</span>
+                    </div>
+                  )}
                 </div>
               </>
             ) : (

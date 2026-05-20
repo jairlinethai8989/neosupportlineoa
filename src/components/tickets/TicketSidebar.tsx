@@ -1,6 +1,6 @@
 'use client';
 import React, { useState } from 'react';
-import { User, Clock, Link as LinkIcon, Copy, CheckCircle2, Info } from 'lucide-react';
+import { User, Link as LinkIcon, Copy, CheckCircle2, Info } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 import type {
@@ -19,7 +19,7 @@ interface TicketSidebarProps {
   setPriority: (p: string) => void;
   selectedDept: string;
   setSelectedDept: (d: string) => void;
-  availableDepts: any[];
+  availableDepts: { value: string; label: string }[];
   selectedModule: string;
   setSelectedModule: (m: string) => void;
   availableModules: string[];

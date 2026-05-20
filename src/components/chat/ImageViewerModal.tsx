@@ -82,6 +82,7 @@ export default function ImageViewerModal({ isOpen, onClose, imageSrc, onEdit }: 
       </div>
 
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', padding: '20px' }}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
         <img 
           src={imageSrc} 
           style={{ 

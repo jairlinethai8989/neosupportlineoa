@@ -178,6 +178,7 @@ export function SignaturePad({ initialValue, onSave, onUpload }: SignaturePadPro
         <div style={{ marginTop: '12px' }}>
           <p style={{ fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '8px' }}>ลายเซ็นปัจจุบัน:</p>
           <div style={{ padding: '12px', background: '#fff', borderRadius: '8px', display: 'inline-block' }}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={initialValue} style={{ maxHeight: '60px', width: 'auto' }} alt="Current Signature" />
           </div>
         </div>

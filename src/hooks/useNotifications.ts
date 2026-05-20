@@ -13,10 +13,7 @@ import type {
 
 export type { NotifType, AppNotification, ToastNotif };
 
-const STORAGE_KEY = 'neo_notif_read_ids_v1';
-const CLEAR_BEFORE_KEY = 'neo_notif_clear_before_ms_v1';
 // Track which SLA warnings we've already toasted to avoid repeated firing
-const WARNED_SLA_KEY = 'neo_sla_warned_ids_v1';
 const SOUND_MODE_KEY = 'neo_notif_sound_mode_v1';
 const SOUND_VOICE_KEY = 'neo_notif_voice_v1';
 const MAX_TOASTS = 4;
@@ -296,10 +293,6 @@ export function useNotifications(agentId: string | null, role: string | null = n
   }, [playBeep, playVoiceClip, soundMode, soundVoice, locale]);
 
   // --- 4. Notification Helpers ---
-  const recalcUnread = useCallback((notifs: AppNotification[]) => {
-    setUnreadCount(notifs.filter((n) => !n.isRead).length);
-    setSlaAlertCount(notifs.filter((n) => (n.type === 'sla' || n.type === 'sla_warning') && !n.isRead).length);
-  }, []);
 
   const getReadIds = useCallback((): string[] => {
     if (typeof window === 'undefined') return [];
@@ -436,7 +429,7 @@ export function useNotifications(agentId: string | null, role: string | null = n
     const twoHoursFromNow = new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString();
     
     // Everyone sees all SLA breaches by default (as requested)
-    let query = supabase
+    const query = supabase
       .from('tickets')
       .select('id, ticket_no, subject, sla_due_at, status, priority')
       .lt('sla_due_at', twoHoursFromNow)

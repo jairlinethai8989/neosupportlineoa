@@ -4,14 +4,10 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useLiff } from '@/hooks/useLiff';
 import { supabase } from '@/lib/supabase';
 import { 
-  Loader2, 
   MessageSquare, 
   CheckCircle, 
   Clock, 
-  User, 
-  ExternalLink,
   ShieldAlert,
-  Inbox,
   Settings,
   ArrowRight,
   RefreshCw,
@@ -36,7 +32,6 @@ export default function PortalPage() {
   const [fetching, setFetching] = useState(true);
   const [needsRegistration, setNeedsRegistration] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [showAllHistory, setShowAllHistory] = useState(false);
   const [historyPage, setHistoryPage] = useState(1);
   const [totalHistory, setTotalHistory] = useState(0);
   const [showSurvey, setShowSurvey] = useState(false);

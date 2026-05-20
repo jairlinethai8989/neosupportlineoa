@@ -52,9 +52,7 @@ export const TicketChat: React.FC<TicketChatProps> = ({
   quickReplies,
   isReadOnly = false,
 }) => {
-  if (!ticket) return null;
-
-  const status = ticket.status || '';
+  const status = ticket?.status || '';
   const visibleMessages = useMemo(
     () => messages.filter((message) => message.message_type !== 'unsent'),
     [messages]
@@ -63,6 +61,8 @@ export const TicketChat: React.FC<TicketChatProps> = ({
     () => quickReplies.filter(Boolean).slice(0, 12),
     [quickReplies]
   );
+
+  if (!ticket) return null;
   const isResolvedOrClosed = isResolvedOrClosedStatus(status);
   const isNew = isNewStatus(status);
   const isAssignedToOther = isAssignedToOtherAgent(ticket, user);

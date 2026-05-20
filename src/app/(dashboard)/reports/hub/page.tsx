@@ -217,10 +217,12 @@ export default function ReportsPage() {
 
   useEffect(() => {
     void fetchPreview();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [targetDate]);
 
   useEffect(() => {
     void fetchBroadcastSettings();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const groupedData = useMemo(() => {

@@ -1,5 +1,4 @@
 'use client';
-/* eslint-disable @next/next/no-img-element */
 import React, { useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import MainSidebar from '@/components/layout/MainSidebar';
@@ -10,7 +9,7 @@ import { NotificationProvider } from '@/contexts/NotificationContext';
 import { StaffLocaleProvider } from '@/contexts/StaffLocaleContext';
 
 function DashboardInner({ children }: { children: React.ReactNode }) {
-  const { userProfile: agent, loading: appLoading } = useAppContext();
+  const { loading: appLoading } = useAppContext();
 
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);

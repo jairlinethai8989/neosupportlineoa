@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextResponse } from 'next/server';
 import { createSupabaseServerClient } from '@/lib/supabase-server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
@@ -8,25 +9,6 @@ import {
 } from '@/lib/cache/liveCache';
 import { CACHE_POLICY } from '@/lib/cache/policy';
 
-type DashboardTicketRow = {
-  status: string | null;
-  priority: string | null;
-  created_at: string;
-  updated_at: string | null;
-  assigned_agent_id: string | null;
-  hospitals?: { name: string | null } | { name: string | null }[] | null;
-  profiles?: { full_name: string | null } | { full_name: string | null }[] | null;
-};
-
-type DashboardLogRow = {
-  id: string;
-  ticket_id: string;
-  action_type: string | null;
-  note: string | null;
-  created_at: string;
-  tickets: { ticket_no: string | null } | { ticket_no: string | null }[] | null;
-};
-
 function parseIsoDate(value: string | null): Date | null {
   if (!value) return null;
   const date = new Date(value);
@@ -36,10 +18,6 @@ function parseIsoDate(value: string | null): Date | null {
 function toObject<T>(value: T | T[] | null | undefined): T | null {
   if (!value) return null;
   return Array.isArray(value) ? value[0] || null : value;
-}
-
-function getDateKeyFromIso(iso: string): string {
-  return iso.slice(0, 10);
 }
 
 export async function GET(req: Request) {
@@ -90,7 +68,7 @@ export async function GET(req: Request) {
       // If the RPC returns a string (PostgREST behavior), parse it first
       const parsed = typeof rpcData === 'string' ? JSON.parse(rpcData) : rpcData;
       const rawPayload = parsed || {
-        stats: { totalToday: 0, yesterdayCount: 0, newTickets: 0, inProgress: 0, pending: 0, escalated: 0, resolved: 0, totalAll: 0 },
+        stats: { totalToday: 0, yesterdayCount: 0, newTickets: 0, inProgress: 0, pending: 0, escalated: 0, resolved: 0, totalAll: 0, avgCsat: 0.0 },
         statusData: [], priorityData: [], hospitalData: [], agentData: [], createdCountsByDay: {}, resolvedCountsByDay: {}
       };
 
@@ -150,6 +128,7 @@ export async function GET(req: Request) {
           resolved: stats.resolved,
           totalAll: stats.totalAll,
           trendPct,
+          avgCsat: stats.avgCsat || 0.0,
         },
         trendByDay,
         statusData,

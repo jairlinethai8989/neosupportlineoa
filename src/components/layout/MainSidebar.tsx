@@ -232,7 +232,7 @@ function MainSidebarComponent({ onClickLink, isCollapsed = false }: SidebarProps
         ] satisfies SidebarItem[],
       },
     ],
-    [inboxCount, newTicketsCount, t, unreadCount, slaAlertCount]
+    [inboxCount, newTicketsCount, t, unreadCount]
   );
 
   const filteredMenuSections = useMemo(

@@ -1,10 +1,10 @@
 'use client';
-
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @next/next/no-img-element */
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { 
-  Ticket, 
   Search, 
   Loader2, 
   AlertCircle, 
@@ -12,7 +12,6 @@ import {
   Building,
   ArrowLeft,
   Paperclip,
-  Image as ImageIcon,
   X,
   File,
   ChevronDown
@@ -37,7 +36,6 @@ export default function CreateInternalTicketPage() {
   
   // UI State
   const [hospitals, setHospitals] = useState<any[]>([]);
-  const [loadingHospitals, setLoadingHospitals] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -60,12 +58,11 @@ export default function CreateInternalTicketPage() {
       
       setHospitals(hData || []);
       setSubjectTypes(settings?.subject_types || ['ลบ', 'แก้ไขออเดอร์', 'แจ้ง error', 'เรื่องอื่นๆ']);
-      setLoadingHospitals(false);
     }
     init();
   }, []);
 
-  const { locale, t } = useStaffLocale();
+  const { locale } = useStaffLocale();
 
   const PRIORITY_COLORS: Record<string, string> = {
     Low: '#00cfe8',

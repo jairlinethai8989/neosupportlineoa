@@ -1,7 +1,7 @@
 'use client';
 import React, { Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { ResolveTicketModal } from '@/components/inbox/ResolveTicketModal';
 import { TicketsBoard } from '@/components/tickets/TicketsBoard';
 import { TicketsTable } from '@/components/tickets/TicketsTable';
@@ -31,31 +31,8 @@ const pageContainerStyle: React.CSSProperties = {
   position: 'relative',
 };
 
-const paginationWrapStyle: React.CSSProperties = {
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'space-between',
-  gap: '12px',
-  padding: '8px 24px 20px',
-};
-
-const paginationButtonStyle: React.CSSProperties = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  gap: '6px',
-  height: '34px',
-  padding: '0 12px',
-  borderRadius: '10px',
-  border: '1px solid var(--border)',
-  background: 'var(--bg-card)',
-  color: 'var(--text-main)',
-  fontSize: '12px',
-  fontWeight: 700,
-  cursor: 'pointer',
-};
-
 function TicketsContent() {
-  const { locale, t } = useStaffLocale();
+  const { t } = useStaffLocale();
   const searchParams = useSearchParams();
   const filterCustomerId = searchParams.get('customerId');
 
@@ -74,7 +51,6 @@ function TicketsContent() {
     handleSort,
     isViewOnly,
     loading,
-    openResolveModal,
     personalResTemplates,
     resSummary,
     resolvingTicket,
@@ -94,15 +70,7 @@ function TicketsContent() {
     timeRange,
     viewMode,
     isChatActive,
-    ticketPage,
-    hasNextTicketPage,
-    goToNextTicketPage,
-    goToPreviousTicketPage,
   } = useTicketWorkspace(filterCustomerId);
-
-  const previousLabel = locale === 'th' ? 'ก่อนหน้า' : 'Previous';
-  const nextLabel = locale === 'th' ? 'ถัดไป' : 'Next';
-  const pageLabel = locale === 'th' ? 'หน้า' : 'Page';
 
   if (loading) {
     return (

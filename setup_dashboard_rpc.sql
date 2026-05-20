@@ -1,7 +1,3 @@
--- Supabase RPC Function to get dashboard summary efficiently
--- Drop existing if exists
-DROP FUNCTION IF EXISTS get_dashboard_summary(TIMESTAMPTZ, TIMESTAMPTZ);
-
 CREATE OR REPLACE FUNCTION get_dashboard_summary(p_start_date TIMESTAMPTZ, p_end_date TIMESTAMPTZ)
 RETURNS JSON AS $$
 DECLARE
@@ -18,7 +14,13 @@ BEGIN
       'pending', COUNT(*) FILTER (WHERE status = 'Pending'),
       'escalated', COUNT(*) FILTER (WHERE status = 'Escalated'),
       'resolved', COUNT(*) FILTER (WHERE status IN ('Resolved', 'Closed')),
-      'totalAll', COUNT(*)
+      'totalAll', COUNT(*),
+      'avgCsat', COALESCE((
+        SELECT ROUND(AVG(score)::numeric, 2)
+        FROM csat_surveys c
+        JOIN tickets t ON c.ticket_id = t.id
+        WHERE t.created_at >= p_start_date AND t.created_at <= p_end_date AND c.score IS NOT NULL
+      ), 0.0)
     ),
     'statusData', COALESCE((
       SELECT json_agg(json_build_object('name', status_name, 'value', cnt))

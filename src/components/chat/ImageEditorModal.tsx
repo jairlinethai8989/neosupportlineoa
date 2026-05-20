@@ -1,5 +1,4 @@
 'use client';
-/* eslint-disable @next/next/no-img-element */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useRef, useState, useEffect } from 'react';
 import { 
@@ -8,7 +7,6 @@ import {
   Circle as CircleIcon, 
   Type, 
   Pencil, 
-  RotateCcw, 
   Check,
   ZoomIn,
   ZoomOut,
@@ -38,17 +36,10 @@ export default function ImageEditorModal({ isOpen, onClose, imageSrc, onSave, sa
   const [isDrawing, setIsDrawing] = useState(false);
   const [startPos, setStartPos] = useState({ x: 0, y: 0 });
   const [history, setHistory] = useState<string[]>([]);
-  const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 });
   const [zoom, setZoom] = useState(1);
   const [snapshot, setSnapshot] = useState<ImageData | null>(null);
 
-  useEffect(() => {
-    if (isOpen && imageSrc) {
-      loadImage();
-    }
-  }, [isOpen, imageSrc]);
-
-  const loadImage = () => {
+  const loadImage = React.useCallback(() => {
     const img = new Image();
     img.crossOrigin = "anonymous";
     img.src = imageSrc;
@@ -59,7 +50,6 @@ export default function ImageEditorModal({ isOpen, onClose, imageSrc, onSave, sa
       if (!ctx) return;
 
       const { width, height } = img;
-      setCanvasSize({ width, height });
       canvas.width = width;
       canvas.height = height;
       ctx.drawImage(img, 0, 0, width, height);
@@ -68,7 +58,13 @@ export default function ImageEditorModal({ isOpen, onClose, imageSrc, onSave, sa
       setHistory([initialDataUrl]);
       setZoom(1); 
     };
-  };
+  }, [imageSrc]);
+
+  useEffect(() => {
+    if (isOpen && imageSrc) {
+      loadImage();
+    }
+  }, [isOpen, imageSrc, loadImage]);
 
   const saveToHistory = () => {
     const canvas = canvasRef.current;

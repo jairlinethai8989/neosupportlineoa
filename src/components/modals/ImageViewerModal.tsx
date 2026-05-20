@@ -113,9 +113,9 @@ export default function ImageViewerModal({ imageUrl, onClose, onEdit }: ImageVie
           overflow: 'hidden'
         }}
       >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
         <img 
-          src={imageUrl} 
-          alt="Full Preview"
+          src={imageUrl}           alt="Full Preview"
           style={{ 
             maxWidth: '90%', 
             maxHeight: '85%', 

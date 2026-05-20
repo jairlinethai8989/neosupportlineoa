@@ -4,13 +4,8 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import {
-  Building2,
   Loader2,
   ArrowRight,
-  Save,
-  User,
-  UserCheck,
-  Briefcase,
   ChevronDown,
   Info
 } from 'lucide-react';

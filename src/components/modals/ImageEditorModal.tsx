@@ -1,5 +1,6 @@
 'use client';
 import React, { useEffect, useRef, useState } from 'react';
+import { compressImage } from '@/lib/utils/imageCompression';
 import {
   X,
   Square,
@@ -222,7 +223,8 @@ export default function ImageEditorModal({
     try {
       const blob = await exportToBlob();
       if (!blob) throw new Error('ไม่สามารถสร้างไฟล์ภาพได้');
-      await onSave(blob);
+      const compressedBlob = await compressImage(blob, { format: 'image/webp', quality: 1.0 });
+      await onSave(compressedBlob);
     } catch (error) {
       console.error('Image save failed:', error);
       alert('บันทึกภาพไม่สำเร็จ กรุณาลองอีกครั้ง');

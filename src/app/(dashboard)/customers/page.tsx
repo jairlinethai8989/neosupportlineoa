@@ -122,7 +122,7 @@ export default function CustomersPage() {
   };
 
   const filteredCustomers = useMemo(() => {
-    let result = customers.filter(c => {
+    const result = customers.filter(c => {
       const name = String(c.display_name || '').toLowerCase();
       const fullName = String(c.full_name || '').toLowerCase();
       const lineName = String(c.line_username || '').toLowerCase();

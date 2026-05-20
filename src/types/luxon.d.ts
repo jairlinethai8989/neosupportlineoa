@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 declare module 'luxon' {
   export class DateTime {
     static fromISO(iso: string, options?: any): any;

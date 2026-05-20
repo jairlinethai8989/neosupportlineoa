@@ -454,6 +454,7 @@ export function TopBar({ isSidebarOpen, setIsSidebarOpen, isSidebarCollapsed, se
             className="glass-interactive"
           >
             {agent?.avatar_url ? (
+              // eslint-disable-next-line @next/next/no-img-element
               <img
                 src={agent.avatar_url}
                 alt="User avatar"

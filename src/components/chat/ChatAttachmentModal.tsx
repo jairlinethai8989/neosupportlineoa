@@ -1,6 +1,6 @@
 'use client';
-import React, { useState, useRef } from 'react';
-import { Camera, FileUp, X, Loader2 } from 'lucide-react';
+import React, { useRef } from 'react';
+import { Camera, FileUp, X } from 'lucide-react';
 
 interface ChatAttachmentModalProps {
   isOpen: boolean;

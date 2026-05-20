@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { CheckCircle, ChevronLeft, ChevronRight, ExternalLink, Headphones, Loader2, MessageCircle, User, UserCheck, Zap } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ExternalLink, Loader2, MessageCircle, User, UserCheck, Zap } from 'lucide-react';
 import Link from 'next/link';
 import { useStaffLocale } from '@/contexts/StaffLocaleContext';
 import { translateTicketPriority, translateTicketStatus } from '@/lib/i18n/staff';
@@ -95,11 +95,6 @@ const cardStyle: React.CSSProperties = {
   flexShrink: 0,
 };
 
-const cardTopRowStyle: React.CSSProperties = {
-  display: 'flex',
-  justifyContent: 'space-between',
-  alignItems: 'flex-start',
-};
 
 const ticketLinkStyle: React.CSSProperties = {
   fontSize: '11px',
@@ -212,18 +207,6 @@ function getClaimActionState(
   };
 
   return { isClaiming, isDisabled, label, style };
-}
-
-function getChatActionState(isDisabled: boolean, label: string, color: string = 'var(--primary)') {
-  const style: React.CSSProperties = {
-    ...actionButtonBaseStyle,
-    background: isDisabled ? 'var(--bg-input)' : color,
-    color: 'white',
-    cursor: isDisabled ? 'not-allowed' : 'pointer',
-    opacity: isDisabled ? 0.5 : 1,
-  };
-
-  return { style, label };
 }
 
 function PriorityIndicator({ priority, locale }: { priority: string; locale: 'th' | 'en' }) {
@@ -474,7 +457,6 @@ export function TicketsBoard({
                       claiming: t('tickets.claiming'),
                       claim: t('tickets.claimTicket'),
                     });
-                    const chatAction = getChatActionState(false, t('tickets.openInboxChat'), config.color);
 
                     return (
                       <motion.div
@@ -528,6 +510,7 @@ export function TicketsBoard({
                               </div>
                               <span style={customerTextStyle}>
                                 {(() => {
+                                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
                                   const customer = ticket.customers as any;
                                   return (
                                     <>

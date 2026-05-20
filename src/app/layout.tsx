@@ -1,4 +1,5 @@
 import "./globals.css";
+/* eslint-disable @next/next/no-page-custom-font */
 
 export const metadata = {
   title: "Neo Support | Customer Support Omnichannel",

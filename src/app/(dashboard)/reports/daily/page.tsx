@@ -94,7 +94,7 @@ export default function DailyReportPage() {
           const parsed = JSON.parse(saved);
           setColumnWidths(prev => ({ ...prev, ...parsed }));
         }
-      } catch (e) {}
+      } catch {}
     }
   }, [userProfile?.id]);
 
@@ -204,8 +204,6 @@ export default function DailyReportPage() {
     const mins = Math.floor(diff / (1000 * 60));
     const hours = Math.floor(mins / 60);
     const m = mins % 60;
-    const hoursLabel = t('dashboard.hoursAgo').replace('ที่ผ่านมา', '');
-    const minsLabel = t('dashboard.minutesAgo').replace('ที่ผ่านมา', '');
     if (hours > 0) return `${hours} ชม. ${m} น.`;
     return `${m} น.`;
   };

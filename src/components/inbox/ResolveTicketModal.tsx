@@ -129,7 +129,7 @@ export function ResolveTicketModal({
             }}
           >
             <span style={{ fontSize: '18px' }}>⚠️</span>
-            <span>ต้องกด "จบการสนทนา" ที่หน้าหลักก่อนถึงจะปิดใบงานได้</span>
+            <span>ต้องกด &ldquo;จบการสนทนา&rdquo; ที่หน้าหลักก่อนถึงจะปิดใบงานได้</span>
           </div>
         )}
 

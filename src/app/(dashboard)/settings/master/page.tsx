@@ -68,6 +68,14 @@ export default function MasterSettingsPage() {
     setGlobalSettings(ctxGlobalSettings);
   }, [ctxGlobalSettings]);
   
+  const getTableName = (tab: Tab): string => {
+    if (tab === 'departments' || tab === 'hospital_depts') return 'departments';
+    if (tab === 'modules') return 'ticket_modules';
+    if (tab === 'issue_types') return 'ticket_issue_types';
+    if (tab === 'subject_types') return 'ticket_subject_types';
+    return tab;
+  };
+
   const fetchData = React.useCallback(async () => {
     if (activeTab === 'hospitals') {
       setItems(ctxHospitals);
@@ -84,13 +92,159 @@ export default function MasterSettingsPage() {
 
     if (activeTab === 'google_sheets') {
       setItems([]);
-      setLoading(false);
       return;
     }
+
+    setLoading(true);
+    const table = getTableName(activeTab);
+    try {
+      const { data, error } = await supabase
+        .from(table)
+        .select('*')
+        .order('name');
+      if (error) throw error;
+      setItems(data || []);
+    } catch (e: any) {
+      console.error('Fetch error:', e);
+      addToast({
+        id: `fetch-error-${Date.now()}`,
+        type: 'ticket',
+        title: 'Error loading data',
+        body: e.message || 'Unknown error occurred'
+      });
+    } finally {
+      setLoading(false);
+    }
+  }, [activeTab, ctxHospitals, ctxDepartments, addToast]);
+
+  useEffect(() => {
+    fetchData();
+    setIsAdding(false);
+    setEditingId(null);
+    setNewItemName('');
+  }, [fetchData]);
+
+  const handleAdd = async () => {
+    if (!newItemName.trim()) return;
+    setSubmitting(true);
+    const table = getTableName(activeTab);
+
+    const payload: any = { 
+      name: newItemName, 
+      is_active: true 
+    };
+
+    if (activeTab === 'hospitals') {
+      payload.abbreviation = newItemAbbr.trim() || newItemName.slice(0, 10).toUpperCase();
+      payload.ticket_prefix = `SRS_${payload.abbreviation}_`;
+    }
+
+    if (activeTab === 'line_groups') {
+      payload.group_id = newItemAbbr.trim();
+      if (!payload.group_id) {
+        alert('กรุณาระบุ LINE Group ID');
+        setSubmitting(false);
+        return;
+      }
+    }
+
+    if (activeTab === 'hospital_depts') {
+      payload.dept_type = 'hospital';
+    } else if (activeTab === 'departments') {
+      payload.dept_type = 'organization';
+    }
+
+    const { error } = await supabase.from(table).insert([payload]);
+    
+    if (error) {
+      console.error('Add Error:', error);
+      alert(`${t('common.messages.saveFailed')}: ${error.message}`);
+    } else {
+      setNewItemName('');
+      setNewItemAbbr('');
+      setIsAdding(false);
+      
+      if (activeTab === 'hospitals') await refreshData('hospitals');
+      else if (activeTab === 'departments' || activeTab === 'hospital_depts') await refreshData('departments');
+      else fetchData();
+
+      const { data: { user } } = await supabase.auth.getUser();
+      await auditService.log({
+        performer_id: user?.id,
+        action_type: 'MASTER_CREATE',
+        entity_type: table.toUpperCase(),
+        new_data: payload,
+        note: `Created new ${table}: ${newItemName} (${activeTab})`
+      });
+
+      addToast({
+        id: `master-add-${table}-${newItemName}`,
+        type: 'ticket',
+        title: t('settingsMaster.addSuccessTitle'),
+        body: t('settingsMaster.addSuccessBody').replace('{name}', newItemName),
+      });
+    }
+    setSubmitting(false);
+  };
+
+  const handleUpdate = async (id: string) => {
+    if (!editItemName.trim()) return;
+    setSubmitting(true);
+    const table = getTableName(activeTab);
+
+    const updateData: any = { name: editItemName };
+    if (activeTab === 'hospitals') {
+      updateData.abbreviation = editItemAbbr.trim() || editItemName.slice(0, 10).toUpperCase();
+    }
+    if (activeTab === 'line_groups') {
+      updateData.group_id = editItemAbbr.trim();
+    }
+
+    const { error } = await supabase.from(table).update(updateData).eq('id', id);
+    
+    if (error) {
+      console.error('Update Error:', error);
+      alert(`${t('common.messages.saveFailed')}: ${error.message}`);
+    } else {
+      setEditingId(null);
+      
+      if (activeTab === 'hospitals') await refreshData('hospitals');
+      else if (activeTab === 'departments' || activeTab === 'hospital_depts') await refreshData('departments');
+      else fetchData();
+
+      const { data: { user } } = await supabase.auth.getUser();
+      await auditService.log({
+        performer_id: user?.id,
+        action_type: 'MASTER_UPDATE',
+        entity_type: table.toUpperCase(),
+        entity_id: id,
+        new_data: updateData,
+        note: `Updated ${table} to: ${editItemName} ${activeTab === 'hospitals' ? `(${editItemAbbr})` : ''}`
+      });
+
+      addToast({
+        id: `master-upd-${table}-${id}`,
+        type: 'ticket',
+        title: t('settingsMaster.updateSuccessTitle'),
+        body: t('settingsMaster.updateSuccessBody').replace('{name}', editItemName),
+      });
+    }
+    setSubmitting(false);
+  };
+
+  const toggleStatus = async (id: string, current: boolean) => {
+    const table = getTableName(activeTab);
+
+    const { error } = await supabase.from(table).update({ is_active: !current }).eq('id', id);
+    
     if (error) {
       console.error('Toggle status Error:', error);
       alert(`${t('common.messages.saveFailed')}: ${error.message}`);
     } else {
+      if (activeTab === 'hospitals') await refreshData('hospitals');
+      else if (activeTab === 'departments' || activeTab === 'hospital_depts') await refreshData('departments');
+      else fetchData();
+
       const { data: { user } } = await supabase.auth.getUser();
       await auditService.log({
         performer_id: user?.id,
@@ -107,7 +261,6 @@ export default function MasterSettingsPage() {
         title: t('settingsMaster.toggleSuccessTitle'),
         body: t('settingsMaster.toggleSuccessBody'),
       });
-      fetchData();
     }
   };
 
@@ -369,7 +522,7 @@ export default function MasterSettingsPage() {
 }
 
 function GoogleSheetsConfigForm({ globalSettings, onSaveSuccess }: { globalSettings: any; onSaveSuccess: () => void }) {
-  const { t } = useStaffLocale();
+  useStaffLocale();
   const { addToast } = useNotificationContext();
   const [sheetsUrl, setSheetsUrl] = useState(globalSettings?.google_sheets_url || '');
   const [saving, setSaving] = useState(false);
@@ -542,7 +695,7 @@ function doGet(e) {
             </li>
             <li>
               <strong>คัดลอกโค้ดไปวาง:</strong><br />
-              กดปุ่ม <span style={{ color: '#10b981', fontWeight: '700' }}>"คัดลอกโค้ดสคริปต์"</span> ทางด้านขวา แล้วลบโค้ดเดิมทั้งหมดในหน้าโปรแกรมแก้ไขออก จากนั้นวางโค้ดสคริปต์ลงไปและกด <strong>บันทึก (Save)</strong>
+              กดปุ่ม <span style={{ color: '#10b981', fontWeight: '700' }}>&ldquo;คัดลอกโค้ดสคริปต์&rdquo;</span> ทางด้านขวา แล้วลบโค้ดเดิมทั้งหมดในหน้าโปรแกรมแก้ไขออก จากนั้นวางโค้ดสคริปต์ลงไปและกด <strong>บันทึก (Save)</strong>
             </li>
             <li>
               <strong>เผยแพร่เป็นเว็บแอป:</strong><br />
@@ -554,7 +707,7 @@ function doGet(e) {
             </li>
             <li>
               <strong>คัดลอกลิงก์มาบันทึก:</strong><br />
-              คัดลอก <strong>URL เว็บแอป (Web app URL)</strong> ที่ได้จาก Google มาวางในช่องด้านบนนี้แล้วกด <span style={{ color: '#10b981', fontWeight: '700' }}>"บันทึกการตั้งค่า"</span>
+              คัดลอก <strong>URL เว็บแอป (Web app URL)</strong> ที่ได้จาก Google มาวางในช่องด้านบนนี้แล้วกด <span style={{ color: '#10b981', fontWeight: '700' }}>&ldquo;บันทึกการตั้งค่า&rdquo;</span>
             </li>
           </ol>
         </div>

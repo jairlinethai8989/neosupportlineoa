@@ -236,6 +236,14 @@ export default function TicketDetailPage() {
           if (!belongs) return;
           setMessages(prev => {
             if (prev.some(m => m.id === msg.id)) return prev;
+            if (msg.sender_type === 'customer') {
+              const tempIdx = prev.findIndex(m => m.id?.toString().startsWith('temp_') && m.content === msg.content);
+              if (tempIdx !== -1) {
+                const next = [...prev];
+                next[tempIdx] = msg;
+                return next;
+              }
+            }
             return [...prev, msg];
           });
         })
@@ -341,6 +349,7 @@ export default function TicketDetailPage() {
       window.clearInterval(poller);
       if (channelRef) supabase.removeChannel(channelRef);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isReady, loadSurveyState, ticketId]);
 
   useEffect(() => {
@@ -376,7 +385,9 @@ export default function TicketDetailPage() {
   const handleSendMessage = async () => {
     if (!newMessage.trim()) return;
     
+    const tempId = `temp_${Date.now()}`;
     const optimisticMsg = {
+       id: tempId,
        content: newMessage,
        sender_type: 'customer',
        created_at: new Date().toISOString(),
@@ -390,11 +401,14 @@ export default function TicketDetailPage() {
     try {
       if (!profile?.userId) throw new Error('LINE profile not loaded');
       
-      await sendPortalMessageAction(
+      const sentMsg = await sendPortalMessageAction(
          ticketId as string,
          profile.userId,
          messageToSend,
          'text'
+      );
+      setMessages((prev: any[]) =>
+        prev.map((m: any) => (m.id === tempId ? sentMsg : m))
       );
     } catch (err: any) {
       alert('Error sending message: ' + err.message);
