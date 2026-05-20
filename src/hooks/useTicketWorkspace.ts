@@ -356,12 +356,10 @@ export function useTicketWorkspace(filterCustomerId: string | null) {
         const companyData = await getTicketWorkspaceCompanySettings();
         setAvailableModules(companyData?.modules?.length ? companyData.modules : DEFAULT_MODULES);
         setAvailableIssueTypes(companyData?.issue_types?.length ? companyData.issue_types : []);
-        setSettingsLoaded(true);
       } catch (error) {
         console.error('Error loading company settings on mount:', error);
         setAvailableModules(DEFAULT_MODULES);
         setAvailableIssueTypes([]);
-        setSettingsLoaded(true);
       }
     }
 
