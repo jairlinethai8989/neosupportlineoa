@@ -150,14 +150,32 @@ export async function listTicketWorkspaceTickets(input: {
 }
 
 export async function getTicketWorkspaceCompanySettings(): Promise<TicketWorkspaceCompanySettings> {
-  const { data, error } = await supabase
-    .from('company_settings')
-    .select(ticketWorkspaceCompanySettingsSelect)
-    .limit(1)
-    .single();
+  try {
+    const [settingsRes, modulesRes, issuesRes] = await Promise.all([
+      supabase.from('company_settings').select('id, resolution_templates').limit(1).maybeSingle(),
+      supabase.from('ticket_modules').select('name').eq('is_active', true),
+      supabase.from('ticket_issue_types').select('name').eq('is_active', true),
+    ]);
 
-  if (error) throw error;
-  return normalizeTicketWorkspaceCompanySettings(data);
+    if (settingsRes.error) throw settingsRes.error;
+
+    const data = settingsRes.data || {};
+    const payload = {
+      ...data,
+      modules: modulesRes.data?.map((d) => d.name) || [],
+      issue_types: issuesRes.data?.map((d) => d.name) || [],
+    };
+
+    return normalizeTicketWorkspaceCompanySettings(payload);
+  } catch (error) {
+    console.error('Failed to fetch ticket workspace company settings:', error);
+    return {
+      id: null,
+      modules: [],
+      resolution_templates: [],
+      issue_types: [],
+    };
+  }
 }
 
 export async function getTicketWorkspaceProfile(

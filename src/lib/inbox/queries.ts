@@ -664,12 +664,24 @@ export async function getInboxProfile(userId: string): Promise<InboxAgent | null
 }
 
 export async function getInboxCompanySettings(): Promise<InboxCompanySettings> {
-  const { data, error } = await supabase
-    .from('company_settings')
-    .select(inboxCompanySettingsSelect)
-    .limit(1)
-    .single();
+  try {
+    const [settingsRes, modulesRes, issuesRes] = await Promise.all([
+      supabase.from('company_settings').select('id').limit(1).maybeSingle(),
+      supabase.from('ticket_modules').select('name').eq('is_active', true),
+      supabase.from('ticket_issue_types').select('name').eq('is_active', true),
+    ]);
 
-  if (error) throw error;
-  return normalizeInboxCompanySettings(data);
+    if (settingsRes.error) throw settingsRes.error;
+
+    return {
+      modules: modulesRes.data?.map((d) => d.name) || [],
+      issue_types: issuesRes.data?.map((d) => d.name) || [],
+    };
+  } catch (error) {
+    console.error('Failed to fetch inbox company settings:', error);
+    return {
+      modules: [],
+      issue_types: [],
+    };
+  }
 }
