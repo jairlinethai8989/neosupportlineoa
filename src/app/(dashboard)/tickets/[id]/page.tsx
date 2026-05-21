@@ -14,7 +14,7 @@ import { TicketChat } from '@/components/tickets/TicketChat';
 import { TicketSidebar, getTicketDuration } from '@/components/tickets/TicketSidebar';
 import Link from 'next/link';
 import Image from 'next/image';
-import { User, Clock, ChevronRight } from 'lucide-react';
+import { User, Clock, ChevronRight, ClipboardCheck, FileText, Paperclip, ExternalLink } from 'lucide-react';
 import { deleteMessageAction, closeConversationAction } from '@/app/actions/messageActions';
 import { compressImage } from '@/lib/utils/imageCompression';
 import { useNotificationContext } from '@/contexts/NotificationContext';
@@ -118,6 +118,64 @@ function normalizeRouteId(rawId: string | string[] | undefined): string | null {
   return Array.isArray(rawId) ? rawId[0] : rawId;
 }
 
+interface ExternalReport {
+  receiverName: string;
+  timestamp: string;
+  status: string;
+  details: string;
+  attachments: string[];
+}
+
+function parseLatestExternalReport(summary: string | null | undefined): ExternalReport | null {
+  if (!summary) return null;
+
+  const marker = '[External Report by ';
+  const index = summary.lastIndexOf(marker);
+  if (index === -1) return null;
+
+  const reportBlock = summary.substring(index);
+  const lines = reportBlock.split('\n');
+  if (lines.length === 0) return null;
+
+  const headerLine = lines[0];
+  const endBracketIndex = headerLine.indexOf(']');
+  if (endBracketIndex === -1) return null;
+
+  const receiverName = headerLine.substring(marker.length, endBracketIndex).trim();
+
+  let timestamp = '';
+  const dashIndex = headerLine.indexOf(' - ', endBracketIndex);
+  if (dashIndex !== -1) {
+    timestamp = headerLine.substring(dashIndex + 3).trim();
+  }
+
+  let status = 'In Progress';
+  const detailsLines: string[] = [];
+  let attachments: string[] = [];
+
+  for (let i = 1; i < lines.length; i++) {
+    const line = lines[i];
+    if (line.startsWith('Status:')) {
+      status = line.substring(7).trim();
+    } else if (line.startsWith('Attachments:')) {
+      const urlsText = line.substring(12).trim();
+      attachments = urlsText.split(',').map((u) => u.trim()).filter(Boolean);
+    } else if (line.startsWith('Details:')) {
+      detailsLines.push(line.substring(8).trim());
+    } else {
+      detailsLines.push(line);
+    }
+  }
+
+  return {
+    receiverName,
+    timestamp,
+    status,
+    details: detailsLines.join('\n').trim(),
+    attachments,
+  };
+}
+
 export default function StaffTicketDetailPage() {
   const params = useParams();
   const ticketId = normalizeRouteId(params.id);
@@ -160,6 +218,138 @@ export default function StaffTicketDetailPage() {
   const [viewingImage, setViewingImage] = useState<string | null>(null);
   const [showViewer, setShowViewer] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
+
+  const externalReport = parseLatestExternalReport(ticket?.resolution_summary);
+
+  const renderWorkReportCard = () => {
+    if (!externalReport) return null;
+
+    const isFixCompleted = status === 'Fix Completed';
+    const isResolved = status === 'Resolved';
+    
+    // Choose theme colors based on state
+    const borderColor = isFixCompleted ? '#10b981' : isResolved ? 'var(--primary)' : '#f59e0b';
+    const statusBg = isFixCompleted ? 'rgba(16, 185, 129, 0.1)' : isResolved ? 'var(--primary-transparent)' : 'rgba(245, 158, 11, 0.1)';
+    const statusColor = isFixCompleted ? '#10b981' : isResolved ? 'var(--primary)' : '#f59e0b';
+
+    return (
+      <div 
+        className="glass" 
+        style={{ 
+          padding: '24px', 
+          borderRadius: '16px', 
+          borderLeft: `4px solid ${borderColor}`,
+          background: 'rgba(255, 255, 255, 0.03)',
+          boxShadow: isFixCompleted ? '0 8px 32px rgba(16, 185, 129, 0.08)' : '0 8px 32px rgba(0, 0, 0, 0.2)',
+          transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+          position: 'relative',
+          overflow: 'hidden',
+          marginBottom: '24px'
+        }}
+      >
+        {/* Card Header */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', borderBottom: '1px solid var(--border)', paddingBottom: '12px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <ClipboardCheck size={20} color={borderColor} />
+            <h3 style={{ fontSize: '16px', fontWeight: '800', color: 'var(--text)', margin: 0 }}>
+              รายงานผลการดำเนินงาน
+            </h3>
+          </div>
+          <span 
+            style={{ 
+              padding: '4px 10px', 
+              borderRadius: '6px', 
+              fontSize: '11px', 
+              fontWeight: '800', 
+              background: statusBg,
+              color: statusColor,
+              letterSpacing: '0.5px'
+            }}
+          >
+            {externalReport.status.toUpperCase()}
+          </span>
+        </div>
+
+        {/* Card Body */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', background: 'rgba(255,255,255,0.02)', padding: '12px 16px', borderRadius: '12px', border: '1px solid var(--border)' }}>
+            <div>
+              <span style={{ display: 'block', fontSize: '9px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '2px' }}>ผู้บันทึกผลงาน</span>
+              <span style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text)' }}>
+                {externalReport.receiverName}
+              </span>
+            </div>
+            <div>
+              <span style={{ display: 'block', fontSize: '9px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '2px' }}>เวลาส่งรายงาน</span>
+              <span style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text-muted)' }}>
+                {externalReport.timestamp ? `${externalReport.timestamp} UTC` : '-'}
+              </span>
+            </div>
+          </div>
+
+          <div>
+            <span style={{ display: 'block', fontSize: '9px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '6px' }}>รายละเอียดการปฏิบัติงาน</span>
+            <div 
+              style={{ 
+                fontSize: '14px', 
+                lineHeight: '1.6', 
+                color: 'var(--text)', 
+                background: 'rgba(255,255,255,0.01)', 
+                padding: '16px', 
+                borderRadius: '12px', 
+                border: '1px solid var(--border)',
+                whiteSpace: 'pre-wrap'
+              }}
+            >
+              {externalReport.details || 'ไม่มีรายละเอียดการปฏิบัติงาน'}
+            </div>
+          </div>
+
+          {/* Attachments Section */}
+          {externalReport.attachments.length > 0 && (
+            <div>
+              <span style={{ display: 'block', fontSize: '9px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '8px' }}>เอกสารแนบปฏิบัติงาน ({externalReport.attachments.length})</span>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                {externalReport.attachments.map((url, idx) => {
+                  const fileName = url.substring(url.lastIndexOf('/') + 1) || `attachment-${idx + 1}`;
+                  const isImage = /\.(jpg|jpeg|png|gif|webp|bmp)$/i.test(url);
+                  return (
+                    <a 
+                      key={idx}
+                      href={url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="glass-interactive"
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        padding: '8px 12px',
+                        borderRadius: '10px',
+                        border: '1px solid var(--border)',
+                        textDecoration: 'none',
+                        color: 'var(--text)',
+                        fontSize: '12px',
+                        fontWeight: '700',
+                        transition: 'all 0.2s',
+                        maxWidth: '260px'
+                      }}
+                    >
+                      {isImage ? <FileText size={14} color="var(--primary)" /> : <Paperclip size={14} color="var(--primary)" />}
+                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+                        {fileName}
+                      </span>
+                      <ExternalLink size={12} color="var(--text-muted)" />
+                    </a>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
 
   const fetchStaticMeta = useCallback(async () => {
     if (staticMetaLoadedRef.current) return;
@@ -665,7 +855,9 @@ export default function StaffTicketDetailPage() {
 
     setUpdating(true);
     try {
-      await ticketService.resolve(ticketId, user.id, resSummary, selectedModule, selectedIssueType);
+      const updatedTicket = await ticketService.resolve(ticketId, user.id, resSummary, selectedModule, selectedIssueType);
+      const newStatus = updatedTicket?.status || 'Resolved';
+
       if (conversationId) {
         const surveyLink = `${window.location.origin}/survey/${ticketId}`;
         await supabase.from('messages').insert([
@@ -678,10 +870,11 @@ export default function StaffTicketDetailPage() {
           },
         ]);
       }
-      addToast(getTicketDetailResolvedToast(ticket.ticket_no));
+      addToast(getTicketDetailResolvedToast(ticket.ticket_no, newStatus === 'Fix Completed'));
       setShowResolveModal(false);
-      setTicket((prev) => (prev ? { ...prev, status: 'Resolved' } : prev));
-      setStatus('Resolved');
+      setTicket((prev) => (prev ? { ...prev, ...updatedTicket } : prev));
+      setStatus(newStatus);
+      void fetchData();
     } catch (error) {
       addToast(getTicketDetailActionFailedToast('resolve ticket', error));
     } finally {
@@ -690,6 +883,7 @@ export default function StaffTicketDetailPage() {
   }, [
     addToast,
     conversationId,
+    fetchData,
     isChatActive,
     resSummary,
     selectedIssueType,
@@ -962,35 +1156,38 @@ export default function StaffTicketDetailPage() {
           isReadOnly={true}
         />
 
-        <TicketSidebar
-          ticket={ticket}
-          user={user}
-          status={status}
-          setStatus={(value) => {
-            setStatus(value);
-            void updateTicketField('status', value);
-          }}
-          priority={priority}
-          setPriority={(value) => {
-            setPriority(value);
-            void updateTicketField('priority', value);
-          }}
-          selectedDept={selectedDept}
-          setSelectedDept={(value) => {
-            setSelectedDept(value);
-            void updateTicketField('department', value);
-          }}
-          selectedModule={selectedModule}
-          setSelectedModule={(value) => {
-            setSelectedModule(value);
-            void updateTicketField('module', value);
-          }}
-          availableDepts={availableDepts}
-          availableModules={availableModules}
-          logs={logs}
-          showActivity={true}
-          showProfile={false}
-        />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+          {renderWorkReportCard()}
+          <TicketSidebar
+            ticket={ticket}
+            user={user}
+            status={status}
+            setStatus={(value) => {
+              setStatus(value);
+              void updateTicketField('status', value);
+            }}
+            priority={priority}
+            setPriority={(value) => {
+              setPriority(value);
+              void updateTicketField('priority', value);
+            }}
+            selectedDept={selectedDept}
+            setSelectedDept={(value) => {
+              setSelectedDept(value);
+              void updateTicketField('department', value);
+            }}
+            selectedModule={selectedModule}
+            setSelectedModule={(value) => {
+              setSelectedModule(value);
+              void updateTicketField('module', value);
+            }}
+            availableDepts={availableDepts}
+            availableModules={availableModules}
+            logs={logs}
+            showActivity={true}
+            showProfile={false}
+          />
+        </div>
       </div>
     </div>
 

@@ -48,12 +48,14 @@ export function getInboxClaimSuccessToast(ticket: InboxTicket | null): InboxToas
   };
 }
 
-export function getInboxResolveSuccessToast(): InboxToastInput {
+export function getInboxResolveSuccessToast(isFixCompleted?: boolean): InboxToastInput {
   return {
     id: 'resolve-success',
     type: 'ticket',
-    title: 'ปิดงานสำเร็จ',
-    body: 'ใบงานได้รับการสรุปผลและแจ้งลูกค้าเรียบร้อยแล้ว',
+    title: isFixCompleted ? 'ส่งผลการแก้ไขแล้ว' : 'ปิดงานสำเร็จ',
+    body: isFixCompleted 
+      ? 'ใบงานอยู่ในสถานะ "แก้ไขเสร็จสิ้น" เพื่อรอตรวจสอบ' 
+      : 'ใบงานได้รับการสรุปผลและแจ้งลูกค้าเรียบร้อยแล้ว',
   };
 }
 

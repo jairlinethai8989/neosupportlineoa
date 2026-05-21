@@ -456,19 +456,21 @@ export function useInboxConversation({
       setCurrentTicket(resolvedTicket);
       markConversationClosedLocally();
       setShowResolveModal(false);
-      addToast(getInboxResolveSuccessToast());
+      addToast(getInboxResolveSuccessToast(resolvedTicket?.status === 'Fix Completed'));
     } catch (error: unknown) {
       // Network can fail after server successfully commits resolve.
       // Re-check ticket state once before showing failure.
       const refreshedTicket = await getInboxTicketById(ticketId);
       const isActuallyResolved =
-        refreshedTicket?.status === 'Resolved' || refreshedTicket?.status === 'Closed';
+        refreshedTicket?.status === 'Resolved' || 
+        refreshedTicket?.status === 'Closed' || 
+        refreshedTicket?.status === 'Fix Completed';
 
       if (isActuallyResolved && refreshedTicket) {
         setCurrentTicket(refreshedTicket);
         markConversationClosedLocally();
         setShowResolveModal(false);
-        addToast(getInboxResolveSuccessToast());
+        addToast(getInboxResolveSuccessToast(refreshedTicket?.status === 'Fix Completed'));
       } else {
         addToast(getInboxErrorToast('ปิดงานไม่สำเร็จ', getInboxActionFailedMessage('Failed', error)));
       }

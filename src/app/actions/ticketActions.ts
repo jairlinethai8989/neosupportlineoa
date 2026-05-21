@@ -206,9 +206,28 @@ export async function resolveTicketAction(
    const user = await getSessionUser();
    const agentId = user.id;
 
+   // Query current status of the ticket
+   const { data: currentTicket, error: fetchError } = await supabaseAdmin
+     .from('tickets')
+     .select('status')
+     .eq('id', ticketId)
+     .single();
+
+   if (fetchError || !currentTicket) {
+     throw new Error('ไม่พบข้อมูลใบงานในระบบ');
+   }
+
+   const currentStatus = currentTicket.status;
+   let targetStatus = 'Resolved';
+
+   // Special routing: Escalated or Pending tickets go to Fix Completed first
+   if (currentStatus === 'Escalated' || currentStatus === 'Pending') {
+     targetStatus = 'Fix Completed';
+   }
+
    const updateData: TicketUpdatePayload = { 
-     status: 'Resolved',
-     resolved_at: new Date().toISOString(),
+     status: targetStatus,
+     resolved_at: targetStatus === 'Resolved' ? new Date().toISOString() : null,
      resolution_summary: resolutionSummary,
      updated_at: new Date().toISOString()
    };
@@ -245,7 +264,7 @@ export async function resolveTicketAction(
      await supabaseAdmin.from('ticket_logs').insert([{
        ticket_id: ticketId,
        action_type: 'resolve',
-       to_status: 'Resolved',
+       to_status: targetStatus,
        performer_id: agentId,
        note: resolutionSummary
      }]);

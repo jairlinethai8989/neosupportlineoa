@@ -60,12 +60,17 @@ export function confirmTicketDetailEndChat() {
   return window.confirm(getTicketDetailEndChatConfirmMessage());
 }
 
-export function getTicketDetailResolvedToast(ticketNo: string | null | undefined): ToastNotif {
+export function getTicketDetailResolvedToast(
+  ticketNo: string | null | undefined,
+  isFixCompleted?: boolean
+): ToastNotif {
   return {
     id: `ticket-detail-resolved-${ticketNo || 'unknown'}-${Date.now()}`,
     type: 'ticket',
-    title: 'Ticket resolved',
-    body: `Ticket #${ticketNo || ''} was resolved successfully.`,
+    title: isFixCompleted ? 'แก้ไขเสร็จสิ้น' : 'ปิดใบงานสำเร็จ',
+    body: isFixCompleted 
+      ? `ใบงาน #${ticketNo || ''} ได้รับการบันทึกสถานะ "แก้ไขเสร็จสิ้น" และอยู่ระหว่างรอตรวจสอบ`
+      : `ใบงาน #${ticketNo || ''} ได้รับการปิดงานเรียบร้อยแล้ว`,
   };
 }
 
