@@ -205,7 +205,7 @@ export async function updateEscalatedTicketStatus(
     }
 
     const { data: ticket, error: fetchError } = await resolveTicketQuery(
-      'id, ticket_no, assigned_agent_id, resolution_summary',
+      'id, ticket_no, status, assigned_agent_id, resolution_summary',
       ticketId
     );
 
@@ -241,6 +241,7 @@ export async function updateEscalatedTicketStatus(
       {
         ticket_id: ticketRow.id,
         action_type: 'status_change',
+        from_status: ticketRow.status as string,
         to_status: nextStatus,
         note: reportText,
       },

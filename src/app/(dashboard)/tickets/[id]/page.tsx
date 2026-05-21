@@ -900,14 +900,16 @@ export default function StaffTicketDetailPage() {
 
     setUpdating(true);
     try {
-      await ticketService.reviewFixCompleted(ticketId, 'reject', note);
-      setTicket((prev) => (prev ? { ...prev, status: 'In Progress' } : prev));
-      setStatus('In Progress');
+      const updatedTicket = await ticketService.reviewFixCompleted(ticketId, 'reject', note);
+      const newStatus = updatedTicket?.status || 'In Progress';
+      
+      setTicket((prev) => (prev ? { ...prev, status: newStatus } : prev));
+      setStatus(newStatus);
       addToast({
         id: `ticket-fix-rejected-${Date.now()}`,
         type: 'ticket',
         title: 'ส่งกลับแก้ไขแล้ว',
-        body: `ใบงาน #${ticket.ticket_no || ticketId} ถูกส่งกลับเป็น In Progress`,
+        body: `ใบงาน #${ticket.ticket_no || ticketId} ถูกส่งกลับไปยังสถานะ ${newStatus}`,
       });
       await fetchData();
     } catch (error) {

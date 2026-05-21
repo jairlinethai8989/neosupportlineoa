@@ -260,14 +260,15 @@ export async function resolveTicketAction(
     }
 
    try {
-     // Record Log
-     await supabaseAdmin.from('ticket_logs').insert([{
-       ticket_id: ticketId,
-       action_type: 'resolve',
-       to_status: targetStatus,
-       performer_id: agentId,
-       note: resolutionSummary
-     }]);
+      // Record Log
+      await supabaseAdmin.from('ticket_logs').insert([{
+        ticket_id: ticketId,
+        action_type: 'resolve',
+        from_status: currentStatus,
+        to_status: targetStatus,
+        performer_id: agentId,
+        note: resolutionSummary
+      }]);
 
      // Only handle CSAT and Conversations if there is a customer linked
      if (ticket?.customer_id) {
@@ -359,10 +360,22 @@ export async function reviewFixCompletedAction(
     return currentTicket;
   }
 
+  // 1. Find the previous status before it transitioned to 'Fix Completed'
+  const { data: lastFixLog } = await supabaseAdmin
+    .from('ticket_logs')
+    .select('from_status')
+    .eq('ticket_id', ticketId)
+    .eq('to_status', 'Fix Completed')
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  const targetStatus = lastFixLog?.from_status || 'In Progress';
+
   const { data: updated, error: updateError } = await supabaseAdmin
     .from('tickets')
     .update({
-      status: 'In Progress',
+      status: targetStatus,
       resolved_at: null,
       updated_at: new Date().toISOString(),
     })
@@ -377,9 +390,9 @@ export async function reviewFixCompletedAction(
       ticket_id: ticketId,
       action_type: 'status_change',
       from_status: 'Fix Completed',
-      to_status: 'In Progress',
+      to_status: targetStatus,
       performer_id: user.id,
-      note: note?.trim() || 'Owner requested more work after verification review',
+      note: note?.trim() || `Owner requested more work after verification review, returned to ${targetStatus}`,
     },
   ]);
 
@@ -388,9 +401,9 @@ export async function reviewFixCompletedAction(
       {
         user_id: currentTicket.assigned_agent_id,
         title: `Ticket ${ticketId} returned for rework`,
-        body: note?.trim() || 'Owner requested more work after verification review',
+        body: note?.trim() || `Owner requested more work after verification review. Status returned to ${targetStatus}`,
         type: 'ticket',
-        metadata: { ticket_id: ticketId, decision: 'reject' },
+        metadata: { ticket_id: ticketId, decision: 'reject', return_status: targetStatus },
       },
     ]);
   }
