@@ -10,8 +10,11 @@ import {
   PieChart as PieIcon, 
   Activity,
   Loader2,
-  RefreshCw
+  RefreshCw,
+  ShieldAlert,
+  ArrowLeft
 } from 'lucide-react';
+import Link from 'next/link';
 import { useAppContext } from '@/contexts/AppContext';
 import { useStaffLocale } from '@/contexts/StaffLocaleContext';
 import { analyticsQueries, type AgentAnalyticsData } from '@/lib/tickets/analyticsQueries';
@@ -47,12 +50,19 @@ export default function PersonalAnalyticsPage() {
 
   const [activeRange, setActiveRange] = useState<'30days' | '7days' | 'custom'>('30days');
 
+  // Security authorization check
+  const hasAccess = useMemo(() => {
+    if (!userProfile) return false;
+    if (userProfile.role === 'Administrator') return true;
+    return userProfile.permissions?.analytics_personal === 'view' || userProfile.permissions?.analytics_personal === 'edit';
+  }, [userProfile]);
+
   useEffect(() => {
     setMounted(true);
   }, []);
 
   const fetchAnalytics = useCallback(async (isRefresh = false) => {
-    if (!userProfile?.id) return;
+    if (!userProfile?.id || !hasAccess) return;
     if (isRefresh) setRefreshing(true);
     else setLoading(true);
 
@@ -69,13 +79,15 @@ export default function PersonalAnalyticsPage() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [userProfile?.id, dateRange.start, dateRange.end]);
+  }, [userProfile?.id, dateRange.start, dateRange.end, hasAccess]);
 
   useEffect(() => {
-    if (userProfile?.id) {
+    if (userProfile?.id && hasAccess && mounted) {
       void fetchAnalytics();
+    } else if (mounted) {
+      setLoading(false);
     }
-  }, [fetchAnalytics, userProfile?.id]);
+  }, [fetchAnalytics, userProfile?.id, hasAccess, mounted]);
 
   const handleRangeChange = (range: '30days' | '7days') => {
     setActiveRange(range);
@@ -127,6 +139,26 @@ export default function PersonalAnalyticsPage() {
   }, [data?.priorityData]);
 
   if (!mounted) return null;
+
+  // Unauthorised fallback view
+  if (!loading && !hasAccess) {
+    return (
+      <div className="flex-center" style={{ height: '70vh', animation: 'fadeIn 0.5s ease-out' }}>
+        <div className="glass" style={{ maxWidth: '480px', padding: '40px', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '20px' }}>
+          <div style={{ background: 'rgba(234, 84, 85, 0.1)', padding: '16px', borderRadius: '50%', color: 'var(--danger)' }}>
+            <ShieldAlert size={48} />
+          </div>
+          <h2 style={{ fontSize: '22px', fontWeight: '800', color: 'var(--text-main)' }}>คุณไม่มีสิทธิ์ในการเข้าถึงหน้านี้</h2>
+          <p style={{ fontSize: '14px', color: 'var(--text-muted)', lineHeight: '1.5' }}>
+            สิทธิ์การเข้าถึงข้อมูลผลงานของฉัน ถูกกำหนดไว้เฉพาะผู้ดูแลระบบหลักหรือผู้ได้รับมอบหมายสิทธิ์เท่านั้น
+          </p>
+          <Link href="/" className="glass-interactive" style={{ padding: '12px 24px', background: 'var(--primary)', color: '#0a0e14', fontWeight: '800', borderRadius: '12px', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+            <ArrowLeft size={16} /> กลับหน้าหลัก
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ animation: 'fadeIn 0.5s ease-out' }}>

@@ -66,7 +66,7 @@ export default function StaffAnalyticsPage() {
   const hasAccess = useMemo(() => {
     if (!userProfile) return false;
     if (userProfile.role === 'Administrator') return true;
-    return userProfile.permissions?.analytics === 'view' || userProfile.permissions?.analytics === 'edit';
+    return userProfile.permissions?.analytics_staff === 'view' || userProfile.permissions?.analytics_staff === 'edit';
   }, [userProfile]);
 
   useEffect(() => {

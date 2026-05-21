@@ -62,6 +62,8 @@ export default function StaffManagementPage() {
   const [selectedStaff, setSelectedStaff] = useState<any>(null);
   const DEFAULT_PERMISSIONS = {
     analytics: 'view',
+    analytics_personal: 'view',
+    analytics_staff: 'none',
     inbox: 'edit',
     tickets: 'edit',
     notifications: 'view',
@@ -577,6 +579,8 @@ export default function StaffManagementPage() {
             }}>
               {[
                 { key: 'analytics', label: t('settingsStaff.permissionLabels.analytics'), icon: BarChart2 },
+                { key: 'analytics_personal', label: t('settingsStaff.permissionLabels.analyticsPersonal'), icon: User },
+                { key: 'analytics_staff', label: t('settingsStaff.permissionLabels.analyticsStaff'), icon: Users },
                 { key: 'inbox', label: t('settingsStaff.permissionLabels.inbox'), icon: Mail },
                 { key: 'tickets', label: t('settingsStaff.permissionLabels.tickets'), icon: Shield },
                 { key: 'notifications', label: t('settingsStaff.permissionLabels.notifications'), icon: Bell },

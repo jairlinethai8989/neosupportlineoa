@@ -116,7 +116,11 @@ function MainSidebarComponent({ onClickLink, isCollapsed = false }: SidebarProps
       const normalizedPath = path?.toLowerCase() || '';
 
       if (normalizedPath === '/analytics/personal') {
-        return true;
+        return permissions.analytics_personal === 'view' || permissions.analytics_personal === 'edit';
+      }
+
+      if (normalizedPath === '/analytics/staff') {
+        return permissions.analytics_staff === 'view' || permissions.analytics_staff === 'edit';
       }
 
       if (

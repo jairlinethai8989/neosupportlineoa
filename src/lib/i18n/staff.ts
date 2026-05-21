@@ -417,6 +417,8 @@ const messages: Record<StaffLocale, MessageDictionary> = {
       },
       permissionLabels: {
         analytics: 'ภาพรวมและสถิติ',
+        analyticsPersonal: 'สถิติ: ผลงานของฉัน',
+        analyticsStaff: 'สถิติ: ผลงานพนักงาน',
         inbox: 'ระบบแชท',
         tickets: 'จัดการใบงาน',
         notifications: 'การแจ้งเตือน',
@@ -1012,6 +1014,8 @@ const messages: Record<StaffLocale, MessageDictionary> = {
       },
       permissionLabels: {
         analytics: 'Analytics',
+        analyticsPersonal: 'Analytics: Personal Performance',
+        analyticsStaff: 'Analytics: Staff Performance',
         inbox: 'Inbox',
         tickets: 'Tickets',
         notifications: 'Notifications',
