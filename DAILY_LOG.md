@@ -1,6 +1,18 @@
-# บันทึกความคืบหน้าโครงการ NeoSupport V2.0 (ล่าสุด 17 พฤษภาคม 2569)
+# บันทึกความคืบหน้าโครงการ NeoSupport V2.0 (ล่าสุด 21 พฤษภาคม 2569)
 
-## ✅ สิ่งที่ทำสำเร็จแล้วในวันนี้ (17 พฤษภาคม 2569)
+## ✅ สิ่งที่ทำสำเร็จแล้วในวันนี้ (21 พฤษภาคม 2569)
+
+1. **Real-time Employee Presence Tracking & Admin Setup (สำเร็จ):**
+    * **Active/Busy Status Switcher:** พัฒนาตัวสลับสถานะพนักงาน (`🟢 Active` และ `🟠 Busy`) ในเมนูโปรไฟล์ขวาบน พร้อมจุดไฟแสดงสถานะเรืองแสง Glassmorphism
+    * **Overlapping Avatar Indicators & Tooltips:** ออกแบบรายชื่อพนักงานออนไลน์ด้านซ้ายแบบ Avatar วางซ้อนทับเหลื่อมกัน มีไฟแยกสีเขียว/ส้มแสดงตามสถานะการทำงานปัจจุบัน พร้อม Tooltip บอกรายละเอียดชื่อ แผนก และสถานะการทำงานอย่างชัดเจน Legible ทั้งในธีมมืดและสว่าง
+    * **Heartbeat & Presence Control:** ติดตั้งระบบ Heartbeat ยิงสัญญาณความเคลื่อนไหว `last_seen` ทุก 2 นาทีผ่านหน้าจอลูกข่ายลงตาราง `profiles` อัตโนมัติ พร้อมช่อง Admin Setting ในหน้า Branding Settings เพื่อปรับเวลาตรวจสอบออนไลน์ (5, 10, 15 นาที) บันทึกลงตาราง `company_settings`
+    * **Database Constraint Fix:** จัดทำและรันสคริปต์ SQL ปรับปรุงข้อจำกัดของเงื่อนไขฐานข้อมูล (Check Constraint) `profiles_status_check` บนตาราง `profiles` ให้รอบรับสถานะใหม่ `Busy` เพื่อป้องกันการปฏิเสธธุรกรรมและช่วยให้ระบบสลับสถานะทำงานประสานกับ Supabase Realtime ได้อย่างสมบูรณ์แบบ
+    * **Frontend Local Override System:** พัฒนาระบบ `Force Local Override` ในฟังก์ชัน `filterOnline` ในไฟล์ `TopBar.tsx` บังคับเขียนทับสถานะในพูลเครื่องลูกข่ายปัจจุบันทันทีเมื่อผู้ใช้เปลี่ยนสถานะ ช่วยให้หน้าจอฝั่งตนเองอัปเดตและแสดงผลลัพธ์เป็นสีส้ม/เขียวได้ทันใจโดยไม่ต้องรอล่าช้าจากเครือข่าย
+    * **Standardized Build Verification:** รันการตรวจสอบความถูกต้องผ่าน TypeScript compilation (`npx tsc --noEmit`) และ ESLint (`npm run lint`) ผ่านฉลุย 100% ไม่มีข้อผิดพลาดใด ๆ ทั้งสิ้น พร้อมทำการ Commit and Push โค้ดที่สมบูรณ์ขึ้น GitHub Repository เรียบร้อยแล้ว
+
+---
+
+## ✅ สิ่งที่ทำสำเร็จแล้วก่อนหน้า (17 พฤษภาคม 2569)
 
 1.  **Tickets/Inbox List Query Optimization (สำเร็จ):**
     *   **Lightweight Select Clauses:** พัฒนาตัวเลือก `inboxConversationSelectForList` และ `inboxConversationSelectForListLegacy` สำหรับหน้าแชทลิสต์ (InboxSidebar) ดึงเฉพาะข้อมูลที่แสดงจริงบนหน้าจอ ทำให้ payload เล็กลงอย่างมหาศาลและลดภาระการทำงานของ Supabase/Database
