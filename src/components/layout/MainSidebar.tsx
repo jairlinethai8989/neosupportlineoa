@@ -115,6 +115,10 @@ function MainSidebarComponent({ onClickLink, isCollapsed = false }: SidebarProps
       const key = name.toLowerCase();
       const normalizedPath = path?.toLowerCase() || '';
 
+      if (normalizedPath === '/analytics/personal') {
+        return true;
+      }
+
       if (
         key.includes('analytics') ||
         key.includes('performance') ||
@@ -194,6 +198,8 @@ function MainSidebarComponent({ onClickLink, isCollapsed = false }: SidebarProps
             children: [
               { name: 'Overview', label: t('sidebar.menu.overview'), path: '/' },
               { name: 'Performance', label: t('sidebar.menu.performance'), path: '/analytics' },
+              { name: 'Personal Performance', label: t('sidebar.menu.personalPerformance'), path: '/analytics/personal' },
+              { name: 'Staff Performance', label: t('sidebar.menu.staffPerformance'), path: '/analytics/staff' },
             ],
           },
           {
