@@ -322,9 +322,9 @@ export function TopBar({ isSidebarOpen, setIsSidebarOpen, isSidebarCollapsed, se
                     className="tooltip-presence"
                     style={{
                       position: 'absolute',
-                      bottom: 'calc(100% + 10px)',
+                      top: 'calc(100% + 10px)',
                       left: '50%',
-                      transform: 'translateX(-50%) translateY(4px) scale(0.95)',
+                      transform: 'translateX(-50%) translateY(-4px) scale(0.95)',
                       background: 'rgba(10, 14, 20, 0.9)',
                       backdropFilter: 'blur(10px)',
                       border: '1px solid var(--border)',
