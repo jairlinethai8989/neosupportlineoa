@@ -86,13 +86,15 @@ export default function BrandingSettingsPage() {
          const { error } = await supabase.from('company_settings').update({
             company_name: company.company_name,
             logo_url: company.logo_url,
+            active_threshold_minutes: company.active_threshold_minutes || 15,
             updated_at: new Date().toISOString()
           }).eq('id', company.id);
          if (error) throw error;
       } else {
          const { error } = await supabase.from('company_settings').insert([{
             company_name: company.company_name,
-            logo_url: company.logo_url
+            logo_url: company.logo_url,
+            active_threshold_minutes: company.active_threshold_minutes || 15
           }]);
          if (error) throw error;
       }
@@ -107,9 +109,10 @@ export default function BrandingSettingsPage() {
           entity_id: company?.id,
           new_data: { 
             company_name: company?.company_name, 
-            logo_url: company?.logo_url 
+            logo_url: company?.logo_url,
+            active_threshold_minutes: company?.active_threshold_minutes || 15
           },
-          note: `Updated corporate branding and logo`
+          note: `Updated corporate branding and active threshold settings`
         });
       } catch (logErr) {
         console.error('Logging failed:', logErr);
@@ -230,6 +233,39 @@ export default function BrandingSettingsPage() {
                     onChange={e => setCompany({...(company || {}), company_name: e.target.value})}
                     style={{ width: '100%', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '10px', padding: '14px', color: 'var(--text-main)', outline: 'none', fontWeight: '600' }}
                   />
+               </div>
+               <div>
+                  <label style={{ display: 'block', fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '8px', letterSpacing: '0.5px' }}>
+                    {t('settingsBranding.activeThreshold')}
+                  </label>
+                  <select 
+                    value={company?.active_threshold_minutes || 15} 
+                    onChange={e => setCompany({...(company || {}), active_threshold_minutes: parseInt(e.target.value)})}
+                    disabled={!canEdit}
+                    style={{ 
+                      width: '100%', 
+                      background: 'var(--bg-input)', 
+                      border: '1px solid var(--border)', 
+                      borderRadius: '10px', 
+                      padding: '14px', 
+                      color: 'var(--text-main)', 
+                      outline: 'none', 
+                      fontWeight: '600',
+                      cursor: !canEdit ? 'not-allowed' : 'pointer',
+                      appearance: 'none',
+                      backgroundImage: 'url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'%23a0aec0\' stroke-width=\'2\' stroke-linecap=\'round\' stroke-linejoin=\'round\'%3e%3cpolyline points=\'6 9 12 15 18 9\'%3e%3c/polyline%3e%3c/svg%3e")',
+                      backgroundRepeat: 'no-repeat',
+                      backgroundPosition: 'right 14px center',
+                      backgroundSize: '16px'
+                    }}
+                  >
+                     <option value={5} style={{ background: '#0a0e14', color: 'var(--text-main)' }}>{t('settingsBranding.minutes5')}</option>
+                     <option value={10} style={{ background: '#0a0e14', color: 'var(--text-main)' }}>{t('settingsBranding.minutes10')}</option>
+                     <option value={15} style={{ background: '#0a0e14', color: 'var(--text-main)' }}>{t('settingsBranding.minutes15')}</option>
+                  </select>
+                  <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '6px', lineHeight: '1.4' }}>
+                     {t('settingsBranding.activeThresholdHelp')}
+                  </p>
                </div>
                <button 
                 onClick={handleSaveCompany}

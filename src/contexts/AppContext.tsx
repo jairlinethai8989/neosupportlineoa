@@ -11,21 +11,26 @@ interface AppContextType {
   departments: Array<Record<string, unknown>>;
   loading: boolean;
   refreshData: (type?: 'all' | 'profile' | 'settings' | 'hospitals' | 'departments') => Promise<void>;
+  updateStatus: (status: 'Active' | 'Busy') => Promise<void>;
 }
-interface UserProfile {
+export interface UserProfile {
   id?: string;
   role?: string;
   full_name?: string;
   avatar_url?: string | null;
   permissions?: Record<string, string> | null;
+  status?: string;
+  last_seen?: string | null;
+  department?: string | null;
   [key: string]: unknown;
 }
-interface CompanySettings {
+export interface CompanySettings {
   company_name?: string | null;
   logo_url?: string | null;
   subject_types?: string[] | null;
   issue_types?: string[] | null;
   report_tags?: string[] | null;
+  active_threshold_minutes?: number;
   global_quick_replies?: Array<{id: string, title: string, content: string, category: string}> | null;
   global_resolution_templates?: Array<{id: string, title: string, content: string, category: string}> | null;
   [key: string]: unknown;
@@ -131,6 +136,60 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     [currentUserId, fetchDepartments, fetchHospitals, fetchProfile, fetchSettings]
   );
 
+  const updateStatus = useCallback(async (status: 'Active' | 'Busy') => {
+    if (!currentUserId && !profileBypassAuth) return;
+
+    const now = new Date().toISOString();
+
+    // Optimistically update local profile state
+    setUserProfile(prev => prev ? {
+      ...prev,
+      status,
+      last_seen: now
+    } : null);
+
+    if (currentUserId) {
+      try {
+        const { error } = await supabase
+          .from('profiles')
+          .update({ status, last_seen: now })
+          .eq('id', currentUserId);
+        if (error) throw error;
+      } catch (err) {
+        console.error('Failed to update presence status in database:', err);
+      }
+    }
+  }, [currentUserId, profileBypassAuth]);
+
+  // Periodic heartbeat every 2 minutes when user is logged in
+  useEffect(() => {
+    if (!currentUserId) return;
+
+    const sendHeartbeat = async () => {
+      const now = new Date().toISOString();
+      try {
+        await supabase
+          .from('profiles')
+          .update({ last_seen: now })
+          .eq('id', currentUserId);
+      } catch (err) {
+        console.error('Failed to send heartbeat in background:', err);
+      }
+    };
+
+    // Send immediate heartbeat
+    void sendHeartbeat();
+
+    // Check-in every 2 minutes
+    const intervalId = setInterval(() => {
+      void sendHeartbeat();
+    }, 120000);
+
+    return () => {
+      clearInterval(intervalId);
+    };
+  }, [currentUserId]);
+
   useEffect(() => {
     let cancelled = false;
     let profileChannel: ReturnType<typeof supabase.channel> | null = null;
@@ -225,6 +284,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         departments,
         loading,
         refreshData,
+        updateStatus,
       }}
     >
       {children}

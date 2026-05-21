@@ -114,6 +114,7 @@ export default function DailyReportPage() {
 
   // Google Sheets Export States
   const [isExportingGSheets, setIsExportingGSheets] = useState(false);
+  const [isExportingLark, setIsExportingLark] = useState(false);
 
   const columns: ReportColumn[] = useMemo(
     () => [
@@ -351,6 +352,71 @@ export default function DailyReportPage() {
       });
     } finally {
       setIsExporting(false);
+    }
+  };
+
+  const handleLarkExportClick = () => {
+    const larkToken = (companySettings as any)?.lark_spreadsheet_token;
+    const larkSheetId = (companySettings as any)?.lark_sheet_id || '0bdfef';
+
+    if (!larkToken || !larkToken.startsWith('sht')) {
+      addToast({
+        id: `lark-missing-token-${Date.now()}`,
+        type: 'sla_warning',
+        title: 'ยังไม่ได้ตั้งค่า Lark Sheet Token',
+        body: 'กรุณากรอกและบันทึก Lark Spreadsheet Token ในเมนู การตั้งค่า > ข้อมูลพื้นฐาน ก่อนใช้งาน 🛠️'
+      });
+      return;
+    }
+
+    executeLarkExportDirect(larkToken, larkSheetId);
+  };
+
+  const executeLarkExportDirect = async (token: string, sheetId: string) => {
+    setIsExportingLark(true);
+    const toastId = `lark-export-${Date.now()}`;
+    addToast({
+      id: toastId,
+      type: 'ticket',
+      title: 'กำลังส่งออก Lark Sheets',
+      body: 'ระบบกำลังนำส่งข้อมูลไปยัง Lark Sheets... ⏳'
+    });
+
+    try {
+      const res = await fetch('/api/reports/daily/lark-sheets', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          start: dateRange.start,
+          end: dateRange.end,
+          spreadsheetToken: token,
+          sheetId: sheetId
+        })
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to export to Lark Sheets');
+      }
+
+      addToast({
+        id: `lark-success-${Date.now()}`,
+        type: 'ticket',
+        title: 'ส่งออก Lark Sheets สำเร็จ',
+        body: `ส่งออกข้อมูลจำนวน ${data.count} แถวไปยัง Lark Sheets เรียบร้อยแล้ว 📊`
+      });
+    } catch (error: any) {
+      console.error('Lark Sheets Export failed:', error);
+      addToast({
+        id: `lark-fail-${Date.now()}`,
+        type: 'sla_warning',
+        title: 'ส่งออก Lark Sheets ล้มเหลว',
+        body: error.message || 'เกิดข้อผิดพลาดในการส่งข้อมูลไปยัง Lark Sheets'
+      });
+    } finally {
+      setIsExportingLark(false);
     }
   };
 
@@ -595,6 +661,30 @@ export default function DailyReportPage() {
           >
             {isExportingGSheets ? <Loader2 size={18} className="animate-spin" /> : <Share2 size={18} />}
             GOOGLE SHEETS
+          </button>
+
+          <button
+            onClick={handleLarkExportClick}
+            disabled={isExportingLark || processedTickets.length === 0}
+            className="glass-interactive"
+            style={{
+              height: '44px',
+              padding: '0 20px',
+              borderRadius: '12px',
+              border: 'none',
+              background: 'linear-gradient(135deg, #0984e3 0%, #00b894 100%)',
+              color: 'white',
+              fontWeight: '700',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              boxShadow: '0 8px 20px rgba(9, 180, 120, 0.25)',
+              transition: 'all 0.2s ease',
+              cursor: (isExportingLark || processedTickets.length === 0) ? 'not-allowed' : 'pointer'
+            }}
+          >
+            {isExportingLark ? <Loader2 size={18} className="animate-spin" /> : <Share2 size={18} />}
+            LARK SHEETS
           </button>
         </div>
       </div>

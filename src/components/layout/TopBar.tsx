@@ -4,6 +4,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { useAppContext } from '@/contexts/AppContext';
+import type { UserProfile } from '@/contexts/AppContext';
 import { useNotificationContext } from '@/contexts/NotificationContext';
 import type { AppNotification } from '@/hooks/useNotifications';
 import { useStaffLocale } from '@/contexts/StaffLocaleContext';
@@ -67,7 +68,7 @@ interface TopBarProps {
 
 export function TopBar({ isSidebarOpen, setIsSidebarOpen, isSidebarCollapsed, setIsSidebarCollapsed }: TopBarProps) {
   const router = useRouter();
-  const { userProfile: agent } = useAppContext();
+  const { userProfile: agent, updateStatus, companySettings } = useAppContext();
   const { notifications, unreadCount, markAllRead, markAsRead, isMuted, toggleMute } = useNotificationContext();
   const { locale, toggleLocale, t } = useStaffLocale();
 
@@ -80,8 +81,66 @@ export function TopBar({ isSidebarOpen, setIsSidebarOpen, isSidebarCollapsed, se
     return localStorage.getItem('theme') || 'light';
   });
 
+  const [profiles, setProfiles] = useState<UserProfile[]>([]);
+  const [onlineStaff, setOnlineStaff] = useState<UserProfile[]>([]);
+
   const notifRef = useRef<HTMLDivElement>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const fetchAllProfiles = async () => {
+      try {
+        const { data, error } = await supabase.from('profiles').select('*');
+        if (error) throw error;
+        if (data) setProfiles(data);
+      } catch (err) {
+        console.error('Failed to load profiles:', err);
+      }
+    };
+
+    void fetchAllProfiles();
+
+    const channel = supabase.channel('profiles-presence-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, (payload) => {
+        if (payload.eventType === 'INSERT') {
+          setProfiles(prev => [...prev, payload.new]);
+        } else if (payload.eventType === 'UPDATE') {
+          setProfiles(prev => prev.map(p => p.id === payload.new.id ? payload.new : p));
+        } else if (payload.eventType === 'DELETE') {
+          setProfiles(prev => prev.filter(p => p.id !== payload.old.id));
+        }
+      })
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, []);
+
+  useEffect(() => {
+    const filterOnline = () => {
+      const thresholdMinutes = companySettings?.active_threshold_minutes || 15;
+      const now = new Date();
+      const filtered = profiles.filter(p => {
+        if (!p.last_seen) return false;
+        const lastSeenDate = new Date(p.last_seen);
+        const diffMinutes = (now.getTime() - lastSeenDate.getTime()) / 60000;
+        return diffMinutes <= thresholdMinutes;
+      });
+
+      filtered.sort((a, b) => {
+        if (a.status === 'Active' && b.status !== 'Active') return -1;
+        if (a.status !== 'Active' && b.status === 'Active') return 1;
+        return (a.full_name || '').localeCompare(b.full_name || '');
+      });
+
+      setOnlineStaff(filtered);
+    };
+
+    filterOnline();
+    const filterInterval = setInterval(filterOnline, 30000);
+    return () => clearInterval(filterInterval);
+  }, [profiles, companySettings]);
 
   useEffect(() => {
     function handleClick(event: MouseEvent) {
@@ -175,6 +234,194 @@ export function TopBar({ isSidebarOpen, setIsSidebarOpen, isSidebarCollapsed, se
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <style>{`
+          .avatar-bubble {
+            transition: all 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+          }
+          .avatar-bubble:hover {
+            transform: scale(1.15) translateY(-2px);
+            z-index: 50 !important;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.4);
+          }
+          .avatar-bubble:hover .tooltip-presence {
+            opacity: 1 !important;
+            transform: translateX(-50%) translateY(0) scale(1) !important;
+            pointer-events: auto !important;
+          }
+        `}</style>
+
+        {/* Overlapping Online Staff indicators */}
+        {onlineStaff.length > 0 && (
+          <div className="show-desktop" style={{ display: 'flex', alignItems: 'center', marginRight: '16px', gap: '8px' }}>
+            <span style={{ fontSize: '10px', fontWeight: '850', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+              {t('dashboard.onlineStaff')}:
+            </span>
+            <div style={{ display: 'flex', alignItems: 'center', position: 'relative' }}>
+              {onlineStaff.slice(0, 4).map((p, idx) => (
+                <div 
+                  key={p.id} 
+                  className="avatar-bubble"
+                  style={{ 
+                    position: 'relative', 
+                    marginLeft: idx > 0 ? '-10px' : '0', 
+                    zIndex: 10 - idx,
+                    cursor: 'default'
+                  }}
+                >
+                  {p.avatar_url ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img 
+                      src={p.avatar_url} 
+                      alt={p.full_name || ''} 
+                      style={{ 
+                        width: '30px', 
+                        height: '30px', 
+                        borderRadius: '50%', 
+                        border: '2px solid rgba(10, 14, 20, 0.8)',
+                        boxShadow: '0 4px 10px rgba(0,0,0,0.3)',
+                        objectFit: 'cover'
+                      }} 
+                    />
+                  ) : (
+                    <div 
+                      style={{ 
+                        width: '30px', 
+                        height: '30px', 
+                        borderRadius: '50%', 
+                        border: '2px solid rgba(10, 14, 20, 0.8)',
+                        background: p.status === 'Active' ? 'rgba(0, 242, 254, 0.1)' : 'rgba(115, 103, 240, 0.1)',
+                        boxShadow: '0 4px 10px rgba(0,0,0,0.3)',
+                        color: 'var(--text-main)',
+                        fontWeight: '800',
+                        fontSize: '11px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center'
+                      }}
+                    >
+                      {(p.full_name || 'A').charAt(0)}
+                    </div>
+                  )}
+                  {/* Status indicator dot */}
+                  <span 
+                    style={{ 
+                      position: 'absolute', 
+                      bottom: '0px', 
+                      right: '0px', 
+                      width: '9px', 
+                      height: '9px', 
+                      borderRadius: '50%', 
+                      border: '1.5px solid rgba(10, 14, 20, 0.9)',
+                      background: p.status === 'Active' ? '#00E676' : '#FF9100', // Neon Green vs Neon Orange
+                      boxShadow: p.status === 'Active' ? '0 0 6px #00E676' : '0 0 6px #FF9100'
+                    }}
+                  />
+                  
+                  {/* High-quality Glassmorphic Tooltip */}
+                  <div 
+                    className="tooltip-presence"
+                    style={{
+                      position: 'absolute',
+                      bottom: 'calc(100% + 10px)',
+                      left: '50%',
+                      transform: 'translateX(-50%) translateY(4px) scale(0.95)',
+                      background: 'rgba(10, 14, 20, 0.9)',
+                      backdropFilter: 'blur(10px)',
+                      border: '1px solid var(--border)',
+                      borderRadius: '8px',
+                      padding: '8px 12px',
+                      whiteSpace: 'nowrap',
+                      pointerEvents: 'none',
+                      opacity: 0,
+                      transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
+                      boxShadow: '0 10px 25px rgba(0,0,0,0.5)',
+                      zIndex: 100,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '2px'
+                    }}
+                  >
+                    <span style={{ fontSize: '12px', fontWeight: '800', color: 'var(--text-main)' }}>{p.full_name}</span>
+                    <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>{p.department || t('dashboard.agentFallback')}</span>
+                    <span style={{ 
+                      fontSize: '10px', 
+                      fontWeight: '700', 
+                      color: p.status === 'Active' ? '#00E676' : '#FF9100',
+                      marginTop: '2px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px'
+                    }}>
+                      <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: p.status === 'Active' ? '#00E676' : '#FF9100' }} />
+                      {p.status === 'Active' ? t('dashboard.statusActive') : t('dashboard.statusBusy')}
+                    </span>
+                  </div>
+                </div>
+              ))}
+              
+              {/* Overlapping Count badge */}
+              {onlineStaff.length > 4 && (
+                <div 
+                  className="avatar-bubble group"
+                  style={{ 
+                    width: '30px', 
+                    height: '30px', 
+                    borderRadius: '50%', 
+                    border: '2px solid rgba(10, 14, 20, 0.8)',
+                    background: 'rgba(255, 255, 255, 0.05)',
+                    backdropFilter: 'blur(12px)',
+                    boxShadow: '0 4px 10px rgba(0,0,0,0.3)',
+                    marginLeft: '-10px', 
+                    zIndex: 5,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '10px',
+                    fontWeight: '900',
+                    color: 'var(--primary)',
+                    cursor: 'default'
+                  }}
+                  title={onlineStaff.slice(4).map(p => p.full_name).join(', ')}
+                >
+                  +{onlineStaff.length - 4}
+                  
+                  {/* Tooltip for the +N badge showing other online employees */}
+                  <div 
+                    className="tooltip-presence"
+                    style={{
+                      position: 'absolute',
+                      bottom: 'calc(100% + 10px)',
+                      left: '50%',
+                      transform: 'translateX(-50%) translateY(4px) scale(0.95)',
+                      background: 'rgba(10, 14, 20, 0.9)',
+                      backdropFilter: 'blur(10px)',
+                      border: '1px solid var(--border)',
+                      borderRadius: '8px',
+                      padding: '8px 12px',
+                      whiteSpace: 'nowrap',
+                      pointerEvents: 'none',
+                      opacity: 0,
+                      transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
+                      boxShadow: '0 10px 25px rgba(0,0,0,0.5)',
+                      zIndex: 100,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '4px'
+                    }}
+                  >
+                    {onlineStaff.slice(4).map(p => (
+                      <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: p.status === 'Active' ? '#00E676' : '#FF9100' }} />
+                        <span style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-main)' }}>{p.full_name}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         <button
           onClick={toggleLocale}
           className="glass-interactive"
@@ -453,32 +700,48 @@ export function TopBar({ isSidebarOpen, setIsSidebarOpen, isSidebarCollapsed, se
             }}
             className="glass-interactive"
           >
-            {agent?.avatar_url ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={agent.avatar_url}
-                alt="User avatar"
-                style={{ width: '30px', height: '30px', borderRadius: '50%', objectFit: 'cover' }}
-              />
-            ) : (
-              <div
+            <div style={{ position: 'relative' }}>
+              {agent?.avatar_url ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={agent.avatar_url}
+                  alt="User avatar"
+                  style={{ width: '30px', height: '30px', borderRadius: '50%', objectFit: 'cover' }}
+                />
+              ) : (
+                <div
+                  style={{
+                    width: '30px',
+                    height: '30px',
+                    borderRadius: '50%',
+                    background: 'var(--secondary)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontWeight: '700',
+                    fontSize: '11px',
+                    color: 'white',
+                    boxShadow: '0 0 10px rgba(115, 103, 240, 0.4)',
+                  }}
+                >
+                  {agent?.full_name?.charAt(0) || 'A'}
+                </div>
+              )}
+              {/* Status indicator dot */}
+              <span
                 style={{
-                  width: '30px',
-                  height: '30px',
+                  position: 'absolute',
+                  bottom: '-1px',
+                  right: '-1px',
+                  width: '9px',
+                  height: '9px',
                   borderRadius: '50%',
-                  background: 'var(--secondary)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontWeight: '700',
-                  fontSize: '11px',
-                  color: 'white',
-                  boxShadow: '0 0 10px rgba(115, 103, 240, 0.4)',
+                  border: '1.5px solid rgba(10, 14, 20, 0.9)',
+                  background: agent?.status === 'Active' ? '#00E676' : agent?.status === 'Busy' ? '#FF9100' : 'var(--text-muted)',
+                  boxShadow: agent?.status === 'Active' ? '0 0 6px #00E676' : agent?.status === 'Busy' ? '0 0 6px #FF9100' : 'none',
                 }}
-              >
-                {agent?.full_name?.charAt(0) || 'A'}
-              </div>
-            )}
+              />
+            </div>
             <div className="show-desktop" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
               <p style={{ fontSize: '12px', fontWeight: '700' }}>{agent?.full_name || t('dashboard.agentFallback')}</p>
               <ChevronDown size={14} opacity={0.5} />
@@ -510,6 +773,61 @@ export function TopBar({ isSidebarOpen, setIsSidebarOpen, isSidebarCollapsed, se
                 <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
                   {agent?.role || 'Staff'}
                 </p>
+              </div>
+
+              {/* Active / Busy Status Switcher */}
+              <div style={{ padding: '8px 16px', borderBottom: '1px solid var(--border)', marginBottom: '8px' }}>
+                <p style={{ fontSize: '10px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '8px', letterSpacing: '0.5px' }}>
+                  {t('dashboard.myStatus')}
+                </p>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button
+                    onClick={() => void updateStatus('Active')}
+                    className="glass-interactive"
+                    style={{
+                      flex: 1,
+                      padding: '8px 12px',
+                      borderRadius: '8px',
+                      background: agent?.status === 'Active' ? 'rgba(0, 230, 118, 0.15)' : 'transparent',
+                      border: '1px solid',
+                      borderColor: agent?.status === 'Active' ? '#00E676' : 'var(--border)',
+                      color: agent?.status === 'Active' ? '#00E676' : 'var(--text-main)',
+                      fontSize: '11px',
+                      fontWeight: '800',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '6px',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#00E676', boxShadow: '0 0 6px #00E676' }} />
+                    <span>{t('dashboard.statusActive')}</span>
+                  </button>
+                  <button
+                    onClick={() => void updateStatus('Busy')}
+                    className="glass-interactive"
+                    style={{
+                      flex: 1,
+                      padding: '8px 12px',
+                      borderRadius: '8px',
+                      background: agent?.status === 'Busy' ? 'rgba(255, 145, 0, 0.15)' : 'transparent',
+                      border: '1px solid',
+                      borderColor: agent?.status === 'Busy' ? '#FF9100' : 'var(--border)',
+                      color: agent?.status === 'Busy' ? '#FF9100' : 'var(--text-main)',
+                      fontSize: '11px',
+                      fontWeight: '800',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '6px',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#FF9100', boxShadow: '0 0 6px #FF9100' }} />
+                    <span>{t('dashboard.statusBusy')}</span>
+                  </button>
+                </div>
               </div>
 
               <div style={{ position: 'relative' }}>
