@@ -61,12 +61,7 @@ export const ticketWorkspaceProfileSelect = `
   resolution_templates
 `;
 
-export const ticketWorkspaceCompanySettingsSelect = `
-  id,
-  modules,
-  resolution_templates,
-  issue_types
-`;
+
 
 export async function listTicketWorkspaceConversations(input?: {
   limit?: number;

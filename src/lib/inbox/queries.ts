@@ -1,7 +1,6 @@
 import { supabase } from '@/lib/supabase';
 import {
   normalizeInboxAgent,
-  normalizeInboxCompanySettings,
   normalizeInboxConversation,
   normalizeInboxConversations,
   normalizeInboxMessages,
@@ -179,11 +178,7 @@ export const inboxProfileSelect = `
   resolution_templates
 `;
 
-export const inboxCompanySettingsSelect = `
-  id,
-  modules,
-  issue_types
-`;
+
 
 type EnrichCustomerRow = {
   id: string;
