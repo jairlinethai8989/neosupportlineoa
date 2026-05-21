@@ -190,10 +190,12 @@ export const TicketSidebar: React.FC<TicketSidebarProps> = ({
                 opacity: isResolvedOrClosed && !isAdmin ? 0.5 : 1,
               }}
             >
-              <option value="New">Pending</option>
+              <option value="New">New</option>
               <option value="Assigned">Assigned</option>
               <option value="In Progress">In Progress</option>
               <option value="Escalated">Escalated</option>
+              <option value="Pending">Pending</option>
+              <option value="Fix Completed">Fix Completed</option>
               <option value="Resolved">Resolved</option>
             </select>
           </div>

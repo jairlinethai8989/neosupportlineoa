@@ -40,7 +40,7 @@ export const TicketHeader: React.FC<TicketHeaderProps> = ({
   const isResolvedOrClosed = isResolvedOrClosedStatus(status);
   const isOwnerOrAdmin = isTicketOwnerOrAdmin(ticket, user);
   const canResolve = canResolveTicket(status, isOwnerOrAdmin, isChatActive);
-  const canReviewFixCompleted = status === 'Fix Completed' && isOwnerOrAdmin;
+  const canReviewFixCompleted = status === 'Fix Completed';
 
   return (
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
