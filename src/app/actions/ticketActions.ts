@@ -216,17 +216,29 @@ export async function resolveTicketAction(
    if (module) updateData.module = module;
    if (issueType) updateData.issue_type = issueType;
 
-   const { data: ticket, error: resolveError } = await supabaseAdmin
-     .from('tickets')
-     .update(updateData)
-     .eq('id', ticketId)
-     .select()
-     .single();
+    let ticket, resolveError;
+    try {
+      const result = await supabaseAdmin
+        .from('tickets')
+        .update(updateData)
+        .eq('id', ticketId)
+        .select()
+        .single();
+      ticket = result.data;
+      resolveError = result.error;
+    } catch (e: unknown) {
+      console.error('[ResolveAction] Unexpected Database Error:', e);
+      const errorMessage = e instanceof Error ? e.message : String(e);
+      throw new Error(`เกิดข้อผิดพลาดในการเชื่อมต่อฐานข้อมูล: ${errorMessage}`);
+    }
 
-   if (resolveError) {
-     console.error('[ResolveAction] DB Update Error:', resolveError);
-     throw new Error(resolveError.message);
-   }
+    if (resolveError) {
+      console.error('[ResolveAction] DB Update Error:', resolveError);
+      if (resolveError.code === '22P02') {
+        throw new Error(`ประเภทงาน "${issueType}" ไม่สอดคล้องกับค่าที่ฐานข้อมูลยอมรับ (Enum Mismatch) กรุณาตรวจสอบและรันสคริปต์ SQL Migration`);
+      }
+      throw new Error(resolveError.message);
+    }
 
    try {
      // Record Log
