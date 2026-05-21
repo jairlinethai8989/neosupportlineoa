@@ -117,16 +117,37 @@ export function TopBar({ isSidebarOpen, setIsSidebarOpen, isSidebarCollapsed, se
     };
   }, []);
 
+  // Synchronize local agent's status/last_seen updates instantly into profiles state
+  useEffect(() => {
+    if (agent?.id) {
+      setProfiles(prev => {
+        const exists = prev.some(p => p.id === agent.id);
+        if (exists) {
+          return prev.map(p => p.id === agent.id ? { ...p, status: agent.status, last_seen: agent.last_seen } : p);
+        } else {
+          return [...prev, agent];
+        }
+      });
+    }
+  }, [agent]);
+
   useEffect(() => {
     const filterOnline = () => {
       const thresholdMinutes = companySettings?.active_threshold_minutes || 15;
       const now = new Date();
-      const filtered = profiles.filter(p => {
-        if (!p.last_seen) return false;
-        const lastSeenDate = new Date(p.last_seen);
-        const diffMinutes = (now.getTime() - lastSeenDate.getTime()) / 60000;
-        return diffMinutes <= thresholdMinutes;
-      });
+      const filtered = profiles
+        .map(p => {
+          if (agent && p.id === agent.id) {
+            return { ...p, status: agent.status, last_seen: agent.last_seen };
+          }
+          return p;
+        })
+        .filter(p => {
+          if (!p.last_seen) return false;
+          const lastSeenDate = new Date(p.last_seen);
+          const diffMinutes = (now.getTime() - lastSeenDate.getTime()) / 60000;
+          return diffMinutes <= thresholdMinutes;
+        });
 
       filtered.sort((a, b) => {
         if (a.status === 'Active' && b.status !== 'Active') return -1;
@@ -140,7 +161,7 @@ export function TopBar({ isSidebarOpen, setIsSidebarOpen, isSidebarCollapsed, se
     filterOnline();
     const filterInterval = setInterval(filterOnline, 30000);
     return () => clearInterval(filterInterval);
-  }, [profiles, companySettings]);
+  }, [profiles, companySettings, agent]);
 
   useEffect(() => {
     function handleClick(event: MouseEvent) {
