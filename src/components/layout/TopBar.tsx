@@ -327,7 +327,7 @@ export function TopBar({ isSidebarOpen, setIsSidebarOpen, isSidebarCollapsed, se
                       transform: 'translateX(-50%) translateY(-4px) scale(0.95)',
                       background: 'rgba(10, 14, 20, 0.9)',
                       backdropFilter: 'blur(10px)',
-                      border: '1px solid var(--border)',
+                      border: '1px solid rgba(255, 255, 255, 0.15)',
                       borderRadius: '8px',
                       padding: '8px 12px',
                       whiteSpace: 'nowrap',
@@ -341,8 +341,8 @@ export function TopBar({ isSidebarOpen, setIsSidebarOpen, isSidebarCollapsed, se
                       gap: '2px'
                     }}
                   >
-                    <span style={{ fontSize: '12px', fontWeight: '800', color: 'var(--text-main)' }}>{p.full_name}</span>
-                    <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>{p.department || t('dashboard.agentFallback')}</span>
+                    <span style={{ fontSize: '12px', fontWeight: '800', color: '#ffffff' }}>{p.full_name}</span>
+                    <span style={{ fontSize: '10px', color: 'rgba(255, 255, 255, 0.6)' }}>{p.department || t('dashboard.agentFallback')}</span>
                     <span style={{ 
                       fontSize: '10px', 
                       fontWeight: '700', 
