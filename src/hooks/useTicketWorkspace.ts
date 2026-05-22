@@ -169,35 +169,142 @@ function getTicketWorkspaceSortValue(ticket: TicketWorkspaceTicket, key: string)
   }
 }
 
+interface TicketWorkspaceCache {
+  ticketsByPage: Map<number, TicketWorkspaceTicket[]>;
+  conversationsByPage: Map<number, TicketWorkspaceConversation[]>;
+  hasNextPageByPage: Map<number, boolean>;
+  ticketCursorByPage: Map<number, TicketCursor>;
+  timeRange: TicketWorkspaceTimeRange;
+  customStart: string;
+  customEnd: string;
+  searchTerm: string;
+  sortConfig: TicketWorkspaceSortConfig;
+  ticketPage: number;
+  filterCustomerId: string | null;
+  userProfile: TicketWorkspaceProfile | null;
+  personalResTemplates: string[];
+  availableModules: string[];
+  availableIssueTypes: string[];
+}
+
+let ticketWorkspaceCache: TicketWorkspaceCache | null = null;
+
 export function useTicketWorkspace(filterCustomerId: string | null) {
   const { addToast, latestTicketRealtimeEvent } = useNotificationContext();
-  const [tickets, setTickets] = useState<TicketWorkspaceTicket[]>([]);
-  const [conversations, setConversations] = useState<TicketWorkspaceConversation[]>([]);
-  const [loading, setLoading] = useState(true);
+
+  const getOrInitializeCache = useCallback((): TicketWorkspaceCache => {
+    if (!ticketWorkspaceCache || ticketWorkspaceCache.filterCustomerId !== filterCustomerId) {
+      ticketWorkspaceCache = {
+        ticketsByPage: new Map(),
+        conversationsByPage: new Map(),
+        hasNextPageByPage: new Map(),
+        ticketCursorByPage: new Map([[1, null]]),
+        timeRange: 'today',
+        customStart: '',
+        customEnd: '',
+        searchTerm: '',
+        sortConfig: {
+          key: 'created_at',
+          direction: 'desc',
+        },
+        ticketPage: 1,
+        filterCustomerId,
+        userProfile: null,
+        personalResTemplates: [],
+        availableModules: [],
+        availableIssueTypes: [],
+      };
+    }
+    return ticketWorkspaceCache;
+  }, [filterCustomerId]);
+
+  const initialCache = ticketWorkspaceCache && ticketWorkspaceCache.filterCustomerId === filterCustomerId ? ticketWorkspaceCache : null;
+
+  const [tickets, setTickets] = useState<TicketWorkspaceTicket[]>(() => {
+    return initialCache?.ticketsByPage.get(initialCache.ticketPage) || [];
+  });
+  const [conversations, setConversations] = useState<TicketWorkspaceConversation[]>(() => {
+    return initialCache?.conversationsByPage.get(initialCache.ticketPage) || [];
+  });
+  const [loading, setLoading] = useState(() => {
+    if (!initialCache) return true;
+    return !initialCache.ticketsByPage.has(initialCache.ticketPage);
+  });
   const [viewModeState, setViewModeState] = useState<TicketsViewMode>('board');
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState(() => initialCache?.searchTerm || '');
   const [debugError, setDebugError] = useState<string | null>(null);
   const [claimingId, setClaimingId] = useState<string | null>(null);
-  const [userProfile, setUserProfile] = useState<TicketWorkspaceProfile | null>(null);
+  const [userProfile, setUserProfile] = useState<TicketWorkspaceProfile | null>(() => initialCache?.userProfile || null);
   const [showResolveModal, setShowResolveModal] = useState(false);
   const [resolvingTicket, setResolvingTicket] = useState<TicketWorkspaceTicket | null>(null);
   const [resSummary, setResSummary] = useState('');
-  const [availableModules, setAvailableModules] = useState<string[]>([]);
-  const [personalResTemplates, setPersonalResTemplates] = useState<string[]>([]);
+  const [availableModules, setAvailableModules] = useState<string[]>(() => initialCache?.availableModules || []);
+  const [personalResTemplates, setPersonalResTemplates] = useState<string[]>(() => initialCache?.personalResTemplates || []);
   const [selectedModule, setSelectedModule] = useState('');
   const [selectedIssueType, setSelectedIssueType] = useState('');
-  const [availableIssueTypes, setAvailableIssueTypes] = useState<string[]>([]);
-  const [timeRange, setTimeRange] = useState<TicketWorkspaceTimeRange>('today');
-  const [customStart, setCustomStart] = useState('');
-  const [customEnd, setCustomEnd] = useState('');
-  const [sortConfig, setSortConfig] = useState<TicketWorkspaceSortConfig>({
+  const [availableIssueTypes, setAvailableIssueTypes] = useState<string[]>(() => initialCache?.availableIssueTypes || []);
+  const [timeRange, setTimeRange] = useState<TicketWorkspaceTimeRange>(() => initialCache?.timeRange || 'today');
+  const [customStart, setCustomStart] = useState(() => initialCache?.customStart || '');
+  const [customEnd, setCustomEnd] = useState(() => initialCache?.customEnd || '');
+  const [sortConfig, setSortConfig] = useState<TicketWorkspaceSortConfig>(() => initialCache?.sortConfig || {
     key: 'created_at',
     direction: 'desc',
   });
-  const [ticketPage, setTicketPage] = useState(1);
-  const [hasNextTicketPage, setHasNextTicketPage] = useState(false);
-  const ticketCursorByPageRef = useRef<Map<number, TicketCursor>>(new Map([[1, null]]));
+  const [ticketPage, setTicketPage] = useState(() => initialCache?.ticketPage || 1);
+  const [hasNextTicketPage, setHasNextTicketPage] = useState(() => {
+    if (!initialCache) return false;
+    return initialCache.hasNextPageByPage.get(initialCache.ticketPage) || false;
+  });
+
+  const ticketCursorByPageRef = useRef<Map<number, TicketCursor>>(
+    initialCache?.ticketCursorByPage || new Map([[1, null]])
+  );
   const pendingRealtimeTicketIdsRef = useRef<Map<string, number>>(new Map());
+
+  // Sync state filters & search/sorting to cache, and clear page caches if query parameters change
+  useEffect(() => {
+    const cache = getOrInitializeCache();
+    const filtersChanged =
+      cache.timeRange !== timeRange ||
+      cache.customStart !== customStart ||
+      cache.customEnd !== customEnd ||
+      cache.searchTerm !== searchTerm ||
+      cache.sortConfig.key !== sortConfig.key ||
+      cache.sortConfig.direction !== sortConfig.direction;
+
+    if (filtersChanged) {
+      cache.ticketsByPage.clear();
+      cache.conversationsByPage.clear();
+      cache.hasNextPageByPage.clear();
+      ticketCursorByPageRef.current = new Map([[1, null]]);
+      cache.ticketCursorByPage = ticketCursorByPageRef.current;
+    }
+
+    cache.timeRange = timeRange;
+    cache.customStart = customStart;
+    cache.customEnd = customEnd;
+    cache.searchTerm = searchTerm;
+    cache.sortConfig = sortConfig;
+    cache.ticketPage = ticketPage;
+  }, [timeRange, customStart, customEnd, searchTerm, sortConfig, ticketPage, getOrInitializeCache]);
+
+  // Sync tickets list state to cache
+  useEffect(() => {
+    const cache = getOrInitializeCache();
+    cache.ticketsByPage.set(ticketPage, tickets);
+  }, [tickets, ticketPage, getOrInitializeCache]);
+
+  // Sync conversations list state to cache
+  useEffect(() => {
+    const cache = getOrInitializeCache();
+    cache.conversationsByPage.set(ticketPage, conversations);
+  }, [conversations, ticketPage, getOrInitializeCache]);
+
+  // Sync cursor map ref to cache
+  useEffect(() => {
+    const cache = getOrInitializeCache();
+    cache.ticketCursorByPage = ticketCursorByPageRef.current;
+  }, [getOrInitializeCache]);
 
   const isViewOnly =
     userProfile?.role !== 'Administrator' &&
@@ -223,6 +330,10 @@ export function useTicketWorkspace(filterCustomerId: string | null) {
       const hasNext = ticketResult.length > WORKSPACE_TICKETS_PAGE_SIZE;
       const nextCursorSource = pageTickets[pageTickets.length - 1];
       setHasNextTicketPage(hasNext);
+      
+      const cache = getOrInitializeCache();
+      cache.hasNextPageByPage.set(ticketPage, hasNext);
+
       if (hasNext && nextCursorSource?.created_at) {
         ticketCursorByPageRef.current.set(ticketPage + 1, {
           createdAt: nextCursorSource.created_at,
@@ -231,6 +342,7 @@ export function useTicketWorkspace(filterCustomerId: string | null) {
       } else {
         ticketCursorByPageRef.current.delete(ticketPage + 1);
       }
+      cache.ticketCursorByPage = ticketCursorByPageRef.current;
 
       const ticketIds = pageTickets.map((ticket) => ticket.id);
       const pageConversations = await listTicketWorkspaceConversationsByTicketIds(ticketIds);
@@ -270,7 +382,7 @@ export function useTicketWorkspace(filterCustomerId: string | null) {
     }
 
     if (!isSilent) setLoading(false);
-  }, [customEnd, customStart, ticketPage, timeRange]);
+  }, [customEnd, customStart, ticketPage, timeRange, getOrInitializeCache]);
 
   const syncTicketFromRealtime = useCallback(
     async (ticketId: string, fallbackValue?: unknown) => {
@@ -324,10 +436,20 @@ export function useTicketWorkspace(filterCustomerId: string | null) {
 
 
   useEffect(() => {
-    setTicketPage(1);
-    setHasNextTicketPage(false);
-    ticketCursorByPageRef.current = new Map([[1, null]]);
-  }, [timeRange, customStart, customEnd, filterCustomerId]);
+    // If cache matches our current filters, do NOT reset the page to 1
+    const cache = getOrInitializeCache();
+    const filtersChanged =
+      cache.timeRange !== timeRange ||
+      cache.customStart !== customStart ||
+      cache.customEnd !== customEnd;
+      
+    if (filtersChanged) {
+      setTicketPage(1);
+      setHasNextTicketPage(false);
+      ticketCursorByPageRef.current = new Map([[1, null]]);
+      cache.ticketCursorByPage = ticketCursorByPageRef.current;
+    }
+  }, [timeRange, customStart, customEnd, filterCustomerId, getOrInitializeCache]);
 
   // Keep active reference to syncTicketFromRealtime and fetchData to avoid resetting Supabase subscriptions
   const syncRef = useRef(syncTicketFromRealtime);
@@ -339,13 +461,21 @@ export function useTicketWorkspace(filterCustomerId: string | null) {
   // 1. Initial Load for Profile and Settings (Runs exactly ONCE on mount)
   useEffect(() => {
     async function initWorkspace() {
+      const cache = getOrInitializeCache();
+      if (cache.userProfile && cache.availableModules.length > 0) {
+        // Already loaded once, bypass loading
+        return;
+      }
+
       try {
         const user = await getTicketWorkspaceUser();
         if (user) {
           const profile = await getTicketWorkspaceProfile(user.id);
           setUserProfile(profile);
+          cache.userProfile = profile;
           if (profile?.resolution_templates) {
             setPersonalResTemplates(profile.resolution_templates);
+            cache.personalResTemplates = profile.resolution_templates;
           }
         }
       } catch (error) {
@@ -354,22 +484,31 @@ export function useTicketWorkspace(filterCustomerId: string | null) {
 
       try {
         const companyData = await getTicketWorkspaceCompanySettings();
-        setAvailableModules(companyData?.modules?.length ? companyData.modules : DEFAULT_MODULES);
-        setAvailableIssueTypes(companyData?.issue_types?.length ? companyData.issue_types : []);
+        const modules = companyData?.modules?.length ? companyData.modules : DEFAULT_MODULES;
+        const issues = companyData?.issue_types?.length ? companyData.issue_types : [];
+        setAvailableModules(modules);
+        setAvailableIssueTypes(issues);
+        cache.availableModules = modules;
+        cache.availableIssueTypes = issues;
       } catch (error) {
         console.error('Error loading company settings on mount:', error);
         setAvailableModules(DEFAULT_MODULES);
         setAvailableIssueTypes([]);
+        cache.availableModules = DEFAULT_MODULES;
+        cache.availableIssueTypes = [];
       }
     }
 
     initWorkspace();
-  }, []);
+  }, [getOrInitializeCache]);
 
   // 2. Fetch Data when filters or page changes
   useEffect(() => {
-    void fetchDataRef.current();
-  }, [timeRange, customStart, customEnd, ticketPage, filterCustomerId]);
+    // If cache already has data for this page, trigger fetch silently to revalidate in background
+    const cache = getOrInitializeCache();
+    const hasCache = cache.ticketsByPage.has(ticketPage);
+    void fetchDataRef.current(hasCache);
+  }, [timeRange, customStart, customEnd, ticketPage, filterCustomerId, getOrInitializeCache]);
 
   // 3. Supabase Realtime Channel Subscription (Set up exactly ONCE on mount)
   useEffect(() => {

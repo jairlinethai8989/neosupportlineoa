@@ -65,6 +65,16 @@ export function upsertConversation(
   return sortConversations(next).slice(0, Math.max(maxItems, 1));
 }
 
+interface InboxWorkspaceCache {
+  conversationsByPage: Map<number, InboxConversation[]>;
+  hasNextPageByPage: Map<number, boolean>;
+  cursorByPage: Map<number, { lastMessageAt: string; id: string } | null>;
+  page: number;
+  pageSize: number;
+}
+
+let inboxWorkspaceCache: InboxWorkspaceCache | null = null;
+
 export function useRealtimeInbox(options: {
   page?: number;
   pageSize?: number;
@@ -74,16 +84,73 @@ export function useRealtimeInbox(options: {
     pageSize = 10
   } = options;
 
-  const [conversations, setConversations] = useState<InboxConversation[]>([]);
-  const [hasNextPage, setHasNextPage] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const getOrInitializeCache = useCallback((): InboxWorkspaceCache => {
+    if (!inboxWorkspaceCache) {
+      inboxWorkspaceCache = {
+        conversationsByPage: new Map(),
+        hasNextPageByPage: new Map(),
+        cursorByPage: new Map([[1, null]]),
+        page,
+        pageSize,
+      };
+    }
+    return inboxWorkspaceCache;
+  }, [page, pageSize]);
+
+  const initialCache = inboxWorkspaceCache;
+
+  const [conversations, setConversations] = useState<InboxConversation[]>(() => {
+    return initialCache?.conversationsByPage.get(page) || [];
+  });
+  const [hasNextPage, setHasNextPage] = useState<boolean>(() => {
+    return initialCache?.hasNextPageByPage.get(page) || false;
+  });
+  const [loading, setLoading] = useState(() => {
+    if (!initialCache) return true;
+    return !initialCache.conversationsByPage.has(page);
+  });
+
   const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const refreshInFlightRef = useRef(false);
   const refreshQueuedRef = useRef(false);
   const unmountedRef = useRef(false);
   const cursorByPageRef = useRef<Map<number, { lastMessageAt: string; id: string } | null>>(
-    new Map([[1, null]])
+    initialCache?.cursorByPage || new Map([[1, null]])
   );
+
+  // Sync state filters & page config to cache, and clear page caches if query parameters change
+  useEffect(() => {
+    const cache = getOrInitializeCache();
+    const configChanged = cache.pageSize !== pageSize;
+
+    if (configChanged) {
+      cache.conversationsByPage.clear();
+      cache.hasNextPageByPage.clear();
+      cursorByPageRef.current = new Map([[1, null]]);
+      cache.cursorByPage = cursorByPageRef.current;
+    }
+
+    cache.pageSize = pageSize;
+    cache.page = page;
+  }, [page, pageSize, getOrInitializeCache]);
+
+  // Sync conversations list state to cache
+  useEffect(() => {
+    const cache = getOrInitializeCache();
+    cache.conversationsByPage.set(page, conversations);
+  }, [conversations, page, getOrInitializeCache]);
+
+  // Sync hasNextPage state to cache
+  useEffect(() => {
+    const cache = getOrInitializeCache();
+    cache.hasNextPageByPage.set(page, hasNextPage);
+  }, [hasNextPage, page, getOrInitializeCache]);
+
+  // Sync cursor map ref to cache
+  useEffect(() => {
+    const cache = getOrInitializeCache();
+    cache.cursorByPage = cursorByPageRef.current;
+  }, [getOrInitializeCache]);
 
   const fetchConversations = useCallback(async (opts: { silent?: boolean } = {}) => {
     if (!opts.silent) {
@@ -159,12 +226,16 @@ export function useRealtimeInbox(options: {
   useEffect(() => {
     if (page === 1 && cursorByPageRef.current.get(1) !== null) {
       cursorByPageRef.current = new Map([[1, null]]);
+      const cache = getOrInitializeCache();
+      cache.cursorByPage = cursorByPageRef.current;
     }
-  }, [page, pageSize]);
+  }, [page, pageSize, getOrInitializeCache]);
 
   useEffect(() => {
-    void fetchConversations();
-  }, [fetchConversations]);
+    const cache = getOrInitializeCache();
+    const hasCache = cache.conversationsByPage.has(page);
+    void fetchConversations({ silent: hasCache });
+  }, [page, pageSize, fetchConversations, getOrInitializeCache]);
 
   useEffect(() => {
     unmountedRef.current = false;
