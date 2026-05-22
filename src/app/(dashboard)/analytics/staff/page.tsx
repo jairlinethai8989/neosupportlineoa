@@ -324,8 +324,8 @@ export default function StaffAnalyticsPage() {
                     onChange={handleAgentChange}
                     style={{
                       width: '100%',
-                      background: 'rgba(10, 14, 20, 0.65)',
-                      border: '1px solid rgba(0, 242, 254, 0.25)',
+                      background: 'var(--bg-input)',
+                      border: '1px solid rgba(8, 145, 178, 0.35)',
                       borderRadius: '14px',
                       padding: '12px 42px 12px 18px',
                       color: 'var(--text-main)',
@@ -337,19 +337,19 @@ export default function StaffAnalyticsPage() {
                       backdropFilter: 'blur(12px)',
                       WebkitBackdropFilter: 'blur(12px)',
                       transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                      boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2)',
+                      boxShadow: '0 4px 12px rgba(0, 0, 0, 0.05)',
                     }}
                     onFocus={(e) => {
                       e.target.style.border = '1px solid var(--primary)';
                       e.target.style.boxShadow = '0 0 15px rgba(0, 242, 254, 0.2)';
                     }}
                     onBlur={(e) => {
-                      e.target.style.border = '1px solid rgba(0, 242, 254, 0.25)';
-                      e.target.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.2)';
+                      e.target.style.border = '1px solid rgba(8, 145, 178, 0.35)';
+                      e.target.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.05)';
                     }}
                   >
                     {staffList.map((staff) => (
-                      <option key={staff.id} value={staff.id} style={{ background: '#0d121c', color: 'var(--text-main)' }}>
+                      <option key={staff.id} value={staff.id} style={{ background: 'var(--bg-card)', color: 'var(--text-main)' }}>
                         {staff.full_name} ({staff.role})
                       </option>
                     ))}
