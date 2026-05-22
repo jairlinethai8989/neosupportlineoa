@@ -203,6 +203,10 @@ export default function StaffAnalyticsPage() {
     setCurrentTimelinePage(1);
   }, [selectedAgentId, dateRange.start, dateRange.end]);
 
+  const showFullPageLoader = useMemo(() => {
+    return loading || (loadingStats && !data);
+  }, [loading, loadingStats, data]);
+
   if (!mounted) return null;
 
   // Unauthorised fallback view
@@ -238,36 +242,8 @@ export default function StaffAnalyticsPage() {
           </p>
         </div>
 
-        {/* Date Selector & Staff Selector */}
+        {/* Date Selector */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-          {/* Agent Dropdown */}
-          <div style={{ position: 'relative' }}>
-            <select
-              value={selectedAgentId}
-              onChange={handleAgentChange}
-              style={{
-                background: 'var(--bg-card)',
-                border: '1px solid var(--border)',
-                borderRadius: '12px',
-                padding: '10px 40px 10px 16px',
-                color: 'var(--text-main)',
-                fontWeight: '700',
-                fontSize: '14px',
-                outline: 'none',
-                cursor: 'pointer',
-                appearance: 'none',
-                minWidth: '200px'
-              }}
-            >
-              {staffList.map((staff) => (
-                <option key={staff.id} value={staff.id}>
-                  {staff.full_name} ({staff.role})
-                </option>
-              ))}
-            </select>
-            <ChevronDown size={16} color="var(--text-muted)" style={{ position: 'absolute', right: '16px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
-          </div>
-
           {/* Range Selection */}
           <div style={{ display: 'flex', background: 'rgba(0,0,0,0.2)', padding: '4px', borderRadius: '12px', border: '1px solid var(--border)' }}>
             <button 
@@ -314,7 +290,7 @@ export default function StaffAnalyticsPage() {
         </div>
       </div>
 
-      {loading || loadingStats ? (
+      {showFullPageLoader ? (
         <div className="flex-center" style={{ height: '50vh' }}>
           <Loader2 className="animate-spin" size={40} color="var(--primary)" />
         </div>
@@ -326,315 +302,390 @@ export default function StaffAnalyticsPage() {
         <>
           {/* Executive Overview Banner */}
           <div className="glass" style={{ padding: '24px 32px', marginBottom: '32px', background: 'linear-gradient(135deg, rgba(0, 242, 254, 0.05) 0%, rgba(115, 103, 240, 0.05) 100%)', border: '1px solid var(--border-active)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-              <div style={{ background: 'rgba(0, 242, 254, 0.1)', padding: '16px', borderRadius: '16px', color: 'var(--primary)' }}>
-                <Users size={32} />
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '24px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '20px', flex: '1', minWidth: '280px' }}>
+                <div style={{ background: 'rgba(0, 242, 254, 0.12)', padding: '16px', borderRadius: '16px', color: 'var(--primary)', boxShadow: '0 0 15px rgba(0, 242, 254, 0.15)' }}>
+                  <Users size={32} />
+                </div>
+                <div>
+                  <h2 style={{ fontSize: '20px', fontWeight: '800', color: 'var(--text-main)', letterSpacing: '-0.3px' }}>รายงานสรุปผลงานระดับรายบุคคล</h2>
+                  <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '6px', lineHeight: '1.5' }}>
+                    กำลังตรวจสอบสถิติการปฏิบัติงานของ <strong>{selectedAgentName}</strong> ตั้งแต่วันที่ {DateTime.fromISO(dateRange.start).toFormat('dd MMM')} ถึง {DateTime.fromISO(dateRange.end).toFormat('dd MMM yyyy')} รวมประวัติและ CSAT ย้อนหลังทั้งหมด
+                  </p>
+                </div>
               </div>
-              <div>
-                <h2 style={{ fontSize: '20px', fontWeight: '800', color: 'var(--text-main)' }}>รายงานสรุปผลงานระดับรายบุคคล</h2>
-                <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '4px', lineHeight: '1.4' }}>
-                  กำลังตรวจสอบสถิติการปฏิบัติงานของ <strong>{selectedAgentName}</strong> ตั้งแต่วันที่ {DateTime.fromISO(dateRange.start).toFormat('dd MMM')} ถึง {DateTime.fromISO(dateRange.end).toFormat('dd MMM yyyy')} รวมประวัติและ CSAT ย้อนหลังทั้งหมด
-                </p>
-              </div>
-            </div>
-          </div>
 
-          {/* KPI Analytics Grid */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '20px', marginBottom: '32px' }}>
-            <div className="glass" style={{ padding: '24px', display: 'flex', alignItems: 'center', gap: '20px' }}>
-              <div style={{ background: 'rgba(40, 199, 111, 0.1)', padding: '12px', borderRadius: '14px' }}>
-                <CheckCircle size={24} color="var(--success)" />
-              </div>
-              <div>
-                <p style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: '600' }}>ใบงานที่ปิดแล้ว</p>
-                <h3 style={{ fontSize: '28px', fontWeight: '850', color: 'var(--text-main)', marginTop: '4px' }}>{data.stats.resolvedCount}</h3>
-                <span style={{ fontSize: '10px', color: 'var(--text-dim)' }}>จากทั้งหมด {data.stats.totalClaimed} เคส</span>
-              </div>
-            </div>
-
-            <div className="glass" style={{ padding: '24px', display: 'flex', alignItems: 'center', gap: '20px' }}>
-              <div style={{ background: 'rgba(0, 242, 254, 0.1)', padding: '12px', borderRadius: '14px' }}>
-                <Clock size={24} color="var(--primary)" />
-              </div>
-              <div>
-                <p style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: '600' }}>เวลาปิดงานเฉลี่ย</p>
-                <h3 style={{ fontSize: '28px', fontWeight: '850', color: 'var(--text-main)', marginTop: '4px' }}>
-                  {data.stats.avgResolutionTime} <span style={{ fontSize: '14px', fontWeight: '600' }}>ชม.</span>
-                </h3>
-                <span style={{ fontSize: '10px', color: 'var(--text-dim)' }}>SLA ผ่านเกณฑ์ {data.stats.slaComplianceRate}%</span>
-              </div>
-            </div>
-
-            <div className="glass" style={{ padding: '24px', display: 'flex', alignItems: 'center', gap: '20px' }}>
-              <div style={{ background: 'rgba(234, 84, 85, 0.1)', padding: '12px', borderRadius: '14px' }}>
-                <AlertTriangle size={24} color="var(--danger)" />
-              </div>
-              <div>
-                <p style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: '600' }}>อัตราการส่งกลับแก้</p>
-                <h3 style={{ fontSize: '28px', fontWeight: '850', color: 'var(--text-main)', marginTop: '4px' }}>
-                  {data.stats.reworkRate}%
-                </h3>
-                <span style={{ fontSize: '10px', color: 'var(--text-dim)' }}>โดนตีกลับ {data.stats.reworkCount} ครั้ง</span>
-              </div>
-            </div>
-
-            <div className="glass" style={{ padding: '24px', display: 'flex', alignItems: 'center', gap: '20px' }}>
-              <div style={{ background: 'rgba(255, 159, 67, 0.1)', padding: '12px', borderRadius: '14px' }}>
-                <Star size={24} color="var(--warning)" />
-              </div>
-              <div>
-                <p style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: '600' }}>ความพึงพอใจ CSAT</p>
-                <h3 style={{ fontSize: '28px', fontWeight: '850', color: 'var(--text-main)', marginTop: '4px' }}>
-                  {data.stats.avgCsat > 0 ? `${data.stats.avgCsat} / 5` : 'ไม่มีประเมิน'}
-                </h3>
-                <div style={{ display: 'flex', gap: '2px', marginTop: '4px' }}>
-                  {Array.from({ length: 5 }, (_, i) => (
-                    <Star 
-                      key={i} 
-                      size={10} 
-                      fill={i < Math.round(data.stats.avgCsat) ? 'var(--warning)' : 'transparent'} 
-                      color="var(--warning)" 
-                    />
-                  ))}
+              {/* Stylized Employee Dropdown */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', minWidth: '250px', flexShrink: 0 }}>
+                <span style={{ fontSize: '11px', fontWeight: '750', color: 'var(--primary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>เลือกรายชื่อพนักงานเพื่อดูสถิติ</span>
+                <div style={{ position: 'relative' }}>
+                  <select
+                    value={selectedAgentId}
+                    onChange={handleAgentChange}
+                    style={{
+                      width: '100%',
+                      background: 'rgba(10, 14, 20, 0.65)',
+                      border: '1px solid rgba(0, 242, 254, 0.25)',
+                      borderRadius: '14px',
+                      padding: '12px 42px 12px 18px',
+                      color: 'var(--text-main)',
+                      fontWeight: '700',
+                      fontSize: '14px',
+                      outline: 'none',
+                      cursor: 'pointer',
+                      appearance: 'none',
+                      backdropFilter: 'blur(12px)',
+                      WebkitBackdropFilter: 'blur(12px)',
+                      transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                      boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2)',
+                    }}
+                    onFocus={(e) => {
+                      e.target.style.border = '1px solid var(--primary)';
+                      e.target.style.boxShadow = '0 0 15px rgba(0, 242, 254, 0.2)';
+                    }}
+                    onBlur={(e) => {
+                      e.target.style.border = '1px solid rgba(0, 242, 254, 0.25)';
+                      e.target.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.2)';
+                    }}
+                  >
+                    {staffList.map((staff) => (
+                      <option key={staff.id} value={staff.id} style={{ background: '#0d121c', color: 'var(--text-main)' }}>
+                        {staff.full_name} ({staff.role})
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown size={18} color="var(--primary)" style={{ position: 'absolute', right: '16px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Graphics Grid */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '24px', marginBottom: '32px' }}>
-            {/* Resolution Trend Chart */}
-            <div className="glass" style={{ padding: '24px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '12px' }}>
-                <div style={{ background: 'rgba(0, 242, 254, 0.1)', padding: '6px', borderRadius: '8px', color: 'var(--primary)' }}>
-                  <TrendingUp size={16} />
+          {/* Wrapper for Stats Content with Loading Overlay */}
+          <div style={{ position: 'relative', minHeight: '300px' }}>
+            {loadingStats && (
+              <div style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                background: 'rgba(10, 14, 20, 0.45)',
+                backdropFilter: 'blur(4px)',
+                WebkitBackdropFilter: 'blur(4px)',
+                borderRadius: '16px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                zIndex: 10,
+                animation: 'fadeIn 0.3s ease-out'
+              }}>
+                <div className="glass" style={{ padding: '20px 32px', display: 'flex', alignItems: 'center', gap: '12px', border: '1px solid rgba(0, 242, 254, 0.2)', background: 'rgba(15, 23, 42, 0.8)' }}>
+                  <Loader2 className="animate-spin" size={24} color="var(--primary)" />
+                  <span style={{ fontSize: '14px', fontWeight: '700', color: 'var(--text-main)' }}>กำลังอัปเดตข้อมูล...</span>
                 </div>
-                <h3 style={{ fontSize: '16px', fontWeight: '800', color: 'var(--text-main)' }}>แนวโน้มการแก้ไขงานรายวัน</h3>
               </div>
+            )}
 
-              <ResponsiveContainer width="100%" height={260}>
-                <AreaChart data={data.resolutionTrend}>
-                  <defs>
-                    <linearGradient id="colorValueStaff" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="var(--primary)" stopOpacity={0.3} />
-                      <stop offset="95%" stopColor="var(--primary)" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
-                  <XAxis dataKey="name" stroke="var(--text-dim)" fontSize={11} axisLine={false} tickLine={false} />
-                  <YAxis stroke="var(--text-dim)" fontSize={11} axisLine={false} tickLine={false} allowDecimals={false} />
-                  <Tooltip 
-                    contentStyle={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px' }}
-                    labelStyle={{ fontWeight: '700', fontSize: '12px', color: 'var(--text-main)' }}
-                    itemStyle={{ color: 'var(--primary)', fontSize: '12px' }}
-                  />
-                  <Area type="monotone" dataKey="value" stroke="var(--primary)" strokeWidth={3} fillOpacity={1} fill="url(#colorValueStaff)" />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
-
-            {/* SLA Compliance Gauge Chart */}
-            <div className="glass" style={{ padding: '24px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '12px' }}>
-                <div style={{ background: 'rgba(40, 199, 111, 0.1)', padding: '6px', borderRadius: '8px', color: 'var(--success)' }}>
-                  <PieIcon size={16} />
+            {/* Content to dim during loading */}
+            <div style={{ opacity: loadingStats ? 0.6 : 1, transition: 'opacity 0.3s ease' }}>
+              {/* KPI Analytics Grid */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '20px', marginBottom: '32px' }}>
+                <div className="glass" style={{ padding: '24px', display: 'flex', alignItems: 'center', gap: '20px' }}>
+                  <div style={{ background: 'rgba(40, 199, 111, 0.1)', padding: '12px', borderRadius: '14px' }}>
+                    <CheckCircle size={24} color="var(--success)" />
+                  </div>
+                  <div>
+                    <p style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: '600' }}>ใบงานที่ปิดแล้ว</p>
+                    <h3 style={{ fontSize: '28px', fontWeight: '850', color: 'var(--text-main)', marginTop: '4px' }}>{data.stats.resolvedCount}</h3>
+                    <span style={{ fontSize: '10px', color: 'var(--text-dim)' }}>จากทั้งหมด {data.stats.totalClaimed} เคส</span>
+                  </div>
                 </div>
-                <h3 style={{ fontSize: '16px', fontWeight: '800', color: 'var(--text-main)' }}>อัตราการรักษาสัญญา SLA</h3>
-              </div>
 
-              {filteredSlaData.length === 0 ? (
-                <div className="flex-center" style={{ height: '260px', color: 'var(--text-muted)' }}>พนักงานไม่มีเคสที่ติดเงื่อนไข SLA</div>
-              ) : (
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-around', flexWrap: 'wrap', gap: '16px' }}>
-                  <ResponsiveContainer width={180} height={200}>
-                    <PieChart>
-                      <Pie
-                        data={filteredSlaData}
-                        innerRadius={50}
-                        outerRadius={75}
-                        paddingAngle={4}
-                        dataKey="value"
-                      >
-                        {filteredSlaData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={SLA_COLORS[index % SLA_COLORS.length]} />
-                        ))}
-                      </Pie>
-                      <Tooltip />
-                    </PieChart>
-                  </ResponsiveContainer>
+                <div className="glass" style={{ padding: '24px', display: 'flex', alignItems: 'center', gap: '20px' }}>
+                  <div style={{ background: 'rgba(0, 242, 254, 0.1)', padding: '12px', borderRadius: '14px' }}>
+                    <Clock size={24} color="var(--primary)" />
+                  </div>
+                  <div>
+                    <p style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: '600' }}>เวลาปิดงานเฉลี่ย</p>
+                    <h3 style={{ fontSize: '28px', fontWeight: '850', color: 'var(--text-main)', marginTop: '4px' }}>
+                      {data.stats.avgResolutionTime} <span style={{ fontSize: '14px', fontWeight: '600' }}>ชม.</span>
+                    </h3>
+                    <span style={{ fontSize: '10px', color: 'var(--text-dim)' }}>SLA ผ่านเกณฑ์ {data.stats.slaComplianceRate}%</span>
+                  </div>
+                </div>
 
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                    <div style={{ textAlign: 'center', marginBottom: '10px' }}>
-                      <p style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>ความถูกต้องตามเกณฑ์</p>
-                      <p style={{ fontSize: '24px', fontWeight: '900', color: 'var(--success)' }}>{data.stats.slaComplianceRate}%</p>
+                <div className="glass" style={{ padding: '24px', display: 'flex', alignItems: 'center', gap: '20px' }}>
+                  <div style={{ background: 'rgba(234, 84, 85, 0.1)', padding: '12px', borderRadius: '14px' }}>
+                    <AlertTriangle size={24} color="var(--danger)" />
+                  </div>
+                  <div>
+                    <p style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: '600' }}>อัตราการส่งกลับแก้</p>
+                    <h3 style={{ fontSize: '28px', fontWeight: '850', color: 'var(--text-main)', marginTop: '4px' }}>
+                      {data.stats.reworkRate}%
+                    </h3>
+                    <span style={{ fontSize: '10px', color: 'var(--text-dim)' }}>โดนตีกลับ {data.stats.reworkCount} ครั้ง</span>
+                  </div>
+                </div>
+
+                <div className="glass" style={{ padding: '24px', display: 'flex', alignItems: 'center', gap: '20px' }}>
+                  <div style={{ background: 'rgba(255, 159, 67, 0.1)', padding: '12px', borderRadius: '14px' }}>
+                    <Star size={24} color="var(--warning)" />
+                  </div>
+                  <div>
+                    <p style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: '600' }}>ความพึงพอใจ CSAT</p>
+                    <h3 style={{ fontSize: '28px', fontWeight: '850', color: 'var(--text-main)', marginTop: '4px' }}>
+                      {data.stats.avgCsat > 0 ? `${data.stats.avgCsat} / 5` : 'ไม่มีประเมิน'}
+                    </h3>
+                    <div style={{ display: 'flex', gap: '2px', marginTop: '4px' }}>
+                      {Array.from({ length: 5 }, (_, i) => (
+                        <Star 
+                          key={i} 
+                          size={10} 
+                          fill={i < Math.round(data.stats.avgCsat) ? 'var(--warning)' : 'transparent'} 
+                          color="var(--warning)" 
+                        />
+                      ))}
                     </div>
-                    {filteredSlaData.map((entry, idx) => (
-                      <div key={entry.name} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        <div style={{ width: '12px', height: '12px', borderRadius: '4px', background: SLA_COLORS[idx % SLA_COLORS.length] }} />
-                        <span style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-main)' }}>{entry.name}</span>
-                        <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>({entry.value} ใบงาน)</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Graphics Grid */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '24px', marginBottom: '32px' }}>
+                {/* Resolution Trend Chart */}
+                <div className="glass" style={{ padding: '24px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '12px' }}>
+                    <div style={{ background: 'rgba(0, 242, 254, 0.1)', padding: '6px', borderRadius: '8px', color: 'var(--primary)' }}>
+                      <TrendingUp size={16} />
+                    </div>
+                    <h3 style={{ fontSize: '16px', fontWeight: '800', color: 'var(--text-main)' }}>แนวโน้มการแก้ไขงานรายวัน</h3>
+                  </div>
+
+                  <ResponsiveContainer width="100%" height={260}>
+                    <AreaChart data={data.resolutionTrend}>
+                      <defs>
+                        <linearGradient id="colorValueStaff" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="var(--primary)" stopOpacity={0.3} />
+                          <stop offset="95%" stopColor="var(--primary)" stopOpacity={0} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+                      <XAxis dataKey="name" stroke="var(--text-dim)" fontSize={11} axisLine={false} tickLine={false} />
+                      <YAxis stroke="var(--text-dim)" fontSize={11} axisLine={false} tickLine={false} allowDecimals={false} />
+                      <Tooltip 
+                        contentStyle={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px' }}
+                        labelStyle={{ fontWeight: '700', fontSize: '12px', color: 'var(--text-main)' }}
+                        itemStyle={{ color: 'var(--primary)', fontSize: '12px' }}
+                      />
+                      <Area type="monotone" dataKey="value" stroke="var(--primary)" strokeWidth={3} fillOpacity={1} fill="url(#colorValueStaff)" />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
+
+                {/* SLA Compliance Gauge Chart */}
+                <div className="glass" style={{ padding: '24px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '12px' }}>
+                    <div style={{ background: 'rgba(40, 199, 111, 0.1)', padding: '6px', borderRadius: '8px', color: 'var(--success)' }}>
+                      <PieIcon size={16} />
+                    </div>
+                    <h3 style={{ fontSize: '16px', fontWeight: '800', color: 'var(--text-main)' }}>อัตราการรักษาสัญญา SLA</h3>
+                  </div>
+
+                  {filteredSlaData.length === 0 ? (
+                    <div className="flex-center" style={{ height: '260px', color: 'var(--text-muted)' }}>พนักงานไม่มีเคสที่ติดเงื่อนไข SLA</div>
+                  ) : (
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-around', flexWrap: 'wrap', gap: '16px' }}>
+                      <ResponsiveContainer width={180} height={200}>
+                        <PieChart>
+                          <Pie
+                            data={filteredSlaData}
+                            innerRadius={50}
+                            outerRadius={75}
+                            paddingAngle={4}
+                            dataKey="value"
+                          >
+                            {filteredSlaData.map((entry, index) => (
+                              <Cell key={`cell-${index}`} fill={SLA_COLORS[index % SLA_COLORS.length]} />
+                            ))}
+                          </Pie>
+                          <Tooltip />
+                        </PieChart>
+                      </ResponsiveContainer>
+
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                        <div style={{ textAlign: 'center', marginBottom: '10px' }}>
+                          <p style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>ความถูกต้องตามเกณฑ์</p>
+                          <p style={{ fontSize: '24px', fontWeight: '900', color: 'var(--success)' }}>{data.stats.slaComplianceRate}%</p>
+                        </div>
+                        {filteredSlaData.map((entry, idx) => (
+                          <div key={entry.name} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                            <div style={{ width: '12px', height: '12px', borderRadius: '4px', background: SLA_COLORS[idx % SLA_COLORS.length] }} />
+                            <span style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-main)' }}>{entry.name}</span>
+                            <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>({entry.value} ใบงาน)</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Problem Category horizontal Bar Chart */}
+                <div className="glass" style={{ padding: '24px', gridColumn: 'span 2' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '12px' }}>
+                    <div style={{ background: 'rgba(115, 103, 240, 0.1)', padding: '6px', borderRadius: '8px', color: 'var(--secondary)' }}>
+                      <BarIcon size={16} />
+                    </div>
+                    <h3 style={{ fontSize: '16px', fontWeight: '800', color: 'var(--text-main)' }}>สัดส่วนประเภทปัญหาที่ดูแลสูงสุด (Top Categories Handled)</h3>
+                  </div>
+
+                  {data.categoryData.length === 0 ? (
+                    <div className="flex-center" style={{ height: '240px', color: 'var(--text-muted)' }}>ไม่มีข้อมูลบันทึกประเภทปัญหา</div>
+                  ) : (
+                    <ResponsiveContainer width="100%" height={240}>
+                      <RechartsBarChart layout="vertical" data={data.categoryData}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" horizontal={false} />
+                        <XAxis type="number" stroke="var(--text-dim)" fontSize={11} axisLine={false} tickLine={false} />
+                        <YAxis type="category" dataKey="name" stroke="var(--text-dim)" fontSize={11} axisLine={false} tickLine={false} width={150} />
+                        <Tooltip contentStyle={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px' }} />
+                        <Bar dataKey="value" fill="var(--primary)" radius={[0, 4, 4, 0]} barSize={16}>
+                          {data.categoryData.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
+                          ))}
+                        </Bar>
+                      </RechartsBarChart>
+                    </ResponsiveContainer>
+                  )}
+                </div>
+              </div>
+
+              {/* Timeline and History log */}
+              <div className="glass" style={{ padding: '24px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '24px', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '16px' }}>
+                  <div style={{ background: 'rgba(255, 159, 67, 0.1)', padding: '6px', borderRadius: '8px', color: 'var(--warning)' }}>
+                    <Activity size={16} />
+                  </div>
+                  <h3 style={{ fontSize: '16px', fontWeight: '800', color: 'var(--text-main)' }}>บันทึกประวัติการทำงานของพนักงานล่าสุด (Employee Activity Log)</h3>
+                </div>
+
+                {paginatedTimeline.length === 0 ? (
+                  <div style={{ padding: '48px 0', textAlign: 'center', color: 'var(--text-muted)' }}>
+                    ไม่มีบันทึกประวัติการทำงานล่าสุดในช่วงเวลานี้
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                    {paginatedTimeline.map((item, idx) => (
+                      <div key={item.id || idx} style={{ display: 'flex', gap: '16px', borderBottom: idx < paginatedTimeline.length - 1 ? '1px solid rgba(255,255,255,0.03)' : 'none', paddingBottom: '16px' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                          <div style={{ 
+                            width: '12px', 
+                            height: '12px', 
+                            borderRadius: '50%', 
+                            background: item.action === 'resolve' || item.action === 'close' ? 'var(--success)' : item.action === 'reject' ? 'var(--danger)' : 'var(--primary)',
+                            boxShadow: '0 0 10px rgba(0,242,254,0.3)',
+                            marginTop: '4px'
+                          }} />
+                          {idx < paginatedTimeline.length - 1 && (
+                            <div style={{ width: '2px', flex: 1, background: 'rgba(255,255,255,0.05)', marginTop: '8px' }} />
+                          )}
+                        </div>
+
+                        <div style={{ flex: 1 }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                              <span style={{ fontSize: '13px', fontWeight: '800', color: 'var(--text-main)' }}>{item.ticketNo}</span>
+                              <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>{item.subject}</span>
+                              <span 
+                                style={{ 
+                                    fontSize: '10px', 
+                                    padding: '2px 8px', 
+                                    borderRadius: '6px', 
+                                    fontWeight: '800', 
+                                    ...getActionBadgeStyle(item.action) 
+                                }}
+                              >
+                                {getActionTypeLabel(item.action)}
+                              </span>
+                            </div>
+
+                            <span style={{ fontSize: '11px', color: 'var(--text-dim)' }}>
+                              {DateTime.fromISO(item.createdAt).toFormat('dd MMM yyyy, HH:mm น.')}
+                            </span>
+                          </div>
+
+                          {item.note && (
+                            <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.04)', borderRadius: '10px', padding: '10px 14px', marginTop: '8px', fontSize: '13px', color: 'var(--text-dim)' }}>
+                              <span style={{ fontWeight: '700', color: 'var(--text-muted)', marginRight: '6px' }}>บันทึก:</span>
+                              {item.note}
+                            </div>
+                          )}
+                        </div>
                       </div>
                     ))}
-                  </div>
-                </div>
-              )}
-            </div>
 
-            {/* Problem Category horizontal Bar Chart */}
-            <div className="glass" style={{ padding: '24px', gridColumn: 'span 2' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '12px' }}>
-                <div style={{ background: 'rgba(115, 103, 240, 0.1)', padding: '6px', borderRadius: '8px', color: 'var(--secondary)' }}>
-                  <BarIcon size={16} />
-                </div>
-                <h3 style={{ fontSize: '16px', fontWeight: '800', color: 'var(--text-main)' }}>สัดส่วนประเภทปัญหาที่ดูแลสูงสุด (Top Categories Handled)</h3>
-              </div>
-
-              {data.categoryData.length === 0 ? (
-                <div className="flex-center" style={{ height: '240px', color: 'var(--text-muted)' }}>ไม่มีข้อมูลบันทึกประเภทปัญหา</div>
-              ) : (
-                <ResponsiveContainer width="100%" height={240}>
-                  <RechartsBarChart layout="vertical" data={data.categoryData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" horizontal={false} />
-                    <XAxis type="number" stroke="var(--text-dim)" fontSize={11} axisLine={false} tickLine={false} />
-                    <YAxis type="category" dataKey="name" stroke="var(--text-dim)" fontSize={11} axisLine={false} tickLine={false} width={150} />
-                    <Tooltip contentStyle={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px' }} />
-                    <Bar dataKey="value" fill="var(--primary)" radius={[0, 4, 4, 0]} barSize={16}>
-                      {data.categoryData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
-                      ))}
-                    </Bar>
-                  </RechartsBarChart>
-                </ResponsiveContainer>
-              )}
-            </div>
-          </div>
-
-          {/* Timeline and History log */}
-          <div className="glass" style={{ padding: '24px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '24px', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '16px' }}>
-              <div style={{ background: 'rgba(255, 159, 67, 0.1)', padding: '6px', borderRadius: '8px', color: 'var(--warning)' }}>
-                <Activity size={16} />
-              </div>
-              <h3 style={{ fontSize: '16px', fontWeight: '800', color: 'var(--text-main)' }}>บันทึกประวัติการทำงานของพนักงานล่าสุด (Employee Activity Log)</h3>
-            </div>
-
-            {paginatedTimeline.length === 0 ? (
-              <div style={{ padding: '48px 0', textAlign: 'center', color: 'var(--text-muted)' }}>
-                ไม่มีบันทึกประวัติการทำงานล่าสุดในช่วงเวลานี้
-              </div>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                {paginatedTimeline.map((item, idx) => (
-                  <div key={item.id || idx} style={{ display: 'flex', gap: '16px', borderBottom: idx < paginatedTimeline.length - 1 ? '1px solid rgba(255,255,255,0.03)' : 'none', paddingBottom: '16px' }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                    {/* Pagination Controls */}
+                    {totalTimelinePages > 1 && (
                       <div style={{ 
-                        width: '12px', 
-                        height: '12px', 
-                        borderRadius: '50%', 
-                        background: item.action === 'resolve' || item.action === 'close' ? 'var(--success)' : item.action === 'reject' ? 'var(--danger)' : 'var(--primary)',
-                        boxShadow: '0 0 10px rgba(0,242,254,0.3)',
-                        marginTop: '4px'
-                      }} />
-                      {idx < paginatedTimeline.length - 1 && (
-                        <div style={{ width: '2px', flex: 1, background: 'rgba(255,255,255,0.05)', marginTop: '8px' }} />
-                      )}
-                    </div>
-
-                    <div style={{ flex: 1 }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                          <span style={{ fontSize: '13px', fontWeight: '800', color: 'var(--text-main)' }}>{item.ticketNo}</span>
-                          <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>{item.subject}</span>
-                          <span 
-                            style={{ 
-                                fontSize: '10px', 
-                                padding: '2px 8px', 
-                                borderRadius: '6px', 
-                                fontWeight: '800', 
-                                ...getActionBadgeStyle(item.action) 
-                            }}
-                          >
-                            {getActionTypeLabel(item.action)}
-                          </span>
-                        </div>
-
-                        <span style={{ fontSize: '11px', color: 'var(--text-dim)' }}>
-                          {DateTime.fromISO(item.createdAt).toFormat('dd MMM yyyy, HH:mm น.')}
+                        display: 'flex', 
+                        justifyContent: 'center', 
+                        alignItems: 'center', 
+                        gap: '16px', 
+                        marginTop: '24px', 
+                        paddingTop: '20px', 
+                        borderTop: '1px solid rgba(255, 255, 255, 0.05)'
+                      }}>
+                        <button
+                          onClick={() => setCurrentTimelinePage(prev => Math.max(prev - 1, 1))}
+                          disabled={currentTimelinePage === 1}
+                          className="glass-interactive"
+                          style={{
+                            padding: '8px 16px',
+                            borderRadius: '10px',
+                            background: currentTimelinePage === 1 ? 'rgba(255, 255, 255, 0.02)' : 'rgba(255, 255, 255, 0.05)',
+                            border: '1px solid rgba(255, 255, 255, 0.08)',
+                            color: currentTimelinePage === 1 ? 'var(--text-dim)' : 'var(--text-main)',
+                            fontSize: '13px',
+                            fontWeight: '700',
+                            cursor: currentTimelinePage === 1 ? 'not-allowed' : 'pointer',
+                            opacity: currentTimelinePage === 1 ? 0.4 : 1,
+                            transition: 'all 0.2s ease',
+                          }}
+                        >
+                          ย้อนกลับ
+                        </button>
+                        
+                        <span style={{ 
+                          fontSize: '13px', 
+                          color: 'var(--text-muted)', 
+                          fontWeight: '600'
+                        }}>
+                          หน้า <span style={{ color: 'var(--primary)', fontWeight: '800' }}>{currentTimelinePage}</span> จาก {totalTimelinePages}
                         </span>
+                        
+                        <button
+                          onClick={() => setCurrentTimelinePage(prev => Math.min(prev + 1, totalTimelinePages))}
+                          disabled={currentTimelinePage === totalTimelinePages}
+                          className="glass-interactive"
+                          style={{
+                            padding: '8px 16px',
+                            borderRadius: '10px',
+                            background: currentTimelinePage === totalTimelinePages ? 'rgba(255, 255, 255, 0.02)' : 'rgba(255, 255, 255, 0.05)',
+                            border: '1px solid rgba(255, 255, 255, 0.08)',
+                            color: currentTimelinePage === totalTimelinePages ? 'var(--text-dim)' : 'var(--text-main)',
+                            fontSize: '13px',
+                            fontWeight: '700',
+                            cursor: currentTimelinePage === totalTimelinePages ? 'not-allowed' : 'pointer',
+                            opacity: currentTimelinePage === totalTimelinePages ? 0.4 : 1,
+                            transition: 'all 0.2s ease',
+                          }}
+                        >
+                          ถัดไป
+                        </button>
                       </div>
-
-                      {item.note && (
-                        <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.04)', borderRadius: '10px', padding: '10px 14px', marginTop: '8px', fontSize: '13px', color: 'var(--text-dim)' }}>
-                          <span style={{ fontWeight: '700', color: 'var(--text-muted)', marginRight: '6px' }}>บันทึก:</span>
-                          {item.note}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                ))}
-
-                {/* Pagination Controls */}
-                {totalTimelinePages > 1 && (
-                  <div style={{ 
-                    display: 'flex', 
-                    justifyContent: 'center', 
-                    alignItems: 'center', 
-                    gap: '16px', 
-                    marginTop: '24px', 
-                    paddingTop: '20px', 
-                    borderTop: '1px solid rgba(255, 255, 255, 0.05)'
-                  }}>
-                    <button
-                      onClick={() => setCurrentTimelinePage(prev => Math.max(prev - 1, 1))}
-                      disabled={currentTimelinePage === 1}
-                      className="glass-interactive"
-                      style={{
-                        padding: '8px 16px',
-                        borderRadius: '10px',
-                        background: currentTimelinePage === 1 ? 'rgba(255, 255, 255, 0.02)' : 'rgba(255, 255, 255, 0.05)',
-                        border: '1px solid rgba(255, 255, 255, 0.08)',
-                        color: currentTimelinePage === 1 ? 'var(--text-dim)' : 'var(--text-main)',
-                        fontSize: '13px',
-                        fontWeight: '700',
-                        cursor: currentTimelinePage === 1 ? 'not-allowed' : 'pointer',
-                        opacity: currentTimelinePage === 1 ? 0.4 : 1,
-                        transition: 'all 0.2s ease',
-                      }}
-                    >
-                      ย้อนกลับ
-                    </button>
-                    
-                    <span style={{ 
-                      fontSize: '13px', 
-                      color: 'var(--text-muted)', 
-                      fontWeight: '600'
-                    }}>
-                      หน้า <span style={{ color: 'var(--primary)', fontWeight: '800' }}>{currentTimelinePage}</span> จาก {totalTimelinePages}
-                    </span>
-                    
-                    <button
-                      onClick={() => setCurrentTimelinePage(prev => Math.min(prev + 1, totalTimelinePages))}
-                      disabled={currentTimelinePage === totalTimelinePages}
-                      className="glass-interactive"
-                      style={{
-                        padding: '8px 16px',
-                        borderRadius: '10px',
-                        background: currentTimelinePage === totalTimelinePages ? 'rgba(255, 255, 255, 0.02)' : 'rgba(255, 255, 255, 0.05)',
-                        border: '1px solid rgba(255, 255, 255, 0.08)',
-                        color: currentTimelinePage === totalTimelinePages ? 'var(--text-dim)' : 'var(--text-main)',
-                        fontSize: '13px',
-                        fontWeight: '700',
-                        cursor: currentTimelinePage === totalTimelinePages ? 'not-allowed' : 'pointer',
-                        opacity: currentTimelinePage === totalTimelinePages ? 0.4 : 1,
-                        transition: 'all 0.2s ease',
-                      }}
-                    >
-                      ถัดไป
-                    </button>
+                    )}
                   </div>
                 )}
               </div>
-            )}
+            </div>
           </div>
         </>
       )}
