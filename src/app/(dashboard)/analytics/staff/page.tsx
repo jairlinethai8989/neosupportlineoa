@@ -184,6 +184,25 @@ export default function StaffAnalyticsPage() {
     return data.slaData.filter(d => d.value > 0);
   }, [data?.slaData]);
 
+  const [currentTimelinePage, setCurrentTimelinePage] = useState(1);
+  const ITEMS_PER_PAGE = 10;
+  
+  const totalTimelinePages = useMemo(() => {
+    if (!data?.timeline) return 0;
+    return Math.ceil(data.timeline.length / ITEMS_PER_PAGE);
+  }, [data?.timeline]);
+
+  const paginatedTimeline = useMemo(() => {
+    if (!data?.timeline) return [];
+    const startIndex = (currentTimelinePage - 1) * ITEMS_PER_PAGE;
+    return data.timeline.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+  }, [data?.timeline, currentTimelinePage]);
+
+  // Reset timeline page when agent or dates change
+  useEffect(() => {
+    setCurrentTimelinePage(1);
+  }, [selectedAgentId, dateRange.start, dateRange.end]);
+
   if (!mounted) return null;
 
   // Unauthorised fallback view
@@ -499,14 +518,14 @@ export default function StaffAnalyticsPage() {
               <h3 style={{ fontSize: '16px', fontWeight: '800', color: 'var(--text-main)' }}>บันทึกประวัติการทำงานของพนักงานล่าสุด (Employee Activity Log)</h3>
             </div>
 
-            {data.timeline.length === 0 ? (
+            {paginatedTimeline.length === 0 ? (
               <div style={{ padding: '48px 0', textAlign: 'center', color: 'var(--text-muted)' }}>
                 ไม่มีบันทึกประวัติการทำงานล่าสุดในช่วงเวลานี้
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                {data.timeline.map((item, idx) => (
-                  <div key={item.id || idx} style={{ display: 'flex', gap: '16px', borderBottom: idx < data.timeline.length - 1 ? '1px solid rgba(255,255,255,0.03)' : 'none', paddingBottom: '16px' }}>
+                {paginatedTimeline.map((item, idx) => (
+                  <div key={item.id || idx} style={{ display: 'flex', gap: '16px', borderBottom: idx < paginatedTimeline.length - 1 ? '1px solid rgba(255,255,255,0.03)' : 'none', paddingBottom: '16px' }}>
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                       <div style={{ 
                         width: '12px', 
@@ -516,7 +535,7 @@ export default function StaffAnalyticsPage() {
                         boxShadow: '0 0 10px rgba(0,242,254,0.3)',
                         marginTop: '4px'
                       }} />
-                      {idx < data.timeline.length - 1 && (
+                      {idx < paginatedTimeline.length - 1 && (
                         <div style={{ width: '2px', flex: 1, background: 'rgba(255,255,255,0.05)', marginTop: '8px' }} />
                       )}
                     </div>
@@ -528,11 +547,11 @@ export default function StaffAnalyticsPage() {
                           <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>{item.subject}</span>
                           <span 
                             style={{ 
-                              fontSize: '10px', 
-                              padding: '2px 8px', 
-                              borderRadius: '6px', 
-                              fontWeight: '800', 
-                              ...getActionBadgeStyle(item.action) 
+                                fontSize: '10px', 
+                                padding: '2px 8px', 
+                                borderRadius: '6px', 
+                                fontWeight: '800', 
+                                ...getActionBadgeStyle(item.action) 
                             }}
                           >
                             {getActionTypeLabel(item.action)}
@@ -553,6 +572,67 @@ export default function StaffAnalyticsPage() {
                     </div>
                   </div>
                 ))}
+
+                {/* Pagination Controls */}
+                {totalTimelinePages > 1 && (
+                  <div style={{ 
+                    display: 'flex', 
+                    justifyContent: 'center', 
+                    alignItems: 'center', 
+                    gap: '16px', 
+                    marginTop: '24px', 
+                    paddingTop: '20px', 
+                    borderTop: '1px solid rgba(255, 255, 255, 0.05)'
+                  }}>
+                    <button
+                      onClick={() => setCurrentTimelinePage(prev => Math.max(prev - 1, 1))}
+                      disabled={currentTimelinePage === 1}
+                      className="glass-interactive"
+                      style={{
+                        padding: '8px 16px',
+                        borderRadius: '10px',
+                        background: currentTimelinePage === 1 ? 'rgba(255, 255, 255, 0.02)' : 'rgba(255, 255, 255, 0.05)',
+                        border: '1px solid rgba(255, 255, 255, 0.08)',
+                        color: currentTimelinePage === 1 ? 'var(--text-dim)' : 'var(--text-main)',
+                        fontSize: '13px',
+                        fontWeight: '700',
+                        cursor: currentTimelinePage === 1 ? 'not-allowed' : 'pointer',
+                        opacity: currentTimelinePage === 1 ? 0.4 : 1,
+                        transition: 'all 0.2s ease',
+                      }}
+                    >
+                      ย้อนกลับ
+                    </button>
+                    
+                    <span style={{ 
+                      fontSize: '13px', 
+                      color: 'var(--text-muted)', 
+                      fontWeight: '600'
+                    }}>
+                      หน้า <span style={{ color: 'var(--primary)', fontWeight: '800' }}>{currentTimelinePage}</span> จาก {totalTimelinePages}
+                    </span>
+                    
+                    <button
+                      onClick={() => setCurrentTimelinePage(prev => Math.min(prev + 1, totalTimelinePages))}
+                      disabled={currentTimelinePage === totalTimelinePages}
+                      className="glass-interactive"
+                      style={{
+                        padding: '8px 16px',
+                        borderRadius: '10px',
+                        background: currentTimelinePage === totalTimelinePages ? 'rgba(255, 255, 255, 0.02)' : 'rgba(255, 255, 255, 0.05)',
+                        border: '1px solid rgba(255, 255, 255, 0.08)',
+                        color: currentTimelinePage === totalTimelinePages ? 'var(--text-dim)' : 'var(--text-main)',
+                        fontSize: '13px',
+                        fontWeight: '700',
+                        cursor: currentTimelinePage === totalTimelinePages ? 'not-allowed' : 'pointer',
+                        opacity: currentTimelinePage === totalTimelinePages ? 0.4 : 1,
+                        transition: 'all 0.2s ease',
+                      }}
+                    >
+                      ถัดไป
+                    </button>
+                  </div>
+                )}
               </div>
             )}
           </div>

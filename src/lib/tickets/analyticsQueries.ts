@@ -207,7 +207,7 @@ export const analyticsQueries = {
       `)
       .eq('performer_id', agentId)
       .order('created_at', { ascending: false })
-      .limit(15);
+      .limit(100);
 
     if (timelineError) throw timelineError;
 
