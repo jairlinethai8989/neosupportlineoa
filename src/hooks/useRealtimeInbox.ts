@@ -177,7 +177,7 @@ export function useRealtimeInbox(options: {
         }
       }
 
-      const visibleData = page === 1 ? data.filter(isConversationActiveLike) : data;
+      const visibleData = data.filter(isConversationActiveLike);
       setConversations(visibleData);
       setHasNextPage(hasNext);
       if (hasNext && nextCursor) {

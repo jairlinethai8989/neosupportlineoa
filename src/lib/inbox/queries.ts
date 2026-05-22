@@ -404,6 +404,12 @@ export async function listInboxConversationsV2(input: {
         .order('id', { ascending: false })
         .limit(pageSize + 1);
 
+      if (input.status === 'active') {
+        query = query.not('status', 'in', '("closed","resolved","done","archived")');
+      } else if (input.status === 'closed') {
+        query = query.in('status', ['closed', 'resolved', 'done', 'archived']);
+      }
+
       if (input.cursorLastMessageAt && input.cursorId) {
         query = query.or(
           `last_message_at.lt.${input.cursorLastMessageAt},and(last_message_at.eq.${input.cursorLastMessageAt},id.lt.${input.cursorId})`
