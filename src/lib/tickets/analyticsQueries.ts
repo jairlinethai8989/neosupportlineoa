@@ -249,4 +249,61 @@ export const analyticsQueries = {
       timeline,
     };
   },
+
+  /**
+   * Fetches high-level stats for all agents at once, useful for Scatter plot and Capacity tracking
+   */
+  async getTeamAnalytics(startDateStr: string, endDateStr: string) {
+    const start = DateTime.fromISO(startDateStr).startOf('day').toJSDate();
+    const end = DateTime.fromISO(endDateStr).endOf('day').toJSDate();
+
+    // Fetch all profiles
+    const { data: profiles, error: pError } = await supabase
+      .from('profiles')
+      .select('id, full_name');
+    
+    if (pError) throw pError;
+
+    // Fetch all tickets to aggregate
+    const { data: tickets, error: tError } = await supabase
+      .from('tickets')
+      .select('assigned_agent_id, status, created_at, resolved_at')
+      .not('assigned_agent_id', 'is', null);
+
+    if (tError) throw tError;
+
+    const teamStats = (profiles || []).map((p: {id: string; full_name: string}) => {
+      const agentTickets = (tickets || []).filter((t: {assigned_agent_id: string; status: string; created_at: string; resolved_at: string | null}) => t.assigned_agent_id === p.id);
+      
+      const activeCount = agentTickets.filter((t: {status: string}) => 
+        ['Assigned', 'In Progress', 'Escalated', 'Pending'].includes(t.status)
+      ).length;
+
+      const resolvedTickets = agentTickets.filter((t: {status: string; resolved_at: string | null}) => {
+        if (!['Resolved', 'Closed'].includes(t.status)) return false;
+        if (!t.resolved_at) return false;
+        const resDate = new Date(t.resolved_at);
+        return resDate >= start && resDate <= end;
+      });
+
+      let totalHours = 0;
+      resolvedTickets.forEach((t: {created_at: string; resolved_at: string | null}) => {
+        const c = new Date(t.created_at);
+        const r = new Date(t.resolved_at!);
+        totalHours += (r.getTime() - c.getTime()) / (1000 * 60 * 60);
+      });
+
+      const avgResolutionTime = resolvedTickets.length > 0 ? parseFloat((totalHours / resolvedTickets.length).toFixed(1)) : 0;
+
+      return {
+        id: p.id,
+        name: p.full_name,
+        activeCount, // For capacity
+        resolvedCount: resolvedTickets.length, // For scatter Y
+        avgResolutionTime, // For scatter X
+      };
+    });
+
+    return teamStats;
+  },
 };

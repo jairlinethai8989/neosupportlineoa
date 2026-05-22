@@ -168,6 +168,7 @@ export default function Home() {
   const [priorityRows, setPriorityRows] = useState<ValueRow[]>([]);
   const [hospitalRows, setHospitalRows] = useState<ValueRow[]>([]);
   const [agentRows, setAgentRows] = useState<AgentRow[]>([]);
+  const [heatmap, setHeatmap] = useState<number[][]>([]);
   const [exportTicketsRows, setExportTicketsRows] = useState<any[]>([]);
   const [exportTicketsKey, setExportTicketsKey] = useState<string>('');
   const [recentLogs, setRecentLogs] = useState<LogRow[]>([]);
@@ -284,6 +285,7 @@ export default function Home() {
         setPriorityRows(payload.priorityData || []);
         setHospitalRows(payload.hospitalData || []);
         setAgentRows(payload.agentData || []);
+        setHeatmap(payload.heatmap || []);
         
         if (!backgroundRefresh) setRecentLogs([]);
 
@@ -304,6 +306,7 @@ export default function Home() {
         setPriorityRows([]);
         setHospitalRows([]);
         setAgentRows([]);
+        setHeatmap([]);
         setRecentLogs([]);
       } finally {
         if (!cancelled && !backgroundRefresh) setIsLoading(false);
@@ -663,7 +666,9 @@ export default function Home() {
             agentWorkload: t('dashboard.agentWorkload'),
             recentActivity: t('dashboard.recentActivity'),
             noResults: t('common.messages.noResults'),
+            heatmapVolume: t('dashboard.heatmapVolume') || 'ปริมาณใบงานรายชั่วโมง (Heatmap)',
           }}
+          heatmapData={heatmap}
         />
       </Suspense>
 

@@ -118,6 +118,26 @@ export async function GET(req: Request) {
         }));
       }
 
+      // 3. Fetch Data for Heatmap
+      const heatmap = Array.from({ length: 7 }, () => Array(24).fill(0));
+      const { data: heatmapRaw, error: heatmapError } = await supabaseAdmin
+        .from('tickets')
+        .select('created_at')
+        .gte('created_at', fromIso)
+        .lte('created_at', toIso);
+      
+      if (!heatmapError && heatmapRaw) {
+        heatmapRaw.forEach((t: any) => {
+          if (!t.created_at) return;
+          const d = new Date(t.created_at);
+          if (!isNaN(d.getTime())) {
+            const day = d.getDay(); // 0 = Sunday
+            const hour = d.getHours();
+            heatmap[day][hour]++;
+          }
+        });
+      }
+
       return {
         stats: {
           totalToday: stats.totalToday,
@@ -136,6 +156,7 @@ export async function GET(req: Request) {
         hospitalData,
         agentData,
         recentLogs,
+        heatmap,
       };
     });
 

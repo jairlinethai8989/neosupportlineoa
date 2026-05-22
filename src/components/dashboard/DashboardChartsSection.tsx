@@ -97,7 +97,9 @@ type DashboardChartsSectionProps = {
     agentWorkload: string;
     recentActivity: string;
     noResults: string;
+    heatmapVolume?: string;
   };
+  heatmapData?: number[][];
 };
 
 export function DashboardChartsSection({
@@ -109,7 +111,29 @@ export function DashboardChartsSection({
   totalAll,
   avgCsat,
   labels,
+  heatmapData = [],
 }: DashboardChartsSectionProps) {
+  
+  // Helpers for Heatmap
+  const DAYS_TH = ['อา.', 'จ.', 'อ.', 'พ.', 'พฤ.', 'ศ.', 'ส.'];
+  
+  // Find max value in heatmap for color scaling
+  const maxHeatmapValue = React.useMemo(() => {
+    let max = 0;
+    if (heatmapData && heatmapData.length === 7) {
+      heatmapData.forEach(day => day.forEach(val => { if(val > max) max = val; }));
+    }
+    return max || 1;
+  }, [heatmapData]);
+
+  const getHeatmapColor = (value: number) => {
+    if (value === 0) return 'rgba(255,255,255,0.03)';
+    const intensity = Math.max(0.1, value / maxHeatmapValue);
+    // Use primary color #00f2fe but with varying opacity or mix
+    // HSL of #00f2fe is approx 192, 100%, 50%
+    return `rgba(0, 242, 254, ${intensity})`;
+  };
+
   return (
     <>
       <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '24px', marginBottom: '24px' }}>
@@ -242,6 +266,52 @@ export function DashboardChartsSection({
               </div>
             ))}
           </div>
+        </div>
+      </div>
+
+      {/* Heatmap Section */}
+      <div className="glass" style={{ padding: '24px', display: 'flex', flexDirection: 'column', marginBottom: '24px' }}>
+        <div style={{ marginBottom: '16px' }}>
+          <h2 style={{ fontSize: '16px', fontWeight: '800', marginBottom: '2px' }}>{labels.heatmapVolume || 'ปริมาณใบงานรายชั่วโมง (Heatmap)'}</h2>
+          <p style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>TICKET VOLUME BY DAY/HOUR</p>
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', overflowX: 'auto', paddingBottom: '12px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '40px repeat(24, minmax(20px, 1fr))', gap: '4px' }}>
+             <div />
+             {Array.from({length: 24}).map((_, i) => (
+               <div key={`h-${i}`} style={{ fontSize: '9px', color: 'var(--text-muted)', textAlign: 'center' }}>{i}</div>
+             ))}
+          </div>
+          {heatmapData && heatmapData.length === 7 ? DAYS_TH.map((dayName, dayIdx) => (
+            <div key={`d-${dayIdx}`} style={{ display: 'grid', gridTemplateColumns: '40px repeat(24, minmax(20px, 1fr))', gap: '4px', alignItems: 'center' }}>
+              <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: '700' }}>{dayName}</div>
+              {heatmapData[dayIdx]?.map((val, hourIdx) => (
+                <div
+                  key={`cell-${dayIdx}-${hourIdx}`}
+                  title={`${dayName} เวลา ${hourIdx}:00 น. มี ${val} งาน`}
+                  style={{
+                    height: '24px',
+                    borderRadius: '4px',
+                    background: getHeatmapColor(val),
+                    border: '1px solid rgba(255,255,255,0.05)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer',
+                    transition: 'transform 0.1s'
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.transform = 'scale(1.1)'; e.currentTarget.style.zIndex = '10'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.zIndex = '1'; }}
+                >
+                   {val > 0 && maxHeatmapValue < 50 && <span style={{fontSize: '9px', opacity: 0.8, color: val > (maxHeatmapValue * 0.5) ? '#000' : '#fff'}}>{val}</span>}
+                </div>
+              ))}
+            </div>
+          )) : (
+            <div className="flex-center" style={{ height: '180px', color: 'var(--text-muted)', fontSize: '13px' }}>
+              {labels.noResults}
+            </div>
+          )}
         </div>
       </div>
 

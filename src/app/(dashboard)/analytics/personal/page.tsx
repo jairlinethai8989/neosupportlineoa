@@ -266,19 +266,24 @@ export default function PersonalAnalyticsPage() {
               </div>
             </div>
 
-            {/* KPI 2 */}
-            <div className="glass" style={{ padding: '24px', display: 'flex', alignItems: 'center', gap: '20px', position: 'relative', overflow: 'hidden' }}>
-              <div style={{ background: 'rgba(0, 242, 254, 0.1)', padding: '12px', borderRadius: '14px' }}>
-                <Clock size={24} color="var(--primary)" />
+            {/* KPI 2 (Emphasized) */}
+            <div className="glass" style={{ padding: '24px', display: 'flex', alignItems: 'center', gap: '20px', position: 'relative', overflow: 'hidden', background: 'linear-gradient(145deg, rgba(0, 242, 254, 0.05), rgba(54, 153, 255, 0.15))', border: '1px solid rgba(0, 242, 254, 0.3)' }}>
+              <div style={{ background: 'linear-gradient(135deg, var(--primary), var(--secondary))', padding: '12px', borderRadius: '14px', boxShadow: '0 4px 12px rgba(0,242,254,0.4)' }}>
+                <Clock size={24} color="#fff" />
               </div>
-              <div>
-                <p style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: '600' }}>เวลาปิดงานเฉลี่ย</p>
-                <h3 style={{ fontSize: '28px', fontWeight: '850', color: 'var(--text-main)', marginTop: '4px' }}>
-                  {data.stats.avgResolutionTime} <span style={{ fontSize: '14px', fontWeight: '600' }}>ชม.</span>
+              <div style={{ zIndex: 1 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <p style={{ fontSize: '12px', color: 'var(--primary)', fontWeight: '800', textTransform: 'uppercase' }}>เวลาปิดงานเฉลี่ย</p>
+                  <span style={{ fontSize: '9px', background: 'rgba(0,242,254,0.2)', color: 'var(--primary)', padding: '2px 6px', borderRadius: '4px', fontWeight: '800' }}>SPEED METRIC</span>
+                </div>
+                <h3 style={{ fontSize: '32px', fontWeight: '900', color: '#fff', marginTop: '4px', textShadow: '0 2px 10px rgba(0,242,254,0.5)' }}>
+                  {data.stats.avgResolutionTime} <span style={{ fontSize: '14px', fontWeight: '700', color: 'rgba(255,255,255,0.7)' }}>ชม.</span>
                 </h3>
-                <span style={{ fontSize: '10px', color: 'var(--text-dim)' }}>SLA ผ่านเกณฑ์ {data.stats.slaComplianceRate}%</span>
+                <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
+                  <span style={{ fontSize: '11px', color: 'var(--text-main)', fontWeight: '600' }}>SLA ผ่านเกณฑ์ <span style={{color: 'var(--success)'}}>{data.stats.slaComplianceRate}%</span></span>
+                </div>
               </div>
-              <div style={{ position: 'absolute', right: '-10px', bottom: '-15px', opacity: 0.05, transform: 'scale(1.5)' }}>
+              <div style={{ position: 'absolute', right: '-10px', bottom: '-15px', opacity: 0.1, transform: 'scale(1.5)', zIndex: 0 }}>
                 <Clock size={96} color="var(--primary)" />
               </div>
             </div>

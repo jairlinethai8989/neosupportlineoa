@@ -28,6 +28,7 @@ import {
   AreaChart, Area,
   PieChart, Pie, Cell,
   BarChart as RechartsBarChart, Bar,
+  ScatterChart, Scatter, ZAxis,
   XAxis, YAxis, CartesianGrid, Tooltip
 } from 'recharts';
 
@@ -54,6 +55,8 @@ export default function StaffAnalyticsPage() {
   const [selectedAgentName, setSelectedAgentName] = useState<string>('');
   
   const [data, setData] = useState<AgentAnalyticsData | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [teamStats, setTeamStats] = useState<any[]>([]);
   
   const [dateRange, setDateRange] = useState({
     start: DateTime.now().minus({ days: 30 }).toISODate()!,
@@ -108,14 +111,14 @@ export default function StaffAnalyticsPage() {
     if (!agentId) return;
     setLoadingStats(true);
     try {
-      const stats = await analyticsQueries.getAgentAnalytics(
-        agentId,
-        dateRange.start,
-        dateRange.end
-      );
+      const [stats, tStats] = await Promise.all([
+        analyticsQueries.getAgentAnalytics(agentId, dateRange.start, dateRange.end),
+        analyticsQueries.getTeamAnalytics(dateRange.start, dateRange.end)
+      ]);
       setData(stats);
+      setTeamStats(tStats);
     } catch (err) {
-      console.error('Failed to fetch agent stats:', err);
+      console.error('Failed to fetch stats:', err);
     } finally {
       setLoadingStats(false);
     }
@@ -450,7 +453,86 @@ export default function StaffAnalyticsPage() {
                 </div>
               </div>
 
-              {/* Graphics Grid */}
+              {/* NEW SECTION: Executive Team Overview */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '24px', marginBottom: '32px' }}>
+                {/* Workload & Capacity Tracking */}
+                <div className="glass" style={{ padding: '24px', display: 'flex', flexDirection: 'column' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '12px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <div style={{ background: 'rgba(0, 242, 254, 0.1)', padding: '6px', borderRadius: '8px', color: 'var(--primary)' }}>
+                        <Activity size={16} />
+                      </div>
+                      <h3 style={{ fontSize: '16px', fontWeight: '800', color: 'var(--text-main)' }}>ติดตามภาระงาน (Capacity Tracking)</h3>
+                    </div>
+                  </div>
+                  
+                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '16px', overflowY: 'auto', maxHeight: '300px', paddingRight: '10px' }}>
+                    {teamStats.sort((a,b) => b.activeCount - a.activeCount).map((agent) => {
+                      const MAX_CAPACITY = 15;
+                      const pct = Math.min(100, (agent.activeCount / MAX_CAPACITY) * 100);
+                      const isOverload = agent.activeCount >= MAX_CAPACITY;
+                      const isWarning = agent.activeCount >= MAX_CAPACITY * 0.8;
+                      const color = isOverload ? 'var(--danger)' : isWarning ? 'var(--warning)' : 'var(--success)';
+                      return (
+                        <div key={agent.id}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
+                            <span style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-main)' }}>{agent.name}</span>
+                            <span style={{ fontSize: '12px', fontWeight: '800', color: color }}>{agent.activeCount} / {MAX_CAPACITY} เคส</span>
+                          </div>
+                          <div style={{ height: '8px', background: 'rgba(255,255,255,0.05)', borderRadius: '4px', overflow: 'hidden' }}>
+                            <div
+                              style={{
+                                height: '100%',
+                                width: `${pct}%`,
+                                background: color,
+                                borderRadius: '4px',
+                                transition: 'width 0.8s cubic-bezier(0.4, 0, 0.2, 1)',
+                                boxShadow: `0 0 10px ${color}80`
+                              }}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Agent Scatter Matrix */}
+                <div className="glass" style={{ padding: '24px', display: 'flex', flexDirection: 'column' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '12px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <div style={{ background: 'rgba(115, 103, 240, 0.1)', padding: '6px', borderRadius: '8px', color: 'var(--secondary)' }}>
+                        <BarIcon size={16} />
+                      </div>
+                      <h3 style={{ fontSize: '16px', fontWeight: '800', color: 'var(--text-main)' }}>แมทริกซ์ประสิทธิภาพ (Performance Matrix)</h3>
+                    </div>
+                  </div>
+                  
+                  <div style={{ flex: 1, minHeight: '300px' }}>
+                     <ResponsiveContainer width="100%" height={300}>
+                        <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+                          <XAxis type="number" dataKey="avgResolutionTime" name="เวลาเฉลี่ย (ชม.)" stroke="var(--text-dim)" fontSize={11} axisLine={false} tickLine={false} />
+                          <YAxis type="number" dataKey="resolvedCount" name="จำนวนเคสที่ปิด" stroke="var(--text-dim)" fontSize={11} axisLine={false} tickLine={false} />
+                          <ZAxis type="category" dataKey="name" name="พนักงาน" />
+                          <Tooltip 
+                            cursor={{ strokeDasharray: '3 3' }}
+                            contentStyle={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px', fontSize: '12px' }}
+                            itemStyle={{ fontWeight: '700', color: 'var(--primary)' }}
+                          />
+                          <Scatter name="พนักงาน" data={teamStats.filter(s => s.resolvedCount > 0 || s.avgResolutionTime > 0)} fill="var(--primary)">
+                            {teamStats.filter(s => s.resolvedCount > 0 || s.avgResolutionTime > 0).map((entry, index) => (
+                              <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
+                            ))}
+                          </Scatter>
+                        </ScatterChart>
+                     </ResponsiveContainer>
+                     <p style={{ textAlign: 'center', fontSize: '11px', color: 'var(--text-muted)', marginTop: '8px' }}>แกน X: เวลาเฉลี่ยในการปิดงาน (ชม.) • แกน Y: จำนวนงานที่ปิดได้</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Existing Charts Grid */}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '24px', marginBottom: '32px' }}>
                 {/* Resolution Trend Chart */}
                 <div className="glass" style={{ padding: '24px' }}>
