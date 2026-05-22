@@ -88,19 +88,42 @@ export async function listTicketWorkspaceConversations(input?: {
 }
 
 export async function listTicketWorkspaceConversationsByTicketIds(
-  ticketIds: string[]
+  ticketIds: string[],
+  customerIds: string[] = []
 ): Promise<TicketWorkspaceConversation[]> {
   if (ticketIds.length === 0) return [];
 
-  const { data, error } = await supabase
+  // Query by ticketIds in current_ticket_id
+  const ticketQuery = supabase
     .from('conversations')
     .select(ticketWorkspaceConversationSelect)
     .in('current_ticket_id', ticketIds)
-    .order('last_message_at', { ascending: false })
-    .limit(Math.max(20, ticketIds.length * 2));
+    .order('last_message_at', { ascending: false });
 
-  if (error) throw error;
-  return normalizeTicketWorkspaceConversations(data || []);
+  // Query by customerIds in customer_id (where status is active)
+  const customerQuery = customerIds.length > 0
+    ? supabase
+        .from('conversations')
+        .select(ticketWorkspaceConversationSelect)
+        .in('customer_id', customerIds)
+        .eq('status', 'active')
+        .order('last_message_at', { ascending: false })
+    : Promise.resolve({ data: [], error: null });
+
+  const [ticketResult, customerResult] = await Promise.all([ticketQuery, customerQuery]);
+
+  if (ticketResult.error) throw ticketResult.error;
+  if (customerResult.error) throw customerResult.error;
+
+  const merged = [...(ticketResult.data || []), ...(customerResult.data || [])];
+
+  // Deduplicate by conversation ID
+  const dedupedMap = new Map<string, any>();
+  for (const conv of merged) {
+    dedupedMap.set(conv.id, conv);
+  }
+
+  return normalizeTicketWorkspaceConversations(Array.from(dedupedMap.values()));
 }
 
 export async function listTicketWorkspaceTickets(input: {

@@ -347,7 +347,10 @@ export function useTicketWorkspace(filterCustomerId: string | null) {
       cache.ticketCursorByPage = ticketCursorByPageRef.current;
 
       const ticketIds = pageTickets.map((ticket) => ticket.id);
-      const pageConversations = await listTicketWorkspaceConversationsByTicketIds(ticketIds);
+      const customerIds = pageTickets
+        .map((ticket) => ticket.customer_id)
+        .filter((id): id is string => Boolean(id));
+      const pageConversations = await listTicketWorkspaceConversationsByTicketIds(ticketIds, customerIds);
       setConversations(pageConversations);
 
       const now = Date.now();
@@ -650,9 +653,7 @@ export function useTicketWorkspace(filterCustomerId: string | null) {
       const normalizedStatus = String(conversation.status || '').toLowerCase();
       const isActiveLike = ['active', 'open', 'new', 'pending'].includes(normalizedStatus);
       if (!isActiveLike) continue;
-      if (!conversation.current_ticket_id) {
-        map.set(conversation.customer_id, conversation);
-      }
+      map.set(conversation.customer_id, conversation);
     }
     return map;
   }, [conversations]);
