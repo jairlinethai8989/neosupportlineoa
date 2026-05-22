@@ -167,11 +167,23 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
     const sendHeartbeat = async () => {
       const now = new Date().toISOString();
+      
+      // Optimistically update local profile, but only if it exists. 
+      // If it doesn't exist yet, it will be loaded by fetchProfile shortly with the new DB value (or old, if race condition).
+      setUserProfile(prev => prev ? { ...prev, last_seen: now } : null);
+
       try {
         await supabase
           .from('profiles')
           .update({ last_seen: now })
           .eq('id', currentUserId);
+          
+        // Re-fetch to guarantee local state is fresh, avoiding race conditions 
+        // with the initial load sequence
+        const { data } = await supabase.from('profiles').select('*').eq('id', currentUserId).single();
+        if (data) {
+          setUserProfile(prev => ({ ...prev, ...data, last_seen: now }));
+        }
       } catch (err) {
         console.error('Failed to send heartbeat in background:', err);
       }

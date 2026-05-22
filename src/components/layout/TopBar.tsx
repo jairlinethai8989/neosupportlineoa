@@ -100,12 +100,13 @@ export function TopBar({ isSidebarOpen, setIsSidebarOpen, isSidebarCollapsed, se
 
     void fetchAllProfiles();
 
-    const channel = supabase.channel('profiles-presence-realtime')
+    const channelId = `profiles-presence-${Date.now()}`;
+    const channel = supabase.channel(channelId)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, (payload) => {
         if (payload.eventType === 'INSERT') {
           setProfiles(prev => [...prev, payload.new]);
         } else if (payload.eventType === 'UPDATE') {
-          setProfiles(prev => prev.map(p => p.id === payload.new.id ? payload.new : p));
+          setProfiles(prev => prev.map(p => p.id === payload.new.id ? { ...p, ...payload.new } : p));
         } else if (payload.eventType === 'DELETE') {
           setProfiles(prev => prev.filter(p => p.id !== payload.old.id));
         }
