@@ -5,6 +5,8 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
   Bell,
+  ChevronRight,
+  ChevronDown,
   Inbox,
   LayoutDashboard,
   Plus,
@@ -360,7 +362,7 @@ function MainSidebarComponent({ onClickLink, isCollapsed = false }: SidebarProps
                   textTransform: 'uppercase',
                   letterSpacing: '0.8px',
                   padding: '0 16px',
-                  marginBottom: '10px',
+                  marginBottom: '6px',
                   display: 'block',
                 }}
               >
@@ -393,10 +395,12 @@ function MainSidebarComponent({ onClickLink, isCollapsed = false }: SidebarProps
                       <item.icon size={18} />
                       {!isCollapsed && (
                         <>
-                          <span style={{ fontWeight: '500', fontSize: '13px', flex: 1, textAlign: 'left' }}>
+                          <span style={{ fontWeight: isOpen ? '700' : '500', fontSize: '13px', flex: 1, textAlign: 'left', color: isOpen ? 'var(--text-main)' : 'inherit' }}>
                             {item.label}
                           </span>
-                          <div style={{ opacity: 0.5, fontSize: '10px' }}>{isOpen ? '▼' : '▶'}</div>
+                          <div style={{ opacity: 0.5, display: 'flex', alignItems: 'center' }}>
+                            {isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                          </div>
                         </>
                       )}
                     </button>
@@ -423,7 +427,7 @@ function MainSidebarComponent({ onClickLink, isCollapsed = false }: SidebarProps
                                 padding: '8px 16px',
                                 fontSize: '12px',
                                 color: isChildActive ? 'var(--primary)' : 'var(--text-muted)',
-                                fontWeight: isChildActive ? '700' : '400',
+                                fontWeight: isChildActive ? '700' : '500',
                                 textDecoration: 'none',
                                 borderRadius: '8px',
                                 background: isChildActive ? 'var(--primary-transparent)' : 'transparent',
@@ -455,7 +459,7 @@ function MainSidebarComponent({ onClickLink, isCollapsed = false }: SidebarProps
                     borderRadius: '10px',
                     marginBottom: '4px',
                     textDecoration: 'none',
-                    fontWeight: isActive ? '700' : '400',
+                    fontWeight: isActive ? '700' : '500',
                     color: isActive ? 'var(--primary)' : 'var(--text-muted)',
                   }}
                 >
