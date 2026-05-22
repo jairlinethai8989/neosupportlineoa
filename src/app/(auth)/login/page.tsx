@@ -6,13 +6,16 @@ import { supabase } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
 import { 
   Loader2,
-  AlertCircle
+  AlertCircle,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 
 export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -147,24 +150,51 @@ export default function LoginPage() {
             }}>
               รหัสผ่าน (Password)
             </label>
-            <input 
-              type="password" 
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••"
-              style={{
-                width: '100%',
-                background: '#eff6ff',
-                border: 'none',
-                borderRadius: '14px',
-                padding: '16px 20px',
-                color: '#333333',
-                fontSize: '15px',
-                fontWeight: '500',
-                outlineColor: '#0066ff'
-              }}
-            />
+            <div style={{ position: 'relative' }}>
+              <input 
+                type={showPassword ? 'text' : 'password'} 
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••"
+                style={{
+                  width: '100%',
+                  background: '#eff6ff',
+                  border: 'none',
+                  borderRadius: '14px',
+                  padding: '16px 50px 16px 20px',
+                  color: '#333333',
+                  fontSize: '15px',
+                  fontWeight: '500',
+                  outlineColor: '#0066ff'
+                }}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="password-toggle"
+                style={{
+                  position: 'absolute',
+                  right: '16px',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  color: '#707070',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: '6px',
+                  borderRadius: '50%',
+                  transition: 'all 0.2s ease',
+                  outline: 'none'
+                }}
+                aria-label={showPassword ? 'ซ่อนรหัสผ่าน' : 'แสดงรหัสผ่าน'}
+              >
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
           </div>
 
           <button 
@@ -221,9 +251,13 @@ export default function LoginPage() {
           .animate-spin {
             animation: animate-spin 1s linear infinite;
           }
-          button:hover {
+          button[type="submit"]:hover {
             transform: translateY(-2px);
             filter: brightness(1.1);
+          }
+          .password-toggle:hover {
+            color: #0066ff !important;
+            background: rgba(0, 102, 255, 0.08) !important;
           }
           input:focus {
              box-shadow: 0 0 0 4px rgba(0, 102, 255, 0.1);

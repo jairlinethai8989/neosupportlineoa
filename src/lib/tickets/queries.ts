@@ -118,7 +118,7 @@ export async function listTicketWorkspaceConversationsByTicketIds(
   const merged = [...(ticketResult.data || []), ...(customerResult.data || [])];
 
   // Deduplicate by conversation ID
-  const dedupedMap = new Map<string, any>();
+  const dedupedMap = new Map<string, typeof merged[number]>();
   for (const conv of merged) {
     dedupedMap.set(conv.id, conv);
   }
