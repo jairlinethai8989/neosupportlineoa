@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { useNotificationContext } from '@/contexts/NotificationContext';
 import { supabase } from '@/lib/supabase';
 import { normalizeTicketWorkspaceTicket } from '@/lib/tickets/normalizers';
@@ -190,6 +191,7 @@ interface TicketWorkspaceCache {
 let ticketWorkspaceCache: TicketWorkspaceCache | null = null;
 
 export function useTicketWorkspace(filterCustomerId: string | null) {
+  const router = useRouter();
   const { addToast, latestTicketRealtimeEvent } = useNotificationContext();
 
   const getOrInitializeCache = useCallback((): TicketWorkspaceCache => {
@@ -754,12 +756,16 @@ export function useTicketWorkspace(filterCustomerId: string | null) {
           return;
         }
 
-        const updatedTicket = await claimWorkspaceTicket(ticketId, user.id);
+        const { ticket, conversationId } = await claimWorkspaceTicket(ticketId, user.id);
         
-        setTickets((prev) => upsertWorkspaceTicket(prev, updatedTicket));
+        setTickets((prev) => upsertWorkspaceTicket(prev, ticket));
         void fetchData(true); // Refresh conversations to pick up the new linked conversation
         
         addToast(getTicketWorkspaceClaimSuccessToast(ticketId));
+
+        if (conversationId) {
+          router.push(`/inbox?cid=${conversationId}&tid=${ticketId}`);
+        }
       } catch (error) {
         console.error('Claim Error:', error);
         addToast(getTicketWorkspaceClaimFailToast(error));
@@ -767,7 +773,7 @@ export function useTicketWorkspace(filterCustomerId: string | null) {
         setClaimingId(null);
       }
     },
-    [addToast, fetchData, isViewOnly]
+    [addToast, fetchData, isViewOnly, router]
   );
 
   const handleSort = useCallback(
