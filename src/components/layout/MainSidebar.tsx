@@ -215,6 +215,7 @@ function MainSidebarComponent({ onClickLink, isCollapsed = false }: SidebarProps
             children: [
               { name: 'Daily Report', label: t('sidebar.menu.dailyReport'), path: '/reports/daily' },
               { name: 'Report Hub', label: t('sidebar.menu.reportHub'), path: '/reports/hub' },
+              { name: 'Weekly Presentation', label: 'Weekly Presentation', path: '/reports/presentation' },
             ],
           },
           { name: 'Customers', label: t('sidebar.menu.customers'), icon: Users, path: '/customers' },
