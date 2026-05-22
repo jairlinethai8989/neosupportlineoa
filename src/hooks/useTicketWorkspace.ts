@@ -290,15 +290,17 @@ export function useTicketWorkspace(filterCustomerId: string | null) {
 
   // Sync tickets list state to cache
   useEffect(() => {
+    if (loading) return;
     const cache = getOrInitializeCache();
     cache.ticketsByPage.set(ticketPage, tickets);
-  }, [tickets, ticketPage, getOrInitializeCache]);
+  }, [tickets, ticketPage, loading, getOrInitializeCache]);
 
   // Sync conversations list state to cache
   useEffect(() => {
+    if (loading) return;
     const cache = getOrInitializeCache();
     cache.conversationsByPage.set(ticketPage, conversations);
-  }, [conversations, ticketPage, getOrInitializeCache]);
+  }, [conversations, ticketPage, loading, getOrInitializeCache]);
 
   // Sync cursor map ref to cache
   useEffect(() => {
