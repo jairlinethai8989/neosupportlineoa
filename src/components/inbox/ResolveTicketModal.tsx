@@ -74,38 +74,38 @@ export function ResolveTicketModal({
           background: 'var(--bg-card)',
           boxShadow: '0 40px 100px rgba(0,0,0,0.4)',
           animation: 'scaleIn 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
-          maxHeight: '90vh',
+          maxHeight: '95vh',
           overflowY: 'auto',
         }}
       >
-        <div style={{ textAlign: 'center', marginBottom: '32px' }}>
+        <div style={{ textAlign: 'center', marginBottom: '24px' }}>
           <div
             style={{
-              width: '64px',
-              height: '64px',
-              borderRadius: '20px',
+              width: '56px',
+              height: '56px',
+              borderRadius: '16px',
               background: 'rgba(0, 255, 127, 0.1)',
               color: 'var(--success)',
               display: 'inline-flex',
               alignItems: 'center',
               justifyContent: 'center',
-              marginBottom: '20px',
+              marginBottom: '16px',
             }}
           >
-            <CheckCircle size={32} />
+            <CheckCircle size={28} />
           </div>
           <h3
             style={{
-              fontSize: '24px',
+              fontSize: '22px',
               fontWeight: '900',
               color: 'var(--text-main)',
               marginBottom: '8px',
             }}
           >
-            Resolve Ticket #{currentTicket?.ticket_no}
+            {t('inbox.resolveModal.title').replace('{ticketNo}', currentTicket?.ticket_no || '')}
           </h3>
-          <p style={{ fontSize: '14px', color: 'var(--text-muted)', lineHeight: '1.6' }}>
-            Add resolution details for internal tracking and customer communication.
+          <p style={{ fontSize: '13px', color: 'var(--text-muted)', lineHeight: '1.5' }}>
+            {t('inbox.resolveModal.subtitle')}
           </p>
         </div>
 
@@ -133,7 +133,7 @@ export function ResolveTicketModal({
           </div>
         )}
 
-        <div style={{ marginBottom: '24px' }}>
+        <div style={{ marginBottom: '16px' }}>
           <label
             style={{
               display: 'block',
@@ -141,11 +141,11 @@ export function ResolveTicketModal({
               fontWeight: '800',
               color: 'var(--primary)',
               textTransform: 'uppercase',
-              marginBottom: '12px',
+              marginBottom: '8px',
               letterSpacing: '1px',
             }}
           >
-            Module <span style={{ color: '#ef4444' }}>*</span>
+            {t('inbox.resolveModal.module')} <span style={{ color: '#ef4444' }}>*</span>
           </label>
           <div style={{ position: 'relative' }}>
             <select
@@ -153,8 +153,8 @@ export function ResolveTicketModal({
               onChange={(event) => onChangeModule(event.target.value)}
               style={{
                 width: '100%',
-                padding: '14px 40px 14px 16px',
-                borderRadius: '12px',
+                padding: '12px 40px 12px 16px',
+                borderRadius: '10px',
                 background: 'var(--bg-input)',
                 color: 'var(--text-main)',
                 border: '1px solid var(--border)',
@@ -170,7 +170,7 @@ export function ResolveTicketModal({
                 backgroundSize: '16px',
               }}
             >
-              <option value="">-- Select module --</option>
+              <option value="">{t('inbox.resolveModal.selectModule')}</option>
               {availableModules.map((moduleName) => (
                 <option key={moduleName} value={moduleName}>
                   {moduleName}
@@ -180,7 +180,7 @@ export function ResolveTicketModal({
           </div>
         </div>
 
-        <div style={{ marginBottom: '24px' }}>
+        <div style={{ marginBottom: '16px' }}>
           <label
             style={{
               display: 'block',
@@ -188,11 +188,11 @@ export function ResolveTicketModal({
               fontWeight: '800',
               color: 'var(--primary)',
               textTransform: 'uppercase',
-              marginBottom: '12px',
+              marginBottom: '8px',
               letterSpacing: '1px',
             }}
           >
-            Issue Type <span style={{ color: 'var(--danger)' }}>*</span>
+            {t('inbox.resolveModal.issueType')} <span style={{ color: 'var(--danger)' }}>*</span>
           </label>
           <div style={{ position: 'relative' }}>
             <select
@@ -200,8 +200,8 @@ export function ResolveTicketModal({
               onChange={(event) => onChangeIssueType(event.target.value)}
               style={{
                 width: '100%',
-                padding: '14px 40px 14px 16px',
-                borderRadius: '12px',
+                padding: '12px 40px 12px 16px',
+                borderRadius: '10px',
                 border: '1px solid var(--border)',
                 background: 'var(--bg-input)',
                 color: 'var(--text-main)',
@@ -217,7 +217,7 @@ export function ResolveTicketModal({
                 backgroundSize: '16px',
               }}
             >
-              <option value="">-- Select issue type --</option>
+              <option value="">{t('inbox.resolveModal.selectIssueType')}</option>
               {availableIssueTypes.map((issueType) => (
                 <option key={issueType} value={issueType}>
                   {issueType}
@@ -227,13 +227,13 @@ export function ResolveTicketModal({
           </div>
         </div>
 
-        <div style={{ marginBottom: '24px' }}>
+        <div style={{ marginBottom: '16px' }}>
           <div
             style={{
               display: 'flex',
               justifyContent: 'space-between',
               alignItems: 'center',
-              marginBottom: '12px',
+              marginBottom: '8px',
             }}
           >
             <label
@@ -245,7 +245,7 @@ export function ResolveTicketModal({
                 letterSpacing: '1px',
               }}
             >
-              Resolution Templates
+              {t('inbox.resolveModal.templates')}
             </label>
             <a
               href="/settings/profile"
@@ -258,7 +258,7 @@ export function ResolveTicketModal({
                 cursor: 'pointer',
               }}
             >
-              Manage templates
+              {t('inbox.resolveModal.manageTemplates')}
             </a>
           </div>
           <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
@@ -323,7 +323,7 @@ export function ResolveTicketModal({
           </div>
         </div>
 
-        <div style={{ marginBottom: '24px' }}>
+        <div style={{ marginBottom: '20px' }}>
           <label
             style={{
               display: 'block',
@@ -331,25 +331,25 @@ export function ResolveTicketModal({
               fontWeight: '800',
               color: 'var(--primary)',
               textTransform: 'uppercase',
-              marginBottom: '12px',
+              marginBottom: '8px',
               letterSpacing: '1px',
             }}
           >
-            Resolution Summary <span style={{ color: 'var(--danger)' }}>*</span>
+            {t('inbox.resolveModal.summary')} <span style={{ color: 'var(--danger)' }}>*</span>
           </label>
           <textarea
             value={resSummary}
             onChange={(event) => onChangeSummary(event.target.value)}
-            placeholder="Describe what was fixed and what the customer should expect next..."
+            placeholder={t('inbox.resolveModal.summaryPlaceholder')}
             style={{
               width: '100%',
-              height: '140px',
+              height: '100px',
               background: 'var(--bg-input)',
               border: '1px solid var(--border)',
-              borderRadius: '16px',
-              padding: '16px',
+              borderRadius: '12px',
+              padding: '12px',
               color: 'var(--text-main)',
-              fontSize: '14px',
+              fontSize: '13px',
               resize: 'none',
               outline: 'none',
               transition: 'all 0.3s',
@@ -362,8 +362,8 @@ export function ResolveTicketModal({
             onClick={onClose}
             style={{
               flex: 1,
-              padding: '16px',
-              borderRadius: '14px',
+              padding: '14px',
+              borderRadius: '12px',
               border: '1px solid var(--border)',
               background: 'var(--bg-input)',
               color: 'var(--text-muted)',
@@ -371,15 +371,15 @@ export function ResolveTicketModal({
               cursor: 'pointer',
             }}
           >
-            Cancel
+            {t('inbox.resolveModal.cancel')}
           </button>
           <button
             onClick={onConfirm}
             disabled={isDisabled}
             style={{
               flex: 1.5,
-              padding: '16px',
-              borderRadius: '14px',
+              padding: '14px',
+              borderRadius: '12px',
               border: 'none',
               background: isDisabled ? 'var(--border)' : 'var(--success)',
               color: isDisabled ? 'var(--text-muted)' : 'black',
@@ -388,14 +388,14 @@ export function ResolveTicketModal({
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              gap: '10px',
+              gap: '8px',
             }}
           >
             {sending ? (
               <Loader2 size={18} className="animate-spin" />
             ) : (
               <>
-                <CheckCircle size={18} /> Confirm Resolve
+                <CheckCircle size={18} /> {t('inbox.resolveModal.confirm')}
               </>
             )}
           </button>

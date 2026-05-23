@@ -66,4 +66,5 @@ export interface InboxAgent {
 export interface InboxCompanySettings {
   modules?: string[] | null;
   issue_types?: string[] | null;
+  resolution_templates?: string[] | null;
 }

@@ -46,6 +46,12 @@ export function useInboxProfileSettings() {
       if (typedCompanyData.issue_types?.length) {
         setAvailableIssueTypes(typedCompanyData.issue_types);
       }
+
+      if (resolvedAgent?.resolution_templates?.length) {
+        setPersonalResTemplates(resolvedAgent.resolution_templates);
+      } else if (typedCompanyData.resolution_templates?.length) {
+        setPersonalResTemplates(typedCompanyData.resolution_templates);
+      }
     }
 
     loadProfileSettings();

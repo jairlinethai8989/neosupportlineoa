@@ -493,10 +493,17 @@ export function useTicketWorkspace(filterCustomerId: string | null) {
         const companyData = await getTicketWorkspaceCompanySettings();
         const modules = companyData?.modules?.length ? companyData.modules : DEFAULT_MODULES;
         const issues = companyData?.issue_types?.length ? companyData.issue_types : [];
+        
         setAvailableModules(modules);
         setAvailableIssueTypes(issues);
         cache.availableModules = modules;
         cache.availableIssueTypes = issues;
+
+        // Fallback: If user has no personal templates, use the company's global templates
+        if (cache.personalResTemplates.length === 0 && companyData?.resolution_templates?.length) {
+          setPersonalResTemplates(companyData.resolution_templates);
+          cache.personalResTemplates = companyData.resolution_templates;
+        }
       } catch (error) {
         console.error('Error loading company settings on mount:', error);
         setAvailableModules(DEFAULT_MODULES);
