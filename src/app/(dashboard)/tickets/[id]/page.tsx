@@ -354,14 +354,15 @@ export default function StaffTicketDetailPage() {
   const fetchStaticMeta = useCallback(async () => {
     if (staticMetaLoadedRef.current) return;
 
-    const [deptResult, companyResult, authResult] = await Promise.all([
+    const [deptResult, modulesResult, issuesResult, authResult] = await Promise.all([
       supabase
         .from('departments')
         .select('id, name')
         .eq('dept_type', 'organization')
         .eq('is_active', true)
         .order('name'),
-      supabase.from('company_settings').select('id, modules, issue_types').limit(1).single(),
+      supabase.from('ticket_modules').select('name').eq('is_active', true),
+      supabase.from('ticket_issue_types').select('name').eq('is_active', true),
       supabase.auth.getUser(),
     ]);
 
@@ -370,13 +371,13 @@ export default function StaffTicketDetailPage() {
     }
 
     setAvailableModules(
-      companyResult.data?.modules && companyResult.data.modules.length > 0
-        ? companyResult.data.modules
+      modulesResult.data && modulesResult.data.length > 0
+        ? modulesResult.data.map((d) => d.name)
         : DEFAULT_MODULES
     );
     setAvailableIssueTypes(
-      companyResult.data?.issue_types && companyResult.data.issue_types.length > 0
-        ? companyResult.data.issue_types
+      issuesResult.data && issuesResult.data.length > 0
+        ? issuesResult.data.map((d) => d.name)
         : []
     );
 
