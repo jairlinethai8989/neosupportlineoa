@@ -239,7 +239,8 @@ export default function StaffTicketDetailPage() {
   };
 
   const renderAICard = () => {
-    if (status !== 'Resolved' && status !== 'Closed') return null;
+    const currentStatus = (status || '').trim().toLowerCase();
+    if (currentStatus !== 'resolved' && currentStatus !== 'closed') return null;
     const aiData = (ticket as any)?.ai_analysis;
 
     if (!aiData) {
@@ -280,8 +281,9 @@ export default function StaffTicketDetailPage() {
   const renderWorkReportCard = () => {
     if (!externalReport) return null;
 
-    const isFixCompleted = status === 'Fix Completed';
-    const isResolved = status === 'Resolved';
+    const currentStatus = (status || '').trim().toLowerCase();
+    const isFixCompleted = currentStatus === 'fix completed';
+    const isResolved = currentStatus === 'resolved';
     
     // Choose theme colors based on state
     const borderColor = isFixCompleted ? '#10b981' : isResolved ? 'var(--primary)' : '#f59e0b';

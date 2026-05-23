@@ -41,7 +41,7 @@ export async function POST(
     // 2. Fetch ticket details and chat history
     const { data: ticket, error: ticketError } = await supabaseServer
       .from('tickets')
-      .select('*, customer:line_customer_profiles(display_name)')
+      .select('*, customers(display_name)')
       .eq('id', ticketId)
       .single();
 
@@ -50,7 +50,7 @@ export async function POST(
     }
 
     const { data: chats } = await supabaseServer
-      .from('chat_messages')
+      .from('messages')
       .select('*')
       .eq('ticket_id', ticketId)
       .order('created_at', { ascending: true });
@@ -89,7 +89,7 @@ export async function POST(
     if (chats && chats.length > 0) {
       chatLog = chats.map(c => {
         const sender = c.sender_type === 'staff' ? 'Staff' : 'Customer';
-        return `[${sender}]: ${c.message}`;
+        return `[${sender}]: ${c.content}`;
       }).join('\n');
     } else {
       chatLog = '(ไม่มีประวัติการแชท)';
