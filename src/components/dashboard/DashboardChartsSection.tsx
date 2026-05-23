@@ -11,6 +11,8 @@ import {
   Cell,
   BarChart,
   Bar,
+  LineChart,
+  Line,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -128,10 +130,10 @@ export function DashboardChartsSection({
 
   const getHeatmapColor = (value: number) => {
     if (value === 0) return 'rgba(255,255,255,0.03)';
-    const intensity = Math.max(0.1, value / maxHeatmapValue);
-    // Use primary color #00f2fe but with varying opacity or mix
-    // HSL of #00f2fe is approx 192, 100%, 50%
-    return `rgba(0, 242, 254, ${intensity})`;
+    const intensity = value / maxHeatmapValue;
+    const hue = (1 - intensity) * 50; 
+    const lightness = 50 - (intensity * 20);
+    return `hsl(${hue}, 100%, ${lightness}%)`;
   };
 
   return (
@@ -141,7 +143,7 @@ export function DashboardChartsSection({
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
             <div>
               <h2 style={{ fontSize: '16px', fontWeight: '800', marginBottom: '2px' }}>{labels.ticketTrend}</h2>
-              <p style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>TICKET TREND • Last 7 Days</p>
+              <p style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>TICKET TREND</p>
             </div>
             <div style={{ display: 'flex', gap: '16px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -156,42 +158,20 @@ export function DashboardChartsSection({
           </div>
           <div style={{ flex: 1, minHeight: '280px' }}>
             <ResponsiveContainer width="100%" height={280}>
-              <AreaChart data={trendData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
-                <defs>
-                  <linearGradient id="gradNew" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor={CHART_COLORS.primary} stopOpacity={0.3} />
-                    <stop offset="95%" stopColor={CHART_COLORS.primary} stopOpacity={0} />
-                  </linearGradient>
-                  <linearGradient id="gradResolved" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor={CHART_COLORS.success} stopOpacity={0.3} />
-                    <stop offset="95%" stopColor={CHART_COLORS.success} stopOpacity={0} />
-                  </linearGradient>
-                </defs>
+              <LineChart data={trendData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(128,128,128,0.1)" />
                 <XAxis dataKey="label" stroke="var(--text-muted)" fontSize={11} tickLine={false} axisLine={false} />
                 <YAxis stroke="var(--text-muted)" fontSize={11} tickLine={false} axisLine={false} allowDecimals={false} />
                 <Tooltip content={<CustomTooltip />} />
-                <Area
+                <Line
                   type="monotone"
                   dataKey={labels.newTickets}
-                  stroke={CHART_COLORS.primary}
+                  stroke="#ff9f43"
                   strokeWidth={3}
-                  fillOpacity={1}
-                  fill="url(#gradNew)"
-                  dot={{ r: 4, fill: CHART_COLORS.primary, strokeWidth: 2, stroke: '#0a0e14' }}
-                  activeDot={{ r: 6, stroke: CHART_COLORS.primary, strokeWidth: 2, fill: '#0a0e14' }}
+                  dot={{ r: 4, fill: '#ff9f43', strokeWidth: 2, stroke: '#0a0e14' }}
+                  activeDot={{ r: 6, stroke: '#ff9f43', strokeWidth: 2, fill: '#0a0e14' }}
                 />
-                <Area
-                  type="monotone"
-                  dataKey={labels.resolved}
-                  stroke={CHART_COLORS.success}
-                  strokeWidth={3}
-                  fillOpacity={1}
-                  fill="url(#gradResolved)"
-                  dot={{ r: 4, fill: CHART_COLORS.success, strokeWidth: 2, stroke: '#0a0e14' }}
-                  activeDot={{ r: 6, stroke: CHART_COLORS.success, strokeWidth: 2, fill: '#0a0e14' }}
-                />
-              </AreaChart>
+              </LineChart>
             </ResponsiveContainer>
           </div>
         </div>
@@ -324,14 +304,14 @@ export function DashboardChartsSection({
           <div style={{ flex: 1, minHeight: '220px' }}>
             {hospitalData.length > 0 ? (
               <ResponsiveContainer width="100%" height={220}>
-                <BarChart data={hospitalData} margin={{ top: 5, right: 10, bottom: 5, left: -10 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(128,128,128,0.1)" />
-                  <XAxis dataKey="name" stroke="var(--text-muted)" fontSize={10} tickLine={false} axisLine={false} interval={0} angle={-15} textAnchor="end" height={50} />
-                  <YAxis stroke="var(--text-muted)" fontSize={10} tickLine={false} axisLine={false} allowDecimals={false} />
+                <BarChart layout="vertical" data={hospitalData} margin={{ top: 5, right: 10, bottom: 5, left: -10 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(128,128,128,0.1)" horizontal={false} />
+                  <XAxis type="number" stroke="var(--text-muted)" fontSize={10} tickLine={false} axisLine={false} allowDecimals={false} />
+                  <YAxis dataKey="name" type="category" stroke="var(--text-muted)" fontSize={10} tickLine={false} axisLine={false} width={100} />
                   <Tooltip content={<CustomTooltip />} />
-                  <Bar dataKey="value" radius={[6, 6, 0, 0]}>
+                  <Bar dataKey="value" radius={[0, 6, 6, 0]} barSize={20}>
                     {hospitalData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.fill} />
+                      <Cell key={`cell-${index}`} fill={entry.fill || CHART_COLORS.primary} />
                     ))}
                   </Bar>
                 </BarChart>
