@@ -41,7 +41,7 @@ export async function POST(
     // 2. Fetch ticket details and chat history
     const { data: ticket, error: ticketError } = await supabaseServer
       .from('tickets')
-      .select('*, customers(display_name)')
+      .select('*')
       .eq('id', ticketId)
       .single();
 

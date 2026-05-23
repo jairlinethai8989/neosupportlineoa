@@ -111,6 +111,7 @@ export interface TicketDetailTicket {
   hospital_id: string | null;
   escalation_token?: string | null;
   resolution_summary?: string | null;
+  ai_analysis?: any;
   department_data?: { id: string; name: string } | null;
   customers?: TicketDetailCustomer | null;
   assigned_agent?: TicketDetailAssignedAgent | null;

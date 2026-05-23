@@ -1,6 +1,5 @@
-'use client';
 import React from 'react';
-import { ArrowLeft, CheckCircle, FileDown, Save, Loader2 } from 'lucide-react';
+import { ArrowLeft, CheckCircle, FileDown, Save, Loader2, Sparkles } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import type { TicketDetailTicket, TicketDetailUser } from '@/types/tickets';
 import {
@@ -20,6 +19,8 @@ interface TicketHeaderProps {
   onResolveClick: () => void;
   onRejectFixCompleted: () => void;
   onExportClick: () => void;
+  onAiSummaryClick?: () => void;
+  aiLoading?: boolean;
 }
 
 export const TicketHeader: React.FC<TicketHeaderProps> = ({
@@ -32,6 +33,8 @@ export const TicketHeader: React.FC<TicketHeaderProps> = ({
   onResolveClick,
   onRejectFixCompleted,
   onExportClick,
+  onAiSummaryClick,
+  aiLoading = false,
 }) => {
   const router = useRouter();
 
@@ -101,6 +104,33 @@ export const TicketHeader: React.FC<TicketHeaderProps> = ({
         </div>
       </div>
       <div style={{ display: 'flex', gap: '8px' }}>
+        {isResolvedOrClosed && onAiSummaryClick && (
+          <button
+            onClick={onAiSummaryClick}
+            disabled={aiLoading}
+            className="glass-interactive flex-center"
+            style={{
+              padding: '0 20px',
+              height: '44px',
+              borderRadius: '12px',
+              border: '1px solid rgba(0, 242, 254, 0.4)',
+              background: 'linear-gradient(135deg, rgba(0, 242, 254, 0.15) 0%, rgba(16, 185, 129, 0.15) 100%)',
+              color: '#00f2fe',
+              fontWeight: '900',
+              gap: '8px',
+              boxShadow: '0 0 15px rgba(0, 242, 254, 0.25)',
+              transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+              cursor: aiLoading ? 'not-allowed' : 'pointer'
+            }}
+          >
+            {aiLoading ? (
+              <Loader2 size={18} className="animate-spin" />
+            ) : (
+              <Sparkles size={18} style={{ color: '#00f2fe', filter: 'drop-shadow(0 0 3px rgba(0, 242, 254, 0.6))' }} />
+            )}
+            {ticket.ai_analysis ? 'สรุปเคสด้วย AI อีกครั้ง' : 'สรุปเคสด้วย AI'}
+          </button>
+        )}
         <button
           onClick={onExportClick}
           className="glass-interactive flex-center"

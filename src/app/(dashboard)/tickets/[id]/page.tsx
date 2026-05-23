@@ -243,15 +243,7 @@ export default function StaffTicketDetailPage() {
     if (currentStatus !== 'resolved' && currentStatus !== 'closed') return null;
     const aiData = (ticket as any)?.ai_analysis;
 
-    if (!aiData) {
-      return (
-        <div className="glass" style={{ padding: '24px', borderRadius: '16px', background: 'rgba(16, 185, 129, 0.05)', border: '1px dashed rgba(16, 185, 129, 0.3)', marginBottom: '24px', textAlign: 'center' }}>
-          <button onClick={handleGenerateAISummary} disabled={aiLoading} className="glass-interactive" style={{ background: 'var(--primary)', color: '#0a0e14', padding: '12px 24px', borderRadius: '8px', border: 'none', fontWeight: '800', cursor: aiLoading ? 'not-allowed' : 'pointer', display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
-            {aiLoading ? <Loader2 size={16} className="animate-spin" /> : '✨ สรุปเคสด้วย AI (Gemini)'}
-          </button>
-        </div>
-      );
-    }
+    if (!aiData) return null;
 
     return (
       <div className="glass" style={{ padding: '24px', borderRadius: '16px', background: 'rgba(16, 185, 129, 0.05)', border: '1px solid rgba(16, 185, 129, 0.2)', marginBottom: '24px' }}>
@@ -1134,6 +1126,8 @@ export default function StaffTicketDetailPage() {
           void handleRejectFixCompleted();
         }}
         onExportClick={() => setShowExportModal(true)}
+        onAiSummaryClick={handleGenerateAISummary}
+        aiLoading={aiLoading}
       />
 
       <div className="glass" style={{ padding: '20px', marginBottom: '24px' }}>
