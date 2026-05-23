@@ -498,6 +498,61 @@ export default function PresentationPage() {
         </div>
 
         <div style={{ display: 'flex', gap: '12px', alignItems: 'center', paddingRight: '12px' }}>
+          {/* Export Buttons */}
+          <button
+            onClick={handleExportPDF}
+            disabled={exporting || !data}
+            className="glass-interactive"
+            style={{
+              height: '44px',
+              padding: '0 16px',
+              borderRadius: '4px',
+              border: '1px solid #ef4444',
+              background: 'rgba(239, 68, 68, 0.08)',
+              color: '#f87171',
+              fontWeight: '800',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '6px',
+              cursor: (exporting || !data) ? 'not-allowed' : 'pointer',
+              fontSize: '12px',
+              boxShadow: '0 4px 12px rgba(239, 68, 68, 0.05)',
+              transition: 'all 0.2s'
+            }}
+          >
+            {exporting ? <Loader2 size={14} className="animate-spin" /> : <FileText size={14} />}
+            ส่งออก PDF
+          </button>
+
+          <button
+            onClick={handleExportPPTX}
+            disabled={exporting || !data}
+            className="glass-interactive"
+            style={{
+              height: '44px',
+              padding: '0 16px',
+              borderRadius: '4px',
+              border: '1px solid #f97316',
+              background: 'rgba(249, 115, 22, 0.08)',
+              color: '#fb923c',
+              fontWeight: '800',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '6px',
+              cursor: (exporting || !data) ? 'not-allowed' : 'pointer',
+              fontSize: '12px',
+              boxShadow: '0 4px 12px rgba(249, 115, 22, 0.05)',
+              transition: 'all 0.2s'
+            }}
+          >
+            {exporting ? <Loader2 size={14} className="animate-spin" /> : <Presentation size={14} />}
+            ส่งออก PPTX
+          </button>
+
+          <div style={{ width: '1px', height: '24px', background: 'rgba(255, 255, 255, 0.1)', margin: '0 4px' }} />
+
           {/* Main settings trigger */}
           <button
             onClick={() => setIsDrawerOpen(true)}
@@ -1080,65 +1135,7 @@ export default function PresentationPage() {
             </button>
           </div>
 
-          {/* Section 4: Export to PDF & PPTX Actions */}
-          <div style={{ borderTop: '1px solid rgba(255, 255, 255, 0.08)', paddingTop: '20px', marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            <span style={{ fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', color: '#94a3b8', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <Download size={12} /> ส่งออกรายงานสไลด์ (Export Slides)
-            </span>
-            <div style={{ display: 'flex', gap: '10px' }}>
-              <button
-                onClick={handleExportPDF}
-                disabled={exporting || !data}
-                className="glass-interactive"
-                style={{
-                  flex: 1,
-                  height: '42px',
-                  borderRadius: '4px',
-                  border: '1px solid #ef4444',
-                  background: 'rgba(239, 68, 68, 0.08)',
-                  color: '#f87171',
-                  fontWeight: '800',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '6px',
-                  cursor: (exporting || !data) ? 'not-allowed' : 'pointer',
-                  fontSize: '12px',
-                  boxShadow: '0 4px 12px rgba(239, 68, 68, 0.05)',
-                  transition: 'all 0.2s'
-                }}
-              >
-                {exporting ? <Loader2 size={14} className="animate-spin" /> : <FileText size={14} />}
-                ส่งออก PDF
-              </button>
 
-              <button
-                onClick={handleExportPPTX}
-                disabled={exporting || !data}
-                className="glass-interactive"
-                style={{
-                  flex: 1,
-                  height: '42px',
-                  borderRadius: '4px',
-                  border: '1px solid #f97316',
-                  background: 'rgba(249, 115, 22, 0.08)',
-                  color: '#fb923c',
-                  fontWeight: '800',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '6px',
-                  cursor: (exporting || !data) ? 'not-allowed' : 'pointer',
-                  fontSize: '12px',
-                  boxShadow: '0 4px 12px rgba(249, 115, 22, 0.05)',
-                  transition: 'all 0.2s'
-                }}
-              >
-                {exporting ? <Loader2 size={14} className="animate-spin" /> : <Presentation size={14} />}
-                ส่งออก PPTX (PowerPoint)
-              </button>
-            </div>
-          </div>
 
         </div>
       </div>
