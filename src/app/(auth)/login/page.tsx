@@ -39,8 +39,7 @@ export default function LoginPage() {
       
       const params = new URLSearchParams(window.location.search);
       const redirectTo = params.get('redirectTo') || '/';
-      router.push(redirectTo);
-      router.refresh();
+      window.location.href = redirectTo;
     } catch (err: any) {
       setError(err.message || 'รหัสผ่านหรือชื่อผู้ใช้ไม่ถูกต้อง');
     } finally {

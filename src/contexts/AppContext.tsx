@@ -248,13 +248,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         }
 
         setCurrentUserId(user.id);
-
-        // Fast path: unblock app as soon as profile is loaded.
-        await fetchProfile(user.id);
-        if (cancelled) return;
+        
+        // Fast path: unblock app immediately before network requests
         setLoading(false);
 
         // Background data: do not block first paint.
+        void fetchProfile(user.id).catch(err => console.error('AppProvider profile load error:', err));
         void Promise.all([fetchSettings(), fetchHospitals(), fetchDepartments()]).catch((err) => {
           console.error('AppProvider background load error:', err);
         });
