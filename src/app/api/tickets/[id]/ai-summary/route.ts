@@ -16,10 +16,10 @@ const fallbackAnalysis = {
 
 export async function POST(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const ticketId = params.id;
+    const { id: ticketId } = await params;
     if (!ticketId) {
       return NextResponse.json({ error: 'Missing ticket ID' }, { status: 400 });
     }

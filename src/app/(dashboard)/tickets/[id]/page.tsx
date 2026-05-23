@@ -216,6 +216,7 @@ export default function StaffTicketDetailPage() {
   const [resSummary, setResSummary] = useState('');
   const [editingImage, setEditingImage] = useState<string | null>(null);
   const [showEditor, setShowEditor] = useState(false);
+  const [viewingImage, setViewingImage] = useState<string | null>(null);
   const [showViewer, setShowViewer] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
