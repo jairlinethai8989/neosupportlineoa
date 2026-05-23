@@ -295,71 +295,76 @@ export function DashboardChartsSection({
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '24px' }}>
-        <div className="glass" style={{ padding: '24px', display: 'flex', flexDirection: 'column' }}>
-          <div style={{ marginBottom: '16px' }}>
-            <h2 style={{ fontSize: '16px', fontWeight: '800', marginBottom: '2px' }}>{labels.hospitalWorkload}</h2>
-            <p style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>HOSPITAL WORKLOAD</p>
+      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '24px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+          {/* Hospital Workload */}
+          <div className="glass" style={{ padding: '24px', display: 'flex', flexDirection: 'column', flex: 1 }}>
+            <div style={{ marginBottom: '16px' }}>
+              <h2 style={{ fontSize: '16px', fontWeight: '800', marginBottom: '2px' }}>{labels.hospitalWorkload}</h2>
+              <p style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>HOSPITAL WORKLOAD</p>
+            </div>
+            <div style={{ flex: 1, minHeight: '320px' }}>
+              {hospitalData.length > 0 ? (
+                <ResponsiveContainer width="100%" height={320}>
+                  <BarChart layout="vertical" data={hospitalData} margin={{ top: 5, right: 20, bottom: 5, left: -10 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(128,128,128,0.1)" horizontal={false} />
+                    <XAxis type="number" stroke="var(--text-muted)" fontSize={11} tickLine={false} axisLine={false} allowDecimals={false} />
+                    <YAxis dataKey="name" type="category" stroke="var(--text-muted)" fontSize={11} tickLine={false} axisLine={false} width={120} />
+                    <Tooltip content={<CustomTooltip />} />
+                    <Bar dataKey="value" radius={[0, 6, 6, 0]} barSize={24}>
+                      {hospitalData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.fill || CHART_COLORS.primary} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex-center" style={{ height: '320px', color: 'var(--text-muted)', fontSize: '13px' }}>
+                  {labels.noResults}
+                </div>
+              )}
+            </div>
           </div>
-          <div style={{ flex: 1, minHeight: '220px' }}>
-            {hospitalData.length > 0 ? (
-              <ResponsiveContainer width="100%" height={220}>
-                <BarChart layout="vertical" data={hospitalData} margin={{ top: 5, right: 10, bottom: 5, left: -10 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(128,128,128,0.1)" horizontal={false} />
-                  <XAxis type="number" stroke="var(--text-muted)" fontSize={10} tickLine={false} axisLine={false} allowDecimals={false} />
-                  <YAxis dataKey="name" type="category" stroke="var(--text-muted)" fontSize={10} tickLine={false} axisLine={false} width={100} />
-                  <Tooltip content={<CustomTooltip />} />
-                  <Bar dataKey="value" radius={[0, 6, 6, 0]} barSize={20}>
-                    {hospitalData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.fill || CHART_COLORS.primary} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            ) : (
-              <div className="flex-center" style={{ height: '220px', color: 'var(--text-muted)', fontSize: '13px' }}>
-                {labels.noResults}
-              </div>
-            )}
+
+          {/* Agent Workload */}
+          <div className="glass" style={{ padding: '24px', display: 'flex', flexDirection: 'column', flex: 1 }}>
+            <div style={{ marginBottom: '16px' }}>
+              <h2 style={{ fontSize: '16px', fontWeight: '800', marginBottom: '2px' }}>{labels.agentWorkload}</h2>
+              <p style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>AGENT WORKLOAD • TOP 5</p>
+            </div>
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '16px', justifyContent: 'center' }}>
+              {agentData.length > 0 ? (
+                agentData.map((agent, idx) => {
+                  const maxVal = Math.max(...agentData.map((a) => a.value));
+                  const pct = maxVal > 0 ? (agent.value / maxVal) * 100 : 0;
+                  return (
+                    <div key={idx}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
+                        <span style={{ fontSize: '13px', fontWeight: '600' }}>{agent.name}</span>
+                        <span style={{ fontSize: '13px', fontWeight: '800', color: 'var(--primary)' }}>{agent.value}</span>
+                      </div>
+                      <div style={{ height: '8px', background: 'rgba(255,255,255,0.05)', borderRadius: '4px', overflow: 'hidden' }}>
+                        <div
+                          style={{
+                            height: '100%',
+                            width: `${pct}%`,
+                            background: `linear-gradient(90deg, ${CHART_COLORS.primary}, ${CHART_COLORS.info})`,
+                            borderRadius: '4px',
+                            transition: 'width 0.8s cubic-bezier(0.4, 0, 0.2, 1)',
+                          }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })
+              ) : (
+                <p style={{ color: 'var(--text-muted)', fontSize: '13px', textAlign: 'center' }}>{labels.noResults}</p>
+              )}
+            </div>
           </div>
         </div>
 
-        <div className="glass" style={{ padding: '24px', display: 'flex', flexDirection: 'column' }}>
-          <div style={{ marginBottom: '16px' }}>
-            <h2 style={{ fontSize: '16px', fontWeight: '800', marginBottom: '2px' }}>{labels.agentWorkload}</h2>
-            <p style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>AGENT WORKLOAD • TOP 5</p>
-          </div>
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '12px', justifyContent: 'flex-start' }}>
-            {agentData.length > 0 ? (
-              agentData.map((agent, idx) => {
-                const maxVal = Math.max(...agentData.map((a) => a.value));
-                const pct = maxVal > 0 ? (agent.value / maxVal) * 100 : 0;
-                return (
-                  <div key={idx}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                      <span style={{ fontSize: '12px', fontWeight: '600' }}>{agent.name}</span>
-                      <span style={{ fontSize: '12px', fontWeight: '800', color: 'var(--primary)' }}>{agent.value}</span>
-                    </div>
-                    <div style={{ height: '6px', background: 'rgba(255,255,255,0.05)', borderRadius: '3px', overflow: 'hidden' }}>
-                      <div
-                        style={{
-                          height: '100%',
-                          width: `${pct}%`,
-                          background: `linear-gradient(90deg, ${CHART_COLORS.primary}, ${CHART_COLORS.info})`,
-                          borderRadius: '3px',
-                          transition: 'width 0.8s cubic-bezier(0.4, 0, 0.2, 1)',
-                        }}
-                      />
-                    </div>
-                  </div>
-                );
-              })
-            ) : (
-              <p style={{ color: 'var(--text-muted)', fontSize: '13px', textAlign: 'center' }}>{labels.noResults}</p>
-            )}
-          </div>
-        </div>
-
+        {/* Recent Activity */}
         <div className="glass" style={{ padding: '24px', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
           <div style={{ marginBottom: '16px' }}>
             <h2 style={{ fontSize: '16px', fontWeight: '800', marginBottom: '2px' }}>{labels.recentActivity}</h2>
@@ -373,7 +378,7 @@ export function DashboardChartsSection({
                 <div
                   key={idx}
                   style={{
-                    padding: '10px 0',
+                    padding: '12px 0',
                     borderBottom: idx === recentLogs.length - 1 ? 'none' : '1px solid var(--border)',
                     display: 'flex',
                     gap: '12px',
@@ -382,8 +387,8 @@ export function DashboardChartsSection({
                 >
                   <div
                     style={{
-                      width: '28px',
-                      height: '28px',
+                      width: '32px',
+                      height: '32px',
                       borderRadius: '8px',
                       background: 'rgba(0, 242, 254, 0.1)',
                       display: 'flex',
@@ -392,16 +397,16 @@ export function DashboardChartsSection({
                       flexShrink: 0,
                     }}
                   >
-                    <Zap size={12} color="var(--primary)" />
+                    <Zap size={14} color="var(--primary)" />
                   </div>
                   <div style={{ minWidth: 0 }}>
-                    <p style={{ fontSize: '13px', fontWeight: '700', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    <p style={{ fontSize: '14px', fontWeight: '700', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                       #{log.tickets?.ticket_no} — {log.action_type}
                     </p>
-                    <p style={{ fontSize: '11px', color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    <p style={{ fontSize: '12px', color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', marginTop: '2px' }}>
                       {log.note || 'อัปเดตสถานะอัตโนมัติ'}
                     </p>
-                    <p style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '2px' }}>
+                    <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px' }}>
                       {log.created_at
                         ? new Date(log.created_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', hour12: false })
                         : '-'}
