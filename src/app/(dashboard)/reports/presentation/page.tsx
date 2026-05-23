@@ -497,7 +497,7 @@ export default function PresentationPage() {
           </div>
         </div>
 
-        <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: '12px', alignItems: 'center', paddingRight: '12px' }}>
           {/* Main settings trigger */}
           <button
             onClick={() => setIsDrawerOpen(true)}
@@ -1019,22 +1019,7 @@ export default function PresentationPage() {
               <Bot size={14} /> ปลุกพลังการวิเคราะห์ด้วย AI (Gemini)
             </label>
             
-            {/* API Key Status / Input */}
-            <div style={{ display: 'flex', flexDirection: 'column', marginBottom: '14px', padding: '12px', background: 'rgba(255, 255, 255, 0.03)', borderRadius: '4px', border: '1px solid rgba(255, 255, 255, 0.05)' }}>
-              {hasGlobalApiKey ? (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#10b981', fontSize: '12px', fontWeight: '700' }}>
-                  <CheckCircle2 size={14} />
-                  <span>✓ โหลด API Key จากการตั้งค่าระบบเรียบร้อยแล้ว</span>
-                </div>
-              ) : (
-                <div style={{ fontSize: '11px', color: '#f59e0b', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <span style={{ fontWeight: '800' }}>💡 ยังไม่มีการตั้งค่า API Key กลางในระบบ</span>
-                  <a href="/settings/master" style={{ color: '#0ea5e9', textDecoration: 'none', fontWeight: '700' }}>
-                    กดตั้งค่า Gemini API Key ที่เมนูข้อมูลพื้นฐาน →
-                  </a>
-                </div>
-              )}
-            </div>
+
 
             {/* Presets Prompt Dropdown */}
             <div style={{ display: 'flex', flexDirection: 'column', marginBottom: '12px' }}>
@@ -1064,7 +1049,7 @@ export default function PresentationPage() {
                 placeholder="ป้อนคำสั่ง Prompt ของคุณที่นี่ หรือแก้ไข Preset ด้านบน..."
                 value={customPrompt}
                 onChange={(e) => setCustomPrompt(e.target.value)}
-                style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: '4px', padding: '12px 14px', color: '#f8fafc', outline: 'none', fontSize: '12px', resize: 'none', fontFamily: 'inherit', height: '160px', lineHeight: '1.6' }}
+                style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: '4px', padding: '12px 14px', color: '#f8fafc', outline: 'none', fontSize: '12px', resize: 'none', fontFamily: 'inherit', height: '240px', lineHeight: '1.6' }}
               />
             </div>
 

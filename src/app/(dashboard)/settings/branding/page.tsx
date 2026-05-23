@@ -86,7 +86,6 @@ export default function BrandingSettingsPage() {
          const { error } = await supabase.from('company_settings').update({
             company_name: company.company_name,
             logo_url: company.logo_url,
-            gemini_api_key: company.gemini_api_key,
             updated_at: new Date().toISOString()
           }).eq('id', company.id);
          if (error) throw error;
@@ -94,7 +93,6 @@ export default function BrandingSettingsPage() {
          const { error } = await supabase.from('company_settings').insert([{
             company_name: company.company_name,
             logo_url: company.logo_url,
-            gemini_api_key: company.gemini_api_key,
           }]);
          if (error) throw error;
       }
