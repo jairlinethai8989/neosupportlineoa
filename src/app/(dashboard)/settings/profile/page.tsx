@@ -24,23 +24,41 @@ import {
 import Link from 'next/link';
 import { auditService } from '@/lib/services/auditService';
 import { SignaturePad } from '@/components/profile/SignaturePad';
+import { ImageCropper } from '@/components/profile/ImageCropper';
 import { useStaffLocale } from '@/contexts/StaffLocaleContext';
 
 const AVATAR_SEEDS = [
   'Ariel', 'Willow', 'Casper', 'Sasha', 'Jasper', 'Zoey', 'Felix', 'Luna',
   'Simba', 'Nala', 'Coco', 'Ruby', 'Milo', 'Cleo', 'Jack', 'Oliver',
-  'Midnight', 'Shadow', 'Ginger', 'Snowball', 'Pepper', 'Sunny', 'Cookie', 'Bear'
+  'Midnight', 'Shadow', 'Ginger', 'Snowball', 'Pepper', 'Sunny', 'Cookie', 'Bear',
+  'Charlie', 'Daisy', 'Max', 'Bella', 'Rocky', 'Lola'
 ];
 
 const PROFILE_COLORS = [
-  'var(--primary)',
-  '#28c76f',
-  '#ea5455',
-  '#ff9f43',
-  '#7367f0',
-  '#3699ff',
-  '#e83e8c',
-  '#20c997'
+  '#00f2fe', // primary
+  '#28c76f', // green
+  '#ea5455', // red
+  '#ff9f43', // orange
+  '#7367f0', // purple
+  '#3699ff', // blue
+  '#e83e8c', // pink
+  '#20c997', // teal
+  '#6610f2', // indigo
+  '#fd7e14', // rust
+  '#ffc107', // yellow
+  '#17a2b8', // cyan
+  '#6f42c1', // violet
+  '#d63384', // magenta
+  '#0dcaf0', // light blue
+  '#198754', // dark green
+  '#dc3545', // dark red
+  '#ffc0cb', // light pink
+  '#8b4513', // saddle brown
+  '#483d8b', // dark slate blue
+  '#008080', // pure teal
+  '#556b2f', // dark olive green
+  '#4682b4', // steel blue
+  '#c71585'  // medium violet red
 ];
 
 const AVATAR_OPTIONS = AVATAR_SEEDS.map(seed => `https://api.dicebear.com/7.x/adventurer/svg?seed=${seed}`);
@@ -71,6 +89,7 @@ export default function ProfileSettingsPage() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [updatingPassword, setUpdatingPassword] = useState(false);
   const [activeTab, setActiveTab] = useState<'profile' | 'security'>('profile');
+  const [cropImageSrc, setCropImageSrc] = useState<string | null>(null);
 
   useEffect(() => {
     async function fetchData() {
@@ -90,15 +109,26 @@ export default function ProfileSettingsPage() {
      const file = event.target.files?.[0];
      if (!file) return;
 
+     // Read file as data URL to pass to cropper
+     const reader = new FileReader();
+     reader.addEventListener('load', () => setCropImageSrc(reader.result?.toString() || null));
+     reader.readAsDataURL(file);
+     
+     // Reset input so the same file can be selected again if canceled
+     event.target.value = '';
+  };
+
+  const handleCropComplete = async (croppedFile: File) => {
+     setCropImageSrc(null);
      setUploading(true);
      try {
-        const fileExt = file.name.split('.').pop();
+        const fileExt = croppedFile.name.split('.').pop();
         const fileName = `${Math.random()}.${fileExt}`;
         const filePath = `profile/${fileName}`;
 
         const { error: uploadError } = await supabase.storage
            .from('chat_media') 
-           .upload(filePath, file);
+           .upload(filePath, croppedFile);
 
         if (uploadError) throw uploadError;
 
@@ -540,6 +570,14 @@ export default function ProfileSettingsPage() {
           <ShieldCheck size={20} />
           {toastMsg}
         </div>
+      )}
+
+      {cropImageSrc && (
+        <ImageCropper 
+          imageSrc={cropImageSrc}
+          onCropComplete={handleCropComplete}
+          onCancel={() => setCropImageSrc(null)}
+        />
       )}
     </div>
   );
