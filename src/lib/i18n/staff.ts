@@ -704,6 +704,8 @@ const messages: Record<StaffLocale, MessageDictionary> = {
       confirmEndChatButton: 'Confirm End Chat',
       resolveWarningTitle: 'Cannot Resolve Ticket',
       resolveWarningBody: 'You must end the conversation before resolving the ticket.',
+      noTemplatesFound: 'No resolution templates available.',
+      setupTemplates: 'Set up your templates here',
       customerMeta: 'Customer Meta',
       ticketId: 'TICKET ID',
       subject: 'SUBJECT',

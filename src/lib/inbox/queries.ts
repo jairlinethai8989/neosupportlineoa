@@ -710,17 +710,13 @@ export async function getInboxProfile(userId: string): Promise<InboxAgent | null
 
 export async function getInboxCompanySettings(): Promise<InboxCompanySettings> {
   try {
-    const [settingsRes, modulesRes, issuesRes] = await Promise.all([
-      supabase.from('company_settings').select('id').limit(1).maybeSingle(),
-      supabase.from('ticket_modules').select('name').eq('is_active', true),
-      supabase.from('ticket_issue_types').select('name').eq('is_active', true),
-    ]);
+    const { data, error } = await supabase.from('company_settings').select('id, modules, issue_types').limit(1).single();
 
-    if (settingsRes.error) throw settingsRes.error;
+    if (error) throw error;
 
     return {
-      modules: modulesRes.data?.map((d) => d.name) || [],
-      issue_types: issuesRes.data?.map((d) => d.name) || [],
+      modules: data?.modules || [],
+      issue_types: data?.issue_types || [],
     };
   } catch (error) {
     console.error('Failed to fetch inbox company settings:', error);
