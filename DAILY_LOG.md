@@ -16,6 +16,7 @@
 1. **Performance Optimization (สำเร็จ):**
     * **Inbox Load Speed:** เพิ่ม Index (`idx_conversations_last_msg_id_desc`) ในตาราง `conversations` แก้ปัญหา Inbox โหลดช้า 60 วินาที ให้เหลือเพียง 1-2 วินาที โดยเปลี่ยนจากการทำ Full Table Scan เป็น Index Scan
     * **Login Transition:** ปรับปรุงหน้า `login/page.tsx` โดยเปลี่ยนจาก `router.refresh()` เป็น `window.location.href` เพื่อลดภาระ Next.js Router และลบการ block UI ของ `fetchProfile` ออกจากขั้นตอน bootstrap ทำให้การ Login เสร็จสิ้นและแสดงผลทันทีโดยไม่ต้องรอ 10-20 วินาที
+    * **Analytics Page Speed (Option A):** ปรับปรุงหน้า "ศูนย์บริหารสถิติอัจฉริยะ" (`/analytics`) จากเดิมที่ต้องโหลดค้างนาน 150 วินาที ให้ทำงานเสร็จภายในเวลาต่ำกว่า **1 วินาที** โดยการสร้างฟังก์ชัน SQL RPC `get_analytics_dashboard_v2` เพื่อประมวลผลจัดกลุ่มสถิติทั้งหมดที่ฝั่ง Database (Supabase) และเพิ่ม Index ให้กับตารางแบบสำรวจ CSAT (`idx_csat_surveys_created_at`) ร่วมกับการใช้ระบบ **Lazy Loading ดึงข้อมูลตั๋วงานดิบเฉพาะเมื่อเรียกส่งออก (Export) เท่านั้น**
 
 ---
 

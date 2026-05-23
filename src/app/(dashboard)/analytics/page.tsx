@@ -103,6 +103,7 @@ export default function AdvancedAnalyticsPage() {
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
   const [tickets, setTickets] = useState<any[]>([]);
+  const [aggregatedData, setAggregatedData] = useState<any>(null);
   const [showWidgetSelector, setShowWidgetSelector] = useState(false);
   
   const [showPreview, setShowPreview] = useState(false);
@@ -117,33 +118,15 @@ export default function AdvancedAnalyticsPage() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const [ticketsRes, csatRes] = await Promise.all([
-        supabase
-          .from('tickets')
-          .select(`
-            id,
-            ticket_no,
-            subject,
-            status,
-            priority,
-            issue_type,
-            created_at,
-            resolved_at
-          `)
-          .gte('created_at', dateRange.start)
-          .lte('created_at', dateRange.end)
-          .order('created_at', { ascending: false }),
-        supabase
-          .from('csat_surveys')
-          .select('score, created_at')
-          .not('score', 'is', null)
-          .gte('created_at', dateRange.start)
-          .lte('created_at', dateRange.end)
-      ]);
+      const { data, error } = await supabase.rpc('get_analytics_dashboard_v2', {
+        start_date: dateRange.start,
+        end_date: dateRange.end
+      });
 
-      setTickets(ticketsRes.data || []);
-      // Pre-calculate CSAT to state or helper
-      (window as any)._csat_data = csatRes.data || [];
+      if (error) throw error;
+      setAggregatedData(data);
+      // Reset raw tickets so they are only fetched on demand for export
+      setTickets([]);
     } catch (err) {
       console.error('Fetch analytics failed:', err);
     } finally {
@@ -156,69 +139,20 @@ export default function AdvancedAnalyticsPage() {
   }, [fetchData]);
 
   const chartDataMap = useMemo(() => {
-    if (!tickets.length) return {};
+    if (!aggregatedData) return {};
     
-    // 1. Status & Priority
-    const statusCounts = tickets.reduce((acc: any, t) => { acc[t.status] = (acc[t.status] || 0) + 1; return acc; }, {});
-    const priorityCounts = tickets.reduce((acc: any, t) => { acc[t.priority] = (acc[t.priority] || 0) + 1; return acc; }, {});
-    const categoryCounts = tickets.reduce((acc: any, t) => { 
-      const cat = getTicketCategoryLabel(t);
-      acc[cat] = (acc[cat] || 0) + 1; 
-      return acc; 
-    }, {});
-
-    // 2. Trend (Date Grouping)
-    const dailyCounts = tickets.reduce((acc: any, t) => {
-      const date = DateTime.fromISO(t.created_at).toFormat('dd MMM');
-      acc[date] = (acc[date] || 0) + 1;
-      return acc;
-    }, {});
-    const trendData = Object.entries(dailyCounts).map(([name, value]) => ({ name, value })).sort((a,b) => a.name.localeCompare(b.name));
-
-    // 3. Peak Hours
-    const hourlyCounts = tickets.reduce((acc: any, t) => {
-      const hour = DateTime.fromISO(t.created_at).hour;
-      acc[hour] = (acc[hour] || 0) + 1;
-      return acc;
-    }, {});
-    const peakData = Array.from({ length: 24 }, (_, i) => ({ name: `${i}:00`, value: hourlyCounts[i] || 0 }));
-
-    // 4. Resolution Time (Hours)
-    const resolutionData = tickets
-      .filter(t => t.resolved_at)
-      .map(t => {
-        const diff = DateTime.fromISO(t.resolved_at).diff(DateTime.fromISO(t.created_at), 'hours').hours;
-        return { name: t.ticket_no, value: parseFloat(diff.toFixed(1)) };
-      }).slice(0, 10);
-
-    // 5. CSAT
-    const csatRaw = (window as any)._csat_data || [];
-    const csatData = csatRaw.reduce((acc: any, c: any) => {
-      // Canonical standardization: exclusively read 'score' field
-      const score = c.score || 0;
-      if (score === 0) return acc;
-      acc[score] = (acc[score] || 0) + 1;
-      return acc;
-    }, {});
-
     return {
-      'bar-status': Object.entries(statusCounts).map(([name, value]) => ({ name, value })),
-      'pie-priority': Object.entries(priorityCounts).map(([name, value]) => ({ name, value })),
-      'line-trend': trendData,
-      'area-volume': trendData, // Reuse trend for volume
-      'bar-category': Object.entries(categoryCounts)
-        .map(([name, value]) => ({ name, value }))
-        .sort((a, b) => Number(b.value) - Number(a.value))
-        .slice(0, 12),
-      'area-peak': peakData,
-      'bar-resolution': resolutionData,
-      'line-csat': Object.entries(csatData).map(([name, value]) => ({ name: `Score ${name}`, value })),
-      'pie-sla': [
-        { name: 'Compliant', value: tickets.filter(t => !t.resolved_at || DateTime.fromISO(t.resolved_at).diff(DateTime.fromISO(t.created_at), 'hours').hours < 24).length },
-        { name: 'Breached', value: tickets.filter(t => t.resolved_at && DateTime.fromISO(t.resolved_at).diff(DateTime.fromISO(t.created_at), 'hours').hours >= 24).length },
-      ],
+      'bar-status': aggregatedData.status_data || [],
+      'pie-priority': aggregatedData.priority_data || [],
+      'line-trend': aggregatedData.trend_data || [],
+      'area-volume': aggregatedData.trend_data || [], // Reuse trend for volume
+      'bar-category': aggregatedData.category_data || [],
+      'area-peak': aggregatedData.peak_data || [],
+      'bar-resolution': aggregatedData.resolution_data || [],
+      'line-csat': aggregatedData.csat_data || [],
+      'pie-sla': aggregatedData.sla_data || [],
       'pie-channel': [
-        { name: 'LINE OA', value: tickets.length },
+        { name: 'LINE OA', value: aggregatedData.total_records || 0 },
         { name: 'Web Portal', value: 0 },
         { name: 'API', value: 0 }
       ],
@@ -229,7 +163,7 @@ export default function AdvancedAnalyticsPage() {
       ],
       'scatter-response': Array.from({ length: 20 }, (_, i) => ({ x: i, y: (i * 13 + 20) % 100 })),
     };
-  }, [tickets]);
+  }, [aggregatedData]);
 
   const handleDragEnd = (event: any) => {
     const { active, over } = event;
@@ -242,12 +176,42 @@ export default function AdvancedAnalyticsPage() {
     }
   };
 
-  const handleExport = (format: 'excel' | 'pdf') => {
+  const handleExport = async (format: 'excel' | 'pdf') => {
+    setExporting(true);
+    let currentTickets = tickets;
+    if (!currentTickets.length) {
+      try {
+        const { data, error } = await supabase
+          .from('tickets')
+          .select(`
+            id,
+            ticket_no,
+            subject,
+            status,
+            priority,
+            created_at,
+            resolved_at
+          `)
+          .gte('created_at', dateRange.start)
+          .lte('created_at', dateRange.end)
+          .order('created_at', { ascending: false });
+        
+        if (error) throw error;
+        currentTickets = data || [];
+        setTickets(currentTickets);
+      } catch (err) {
+        console.error('Fetch raw tickets for export failed:', err);
+        alert('ไม่สามารถดึงข้อมูลตั๋วงานดิบสำหรับการส่งออกได้');
+        setExporting(false);
+        return;
+      }
+    }
+
     const preview: ExportPreviewData = {
       format,
       title: 'Executive Intelligence Report',
       subtitle: 'สรุปสถิติการดำเนินงาน • NEO SUPPORT',
-      totalRecords: tickets.length,
+      totalRecords: currentTickets.length,
       dateRange: `${dateRange.start} - ${dateRange.end}`,
       columns: format === 'excel' 
         ? ['No.', 'Subject', 'Status', 'Priority', 'Created']
@@ -256,6 +220,7 @@ export default function AdvancedAnalyticsPage() {
     setPendingFormat(format);
     setPreviewData(preview);
     setShowPreview(true);
+    setExporting(false);
   };
 
   const executeExport = async () => {
@@ -444,7 +409,7 @@ export default function AdvancedAnalyticsPage() {
     );
   };
 
-  if (loading && !tickets.length) {
+  if (loading && !aggregatedData) {
     return (
       <div className="animate-page-in">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '24px', marginBottom: '32px' }}>
