@@ -79,6 +79,7 @@ const ticketDetailSelect = `
   hospital_id,
   escalation_token,
   resolution_summary,
+  ai_analysis,
   customers:customers!tickets_customer_id_fkey (
     id,
     display_name,
@@ -215,9 +216,62 @@ export default function StaffTicketDetailPage() {
   const [resSummary, setResSummary] = useState('');
   const [editingImage, setEditingImage] = useState<string | null>(null);
   const [showEditor, setShowEditor] = useState(false);
-  const [viewingImage, setViewingImage] = useState<string | null>(null);
   const [showViewer, setShowViewer] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
+  const [aiLoading, setAiLoading] = useState(false);
+
+  const handleGenerateAISummary = async () => {
+    if (!ticketId) return;
+    setAiLoading(true);
+    try {
+      const res = await fetch(`/api/tickets/${ticketId}/ai-summary`, { method: 'POST' });
+      if (!res.ok) throw new Error('API Error');
+      const data = await res.json();
+      setTicket(prev => prev ? { ...prev, ai_analysis: data } as any : prev);
+      addToast({ id: 'ai-ok', type: 'ticket', title: 'วิเคราะห์ AI สำเร็จ', body: 'บันทึกบทสรุปเรียบร้อยแล้ว' });
+    } catch (err) {
+      addToast({ id: 'ai-err', type: 'sla', title: 'การวิเคราะห์ล้มเหลว', body: 'โปรดลองอีกครั้ง' });
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
+  const renderAICard = () => {
+    if (status !== 'Resolved' && status !== 'Closed') return null;
+    const aiData = (ticket as any)?.ai_analysis;
+
+    if (!aiData) {
+      return (
+        <div className="glass" style={{ padding: '24px', borderRadius: '16px', background: 'rgba(16, 185, 129, 0.05)', border: '1px dashed rgba(16, 185, 129, 0.3)', marginBottom: '24px', textAlign: 'center' }}>
+          <button onClick={handleGenerateAISummary} disabled={aiLoading} className="glass-interactive" style={{ background: 'var(--primary)', color: '#0a0e14', padding: '12px 24px', borderRadius: '8px', border: 'none', fontWeight: '800', cursor: aiLoading ? 'not-allowed' : 'pointer', display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+            {aiLoading ? <Loader2 size={16} className="animate-spin" /> : '✨ สรุปเคสด้วย AI (Gemini)'}
+          </button>
+        </div>
+      );
+    }
+
+    return (
+      <div className="glass" style={{ padding: '24px', borderRadius: '16px', background: 'rgba(16, 185, 129, 0.05)', border: '1px solid rgba(16, 185, 129, 0.2)', marginBottom: '24px' }}>
+        <h3 style={{ margin: '0 0 16px 0', fontSize: '15px', fontWeight: '800', color: 'var(--primary)' }}>✨ AI Post-Mortem Analysis</h3>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <div>
+            <strong style={{ color: '#10b981', fontSize: '12px' }}>ปัญหาที่แท้จริง (Root Cause):</strong>
+            <p style={{ margin: '4px 0 0', fontSize: '13px' }}>{aiData.rootCause}</p>
+          </div>
+          <div>
+            <strong style={{ color: '#0ea5e9', fontSize: '12px' }}>วิธีแก้ไขที่ใช้ (Resolution):</strong>
+            <p style={{ margin: '4px 0 0', fontSize: '13px' }}>{aiData.resolution}</p>
+          </div>
+          <div>
+            <strong style={{ color: '#f59e0b', fontSize: '12px' }}>ข้อเสนอแนะเพื่อป้องกัน (Preventive Recommendations):</strong>
+            <ul style={{ margin: '4px 0 0', paddingLeft: '20px', fontSize: '13px' }}>
+              {aiData.preventiveRecommendations?.map((r: string, i: number) => <li key={i}>{r}</li>)}
+            </ul>
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   const externalReport = parseLatestExternalReport(ticket?.resolution_summary);
 
@@ -1173,6 +1227,7 @@ export default function StaffTicketDetailPage() {
         />
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+          {renderAICard()}
           {renderWorkReportCard()}
           <TicketSidebar
             ticket={ticket}
@@ -1342,10 +1397,22 @@ export default function StaffTicketDetailPage() {
           <div style={{ marginBottom: '80px' }}>
              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
                 <div style={{ width: '4px', height: '20px', background: '#3699FF', borderRadius: '2px' }}></div>
-                <h3 style={{ margin: 0, fontSize: '15px', fontWeight: '800', color: '#3699FF', textTransform: 'uppercase' }}>AI ANALYSIS & SATISFACTION</h3>
+                <h3 style={{ margin: 0, fontSize: '15px', fontWeight: '800', color: '#3699FF', textTransform: 'uppercase' }}>AI POST-MORTEM ANALYSIS</h3>
              </div>
-             <div style={{ padding: '20px', borderRadius: '12px', border: '1px solid #e1e3ea', fontSize: '14px', color: '#5e6278', fontStyle: 'italic' }}>
-                N/A
+             <div style={{ padding: '20px', borderRadius: '12px', border: '1px solid #e1e3ea', fontSize: '14px', color: '#181c32', background: '#f8f9fa' }}>
+                {(ticket as any)?.ai_analysis ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    <div><strong style={{ color: '#28C76F' }}>Root Cause:</strong><br/>{(ticket as any).ai_analysis.rootCause}</div>
+                    <div><strong style={{ color: '#3699FF' }}>Resolution:</strong><br/>{(ticket as any).ai_analysis.resolution}</div>
+                    <div><strong style={{ color: '#FF9F43' }}>Preventive Recommendations:</strong>
+                      <ul style={{ margin: '4px 0 0', paddingLeft: '20px' }}>
+                        {(ticket as any).ai_analysis.preventiveRecommendations?.map((r: string, i: number) => <li key={i}>{r}</li>)}
+                      </ul>
+                    </div>
+                  </div>
+                ) : (
+                  <span style={{ color: '#5e6278', fontStyle: 'italic' }}>N/A</span>
+                )}
              </div>
           </div>
 
