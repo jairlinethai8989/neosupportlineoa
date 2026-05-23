@@ -16,7 +16,8 @@ import {
   Layout,
   FileText,
   Tag,
-  MessageSquare
+  MessageSquare,
+  Sparkles
 } from 'lucide-react';
 import { FileSpreadsheet } from 'lucide-react';
 import { useNotificationContext } from '@/contexts/NotificationContext';
@@ -24,7 +25,7 @@ import { auditService } from '@/lib/services/auditService';
 import { useAppContext } from '@/contexts/AppContext';
 import { useStaffLocale } from '@/contexts/StaffLocaleContext';
 
-type Tab = 'hospitals' | 'departments' | 'hospital_depts' | 'positions' | 'modules' | 'issue_types' | 'subject_types' | 'line_groups' | 'google_sheets';
+type Tab = 'hospitals' | 'departments' | 'hospital_depts' | 'positions' | 'modules' | 'issue_types' | 'subject_types' | 'line_groups' | 'google_sheets' | 'gemini_api';
 
 export default function MasterSettingsPage() {
   const { t } = useStaffLocale();
@@ -275,7 +276,8 @@ export default function MasterSettingsPage() {
     issue_types: { title: t('settingsMaster.tabs.issueTypes'), icon: Tag, desc: t('settingsMaster.descriptions.issueTypes') },
     subject_types: { title: t('settingsMaster.tabs.subjectTypes'), icon: MessageSquare, desc: t('settingsMaster.descriptions.subjectTypes') },
     line_groups: { title: t('settingsMaster.tabs.lineGroups'), icon: MessageSquare, desc: t('settingsMaster.descriptions.lineGroups') },
-    google_sheets: { title: 'Google Sheets', icon: FileSpreadsheet, desc: 'ตั้งค่าการเชื่อมโยงรายงานไปยัง Google Sheets ประจำวัน' }
+    google_sheets: { title: 'Google Sheets', icon: FileSpreadsheet, desc: 'ตั้งค่าการเชื่อมโยงรายงานไปยัง Google Sheets ประจำวัน' },
+    gemini_api: { title: 'Gemini AI API', icon: Sparkles, desc: 'ตั้งค่า Gemini AI API Key สำหรับวิเคราะห์สรุปรายงานและคำแนะนำในสไลด์' }
   };
 
   const ActiveIcon = TAB_CONFIG[activeTab].icon;
@@ -293,7 +295,7 @@ export default function MasterSettingsPage() {
 
       {/* Tabs Selector */}
       <div style={{ display: 'flex', gap: '8px', marginBottom: '32px', background: 'rgba(255,255,255,0.03)', padding: '6px', borderRadius: '16px', border: '1px solid var(--border)', width: 'fit-content', flexWrap: 'wrap' }}>
-        {(['hospitals', 'departments', 'hospital_depts', 'positions', 'modules', 'issue_types', 'subject_types', 'line_groups', 'google_sheets'] as Tab[]).map(t => (
+        {(['hospitals', 'departments', 'hospital_depts', 'positions', 'modules', 'issue_types', 'subject_types', 'line_groups', 'google_sheets', 'gemini_api'] as Tab[]).map(t => (
           <button
             key={t}
             onClick={() => setActiveTab(t)}
@@ -321,6 +323,8 @@ export default function MasterSettingsPage() {
       {/* Main Content Card */}
       {activeTab === 'google_sheets' ? (
         <GoogleSheetsConfigForm globalSettings={globalSettings} onSaveSuccess={() => refreshData('settings')} />
+      ) : activeTab === 'gemini_api' ? (
+        <GeminiConfigForm globalSettings={globalSettings} onSaveSuccess={() => refreshData('settings')} />
       ) : (
         <div className="glass" style={{ borderRadius: '24px', overflow: 'hidden' }}>
          {/* List Toolbar */}
@@ -735,6 +739,87 @@ function doGet(e) {
           .grid-responsive { grid-template-columns: 1fr !important; }
         }
       `}} />
+    </div>
+  );
+}
+
+function GeminiConfigForm({ globalSettings, onSaveSuccess }: { globalSettings: any; onSaveSuccess: () => void }) {
+  const { addToast } = useNotificationContext();
+  const [apiKey, setApiKey] = useState(globalSettings?.gemini_api_key || '');
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (globalSettings?.gemini_api_key) {
+      setApiKey(globalSettings.gemini_api_key);
+    }
+  }, [globalSettings]);
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const { error } = await supabase
+        .from('company_settings')
+        .update({ gemini_api_key: apiKey })
+        .eq('id', globalSettings.id);
+
+      if (error) {
+        console.error('Save error:', error);
+        alert('ไม่สามารถบันทึกได้: ' + error.message);
+      } else {
+        onSaveSuccess();
+        addToast({
+          id: `gemini-save-success-${Date.now()}`,
+          type: 'ticket',
+          title: 'บันทึกสำเร็จ',
+          body: 'บันทึก Gemini API Key เรียบร้อยแล้ว ✨'
+        });
+      }
+    } catch (e: any) {
+      console.error(e);
+      alert('เกิดข้อผิดพลาดในการบันทึกข้อมูล');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="glass" style={{ padding: '32px', borderRadius: '24px', display: 'flex', flexDirection: 'column', gap: '24px', maxWidth: '600px', margin: '0 auto', animation: 'slideInRight 0.3s ease-out' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '8px' }}>
+        <div style={{ background: 'var(--primary)', padding: '10px', borderRadius: '12px' }}>
+          <Sparkles size={24} color="#0a0e14" />
+        </div>
+        <div>
+          <h2 style={{ fontSize: '20px', fontWeight: '700', lineHeight: '1.2' }}>ตั้งค่า Gemini AI API Key</h2>
+          <p style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Gemini AI API Configuration</p>
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <div>
+          <label style={{ display: 'block', fontSize: '13px', fontWeight: '800', color: 'var(--text-main)', marginBottom: '8px' }}>
+            Gemini API Key สำหรับสรุปรายงาน
+          </label>
+          <input
+            type="password"
+            placeholder="AI_..."
+            value={apiKey}
+            onChange={(e) => setApiKey(e.target.value)}
+            style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', borderRadius: '12px', padding: '14px 20px', color: 'var(--text-main)', fontSize: '14px', outline: 'none' }}
+          />
+          <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '8px', lineHeight: '1.4' }}>
+            บันทึก API Key ของระบบเพื่อเปิดใช้งานการวิเคราะห์สรุปความพึงพอใจและแนวทางแก้ไขโดย Gemini อัตโนมัติในสไลด์พรีเซนต์
+          </p>
+        </div>
+
+        <button
+          onClick={handleSave}
+          disabled={saving}
+          style={{ background: 'var(--primary)', color: 'black', border: 'none', padding: '14px 28px', borderRadius: '12px', fontWeight: '900', fontSize: '14px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', height: '56px', transition: 'all 0.2s', boxShadow: '0 8px 30px rgba(0, 242, 254, 0.2)', marginTop: '8px' }}
+        >
+          {saving ? <Loader2 size={18} className="animate-spin" /> : <Check size={18} />}
+          บันทึกการตั้งค่า
+        </button>
+      </div>
     </div>
   );
 }

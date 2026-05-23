@@ -20,6 +20,7 @@ import { supabase } from '@/lib/supabase';
 
 let html2CanvasPromise: Promise<(typeof import('html2canvas'))['default']> | null = null;
 let jsPdfPromise: Promise<(typeof import('jspdf'))['jsPDF']> | null = null;
+let pptxGenPromise: Promise<any> | null = null;
 
 async function loadExportModules() {
   if (!html2CanvasPromise) {
@@ -28,8 +29,11 @@ async function loadExportModules() {
   if (!jsPdfPromise) {
     jsPdfPromise = import('jspdf').then((m) => m.jsPDF);
   }
-  const [html2canvas, jsPDF] = await Promise.all([html2CanvasPromise, jsPdfPromise]);
-  return { html2canvas, jsPDF };
+  if (!pptxGenPromise) {
+    pptxGenPromise = import('pptxgenjs').then((m) => m.default);
+  }
+  const [html2canvas, jsPDF, pptxgen] = await Promise.all([html2CanvasPromise, jsPdfPromise, pptxGenPromise]);
+  return { html2canvas, jsPDF, pptxgen };
 }
 
 type PresentationData = {
@@ -223,9 +227,11 @@ export default function PresentationPage() {
     checkGlobalApiKey();
   }, []);
 
-  const fetchPresentationData = async () => {
+  const fetchPresentationData = async (shouldCloseDrawer = false) => {
     setLoading(true);
-    setIsDrawerOpen(false);
+    if (shouldCloseDrawer) {
+      setIsDrawerOpen(false);
+    }
     try {
       const res = await fetch(`/api/reports/presentation?start=${dateRange.start}&end=${dateRange.end}`);
       if (!res.ok) throw new Error('Failed to fetch presentation data');
@@ -245,6 +251,10 @@ export default function PresentationPage() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetchPresentationData(false);
+  }, [dateRange.start, dateRange.end]);
 
   const handleGenerateAIInsights = async () => {
     if (!data) return;
@@ -382,11 +392,92 @@ export default function PresentationPage() {
     }
   };
 
+  const handleExportPPTX = async () => {
+    if (!data || !presentationRef.current) return;
+    setExporting(true);
+    setIsDrawerOpen(false);
+    const toastId = `export-pptx-${Date.now()}`;
+    addToast({
+      id: toastId,
+      type: 'ticket',
+      title: 'กำลังสร้างไฟล์ PowerPoint...',
+      body: 'โปรดรอสักครู่ ระบบกำลังจัดเตรียมไฟล์ PowerPoint ⏳'
+    });
+
+    try {
+      const { html2canvas, pptxgen } = await loadExportModules();
+      const slides = presentationRef.current.querySelectorAll('.pdf-slide-page') as NodeListOf<HTMLElement>;
+      
+      const pptx = new pptxgen();
+      pptx.layout = 'LAYOUT_16x9';
+
+      for (let i = 0; i < slides.length; i++) {
+        const slideElement = slides[i];
+        
+        // Temporarily force display block/flex for capturing
+        const originalDisplay = slideElement.style.display;
+        slideElement.style.display = 'flex';
+        slideElement.style.position = 'absolute';
+        slideElement.style.top = '0';
+        slideElement.style.left = '0';
+        slideElement.style.opacity = '1';
+        slideElement.style.zIndex = '-10'; // render offscreen
+        slideElement.style.transform = 'none';
+
+        const canvas = await html2canvas(slideElement, {
+          scale: 2, // High resolution
+          useCORS: true,
+          backgroundColor: activeTheme.bg,
+          logging: false
+        });
+
+        const imgData = canvas.toDataURL('image/png');
+        
+        // Revert styles
+        slideElement.style.display = originalDisplay;
+        slideElement.style.position = '';
+        slideElement.style.top = '';
+        slideElement.style.left = '';
+        slideElement.style.opacity = '';
+        slideElement.style.zIndex = '';
+        slideElement.style.transform = '';
+
+        const slide = pptx.addSlide();
+        slide.addImage({
+          data: imgData,
+          x: 0,
+          y: 0,
+          w: 10,
+          h: 5.625
+        });
+      }
+
+      pptx.writeFile({ fileName: `Weekly_Presentation_${dateRange.start}_to_${dateRange.end}.pptx` });
+      
+      addToast({
+        id: `export-success-${Date.now()}`,
+        type: 'ticket',
+        title: 'สร้าง PowerPoint สำเร็จ',
+        body: 'ดาวน์โหลดไฟล์ Presentation (.pptx) เรียบร้อยแล้ว 🎉'
+      });
+    } catch (err: unknown) {
+      console.error(err);
+      addToast({
+        id: `export-fail-${Date.now()}`,
+        type: 'sla_warning',
+        title: 'เกิดข้อผิดพลาด',
+        body: 'ไม่สามารถสร้างไฟล์ PowerPoint ได้ โปรดลองอีกครั้ง',
+      });
+    } finally {
+      setExporting(false);
+    }
+  };
+
   const hasAI = !!aiInsights;
   const totalSlides = data ? 2 + (hasAI ? 1 : 0) + (data.topHospitals?.length || 0) : 0;
 
   return (
-    <div className="animate-page-in" style={{ height: 'calc(100vh - 40px)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+    <div className="animate-page-in" style={{ height: 'calc(100vh - 40px)', display: 'flex', flexDirection: 'column', overflow: 'hidden', paddingRight: '24px' }}>
       
       {/* Control Bar */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexShrink: 0 }}>
@@ -882,29 +973,10 @@ export default function PresentationPage() {
                 />
               </div>
             </div>
-            <button
-              onClick={fetchPresentationData}
-              disabled={loading}
-              className="glass-interactive"
-              style={{
-                width: '100%',
-                height: '40px',
-                marginTop: '12px',
-                borderRadius: '4px',
-                border: 'none',
-                background: '#10b981',
-                color: '#0f172a',
-                fontWeight: '800',
-                fontSize: '13px',
-                cursor: loading ? 'not-allowed' : 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '8px'
-              }}
-            >
-              {loading ? <Loader2 size={16} className="animate-spin" /> : 'ดึงข้อมูลและสร้างสไลด์'}
-            </button>
+            <div style={{ marginTop: '12px', display: 'flex', alignItems: 'center', gap: '8px', color: '#10b981', fontSize: '11px', fontWeight: '750', background: 'rgba(16, 185, 129, 0.06)', padding: '10px 14px', borderRadius: '8px', border: '1px solid rgba(16, 185, 129, 0.15)' }}>
+              {loading ? <Loader2 size={12} className="animate-spin" /> : <CheckCircle2 size={14} />}
+              <span>{loading ? 'กำลังดึงข้อมูลสถิติใหม่...' : '✓ อัปเดตข้อมูลสถิติอัตโนมัติเรียบร้อยแล้ว'}</span>
+            </div>
           </div>
 
           {/* Section 2: Visual Style Templates Selection */}
@@ -957,25 +1029,11 @@ export default function PresentationPage() {
               ) : (
                 <div style={{ fontSize: '11px', color: '#f59e0b', display: 'flex', flexDirection: 'column', gap: '4px' }}>
                   <span style={{ fontWeight: '800' }}>💡 ยังไม่มีการตั้งค่า API Key กลางในระบบ</span>
-                  <a href="/settings/branding" style={{ color: '#0ea5e9', textDecoration: 'none', fontWeight: '700' }}>
-                    กดตั้งค่า Gemini API Key ที่เมนูแบรนด์/ระบบ →
+                  <a href="/settings/master" style={{ color: '#0ea5e9', textDecoration: 'none', fontWeight: '700' }}>
+                    กดตั้งค่า Gemini API Key ที่เมนูข้อมูลพื้นฐาน →
                   </a>
                 </div>
               )}
-              
-              {/* Optional Collapse Override */}
-              <div style={{ marginTop: '8px', borderTop: '1px solid rgba(255, 255, 255, 0.05)', paddingTop: '8px' }}>
-                <span style={{ fontSize: '9px', color: '#64748b', display: 'block', marginBottom: '4px' }}>
-                  หรือกรอกแบบชั่วคราวเพื่อเขียนทับ (Temporary Override):
-                </span>
-                <input
-                  type="password"
-                  placeholder="AI_..."
-                  value={userApiKey}
-                  onChange={(e) => setUserApiKey(e.target.value)}
-                  style={{ width: '100%', background: '#0f172a', border: '1px solid #334155', borderRadius: '3px', padding: '6px 8px', color: '#f8fafc', outline: 'none', fontSize: '11px' }}
-                />
-              </div>
             </div>
 
             {/* Presets Prompt Dropdown */}
@@ -1003,11 +1061,10 @@ export default function PresentationPage() {
                 <span style={{ fontSize: '9px', color: '#10b981' }}>CUSTOMIZABLE</span>
               </div>
               <textarea
-                rows={3}
                 placeholder="ป้อนคำสั่ง Prompt ของคุณที่นี่ หรือแก้ไข Preset ด้านบน..."
                 value={customPrompt}
                 onChange={(e) => setCustomPrompt(e.target.value)}
-                style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: '4px', padding: '10px', color: '#f8fafc', outline: 'none', fontSize: '12px', resize: 'vertical', fontFamily: 'inherit' }}
+                style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: '4px', padding: '12px 14px', color: '#f8fafc', outline: 'none', fontSize: '12px', resize: 'none', fontFamily: 'inherit', height: '160px', lineHeight: '1.6' }}
               />
             </div>
 
@@ -1038,32 +1095,64 @@ export default function PresentationPage() {
             </button>
           </div>
 
-          {/* Section 4: Export to PDF Action */}
-          <div style={{ borderTop: '1px solid rgba(255, 255, 255, 0.08)', paddingTop: '20px', marginTop: 'auto' }}>
-            <button
-              onClick={handleExportPDF}
-              disabled={exporting || !data}
-              className="glass-interactive"
-              style={{
-                width: '100%',
-                height: '46px',
-                borderRadius: '4px',
-                border: 'none',
-                background: '#e2e8f0',
-                color: '#0f172a',
-                fontWeight: '800',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '8px',
-                cursor: (exporting || !data) ? 'not-allowed' : 'pointer',
-                fontSize: '14px',
-                boxShadow: '0 4px 12px rgba(226, 232, 240, 0.15)'
-              }}
-            >
-              {exporting ? <Loader2 size={18} className="animate-spin" /> : <Download size={18} />}
-              ดาวน์โหลด PDF (อัตราส่วน 16:9)
-            </button>
+          {/* Section 4: Export to PDF & PPTX Actions */}
+          <div style={{ borderTop: '1px solid rgba(255, 255, 255, 0.08)', paddingTop: '20px', marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <span style={{ fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', color: '#94a3b8', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <Download size={12} /> ส่งออกรายงานสไลด์ (Export Slides)
+            </span>
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button
+                onClick={handleExportPDF}
+                disabled={exporting || !data}
+                className="glass-interactive"
+                style={{
+                  flex: 1,
+                  height: '42px',
+                  borderRadius: '4px',
+                  border: '1px solid #ef4444',
+                  background: 'rgba(239, 68, 68, 0.08)',
+                  color: '#f87171',
+                  fontWeight: '800',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px',
+                  cursor: (exporting || !data) ? 'not-allowed' : 'pointer',
+                  fontSize: '12px',
+                  boxShadow: '0 4px 12px rgba(239, 68, 68, 0.05)',
+                  transition: 'all 0.2s'
+                }}
+              >
+                {exporting ? <Loader2 size={14} className="animate-spin" /> : <FileText size={14} />}
+                ส่งออก PDF
+              </button>
+
+              <button
+                onClick={handleExportPPTX}
+                disabled={exporting || !data}
+                className="glass-interactive"
+                style={{
+                  flex: 1,
+                  height: '42px',
+                  borderRadius: '4px',
+                  border: '1px solid #f97316',
+                  background: 'rgba(249, 115, 22, 0.08)',
+                  color: '#fb923c',
+                  fontWeight: '800',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px',
+                  cursor: (exporting || !data) ? 'not-allowed' : 'pointer',
+                  fontSize: '12px',
+                  boxShadow: '0 4px 12px rgba(249, 115, 22, 0.05)',
+                  transition: 'all 0.2s'
+                }}
+              >
+                {exporting ? <Loader2 size={14} className="animate-spin" /> : <Presentation size={14} />}
+                ส่งออก PPTX (PowerPoint)
+              </button>
+            </div>
           </div>
 
         </div>

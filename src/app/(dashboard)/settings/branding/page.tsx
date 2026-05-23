@@ -267,24 +267,7 @@ export default function BrandingSettingsPage() {
                      {t('settingsBranding.activeThresholdHelp')}
                   </p>
                </div>
-               <div>
-                  <label style={{ display: 'block', fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '8px', letterSpacing: '0.5px' }}>
-                    {locale === 'th' ? 'Gemini API Key สำหรับสรุปรายงาน' : 'Gemini API Key for Presentation Reports'}
-                  </label>
-                  <input 
-                    type="password" 
-                    placeholder="AI_..."
-                    value={company?.gemini_api_key || ''} 
-                    onChange={e => setCompany({...(company || {}), gemini_api_key: e.target.value})}
-                    disabled={!canEdit}
-                    style={{ width: '100%', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '10px', padding: '14px', color: 'var(--text-main)', outline: 'none', fontWeight: '600', opacity: !canEdit ? 0.5 : 1, cursor: !canEdit ? 'not-allowed' : 'text' }}
-                  />
-                  <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '6px', lineHeight: '1.4' }}>
-                    {locale === 'th' 
-                      ? 'บันทึก API Key ของระบบเพื่อเปิดใช้งานการวิเคราะห์สรุปความพึงพอใจและแนวทางแก้ไขโดย Gemini อัตโนมัติในสไลด์พรีเซนต์' 
-                      : 'Save the system API Key to enable automatic satisfaction summaries and operation insights in the weekly presentation slides.'}
-                  </p>
-               </div>
+
                <button 
                 onClick={handleSaveCompany}
                 disabled={saving || uploading || !canEdit}
