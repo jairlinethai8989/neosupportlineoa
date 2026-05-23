@@ -27,12 +27,12 @@ export function useInboxProfileSettings() {
         data: { user },
       } = await supabase.auth.getUser();
 
+      let resolvedAgent = null;
       if (user) {
-        const resolvedAgent = await getInboxProfile(user.id);
+        resolvedAgent = await getInboxProfile(user.id);
 
         setAgent(resolvedAgent);
         setPersonalQuickReplies(resolvedAgent?.quick_replies || []);
-        setPersonalResTemplates(resolvedAgent?.resolution_templates || []);
       }
 
       const typedCompanyData: InboxCompanySettings = await getInboxCompanySettings();
