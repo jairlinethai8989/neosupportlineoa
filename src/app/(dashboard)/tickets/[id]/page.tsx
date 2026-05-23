@@ -354,7 +354,7 @@ export default function StaffTicketDetailPage() {
   const fetchStaticMeta = useCallback(async () => {
     if (staticMetaLoadedRef.current) return;
 
-    const [deptResult, modulesResult, issuesResult, authResult] = await Promise.all([
+    const [deptResult, modulesResult, issuesResult, authResult, companyResult] = await Promise.all([
       supabase
         .from('departments')
         .select('id, name')
@@ -364,6 +364,7 @@ export default function StaffTicketDetailPage() {
       supabase.from('ticket_modules').select('name').eq('is_active', true),
       supabase.from('ticket_issue_types').select('name').eq('is_active', true),
       supabase.auth.getUser(),
+      supabase.from('company_settings').select('resolution_templates').limit(1).maybeSingle(),
     ]);
 
     if (deptResult.data) {
@@ -397,10 +398,22 @@ export default function StaffTicketDetailPage() {
         };
         setUser(mergedUser);
         setPersonalQuickReplies(profile.quick_replies || []);
-        setPersonalResTemplates(profile.resolution_templates || []);
+        
+        if (profile.resolution_templates && profile.resolution_templates.length > 0) {
+          setPersonalResTemplates(profile.resolution_templates);
+        } else if (companyResult.data?.resolution_templates?.length) {
+          setPersonalResTemplates(companyResult.data.resolution_templates);
+        } else {
+          setPersonalResTemplates([]);
+        }
       } else {
         setUser({ id: authUser.id });
+        if (companyResult.data?.resolution_templates?.length) {
+          setPersonalResTemplates(companyResult.data.resolution_templates);
+        }
       }
+    } else if (companyResult.data?.resolution_templates?.length) {
+      setPersonalResTemplates(companyResult.data.resolution_templates);
     }
 
     staticMetaLoadedRef.current = true;
