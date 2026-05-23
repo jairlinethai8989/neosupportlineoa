@@ -221,6 +221,7 @@ export default function StaffTicketDetailPage() {
   const [showViewer, setShowViewer] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
+  const [aiCardExpanded, setAiCardExpanded] = useState(true);
 
   const handleGenerateAISummary = async () => {
     if (!ticketId) return;
@@ -246,24 +247,39 @@ export default function StaffTicketDetailPage() {
     if (!aiData) return null;
 
     return (
-      <div className="glass" style={{ padding: '24px', borderRadius: '16px', background: 'rgba(16, 185, 129, 0.05)', border: '1px solid rgba(16, 185, 129, 0.2)', marginBottom: '24px' }}>
-        <h3 style={{ margin: '0 0 16px 0', fontSize: '15px', fontWeight: '800', color: 'var(--primary)' }}>✨ AI Post-Mortem Analysis</h3>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          <div>
-            <strong style={{ color: '#10b981', fontSize: '12px' }}>ปัญหาที่แท้จริง (Root Cause):</strong>
-            <p style={{ margin: '4px 0 0', fontSize: '13px' }}>{aiData.rootCause}</p>
-          </div>
-          <div>
-            <strong style={{ color: '#0ea5e9', fontSize: '12px' }}>วิธีแก้ไขที่ใช้ (Resolution):</strong>
-            <p style={{ margin: '4px 0 0', fontSize: '13px' }}>{aiData.resolution}</p>
-          </div>
-          <div>
-            <strong style={{ color: '#f59e0b', fontSize: '12px' }}>ข้อเสนอแนะเพื่อป้องกัน (Preventive Recommendations):</strong>
-            <ul style={{ margin: '4px 0 0', paddingLeft: '20px', fontSize: '13px' }}>
-              {aiData.preventiveRecommendations?.map((r: string, i: number) => <li key={i}>{r}</li>)}
-            </ul>
-          </div>
+      <div className="glass" style={{ padding: '20px 24px', borderRadius: '16px', background: 'rgba(16, 185, 129, 0.05)', border: '1px solid rgba(16, 185, 129, 0.2)', marginBottom: '24px', transition: 'all 0.3s' }}>
+        {/* Card Header (Clickable to Toggle) */}
+        <div 
+          onClick={() => setAiCardExpanded(!aiCardExpanded)}
+          style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', userSelect: 'none' }}
+        >
+          <h3 style={{ margin: 0, fontSize: '15px', fontWeight: '800', color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span>✨ AI Post-Mortem Analysis</span>
+          </h3>
+          <span style={{ fontSize: '11px', fontWeight: '800', color: 'var(--primary)', background: 'rgba(16, 185, 129, 0.1)', padding: '2px 8px', borderRadius: '4px' }}>
+            {aiCardExpanded ? 'ย่อข้อมูล ▲' : 'ขยายข้อมูล ▼'}
+          </span>
         </div>
+
+        {/* Card Content (Collapsible) */}
+        {aiCardExpanded && (
+          <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '16px', borderTop: '1px solid rgba(16, 185, 129, 0.1)', paddingTop: '16px' }}>
+            <div>
+              <strong style={{ color: '#10b981', fontSize: '12px' }}>ปัญหาที่แท้จริง (Root Cause):</strong>
+              <p style={{ margin: '4px 0 0', fontSize: '13px', lineHeight: '1.5' }}>{aiData.rootCause}</p>
+            </div>
+            <div>
+              <strong style={{ color: '#0ea5e9', fontSize: '12px' }}>วิธีแก้ไขที่ใช้ (Resolution):</strong>
+              <p style={{ margin: '4px 0 0', fontSize: '13px', lineHeight: '1.5' }}>{aiData.resolution}</p>
+            </div>
+            <div>
+              <strong style={{ color: '#f59e0b', fontSize: '12px' }}>ข้อเสนอแนะเพื่อป้องกัน (Preventive Recommendations):</strong>
+              <ul style={{ margin: '4px 0 0', paddingLeft: '20px', fontSize: '13px', lineHeight: '1.6' }}>
+                {aiData.preventiveRecommendations?.map((r: string, i: number) => <li key={i}>{r}</li>)}
+              </ul>
+            </div>
+          </div>
+        )}
       </div>
     );
   };

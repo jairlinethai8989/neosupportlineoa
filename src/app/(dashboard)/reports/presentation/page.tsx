@@ -14,7 +14,8 @@ import {
   Bot,
   CheckCircle2,
   Layers,
-  FileText
+  FileText,
+  Info
 } from 'lucide-react';
 import { useNotificationContext } from '@/contexts/NotificationContext';
 import { supabase } from '@/lib/supabase';
@@ -207,6 +208,18 @@ export default function PresentationPage() {
     };
   });
 
+  const [tempDateRange, setTempDateRange] = useState(() => {
+    const now = new Date();
+    const day = now.getDay();
+    const diff = now.getDate() - day + (day === 0 ? -6 : 1);
+    const start = new Date(now.setDate(diff));
+    const end = new Date();
+    return {
+      start: start.toISOString().split('T')[0],
+      end: end.toISOString().split('T')[0],
+    };
+  });
+
   const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
   const [hasGlobalApiKey, setHasGlobalApiKey] = useState(false);
   const presentationRef = useRef<HTMLDivElement>(null);
@@ -228,18 +241,19 @@ export default function PresentationPage() {
     checkGlobalApiKey();
   }, []);
 
-  const fetchPresentationData = async (shouldCloseDrawer = false) => {
+  const fetchPresentationData = async (start: string, end: string, shouldCloseDrawer = false) => {
     setLoading(true);
     if (shouldCloseDrawer) {
       setIsDrawerOpen(false);
     }
     try {
-      const res = await fetch(`/api/reports/presentation?start=${dateRange.start}&end=${dateRange.end}`);
+      const res = await fetch(`/api/reports/presentation?start=${start}&end=${end}`);
       if (!res.ok) throw new Error('Failed to fetch presentation data');
       const payload = await res.json();
       setData(payload);
       setAiInsights(null); // Clear previous AI analytics when loading new data
       setCurrentSlideIndex(0);
+      return payload;
     } catch (err: unknown) {
       console.error(err);
       addToast({
@@ -248,29 +262,37 @@ export default function PresentationPage() {
         title: 'Error',
         body: err instanceof Error ? err.message : 'Unable to load presentation data',
       });
+      return null;
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchPresentationData(false);
-  }, [dateRange.start, dateRange.end]);
+    fetchPresentationData(dateRange.start, dateRange.end, false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleGenerateAIInsights = async () => {
-    if (!data) return;
     setAiLoading(true);
     const preset = PRESET_PROMPTS.find(p => p.id === selectedPresetId);
     const finalPrompt = customPrompt.trim() || (preset ? preset.prompt : PRESET_PROMPTS[0].prompt);
 
     try {
+      // 1. Fetch fresh statistics data based on the temp date range first
+      const freshData = await fetchPresentationData(tempDateRange.start, tempDateRange.end, false);
+      if (!freshData) {
+        throw new Error('Unable to retrieve new statistics data for the selected period.');
+      }
+
+      // 2. Call Gemini AI on the fresh statistics data
       const res = await fetch('/api/reports/presentation/gemini', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          ticketData: data,
+          ticketData: freshData,
           customPrompt: finalPrompt,
           userApiKey: userApiKey.trim() || undefined
         })
@@ -278,6 +300,9 @@ export default function PresentationPage() {
 
       if (!res.ok) throw new Error('Failed to fetch AI insights from server');
       const payload: GeminiInsights = await res.json();
+      
+      // 3. Update the permanent dateRange to match the new filter
+      setDateRange({ start: tempDateRange.start, end: tempDateRange.end });
       setAiInsights(payload);
 
       addToast({
@@ -1014,8 +1039,8 @@ export default function PresentationPage() {
                 <span style={{ fontSize: '11px', color: '#64748b', marginBottom: '4px' }}>เริ่มวันที่ (Start Date)</span>
                 <input
                   type="date"
-                  value={dateRange.start}
-                  onChange={(e) => setDateRange(prev => ({ ...prev, start: e.target.value }))}
+                  value={tempDateRange.start}
+                  onChange={(e) => setTempDateRange(prev => ({ ...prev, start: e.target.value }))}
                   style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: '4px', padding: '10px', color: '#f8fafc', outline: 'none', fontSize: '13px' }}
                 />
               </div>
@@ -1023,15 +1048,15 @@ export default function PresentationPage() {
                 <span style={{ fontSize: '11px', color: '#64748b', marginBottom: '4px' }}>สิ้นสุดวันที่ (End Date)</span>
                 <input
                   type="date"
-                  value={dateRange.end}
-                  onChange={(e) => setDateRange(prev => ({ ...prev, end: e.target.value }))}
+                  value={tempDateRange.end}
+                  onChange={(e) => setTempDateRange(prev => ({ ...prev, end: e.target.value }))}
                   style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: '4px', padding: '10px', color: '#f8fafc', outline: 'none', fontSize: '13px' }}
                 />
               </div>
             </div>
-            <div style={{ marginTop: '12px', display: 'flex', alignItems: 'center', gap: '8px', color: '#10b981', fontSize: '11px', fontWeight: '750', background: 'rgba(16, 185, 129, 0.06)', padding: '10px 14px', borderRadius: '8px', border: '1px solid rgba(16, 185, 129, 0.15)' }}>
-              {loading ? <Loader2 size={12} className="animate-spin" /> : <CheckCircle2 size={14} />}
-              <span>{loading ? 'กำลังดึงข้อมูลสถิติใหม่...' : '✓ อัปเดตข้อมูลสถิติอัตโนมัติเรียบร้อยแล้ว'}</span>
+            <div style={{ marginTop: '12px', display: 'flex', alignItems: 'center', gap: '8px', color: '#38bdf8', fontSize: '11px', fontWeight: '700', background: 'rgba(56, 189, 248, 0.06)', padding: '10px 14px', borderRadius: '8px', border: '1px solid rgba(56, 189, 248, 0.15)', lineHeight: '1.4' }}>
+              {loading ? <Loader2 size={12} className="animate-spin" /> : <Info size={14} style={{ flexShrink: 0 }} />}
+              <span>{loading ? 'กำลังประมวลผลวิเคราะห์ข้อมูลใหม่...' : 'เปลี่ยนช่วงเวลาแล้ว กดปุ่ม "ปลุกพลังวิเคราะห์ด้วย AI" ด้านล่าง เพื่อสร้างรายงานและวิเคราะห์ใหม่'}</span>
             </div>
           </div>
 

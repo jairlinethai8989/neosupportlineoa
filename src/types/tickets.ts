@@ -93,6 +93,12 @@ export interface TicketDetailAssignedAgent {
   theme_color?: string | null;
 }
 
+export interface AIAnalysis {
+  rootCause: string;
+  resolution: string;
+  preventiveRecommendations: string[];
+}
+
 export interface TicketDetailTicket {
   id: string;
   ticket_no: string | null;
@@ -111,7 +117,7 @@ export interface TicketDetailTicket {
   hospital_id: string | null;
   escalation_token?: string | null;
   resolution_summary?: string | null;
-  ai_analysis?: any;
+  ai_analysis?: AIAnalysis | null;
   department_data?: { id: string; name: string } | null;
   customers?: TicketDetailCustomer | null;
   assigned_agent?: TicketDetailAssignedAgent | null;
