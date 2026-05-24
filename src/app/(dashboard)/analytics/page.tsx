@@ -76,20 +76,6 @@ async function loadHtml2Canvas() {
   return html2CanvasPromise;
 }
 
-function getTicketCategoryLabel(ticket: any): string {
-  const issueType = String(ticket?.issue_type || '').trim();
-  if (issueType) return issueType;
-
-  const subject = String(ticket?.subject || '').trim();
-  if (!subject) return 'Other';
-
-  const separatorIndex = subject.indexOf(':');
-  if (separatorIndex > 0) {
-    return subject.slice(0, separatorIndex).trim() || subject;
-  }
-
-  return subject;
-}
 
 /**
  * 2. Main Analytics Page

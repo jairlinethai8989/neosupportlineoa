@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { getInboxCompanySettings, getInboxProfile } from '@/lib/inbox/queries';
-import type { InboxAgent, InboxCompanySettings } from '@/types/inbox';
+import type { InboxAgent } from '@/types/inbox';
 
 const fallbackModules = [
   'ห้องทำงานแพทย์',
@@ -23,19 +23,20 @@ export function useInboxProfileSettings() {
 
   useEffect(() => {
     async function loadProfileSettings() {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+      const [userRes, typedCompanyData] = await Promise.all([
+        supabase.auth.getUser(),
+        getInboxCompanySettings(),
+      ]);
 
+      const user = userRes.data.user;
       let resolvedAgent = null;
+
       if (user) {
         resolvedAgent = await getInboxProfile(user.id);
 
         setAgent(resolvedAgent);
         setPersonalQuickReplies(resolvedAgent?.quick_replies || []);
       }
-
-      const typedCompanyData: InboxCompanySettings = await getInboxCompanySettings();
 
       if (typedCompanyData.modules?.length) {
         setAvailableModules(typedCompanyData.modules);

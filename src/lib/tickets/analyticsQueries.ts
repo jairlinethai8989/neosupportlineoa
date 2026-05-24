@@ -55,41 +55,63 @@ export const analyticsQueries = {
     const start = DateTime.fromISO(startDateStr).startOf('day').toJSDate();
     const end = DateTime.fromISO(endDateStr).endOf('day').toJSDate();
 
-    // 1. Fetch all tickets currently assigned to this agent
-    const { data: tickets, error: ticketsError } = await supabase
-      .from('tickets')
-      .select(`
-        id,
-        ticket_no,
-        subject,
-        status,
-        priority,
-        issue_type,
-        created_at,
-        resolved_at,
-        sla_due_at
-      `)
-      .eq('assigned_agent_id', agentId);
+    // 1. Fetch active tickets + tickets resolved in date range in parallel, and get the lifetime total claimed count
+    const [activeResult, resolvedResult, countResult] = await Promise.all([
+      supabase
+        .from('tickets')
+        .select(`
+          id,
+          ticket_no,
+          subject,
+          status,
+          priority,
+          issue_type,
+          created_at,
+          resolved_at,
+          sla_due_at
+        `)
+        .eq('assigned_agent_id', agentId)
+        .in('status', ['Assigned', 'In Progress', 'Escalated', 'Pending']),
+      supabase
+        .from('tickets')
+        .select(`
+          id,
+          ticket_no,
+          subject,
+          status,
+          priority,
+          issue_type,
+          created_at,
+          resolved_at,
+          sla_due_at
+        `)
+        .eq('assigned_agent_id', agentId)
+        .in('status', ['Resolved', 'Closed'])
+        .gte('resolved_at', start.toISOString())
+        .lte('resolved_at', end.toISOString()),
+      supabase
+        .from('tickets')
+        .select('*', { count: 'exact', head: true })
+        .eq('assigned_agent_id', agentId)
+    ]);
 
-    if (ticketsError) throw ticketsError;
+    if (activeResult.error) throw activeResult.error;
+    if (resolvedResult.error) throw resolvedResult.error;
 
-    const agentTickets = tickets || [];
+    const agentTickets = [...(activeResult.data || []), ...(resolvedResult.data || [])];
 
     // 2. Statistics breakdown
-    const activeCount = agentTickets.filter((t) =>
-      ['Assigned', 'In Progress', 'Escalated', 'Pending'].includes(t.status)
-    ).length;
+    const activeCount = (activeResult.data || []).length;
 
     // Filter resolved tickets within selected date range
-    const resolvedTickets = agentTickets.filter((t) => {
-      if (!['Resolved', 'Closed'].includes(t.status)) return false;
+    const resolvedTickets = (resolvedResult.data || []).filter((t) => {
       if (!t.resolved_at) return false;
       const resDate = new Date(t.resolved_at);
       return resDate >= start && resDate <= end;
     });
 
     const resolvedCount = resolvedTickets.length;
-    const totalClaimed = agentTickets.length;
+    const totalClaimed = countResult.count || 0;
 
     // 3. Rework events count
     // Fetch log records for tickets assigned to this agent where state returned from Fix Completed
@@ -98,7 +120,9 @@ export const analyticsQueries = {
       .select('id, ticket:tickets!inner(assigned_agent_id)')
       .eq('tickets.assigned_agent_id', agentId)
       .eq('from_status', 'Fix Completed')
-      .in('to_status', ['In Progress', 'Pending', 'Escalated', 'Assigned']);
+      .in('to_status', ['In Progress', 'Pending', 'Escalated', 'Assigned'])
+      .gte('created_at', start.toISOString())
+      .lte('created_at', end.toISOString());
 
     if (reworkError) throw reworkError;
     const reworkCount = reworkLogs?.length || 0;
@@ -133,7 +157,9 @@ export const analyticsQueries = {
       .from('csat_surveys')
       .select('score, tickets!inner(assigned_agent_id)')
       .eq('tickets.assigned_agent_id', agentId)
-      .not('score', 'is', null);
+      .not('score', 'is', null)
+      .gte('created_at', start.toISOString())
+      .lte('created_at', end.toISOString());
 
     if (csatError) throw csatError;
 
@@ -264,13 +290,26 @@ export const analyticsQueries = {
     
     if (pError) throw pError;
 
-    // Fetch all tickets to aggregate
-    const { data: tickets, error: tError } = await supabase
-      .from('tickets')
-      .select('assigned_agent_id, status, created_at, resolved_at')
-      .not('assigned_agent_id', 'is', null);
+    // Fetch only active tickets + resolved tickets in range in parallel
+    const [activeRes, resolvedRes] = await Promise.all([
+      supabase
+        .from('tickets')
+        .select('assigned_agent_id, status, created_at, resolved_at')
+        .not('assigned_agent_id', 'is', null)
+        .in('status', ['Assigned', 'In Progress', 'Escalated', 'Pending']),
+      supabase
+        .from('tickets')
+        .select('assigned_agent_id, status, created_at, resolved_at')
+        .not('assigned_agent_id', 'is', null)
+        .in('status', ['Resolved', 'Closed'])
+        .gte('resolved_at', start.toISOString())
+        .lte('resolved_at', end.toISOString())
+    ]);
 
-    if (tError) throw tError;
+    if (activeRes.error) throw activeRes.error;
+    if (resolvedRes.error) throw resolvedRes.error;
+
+    const tickets = [...(activeRes.data || []), ...(resolvedRes.data || [])];
 
     const teamStats = (profiles || []).map((p: {id: string; full_name: string}) => {
       const agentTickets = (tickets || []).filter((t: {assigned_agent_id: string; status: string; created_at: string; resolved_at: string | null}) => t.assigned_agent_id === p.id);

@@ -475,7 +475,11 @@ export function useTicketWorkspace(filterCustomerId: string | null) {
       }
 
       try {
-        const user = await getTicketWorkspaceUser();
+        const [user, companyData] = await Promise.all([
+          getTicketWorkspaceUser(),
+          getTicketWorkspaceCompanySettings()
+        ]);
+
         if (user) {
           const profile = await getTicketWorkspaceProfile(user.id);
           setUserProfile(profile);
@@ -485,12 +489,7 @@ export function useTicketWorkspace(filterCustomerId: string | null) {
             cache.personalResTemplates = profile.resolution_templates;
           }
         }
-      } catch (error) {
-        console.error('Error loading profile on mount:', error);
-      }
 
-      try {
-        const companyData = await getTicketWorkspaceCompanySettings();
         const modules = companyData?.modules?.length ? companyData.modules : DEFAULT_MODULES;
         const issues = companyData?.issue_types?.length ? companyData.issue_types : [];
         
@@ -505,7 +504,7 @@ export function useTicketWorkspace(filterCustomerId: string | null) {
           cache.personalResTemplates = companyData.resolution_templates;
         }
       } catch (error) {
-        console.error('Error loading company settings on mount:', error);
+        console.error('Error loading workspace config on mount:', error);
         setAvailableModules(DEFAULT_MODULES);
         setAvailableIssueTypes([]);
         cache.availableModules = DEFAULT_MODULES;

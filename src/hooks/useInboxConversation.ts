@@ -318,7 +318,7 @@ export function useInboxConversation({
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [getThreadTicketId, selectedChat, setSelectedChat, addToast, agent, currentTicket?.id, selectedModule, resSummary]);
+  }, [getThreadTicketId, selectedChat, setSelectedChat, addToast, agent]);
 
   async function handleLoadOlderMessages() {
     if (!selectedChat || !hasMoreMessages || loadingMoreMessages) return;

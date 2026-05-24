@@ -1,10 +1,8 @@
 'use client';
 import React, { Suspense } from 'react';
+import dynamic from 'next/dynamic';
 import { useSearchParams } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
-import { ResolveTicketModal } from '@/components/inbox/ResolveTicketModal';
-import { TicketsBoard } from '@/components/tickets/TicketsBoard';
-import { TicketsTable } from '@/components/tickets/TicketsTable';
 import { TicketsWorkspaceHeader } from '@/components/tickets/TicketsWorkspaceHeader';
 import { useStaffLocale } from '@/contexts/StaffLocaleContext';
 import { useTicketWorkspace } from '@/hooks/useTicketWorkspace';
@@ -16,6 +14,28 @@ const loadingContainerStyle: React.CSSProperties = {
   justifyContent: 'center',
   height: '70vh',
 };
+
+const ResolveTicketModal = dynamic(() => import('@/components/inbox/ResolveTicketModal').then(m => m.ResolveTicketModal), {
+  ssr: false
+});
+
+const TicketsBoard = dynamic(() => import('@/components/tickets/TicketsBoard').then(m => m.TicketsBoard), {
+  ssr: false,
+  loading: () => (
+    <div style={loadingContainerStyle}>
+      <Loader2 className="animate-spin" size={32} color="var(--primary)" />
+    </div>
+  )
+});
+
+const TicketsTable = dynamic(() => import('@/components/tickets/TicketsTable').then(m => m.TicketsTable), {
+  ssr: false,
+  loading: () => (
+    <div style={loadingContainerStyle}>
+      <Loader2 className="animate-spin" size={32} color="var(--primary)" />
+    </div>
+  )
+});
 
 const loadingContainerWithMessageStyle: React.CSSProperties = {
   ...loadingContainerStyle,

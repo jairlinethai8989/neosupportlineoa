@@ -204,9 +204,9 @@ type EnrichTicketRow = {
 async function enrichConversationsIfNeeded(
   conversations: InboxConversation[]
 ): Promise<InboxConversation[]> {
-  const needsCustomer = conversations.some((item) => !item.customers?.display_name);
+  const needsCustomer = conversations.some((item) => item.customer_id && !item.customers);
   const needsTicket = conversations.some(
-    (item) => item.current_ticket_id && !item.ticket_data?.ticket_no
+    (item) => item.current_ticket_id && !item.ticket_data
   );
   if (!needsCustomer && !needsTicket) return conversations;
 
