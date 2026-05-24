@@ -717,8 +717,8 @@ export default function StaffAnalyticsPage() {
               style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', userSelect: 'none' }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <div style={{ background: 'rgba(0, 242, 254, 0.12)', padding: '10px', borderRadius: '12px', color: 'var(--primary)' }}>
-                  <Bot size={22} style={{ filter: 'drop-shadow(0 0 4px rgba(0, 242, 254, 0.6))' }} />
+                <div style={{ background: 'rgba(14, 165, 233, 0.12)', padding: '10px', borderRadius: '12px', color: '#0ea5e9' }}>
+                  <Bot size={22} style={{ filter: 'drop-shadow(0 0 4px rgba(14, 165, 233, 0.4))' }} />
                 </div>
                 <div>
                   <h3 style={{ margin: 0, fontSize: '17px', fontWeight: '800', color: 'var(--text-main)', letterSpacing: '-0.3px', display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -736,7 +736,7 @@ export default function StaffAnalyticsPage() {
               </div>
               <button 
                 className="glass-interactive flex-center"
-                style={{ fontSize: '12px', fontWeight: '800', color: 'var(--primary)', background: 'rgba(0, 242, 254, 0.08)', padding: '6px 14px', borderRadius: '8px', border: '1px solid rgba(0, 242, 254, 0.15)' }}
+                style={{ fontSize: '12px', fontWeight: '800', color: '#0ea5e9', background: 'rgba(14, 165, 233, 0.08)', padding: '6px 14px', borderRadius: '8px', border: '1px solid rgba(14, 165, 233, 0.2)' }}
               >
                 {aiCardExpanded ? 'ย่อรายละเอียด ▲' : 'ขยายรายละเอียด ▼'}
               </button>
@@ -757,13 +757,13 @@ export default function StaffAnalyticsPage() {
                       style={{
                         padding: '12px 28px',
                         borderRadius: '12px',
-                        background: 'linear-gradient(135deg, rgba(0, 242, 254, 0.15) 0%, rgba(115, 103, 240, 0.15) 100%)',
-                        border: '1px solid rgba(0, 242, 254, 0.4)',
-                        color: '#00f2fe',
-                        fontWeight: '900',
+                        background: 'linear-gradient(135deg, rgba(14, 165, 233, 0.95) 0%, rgba(99, 102, 241, 0.95) 100%)',
+                        border: 'none',
+                        color: '#ffffff',
+                        fontWeight: '800',
                         fontSize: '14px',
                         gap: '8px',
-                        boxShadow: '0 0 20px rgba(0, 242, 254, 0.2)',
+                        boxShadow: '0 8px 25px rgba(14, 165, 233, 0.3)',
                         cursor: evalLoading ? 'not-allowed' : 'pointer'
                       }}
                     >
@@ -774,7 +774,7 @@ export default function StaffAnalyticsPage() {
                         </>
                       ) : (
                         <>
-                          <Bot size={18} style={{ color: '#00f2fe' }} />
+                          <Bot size={18} style={{ color: '#ffffff' }} />
                           <span>เริ่มการประเมินผลงานด้วย AI (Gemini)</span>
                         </>
                       )}
@@ -796,7 +796,7 @@ export default function StaffAnalyticsPage() {
                     {/* Multidimensional Rating Bars */}
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '20px' }}>
                       {[
-                        { key: 'speed', label: '⚡ ประสิทธิภาพความเร็ว (Speed)', color: '#00f2fe', glow: 'rgba(0, 242, 254, 0.3)' },
+                        { key: 'speed', label: '⚡ ประสิทธิภาพความเร็ว (Speed)', color: '#0ea5e9', glow: 'rgba(14, 165, 233, 0.3)' },
                         { key: 'quality', label: '🛡️ คุณภาพการแก้ไข (Quality)', color: '#28c76f', glow: 'rgba(40, 199, 111, 0.3)' },
                         { key: 'sla', label: '⏰ การรักษาสัญญา SLA (SLA Compliance)', color: '#7367f0', glow: 'rgba(115, 103, 240, 0.3)' },
                         { key: 'csat', label: '⭐ ความพึงพอใจลูกค้า (Customer CSAT)', color: '#ff9f43', glow: 'rgba(255, 159, 67, 0.3)' }
@@ -832,7 +832,7 @@ export default function StaffAnalyticsPage() {
                       </div>
 
                       {/* Growth Opportunities */}
-                      <div className="glass" style={{ padding: '20px 24px', background: 'rgba(0, 242, 254, 0.05)', border: '1px solid rgba(0, 242, 254, 0.2)' }}>
+                      <div className="glass" style={{ padding: '20px 24px', background: 'rgba(14, 165, 233, 0.05)', border: '1px solid rgba(14, 165, 233, 0.2)' }}>
                         <h4 style={{ margin: '0 0 16px 0', fontSize: '14px', fontWeight: '800', color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
                           <ArrowRight size={16} /> โอกาสการพัฒนาศักยภาพ (Growth Opportunities)
                         </h4>
@@ -865,10 +865,10 @@ export default function StaffAnalyticsPage() {
                           borderRadius: '10px', 
                           fontSize: '12.5px', 
                           fontWeight: '800', 
-                          color: '#00f2fe', 
-                          background: 'rgba(0, 242, 254, 0.1)', 
-                          border: '1px solid rgba(0, 242, 254, 0.3)',
-                          boxShadow: '0 0 15px rgba(0, 242, 254, 0.15)'
+                          color: '#ffffff', 
+                          background: 'linear-gradient(135deg, rgba(14, 165, 233, 0.9) 0%, rgba(99, 102, 241, 0.9) 100%)', 
+                          border: 'none',
+                          boxShadow: '0 4px 15px rgba(14, 165, 233, 0.2)'
                         }}
                       >
                         {evalLoading ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
