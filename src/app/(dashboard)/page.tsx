@@ -57,6 +57,16 @@ const EMPTY_STATS: DashboardStats = {
 };
 
 let exportUtilsPromise: Promise<ExportUtilsModule> | null = null;
+let dashboardCache: {
+  key: string;
+  stats: DashboardStats;
+  trendRows: TrendRow[];
+  statusRows: ValueRow[];
+  priorityRows: ValueRow[];
+  hospitalRows: ValueRow[];
+  agentRows: AgentRow[];
+  heatmap: number[][];
+} | null = null;
 
 async function loadExportUtils(): Promise<ExportUtilsModule> {
   if (!exportUtilsPromise) {
@@ -162,23 +172,7 @@ function computeDateWindow(
 export default function Home() {
   const { t } = useStaffLocale();
   const router = useRouter();
-  const [stats, setStats] = useState<DashboardStats>(EMPTY_STATS);
-  const [trendRows, setTrendRows] = useState<TrendRow[]>([]);
-  const [statusRows, setStatusRows] = useState<ValueRow[]>([]);
-  const [priorityRows, setPriorityRows] = useState<ValueRow[]>([]);
-  const [hospitalRows, setHospitalRows] = useState<ValueRow[]>([]);
-  const [agentRows, setAgentRows] = useState<AgentRow[]>([]);
-  const [heatmap, setHeatmap] = useState<number[][]>([]);
-  const [exportTicketsRows, setExportTicketsRows] = useState<any[]>([]);
-  const [exportTicketsKey, setExportTicketsKey] = useState<string>('');
-  const [recentLogs, setRecentLogs] = useState<LogRow[]>([]);
-  const [showExportMenu, setShowExportMenu] = useState(false);
-  const exportRef = React.useRef<HTMLDivElement>(null);
-  const [showExportPreview, setShowExportPreview] = useState(false);
-  const [previewData, setPreviewData] = useState<ExportPreviewData | null>(null);
-  const [pendingFormat, setPendingFormat] = useState<'xlsx' | 'pdf' | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  
+
   // Date Filter State
   const [timeRange, setTimeRange] = useState<'today' | 'week' | 'month' | 'custom'>('week');
   const [customStart, setCustomStart] = useState('');
@@ -188,6 +182,25 @@ export default function Home() {
     [timeRange, customStart, customEnd]
   );
   const currentWindowKey = `${dateWindow.from.toISOString()}_${dateWindow.to.toISOString()}`;
+  const hasCache = dashboardCache?.key === currentWindowKey;
+
+  const [stats, setStats] = useState<DashboardStats>(hasCache ? dashboardCache!.stats : EMPTY_STATS);
+  const [trendRows, setTrendRows] = useState<TrendRow[]>(hasCache ? dashboardCache!.trendRows : []);
+  const [statusRows, setStatusRows] = useState<ValueRow[]>(hasCache ? dashboardCache!.statusRows : []);
+  const [priorityRows, setPriorityRows] = useState<ValueRow[]>(hasCache ? dashboardCache!.priorityRows : []);
+  const [hospitalRows, setHospitalRows] = useState<ValueRow[]>(hasCache ? dashboardCache!.hospitalRows : []);
+  const [agentRows, setAgentRows] = useState<AgentRow[]>(hasCache ? dashboardCache!.agentRows : []);
+  const [heatmap, setHeatmap] = useState<number[][]>(hasCache ? dashboardCache!.heatmap : []);
+  
+  const [exportTicketsRows, setExportTicketsRows] = useState<any[]>([]);
+  const [exportTicketsKey, setExportTicketsKey] = useState<string>('');
+  const [recentLogs, setRecentLogs] = useState<LogRow[]>([]);
+  const [showExportMenu, setShowExportMenu] = useState(false);
+  const exportRef = React.useRef<HTMLDivElement>(null);
+  const [showExportPreview, setShowExportPreview] = useState(false);
+  const [previewData, setPreviewData] = useState<ExportPreviewData | null>(null);
+  const [pendingFormat, setPendingFormat] = useState<'xlsx' | 'pdf' | null>(null);
+  const [isLoading, setIsLoading] = useState(!hasCache);
 
   // Click outside to close export menu
   useEffect(() => {
@@ -287,6 +300,17 @@ export default function Home() {
         setAgentRows(payload.agentData || []);
         setHeatmap(payload.heatmap || []);
         
+        dashboardCache = {
+          key: currentWindowKey,
+          stats: payload.stats || EMPTY_STATS,
+          trendRows: payload.trendByDay || [],
+          statusRows: payload.statusData || [],
+          priorityRows: payload.priorityData || [],
+          hospitalRows: payload.hospitalData || [],
+          agentRows: payload.agentData || [],
+          heatmap: payload.heatmap || [],
+        };
+        
         if (!backgroundRefresh) setRecentLogs([]);
 
         // Load recent logs after first paint; do not block summary rendering.
@@ -312,7 +336,8 @@ export default function Home() {
         if (!cancelled && !backgroundRefresh) setIsLoading(false);
       }
     }
-    fetchDashboard(false);
+    const currentKey = `${dateWindow.from.toISOString()}_${dateWindow.to.toISOString()}`;
+    fetchDashboard(dashboardCache?.key === currentKey);
 
     let refreshTimer: ReturnType<typeof setTimeout> | null = null;
     const scheduleRefresh = () => {
@@ -332,7 +357,7 @@ export default function Home() {
       if (refreshTimer) clearTimeout(refreshTimer);
       supabase.removeChannel(channel);
     };
-  }, [dateWindow.from, dateWindow.to]);
+  }, [dateWindow.from, dateWindow.to, currentWindowKey]);
 
   const trendData = useMemo(() => {
     const days: { label: string; dateKey: string; [key: string]: any }[] = [];

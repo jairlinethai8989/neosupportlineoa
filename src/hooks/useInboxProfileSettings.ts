@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useState, useMemo } from 'react';
 import { supabase } from '@/lib/supabase';
-import { getInboxCompanySettings, getInboxProfile } from '@/lib/inbox/queries';
+import { useAppContext } from '@/contexts/AppContext';
 import type { InboxAgent } from '@/types/inbox';
 
 const fallbackModules = [
@@ -15,48 +15,33 @@ const fallbackModules = [
 ];
 
 export function useInboxProfileSettings() {
-  const [agent, setAgent] = useState<InboxAgent | null>(null);
-  const [availableModules, setAvailableModules] = useState<string[]>([]);
-  const [availableIssueTypes, setAvailableIssueTypes] = useState<string[]>([]);
-  const [personalQuickReplies, setPersonalQuickReplies] = useState<string[]>([]);
-  const [personalResTemplates, setPersonalResTemplates] = useState<string[]>([]);
+  const { userProfile, companySettings } = useAppContext();
+  
+  const agent = useMemo(() => userProfile ? (userProfile as InboxAgent) : null, [userProfile]);
+  
+  const availableModules = useMemo(() => {
+    return companySettings?.modules?.length ? companySettings.modules : fallbackModules;
+  }, [companySettings]);
+  
+  const availableIssueTypes = useMemo(() => {
+    return companySettings?.issue_types?.length ? companySettings.issue_types : [];
+  }, [companySettings]);
 
-  useEffect(() => {
-    async function loadProfileSettings() {
-      const [userRes, typedCompanyData] = await Promise.all([
-        supabase.auth.getUser(),
-        getInboxCompanySettings(),
-      ]);
-
-      const user = userRes.data.user;
-      let resolvedAgent = null;
-
-      if (user) {
-        resolvedAgent = await getInboxProfile(user.id);
-
-        setAgent(resolvedAgent);
-        setPersonalQuickReplies(resolvedAgent?.quick_replies || []);
-      }
-
-      if (typedCompanyData.modules?.length) {
-        setAvailableModules(typedCompanyData.modules);
-      } else {
-        setAvailableModules(fallbackModules);
-      }
-
-      if (typedCompanyData.issue_types?.length) {
-        setAvailableIssueTypes(typedCompanyData.issue_types);
-      }
-
-      if (resolvedAgent?.resolution_templates?.length) {
-        setPersonalResTemplates(resolvedAgent.resolution_templates);
-      } else if (typedCompanyData.resolution_templates?.length) {
-        setPersonalResTemplates(typedCompanyData.resolution_templates);
-      }
+  // Using useState for local overrides/updates
+  const [personalQuickReplies, setPersonalQuickReplies] = useState<string[]>(
+    userProfile?.quick_replies as string[] || []
+  );
+  
+  const [personalResTemplates, setPersonalResTemplates] = useState<string[]>(() => {
+    if (userProfile?.resolution_templates?.length) {
+      return userProfile.resolution_templates as string[];
     }
-
-    loadProfileSettings();
-  }, []);
+    const globalTemplates = companySettings?.resolution_templates as unknown[];
+    if (globalTemplates?.length) {
+      return globalTemplates.map(t => String((t as Record<string, unknown>)?.content || t));
+    }
+    return [];
+  });
 
   async function updateProfileLists(updates: {
     quickReplies?: string[];

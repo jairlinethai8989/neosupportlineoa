@@ -124,7 +124,9 @@ export async function GET(req: Request) {
         .from('tickets')
         .select('created_at')
         .gte('created_at', fromIso)
-        .lte('created_at', toIso);
+        .lte('created_at', toIso)
+        .order('created_at', { ascending: false })
+        .limit(10000);
       
       if (!heatmapError && heatmapRaw) {
         heatmapRaw.forEach((t: any) => {

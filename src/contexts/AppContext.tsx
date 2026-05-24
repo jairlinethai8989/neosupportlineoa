@@ -22,11 +22,14 @@ export interface UserProfile {
   status?: string;
   last_seen?: string | null;
   department?: string | null;
+  quick_replies?: string[] | null;
+  resolution_templates?: string[] | null;
   [key: string]: unknown;
 }
 export interface CompanySettings {
   company_name?: string | null;
   logo_url?: string | null;
+  modules?: string[] | null;
   subject_types?: string[] | null;
   issue_types?: string[] | null;
   report_tags?: string[] | null;
