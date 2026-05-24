@@ -804,7 +804,7 @@ export default function StaffAnalyticsPage() {
                         { key: 'sla', label: '⏰ การรักษาสัญญา SLA (SLA Compliance)', color: '#7367f0', glow: 'rgba(115, 103, 240, 0.3)' },
                         { key: 'csat', label: '⭐ ความพึงพอใจลูกค้า (Customer CSAT)', color: '#ff9f43', glow: 'rgba(255, 159, 67, 0.3)' }
                       ].map((dim) => {
-                        const val = evaluation.dimensions?.[dim.key] || { rating: 75, feedback: '' };
+                        const val = evaluation.dimensions?.[dim.key as keyof AIEvaluation['dimensions']] || { rating: 75, feedback: '' };
                         return (
                           <div key={dim.key} className="glass" style={{ padding: '18px 20px', background: 'rgba(255,255,255,0.01)', border: '1px solid rgba(255,255,255,0.03)' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
