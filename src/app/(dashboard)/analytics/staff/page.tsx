@@ -228,18 +228,25 @@ export default function StaffAnalyticsPage() {
       const html2canvas = (await import('html2canvas')).default;
       const { jsPDF } = await import('jspdf');
 
-      const printWindow = document.createElement('div');
-      printWindow.style.position = 'fixed';
-      printWindow.style.left = '-9999px';
-      printWindow.style.top = '0';
-      printWindow.style.width = '794px';
-      printWindow.style.background = '#ffffff';
-      printWindow.style.color = '#1e293b';
-      printWindow.style.padding = '40px';
-      printWindow.style.fontFamily = 'system-ui, sans-serif';
+      const printContainer = document.createElement('div');
+      // Position absolute and top -9999 prevents viewport clipping bugs in html2canvas
+      printContainer.style.position = 'absolute';
+      printContainer.style.top = '-9999px';
+      printContainer.style.left = '0';
+      printContainer.style.zIndex = '-9999';
+
+      const applyStyles = (el: HTMLElement) => {
+        el.style.width = '794px';
+        el.style.padding = '40px';
+        el.style.boxSizing = 'border-box';
+        el.style.background = '#ffffff';
+        el.style.color = '#1e293b';
+        el.style.fontFamily = 'system-ui, sans-serif';
+        el.style.overflow = 'hidden';
+      };
 
       const page1 = document.createElement('div');
-      page1.style.paddingBottom = '20px';
+      applyStyles(page1);
       page1.innerHTML = `
         <div style="border-bottom: 2px solid #0ea5e9; padding-bottom: 20px; margin-bottom: 30px; display: flex; justify-content: space-between; align-items: center;">
           <div>
@@ -336,6 +343,7 @@ export default function StaffAnalyticsPage() {
       `;
 
       const page2 = document.createElement('div');
+      applyStyles(page2);
       page2.innerHTML = `
         <div style="border-bottom: 2px solid #0ea5e9; padding-bottom: 20px; margin-bottom: 30px; display: flex; justify-content: space-between; align-items: center;">
           <div>
@@ -365,12 +373,12 @@ export default function StaffAnalyticsPage() {
         </div>
       `;
 
-      printWindow.appendChild(page1);
-      printWindow.appendChild(page2);
-      document.body.appendChild(printWindow);
+      printContainer.appendChild(page1);
+      printContainer.appendChild(page2);
+      document.body.appendChild(printContainer);
 
-      const canvas1 = await html2canvas(page1, { scale: 2, useCORS: true });
-      const canvas2 = await html2canvas(page2, { scale: 2, useCORS: true });
+      const canvas1 = await html2canvas(page1, { scale: 2, useCORS: true, windowWidth: 794 });
+      const canvas2 = await html2canvas(page2, { scale: 2, useCORS: true, windowWidth: 794 });
 
       const pdf = new jsPDF('p', 'mm', 'a4');
       const imgWidth = 210;
@@ -384,7 +392,7 @@ export default function StaffAnalyticsPage() {
       pdf.addImage(canvas2.toDataURL('image/png'), 'PNG', 0, 0, imgWidth, imgHeight2);
 
       pdf.save(`AI_Evaluation_${selectedAgentName}_${dateRange.start}_to_${dateRange.end}.pdf`);
-      document.body.removeChild(printWindow);
+      document.body.removeChild(printContainer);
       
       addToast({
         id: `pdf-ok-${Date.now()}`,
