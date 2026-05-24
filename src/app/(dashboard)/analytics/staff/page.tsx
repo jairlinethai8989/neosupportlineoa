@@ -238,7 +238,9 @@ export default function StaffAnalyticsPage() {
       printWindow.style.padding = '40px';
       printWindow.style.fontFamily = 'system-ui, sans-serif';
 
-      printWindow.innerHTML = `
+      const page1 = document.createElement('div');
+      page1.style.paddingBottom = '20px';
+      page1.innerHTML = `
         <div style="border-bottom: 2px solid #0ea5e9; padding-bottom: 20px; margin-bottom: 30px; display: flex; justify-content: space-between; align-items: center;">
           <div>
             <h1 style="font-size: 22px; font-weight: 800; color: #0f172a; margin: 0;">รายงานการประเมินผลการปฏิบัติงานพนักงานด้วย AI</h1>
@@ -298,7 +300,7 @@ export default function StaffAnalyticsPage() {
           </table>
         </div>
 
-        <div style="margin-bottom: 30px;">
+        <div>
           <h3 style="font-size: 14px; font-weight: 800; color: #0f172a; text-transform: uppercase; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px; margin-bottom: 16px;">มิติประเมินผลและฟี้ดแบ็คจาก AI (Multidimensional Ratings & Feedback)</h3>
           <div style="display: flex; flex-direction: column; gap: 16px;">
              <div>
@@ -331,18 +333,28 @@ export default function StaffAnalyticsPage() {
              </div>
           </div>
         </div>
+      `;
 
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 30px;">
+      const page2 = document.createElement('div');
+      page2.innerHTML = `
+        <div style="border-bottom: 2px solid #0ea5e9; padding-bottom: 20px; margin-bottom: 30px; display: flex; justify-content: space-between; align-items: center;">
+          <div>
+            <h1 style="font-size: 22px; font-weight: 800; color: #0f172a; margin: 0;">(ต่อ) รายงานการประเมินผลการปฏิบัติงาน</h1>
+            <p style="font-size: 13px; color: #64748b; margin: 5px 0 0 0;">NEO Intelligence Suite • AI Executive Performance Audit</p>
+          </div>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 20px; margin-bottom: 30px;">
            <div style="background: rgba(16, 185, 129, 0.03); border: 1px solid rgba(16, 185, 129, 0.15); padding: 16px; border-radius: 8px;">
              <h4 style="margin: 0 0 10px 0; font-size: 13px; font-weight: 800; color: #10b981;">🌟 จุดแข็งสำคัญ (Key Strengths)</h4>
              <ul style="margin: 0; padding-left: 16px; font-size: 11.5px; color: #334155; line-height: 1.6;">
-               ${evaluation.strengths.map(s => `<li>${s}</li>`).join('')}
+               ${evaluation.strengths.map((s: string) => `<li>${s}</li>`).join('')}
              </ul>
            </div>
            <div style="background: rgba(14, 165, 233, 0.03); border: 1px solid rgba(14, 165, 233, 0.15); padding: 16px; border-radius: 8px;">
              <h4 style="margin: 0 0 10px 0; font-size: 13px; font-weight: 800; color: #0ea5e9;">🚀 ข้อเสนอแนะในการพัฒนา (Opportunities)</h4>
              <ul style="margin: 0; padding-left: 16px; font-size: 11.5px; color: #334155; line-height: 1.6;">
-               ${evaluation.recommendations.map(r => `<li>${r}</li>`).join('')}
+               ${evaluation.recommendations.map((r: string) => `<li>${r}</li>`).join('')}
              </ul>
            </div>
         </div>
@@ -353,40 +365,32 @@ export default function StaffAnalyticsPage() {
         </div>
       `;
 
+      printWindow.appendChild(page1);
+      printWindow.appendChild(page2);
       document.body.appendChild(printWindow);
 
-      const canvas = await html2canvas(printWindow, {
-        scale: 2,
-        useCORS: true
-      });
+      const canvas1 = await html2canvas(page1, { scale: 2, useCORS: true });
+      const canvas2 = await html2canvas(page2, { scale: 2, useCORS: true });
 
-      const imgData = canvas.toDataURL('image/png');
       const pdf = new jsPDF('p', 'mm', 'a4');
       const imgWidth = 210;
-      const pageHeight = 297; // A4 height in mm
-      const imgHeight = (canvas.height * imgWidth) / canvas.width;
-      let heightLeft = imgHeight;
-      let position = 0;
       
-      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-      heightLeft -= pageHeight;
+      const imgHeight1 = (canvas1.height * imgWidth) / canvas1.width;
+      pdf.addImage(canvas1.toDataURL('image/png'), 'PNG', 0, 0, imgWidth, imgHeight1);
       
-      while (heightLeft > 0) {
-        position = heightLeft - imgHeight;
-        pdf.addPage();
-        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-        heightLeft -= pageHeight;
-      }
+      pdf.addPage();
+      
+      const imgHeight2 = (canvas2.height * imgWidth) / canvas2.width;
+      pdf.addImage(canvas2.toDataURL('image/png'), 'PNG', 0, 0, imgWidth, imgHeight2);
 
       pdf.save(`AI_Evaluation_${selectedAgentName}_${dateRange.start}_to_${dateRange.end}.pdf`);
-      
       document.body.removeChild(printWindow);
       
       addToast({
         id: `pdf-ok-${Date.now()}`,
         type: 'ticket',
         title: 'Export PDF สำเร็จ',
-        body: 'ดาวน์โหลดใบรายงานผลประเมินพนักงานเรียบร้อยแล้ว'
+        body: 'ดาวน์โหลดใบรายงานผลประเมินพนักงานแบบ 2 หน้าเรียบร้อยแล้ว'
       });
     } catch (err) {
       console.error('PDF Export failed:', err);
@@ -401,63 +405,56 @@ export default function StaffAnalyticsPage() {
     }
   };
 
-  const handleExportCSV = () => {
+  const handleExportExcel = async () => {
     if (!evaluation || !data) return;
     try {
-      let csvContent = "\uFEFF"; // UTF-8 BOM for Thai language compatibility in Excel
-      csvContent += `รายงานการประเมินผลงานพนักงานด้วย AI\n`;
-      csvContent += `ชื่อพนักงาน,${selectedAgentName}\n`;
-      csvContent += `ช่วงเวลาประเมิน,${dateRange.start} ถึง ${dateRange.end}\n\n`;
+      const XLSX = await import('xlsx');
       
-      csvContent += `ตัวชี้วัดหลัก,ผลงานที่ได้\n`;
-      csvContent += `จำนวนตั๋วงานที่แก้ไขแล้ว,${data.stats.resolvedCount} เคส\n`;
-      csvContent += `เวลาปิดงานเฉลี่ย,${data.stats.avgResolutionTime} ชั่วโมง\n`;
-      csvContent += `อัตราการรักษาสัญญา SLA,${data.stats.slaComplianceRate}%\n`;
-      csvContent += `อัตราการส่งกลับแก้ซ้ำ,${data.stats.reworkRate}%\n`;
-      csvContent += `คะแนนความพึงพอใจลูกค้า CSAT,${data.stats.avgCsat}\n\n`;
-      
-      csvContent += `มิติประเมิน,คะแนน (%),ความคิดเห็น\n`;
-      csvContent += `ความเร็วในการแก้ปัญหา,${evaluation.dimensions.speed.rating}%,${evaluation.dimensions.speed.feedback.replace(/"/g, '""')}\n`;
-      csvContent += `คุณภาพผลงานการแก้ไข,${evaluation.dimensions.quality.rating}%,${evaluation.dimensions.quality.feedback.replace(/"/g, '""')}\n`;
-      csvContent += `ความถูกต้องตาม SLA,${evaluation.dimensions.sla.rating}%,${evaluation.dimensions.sla.feedback.replace(/"/g, '""')}\n`;
-      csvContent += `ความพึงพอใจและการบริการลูกค้า,${evaluation.dimensions.csat.rating}%,${evaluation.dimensions.csat.feedback.replace(/"/g, '""')}\n\n`;
-      
-      csvContent += `จุดแข็งหลัก\n`;
-      evaluation.strengths.forEach((s: string, idx: number) => {
-        csvContent += `"${idx + 1}. ${s.replace(/"/g, '""')}"\n`;
-      });
-      csvContent += `\n`;
-      
-      csvContent += `ข้อเสนอแนะในการพัฒนา\n`;
-      evaluation.recommendations.forEach((r: string, idx: number) => {
-        csvContent += `"${idx + 1}. ${r.replace(/"/g, '""')}"\n`;
-      });
-      csvContent += `\n`;
-      
-      csvContent += `สรุปภาพรวมผู้บริหาร,"${evaluation.overallSummary.replace(/"/g, '""')}"\n`;
+      const excelData = [
+        ['รายงานการประเมินผลงานพนักงานด้วย AI'],
+        ['ชื่อพนักงาน', selectedAgentName],
+        ['ช่วงเวลาประเมิน', `${dateRange.start} ถึง ${dateRange.end}`],
+        [],
+        ['ตัวชี้วัดหลัก', 'ผลงานที่ได้'],
+        ['จำนวนตั๋วงานที่แก้ไขแล้ว', `${data.stats.resolvedCount} เคส`],
+        ['เวลาปิดงานเฉลี่ย', `${data.stats.avgResolutionTime} ชั่วโมง`],
+        ['อัตราการรักษาสัญญา SLA', `${data.stats.slaComplianceRate}%`],
+        ['อัตราการส่งกลับแก้ซ้ำ', `${data.stats.reworkRate}%`],
+        ['คะแนนความพึงพอใจลูกค้า CSAT', data.stats.avgCsat > 0 ? data.stats.avgCsat : 'ไม่มีคะแนน'],
+        [],
+        ['มิติประเมิน', 'คะแนน (%)', 'ความคิดเห็น'],
+        ['ความเร็วในการแก้ปัญหา', `${evaluation.dimensions.speed.rating}%`, evaluation.dimensions.speed.feedback],
+        ['คุณภาพผลงานการแก้ไข', `${evaluation.dimensions.quality.rating}%`, evaluation.dimensions.quality.feedback],
+        ['ความถูกต้องตาม SLA', `${evaluation.dimensions.sla.rating}%`, evaluation.dimensions.sla.feedback],
+        ['ความพึงพอใจและการบริการลูกค้า', `${evaluation.dimensions.csat.rating}%`, evaluation.dimensions.csat.feedback],
+        [],
+        ['จุดแข็งหลัก'],
+        ...evaluation.strengths.map((s: string, idx: number) => [`${idx + 1}. ${s}`]),
+        [],
+        ['ข้อเสนอแนะในการพัฒนา'],
+        ...evaluation.recommendations.map((r: string, idx: number) => [`${idx + 1}. ${r}`]),
+        [],
+        ['สรุปภาพรวมผู้บริหาร', evaluation.overallSummary]
+      ];
 
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.setAttribute("href", url);
-      link.setAttribute("download", `AI_Evaluation_${selectedAgentName}_${dateRange.start}_to_${dateRange.end}.csv`);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      const ws = XLSX.utils.aoa_to_sheet(excelData);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "AI Evaluation");
+      XLSX.writeFile(wb, `AI_Evaluation_${selectedAgentName}_${dateRange.start}_to_${dateRange.end}.xlsx`);
 
       addToast({
-        id: `csv-ok-${Date.now()}`,
+        id: `excel-ok-${Date.now()}`,
         type: 'ticket',
-        title: 'Export CSV สำเร็จ',
-        body: 'ดาวน์โหลดตารางข้อมูลประเมินผลงานเรียบร้อยแล้ว'
+        title: 'Export Excel สำเร็จ',
+        body: 'ดาวน์โหลดเอกสาร Excel เรียบร้อยแล้ว'
       });
     } catch (err) {
-      console.error('CSV Export failed:', err);
+      console.error('Excel Export failed:', err);
       addToast({
-        id: `csv-err-${Date.now()}`,
+        id: `excel-err-${Date.now()}`,
         type: 'sla_warning',
-        title: 'Export CSV ล้มเหลว',
-        body: 'ไม่สามารถสร้างตารางข้อมูลการดาวน์โหลดได้'
+        title: 'Export Excel ล้มเหลว',
+        body: 'เกิดข้อผิดพลาดในการสร้างไฟล์ Excel'
       });
     }
   };
@@ -862,21 +859,30 @@ export default function StaffAnalyticsPage() {
                       <button
                         onClick={() => handleGenerateAIEvaluation(true)}
                         disabled={evalLoading}
-                        className="glass-interactive flex-center"
-                        style={{ padding: '10px 20px', borderRadius: '10px', fontSize: '12.5px', fontWeight: '800', color: 'var(--text-muted)', border: '1px solid var(--border)' }}
+                        className="glass-interactive flex-center animate-pulse-subtle"
+                        style={{ 
+                          padding: '10px 22px', 
+                          borderRadius: '10px', 
+                          fontSize: '12.5px', 
+                          fontWeight: '800', 
+                          color: '#00f2fe', 
+                          background: 'rgba(0, 242, 254, 0.1)', 
+                          border: '1px solid rgba(0, 242, 254, 0.3)',
+                          boxShadow: '0 0 15px rgba(0, 242, 254, 0.15)'
+                        }}
                       >
                         {evalLoading ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
-                        <span>วิเคราะห์ประเมินใหม่อีกครั้ง</span>
+                        <span>ประเมินวิเคราะห์ใหม่อีกครั้ง</span>
                       </button>
 
-                      <div style={{ display: 'flex', gap: '10px' }}>
-                        {/* Export CSV */}
+                      <div style={{ display: 'flex', gap: '12px' }}>
+                        {/* Export Excel */}
                         <button
-                          onClick={handleExportCSV}
+                          onClick={handleExportExcel}
                           className="glass-interactive flex-center"
-                          style={{ padding: '10px 20px', borderRadius: '10px', fontSize: '12.5px', fontWeight: '800', color: '#cbd5e1', border: '1px solid #334155', background: '#1e293b' }}
+                          style={{ padding: '10px 20px', borderRadius: '10px', fontSize: '12.5px', fontWeight: '800', color: '#10b981', background: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.3)' }}
                         >
-                          <Download size={14} /> Export CSV
+                          <Download size={14} /> Export Excel
                         </button>
 
                         {/* Export PDF */}
