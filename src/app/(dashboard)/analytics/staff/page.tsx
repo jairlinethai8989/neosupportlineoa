@@ -704,8 +704,8 @@ export default function StaffAnalyticsPage() {
             style={{ 
               padding: '24px 32px', 
               marginBottom: '32px', 
-              border: '1px solid rgba(0, 242, 254, 0.25)', 
-              background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(10, 14, 20, 0.98) 100%)',
+              border: '1px solid rgba(0, 242, 254, 0.3)', 
+              background: 'var(--bg-card)',
               boxShadow: '0 8px 32px rgba(0, 242, 254, 0.08)',
               borderRadius: '16px',
               transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
@@ -744,7 +744,7 @@ export default function StaffAnalyticsPage() {
 
             {/* Collapsible Content */}
             {aiCardExpanded && (
-              <div style={{ marginTop: '24px', borderTop: '1px solid rgba(255, 255, 255, 0.05)', paddingTop: '24px' }}>
+              <div style={{ marginTop: '24px', borderTop: '1px solid var(--border)', paddingTop: '24px' }}>
                 {!evaluation ? (
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '40px 20px', textAlign: 'center', gap: '16px' }}>
                     <p style={{ fontSize: '14px', color: 'var(--text-muted)', maxWidth: '480px', lineHeight: '1.6' }}>
@@ -803,12 +803,12 @@ export default function StaffAnalyticsPage() {
                       ].map((dim) => {
                         const val = evaluation.dimensions?.[dim.key as keyof AIEvaluation['dimensions']] || { rating: 75, feedback: '' };
                         return (
-                          <div key={dim.key} className="glass" style={{ padding: '18px 20px', background: 'rgba(255,255,255,0.01)', border: '1px solid rgba(255,255,255,0.03)' }}>
+                          <div key={dim.key} className="glass" style={{ padding: '18px 20px', background: 'var(--bg-page)', border: '1px solid var(--border)' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
                               <span style={{ fontSize: '13px', fontWeight: '800', color: 'var(--text-main)' }}>{dim.label}</span>
                               <span style={{ fontSize: '13px', fontWeight: '900', color: dim.color }}>{val.rating}%</span>
                             </div>
-                            <div style={{ height: '6px', background: 'rgba(255,255,255,0.05)', borderRadius: '3px', overflow: 'hidden', marginBottom: '12px' }}>
+                            <div style={{ height: '6px', background: 'var(--border)', borderRadius: '3px', overflow: 'hidden', marginBottom: '12px' }}>
                               <div style={{ height: '100%', width: `${val.rating}%`, background: dim.color, borderRadius: '3px', boxShadow: `0 0 8px ${dim.glow}` }} />
                             </div>
                             <p style={{ margin: 0, fontSize: '11.5px', color: 'var(--text-dim)', lineHeight: '1.5' }}>{val.feedback}</p>
@@ -820,7 +820,7 @@ export default function StaffAnalyticsPage() {
                     {/* Strengths & Recommendations */}
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '24px' }}>
                       {/* Key Strengths */}
-                      <div className="glass" style={{ padding: '20px 24px', background: 'rgba(40, 199, 111, 0.02)', border: '1px solid rgba(40, 199, 111, 0.15)' }}>
+                      <div className="glass" style={{ padding: '20px 24px', background: 'rgba(40, 199, 111, 0.05)', border: '1px solid rgba(40, 199, 111, 0.2)' }}>
                         <h4 style={{ margin: '0 0 16px 0', fontSize: '14px', fontWeight: '800', color: 'var(--success)', display: 'flex', alignItems: 'center', gap: '8px' }}>
                           <Check size={16} /> จุดแข็งหลักที่โดดเด่น (Key Strengths)
                         </h4>
@@ -832,7 +832,7 @@ export default function StaffAnalyticsPage() {
                       </div>
 
                       {/* Growth Opportunities */}
-                      <div className="glass" style={{ padding: '20px 24px', background: 'rgba(0, 242, 254, 0.02)', border: '1px solid rgba(0, 242, 254, 0.15)' }}>
+                      <div className="glass" style={{ padding: '20px 24px', background: 'rgba(0, 242, 254, 0.05)', border: '1px solid rgba(0, 242, 254, 0.2)' }}>
                         <h4 style={{ margin: '0 0 16px 0', fontSize: '14px', fontWeight: '800', color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
                           <ArrowRight size={16} /> โอกาสการพัฒนาศักยภาพ (Growth Opportunities)
                         </h4>
@@ -845,7 +845,7 @@ export default function StaffAnalyticsPage() {
                     </div>
 
                     {/* Executive Summary Paragraph */}
-                    <div className="glass" style={{ padding: '20px 24px', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}>
+                    <div className="glass" style={{ padding: '20px 24px', background: 'var(--bg-page)', border: '1px solid var(--border)' }}>
                       <h4 style={{ margin: '0 0 10px 0', fontSize: '13px', fontWeight: '800', color: 'var(--text-main)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                         📊 บทสรุปสำหรับผู้บริหาร (Executive Overview)
                       </h4>
@@ -855,7 +855,7 @@ export default function StaffAnalyticsPage() {
                     </div>
 
                     {/* Footer Controls & Export Buttons */}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '20px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px', borderTop: '1px solid var(--border)', paddingTop: '20px' }}>
                       <button
                         onClick={() => handleGenerateAIEvaluation(true)}
                         disabled={evalLoading}
