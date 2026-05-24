@@ -1,5 +1,4 @@
 'use client';
-
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { 
   Users,
@@ -15,11 +14,17 @@ import {
   Loader2,
   RefreshCw,
   ShieldAlert,
-  ChevronDown
+  ChevronDown,
+  Bot,
+  Check,
+  ArrowRight,
+  Download,
+  FileDown
 } from 'lucide-react';
 import Link from 'next/link';
 import { useAppContext } from '@/contexts/AppContext';
 import { useStaffLocale } from '@/contexts/StaffLocaleContext';
+import { useNotificationContext } from '@/contexts/NotificationContext';
 import { analyticsQueries, type AgentAnalyticsData } from '@/lib/tickets/analyticsQueries';
 import { supabase } from '@/lib/supabase';
 import { DateTime } from 'luxon';
@@ -34,6 +39,20 @@ import {
 
 const CHART_COLORS = ['#00f2fe', '#7367f0', '#28c76f', '#ff9f43', '#ea5455'];
 const SLA_COLORS = ['#28c76f', '#ea5455'];
+
+interface AIEvaluation {
+  dimensions: {
+    speed: { rating: number; feedback: string };
+    quality: { rating: number; feedback: string };
+    sla: { rating: number; feedback: string };
+    csat: { rating: number; feedback: string };
+  };
+  strengths: string[];
+  recommendations: string[];
+  overallSummary: string;
+  isSimulated?: boolean;
+  isCached?: boolean;
+}
 
 interface StaffProfile {
   id: string;
@@ -64,6 +83,11 @@ export default function StaffAnalyticsPage() {
   });
 
   const [activeRange, setActiveRange] = useState<'30days' | '7days'>('30days');
+
+  const { addToast } = useNotificationContext();
+  const [evaluation, setEvaluation] = useState<AIEvaluation | null>(null);
+  const [evalLoading, setEvalLoading] = useState(false);
+  const [aiCardExpanded, setAiCardExpanded] = useState(true);
 
   // Security authorization check
   const hasAccess = useMemo(() => {
@@ -106,6 +130,29 @@ export default function StaffAnalyticsPage() {
     }
   }, [fetchStaffList, hasAccess, mounted]);
 
+  const fetchExistingEvaluation = useCallback(async (agentId: string, start: string, end: string) => {
+    if (!agentId) return;
+    try {
+      const { data: existing, error } = await supabase
+        .from('staff_evaluations')
+        .select('evaluation_data')
+        .eq('agent_id', agentId)
+        .eq('start_date', start)
+        .eq('end_date', end)
+        .maybeSingle();
+
+      if (error) throw error;
+      if (existing?.evaluation_data) {
+        setEvaluation(existing.evaluation_data);
+      } else {
+        setEvaluation(null);
+      }
+    } catch (err) {
+      console.error('Failed to fetch existing evaluation:', err);
+      setEvaluation(null);
+    }
+  }, []);
+
   // Fetch performance data for the selected agent
   const fetchAgentPerformance = useCallback(async (agentId: string) => {
     if (!agentId) return;
@@ -113,7 +160,8 @@ export default function StaffAnalyticsPage() {
     try {
       const [stats, tStats] = await Promise.all([
         analyticsQueries.getAgentAnalytics(agentId, dateRange.start, dateRange.end),
-        analyticsQueries.getTeamAnalytics(dateRange.start, dateRange.end)
+        analyticsQueries.getTeamAnalytics(dateRange.start, dateRange.end),
+        fetchExistingEvaluation(agentId, dateRange.start, dateRange.end)
       ]);
       setData(stats);
       setTeamStats(tStats);
@@ -122,7 +170,297 @@ export default function StaffAnalyticsPage() {
     } finally {
       setLoadingStats(false);
     }
-  }, [dateRange.start, dateRange.end]);
+  }, [dateRange.start, dateRange.end, fetchExistingEvaluation]);
+
+  const handleGenerateAIEvaluation = async (force = false) => {
+    if (!selectedAgentId || !data) return;
+    setEvalLoading(true);
+    
+    const kpiStats = {
+      resolvedCount: data.stats.resolvedCount,
+      totalClaimed: data.stats.totalClaimed,
+      avgResolutionTime: data.stats.avgResolutionTime,
+      slaComplianceRate: data.stats.slaComplianceRate,
+      reworkRate: data.stats.reworkRate,
+      reworkCount: data.stats.reworkCount,
+      avgCsat: data.stats.avgCsat
+    };
+
+    try {
+      const res = await fetch(`/api/analytics/staff/evaluate${force ? '?force=true' : ''}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          agentId: selectedAgentId,
+          agentName: selectedAgentName,
+          startDate: dateRange.start,
+          endDate: dateRange.end,
+          kpiStats
+        })
+      });
+
+      if (!res.ok) throw new Error('Failed to generate AI evaluation');
+      const result = await res.json();
+      setEvaluation(result);
+      addToast({
+        id: `eval-ok-${Date.now()}`,
+        type: 'ticket',
+        title: 'การประเมิน AI สำเร็จ',
+        body: result.isSimulated ? 'สร้างผลการประเมินจำลองเรียบร้อยแล้ว' : 'วิเคราะห์ผลประเมินพนักงานรอบด้านสำเร็จ'
+      });
+    } catch (err) {
+      console.error(err);
+      addToast({
+        id: `eval-err-${Date.now()}`,
+        type: 'sla_warning',
+        title: 'การวิเคราะห์ล้มเหลว',
+        body: 'เกิดข้อผิดพลาดในการติดต่อระบบประเมิน AI'
+      });
+    } finally {
+      setEvalLoading(false);
+    }
+  };
+
+  const handleExportPDF = async () => {
+    if (!evaluation || !data) return;
+    setLoadingStats(true);
+    try {
+      const html2canvas = (await import('html2canvas')).default;
+      const { jsPDF } = await import('jspdf');
+
+      const printWindow = document.createElement('div');
+      printWindow.style.position = 'fixed';
+      printWindow.style.left = '-9999px';
+      printWindow.style.top = '0';
+      printWindow.style.width = '794px';
+      printWindow.style.background = '#ffffff';
+      printWindow.style.color = '#1e293b';
+      printWindow.style.padding = '40px';
+      printWindow.style.fontFamily = 'system-ui, sans-serif';
+
+      printWindow.innerHTML = `
+        <div style="border-bottom: 2px solid #0ea5e9; padding-bottom: 20px; margin-bottom: 30px; display: flex; justify-content: space-between; align-items: center;">
+          <div>
+            <h1 style="font-size: 22px; font-weight: 800; color: #0f172a; margin: 0;">รายงานการประเมินผลการปฏิบัติงานพนักงานด้วย AI</h1>
+            <p style="font-size: 13px; color: #64748b; margin: 5px 0 0 0;">NEO Intelligence Suite • AI Executive Performance Audit</p>
+          </div>
+          <div style="text-align: right;">
+            <span style="background: rgba(14, 165, 233, 0.1); color: #0ea5e9; font-size: 11px; font-weight: 800; padding: 4px 10px; border-radius: 4px;">CONFIDENTIAL</span>
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 30px; background: #f8fafc; padding: 20px; border-radius: 12px; border: 1px solid #e2e8f0;">
+          <div>
+            <p style="margin: 0; font-size: 11px; color: #64748b; text-transform: uppercase; font-weight: 700;">พนักงานผู้ถูกประเมิน (Staff Name)</p>
+            <p style="margin: 4px 0 0 0; font-size: 16px; font-weight: 800; color: #0f172a;">${selectedAgentName}</p>
+            <p style="margin: 10px 0 0 0; font-size: 11px; color: #64748b; text-transform: uppercase; font-weight: 700;">รอบระยะเวลาประเมิน (Evaluation Period)</p>
+            <p style="margin: 4px 0 0 0; font-size: 13px; font-weight: 700; color: #334155;">${dateRange.start} ถึง ${dateRange.end}</p>
+          </div>
+          <div>
+            <p style="margin: 0; font-size: 11px; color: #64748b; text-transform: uppercase; font-weight: 700;">ประเมินโดย (Audited By)</p>
+            <p style="margin: 4px 0 0 0; font-size: 14px; font-weight: 700; color: #334155;">ระบบอัตโนมัติ AI (Gemini 3.5 Flash)</p>
+            <p style="margin: 10px 0 0 0; font-size: 11px; color: #64748b; text-transform: uppercase; font-weight: 700;">วันที่ออกเอกสาร (Issue Date)</p>
+            <p style="margin: 4px 0 0 0; font-size: 13px; font-weight: 700; color: #334155;">${new Date().toLocaleDateString('th-TH')} น.</p>
+          </div>
+        </div>
+
+        <div style="margin-bottom: 30px;">
+          <h3 style="font-size: 14px; font-weight: 800; color: #0f172a; text-transform: uppercase; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px; margin-bottom: 16px;">สถิติผลงานหลัก (Key Performance Indicators)</h3>
+          <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 13px;">
+            <thead>
+               <tr style="background: #f1f5f9;">
+                 <th style="padding: 10px; border: 1px solid #cbd5e1; font-weight: 700;">หัวข้อตัวชี้วัด (KPI Metric)</th>
+                 <th style="padding: 10px; border: 1px solid #cbd5e1; font-weight: 700;">ผลงานที่ทำได้ (Achieved)</th>
+               </tr>
+            </thead>
+            <tbody>
+               <tr>
+                 <td style="padding: 10px; border: 1px solid #cbd5e1;">จำนวนใบงานที่แก้ไขและปิดสำเร็จ (Resolved Tickets)</td>
+                 <td style="padding: 10px; border: 1px solid #cbd5e1; font-weight: 700;">${data.stats.resolvedCount} เคส / คอนเฟิร์ม ${data.stats.totalClaimed} เคส</td>
+               </tr>
+               <tr>
+                 <td style="padding: 10px; border: 1px solid #cbd5e1;">เวลาเฉลี่ยในการปิดงาน (Avg Resolution Time)</td>
+                 <td style="padding: 10px; border: 1px solid #cbd5e1; font-weight: 700;">${data.stats.avgResolutionTime} ชั่วโมง</td>
+               </tr>
+               <tr>
+                 <td style="padding: 10px; border: 1px solid #cbd5e1;">ความสอดคล้องตามข้อตกลง SLA (SLA Compliance Rate)</td>
+                 <td style="padding: 10px; border: 1px solid #cbd5e1; font-weight: 700;">${data.stats.slaComplianceRate}%</td>
+               </tr>
+               <tr>
+                 <td style="padding: 10px; border: 1px solid #cbd5e1;">อัตราการส่งตั๋วกลับแก้ไขซ้ำ (Rework Rate)</td>
+                 <td style="padding: 10px; border: 1px solid #cbd5e1; font-weight: 700;">${data.stats.reworkRate}% (${data.stats.reworkCount} ครั้ง)</td>
+               </tr>
+               <tr>
+                 <td style="padding: 10px; border: 1px solid #cbd5e1;">ความพึงพอใจของลูกค้าเฉลี่ย (Customer CSAT)</td>
+                 <td style="padding: 10px; border: 1px solid #cbd5e1; font-weight: 700;">${data.stats.avgCsat > 0 ? data.stats.avgCsat + ' / 5 ดาว' : 'ไม่มีคะแนน'}</td>
+               </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div style="margin-bottom: 30px;">
+          <h3 style="font-size: 14px; font-weight: 800; color: #0f172a; text-transform: uppercase; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px; margin-bottom: 16px;">มิติประเมินผลและฟี้ดแบ็คจาก AI (Multidimensional Ratings & Feedback)</h3>
+          <div style="display: flex; flex-direction: column; gap: 16px;">
+             <div>
+               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                 <span style="font-size: 13px; font-weight: 700; color: #0f172a;">⚡ มิติด้านความเร็วในการแก้ไข (Resolution Speed)</span>
+                 <span style="font-size: 13px; font-weight: 800; color: #0ea5e9;">${evaluation.dimensions.speed.rating}%</span>
+               </div>
+               <p style="margin: 0; font-size: 12px; color: #475569; line-height: 1.5;">${evaluation.dimensions.speed.feedback}</p>
+             </div>
+             <div>
+               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                 <span style="font-size: 13px; font-weight: 700; color: #0f172a;">🛡️ มิติด้านคุณภาพการแก้ปัญหา (Rework & Quality)</span>
+                 <span style="font-size: 13px; font-weight: 800; color: #10b981;">${evaluation.dimensions.quality.rating}%</span>
+               </div>
+               <p style="margin: 0; font-size: 12px; color: #475569; line-height: 1.5;">${evaluation.dimensions.quality.feedback}</p>
+             </div>
+             <div>
+               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                 <span style="font-size: 13px; font-weight: 700; color: #0f172a;">⏰ มิติด้านข้อตกลงและเงื่อนไขเวลา (SLA Compliance)</span>
+                 <span style="font-size: 13px; font-weight: 800; color: #8b5cf6;">${evaluation.dimensions.sla.rating}%</span>
+               </div>
+               <p style="margin: 0; font-size: 12px; color: #475569; line-height: 1.5;">${evaluation.dimensions.sla.feedback}</p>
+             </div>
+             <div>
+               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                 <span style="font-size: 13px; font-weight: 700; color: #0f172a;">⭐ มิติด้านความพึงพอใจลูกค้าสัมพันธ์ (Customer CSAT)</span>
+                 <span style="font-size: 13px; font-weight: 800; color: #f59e0b;">${evaluation.dimensions.csat.rating}%</span>
+               </div>
+               <p style="margin: 0; font-size: 12px; color: #475569; line-height: 1.5;">${evaluation.dimensions.csat.feedback}</p>
+             </div>
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 30px;">
+           <div style="background: rgba(16, 185, 129, 0.03); border: 1px solid rgba(16, 185, 129, 0.15); padding: 16px; border-radius: 8px;">
+             <h4 style="margin: 0 0 10px 0; font-size: 13px; font-weight: 800; color: #10b981;">🌟 จุดแข็งสำคัญ (Key Strengths)</h4>
+             <ul style="margin: 0; padding-left: 16px; font-size: 11.5px; color: #334155; line-height: 1.6;">
+               ${evaluation.strengths.map(s => `<li>${s}</li>`).join('')}
+             </ul>
+           </div>
+           <div style="background: rgba(14, 165, 233, 0.03); border: 1px solid rgba(14, 165, 233, 0.15); padding: 16px; border-radius: 8px;">
+             <h4 style="margin: 0 0 10px 0; font-size: 13px; font-weight: 800; color: #0ea5e9;">🚀 ข้อเสนอแนะในการพัฒนา (Opportunities)</h4>
+             <ul style="margin: 0; padding-left: 16px; font-size: 11.5px; color: #334155; line-height: 1.6;">
+               ${evaluation.recommendations.map(r => `<li>${r}</li>`).join('')}
+             </ul>
+           </div>
+        </div>
+
+        <div style="background: #f8fafc; border: 1px solid #e2e8f0; padding: 20px; border-radius: 8px;">
+           <h4 style="margin: 0 0 8px 0; font-size: 13px; font-weight: 800; color: #0f172a;">📊 สรุปความเห็นผู้ประเมินผล AI (Executive Summary)</h4>
+           <p style="margin: 0; font-size: 12.5px; color: #334155; line-height: 1.6; font-style: italic;">"${evaluation.overallSummary}"</p>
+        </div>
+      `;
+
+      document.body.appendChild(printWindow);
+
+      const canvas = await html2canvas(printWindow, {
+        scale: 2,
+        useCORS: true
+      });
+
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const imgWidth = 210;
+      const pageHeight = 297; // A4 height in mm
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      let heightLeft = imgHeight;
+      let position = 0;
+      
+      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+      heightLeft -= pageHeight;
+      
+      while (heightLeft > 0) {
+        position = heightLeft - imgHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+        heightLeft -= pageHeight;
+      }
+
+      pdf.save(`AI_Evaluation_${selectedAgentName}_${dateRange.start}_to_${dateRange.end}.pdf`);
+      
+      document.body.removeChild(printWindow);
+      
+      addToast({
+        id: `pdf-ok-${Date.now()}`,
+        type: 'ticket',
+        title: 'Export PDF สำเร็จ',
+        body: 'ดาวน์โหลดใบรายงานผลประเมินพนักงานเรียบร้อยแล้ว'
+      });
+    } catch (err) {
+      console.error('PDF Export failed:', err);
+      addToast({
+        id: `pdf-err-${Date.now()}`,
+        type: 'sla_warning',
+        title: 'Export PDF ล้มเหลว',
+        body: 'เกิดข้อผิดพลาดในการสร้างไฟล์เอกสาร PDF'
+      });
+    } finally {
+      setLoadingStats(false);
+    }
+  };
+
+  const handleExportCSV = () => {
+    if (!evaluation || !data) return;
+    try {
+      let csvContent = "\uFEFF"; // UTF-8 BOM for Thai language compatibility in Excel
+      csvContent += `รายงานการประเมินผลงานพนักงานด้วย AI\n`;
+      csvContent += `ชื่อพนักงาน,${selectedAgentName}\n`;
+      csvContent += `ช่วงเวลาประเมิน,${dateRange.start} ถึง ${dateRange.end}\n\n`;
+      
+      csvContent += `ตัวชี้วัดหลัก,ผลงานที่ได้\n`;
+      csvContent += `จำนวนตั๋วงานที่แก้ไขแล้ว,${data.stats.resolvedCount} เคส\n`;
+      csvContent += `เวลาปิดงานเฉลี่ย,${data.stats.avgResolutionTime} ชั่วโมง\n`;
+      csvContent += `อัตราการรักษาสัญญา SLA,${data.stats.slaComplianceRate}%\n`;
+      csvContent += `อัตราการส่งกลับแก้ซ้ำ,${data.stats.reworkRate}%\n`;
+      csvContent += `คะแนนความพึงพอใจลูกค้า CSAT,${data.stats.avgCsat}\n\n`;
+      
+      csvContent += `มิติประเมิน,คะแนน (%),ความคิดเห็น\n`;
+      csvContent += `ความเร็วในการแก้ปัญหา,${evaluation.dimensions.speed.rating}%,${evaluation.dimensions.speed.feedback.replace(/"/g, '""')}\n`;
+      csvContent += `คุณภาพผลงานการแก้ไข,${evaluation.dimensions.quality.rating}%,${evaluation.dimensions.quality.feedback.replace(/"/g, '""')}\n`;
+      csvContent += `ความถูกต้องตาม SLA,${evaluation.dimensions.sla.rating}%,${evaluation.dimensions.sla.feedback.replace(/"/g, '""')}\n`;
+      csvContent += `ความพึงพอใจและการบริการลูกค้า,${evaluation.dimensions.csat.rating}%,${evaluation.dimensions.csat.feedback.replace(/"/g, '""')}\n\n`;
+      
+      csvContent += `จุดแข็งหลัก\n`;
+      evaluation.strengths.forEach((s: string, idx: number) => {
+        csvContent += `"${idx + 1}. ${s.replace(/"/g, '""')}"\n`;
+      });
+      csvContent += `\n`;
+      
+      csvContent += `ข้อเสนอแนะในการพัฒนา\n`;
+      evaluation.recommendations.forEach((r: string, idx: number) => {
+        csvContent += `"${idx + 1}. ${r.replace(/"/g, '""')}"\n`;
+      });
+      csvContent += `\n`;
+      
+      csvContent += `สรุปภาพรวมผู้บริหาร,"${evaluation.overallSummary.replace(/"/g, '""')}"\n`;
+
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.setAttribute("href", url);
+      link.setAttribute("download", `AI_Evaluation_${selectedAgentName}_${dateRange.start}_to_${dateRange.end}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      addToast({
+        id: `csv-ok-${Date.now()}`,
+        type: 'ticket',
+        title: 'Export CSV สำเร็จ',
+        body: 'ดาวน์โหลดตารางข้อมูลประเมินผลงานเรียบร้อยแล้ว'
+      });
+    } catch (err) {
+      console.error('CSV Export failed:', err);
+      addToast({
+        id: `csv-err-${Date.now()}`,
+        type: 'sla_warning',
+        title: 'Export CSV ล้มเหลว',
+        body: 'ไม่สามารถสร้างตารางข้อมูลการดาวน์โหลดได้'
+      });
+    }
+  };
 
   useEffect(() => {
     if (selectedAgentId) {
@@ -361,6 +699,202 @@ export default function StaffAnalyticsPage() {
                 </div>
               </div>
             </div>
+          </div>
+ 
+          {/* AI Executive Performance Evaluation Card */}
+          <div 
+            className="glass" 
+            style={{ 
+              padding: '24px 32px', 
+              marginBottom: '32px', 
+              border: '1px solid rgba(0, 242, 254, 0.25)', 
+              background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(10, 14, 20, 0.98) 100%)',
+              boxShadow: '0 8px 32px rgba(0, 242, 254, 0.08)',
+              borderRadius: '16px',
+              transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
+            }}
+          >
+            {/* Card Header (Expand / Collapse) */}
+            <div 
+              onClick={() => setAiCardExpanded(!aiCardExpanded)}
+              style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', userSelect: 'none' }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div style={{ background: 'rgba(0, 242, 254, 0.12)', padding: '10px', borderRadius: '12px', color: 'var(--primary)' }}>
+                  <Bot size={22} style={{ filter: 'drop-shadow(0 0 4px rgba(0, 242, 254, 0.6))' }} />
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '17px', fontWeight: '800', color: 'var(--text-main)', letterSpacing: '-0.3px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span>การประเมินผลงานระดับบริหารด้วย AI (Gemini Agent Audit)</span>
+                    {evaluation && (
+                      <span style={{ fontSize: '10px', fontWeight: '800', background: evaluation.isSimulated ? 'rgba(234, 84, 85, 0.12)' : 'rgba(40, 199, 111, 0.12)', color: evaluation.isSimulated ? 'var(--danger)' : 'var(--success)', padding: '2px 8px', borderRadius: '20px', border: evaluation.isSimulated ? '1px solid rgba(234, 84, 85, 0.2)' : '1px solid rgba(40, 199, 111, 0.2)' }}>
+                        {evaluation.isSimulated ? 'SIMULATED AUDIT' : 'GEMINI ACTIVE AUDIT'}
+                      </span>
+                    )}
+                  </h3>
+                  <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: 'var(--text-muted)' }}>
+                    วิเคราะห์ศักยภาพ ทักษะบริการ ความเร็ว และคุณภาพการดูแลลูกค้า 360 องศา
+                  </p>
+                </div>
+              </div>
+              <button 
+                className="glass-interactive flex-center"
+                style={{ fontSize: '12px', fontWeight: '800', color: 'var(--primary)', background: 'rgba(0, 242, 254, 0.08)', padding: '6px 14px', borderRadius: '8px', border: '1px solid rgba(0, 242, 254, 0.15)' }}
+              >
+                {aiCardExpanded ? 'ย่อรายละเอียด ▲' : 'ขยายรายละเอียด ▼'}
+              </button>
+            </div>
+
+            {/* Collapsible Content */}
+            {aiCardExpanded && (
+              <div style={{ marginTop: '24px', borderTop: '1px solid rgba(255, 255, 255, 0.05)', paddingTop: '24px' }}>
+                {!evaluation ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '40px 20px', textAlign: 'center', gap: '16px' }}>
+                    <p style={{ fontSize: '14px', color: 'var(--text-muted)', maxWidth: '480px', lineHeight: '1.6' }}>
+                      ยังไม่ได้ประเมินผลงานสำหรับ <strong>{selectedAgentName}</strong> ในช่วงเวลานี้ กดปุ่มด้านล่างเพื่อปลุกพลัง AI (Gemini 3.5 Flash) ทำการประเมินมิติผลงานทันที
+                    </p>
+                    <button
+                      onClick={() => handleGenerateAIEvaluation(false)}
+                      disabled={evalLoading}
+                      className="glass-interactive flex-center animate-pulse-subtle"
+                      style={{
+                        padding: '12px 28px',
+                        borderRadius: '12px',
+                        background: 'linear-gradient(135deg, rgba(0, 242, 254, 0.15) 0%, rgba(115, 103, 240, 0.15) 100%)',
+                        border: '1px solid rgba(0, 242, 254, 0.4)',
+                        color: '#00f2fe',
+                        fontWeight: '900',
+                        fontSize: '14px',
+                        gap: '8px',
+                        boxShadow: '0 0 20px rgba(0, 242, 254, 0.2)',
+                        cursor: evalLoading ? 'not-allowed' : 'pointer'
+                      }}
+                    >
+                      {evalLoading ? (
+                        <>
+                          <Loader2 size={18} className="animate-spin" />
+                          <span>กำลังดึงสถิติและประมวลผลประเมิน...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Bot size={18} style={{ color: '#00f2fe' }} />
+                          <span>เริ่มการประเมินผลงานด้วย AI (Gemini)</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                    {data.stats.resolvedCount === 0 && (
+                      <div className="glass" style={{ padding: '16px 20px', background: 'rgba(234, 179, 8, 0.1)', border: '1px solid rgba(234, 179, 8, 0.3)', display: 'flex', alignItems: 'flex-start', gap: '12px', borderRadius: '12px' }}>
+                        <AlertTriangle size={20} color="var(--warning)" style={{ flexShrink: 0, marginTop: '2px' }} />
+                        <div>
+                          <h4 style={{ margin: '0 0 4px 0', fontSize: '13px', fontWeight: '800', color: 'var(--warning)' }}>ข้อมูลผลงานไม่เพียงพอ</h4>
+                          <p style={{ margin: 0, fontSize: '12px', color: 'var(--text-dim)', lineHeight: '1.5' }}>
+                            พนักงานรายนี้ไม่มีประวัติการแก้ไขใบงานในช่วงเวลาที่เลือก ส่งผลให้ AI ประเมินผลงานด้วยข้อมูลที่เป็นศูนย์ (0) ซึ่งบทวิเคราะห์อาจไม่สะท้อนผลงานที่แท้จริง
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                    {/* Multidimensional Rating Bars */}
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '20px' }}>
+                      {[
+                        { key: 'speed', label: '⚡ ประสิทธิภาพความเร็ว (Speed)', color: '#00f2fe', glow: 'rgba(0, 242, 254, 0.3)' },
+                        { key: 'quality', label: '🛡️ คุณภาพการแก้ไข (Quality)', color: '#28c76f', glow: 'rgba(40, 199, 111, 0.3)' },
+                        { key: 'sla', label: '⏰ การรักษาสัญญา SLA (SLA Compliance)', color: '#7367f0', glow: 'rgba(115, 103, 240, 0.3)' },
+                        { key: 'csat', label: '⭐ ความพึงพอใจลูกค้า (Customer CSAT)', color: '#ff9f43', glow: 'rgba(255, 159, 67, 0.3)' }
+                      ].map((dim) => {
+                        const val = evaluation.dimensions?.[dim.key] || { rating: 75, feedback: '' };
+                        return (
+                          <div key={dim.key} className="glass" style={{ padding: '18px 20px', background: 'rgba(255,255,255,0.01)', border: '1px solid rgba(255,255,255,0.03)' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
+                              <span style={{ fontSize: '13px', fontWeight: '800', color: 'var(--text-main)' }}>{dim.label}</span>
+                              <span style={{ fontSize: '13px', fontWeight: '900', color: dim.color }}>{val.rating}%</span>
+                            </div>
+                            <div style={{ height: '6px', background: 'rgba(255,255,255,0.05)', borderRadius: '3px', overflow: 'hidden', marginBottom: '12px' }}>
+                              <div style={{ height: '100%', width: `${val.rating}%`, background: dim.color, borderRadius: '3px', boxShadow: `0 0 8px ${dim.glow}` }} />
+                            </div>
+                            <p style={{ margin: 0, fontSize: '11.5px', color: 'var(--text-dim)', lineHeight: '1.5' }}>{val.feedback}</p>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* Strengths & Recommendations */}
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '24px' }}>
+                      {/* Key Strengths */}
+                      <div className="glass" style={{ padding: '20px 24px', background: 'rgba(40, 199, 111, 0.02)', border: '1px solid rgba(40, 199, 111, 0.15)' }}>
+                        <h4 style={{ margin: '0 0 16px 0', fontSize: '14px', fontWeight: '800', color: 'var(--success)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <Check size={16} /> จุดแข็งหลักที่โดดเด่น (Key Strengths)
+                        </h4>
+                        <ul style={{ margin: 0, paddingLeft: '16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                          {evaluation.strengths?.map((s: string, i: number) => (
+                            <li key={i} style={{ fontSize: '12.5px', color: 'var(--text-dim)', lineHeight: '1.5' }}>{s}</li>
+                          ))}
+                        </ul>
+                      </div>
+
+                      {/* Growth Opportunities */}
+                      <div className="glass" style={{ padding: '20px 24px', background: 'rgba(0, 242, 254, 0.02)', border: '1px solid rgba(0, 242, 254, 0.15)' }}>
+                        <h4 style={{ margin: '0 0 16px 0', fontSize: '14px', fontWeight: '800', color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <ArrowRight size={16} /> โอกาสการพัฒนาศักยภาพ (Growth Opportunities)
+                        </h4>
+                        <ul style={{ margin: 0, paddingLeft: '16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                          {evaluation.recommendations?.map((r: string, i: number) => (
+                            <li key={i} style={{ fontSize: '12.5px', color: 'var(--text-dim)', lineHeight: '1.5' }}>{r}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    </div>
+
+                    {/* Executive Summary Paragraph */}
+                    <div className="glass" style={{ padding: '20px 24px', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}>
+                      <h4 style={{ margin: '0 0 10px 0', fontSize: '13px', fontWeight: '800', color: 'var(--text-main)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                        📊 บทสรุปสำหรับผู้บริหาร (Executive Overview)
+                      </h4>
+                      <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-muted)', lineHeight: '1.6', fontStyle: 'italic' }}>
+                        &quot;{evaluation.overallSummary}&quot;
+                      </p>
+                    </div>
+
+                    {/* Footer Controls & Export Buttons */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '20px' }}>
+                      <button
+                        onClick={() => handleGenerateAIEvaluation(true)}
+                        disabled={evalLoading}
+                        className="glass-interactive flex-center"
+                        style={{ padding: '10px 20px', borderRadius: '10px', fontSize: '12.5px', fontWeight: '800', color: 'var(--text-muted)', border: '1px solid var(--border)' }}
+                      >
+                        {evalLoading ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
+                        <span>วิเคราะห์ประเมินใหม่อีกครั้ง</span>
+                      </button>
+
+                      <div style={{ display: 'flex', gap: '10px' }}>
+                        {/* Export CSV */}
+                        <button
+                          onClick={handleExportCSV}
+                          className="glass-interactive flex-center"
+                          style={{ padding: '10px 20px', borderRadius: '10px', fontSize: '12.5px', fontWeight: '800', color: '#cbd5e1', border: '1px solid #334155', background: '#1e293b' }}
+                        >
+                          <Download size={14} /> Export CSV
+                        </button>
+
+                        {/* Export PDF */}
+                        <button
+                          onClick={handleExportPDF}
+                          disabled={loadingStats}
+                          className="glass-interactive flex-center"
+                          style={{ padding: '10px 20px', borderRadius: '10px', fontSize: '12.5px', fontWeight: '850', color: '#0a0e14', background: 'var(--primary)', border: 'none', boxShadow: '0 0 10px rgba(0, 242, 254, 0.2)' }}
+                        >
+                          {loadingStats ? <Loader2 size={14} className="animate-spin" /> : <FileDown size={14} />}
+                          <span>ดาวน์โหลดใบรับรอง PDF</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Wrapper for Stats Content with Loading Overlay */}
