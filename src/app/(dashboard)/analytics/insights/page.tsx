@@ -196,7 +196,7 @@ export default function InsightsPage() {
                     dataKey="count"
                   >
                     {data.issueTypes.map((entry: any, index: number) => (
-                      <Cell key={`cell-\${index}`} fill={COLORS[index % COLORS.length]} />
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                     ))}
                   </Pie>
                   <Tooltip 

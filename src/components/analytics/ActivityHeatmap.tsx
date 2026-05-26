@@ -29,7 +29,7 @@ export default function ActivityHeatmap({ data }: ActivityHeatmapProps) {
     if (value === 0) return 'bg-white/5 border border-white/10';
     const intensity = Math.max(0.2, value / maxVal);
     // Use a neon cyan/blue scale for HUD style
-    return \`bg-cyan-500 border border-cyan-400 opacity-\${Math.round(intensity * 100)}\`;
+    return `bg-cyan-500 border border-cyan-400 opacity-${Math.round(intensity * 100)}`;
   };
 
   return (
