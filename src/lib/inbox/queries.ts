@@ -24,7 +24,6 @@ export const inboxConversationSelect = `
     id,
     display_name,
     line_user_id,
-    avatar_url,
     metadata,
     hospital_id,
     department_id,
@@ -76,7 +75,6 @@ export const inboxConversationSelectForList = `
   customers (
     id,
     display_name,
-    avatar_url,
     hospital_id,
     hospitals:hospital_id (id, name)
   ),
