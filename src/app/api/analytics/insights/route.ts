@@ -33,6 +33,14 @@ export async function GET(req: Request) {
       endDate = now.toISOString();
     }
 
+    // Query 0: Active Hospitals
+    const { data: hospitalsList, error: hospListErr } = await supabase
+      .from('hospitals')
+      .select('id, name')
+      .eq('is_active', true)
+      .order('name');
+    if (hospListErr) throw hospListErr;
+
     // Query 1: Top Hospitals
     let hospitalQuery = supabase.from('tickets').select('hospital_id, hospitals(name)');
     if (startDate) hospitalQuery = hospitalQuery.gte('created_at', startDate);
@@ -87,7 +95,7 @@ export async function GET(req: Request) {
     const topSubjects = Object.entries(subjectCounts).map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count).slice(0, 10);
 
     // Query 4: Top Hospital Staff
-    let staffQuery = supabase.from('tickets').select('customer_id, customers(display_name, hospitals(name))');
+    let staffQuery = supabase.from('tickets').select('customer_id, customers!tickets_customer_id_fkey(display_name, hospitals(name))');
     if (startDate) staffQuery = staffQuery.gte('created_at', startDate);
     if (endDate) staffQuery = staffQuery.lte('created_at', endDate);
     if (hospitalId && hospitalId !== 'all') staffQuery = staffQuery.eq('hospital_id', hospitalId);
@@ -138,6 +146,7 @@ export async function GET(req: Request) {
     }
 
     return NextResponse.json({
+      hospitals: hospitalsList,
       topHospitals,
       issueTypes,
       topSubjects,

@@ -15,6 +15,7 @@ export default function InsightsPage() {
   const [loading, setLoading] = useState(true);
   const [preset, setPreset] = useState('all'); // Change default to 'all' so data shows up
   const [hospitalId, setHospitalId] = useState('all');
+  const [hospitals, setHospitals] = useState<any[]>([]);
   const [generatingReport, setGeneratingReport] = useState(false);
   const [aiReport, setAiReport] = useState<any>(null);
 
@@ -29,6 +30,9 @@ export default function InsightsPage() {
       if (!res.ok) throw new Error('Failed to fetch data');
       const json = await res.json();
       setData(json);
+      if (json.hospitals) {
+        setHospitals(json.hospitals);
+      }
     } catch (err) {
       console.error(err);
     } finally {
@@ -82,6 +86,7 @@ export default function InsightsPage() {
         </div>
         
         <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '12px' }}>
+          {/* Preset Filter */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--bg-card)', padding: '8px 16px', borderRadius: '12px', border: '1px solid var(--border)' }}>
             <Filter size={16} color="var(--primary)" />
             <select 
@@ -92,6 +97,21 @@ export default function InsightsPage() {
               <option value="7days">7 วันล่าสุด</option>
               <option value="30days">30 วันล่าสุด</option>
               <option value="all">ทั้งหมด (All Time)</option>
+            </select>
+          </div>
+
+          {/* Hospital Filter */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--bg-card)', padding: '8px 16px', borderRadius: '12px', border: '1px solid var(--border)' }}>
+            <Building size={16} color="var(--primary)" />
+            <select 
+              value={hospitalId} 
+              onChange={(e) => setHospitalId(e.target.value)}
+              style={{ background: 'transparent', border: 'none', color: 'var(--text-main)', fontSize: '14px', outline: 'none', maxWidth: '200px' }}
+            >
+              <option value="all">โรงพยาบาลทั้งหมด</option>
+              {hospitals.map((h: any) => (
+                <option key={h.id} value={h.id}>{h.name}</option>
+              ))}
             </select>
           </div>
           
