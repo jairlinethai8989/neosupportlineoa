@@ -40,66 +40,21 @@ async function verifyAgentRole(userId: string) {
 
 export async function claimTicketServerAction(ticketId: string) {
   const user = await getSessionUser();
-  await verifyAgentRole(user.id);
   const agentId = user.id;
 
-  const { data: ticket, error: ticketError } = await supabaseAdmin
-    .from('tickets')
-    .update({ 
-      assigned_agent_id: agentId, 
-      status: 'In Progress',
-      assigned_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    })
-    .eq('id', ticketId)
-    .select()
-    .single();
+  const { data, error } = await supabaseAdmin.rpc('claim_ticket_secure', {
+    p_ticket_id: ticketId,
+    p_agent_id: agentId
+  });
 
-  if (ticketError) throw new Error(ticketError.message);
+  if (error) throw new Error(error.message);
 
-  let conversationId: string | null = null;
-
-  if (ticket?.customer_id) {
-    const { data: existingConv } = await supabaseAdmin
-      .from('conversations')
-      .select('id')
-      .eq('current_ticket_id', ticketId)
-      .eq('status', 'active')
-      .maybeSingle();
-
-    if (existingConv) {
-      conversationId = existingConv.id;
-    } else {
-      const { data: newConv, error: insertError } = await supabaseAdmin
-        .from('conversations')
-        .insert([{
-          customer_id: ticket.customer_id,
-          current_ticket_id: ticketId,
-          status: 'active',
-          last_message_at: new Date().toISOString()
-        }])
-        .select('id')
-        .single();
-      
-      if (!insertError && newConv) {
-        conversationId = newConv.id;
-      }
-    }
-  }
-
-  // Insert log securely
-  await supabaseAdmin.from('ticket_logs').insert([{
-    ticket_id: ticketId,
-    action_type: 'claim',
-    to_status: 'In Progress',
-    performer_id: agentId,
-    note: 'Agent claimed the ticket securely via server action'
-  }]);
+  const result = data as { ticket: Record<string, unknown>; conversationId: string | null };
 
   invalidateAllLiveCaches();
   invalidateAllPreviewCaches();
   
-  return { ticket, conversationId };
+  return { ticket: result.ticket, conversationId: result.conversationId };
 }
 
 export async function updateTicketStatusAction(ticketId: string, newStatus: string, note?: string, escalationToken?: string) {

@@ -75,7 +75,8 @@ export async function middleware(request: MiddlewareRequest) {
   );
 
   // 4. Authenticate User
-  const { data: { user }, error } = await supabase.auth.getUser();
+  const { data: { session }, error } = await supabase.auth.getSession();
+  const user = session?.user;
 
   // 5. Logic
   if (isPublicRoute) {

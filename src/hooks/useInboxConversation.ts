@@ -92,15 +92,6 @@ export function useInboxConversation({
 
     async function fetchConversationState() {
       try {
-      const safeLinkConversationToTicket = async (conversationId: string, ticketId: string) => {
-        try {
-          await linkConversationToTicket(conversationId, ticketId);
-        } catch (linkError) {
-          // Link failure should not block displaying existing thread messages.
-          console.warn('Skipped conversation-ticket relink:', linkError);
-        }
-      };
-
       const urlParams = new URLSearchParams(window.location.search);
       const urlTicketId = urlParams.get('tid');
       const urlConversationId = urlParams.get('cid');
@@ -136,10 +127,6 @@ export function useInboxConversation({
         const ticket = await getInboxTicketById(urlTicketId);
         if (ticket) {
           setCurrentTicket(ticket);
-          // Auto-link if needed
-          if (selectedChat!.current_ticket_id !== urlTicketId) {
-            await safeLinkConversationToTicket(selectedChat!.id, urlTicketId);
-          }
           return;
         }
       }
@@ -149,9 +136,6 @@ export function useInboxConversation({
         const messageTicket = await getInboxTicketById(latestMessageTicketId);
         if (messageTicket) {
           setCurrentTicket(messageTicket);
-          if (selectedChat!.current_ticket_id !== messageTicket.id) {
-            await safeLinkConversationToTicket(selectedChat!.id, messageTicket.id);
-          }
           return;
         }
       }
@@ -179,14 +163,9 @@ export function useInboxConversation({
       }
 
       // 5. Safe fallback: derive ticket only from messages inside this conversation.
-      // Never link by customer-level "latest open ticket", because it can cross-link
-      // different chats of the same customer to a single ticket.
       const conversationTicket = await getLatestInboxTicketForConversation(selectedChat!.id);
       if (conversationTicket) {
         setCurrentTicket(conversationTicket);
-        if (selectedChat!.current_ticket_id !== conversationTicket.id) {
-          await safeLinkConversationToTicket(selectedChat!.id, conversationTicket.id);
-        }
       } else {
         setCurrentTicket(null);
       }

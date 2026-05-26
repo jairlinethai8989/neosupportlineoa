@@ -618,7 +618,7 @@ export async function listInboxMessagesPage(input: {
   const limit = input.limit || 50;
   const before = input.beforeCreatedAt || '9999-12-31T23:59:59.999Z';
 
-  const baseConversationQuery = supabase
+  const { data, error } = await supabase
     .from('messages')
     .select(inboxMessageSelect)
     .eq('conversation_id', input.conversationId)
@@ -626,40 +626,8 @@ export async function listInboxMessagesPage(input: {
     .order('created_at', { ascending: false })
     .limit(limit);
 
-  if (!input.ticketId) {
-    const { data, error } = await baseConversationQuery;
-    if (error) throw error;
-    return normalizeInboxMessages((data || []).reverse());
-  }
-
-  const baseTicketQuery = supabase
-    .from('messages')
-    .select(inboxMessageSelect)
-    .eq('ticket_id', input.ticketId)
-    .lt('created_at', before)
-    .order('created_at', { ascending: false })
-    .limit(limit);
-
-  const [{ data: byConversation, error: convError }, { data: byTicket, error: ticketError }] =
-    await Promise.all([baseConversationQuery, baseTicketQuery]);
-
-  if (convError && ticketError) {
-    throw convError;
-  }
-
-  const merged = [...(byConversation || []), ...(byTicket || [])];
-  const normalized = normalizeInboxMessages(merged);
-
-  const dedupedById = Array.from(
-    new Map(normalized.map((message) => [message.id, message])).values()
-  );
-
-  dedupedById.sort(
-    (left, right) =>
-      new Date(right.created_at).getTime() - new Date(left.created_at).getTime()
-  );
-
-  return dedupedById.slice(0, limit).reverse();
+  if (error) throw error;
+  return normalizeInboxMessages((data || []).reverse());
 }
 
 export async function getInboxTicketById(ticketId: string): Promise<InboxTicket | null> {
