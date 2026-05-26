@@ -206,6 +206,7 @@ function MainSidebarComponent({ onClickLink, isCollapsed = false }: SidebarProps
               { name: 'Performance', label: t('sidebar.menu.performance'), path: '/analytics' },
               { name: 'Personal Performance', label: t('sidebar.menu.personalPerformance'), path: '/analytics/personal' },
               { name: 'Staff Performance', label: t('sidebar.menu.staffPerformance'), path: '/analytics/staff' },
+              { name: 'AI Insights', label: 'AI Insights', path: '/analytics/insights' },
             ],
           },
           {
