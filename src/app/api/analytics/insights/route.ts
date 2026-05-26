@@ -172,7 +172,8 @@ export async function GET(req: Request) {
           const topSubjectsText = topSubjects.map((s, i) => `- อันดับ ${i + 1} ${s.name}: ${s.count} เคส`).join('\n');
           const topStaffText = topStaff.map((st, i) => `- อันดับ ${i + 1} ${st.name} (${st.hospital}): ${st.count} เคส`).join('\n');
 
-          const systemInstructions = `คุณคือผู้เชี่ยวชาญด้าน Service Operations และผู้ช่วยวิเคราะห์ข้อมูลระดับสูงสำหรับทีม Neo Support
+          const customPrompt = searchParams.get('customPrompt');
+          let systemInstructions = `คุณคือผู้เชี่ยวชาญด้าน Service Operations และผู้ช่วยวิเคราะห์ข้อมูลระดับสูงสำหรับทีม Neo Support
 หน้าที่ของคุณคือการอ่านสถิติการแจ้งเคสปัญหาประจำสัปดาห์หรือภาพรวมเหล่านี้ แล้วเขียนวิเคราะห์ข้อมูลเชิงลึกเป็นภาษาไทยให้ออกมาเป็นวิเคราะห์ข้อมูลระดับบริหาร สรุปปัญหา และแนวทางการแก้ไข (Actionable Insights) ที่สัมพันธ์กับตัวเลขข้อมูลสถิติจริงที่ส่งให้เท่านั้น ห้ามแต่งข้อมูลขึ้นมาเองนอกเหนือจากสถิตินี้!
 
 ข้อมูลสถิติจริงของตั๋วงาน:
@@ -189,6 +190,10 @@ ${topSubjectsText || 'ไม่มีข้อมูล'}
 ${topStaffText || 'ไม่มีข้อมูล'}
 
 กรุณาสรุปประเด็นปัญหาให้สัมพันธ์กับสถิติด้านบนนี้อย่างถูกต้องที่สุด ห้ามอ้างอิงข้อมูลลอยๆ ที่ไม่ตรงกัน`;
+
+          if (customPrompt) {
+            systemInstructions += `\n\nคำแนะนำ/โจทย์ที่ผู้ใช้อยากให้วิเคราะห์เพิ่มเติมเป็นพิเศษ:\n"${customPrompt}"`;
+          }
 
           const response = await fetch(
             `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,

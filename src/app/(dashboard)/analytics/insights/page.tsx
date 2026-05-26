@@ -16,6 +16,7 @@ export default function InsightsPage() {
   const [preset, setPreset] = useState('all'); // Change default to 'all' so data shows up
   const [hospitalId, setHospitalId] = useState('all');
   const [hospitals, setHospitals] = useState<any[]>([]);
+  const [customPrompt, setCustomPrompt] = useState('');
   const [generatingReport, setGeneratingReport] = useState(false);
   const [aiReport, setAiReport] = useState<any>(null);
 
@@ -44,7 +45,7 @@ export default function InsightsPage() {
     setGeneratingReport(true);
     setAiReport(null);
     try {
-      const res = await fetch(`/api/analytics/insights?preset=${preset}&hospitalId=${hospitalId}&ai=true`);
+      const res = await fetch(`/api/analytics/insights?preset=${preset}&hospitalId=${hospitalId}&ai=true&customPrompt=${encodeURIComponent(customPrompt)}`);
       if (!res.ok) throw new Error('Failed to generate AI report');
       const json = await res.json();
       if (json.aiReport) {
@@ -71,45 +72,58 @@ export default function InsightsPage() {
   return (
     <div className="animate-page-in" style={{ padding: '0', maxWidth: '100%', color: 'var(--text-main)', display: 'flex', flexDirection: 'column', gap: '24px' }}>
       {/* Header */}
-      <div className="glass" style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px', padding: '24px', borderRadius: '16px', border: '1px solid var(--border)' }}>
-        <div>
-          <h1 style={{ fontSize: '24px', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '10px', color: 'var(--primary)' }}>
-            <Brain size={28} />
-            AI Support Insights
-          </h1>
-          <p style={{ color: 'var(--text-muted)', fontSize: '14px', marginTop: '4px' }}>วิเคราะห์พฤติกรรมการแจ้งปัญหาและแนวโน้มการทำงานอัจฉริยะ</p>
-        </div>
-        
-        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '12px' }}>
-          {/* Preset Filter */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--bg-card)', padding: '8px 16px', borderRadius: '12px', border: '1px solid var(--border)' }}>
-            <Filter size={16} color="var(--primary)" />
-            <select 
-              value={preset} 
-              onChange={(e) => setPreset(e.target.value)}
-              style={{ background: 'transparent', border: 'none', color: 'var(--text-main)', fontSize: '14px', outline: 'none' }}
-            >
-              <option value="7days">7 วันล่าสุด</option>
-              <option value="30days">30 วันล่าสุด</option>
-              <option value="all">ทั้งหมด (All Time)</option>
-            </select>
-          </div>
-
-          {/* Hospital Filter */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--bg-card)', padding: '8px 16px', borderRadius: '12px', border: '1px solid var(--border)' }}>
-            <Building size={16} color="var(--primary)" />
-            <select 
-              value={hospitalId} 
-              onChange={(e) => setHospitalId(e.target.value)}
-              style={{ background: 'transparent', border: 'none', color: 'var(--text-main)', fontSize: '14px', outline: 'none', maxWidth: '200px' }}
-            >
-              <option value="all">โรงพยาบาลทั้งหมด</option>
-              {hospitals.map((h: any) => (
-                <option key={h.id} value={h.id}>{h.name}</option>
-              ))}
-            </select>
+      <div className="glass" style={{ display: 'flex', flexDirection: 'column', gap: '20px', padding: '24px', borderRadius: '16px', border: '1px solid var(--border)' }}>
+        <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px' }}>
+          <div>
+            <h1 style={{ fontSize: '24px', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '10px', color: 'var(--primary)' }}>
+              <Brain size={28} />
+              AI Support Insights
+            </h1>
+            <p style={{ color: 'var(--text-muted)', fontSize: '14px', marginTop: '4px' }}>วิเคราะห์พฤติกรรมการแจ้งปัญหาและแนวโน้มการทำงานอัจฉริยะ</p>
           </div>
           
+          <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '12px' }}>
+            {/* Preset Filter */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--bg-card)', padding: '8px 16px', borderRadius: '12px', border: '1px solid var(--border)' }}>
+              <Filter size={16} color="var(--primary)" />
+              <select 
+                value={preset} 
+                onChange={(e) => setPreset(e.target.value)}
+                style={{ background: 'transparent', border: 'none', color: 'var(--text-main)', fontSize: '14px', outline: 'none' }}
+              >
+                <option value="7days">7 วันล่าสุด</option>
+                <option value="30days">30 วันล่าสุด</option>
+                <option value="all">ทั้งหมด (All Time)</option>
+              </select>
+            </div>
+
+            {/* Hospital Filter */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--bg-card)', padding: '8px 16px', borderRadius: '12px', border: '1px solid var(--border)' }}>
+              <Building size={16} color="var(--primary)" />
+              <select 
+                value={hospitalId} 
+                onChange={(e) => setHospitalId(e.target.value)}
+                style={{ background: 'transparent', border: 'none', color: 'var(--text-main)', fontSize: '14px', outline: 'none', maxWidth: '200px' }}
+              >
+                <option value="all">โรงพยาบาลทั้งหมด</option>
+                {hospitals.map((h: any) => (
+                  <option key={h.id} value={h.id}>{h.name}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+        </div>
+
+        {/* Custom Prompt Input Section */}
+        <div style={{ display: 'flex', gap: '12px', alignItems: 'center', background: 'var(--bg-card)', padding: '8px 16px', borderRadius: '12px', border: '1px solid var(--border)' }}>
+          <Brain size={18} color="var(--primary)" style={{ flexShrink: 0 }} />
+          <input 
+            type="text"
+            value={customPrompt}
+            onChange={(e) => setCustomPrompt(e.target.value)}
+            placeholder="ต้องการให้ AI เน้นวิเคราะห์ด้านใดเพิ่มเติมเป็นพิเศษหรือไม่? (เช่น 'วิเคราะห์หาสาเหตุของปัญหาเรื่องยา', 'แนะนำการคุยกับเจ้าหน้าที่ รพ.เกาะคา')"
+            style={{ background: 'transparent', border: 'none', color: 'var(--text-main)', fontSize: '14px', outline: 'none', flex: 1 }}
+          />
           <button 
             onClick={handleGenerateReport}
             disabled={generatingReport || loading}
