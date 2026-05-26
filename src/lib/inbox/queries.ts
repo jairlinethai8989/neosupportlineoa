@@ -121,7 +121,7 @@ function isMissingAvatarColumnError(error: unknown): boolean {
   const maybe = error as { code?: string; message?: string };
   const message = String(maybe.message || '').toLowerCase();
   return (
-    maybe.code === 'PGRST204' &&
+    (maybe.code === 'PGRST204' || maybe.code === '42703') &&
     (message.includes('avatar_url') || message.includes('column'))
   );
 }

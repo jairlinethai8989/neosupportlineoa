@@ -123,84 +123,143 @@ ${hospitalDetailsText}
 คำแนะนำ/โจทย์ที่ผู้ใช้อยากให้เน้นเพิ่มเติม:
 "${customPrompt || 'โปรดเน้นเขียนสรุปภาพรวมผู้บริหารแบบเฉียบคม สรุปความเสี่ยงทางเทคนิคที่พบ และคำแนะนำเพื่อแก้ไขปัญหาอย่างยั่งยืน'}"`;
 
-    // 4. Hit Gemini API
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          contents: [
-            {
-              parts: [
-                {
-                  text: systemInstructions,
-                },
-              ],
-            },
-          ],
-          generationConfig: {
-            responseMimeType: 'application/json',
-            responseSchema: {
-              type: 'OBJECT',
-              properties: {
-                executiveSummary: { 
-                  type: 'STRING',
-                  description: 'สรุปผลภาพรวมการดำเนินงานของสัปดาห์นี้สำหรับผู้บริหาร เขียนอย่างเป็นทางการ กระชับ ความยาวประมาณ 3-5 ประโยค'
-                },
-                keyChallenges: {
-                  type: 'ARRAY',
-                  description: 'รายการความท้าทายหรือปัญหาวิกฤตสูงสุดที่วิเคราะห์ได้จากเคสในสัปดาห์นี้ จำนวน 2-3 ข้อ',
-                  items: {
-                    type: 'OBJECT',
-                    properties: {
-                      title: { type: 'STRING', description: 'หัวข้อสั้นๆ ของปัญหา เช่น ปัญหาความเสถียรของระบบ' },
-                      description: { type: 'STRING', description: 'คำอธิบายสาเหตุและผลกระทบของปัญหานั้นๆ' }
-                    },
-                    required: ['title', 'description']
-                  }
-                },
-                actionItems: {
-                  type: 'ARRAY',
-                  description: 'แผนการดำเนินงานเพื่อแก้ไขปัญหากลุ่มนี้อย่างรวดเร็วและยั่งยืน (Action Plan) จำนวน 2-3 ข้อ',
-                  items: {
-                    type: 'OBJECT',
-                    properties: {
-                      action: { type: 'STRING', description: 'งานหรือกิจกรรมที่ต้องทำอย่างละเอียดและชัดเจน' },
-                      owner: { type: 'STRING', description: 'ผู้รับผิดชอบหลัก เช่น ทีมเน็ตเวิร์ก, ทีมโปรแกรมเมอร์' },
-                      targetDate: { type: 'STRING', description: 'กำหนดการส่งงานในรูปแบบ YYYY-MM-DD' }
-                    },
-                    required: ['action', 'owner', 'targetDate']
-                  }
-                },
-                hospitalInsights: {
-                  type: 'OBJECT',
-                  description: 'คีย์ค่าแนะนำเชิงลึกรายโรงพยาบาล โดยคีย์เป็นชื่อโรงพยาบาลเป้าหมาย (เช่น โรงพยาบาลสะเมิง) และค่าเป็นข้อความวิเคราะห์สั้นๆ เจาะจงสำหรับโรงพยาบาลนั้น',
-                  properties: {}
-                }
-              },
-              required: ['executiveSummary', 'keyChallenges', 'actionItems', 'hospitalInsights']
-            }
+    // 4. Hit AI Server (RAG fallback to Gemini)
+    let aiResult = null;
+    const ragUrl = process.env.RAG_SERVER_URL;
+    const ragApiKey = process.env.RAG_API_KEY || '';
+    const ragModel = process.env.RAG_MODEL_NAME || 'qwen';
+
+    if (ragUrl) {
+      try {
+        console.log('Calling RAG Server...');
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 12000); // 12s timeout
+
+        const ragResponse = await fetch(ragUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(ragApiKey ? { 'Authorization': `Bearer ${ragApiKey}` } : {})
+          },
+          body: JSON.stringify({
+            model: ragModel,
+            messages: [
+              { role: 'system', content: systemInstructions },
+              { role: 'user', content: `กรุณาวิเคราะห์ข้อมูลตามคำสั่งและคืนค่าเป็น JSON ล้วนๆ ห้ามมี markdown ใดๆ 
+โครงสร้าง JSON ต้องประกอบด้วย:
+{
+  "executiveSummary": "string",
+  "keyChallenges": [{"title": "string", "description": "string"}],
+  "actionItems": [{"action": "string", "owner": "string", "targetDate": "YYYY-MM-DD"}],
+  "hospitalInsights": {"hospitalName": "string"}
+}` }
+            ],
+            stream: false,
+            format: 'json'
+          }),
+          signal: controller.signal
+        });
+        clearTimeout(timeoutId);
+
+        if (ragResponse.ok) {
+          const ragData = await ragResponse.json();
+          let ragText = ragData.choices?.[0]?.message?.content || ragData.message?.content || '';
+          
+          if (ragText.startsWith('```json')) {
+            ragText = ragText.replace(/^```json/i, '').replace(/```$/i, '').trim();
           }
-        }),
+
+          if (ragText) {
+            aiResult = JSON.parse(ragText);
+          }
+        } else {
+          console.warn('RAG Server error, status:', ragResponse.status);
+        }
+      } catch (err) {
+        console.warn('RAG Server connection failed, falling back to Gemini.', err);
       }
-    );
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Gemini API returned error status:', response.status, errorText);
-      throw new Error(`Gemini API error: ${response.statusText} (${response.status})`);
     }
 
-    const resData = await response.json();
-    const parsedText = resData.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (!parsedText) {
-      throw new Error('Invalid or empty response structure from Gemini API');
-    }
+    if (!aiResult) {
+      console.log('Calling Gemini API...');
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            contents: [
+              {
+                parts: [
+                  {
+                    text: systemInstructions,
+                  },
+                ],
+              },
+            ],
+            generationConfig: {
+              responseMimeType: 'application/json',
+              responseSchema: {
+                type: 'OBJECT',
+                properties: {
+                  executiveSummary: { 
+                    type: 'STRING',
+                    description: 'สรุปผลภาพรวมการดำเนินงานของสัปดาห์นี้สำหรับผู้บริหาร เขียนอย่างเป็นทางการ กระชับ ความยาวประมาณ 3-5 ประโยค'
+                  },
+                  keyChallenges: {
+                    type: 'ARRAY',
+                    description: 'รายการความท้าทายหรือปัญหาวิกฤตสูงสุดที่วิเคราะห์ได้จากเคสในสัปดาห์นี้ จำนวน 2-3 ข้อ',
+                    items: {
+                      type: 'OBJECT',
+                      properties: {
+                        title: { type: 'STRING', description: 'หัวข้อสั้นๆ ของปัญหา เช่น ปัญหาความเสถียรของระบบ' },
+                        description: { type: 'STRING', description: 'คำอธิบายสาเหตุและผลกระทบของปัญหานั้นๆ' }
+                      },
+                      required: ['title', 'description']
+                    }
+                  },
+                  actionItems: {
+                    type: 'ARRAY',
+                    description: 'แผนการดำเนินงานเพื่อแก้ไขปัญหากลุ่มนี้อย่างรวดเร็วและยั่งยืน (Action Plan) จำนวน 2-3 ข้อ',
+                    items: {
+                      type: 'OBJECT',
+                      properties: {
+                        action: { type: 'STRING', description: 'งานหรือกิจกรรมที่ต้องทำอย่างละเอียดและชัดเจน' },
+                        owner: { type: 'STRING', description: 'ผู้รับผิดชอบหลัก เช่น ทีมเน็ตเวิร์ก, ทีมโปรแกรมเมอร์' },
+                        targetDate: { type: 'STRING', description: 'กำหนดการส่งงานในรูปแบบ YYYY-MM-DD' }
+                      },
+                      required: ['action', 'owner', 'targetDate']
+                    }
+                  },
+                  hospitalInsights: {
+                    type: 'OBJECT',
+                    description: 'คีย์ค่าแนะนำเชิงลึกรายโรงพยาบาล โดยคีย์เป็นชื่อโรงพยาบาลเป้าหมาย (เช่น โรงพยาบาลสะเมิง) และค่าเป็นข้อความวิเคราะห์สั้นๆ เจาะจงสำหรับโรงพยาบาลนั้น',
+                    properties: {}
+                  }
+                },
+                required: ['executiveSummary', 'keyChallenges', 'actionItems', 'hospitalInsights']
+              }
+            }
+          }),
+        }
+      );
 
-    const aiResult = JSON.parse(parsedText);
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Gemini API returned error status:', response.status, errorText);
+        throw new Error(`Gemini API error: ${response.statusText} (${response.status})`);
+      }
+
+      const resData = await response.json();
+      const parsedText = resData.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (!parsedText) {
+        throw new Error('Invalid or empty response structure from Gemini API');
+      }
+
+      aiResult = JSON.parse(parsedText);
+    }
     return NextResponse.json({
       ...aiResult,
       isSimulated: false
