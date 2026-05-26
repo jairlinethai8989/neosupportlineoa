@@ -44,17 +44,12 @@ export default function InsightsPage() {
     setGeneratingReport(true);
     setAiReport(null);
     try {
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      setAiReport({
-        executiveSummary: "จากการวิเคราะห์ข้อมูลพบว่า มีการแจ้งปัญหาเข้ามาอย่างหนาแน่นในช่วงต้นสัปดาห์ โดยเฉพาะวันจันทร์และอังคาร",
-        keyChallenges: [
-          { title: "ปัญหาเน็ตเวิร์ก", description: "พบการแจ้งเรื่องสัญญาณหลุดบ่อยครั้งในกลุ่มโรงพยาบาลศูนย์" }
-        ],
-        actionItems: [
-          { action: "ตรวจสอบอุปกรณ์ Router", owner: "ทีม Network", targetDate: "2026-06-01" }
-        ]
-      });
+      const res = await fetch(`/api/analytics/insights?preset=${preset}&hospitalId=${hospitalId}&ai=true`);
+      if (!res.ok) throw new Error('Failed to generate AI report');
+      const json = await res.json();
+      if (json.aiReport) {
+        setAiReport(json.aiReport);
+      }
     } catch (err) {
       console.error(err);
     } finally {
