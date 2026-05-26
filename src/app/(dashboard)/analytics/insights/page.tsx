@@ -5,7 +5,7 @@ import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, 
   PieChart, Pie, Cell 
 } from 'recharts';
-import { Brain, Filter, Download, Activity, FileText, Users, Building, AlertTriangle } from 'lucide-react';
+import { Brain, Filter, Activity, FileText, Users, Building, AlertTriangle } from 'lucide-react';
 import ActivityHeatmap from '@/components/analytics/ActivityHeatmap';
 
 const COLORS = ['#06b6d4', '#3b82f6', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981'];
@@ -13,7 +13,7 @@ const COLORS = ['#06b6d4', '#3b82f6', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981'
 export default function InsightsPage() {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [preset, setPreset] = useState('7days');
+  const [preset, setPreset] = useState('all'); // Change default to 'all' so data shows up
   const [hospitalId, setHospitalId] = useState('all');
   const [generatingReport, setGeneratingReport] = useState(false);
   const [aiReport, setAiReport] = useState<any>(null);
@@ -40,9 +40,6 @@ export default function InsightsPage() {
     setGeneratingReport(true);
     setAiReport(null);
     try {
-      // If we had a specific AI endpoint for generating insight report, we would call it here.
-      // For now, we will just simulate a slight delay or call a mock.
-      // E.g. fetch('/api/reports/presentation/gemini', { method: 'POST', body: JSON.stringify({ ticketData: data }) })
       await new Promise(resolve => setTimeout(resolve, 2000));
       
       setAiReport({
@@ -63,9 +60,9 @@ export default function InsightsPage() {
 
   if (loading && !data) {
     return (
-      <div className="flex h-[80vh] items-center justify-center">
-        <div className="text-cyan-500 flex flex-col items-center">
-          <Activity className="w-8 h-8 animate-spin mb-4" />
+      <div style={{ display: 'flex', height: '80vh', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ color: 'var(--primary)', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+          <Activity size={32} style={{ animation: 'spin 1s linear infinite', marginBottom: '16px' }} />
           <p>กำลังโหลดข้อมูลเชิงลึก...</p>
         </div>
       </div>
@@ -73,24 +70,24 @@ export default function InsightsPage() {
   }
 
   return (
-    <div className="p-6 max-w-7xl mx-auto text-white space-y-6">
+    <div className="animate-page-in" style={{ padding: '0', maxWidth: '100%', color: 'var(--text-main)', display: 'flex', flexDirection: 'column', gap: '24px' }}>
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white/5 p-4 rounded-xl border border-white/10 backdrop-blur-md">
+      <div className="glass" style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px', padding: '24px', borderRadius: '16px', border: '1px solid var(--border)' }}>
         <div>
-          <h1 className="text-2xl font-bold bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent flex items-center gap-2">
-            <Brain className="w-6 h-6 text-cyan-400" />
+          <h1 style={{ fontSize: '24px', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '10px', color: 'var(--primary)' }}>
+            <Brain size={28} />
             AI Support Insights
           </h1>
-          <p className="text-white/60 text-sm mt-1">วิเคราะห์พฤติกรรมการแจ้งปัญหาและแนวโน้มการทำงาน</p>
+          <p style={{ color: 'var(--text-muted)', fontSize: '14px', marginTop: '4px' }}>วิเคราะห์พฤติกรรมการแจ้งปัญหาและแนวโน้มการทำงานอัจฉริยะ</p>
         </div>
         
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="flex items-center gap-2 bg-black/40 px-3 py-1.5 rounded-lg border border-white/10">
-            <Filter className="w-4 h-4 text-white/50" />
+        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '12px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--bg-card)', padding: '8px 16px', borderRadius: '12px', border: '1px solid var(--border)' }}>
+            <Filter size={16} color="var(--primary)" />
             <select 
               value={preset} 
               onChange={(e) => setPreset(e.target.value)}
-              className="bg-transparent text-sm outline-none text-white/90"
+              style={{ background: 'transparent', border: 'none', color: 'var(--text-main)', fontSize: '14px', outline: 'none' }}
             >
               <option value="7days">7 วันล่าสุด</option>
               <option value="30days">30 วันล่าสุด</option>
@@ -101,48 +98,49 @@ export default function InsightsPage() {
           <button 
             onClick={handleGenerateReport}
             disabled={generatingReport || loading}
-            className="flex items-center gap-2 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 px-4 py-2 rounded-lg text-sm font-medium transition-all shadow-[0_0_15px_rgba(6,182,212,0.3)] disabled:opacity-50"
+            className="glass-interactive"
+            style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'linear-gradient(135deg, var(--primary) 0%, var(--border-active) 100%)', color: 'white', padding: '10px 20px', borderRadius: '12px', border: 'none', fontWeight: '700', fontSize: '14px', boxShadow: '0 4px 15px var(--primary-transparent)', cursor: (generatingReport || loading) ? 'not-allowed' : 'pointer', opacity: (generatingReport || loading) ? 0.6 : 1 }}
           >
-            {generatingReport ? <Activity className="w-4 h-4 animate-spin" /> : <Brain className="w-4 h-4" />}
+            {generatingReport ? <Activity size={18} style={{ animation: 'spin 1s linear infinite' }} /> : <Brain size={18} />}
             {generatingReport ? 'กำลังวิเคราะห์...' : 'Generate AI Report'}
           </button>
         </div>
       </div>
 
       {aiReport && (
-        <div className="bg-gradient-to-br from-blue-900/40 to-purple-900/40 p-6 rounded-xl border border-blue-500/30 backdrop-blur-md relative overflow-hidden">
-          <div className="absolute top-0 right-0 p-4 opacity-10">
-            <Brain className="w-32 h-32" />
+        <div className="glass" style={{ position: 'relative', overflow: 'hidden', padding: '24px', borderRadius: '16px', border: '1px solid var(--primary)', background: 'linear-gradient(to bottom right, rgba(6, 182, 212, 0.1), rgba(59, 130, 246, 0.1))' }}>
+          <div style={{ position: 'absolute', top: 0, right: 0, padding: '20px', opacity: 0.05, pointerEvents: 'none' }}>
+            <Brain size={150} />
           </div>
-          <h2 className="text-xl font-bold text-cyan-300 mb-4 flex items-center gap-2">
-            <Brain className="w-5 h-5" /> AI Executive Summary
+          <h2 style={{ fontSize: '20px', fontWeight: '800', color: 'var(--primary)', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Brain size={24} /> AI Executive Summary
           </h2>
-          <p className="text-white/90 leading-relaxed mb-6">{aiReport.executiveSummary}</p>
+          <p style={{ color: 'var(--text-main)', lineHeight: '1.6', marginBottom: '24px' }}>{aiReport.executiveSummary}</p>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="bg-black/30 p-4 rounded-lg border border-white/5">
-              <h3 className="text-orange-400 font-medium mb-3 flex items-center gap-2">
-                <AlertTriangle className="w-4 h-4" /> Key Challenges
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '16px' }}>
+            <div style={{ background: 'var(--bg-sidebar)', padding: '16px', borderRadius: '12px', border: '1px solid var(--border)' }}>
+              <h3 style={{ color: '#f59e0b', fontWeight: '700', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <AlertTriangle size={18} /> Key Challenges
               </h3>
-              <ul className="space-y-3">
+              <ul style={{ paddingLeft: '0', listStyle: 'none', margin: 0, display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 {aiReport.keyChallenges.map((kc: any, i: number) => (
-                  <li key={i} className="text-sm">
-                    <strong className="block text-white/90">{kc.title}</strong>
-                    <span className="text-white/60">{kc.description}</span>
+                  <li key={i} style={{ fontSize: '14px' }}>
+                    <strong style={{ display: 'block', color: 'var(--text-main)' }}>{kc.title}</strong>
+                    <span style={{ color: 'var(--text-muted)' }}>{kc.description}</span>
                   </li>
                 ))}
               </ul>
             </div>
             
-            <div className="bg-black/30 p-4 rounded-lg border border-white/5">
-              <h3 className="text-green-400 font-medium mb-3 flex items-center gap-2">
-                <Activity className="w-4 h-4" /> Action Items
+            <div style={{ background: 'var(--bg-sidebar)', padding: '16px', borderRadius: '12px', border: '1px solid var(--border)' }}>
+              <h3 style={{ color: 'var(--success)', fontWeight: '700', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Activity size={18} /> Action Items
               </h3>
-              <ul className="space-y-3">
+              <ul style={{ paddingLeft: '0', listStyle: 'none', margin: 0, display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 {aiReport.actionItems.map((ai: any, i: number) => (
-                  <li key={i} className="text-sm border-l-2 border-green-500/50 pl-3">
-                    <strong className="block text-white/90">{ai.action}</strong>
-                    <span className="text-white/50 text-xs mt-1 block">Owner: {ai.owner} | Due: {ai.targetDate}</span>
+                  <li key={i} style={{ fontSize: '14px', borderLeft: '2px solid var(--success)', paddingLeft: '12px' }}>
+                    <strong style={{ display: 'block', color: 'var(--text-main)' }}>{ai.action}</strong>
+                    <span style={{ color: 'var(--text-dim)', fontSize: '12px', display: 'block', marginTop: '4px' }}>Owner: {ai.owner} | Due: {ai.targetDate}</span>
                   </li>
                 ))}
               </ul>
@@ -152,37 +150,37 @@ export default function InsightsPage() {
       )}
 
       {/* Top Row: Hospitals & Issue Types */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white/5 border border-white/10 rounded-xl p-5 backdrop-blur-sm">
-          <h2 className="text-lg font-semibold mb-4 flex items-center gap-2 text-white/90">
-            <Building className="w-5 h-5 text-blue-400" />
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '24px' }}>
+        <div className="glass" style={{ border: '1px solid var(--border)', borderRadius: '16px', padding: '24px' }}>
+          <h2 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-main)' }}>
+            <Building size={20} color="var(--primary)" />
             Top Hospitals by Volume
           </h2>
-          <div className="h-[300px] w-full">
+          <div style={{ height: '300px', width: '100%' }}>
             {data?.topHospitals?.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={data.topHospitals} layout="vertical" margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-                  <XAxis type="number" stroke="#ffffff40" fontSize={12} />
-                  <YAxis dataKey="name" type="category" width={120} stroke="#ffffff40" fontSize={12} />
+                  <XAxis type="number" stroke="var(--text-muted)" fontSize={12} tickLine={false} axisLine={false} />
+                  <YAxis dataKey="name" type="category" width={120} stroke="var(--text-muted)" fontSize={12} tickLine={false} axisLine={false} />
                   <Tooltip 
-                    cursor={{fill: 'rgba(255,255,255,0.05)'}}
-                    contentStyle={{ backgroundColor: 'rgba(0,0,0,0.8)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px' }}
+                    cursor={{fill: 'var(--bg-card)'}}
+                    contentStyle={{ backgroundColor: 'var(--bg-sidebar)', border: '1px solid var(--border)', borderRadius: '8px', color: 'var(--text-main)' }}
                   />
-                  <Bar dataKey="count" fill="#06b6d4" radius={[0, 4, 4, 0]} />
+                  <Bar dataKey="count" fill="var(--primary)" radius={[0, 4, 4, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             ) : (
-              <div className="h-full flex items-center justify-center text-white/40">ไม่มีข้อมูล</div>
+              <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-dim)' }}>ไม่มีข้อมูล</div>
             )}
           </div>
         </div>
 
-        <div className="bg-white/5 border border-white/10 rounded-xl p-5 backdrop-blur-sm">
-          <h2 className="text-lg font-semibold mb-4 flex items-center gap-2 text-white/90">
-            <Activity className="w-5 h-5 text-purple-400" />
+        <div className="glass" style={{ border: '1px solid var(--border)', borderRadius: '16px', padding: '24px' }}>
+          <h2 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-main)' }}>
+            <Activity size={20} color="#a855f7" />
             Issue Types Breakdown
           </h2>
-          <div className="h-[300px] w-full flex items-center justify-center relative">
+          <div style={{ height: '300px', width: '100%' }}>
             {data?.issueTypes?.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
@@ -200,80 +198,88 @@ export default function InsightsPage() {
                     ))}
                   </Pie>
                   <Tooltip 
-                    contentStyle={{ backgroundColor: 'rgba(0,0,0,0.8)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px' }}
+                    contentStyle={{ backgroundColor: 'var(--bg-sidebar)', border: '1px solid var(--border)', borderRadius: '8px', color: 'var(--text-main)' }}
                   />
                 </PieChart>
               </ResponsiveContainer>
             ) : (
-              <div className="h-full flex items-center justify-center text-white/40">ไม่มีข้อมูล</div>
+              <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-dim)' }}>ไม่มีข้อมูล</div>
             )}
           </div>
         </div>
       </div>
 
       {/* Middle Row: New Features (Top Subjects & Top Staff) */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white/5 border border-white/10 rounded-xl p-5 backdrop-blur-sm">
-          <h2 className="text-lg font-semibold mb-4 flex items-center gap-2 text-white/90">
-            <FileText className="w-5 h-5 text-pink-400" />
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '24px' }}>
+        <div className="glass" style={{ border: '1px solid var(--border)', borderRadius: '16px', padding: '24px' }}>
+          <h2 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-main)' }}>
+            <FileText size={20} color="#ec4899" />
             เรื่องที่แจ้งมาบ่อยที่สุด (Top Subjects)
           </h2>
-          <div className="space-y-3">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
             {data?.topSubjects?.length > 0 ? (
               data.topSubjects.map((subject: any, idx: number) => (
-                <div key={idx} className="flex items-center justify-between p-3 bg-black/20 rounded-lg border border-white/5 hover:border-white/10 transition-colors">
-                  <div className="flex items-center gap-3">
-                    <div className="w-6 h-6 rounded-full bg-white/10 flex items-center justify-center text-xs text-white/60">
+                <div key={idx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px', background: 'var(--bg-card)', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <div style={{ width: '24px', height: '24px', borderRadius: '50%', background: 'var(--bg-sidebar)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', color: 'var(--text-muted)' }}>
                       {idx + 1}
                     </div>
-                    <span className="text-sm text-white/90 truncate max-w-[200px] md:max-w-[250px]">{subject.name}</span>
+                    <span style={{ fontSize: '14px', color: 'var(--text-main)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '250px' }}>{subject.name}</span>
                   </div>
-                  <span className="text-cyan-400 font-semibold">{subject.count} เคส</span>
+                  <span style={{ color: 'var(--primary)', fontWeight: '700' }}>{subject.count} เคส</span>
                 </div>
               ))
             ) : (
-              <div className="text-center text-white/40 py-8">ไม่มีข้อมูล</div>
+              <div style={{ textAlign: 'center', color: 'var(--text-dim)', padding: '32px 0' }}>ไม่มีข้อมูล</div>
             )}
           </div>
         </div>
 
-        <div className="bg-white/5 border border-white/10 rounded-xl p-5 backdrop-blur-sm">
-          <h2 className="text-lg font-semibold mb-4 flex items-center gap-2 text-white/90">
-            <Users className="w-5 h-5 text-emerald-400" />
+        <div className="glass" style={{ border: '1px solid var(--border)', borderRadius: '16px', padding: '24px' }}>
+          <h2 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-main)' }}>
+            <Users size={20} color="var(--success)" />
             เจ้าหน้าที่โรงพยาบาลที่แจ้งบ่อยที่สุด
           </h2>
-          <div className="space-y-3">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
             {data?.topStaff?.length > 0 ? (
               data.topStaff.map((staff: any, idx: number) => (
-                <div key={idx} className="flex items-center justify-between p-3 bg-black/20 rounded-lg border border-white/5 hover:border-white/10 transition-colors">
-                  <div className="flex flex-col">
-                    <span className="text-sm font-medium text-white/90">{staff.name}</span>
-                    <span className="text-xs text-white/50">{staff.hospital}</span>
+                <div key={idx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px', background: 'var(--bg-card)', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column' }}>
+                    <span style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text-main)' }}>{staff.name}</span>
+                    <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{staff.hospital}</span>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-emerald-400 font-semibold text-lg">{staff.count}</span>
-                    <span className="text-xs text-white/40">ใบงาน</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{ color: 'var(--success)', fontWeight: '700', fontSize: '18px' }}>{staff.count}</span>
+                    <span style={{ fontSize: '12px', color: 'var(--text-dim)' }}>ใบงาน</span>
                   </div>
                 </div>
               ))
             ) : (
-              <div className="text-center text-white/40 py-8">ไม่มีข้อมูล</div>
+              <div style={{ textAlign: 'center', color: 'var(--text-dim)', padding: '32px 0' }}>ไม่มีข้อมูล</div>
             )}
           </div>
         </div>
       </div>
 
       {/* Bottom Row: Activity Heatmap */}
-      <div className="bg-white/5 border border-white/10 rounded-xl p-5 backdrop-blur-sm">
-        <h2 className="text-lg font-semibold mb-4 flex items-center gap-2 text-white/90">
-          <Activity className="w-5 h-5 text-cyan-400" />
+      <div className="glass" style={{ border: '1px solid var(--border)', borderRadius: '16px', padding: '24px' }}>
+        <h2 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-main)' }}>
+          <Activity size={20} color="var(--primary)" />
           ความหนาแน่นของการแจ้งปัญหา (Activity Heatmap)
         </h2>
-        {data?.heatmapData && (
+        {data?.heatmapData && data.heatmapData.length > 0 ? (
           <ActivityHeatmap data={data.heatmapData} />
+        ) : (
+          <div style={{ textAlign: 'center', color: 'var(--text-dim)', padding: '32px 0' }}>ไม่มีข้อมูล</div>
         )}
       </div>
-
+      
+      <style dangerouslySetInnerHTML={{__html: `
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+      `}} />
     </div>
   );
 }
