@@ -770,33 +770,60 @@ function GeminiConfigForm({ globalSettings, onSaveSuccess }: { globalSettings: a
     }
     setTesting(true);
     setTestResult(null);
-    try {
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey.trim()}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: "Respond with exactly one word: OK" }] }]
-        })
-      });
 
-      if (response.ok) {
-        const data = await response.json();
-        if (data.candidates && data.candidates.length > 0) {
-          setTestResult({ success: true, message: 'การเชื่อมต่อสำเร็จ! API Key สามารถใช้งานได้ 🟢' });
-        } else {
-          setTestResult({ success: false, message: 'เชื่อมต่อได้ แต่ไม่ได้รับคำตอบที่ถูกต้อง 🟡' });
-        }
-      } else {
-        const errorData = await response.json().catch(() => null);
-        setTestResult({ success: false, message: `ล้มเหลว: ${errorData?.error?.message || response.statusText} 🔴` });
+    const endpoints = [
+      {
+        url: `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey.trim()}`,
+        label: 'Gemini 1.5 Flash (v1)'
+      },
+      {
+        url: `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey.trim()}`,
+        label: 'Gemini 1.5 Flash (v1beta)'
+      },
+      {
+        url: `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey.trim()}`,
+        label: 'Gemini 2.5 Flash (v1beta)'
       }
-    } catch (e: any) {
-      setTestResult({ success: false, message: `เกิดข้อผิดพลาดในการเชื่อมต่อ: ${e.message} 🔴` });
-    } finally {
-      setTesting(false);
+    ];
+
+    let lastErrorMsg = '';
+
+    for (const endpoint of endpoints) {
+      try {
+        const response = await fetch(endpoint.url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: "Respond with exactly one word: OK" }] }]
+          })
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          if (data.candidates && data.candidates.length > 0) {
+            setTestResult({ 
+              success: true, 
+              message: `การเชื่อมต่อสำเร็จผ่าน ${endpoint.label}! API Key สามารถใช้งานได้ 🟢` 
+            });
+            setTesting(false);
+            return;
+          }
+        } else {
+          const errorData = await response.json().catch(() => null);
+          lastErrorMsg = errorData?.error?.message || response.statusText;
+        }
+      } catch (e: any) {
+        lastErrorMsg = e.message;
+      }
     }
+
+    setTestResult({ 
+      success: false, 
+      message: `ล้มเหลว: ${lastErrorMsg || 'ไม่สามารถเชื่อมต่อได้ทุกรุ่นจำลอง'} 🔴` 
+    });
+    setTesting(false);
   };
 
   const handleSave = async () => {

@@ -182,77 +182,98 @@ ${hospitalDetailsText}
 
     if (!aiResult) {
       console.log('Calling Gemini API...');
-      const response = await fetch(
+      const endpoints = [
+        `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
         `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            contents: [
-              {
-                parts: [
-                  {
-                    text: systemInstructions,
-                  },
-                ],
-              },
-            ],
-            generationConfig: {
-              responseMimeType: 'application/json',
-              responseSchema: {
-                type: 'OBJECT',
-                properties: {
-                  executiveSummary: { 
-                    type: 'STRING',
-                    description: 'สรุปผลภาพรวมการดำเนินงานของสัปดาห์นี้สำหรับผู้บริหาร เขียนอย่างเป็นทางการ กระชับ ความยาวประมาณ 3-5 ประโยค'
-                  },
-                  keyChallenges: {
-                    type: 'ARRAY',
-                    description: 'รายการความท้าทายหรือปัญหาวิกฤตสูงสุดที่วิเคราะห์ได้จากเคสในสัปดาห์นี้ จำนวน 2-3 ข้อ',
-                    items: {
-                      type: 'OBJECT',
-                      properties: {
-                        title: { type: 'STRING', description: 'หัวข้อสั้นๆ ของปัญหา เช่น ปัญหาความเสถียรของระบบ' },
-                        description: { type: 'STRING', description: 'คำอธิบายสาเหตุและผลกระทบของปัญหานั้นๆ' }
-                      },
-                      required: ['title', 'description']
-                    }
-                  },
-                  actionItems: {
-                    type: 'ARRAY',
-                    description: 'แผนการดำเนินงานเพื่อแก้ไขปัญหากลุ่มนี้อย่างรวดเร็วและยั่งยืน (Action Plan) จำนวน 2-3 ข้อ',
-                    items: {
-                      type: 'OBJECT',
-                      properties: {
-                        action: { type: 'STRING', description: 'งานหรือกิจกรรมที่ต้องทำอย่างละเอียดและชัดเจน' },
-                        owner: { type: 'STRING', description: 'ผู้รับผิดชอบหลัก เช่น ทีมเน็ตเวิร์ก, ทีมโปรแกรมเมอร์' },
-                        targetDate: { type: 'STRING', description: 'กำหนดการส่งงานในรูปแบบ YYYY-MM-DD' }
-                      },
-                      required: ['action', 'owner', 'targetDate']
-                    }
-                  },
-                  hospitalInsights: {
-                    type: 'OBJECT',
-                    description: 'คีย์ค่าแนะนำเชิงลึกรายโรงพยาบาล โดยคีย์เป็นชื่อโรงพยาบาลเป้าหมาย (เช่น โรงพยาบาลสะเมิง) และค่าเป็นข้อความวิเคราะห์สั้นๆ เจาะจงสำหรับโรงพยาบาลนั้น',
-                    properties: {}
-                  }
-                },
-                required: ['executiveSummary', 'keyChallenges', 'actionItems', 'hospitalInsights']
-              }
-            }
-          }),
-        }
-      );
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`
+      ];
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Gemini API returned error status:', response.status, errorText);
-        throw new Error(`Gemini API error: ${response.statusText} (${response.status})`);
+      let lastErrorMsg = '';
+      let success = false;
+      let resData: any = null;
+
+      for (const url of endpoints) {
+        try {
+          const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              contents: [
+                {
+                  parts: [
+                    {
+                      text: systemInstructions,
+                    },
+                  ],
+                },
+              ],
+              generationConfig: {
+                responseMimeType: 'application/json',
+                responseSchema: {
+                  type: 'OBJECT',
+                  properties: {
+                    executiveSummary: { 
+                      type: 'STRING',
+                      description: 'สรุปผลภาพรวมการดำเนินงานของสัปดาห์นี้สำหรับผู้บริหาร เขียนอย่างเป็นทางการ กระชับ ความยาวประมาณ 3-5 ประโยค'
+                    },
+                    keyChallenges: {
+                      type: 'ARRAY',
+                      description: 'รายการความท้าทายหรือปัญหาวิกฤตสูงสุดที่วิเคราะห์ได้จากเคสในสัปดาห์นี้ จำนวน 2-3 ข้อ',
+                      items: {
+                        type: 'OBJECT',
+                        properties: {
+                          title: { type: 'STRING', description: 'หัวข้อสั้นๆ ของปัญหา เช่น ปัญหาความเสถียรของระบบ' },
+                          description: { type: 'STRING', description: 'คำอธิบายสาเหตุและผลกระทบของปัญหานั้นๆ' }
+                        },
+                        required: ['title', 'description']
+                      }
+                    },
+                    actionItems: {
+                      type: 'ARRAY',
+                      description: 'แผนการดำเนินงานเพื่อแก้ไขปัญหากลุ่มนี้อย่างรวดเร็วและยั่งยืน (Action Plan) จำนวน 2-3 ข้อ',
+                      items: {
+                        type: 'OBJECT',
+                        properties: {
+                          action: { type: 'STRING', description: 'งานหรือกิจกรรมที่ต้องทำอย่างละเอียดและชัดเจน' },
+                          owner: { type: 'STRING', description: 'ผู้รับผิดชอบหลัก เช่น ทีมเน็ตเวิร์ก, ทีมโปรแกรมเมอร์' },
+                          targetDate: { type: 'STRING', description: 'กำหนดการส่งงานในรูปแบบ YYYY-MM-DD' }
+                        },
+                        required: ['action', 'owner', 'targetDate']
+                      }
+                    },
+                    hospitalInsights: {
+                      type: 'OBJECT',
+                      description: 'คีย์ค่าแนะนำเชิงลึกรายโรงพยาบาล โดยคีย์เป็นชื่อโรงพยาบาลเป้าหมาย (เช่น โรงพยาบาลสะเมิง) และค่าเป็นข้อความวิเคราะห์สั้นๆ เจาะจงสำหรับโรงพยาบาลนั้น',
+                      properties: {}
+                    }
+                  },
+                  required: ['executiveSummary', 'keyChallenges', 'actionItems', 'hospitalInsights']
+                }
+              }
+            }),
+          });
+
+          if (response.ok) {
+            resData = await response.json();
+            success = true;
+            break;
+          } else {
+            const errorText = await response.text();
+            console.error(`Gemini API endpoint (${url.split('?')[0]}) returned error status:`, response.status, errorText);
+            lastErrorMsg = `Endpoint error: ${response.statusText} (${response.status}) - ${errorText}`;
+          }
+        } catch (e: any) {
+          console.error(`Fetch error to ${url.split('?')[0]}:`, e);
+          lastErrorMsg = e.message;
+        }
       }
 
-      const resData = await response.json();
+      if (!success || !resData) {
+        throw new Error(`Gemini API all endpoints failed. Last error: ${lastErrorMsg}`);
+      }
+
       const parsedText = resData.candidates?.[0]?.content?.parts?.[0]?.text;
       if (!parsedText) {
         throw new Error('Invalid or empty response structure from Gemini API');
