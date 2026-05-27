@@ -131,17 +131,16 @@ async function runConversationQueryWithAvatarFallback<T>(
   options?: { isList?: boolean }
 ): Promise<{ data: T | null; error: unknown }> {
   const selectPrimary = options?.isList ? inboxConversationSelectForList : inboxConversationSelect;
-  const selectLegacy = options?.isList ? inboxConversationSelectForListLegacy : inboxConversationSelectLegacy;
-  const selectMinimal = inboxConversationSelectMinimal;
-
   const primary = await runQuery(selectPrimary);
   if (!primary.error) return primary;
-  const legacy = await runQuery(selectLegacy);
-  if (!legacy.error) return legacy;
+
+  // Minimal select fallback if primary query fails
+  console.warn('Primary inbox query failed, trying minimal select:', primary.error);
+  const selectMinimal = inboxConversationSelectMinimal;
   const minimal = await runQuery(selectMinimal);
   if (!minimal.error) return minimal;
-  if (!isMissingAvatarColumnError(primary.error)) return primary;
-  return legacy;
+
+  return primary;
 }
 
 export const inboxMessageSelect = `
@@ -421,84 +420,10 @@ export async function listInboxConversationsV2(input: {
 
   if (error) {
     console.error('Inbox Query Error:', error);
-    // Safe fallback query to prevent empty inbox on transient select/schema mismatch.
-    const { data: fallbackData, error: fallbackError } =
-      await runConversationQueryWithAvatarFallback(
-        (selectClause) =>
-          supabase
-            .from('conversations')
-            .select(selectClause)
-            .order('last_message_at', { ascending: false, nullsFirst: false })
-            .order('id', { ascending: false })
-            .limit(pageSize + 1),
-        { isList: true }
-      );
-
-    if (fallbackError) {
-      console.error('Inbox Fallback Query Error:', fallbackError);
-      return { data: [], hasNext: false, nextCursor: null };
-    }
-
-    const fallbackRows = Array.isArray(fallbackData) ? fallbackData : [];
-    const normalizedFallback = await enrichConversationsIfNeeded(
-      normalizeInboxConversations(fallbackRows.slice(0, pageSize))
-    );
-    const hasNextFallback = fallbackRows.length > pageSize;
-    const nextCursorRow = normalizedFallback[normalizedFallback.length - 1];
-    return {
-      data: normalizedFallback,
-      hasNext: hasNextFallback,
-      nextCursor:
-        hasNextFallback && nextCursorRow?.last_message_at
-          ? { lastMessageAt: nextCursorRow.last_message_at, id: nextCursorRow.id }
-          : null,
-    };
+    return { data: [], hasNext: false, nextCursor: null };
   }
 
   const rows = Array.isArray(data) ? data : [];
-
-  // Defensive fallback: some environments can return zero rows for strict status filter
-  // while conversations exist with non-standard status text.
-  if (rows.length === 0 && input.status === 'active') {
-    const { data: wideData, error: wideError } = await runConversationQueryWithAvatarFallback(
-      (selectClause) =>
-        supabase
-          .from('conversations')
-          .select(selectClause)
-          .order('last_message_at', { ascending: false, nullsFirst: false })
-          .order('id', { ascending: false })
-          .limit(pageSize + 1),
-      { isList: true }
-    );
-
-    const wideRows = Array.isArray(wideData) ? wideData : [];
-    if (!wideError && wideRows.length > 0) {
-      const normalizedWide = await enrichConversationsIfNeeded(
-        normalizeInboxConversations(wideRows.slice(0, pageSize))
-      );
-      const activeLike = normalizedWide.filter((conversation) => {
-        const normalizedStatus = String(conversation.status || '').toLowerCase().trim();
-        const isClosedLike =
-          normalizedStatus === 'closed' ||
-          normalizedStatus === 'resolved' ||
-          normalizedStatus === 'done';
-        if (conversation.is_active === true) return true;
-        return !isClosedLike;
-      });
-
-      const hasNextWide = wideRows.length > pageSize;
-      const nextCursorWide = activeLike[activeLike.length - 1];
-      return {
-        data: activeLike,
-        hasNext: hasNextWide,
-        nextCursor:
-          hasNextWide && nextCursorWide?.last_message_at
-            ? { lastMessageAt: nextCursorWide.last_message_at, id: nextCursorWide.id }
-            : null,
-      };
-    }
-  }
-
   const normalized = await enrichConversationsIfNeeded(
     normalizeInboxConversations(rows.slice(0, pageSize))
   );

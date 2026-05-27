@@ -34,8 +34,15 @@ export default function MasterSettingsPage() {
     departments: ctxDepartments, 
     companySettings: ctxGlobalSettings, 
     refreshData,
-    userProfile
+    userProfile,
+    ensureHospitals,
+    ensureDepartments
   } = useAppContext();
+
+  useEffect(() => {
+    if (ensureHospitals) void ensureHospitals();
+    if (ensureDepartments) void ensureDepartments();
+  }, [ensureHospitals, ensureDepartments]);
 
   const canEdit = React.useMemo(() => {
     if (userProfile?.role === 'Administrator') return true;

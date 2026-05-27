@@ -40,7 +40,12 @@ export interface LatestTicketRealtimeEvent {
   occurredAt: number;
 }
 
-export function useNotifications(agentId: string | null, role: string | null = null, locale: StaffLocale = 'th') {
+export function useNotifications(
+  agentId: string | null,
+  role: string | null = null,
+  locale: StaffLocale = 'th',
+  userProfile: any = null
+) {
   // User-specific localStorage keys to isolate notification clear/read state between users
   const userStorageKey = useMemo(() => agentId ? `neo_notif_read_ids_v1_${agentId}` : 'neo_notif_read_ids_v1', [agentId]);
   const userClearBeforeKey = useMemo(() => agentId ? `neo_notif_clear_before_ms_v1_${agentId}` : 'neo_notif_clear_before_ms_v1', [agentId]);
@@ -507,7 +512,7 @@ export function useNotifications(agentId: string | null, role: string | null = n
 
   // --- 6. Effects ---
   
-  // Effect 1: Load configuration and profile settings once on mount or when agentId changes
+  // Effect 1: Load configuration and profile settings once on mount or when userProfile changes
   useEffect(() => {
     if (!agentId) return;
     
@@ -517,19 +522,16 @@ export function useNotifications(agentId: string | null, role: string | null = n
       const voice = localStorage.getItem(SOUND_VOICE_KEY); if (voice === 'female' || voice === 'male') setSoundVoiceState(voice as any);
     }
 
-    const loadFromProfile = async () => {
-      const { data } = await supabase.from('profiles').select('*').eq('id', agentId).maybeSingle();
-      if (!data) return;
-      if (data.notif_sound_enabled !== undefined) setIsMuted(!data.notif_sound_enabled);
-      if (data.notif_sound_mode) setSoundModeState(data.notif_sound_mode);
-      if (data.notif_sound_voice) setSoundVoiceState(data.notif_sound_voice);
-      if (data.notif_event_new_ticket !== undefined) setPrefNewTicket(data.notif_event_new_ticket);
-      if (data.notif_event_new_message !== undefined) setPrefNewMessage(data.notif_event_new_message);
-      if (data.notif_event_transfer !== undefined) setPrefTransfer(data.notif_event_transfer);
-      if (data.notif_event_sla_warning !== undefined) setPrefSlaWarning(data.notif_event_sla_warning);
-    };
-    void loadFromProfile();
-  }, [agentId]);
+    if (userProfile) {
+      if (userProfile.notif_sound_enabled !== undefined) setIsMuted(!userProfile.notif_sound_enabled);
+      if (userProfile.notif_sound_mode) setSoundModeState(userProfile.notif_sound_mode);
+      if (userProfile.notif_sound_voice) setSoundVoiceState(userProfile.notif_sound_voice);
+      if (userProfile.notif_event_new_ticket !== undefined) setPrefNewTicket(userProfile.notif_event_new_ticket);
+      if (userProfile.notif_event_new_message !== undefined) setPrefNewMessage(userProfile.notif_event_new_message);
+      if (userProfile.notif_event_transfer !== undefined) setPrefTransfer(userProfile.notif_event_transfer);
+      if (userProfile.notif_event_sla_warning !== undefined) setPrefSlaWarning(userProfile.notif_event_sla_warning);
+    }
+  }, [agentId, userProfile]);
 
   // Effect 2: Setup real-time subscriptions and initialize log/SLA fetching
   useEffect(() => {
@@ -539,7 +541,7 @@ export function useNotifications(agentId: string | null, role: string | null = n
       void fetchLogsRef.current(); 
       void fetchNewTicketsCountRef.current(); 
       scheduleFetchSlaBreachesRef.current(1600); 
-    }, 0);
+    }, 2000);
 
     const logChannel = supabase.channel(`logs-${agentId}`).on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'ticket_logs' }, (p) => {
       const row = p.new as any; if (row.to_user_id !== agentId && row.performer_id !== agentId) return;

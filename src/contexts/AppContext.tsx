@@ -11,6 +11,8 @@ interface AppContextType {
   departments: Array<Record<string, unknown>>;
   loading: boolean;
   refreshData: (type?: 'all' | 'profile' | 'settings' | 'hospitals' | 'departments') => Promise<void>;
+  ensureHospitals: () => Promise<void>;
+  ensureDepartments: () => Promise<void>;
   updateStatus: (status: 'Active' | 'Busy') => Promise<void>;
 }
 export interface UserProfile {
@@ -53,6 +55,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [departments, setDepartments] = useState<Array<Record<string, unknown>>>([]);
   const [loading, setLoading] = useState(true);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const hospitalsLoadedRef = React.useRef(false);
+  const departmentsLoadedRef = React.useRef(false);
 
   const fetchProfile = useCallback(async (userId: string) => {
     const { data, error } = await supabase.from('profiles').select('*').eq('id', userId).maybeSingle();
@@ -82,19 +86,31 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const { data, error } = await supabase.from('hospitals').select('*').order('name');
     if (error) throw error;
     setHospitals(data || []);
+    hospitalsLoadedRef.current = true;
   }, []);
 
   const fetchDepartments = useCallback(async () => {
     const { data, error } = await supabase.from('departments').select('*').order('name');
     if (error) throw error;
     setDepartments(data || []);
+    departmentsLoadedRef.current = true;
   }, []);
+
+  const ensureHospitals = useCallback(async () => {
+    if (hospitalsLoadedRef.current) return;
+    await fetchHospitals();
+  }, [fetchHospitals]);
+
+  const ensureDepartments = useCallback(async () => {
+    if (departmentsLoadedRef.current) return;
+    await fetchDepartments();
+  }, [fetchDepartments]);
 
   const refreshData = useCallback(
     async (type: RefreshScope = 'all') => {
       const userId =
         currentUserId ||
-        (await supabase.auth.getUser()).data.user?.id ||
+        (await supabase.auth.getSession()).data.session?.user?.id ||
         null;
 
       if (!userId && (type === 'all' || type === 'profile')) {
@@ -218,8 +234,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     async function bootstrap() {
       try {
         const {
-          data: { user },
-        } = await supabase.auth.getUser();
+          data: { session },
+        } = await supabase.auth.getSession();
+        const user = session?.user ?? null;
 
         if (cancelled) return;
 
@@ -256,9 +273,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         setLoading(false);
 
         // Background data: do not block first paint.
+        // Only profile + settings are critical. Hospitals/departments are lazy-loaded by pages that need them.
         void fetchProfile(user.id).catch(err => console.error('AppProvider profile load error:', err));
-        void Promise.all([fetchSettings(), fetchHospitals(), fetchDepartments()]).catch((err) => {
-          console.error('AppProvider background load error:', err);
+        void fetchSettings().catch((err) => {
+          console.error('AppProvider settings load error:', err);
         });
 
         profileChannel = supabase
@@ -298,6 +316,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         departments,
         loading,
         refreshData,
+        ensureHospitals,
+        ensureDepartments,
         updateStatus,
       }}
     >

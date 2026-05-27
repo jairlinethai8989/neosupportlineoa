@@ -78,7 +78,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
 
   const { locale } = useStaffLocale();
   const role = userProfile?.role || null;
-  const notif = useNotifications(agentId, role, locale);
+  const notif = useNotifications(agentId, role, locale, userProfile);
 
   const value = React.useMemo(() => ({
     ...notif,
