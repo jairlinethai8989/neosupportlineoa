@@ -269,10 +269,7 @@ export default function PresentationPage() {
     }
   };
 
-  useEffect(() => {
-    fetchPresentationData(dateRange.start, dateRange.end, false);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+
 
   const handleGenerateAIInsights = async () => {
     setAiLoading(true);
@@ -622,10 +619,34 @@ export default function PresentationPage() {
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: '#070a13', borderRadius: '6px', border: '1px solid #1e293b', position: 'relative', overflow: 'hidden' }}>
         
         {!data && !loading && (
-          <div style={{ margin: 'auto', textAlign: 'center', color: '#64748b' }}>
-            <Presentation size={64} style={{ margin: '0 auto 16px', opacity: 0.2 }} />
-            <h2 style={{ fontSize: '18px', fontWeight: '700' }}>ยังไม่ได้โหลดข้อมูลนำเสนอ</h2>
-            <p style={{ fontSize: '13px', marginTop: '8px', color: '#475569' }}>กรุณากดปุ่ม "ตั้งค่ารายงาน & AI" เพื่อกำหนดช่วงเวลาและสร้างผลงาน</p>
+          <div style={{ margin: 'auto', textAlign: 'center', color: '#64748b', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '40px' }}>
+            <Presentation size={64} style={{ margin: '0 auto 16px', opacity: 0.3, color: '#10b981' }} />
+            <h2 style={{ fontSize: '20px', fontWeight: '800', color: 'var(--text-main)' }}>Weekly Presentation Report</h2>
+            <p style={{ fontSize: '13px', marginTop: '8px', color: 'var(--text-muted)', maxWidth: '400px', lineHeight: '1.6' }}>
+              รายงานความพร้อมของสถิติและบทวิเคราะห์ประจำสัปดาห์ ยังไม่ได้ดึงข้อมูล
+            </p>
+            <button
+              onClick={() => setIsDrawerOpen(true)}
+              className="glass-interactive flex-center"
+              style={{
+                marginTop: '24px',
+                padding: '12px 24px',
+                borderRadius: '4px',
+                border: '1px solid #10b981',
+                background: '#10b98115',
+                color: '#10b981',
+                fontWeight: '700',
+                cursor: 'pointer',
+                fontSize: '13px',
+                boxShadow: '0 4px 12px rgba(16, 185, 129, 0.1)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px'
+              }}
+            >
+              <Sliders size={18} />
+              ตั้งค่ารายงาน & AI เพื่อเริ่มต้น
+            </button>
           </div>
         )}
 
@@ -1021,13 +1042,13 @@ export default function PresentationPage() {
           transition: 'transform 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
           display: 'flex',
           flexDirection: 'column',
-          padding: '30px',
+          padding: '24px',
           color: '#f8fafc',
           overflowY: 'auto'
         }}
       >
         {/* Drawer Header */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255, 255, 255, 0.1)', paddingBottom: '16px', marginBottom: '24px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255, 255, 255, 0.1)', paddingBottom: '12px', marginBottom: '18px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <Sliders size={20} color="#10b981" />
             <span style={{ fontSize: '18px', fontWeight: '800', letterSpacing: '-0.3px' }}>ตั้งค่ารายงาน & AI</span>
@@ -1041,36 +1062,36 @@ export default function PresentationPage() {
         </div>
 
         {/* Form Body */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', flex: 1 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', flex: 1 }}>
           
           {/* Section 1: Date Range */}
           <div>
             <label style={{ fontSize: '12px', fontWeight: '700', textTransform: 'uppercase', color: '#94a3b8', display: 'block', marginBottom: '8px' }}>
               ช่วงเวลารายงาน (Date Period)
             </label>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              <div style={{ display: 'flex', flexDirection: 'column' }}>
-                <span style={{ fontSize: '11px', color: '#64748b', marginBottom: '4px' }}>เริ่มวันที่ (Start Date)</span>
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+                <span style={{ fontSize: '11px', color: '#64748b', marginBottom: '4px' }}>เริ่มวันที่</span>
                 <input
                   type="date"
                   value={tempDateRange.start}
                   onChange={(e) => setTempDateRange(prev => ({ ...prev, start: e.target.value }))}
-                  style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: '4px', padding: '10px', color: '#f8fafc', outline: 'none', fontSize: '13px' }}
+                  style={{ width: '100%', background: '#1e293b', border: '1px solid #334155', borderRadius: '4px', padding: '8px 10px', color: '#f8fafc', outline: 'none', fontSize: '13px' }}
                 />
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column' }}>
-                <span style={{ fontSize: '11px', color: '#64748b', marginBottom: '4px' }}>สิ้นสุดวันที่ (End Date)</span>
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+                <span style={{ fontSize: '11px', color: '#64748b', marginBottom: '4px' }}>สิ้นสุดวันที่</span>
                 <input
                   type="date"
                   value={tempDateRange.end}
                   onChange={(e) => setTempDateRange(prev => ({ ...prev, end: e.target.value }))}
-                  style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: '4px', padding: '10px', color: '#f8fafc', outline: 'none', fontSize: '13px' }}
+                  style={{ width: '100%', background: '#1e293b', border: '1px solid #334155', borderRadius: '4px', padding: '8px 10px', color: '#f8fafc', outline: 'none', fontSize: '13px' }}
                 />
               </div>
             </div>
-            <div style={{ marginTop: '12px', display: 'flex', alignItems: 'center', gap: '8px', color: '#38bdf8', fontSize: '11px', fontWeight: '700', background: 'rgba(56, 189, 248, 0.06)', padding: '10px 14px', borderRadius: '8px', border: '1px solid rgba(56, 189, 248, 0.15)', lineHeight: '1.4' }}>
+            <div style={{ marginTop: '10px', display: 'flex', alignItems: 'center', gap: '8px', color: '#38bdf8', fontSize: '11px', fontWeight: '700', background: 'rgba(56, 189, 248, 0.06)', padding: '8px 12px', borderRadius: '8px', border: '1px solid rgba(56, 189, 248, 0.15)', lineHeight: '1.4' }}>
               {loading ? <Loader2 size={12} className="animate-spin" /> : <Info size={14} style={{ flexShrink: 0 }} />}
-              <span>{loading ? 'กำลังประมวลผลวิเคราะห์ข้อมูลใหม่...' : 'เปลี่ยนช่วงเวลาแล้ว กดปุ่ม "ปลุกพลังวิเคราะห์ด้วย AI" ด้านล่าง เพื่อสร้างรายงานและวิเคราะห์ใหม่'}</span>
+              <span>{loading ? 'กำลังประมวลผลวิเคราะห์ข้อมูลใหม่...' : 'เปลี่ยนช่วงเวลาแล้ว กดปุ่มดำเนินการสร้างรายงานด้านล่างเพื่ออัปเดตสไลด์'}</span>
             </div>
           </div>
 
@@ -1182,14 +1203,51 @@ export default function PresentationPage() {
                   placeholder="ตัวอย่างเช่น: 'เน้นสรุปประเด็นของโรงพยาบาลนางรองเป็นพิเศษ', 'วิเคราะห์เคสปิดช้าเกินเกณฑ์', 'แสดงข้อมูลและชี้จุดบกพร่องของวิศวกร'"
                   value={customPrompt}
                   onChange={(e) => setCustomPrompt(e.target.value)}
-                  style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: '4px', padding: '12px 14px', color: '#f8fafc', outline: 'none', fontSize: '12px', resize: 'none', fontFamily: 'inherit', height: '180px', lineHeight: '1.6' }}
+                  style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: '4px', padding: '12px 14px', color: '#f8fafc', outline: 'none', fontSize: '12px', resize: 'none', fontFamily: 'inherit', height: '120px', lineHeight: '1.6' }}
                 />
               </div>
             )}
 
             <button
+              onClick={async () => {
+                const payload = await fetchPresentationData(tempDateRange.start, tempDateRange.end, true);
+                if (payload) {
+                  setDateRange({ start: tempDateRange.start, end: tempDateRange.end });
+                  addToast({
+                    id: `fetch-success-${Date.now()}`,
+                    type: 'ticket',
+                    title: 'สร้างรายงานสำเร็จ',
+                    body: `ดึงข้อมูลสถิติตั้งแต่วันที่ ${tempDateRange.start} ถึง ${tempDateRange.end} เรียบร้อยแล้ว 📊`
+                  });
+                }
+              }}
+              disabled={loading}
+              className="glass-interactive"
+              style={{
+                width: '100%',
+                height: '42px',
+                borderRadius: '4px',
+                border: '1px solid #10b981',
+                background: 'transparent',
+                color: '#10b981',
+                fontWeight: '700',
+                fontSize: '13px',
+                cursor: loading ? 'not-allowed' : 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                marginBottom: '10px',
+                transition: 'all 0.2s'
+              }}
+            >
+              {loading ? <Loader2 size={16} className="animate-spin" /> : <Presentation size={16} />}
+              {loading ? 'กำลังดึงข้อมูล...' : 'ดึงข้อมูลและสร้างรายงาน'}
+            </button>
+
+            <button
               onClick={handleGenerateAIInsights}
-              disabled={aiLoading || !data}
+              disabled={aiLoading}
               className="glass-interactive"
               style={{
                 width: '100%',
@@ -1200,7 +1258,7 @@ export default function PresentationPage() {
                 color: '#0f172a',
                 fontWeight: '900',
                 fontSize: '13px',
-                cursor: (aiLoading || !data) ? 'not-allowed' : 'pointer',
+                cursor: aiLoading ? 'not-allowed' : 'pointer',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
