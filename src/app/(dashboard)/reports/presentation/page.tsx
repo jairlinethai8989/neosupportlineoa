@@ -194,6 +194,7 @@ export default function PresentationPage() {
   const [userApiKey, setUserApiKey] = useState('');
   const [aiInsights, setAiInsights] = useState<GeminiInsights | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
+  const [aiInputMode, setAiInputMode] = useState<'preset' | 'custom'>('preset');
 
   // By default select current week (Monday to Sunday)
   const [dateRange, setDateRange] = useState(() => {
@@ -276,7 +277,20 @@ export default function PresentationPage() {
   const handleGenerateAIInsights = async () => {
     setAiLoading(true);
     const preset = PRESET_PROMPTS.find(p => p.id === selectedPresetId);
-    const finalPrompt = customPrompt.trim() || (preset ? preset.prompt : PRESET_PROMPTS[0].prompt);
+    const finalPrompt = aiInputMode === 'custom'
+      ? customPrompt.trim()
+      : (preset ? preset.prompt : PRESET_PROMPTS[0].prompt);
+
+    if (aiInputMode === 'custom' && !finalPrompt) {
+      addToast({
+        id: `ai-empty-${Date.now()}`,
+        type: 'sla_warning',
+        title: 'Prompt ว่างเปล่า',
+        body: 'กรุณากรอกคำสั่ง Prompt ก่อนดำเนินการวิเคราะห์ด้วย AI ⚠️'
+      });
+      setAiLoading(false);
+      return;
+    }
 
     try {
       // 1. Fetch fresh statistics data based on the temp date range first
@@ -1096,43 +1110,82 @@ export default function PresentationPage() {
 
           {/* Section 3: Gemini AI Prompt Setup */}
           <div style={{ borderTop: '1px solid rgba(255, 255, 255, 0.08)', paddingTop: '20px' }}>
-            <label style={{ fontSize: '12px', fontWeight: '700', textTransform: 'uppercase', color: '#94a3b8', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <label style={{ fontSize: '12px', fontWeight: '700', textTransform: 'uppercase', color: '#94a3b8', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
               <Bot size={14} /> ปลุกพลังการวิเคราะห์ด้วย AI (Gemini)
             </label>
             
-
-
-            {/* Presets Prompt Dropdown */}
-            <div style={{ display: 'flex', flexDirection: 'column', marginBottom: '12px' }}>
-              <span style={{ fontSize: '10px', color: '#64748b', marginBottom: '4px' }}>รูปแบบบทวิเคราะห์สำเร็จรูป (AI Presets)</span>
-              <select
-                value={selectedPresetId}
-                onChange={(e) => {
-                  setSelectedPresetId(e.target.value);
-                  const preset = PRESET_PROMPTS.find(p => p.id === e.target.value);
-                  if (preset) setCustomPrompt(preset.prompt);
+            {/* Tab selector for AI Mode */}
+            <div style={{ display: 'flex', background: 'rgba(255,255,255,0.05)', padding: '4px', borderRadius: '8px', marginBottom: '16px', border: '1px solid rgba(255,255,255,0.08)' }}>
+              <button
+                type="button"
+                onClick={() => setAiInputMode('preset')}
+                style={{
+                  flex: 1,
+                  padding: '8px 12px',
+                  borderRadius: '6px',
+                  background: aiInputMode === 'preset' ? 'var(--primary)' : 'transparent',
+                  color: aiInputMode === 'preset' ? '#0f172a' : '#94a3b8',
+                  border: 'none',
+                  fontSize: '11px',
+                  fontWeight: '800',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s'
                 }}
-                style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: '4px', padding: '10px', color: '#f8fafc', outline: 'none', fontSize: '13px', cursor: 'pointer' }}
               >
-                {PRESET_PROMPTS.map((p) => (
-                  <option key={p.id} value={p.id}>{p.label}</option>
-                ))}
-              </select>
+                AI Presets
+              </button>
+              <button
+                type="button"
+                onClick={() => setAiInputMode('custom')}
+                style={{
+                  flex: 1,
+                  padding: '8px 12px',
+                  borderRadius: '6px',
+                  background: aiInputMode === 'custom' ? 'var(--primary)' : 'transparent',
+                  color: aiInputMode === 'custom' ? '#0f172a' : '#94a3b8',
+                  border: 'none',
+                  fontSize: '11px',
+                  fontWeight: '800',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s'
+                }}
+              >
+                Custom Prompt
+              </button>
             </div>
 
-            {/* Custom Prompt Text Area */}
-            <div style={{ display: 'flex', flexDirection: 'column', marginBottom: '12px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                <span style={{ fontSize: '10px', color: '#64748b' }}>ปรับแต่ง Prompt เพิ่มเติมตามต้องการ</span>
-                <span style={{ fontSize: '9px', color: '#10b981' }}>CUSTOMIZABLE</span>
+            {aiInputMode === 'preset' ? (
+              /* Presets Prompt Dropdown */
+              <div style={{ display: 'flex', flexDirection: 'column', marginBottom: '16px' }}>
+                <span style={{ fontSize: '10px', color: '#64748b', marginBottom: '6px' }}>รูปแบบบทวิเคราะห์สำเร็จรูป (AI Presets)</span>
+                <select
+                  value={selectedPresetId}
+                  onChange={(e) => setSelectedPresetId(e.target.value)}
+                  style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: '4px', padding: '10px', color: '#f8fafc', outline: 'none', fontSize: '13px', cursor: 'pointer' }}
+                >
+                  {PRESET_PROMPTS.map((p) => (
+                    <option key={p.id} value={p.id}>{p.label}</option>
+                  ))}
+                </select>
+                <div style={{ marginTop: '8px', padding: '10px', background: 'rgba(255,255,255,0.02)', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.04)', fontSize: '11px', color: '#94a3b8', lineHeight: '1.4' }}>
+                  <strong>คำสั่งที่ใช้:</strong> {PRESET_PROMPTS.find(p => p.id === selectedPresetId)?.prompt}
+                </div>
               </div>
-              <textarea
-                placeholder="ป้อนคำสั่ง Prompt ของคุณที่นี่ หรือแก้ไข Preset ด้านบน..."
-                value={customPrompt}
-                onChange={(e) => setCustomPrompt(e.target.value)}
-                style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: '4px', padding: '12px 14px', color: '#f8fafc', outline: 'none', fontSize: '12px', resize: 'none', fontFamily: 'inherit', height: '240px', lineHeight: '1.6' }}
-              />
-            </div>
+            ) : (
+              /* Custom Prompt Text Area */
+              <div style={{ display: 'flex', flexDirection: 'column', marginBottom: '16px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                  <span style={{ fontSize: '10px', color: '#64748b' }}>ระบุ Prompt เพื่อให้ AI วิเคราะห์ตามสั่ง</span>
+                  <span style={{ fontSize: '9px', color: '#10b981', fontWeight: '800' }}>MANUAL PROMPT</span>
+                </div>
+                <textarea
+                  placeholder="ตัวอย่างเช่น: 'เน้นสรุปประเด็นของโรงพยาบาลนางรองเป็นพิเศษ', 'วิเคราะห์เคสปิดช้าเกินเกณฑ์', 'แสดงข้อมูลและชี้จุดบกพร่องของวิศวกร'"
+                  value={customPrompt}
+                  onChange={(e) => setCustomPrompt(e.target.value)}
+                  style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: '4px', padding: '12px 14px', color: '#f8fafc', outline: 'none', fontSize: '12px', resize: 'none', fontFamily: 'inherit', height: '180px', lineHeight: '1.6' }}
+                />
+              </div>
+            )}
 
             <button
               onClick={handleGenerateAIInsights}
