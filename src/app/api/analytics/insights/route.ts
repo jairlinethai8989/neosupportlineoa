@@ -175,73 +175,91 @@ ${topStaffText || 'ไม่มีข้อมูล'}
             systemInstructions += `\n\nคำแนะนำ/โจทย์ที่ผู้ใช้อยากให้วิเคราะห์เพิ่มเติมเป็นพิเศษ:\n"${customPrompt}"`;
           }
 
-          const response = await fetch(
+          const endpoints = [
+            `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
             `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
-            {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                contents: [
-                  {
-                    parts: [
-                      {
-                        text: systemInstructions,
-                      },
-                    ],
-                  },
-                ],
-                generationConfig: {
-                  responseMimeType: 'application/json',
-                  responseSchema: {
-                    type: 'OBJECT',
-                    properties: {
-                      executiveSummary: { 
-                        type: 'STRING',
-                        description: 'สรุปผลภาพรวมการวิเคราะห์ข้อมูลความยาว 3-4 ประโยคที่วิเคราะห์จากสถิตินี้โดยตรง เขียนกระชับ เจาะจง และมีหลักการ'
-                      },
-                      keyChallenges: {
-                        type: 'ARRAY',
-                        description: 'รายการความท้าทายหรือปัญหาวิกฤตสูงสุดที่วิเคราะห์ได้จากเคสเหล่านี้ จำนวน 1-2 ข้อ',
-                        items: {
-                          type: 'OBJECT',
-                          properties: {
-                            title: { type: 'STRING', description: 'หัวข้อสั้นๆ ของปัญหา' },
-                            description: { type: 'STRING', description: 'คำอธิบายสาเหตุและผลกระทบที่วิเคราะห์ได้จากสถิติ' }
-                          },
-                          required: ['title', 'description']
-                        }
-                      },
-                      actionItems: {
-                        type: 'ARRAY',
-                        description: 'แผนการดำเนินงานเพื่อแก้ไขปัญหากลุ่มนี้อย่างรวดเร็วและยั่งยืน (Action Plan) จำนวน 1-2 ข้อ',
-                        items: {
-                          type: 'OBJECT',
-                          properties: {
-                            action: { type: 'STRING', description: 'งานหรือกิจกรรมที่ต้องทำอย่างละเอียดและชัดเจน' },
-                            owner: { type: 'STRING', description: 'ผู้รับผิดชอบหลัก เช่น ทีมเน็ตเวิร์ก, ทีมโปรแกรมเมอร์' },
-                            targetDate: { type: 'STRING', description: 'กำหนดการส่งงานในรูปแบบ YYYY-MM-DD' }
-                          },
-                          required: ['action', 'owner', 'targetDate']
-                        }
-                      }
-                    },
-                    required: ['executiveSummary', 'keyChallenges', 'actionItems']
-                  }
-                }
-              }),
-            }
-          );
+            `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`
+          ];
 
-          if (response.ok) {
-            const result = await response.json();
-            const textResult = result.candidates?.[0]?.content?.parts?.[0]?.text;
+          let success = false;
+          let resData: any = null;
+
+          for (const url of endpoints) {
+            try {
+              const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  contents: [
+                    {
+                      parts: [
+                        {
+                          text: systemInstructions,
+                        },
+                      ],
+                    },
+                  ],
+                  generationConfig: {
+                    responseMimeType: 'application/json',
+                    responseSchema: {
+                      type: 'OBJECT',
+                      properties: {
+                        executiveSummary: { 
+                          type: 'STRING',
+                          description: 'สรุปผลภาพรวมการวิเคราะห์ข้อมูลความยาว 3-4 ประโยคที่วิเคราะห์จากสถิตินี้โดยตรง เขียนกระชับ เจาะจง และมีหลักการ'
+                        },
+                        keyChallenges: {
+                          type: 'ARRAY',
+                          description: 'รายการความท้าทายหรือปัญหาวิกฤตสูงสุดที่วิเคราะห์ได้จากเคสเหล่านี้ จำนวน 1-2 ข้อ',
+                          items: {
+                            type: 'OBJECT',
+                            properties: {
+                              title: { type: 'STRING', description: 'หัวข้อสั้นๆ ของปัญหา' },
+                              description: { type: 'STRING', description: 'คำอธิบายสาเหตุและผลกระทบที่วิเคราะห์ได้จากสถิติ' }
+                            },
+                            required: ['title', 'description']
+                          }
+                        },
+                        actionItems: {
+                          type: 'ARRAY',
+                          description: 'แผนการดำเนินงานเพื่อแก้ไขปัญหากลุ่มนี้อย่างรวดเร็วและยั่งยืน (Action Plan) จำนวน 1-2 ข้อ',
+                          items: {
+                            type: 'OBJECT',
+                            properties: {
+                              action: { type: 'STRING', description: 'งานหรือกิจกรรมที่ต้องทำอย่างละเอียดและชัดเจน' },
+                              owner: { type: 'STRING', description: 'ผู้รับผิดชอบหลัก เช่น ทีมเน็ตเวิร์ก, ทีมโปรแกรมเมอร์' },
+                              targetDate: { type: 'STRING', description: 'กำหนดการส่งงานในรูปแบบ YYYY-MM-DD' }
+                            },
+                            required: ['action', 'owner', 'targetDate']
+                          }
+                        }
+                      },
+                      required: ['executiveSummary', 'keyChallenges', 'actionItems']
+                    }
+                  }
+                }),
+              });
+
+              if (response.ok) {
+                resData = await response.json();
+                success = true;
+                break;
+              } else {
+                const errorText = await response.text();
+                console.error(`Gemini API error during insights at endpoint ${url.split('?')[0]}:`, response.status, errorText);
+              }
+            } catch (err: any) {
+              console.error(`Fetch error to endpoint ${url.split('?')[0]}:`, err);
+            }
+          }
+
+          if (success && resData) {
+            const textResult = resData.candidates?.[0]?.content?.parts?.[0]?.text;
             if (textResult) {
               aiReport = JSON.parse(textResult);
             }
-          } else {
-            console.error('Gemini API error during insights:', response.statusText);
           }
         } catch (err) {
           console.error('Error generating AI report via Gemini:', err);
