@@ -278,14 +278,13 @@ export function TopBar({ isSidebarOpen, setIsSidebarOpen, isSidebarCollapsed, se
             <span style={{ fontSize: '10px', fontWeight: '850', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
               {t('dashboard.onlineStaff')}:
             </span>
-            <div style={{ display: 'flex', alignItems: 'center', position: 'relative' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', position: 'relative' }}>
               {onlineStaff.slice(0, 4).map((p, idx) => (
                 <div 
                   key={p.id} 
                   className="avatar-bubble"
                   style={{ 
                     position: 'relative', 
-                    marginLeft: idx > 0 ? '-10px' : '0', 
                     zIndex: 10 - idx,
                     cursor: 'default'
                   }}
@@ -393,7 +392,6 @@ export function TopBar({ isSidebarOpen, setIsSidebarOpen, isSidebarCollapsed, se
                     background: 'rgba(255, 255, 255, 0.05)',
                     backdropFilter: 'blur(12px)',
                     boxShadow: '0 4px 10px rgba(0,0,0,0.3)',
-                    marginLeft: '-10px', 
                     zIndex: 5,
                     display: 'flex',
                     alignItems: 'center',

@@ -40,7 +40,7 @@ export function TopBarClock({ locale }: { locale: 'th' | 'en' }) {
         gap: '8px',
         minWidth: 0,
         maxWidth: '100%',
-        color: 'var(--text-muted)',
+        color: 'var(--text-main)',
         fontSize: '13px',
         fontWeight: '700',
         letterSpacing: '0.01em',
@@ -48,6 +48,12 @@ export function TopBarClock({ locale }: { locale: 'th' | 'en' }) {
         whiteSpace: 'nowrap',
         overflow: 'hidden',
         textOverflow: 'ellipsis',
+        background: 'var(--bg-input)',
+        border: '1px solid var(--border)',
+        padding: '6px 14px',
+        borderRadius: '20px',
+        boxShadow: '0 4px 10px rgba(0, 0, 0, 0.15)',
+        backdropFilter: 'blur(8px)',
       }}
     >
       <Clock size={14} color="var(--primary)" />

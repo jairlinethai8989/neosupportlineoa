@@ -424,9 +424,23 @@ input, button, select, textarea, optgroup, option {
   background-clip: content-box;
 }
 
-[data-theme='light'] input[type='date']::-webkit-calendar-picker-indicator { filter: invert(0); }
-input[type='date']::-webkit-calendar-picker-indicator { filter: invert(1); cursor: pointer; }
-[data-theme='light'] input[type='date']::-webkit-calendar-picker-indicator { filter: invert(0); }
+input[type='date']::-webkit-calendar-picker-indicator,
+input[type='time']::-webkit-calendar-picker-indicator {
+  filter: invert(1);
+  cursor: pointer;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+input[type='date']::-webkit-calendar-picker-indicator:hover,
+input[type='time']::-webkit-calendar-picker-indicator:hover {
+  opacity: 0.85;
+  transform: scale(1.15);
+}
+
+[data-theme='light'] input[type='date']::-webkit-calendar-picker-indicator,
+[data-theme='light'] input[type='time']::-webkit-calendar-picker-indicator {
+  filter: invert(0);
+}
 
 /* Chat Message Actions - Hover Reveal Pattern */
 .message-row-container .unsend-btn {

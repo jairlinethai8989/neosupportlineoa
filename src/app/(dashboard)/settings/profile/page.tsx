@@ -377,7 +377,7 @@ export default function ProfileSettingsPage() {
       {activeTab === 'profile' ? (
         <div style={{ 
           display: 'grid', 
-          gridTemplateColumns: '380px 380px 1fr', 
+          gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', 
           gap: '24px', 
           animation: 'slideUp 0.4s ease-out',
           alignItems: 'start'
@@ -438,15 +438,16 @@ export default function ProfileSettingsPage() {
 
                <div>
                    <label style={{ display: 'block', fontSize: '10px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '6px' }}>สีประจำตัว (Theme Color)</label>
-                   <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', padding: '12px', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '12px' }}>
+                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(8, 1fr)', gap: '12px 8px', padding: '12px', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '12px', justifyItems: 'center', alignItems: 'center' }}>
                      {PROFILE_COLORS.map(color => (
                        <button
                          key={color}
                          onClick={() => setProfile({...profile, theme_color: color})}
                          style={{
-                           width: '32px', height: '32px', borderRadius: '50%', cursor: 'pointer',
+                           width: '28px', height: '28px', borderRadius: '50%', cursor: 'pointer',
                            background: color, border: profile?.theme_color === color ? '3px solid white' : '2px solid transparent',
-                           boxShadow: profile?.theme_color === color ? `0 0 0 2px ${color}` : 'none'
+                           boxShadow: profile?.theme_color === color ? `0 0 0 2px ${color}` : 'none',
+                           transition: 'transform 0.15s ease'
                          }}
                        />
                      ))}

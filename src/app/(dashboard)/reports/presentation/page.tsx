@@ -185,6 +185,7 @@ export default function PresentationPage() {
   const [loading, setLoading] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [data, setData] = useState<PresentationData | null>(null);
+  const [isPreviewVisible, setIsPreviewVisible] = useState(true);
   
   // Custom states for Drawer, Templates & AI
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
@@ -252,6 +253,7 @@ export default function PresentationPage() {
       if (!res.ok) throw new Error('Failed to fetch presentation data');
       const payload = await res.json();
       setData(payload);
+      setIsPreviewVisible(true);
       setAiInsights(null); // Clear previous AI analytics when loading new data
       setCurrentSlideIndex(0);
       return payload;
@@ -315,6 +317,7 @@ export default function PresentationPage() {
       // 3. Update the permanent dateRange to match the new filter
       setDateRange({ start: tempDateRange.start, end: tempDateRange.end });
       setAiInsights(payload);
+      setIsPreviewVisible(true);
 
       addToast({
         id: `ai-success-${Date.now()}`,
@@ -535,6 +538,30 @@ export default function PresentationPage() {
         </div>
 
         <div style={{ display: 'flex', gap: '12px', alignItems: 'center', paddingRight: '12px' }}>
+          {data && (
+            <button
+              onClick={() => setIsPreviewVisible(!isPreviewVisible)}
+              className="glass-interactive"
+              style={{
+                height: '44px',
+                padding: '0 16px',
+                borderRadius: '4px',
+                border: '1px solid ' + (isPreviewVisible ? 'var(--text-muted)' : 'var(--primary)'),
+                background: isPreviewVisible ? 'transparent' : 'var(--primary-transparent)',
+                color: isPreviewVisible ? 'var(--text-muted)' : 'var(--primary)',
+                fontWeight: '750',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                cursor: 'pointer',
+                fontSize: '12px',
+                transition: 'all 0.2s'
+              }}
+            >
+              {isPreviewVisible ? '🙈 ซ่อนรายงาน' : '👁️ แสดงรายงาน'}
+            </button>
+          )}
+
           {/* Export Buttons */}
           <button
             onClick={handleExportPDF}
@@ -615,8 +642,49 @@ export default function PresentationPage() {
         </div>
       </div>
 
+      {/* Collapsed state placeholder banner */}
+      {!isPreviewVisible && data && (
+        <div style={{ display: 'flex', flex: 1, alignItems: 'center', justifyContent: 'center', background: 'var(--bg-card)', border: '1px dashed var(--border)', borderRadius: '12px', padding: '40px', textAlign: 'center', animation: 'fadeIn 0.3s', marginBottom: '24px' }}>
+          <div>
+            <Presentation size={48} color="var(--primary)" style={{ margin: '0 auto 16px', opacity: 0.7 }} />
+            <h3 style={{ fontSize: '18px', fontWeight: '800', marginBottom: '8px' }}>ย่อพรีวิวรายงานสไลด์ไว้</h3>
+            <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '16px' }}>คุณสามารถขยายเพื่อแสดงภาพพรีวิวสไลด์รายงาน Weekly Presentation ได้ทุกเมื่อ</p>
+            <button 
+              onClick={() => setIsPreviewVisible(true)}
+              className="glass-interactive"
+              style={{
+                padding: '10px 24px',
+                borderRadius: '8px',
+                border: 'none',
+                background: 'var(--primary)',
+                color: '#000',
+                fontWeight: '800',
+                cursor: 'pointer'
+              }}
+            >
+              👁️ ขยายแสดงพรีวิวสไลด์
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Main presentation area */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: '#070a13', borderRadius: '6px', border: '1px solid #1e293b', position: 'relative', overflow: 'hidden' }}>
+      <div 
+        style={{ 
+          flex: isPreviewVisible ? 1 : '0 0 auto', 
+          maxHeight: isPreviewVisible ? '2000px' : '0px',
+          opacity: isPreviewVisible ? 1 : 0,
+          display: 'flex', 
+          flexDirection: 'column', 
+          background: '#070a13', 
+          borderRadius: '6px', 
+          border: isPreviewVisible ? '1px solid #1e293b' : 'none', 
+          position: 'relative', 
+          overflow: 'hidden',
+          transition: 'all 0.5s cubic-bezier(0.4, 0, 0.2, 1)',
+          pointerEvents: isPreviewVisible ? 'auto' : 'none'
+        }}
+      >
         
         {!data && !loading && (
           <div style={{ margin: 'auto', textAlign: 'center', color: '#64748b', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '40px' }}>

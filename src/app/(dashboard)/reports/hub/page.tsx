@@ -119,27 +119,65 @@ export default function ReportsPage() {
     ];
 
     return (
-      <div style={{ display: 'flex', gap: '8px', borderBottom: '1px solid var(--border)', paddingBottom: '16px', marginBottom: '24px', flexWrap: 'wrap', width: '100%' }}>
-        {tabs.map(tab => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            className="glass-interactive"
-            style={{
-              padding: '10px 20px',
-              borderRadius: '12px',
-              border: '1px solid ' + (activeTab === tab.id ? 'var(--primary)' : 'var(--border)'),
-              background: activeTab === tab.id ? 'var(--primary-transparent)' : 'rgba(255,255,255,0.02)',
-              color: activeTab === tab.id ? 'var(--primary)' : 'var(--text-muted)',
-              fontSize: '13px',
-              fontWeight: '700',
-              cursor: 'pointer',
-              transition: 'all 0.2s ease'
-            }}
-          >
-            {tab.label}
-          </button>
-        ))}
+      <div 
+        style={{ 
+          position: 'sticky', 
+          top: '-24px', 
+          zIndex: 50, 
+          background: 'var(--bg-deep)', 
+          paddingTop: '16px', 
+          paddingBottom: '16px', 
+          borderBottom: '1px solid var(--border)', 
+          marginRight: '-24px', 
+          marginLeft: '-24px', 
+          paddingRight: '24px', 
+          paddingLeft: '24px',
+          marginBottom: '24px',
+          backdropFilter: 'blur(10px)',
+          display: 'flex',
+          alignItems: 'center'
+        }}
+      >
+        <div 
+          style={{ 
+            display: 'inline-flex', 
+            background: 'rgba(255, 255, 255, 0.02)', 
+            border: '1px solid var(--border)', 
+            borderRadius: '16px', 
+            padding: '6px', 
+            gap: '6px',
+            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.15)',
+            flexWrap: 'wrap'
+          }}
+        >
+          {tabs.map(tab => {
+            const isActive = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className="glass-interactive"
+                style={{
+                  padding: '10px 20px',
+                  borderRadius: '10px',
+                  border: 'none',
+                  background: isActive ? 'linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%)' : 'transparent',
+                  color: isActive ? '#ffffff' : 'var(--text-muted)',
+                  fontSize: '13px',
+                  fontWeight: isActive ? '850' : '600',
+                  cursor: 'pointer',
+                  transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+                  boxShadow: isActive ? '0 4px 15px rgba(0, 242, 254, 0.25)' : 'none',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}
+              >
+                {tab.label}
+              </button>
+            );
+          })}
+        </div>
       </div>
     );
   };
