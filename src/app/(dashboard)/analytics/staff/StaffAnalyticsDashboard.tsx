@@ -608,7 +608,7 @@ export function StaffAnalyticsDashboard({
                   ยังไม่ได้ประเมินผลงานสำหรับ <strong>{selectedAgentName}</strong> ในช่วงเวลานี้
                 </p>
                 <p style={{ fontSize: '12px', color: 'var(--text-dim)', margin: 0 }}>
-                  กรุณากดปุ่ม <strong>"ประเมินผลด้วย AI (Gemini)"</strong> ด้านบนเพื่อทำการวิเคราะห์ข้อมูล
+                  กรุณากดปุ่ม <strong>&quot;ประเมินผลด้วย AI (Gemini)&quot;</strong> ด้านบนเพื่อทำการวิเคราะห์ข้อมูล
                 </p>
               </div>
             ) : (

@@ -4,7 +4,8 @@ import {
   ArrowLeft,
   Loader2,
   RefreshCw,
-  ShieldAlert
+  ShieldAlert,
+  Award
 } from 'lucide-react';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
@@ -233,6 +234,27 @@ export default function StaffAnalyticsPage() {
           >
             {loadingStats ? <Loader2 size={18} className="animate-spin" /> : <RefreshCw size={18} />}
           </button>
+
+          <Link
+            href="/analytics/staff/evaluation-360"
+            className="glass-interactive flex-center"
+            style={{
+              padding: '10px 20px',
+              borderRadius: '12px',
+              background: 'linear-gradient(135deg, rgba(0, 242, 254, 0.9) 0%, rgba(115, 103, 240, 0.9) 100%)',
+              color: '#0a0e14',
+              fontWeight: '800',
+              fontSize: '13px',
+              textDecoration: 'none',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              boxShadow: '0 4px 15px rgba(0, 242, 254, 0.15)'
+            }}
+          >
+            <Award size={16} />
+            <span>ประเมินผล 360 องศา</span>
+          </Link>
         </div>
       </div>
 
