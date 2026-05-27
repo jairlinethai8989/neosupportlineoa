@@ -98,7 +98,7 @@ export default function MasterSettingsPage() {
       return;
     }
 
-    if (activeTab === 'google_sheets') {
+    if (activeTab === 'google_sheets' || activeTab === 'gemini_api') {
       setItems([]);
       return;
     }
