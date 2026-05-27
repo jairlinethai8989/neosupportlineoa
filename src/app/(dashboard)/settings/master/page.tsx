@@ -754,6 +754,8 @@ function GeminiConfigForm({ globalSettings, onSaveSuccess }: { globalSettings: a
   const { addToast } = useNotificationContext();
   const [apiKey, setApiKey] = useState(globalSettings?.gemini_api_key || '');
   const [saving, setSaving] = useState(false);
+  const [testing, setTesting] = useState(false);
+  const [testResult, setTestResult] = useState<{success: boolean, message: string} | null>(null);
 
   useEffect(() => {
     if (globalSettings?.gemini_api_key) {
@@ -761,12 +763,48 @@ function GeminiConfigForm({ globalSettings, onSaveSuccess }: { globalSettings: a
     }
   }, [globalSettings]);
 
+  const handleTestApi = async () => {
+    if (!apiKey.trim()) {
+      setTestResult({ success: false, message: 'กรุณากรอก API Key ก่อนทดสอบ' });
+      return;
+    }
+    setTesting(true);
+    setTestResult(null);
+    try {
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey.trim()}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: "Respond with exactly one word: OK" }] }]
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.candidates && data.candidates.length > 0) {
+          setTestResult({ success: true, message: 'การเชื่อมต่อสำเร็จ! API Key สามารถใช้งานได้ 🟢' });
+        } else {
+          setTestResult({ success: false, message: 'เชื่อมต่อได้ แต่ไม่ได้รับคำตอบที่ถูกต้อง 🟡' });
+        }
+      } else {
+        const errorData = await response.json().catch(() => null);
+        setTestResult({ success: false, message: `ล้มเหลว: ${errorData?.error?.message || response.statusText} 🔴` });
+      }
+    } catch (e: any) {
+      setTestResult({ success: false, message: `เกิดข้อผิดพลาดในการเชื่อมต่อ: ${e.message} 🔴` });
+    } finally {
+      setTesting(false);
+    }
+  };
+
   const handleSave = async () => {
     setSaving(true);
     try {
       const { error } = await supabase
         .from('company_settings')
-        .update({ gemini_api_key: apiKey })
+        .update({ gemini_api_key: apiKey.trim() })
         .eq('id', globalSettings.id);
 
       if (error) {
@@ -810,7 +848,7 @@ function GeminiConfigForm({ globalSettings, onSaveSuccess }: { globalSettings: a
             type="password"
             placeholder="AI_..."
             value={apiKey}
-            onChange={(e) => setApiKey(e.target.value)}
+            onChange={(e) => { setApiKey(e.target.value); setTestResult(null); }}
             style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', borderRadius: '12px', padding: '14px 20px', color: 'var(--text-main)', fontSize: '14px', outline: 'none' }}
           />
           <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '8px', lineHeight: '1.4' }}>
@@ -818,14 +856,33 @@ function GeminiConfigForm({ globalSettings, onSaveSuccess }: { globalSettings: a
           </p>
         </div>
 
-        <button
-          onClick={handleSave}
-          disabled={saving}
-          style={{ background: 'var(--primary)', color: 'black', border: 'none', padding: '14px 28px', borderRadius: '12px', fontWeight: '900', fontSize: '14px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', height: '56px', transition: 'all 0.2s', boxShadow: '0 8px 30px rgba(0, 242, 254, 0.2)', marginTop: '8px' }}
-        >
-          {saving ? <Loader2 size={18} className="animate-spin" /> : <Check size={18} />}
-          บันทึกการตั้งค่า
-        </button>
+        {testResult && (
+          <div style={{ padding: '12px 16px', borderRadius: '12px', background: testResult.success ? 'rgba(40, 199, 111, 0.1)' : 'rgba(239, 68, 68, 0.1)', border: `1px solid ${testResult.success ? 'rgba(40, 199, 111, 0.2)' : 'rgba(239, 68, 68, 0.2)'}`, display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ fontSize: '13px', fontWeight: '700', color: testResult.success ? '#28c76f' : '#ef4444' }}>
+              {testResult.message}
+            </span>
+          </div>
+        )}
+
+        <div style={{ display: 'flex', gap: '12px', marginTop: '8px' }}>
+          <button
+            onClick={handleTestApi}
+            disabled={testing || !apiKey}
+            style={{ flex: 1, background: 'rgba(255,255,255,0.05)', color: 'var(--text-main)', border: '1px solid var(--border)', padding: '14px 20px', borderRadius: '12px', fontWeight: '800', fontSize: '13px', cursor: (testing || !apiKey) ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', height: '56px', transition: 'all 0.2s', opacity: (testing || !apiKey) ? 0.6 : 1 }}
+          >
+            {testing ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
+            ทดสอบการเชื่อมต่อ
+          </button>
+          
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            style={{ flex: 1, background: 'var(--primary)', color: 'black', border: 'none', padding: '14px 20px', borderRadius: '12px', fontWeight: '900', fontSize: '13px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', height: '56px', transition: 'all 0.2s', boxShadow: '0 8px 30px rgba(0, 242, 254, 0.2)' }}
+          >
+            {saving ? <Loader2 size={18} className="animate-spin" /> : <Check size={18} />}
+            บันทึกการตั้งค่า
+          </button>
+        </div>
       </div>
     </div>
   );
