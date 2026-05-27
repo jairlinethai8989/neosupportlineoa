@@ -176,10 +176,22 @@ function InboxContent() {
     });
   };
 
-  const { conversations, hasNextPage, loading: inboxLoading } = useRealtimeInbox({
+  const { conversations, hasNextPage, loading: inboxLoading, refresh } = useRealtimeInbox({
     page,
     pageSize: 10
   });
+  const [showRetry, setShowRetry] = useState(false);
+
+  useEffect(() => {
+    if (!inboxLoading) return;
+    const timer = setTimeout(() => {
+      setShowRetry(true);
+    }, 10000);
+    return () => {
+      clearTimeout(timer);
+      setShowRetry(false);
+    };
+  }, [inboxLoading]);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const searchParams = useSearchParams();
   const cid = searchParams.get('cid');
@@ -371,9 +383,29 @@ function InboxContent() {
 
   if (inboxLoading && page === 1) {
     return (
-      <div className="flex-center" style={{ height: '400px', flexDirection: 'column', gap: '16px' }}>
-        <Loader2 className="animate-spin" />
-        <p style={{ color: 'var(--text-muted)' }}>{t('common.messages.loading')}</p>
+      <div className="flex-center animate-page-in" style={{ height: '400px', flexDirection: 'column', gap: '16px' }}>
+        <Loader2 className="animate-spin" size={32} style={{ color: 'var(--primary)' }} />
+        <p style={{ color: 'var(--text-muted)', fontSize: '15px' }}>{t('common.messages.loading') || 'กำลังโหลดข้อความ...'}</p>
+        {showRetry && (
+          <button
+            onClick={() => refresh()}
+            className="glass-interactive flex-center animate-page-in"
+            style={{
+              padding: '10px 20px',
+              borderRadius: '12px',
+              border: '1px solid var(--border)',
+              background: 'rgba(54, 153, 255, 0.1)',
+              color: 'var(--primary)',
+              fontSize: '14px',
+              fontWeight: 700,
+              cursor: 'pointer',
+              boxShadow: '0 8px 24px rgba(54, 153, 255, 0.05)',
+              transition: 'all 0.2s ease',
+            }}
+          >
+            {t('common.retry') || 'โหลดใหม่อีกครั้ง'}
+          </button>
+        )}
       </div>
     );
   }

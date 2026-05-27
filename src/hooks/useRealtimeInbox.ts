@@ -117,6 +117,17 @@ export function useRealtimeInbox(options: {
   const cursorByPageRef = useRef<Map<number, { lastMessageAt: string; id: string } | null>>(
     initialCache?.cursorByPage || new Map([[1, null]])
   );
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  // loading state auto-timeout fallback
+  useEffect(() => {
+    if (!loading) return;
+    const timer = setTimeout(() => {
+      console.warn('Realtime Inbox loading timed out after 15s');
+      setLoading(false);
+    }, 15000);
+    return () => clearTimeout(timer);
+  }, [loading]);
 
   // Sync state filters & page config to cache, and clear page caches if query parameters change
   useEffect(() => {
@@ -153,6 +164,12 @@ export function useRealtimeInbox(options: {
   }, [getOrInitializeCache]);
 
   const fetchConversations = useCallback(async (opts: { silent?: boolean } = {}) => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
     if (!opts.silent) {
       setLoading(true);
     }
@@ -166,9 +183,12 @@ export function useRealtimeInbox(options: {
         cursorId: cursor?.id || null,
       });
 
+      if (controller.signal.aborted) return;
+
       if (data.length === 0) {
         // Last-resort fallback to avoid disappearing inbox when strict query shape/status mismatches.
         const fallback = await listInboxConversationsFallback(pageSize);
+        if (controller.signal.aborted) return;
         const activeFallback = fallback.filter(isConversationActiveLike);
         if (activeFallback.length > 0) {
           setConversations(sortConversations(activeFallback));
@@ -186,9 +206,13 @@ export function useRealtimeInbox(options: {
         cursorByPageRef.current.delete(page + 1);
       }
     } catch (error) {
+      if ((error instanceof Error && error.name === 'AbortError') || controller.signal.aborted) {
+        return;
+      }
       console.error('Fetch Inbox Error:', error);
       try {
         const fallback = await listInboxConversations(pageSize);
+        if (controller.signal.aborted) return;
         const activeFallback = fallback.filter(isConversationActiveLike);
         setConversations(sortConversations(activeFallback));
         setHasNextPage(false);
@@ -196,7 +220,7 @@ export function useRealtimeInbox(options: {
         console.error('Fetch Inbox Fallback Error:', fallbackError);
       }
     } finally {
-      if (!opts.silent) {
+      if (!controller.signal.aborted) {
         setLoading(false);
       }
     }

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useNotificationContext } from '@/contexts/NotificationContext';
+import { useAppContext } from '@/contexts/AppContext';
 import { supabase } from '@/lib/supabase';
 import { normalizeTicketWorkspaceTicket } from '@/lib/tickets/normalizers';
 import {
@@ -16,8 +17,6 @@ import {
 } from '@/lib/tickets/feedback';
 import { claimWorkspaceTicket, resolveWorkspaceTicket } from '@/lib/tickets/mutations';
 import {
-  getTicketWorkspaceCompanySettings,
-  getTicketWorkspaceProfile,
   getTicketWorkspaceTicketById,
   getTicketWorkspaceUser,
   listTicketWorkspaceConversationsByTicketIds,
@@ -193,6 +192,7 @@ let ticketWorkspaceCache: TicketWorkspaceCache | null = null;
 export function useTicketWorkspace(filterCustomerId: string | null) {
   const router = useRouter();
   const { addToast, latestTicketRealtimeEvent } = useNotificationContext();
+  const { userProfile: appProfile, companySettings: appSettings } = useAppContext();
 
   const getOrInitializeCache = useCallback((): TicketWorkspaceCache => {
     if (!ticketWorkspaceCache || ticketWorkspaceCache.filterCustomerId !== filterCustomerId) {
@@ -465,55 +465,46 @@ export function useTicketWorkspace(filterCustomerId: string | null) {
   const fetchDataRef = useRef(fetchData);
   fetchDataRef.current = fetchData;
 
-  // 1. Initial Load for Profile and Settings (Runs exactly ONCE on mount)
+  // 1. loading state auto-timeout fallback
   useEffect(() => {
-    async function initWorkspace() {
-      const cache = getOrInitializeCache();
-      if (cache.userProfile && cache.availableModules.length > 0) {
-        // Already loaded once, bypass loading
-        return;
-      }
+    if (!loading) return;
+    const timer = setTimeout(() => {
+      console.warn('Ticket Workspace loading timed out after 15s');
+      setLoading(false);
+    }, 15000);
+    return () => clearTimeout(timer);
+  }, [loading]);
 
-      try {
-        const [user, companyData] = await Promise.all([
-          getTicketWorkspaceUser(),
-          getTicketWorkspaceCompanySettings()
-        ]);
+  // 2. Sync Profile and Settings from AppContext
+  useEffect(() => {
+    const cache = getOrInitializeCache();
+    if (appProfile) {
+      const mappedProfile = {
+        user_id: appProfile.id,
+        role: appProfile.role,
+        permissions: appProfile.permissions,
+        resolution_templates: appProfile.resolution_templates || [],
+      };
+      setUserProfile(mappedProfile);
+      cache.userProfile = mappedProfile;
 
-        if (user) {
-          const profile = await getTicketWorkspaceProfile(user.id);
-          setUserProfile(profile);
-          cache.userProfile = profile;
-          if (profile?.resolution_templates) {
-            setPersonalResTemplates(profile.resolution_templates);
-            cache.personalResTemplates = profile.resolution_templates;
-          }
-        }
-
-        const modules = companyData?.modules?.length ? companyData.modules : DEFAULT_MODULES;
-        const issues = companyData?.issue_types?.length ? companyData.issue_types : [];
-        
-        setAvailableModules(modules);
-        setAvailableIssueTypes(issues);
-        cache.availableModules = modules;
-        cache.availableIssueTypes = issues;
-
-        // Fallback: If user has no personal templates, use the company's global templates
-        if (cache.personalResTemplates.length === 0 && companyData?.resolution_templates?.length) {
-          setPersonalResTemplates(companyData.resolution_templates);
-          cache.personalResTemplates = companyData.resolution_templates;
-        }
-      } catch (error) {
-        console.error('Error loading workspace config on mount:', error);
-        setAvailableModules(DEFAULT_MODULES);
-        setAvailableIssueTypes([]);
-        cache.availableModules = DEFAULT_MODULES;
-        cache.availableIssueTypes = [];
-      }
+      // Sync personal/global resolution templates
+      const personalTemplates = appProfile.resolution_templates || [];
+      const globalTemplates = (appSettings?.resolution_templates as string[]) || [];
+      const templates = personalTemplates.length > 0 ? personalTemplates : globalTemplates;
+      setPersonalResTemplates(templates);
+      cache.personalResTemplates = templates;
     }
 
-    initWorkspace();
-  }, [getOrInitializeCache]);
+    if (appSettings) {
+      const modules = appSettings.modules?.length ? appSettings.modules : DEFAULT_MODULES;
+      const issues = appSettings.issue_types?.length ? appSettings.issue_types : [];
+      setAvailableModules(modules);
+      setAvailableIssueTypes(issues);
+      cache.availableModules = modules;
+      cache.availableIssueTypes = issues;
+    }
+  }, [appProfile, appSettings, getOrInitializeCache]);
 
   // 2. Fetch Data when filters or page changes
   useEffect(() => {
@@ -889,5 +880,6 @@ export function useTicketWorkspace(filterCustomerId: string | null) {
     hasNextTicketPage,
     goToNextTicketPage,
     goToPreviousTicketPage,
+    refresh: fetchData,
   };
 }
