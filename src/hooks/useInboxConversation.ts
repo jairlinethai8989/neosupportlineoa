@@ -118,6 +118,8 @@ export function useInboxConversation({
           .find((message) => Boolean(message.ticket_id))
           ?.ticket_id || null;
 
+      const optimisticClaim = urlParams.get('oc') === '1';
+
       // 1. Prioritize Ticket ID from URL (Deep Link)
       const shouldUseUrlTicket =
         Boolean(urlTicketId) &&
@@ -126,6 +128,10 @@ export function useInboxConversation({
       if (shouldUseUrlTicket && urlTicketId) {
         const ticket = await getInboxTicketById(urlTicketId);
         if (ticket) {
+          if (optimisticClaim && agent) {
+            ticket.assigned_agent_id = agent.id;
+            ticket.status = 'In Progress';
+          }
           setCurrentTicket(ticket);
           return;
         }
@@ -135,6 +141,10 @@ export function useInboxConversation({
       if (latestMessageTicketId) {
         const messageTicket = await getInboxTicketById(latestMessageTicketId);
         if (messageTicket) {
+          if (optimisticClaim && agent) {
+            messageTicket.assigned_agent_id = agent.id;
+            messageTicket.status = 'In Progress';
+          }
           setCurrentTicket(messageTicket);
           return;
         }

@@ -759,27 +759,67 @@ export function useTicketWorkspace(filterCustomerId: string | null) {
         const user = await getTicketWorkspaceUser();
         if (!user) {
           addToast(getTicketWorkspaceLoginRequiredToast());
+          setClaimingId(null);
           return;
         }
 
-        const { ticket, conversationId } = await claimWorkspaceTicket(ticketId, user.id);
-        
-        setTickets((prev) => upsertWorkspaceTicket(prev, ticket));
-        void fetchData(true); // Refresh conversations to pick up the new linked conversation
-        
-        addToast(getTicketWorkspaceClaimSuccessToast(ticketId));
+        // Optimistic UI Update and Navigation
+        let routeConvId: string | undefined = undefined;
+        setTickets((prev) => {
+          const existing = prev.find((t) => t.id === ticketId);
+          if (existing) {
+            const linked = conversationByTicketId.get(ticketId);
+            if (linked) {
+              routeConvId = linked.id;
+            } else if (existing.customer_id) {
+              const active = activeConversationByCustomerId.get(existing.customer_id);
+              if (active) routeConvId = active.id;
+            }
+            
+            // Return an optimistic ticket
+            const optimisticTicket = {
+              ...existing,
+              status: 'In Progress',
+              assigned_agent_id: user.id,
+            };
+            return upsertWorkspaceTicket(prev, optimisticTicket);
+          }
+          return prev;
+        });
 
-        if (conversationId) {
-          router.push(`/inbox?cid=${conversationId}&tid=${ticketId}`);
+        // Navigate immediately for fast perceived performance
+        if (routeConvId) {
+          router.push(`/inbox?cid=${routeConvId}&tid=${ticketId}&oc=1`);
+        } else {
+          router.push(`/inbox?tid=${ticketId}&oc=1`);
         }
+
+        // Process claim in background
+        claimWorkspaceTicket(ticketId, user.id)
+          .then(({ ticket, conversationId }) => {
+            setTickets((prev) => upsertWorkspaceTicket(prev, ticket));
+            void fetchData(true); // Refresh conversations to pick up the new linked conversation
+            addToast(getTicketWorkspaceClaimSuccessToast(ticketId));
+            
+            // If we didn't have a routeConvId but the server created/found one, 
+            // the inbox will naturally pick it up if it's on ?tid=ticketId.
+          })
+          .catch((error) => {
+            console.error('Claim Error:', error);
+            addToast(getTicketWorkspaceClaimFailToast(error));
+            // Revert optimistic update could be done here if needed by re-fetching
+            void fetchData(true);
+          })
+          .finally(() => {
+            setClaimingId(null);
+          });
       } catch (error) {
-        console.error('Claim Error:', error);
+        console.error('Claim Init Error:', error);
         addToast(getTicketWorkspaceClaimFailToast(error));
-      } finally {
         setClaimingId(null);
       }
     },
-    [addToast, fetchData, isViewOnly, router]
+    [addToast, activeConversationByCustomerId, conversationByTicketId, fetchData, isViewOnly, router]
   );
 
   const handleSort = useCallback(
