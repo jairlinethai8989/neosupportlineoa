@@ -141,6 +141,9 @@ export async function POST(req: Request) {
       const reworkRate = totalClaimed > 0 ? Math.round((reworkCount / totalClaimed) * 100) : 0;
 
       // Avg CSAT score
+      let csatSum = 0;
+      let csatCount = 0;
+
       interface TicketWithCsat {
         csat_score?: { score: number }[] | { score: number };
       }

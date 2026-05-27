@@ -171,6 +171,9 @@ export default function Evaluation360Page() {
       const slaComplianceRate = resolvedCount > 0 ? Math.round((slaCompliantCount / resolvedCount) * 100) : 100;
       const reworkRate = totalClaimed > 0 ? Math.round((reworkCount / totalClaimed) * 100) : 0;
 
+      let csatSum = 0;
+      let csatCount = 0;
+
       interface CsatScoreField {
         csat_score?: { score: number }[] | { score: number } | null;
       }
