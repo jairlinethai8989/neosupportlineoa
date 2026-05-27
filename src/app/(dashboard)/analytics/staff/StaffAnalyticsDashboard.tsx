@@ -87,7 +87,7 @@ export function StaffAnalyticsDashboard({
 }: StaffAnalyticsDashboardProps) {
   const [evaluation, setEvaluation] = useState<AIEvaluation | null>(null);
   const [evalLoading, setEvalLoading] = useState(false);
-  const [aiCardExpanded, setAiCardExpanded] = useState(true);
+  const [aiCardExpanded, setAiCardExpanded] = useState(false);
   const [loadingExport, setLoadingExport] = useState(false);
 
   // Pagination for Timeline
@@ -170,6 +170,7 @@ export function StaffAnalyticsDashboard({
       if (!res.ok) throw new Error('Failed to generate AI evaluation');
       const result = await res.json();
       setEvaluation(result);
+      setAiCardExpanded(true);
       addToast({
         id: `eval-ok-${Date.now()}`,
         type: 'ticket',
@@ -535,10 +536,12 @@ export function StaffAnalyticsDashboard({
         }}
       >
         <div 
-          onClick={() => setAiCardExpanded(!aiCardExpanded)}
-          style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', userSelect: 'none' }}
+          style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div 
+            onClick={() => setAiCardExpanded(!aiCardExpanded)}
+            style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer', userSelect: 'none', flex: '1', minWidth: '280px' }}
+          >
             <div style={{ background: 'rgba(14, 165, 233, 0.12)', padding: '10px', borderRadius: '12px', color: '#0ea5e9' }}>
               <Bot size={22} style={{ filter: 'drop-shadow(0 0 4px rgba(14, 165, 233, 0.4))' }} />
             </div>
@@ -556,50 +559,57 @@ export function StaffAnalyticsDashboard({
               </p>
             </div>
           </div>
-          <button 
-            className="glass-interactive flex-center"
-            style={{ fontSize: '12px', fontWeight: '800', color: '#0ea5e9', background: 'rgba(14, 165, 233, 0.08)', padding: '6px 14px', borderRadius: '8px', border: '1px solid rgba(14, 165, 233, 0.2)' }}
-          >
-            {aiCardExpanded ? 'ย่อรายละเอียด ▲' : 'ขยายรายละเอียด ▼'}
-          </button>
+          
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            {/* AI Evaluation Button moved next to toggle button */}
+            {!evaluation && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleGenerateAIEvaluation(false);
+                }}
+                disabled={evalLoading}
+                className="glass-interactive flex-center"
+                style={{
+                  padding: '8px 16px',
+                  borderRadius: '8px',
+                  background: 'linear-gradient(135deg, rgba(14, 165, 233, 0.95) 0%, rgba(99, 102, 241, 0.95) 100%)',
+                  border: 'none',
+                  color: '#ffffff',
+                  fontWeight: '800',
+                  fontSize: '12px',
+                  cursor: evalLoading ? 'not-allowed' : 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  boxShadow: '0 4px 15px rgba(14, 165, 233, 0.2)'
+                }}
+              >
+                {evalLoading ? <Loader2 size={14} className="animate-spin" /> : <Bot size={14} />}
+                <span>{evalLoading ? 'กำลังประเมิน...' : 'ประเมินผลด้วย AI (Gemini)'}</span>
+              </button>
+            )}
+
+            <button 
+              onClick={() => setAiCardExpanded(!aiCardExpanded)}
+              className="glass-interactive flex-center"
+              style={{ fontSize: '12px', fontWeight: '800', color: '#0ea5e9', background: 'rgba(14, 165, 233, 0.08)', padding: '8px 14px', borderRadius: '8px', border: '1px solid rgba(14, 165, 233, 0.2)', cursor: 'pointer' }}
+            >
+              {aiCardExpanded ? 'ย่อรายละเอียด ▲' : 'ขยายรายละเอียด ▼'}
+            </button>
+          </div>
         </div>
 
         {aiCardExpanded && (
           <div style={{ marginTop: '24px', borderTop: '1px solid var(--border)', paddingTop: '24px' }}>
             {!evaluation ? (
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '40px 20px', textAlign: 'center', gap: '16px' }}>
-                <p style={{ fontSize: '14px', color: 'var(--text-muted)', maxWidth: '480px', lineHeight: '1.6' }}>
-                  ยังไม่ได้ประเมินผลงานสำหรับ <strong>{selectedAgentName}</strong> ในช่วงเวลานี้ กดปุ่มด้านล่างเพื่อปลุกพลัง AI (Gemini 3.5 Flash) ทำการประเมินมิติผลงานทันที
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '20px', textAlign: 'center', gap: '8px' }}>
+                <p style={{ fontSize: '13px', color: 'var(--text-muted)', margin: 0 }}>
+                  ยังไม่ได้ประเมินผลงานสำหรับ <strong>{selectedAgentName}</strong> ในช่วงเวลานี้
                 </p>
-                <button
-                  onClick={() => handleGenerateAIEvaluation(false)}
-                  disabled={evalLoading}
-                  className="glass-interactive flex-center animate-pulse-subtle"
-                  style={{
-                    padding: '12px 28px',
-                    borderRadius: '12px',
-                    background: 'linear-gradient(135deg, rgba(14, 165, 233, 0.95) 0%, rgba(99, 102, 241, 0.95) 100%)',
-                    border: 'none',
-                    color: '#ffffff',
-                    fontWeight: '800',
-                    fontSize: '14px',
-                    gap: '8px',
-                    boxShadow: '0 8px 25px rgba(14, 165, 233, 0.3)',
-                    cursor: evalLoading ? 'not-allowed' : 'pointer'
-                  }}
-                >
-                  {evalLoading ? (
-                    <>
-                      <Loader2 size={18} className="animate-spin" />
-                      <span>กำลังดึงสถิติและประมวลผลประเมิน...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Bot size={18} style={{ color: '#ffffff' }} />
-                      <span>เริ่มการประเมินผลงานด้วย AI (Gemini)</span>
-                    </>
-                  )}
-                </button>
+                <p style={{ fontSize: '12px', color: 'var(--text-dim)', margin: 0 }}>
+                  กรุณากดปุ่ม <strong>"ประเมินผลด้วย AI (Gemini)"</strong> ด้านบนเพื่อทำการวิเคราะห์ข้อมูล
+                </p>
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
