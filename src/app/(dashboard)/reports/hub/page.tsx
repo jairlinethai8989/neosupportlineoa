@@ -17,6 +17,8 @@ import {
 } from 'lucide-react';
 import { useStaffLocale } from '@/contexts/StaffLocaleContext';
 import { useAppContext } from '@/contexts/AppContext';
+import DailyReportPage from '../daily/page';
+import PresentationPage from '../presentation/page';
 
 type ReportSet = '1' | '2';
 type ReportBroadcastMode = 'manual' | 'auto';
@@ -92,6 +94,7 @@ export default function ReportsPage() {
   const { t, locale } = useStaffLocale();
   const { userProfile } = useAppContext();
 
+  const [activeTab, setActiveTab] = useState<string>('hub');
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState<ReportSet | null>(null);
   const [targetDate, setTargetDate] = useState(() => toYmd(new Date()));
@@ -107,6 +110,39 @@ export default function ReportsPage() {
   const [savingSettings, setSavingSettings] = useState(false);
   const [schemaReady, setSchemaReady] = useState(true);
   const [settingsError, setSettingsError] = useState('');
+
+  const renderTabBar = () => {
+    const tabs = [
+      { id: 'hub', label: locale === 'th' ? '📂 ศูนย์จัดเก็บรายงาน' : '📂 Report Hub' },
+      { id: 'daily', label: locale === 'th' ? '📝 รายงานประจำวัน' : '📝 Daily Report' },
+      { id: 'presentation', label: locale === 'th' ? '💻 Weekly Presentation' : '💻 Weekly Presentation' }
+    ];
+
+    return (
+      <div style={{ display: 'flex', gap: '8px', borderBottom: '1px solid var(--border)', paddingBottom: '16px', marginBottom: '24px', flexWrap: 'wrap', width: '100%' }}>
+        {tabs.map(tab => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            className="glass-interactive"
+            style={{
+              padding: '10px 20px',
+              borderRadius: '12px',
+              border: '1px solid ' + (activeTab === tab.id ? 'var(--primary)' : 'var(--border)'),
+              background: activeTab === tab.id ? 'var(--primary-transparent)' : 'rgba(255,255,255,0.02)',
+              color: activeTab === tab.id ? 'var(--primary)' : 'var(--text-muted)',
+              fontSize: '13px',
+              fontWeight: '700',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease'
+            }}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+    );
+  };
 
   const canSend = useMemo(() => {
     if (userProfile?.role === 'Administrator') return true;
@@ -315,6 +351,24 @@ export default function ReportsPage() {
     }
   };
 
+  if (activeTab === 'daily') {
+    return (
+      <div className="animate-page-in" style={{ width: '100%' }}>
+        {renderTabBar()}
+        <DailyReportPage />
+      </div>
+    );
+  }
+
+  if (activeTab === 'presentation') {
+    return (
+      <div className="animate-page-in" style={{ width: '100%' }}>
+        {renderTabBar()}
+        <PresentationPage />
+      </div>
+    );
+  }
+
   return (
     <div
       style={{
@@ -324,6 +378,7 @@ export default function ReportsPage() {
         paddingBottom: '40px',
       }}
     >
+      {renderTabBar()}
       <div
         style={{
           display: 'flex',

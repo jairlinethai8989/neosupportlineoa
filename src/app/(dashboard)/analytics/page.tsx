@@ -35,6 +35,12 @@ import { exportDashboardAsPDF, printDataTable } from '@/lib/utils/exportUtils';
 import Skeleton from '@/components/ui/Skeleton';
 import { ExportPreviewModal, type ExportPreviewData } from '@/components/ui/ExportPreviewModal';
 
+import PersonalAnalyticsPage from './personal/page';
+import StaffAnalyticsPage from './staff/page';
+import Evaluation360Page from './staff/evaluation-360/page';
+import InsightsPage from './insights/page';
+import { useAppContext } from '@/contexts/AppContext';
+
 /**
  * 1. Define Chart Types & Mock Logic for 16 variations
  */
@@ -81,6 +87,25 @@ async function loadHtml2Canvas() {
  * 2. Main Analytics Page
  */
 export default function AdvancedAnalyticsPage() {
+  const { userProfile } = useAppContext();
+  
+  // Tab permissions
+  const showSupervisorTabs = useMemo(() => {
+    if (!userProfile) return false;
+    if (userProfile.role === 'Administrator') return true;
+    return userProfile.permissions?.analytics_staff === 'view' || userProfile.permissions?.analytics_staff === 'edit';
+  }, [userProfile]);
+
+  const [activeTab, setActiveTab] = useState<string>('team');
+
+  useEffect(() => {
+    if (userProfile) {
+      if (!showSupervisorTabs) {
+        setActiveTab('personal');
+      }
+    }
+  }, [userProfile, showSupervisorTabs]);
+
   const [activeWidgets, setActiveWidgets] = useState<string[]>(DEFAULT_WIDGET_LAYOUT);
   const [dateRange, setDateRange] = useState({
     start: DateTime.now().minus({ months: 1 }).toISODate(),
@@ -395,7 +420,7 @@ export default function AdvancedAnalyticsPage() {
     );
   };
 
-  if (loading && !aggregatedData) {
+  if (activeTab === 'team' && loading && !aggregatedData) {
     return (
       <div className="animate-page-in">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '24px', marginBottom: '32px' }}>
@@ -438,8 +463,80 @@ export default function AdvancedAnalyticsPage() {
     );
   }
 
+  // Tab Bar Render
+  const renderTabBar = () => {
+    if (!showSupervisorTabs) return null;
+    
+    const tabs = [
+      { id: 'team', label: '📊 ภาพรวมทีม' },
+      { id: 'personal', label: '👤 ผลงานส่วนตัว' },
+      { id: 'staff', label: '🔍 สถิติพนักงาน' },
+      { id: 'evaluation-360', label: '🏆 ประเมิน 360 องศา' },
+      { id: 'insights', label: '🤖 คำแนะนำ AI' }
+    ];
+
+    return (
+      <div style={{ display: 'flex', gap: '8px', borderBottom: '1px solid var(--border)', paddingBottom: '16px', marginBottom: '24px', flexWrap: 'wrap' }}>
+        {tabs.map(tab => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            className="glass-interactive"
+            style={{
+              padding: '10px 20px',
+              borderRadius: '12px',
+              border: '1px solid ' + (activeTab === tab.id ? 'var(--primary)' : 'var(--border)'),
+              background: activeTab === tab.id ? 'var(--primary-transparent)' : 'rgba(255,255,255,0.02)',
+              color: activeTab === tab.id ? 'var(--primary)' : 'var(--text-muted)',
+              fontSize: '13px',
+              fontWeight: '700',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease'
+            }}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+    );
+  };
+
+  if (activeTab === 'personal') {
+    return (
+      <div className="animate-page-in">
+        {renderTabBar()}
+        <PersonalAnalyticsPage />
+      </div>
+    );
+  }
+  if (activeTab === 'staff') {
+    return (
+      <div className="animate-page-in">
+        {renderTabBar()}
+        <StaffAnalyticsPage />
+      </div>
+    );
+  }
+  if (activeTab === 'evaluation-360') {
+    return (
+      <div className="animate-page-in">
+        {renderTabBar()}
+        <Evaluation360Page />
+      </div>
+    );
+  }
+  if (activeTab === 'insights') {
+    return (
+      <div className="animate-page-in">
+        {renderTabBar()}
+        <InsightsPage />
+      </div>
+    );
+  }
+
   return (
     <div className="animate-page-in">
+      {renderTabBar()}
       {/* Hidden Report Template for PDF Capture */}
       <div id="report-portal" style={{ 
         display: 'none', 

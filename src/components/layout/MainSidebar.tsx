@@ -15,6 +15,7 @@ import {
   ShieldCheck,
   Ticket,
   Users,
+  TrendingUp,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAppContext } from '@/contexts/AppContext';
@@ -197,28 +198,9 @@ function MainSidebarComponent({ onClickLink, isCollapsed = false }: SidebarProps
       {
         section: t('sidebar.sections.intelligence'),
         items: [
-          {
-            name: 'Dashboard',
-            label: t('sidebar.menu.dashboard'),
-            icon: LayoutDashboard,
-            children: [
-              { name: 'Overview', label: t('sidebar.menu.overview'), path: '/' },
-              { name: 'Performance', label: t('sidebar.menu.performance'), path: '/analytics' },
-              { name: 'Personal Performance', label: t('sidebar.menu.personalPerformance'), path: '/analytics/personal' },
-              { name: 'Staff Performance', label: t('sidebar.menu.staffPerformance'), path: '/analytics/staff' },
-              { name: 'AI Insights', label: 'AI Insights', path: '/analytics/insights' },
-            ],
-          },
-          {
-            name: 'Reports',
-            label: t('sidebar.menu.reports'),
-            icon: Send,
-            children: [
-              { name: 'Daily Report', label: t('sidebar.menu.dailyReport'), path: '/reports/daily' },
-              { name: 'Report Hub', label: t('sidebar.menu.reportHub'), path: '/reports/hub' },
-              { name: 'Weekly Presentation', label: 'Weekly Presentation', path: '/reports/presentation' },
-            ],
-          },
+          { name: 'Overview', label: t('sidebar.menu.overview'), icon: LayoutDashboard, path: '/' },
+          { name: 'Analytics', label: t('sidebar.menu.performance'), icon: TrendingUp, path: '/analytics' },
+          { name: 'Reports', label: t('sidebar.menu.reports'), icon: Send, path: '/reports/hub' },
           { name: 'Customers', label: t('sidebar.menu.customers'), icon: Users, path: '/customers' },
         ] satisfies SidebarItem[],
       },
