@@ -31,7 +31,7 @@ export default function CreateTicketPage() {
    const [customerData, setCustomerData] = useState<any>(null);
    const [checking, setChecking] = useState(true);
 
-   useEffect(() => {
+    useEffect(() => {
       if (!profile?.userId) return;
 
       async function checkCustomer() {
@@ -50,7 +50,7 @@ export default function CreateTicketPage() {
          setChecking(false);
       }
       checkCustomer();
-   }, [profile, router]);
+   }, [profile?.userId, router]);
 
    if (!isReady || checking) {
       return <div className="flex-center" style={{ height: '100vh', background: '#fbfcfd' }}><Loader2 className="animate-spin" color="var(--portal-primary)" size={32} /></div>;
@@ -141,7 +141,7 @@ export default function CreateTicketPage() {
 
                 if (contentType.startsWith('image/')) {
                    try {
-                      const compressed = await compressImage(file, { quality: 1.0 });
+                      const compressed = await compressImage(file, { quality: 0.8 });
                       fileToUpload = compressed;
                       contentType = 'image/webp';
                       ext = 'webp';

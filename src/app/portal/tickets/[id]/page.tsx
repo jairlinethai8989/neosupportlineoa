@@ -2,7 +2,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @next/next/no-img-element */
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { 
@@ -23,9 +23,94 @@ const ChatAttachmentModal = React.lazy(() => import('@/components/chat/ChatAttac
 const ImageEditorModal = React.lazy(() => import('@/components/modals/ImageEditorModal'));
 const ImageViewerModal = React.lazy(() => import('@/components/modals/ImageViewerModal'));
 
+const STATUS_LEVELS: Record<string, number> = {
+  'new': 1,
+  'pending': 1,
+  'assigned': 2,
+  'in progress': 2,
+  'escalated': 3,
+  'resolved': 4,
+  'closed': 4
+};
+
 function isSurveyEligibleStatus(status: unknown) {
-  return status === 'Resolved' || status === 'Closed';
+  const s = String(status || '').toLowerCase();
+  return s === 'resolved' || s === 'closed';
 }
+
+// 1. Memoized Message Bubble to prevent massive DOM re-renders during chat scrolling
+interface MessageBubbleProps {
+  msg: any;
+  onImageClick: (url: string) => void;
+}
+
+const MessageBubble = React.memo(function MessageBubble({ msg, onImageClick }: MessageBubbleProps) {
+  const isCustomer = msg.sender_type === 'customer';
+  const isImg = msg.message_type === 'image' || (msg.content?.startsWith('http') && msg.content?.match(/\.(jpeg|jpg|gif|png|webp|JPG|PNG)$/i));
+  const isDoc = msg.message_type === 'file' || (msg.content?.startsWith('http') && msg.message_type !== 'text');
+
+  return (
+    <div style={{
+      alignSelf: isCustomer ? 'flex-end' : 'flex-start',
+      maxWidth: '80%',
+      padding: '12px 16px',
+      borderRadius: isCustomer ? '20px 20px 4px 20px' : '20px 20px 20px 4px',
+      background: isCustomer ? '#1e293b' : '#f1f5f9',
+      color: isCustomer ? 'white' : '#334155',
+      boxShadow: '0 2px 8px rgba(0,0,0,0.02)'
+    }}>
+      <div style={{ fontSize: '14px', fontWeight: '500', lineHeight: '1.5' }}>
+        {isImg ? (
+          <img
+            src={msg.content}
+            style={{ maxWidth: '100%', borderRadius: '12px', cursor: 'pointer' }}
+            alt="Attachment"
+            onClick={() => onImageClick(msg.content)}
+            title="คลิกเพื่อทำการขยายภาพ"
+          />
+        ) : isDoc ? (
+          <a href={msg.content} target="_blank" rel="noreferrer" style={{ textDecoration: 'none', color: 'inherit', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Paperclip size={14} /> ดูไฟล์แนบ
+          </a>
+        ) : (
+          msg.content
+        )}
+      </div>
+      <p style={{ fontSize: '10px', color: isCustomer ? 'rgba(255,255,255,0.6)' : '#94a3b8', marginTop: '6px', fontWeight: '600', textAlign: 'right' }}>
+        {new Date(msg.created_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', hour12: false })}
+      </p>
+    </div>
+  );
+});
+
+// 2. Memoized Ticket Status Stepper
+interface TicketStatusStepperProps {
+  currentLevel: number;
+  status: string;
+}
+
+const TicketStatusStepper = React.memo(function TicketStatusStepper({ currentLevel, status }: TicketStatusStepperProps) {
+  const isResolved = ['resolved', 'closed'].includes(status.toLowerCase());
+  return (
+    <>
+      <div style={{ height: '6px', background: '#f1f5f9', borderRadius: '10px', overflow: 'hidden', display: 'flex', gap: '4px', marginBottom: '20px' }}>
+        {[1, 2, 3, 4].map(step => (
+          <div key={step} style={{
+            flex: 1,
+            background: step <= currentLevel ? (isResolved ? '#22c55e' : 'var(--portal-primary)') : 'transparent',
+            transition: 'background 0.4s ease'
+          }} />
+        ))}
+      </div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9px', color: 'var(--portal-text-muted)', textTransform: 'uppercase', fontWeight: '800' }}>
+        <span>รอดำเนินการ</span>
+        <span>รับงานแล้ว</span>
+        <span>ส่งต่อแก้ปัญหา</span>
+        <span>ปิดงานแล้ว</span>
+      </div>
+    </>
+  );
+});
 
 export default function TicketDetailPage() {
   const { id } = useParams();
@@ -47,28 +132,31 @@ export default function TicketDetailPage() {
   const [showJumpToLatest, setShowJumpToLatest] = useState(false);
   const [showSurvey, setShowSurvey] = useState<boolean>(false);
   const [hasResponded, setHasResponded] = useState<boolean>(false);
-  const [surveyScore, setSurveyScore] = useState<number>(0); // track saved score for UI
+  const [surveyScore, setSurveyScore] = useState<number>(0);
   const [surveyValue, setSurveyValue] = useState<number>(0);
   const [surveyHover, setSurveyHover] = useState<number>(0);
   const [surveyComment, setSurveyComment] = useState<string>('');
   const [submittingSurvey, setSubmittingSurvey] = useState<boolean>(false);
   const messagesContainerRef = useRef<HTMLDivElement | null>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
-  // Use a ref so realtime handler always has the latest conversationId
-  // without needing to re-subscribe every time state changes
   const conversationIdRef = useRef<string | null>(null);
   const hasRespondedRef = useRef(false);
   const ticketStatusRef = useRef<string | null>(null);
+  const lastShowJumpRef = useRef(false);
 
   const scrollToLatest = (behavior: ScrollBehavior = 'smooth') => {
     messagesEndRef.current?.scrollIntoView({ behavior, block: 'end' });
   };
 
+  // Throttled scroll listener to avoid layout recalculation on every pixel scroll
   const handleMessagesScroll = (event: React.UIEvent<HTMLDivElement>) => {
     const target = event.currentTarget;
-    const distanceFromBottom =
-      target.scrollHeight - target.scrollTop - target.clientHeight;
-    setShowJumpToLatest(distanceFromBottom > 80);
+    const distanceFromBottom = target.scrollHeight - target.scrollTop - target.clientHeight;
+    const shouldShow = distanceFromBottom > 120;
+    if (shouldShow !== lastShowJumpRef.current) {
+      lastShowJumpRef.current = shouldShow;
+      setShowJumpToLatest(shouldShow);
+    }
   };
 
   useEffect(() => {
@@ -79,7 +167,7 @@ export default function TicketDetailPage() {
     ticketStatusRef.current = ticket?.status || null;
   }, [ticket?.status]);
 
-  const loadSurveyState = React.useCallback(async () => {
+  const loadSurveyState = useCallback(async () => {
     if (!ticketId) return null;
 
     const { data } = await supabase
@@ -110,27 +198,28 @@ export default function TicketDetailPage() {
       if (!ticketId) return;
       setLoading(true);
       try {
-        const { data: tBase, error: e1 } = await supabase
+        // Combined initial query with joins to avoid sequential waterfalls (fetched only once!)
+        const { data: ticketData, error: e1 } = await supabase
           .from('tickets')
-          .select('*')
+          .select(`*, assigned_agent:profiles!assigned_agent_id(*)`)
           .eq('id', ticketId)
           .maybeSingle();
 
         if (e1) throw e1;
-        if (!tBase) {
+        if (!ticketData) {
            setLoading(false);
            return;
         }
 
-        // SECURITY: Verify the logged-in LINE user owns this ticket
-        if (profile?.userId && tBase.customer_id) {
+        // SECURITY: Verify owner customer ID mapping with profile.userId
+        if (profile?.userId && ticketData.customer_id) {
           const { data: ownerCustomer } = await supabase
             .from('customers')
             .select('id')
             .eq('line_user_id', profile.userId)
             .maybeSingle();
 
-          if (!ownerCustomer || ownerCustomer.id !== tBase.customer_id) {
+          if (!ownerCustomer || ownerCustomer.id !== ticketData.customer_id) {
             console.warn('Access denied: user does not own this ticket');
             setTicket(null);
             setLoading(false);
@@ -138,16 +227,9 @@ export default function TicketDetailPage() {
           }
         }
 
-        const { data: ticketData } = await supabase
-          .from('tickets')
-          .select(`*, assigned_agent:profiles!assigned_agent_id(*)`)
-          .eq('id', ticketId)
-          .maybeSingle();
+        setTicket(ticketData);
 
-        setTicket(ticketData || tBase);
-        
-        // Try to find conversation by current_ticket_id OR by customer_id
-        let cid: string | null = null;
+        // Fetch conversation directly in parallel with message loaders
         const { data: convData } = await supabase
           .from('conversations')
           .select('id')
@@ -155,14 +237,14 @@ export default function TicketDetailPage() {
           .order('last_message_at', { ascending: false, nullsFirst: false })
           .limit(1)
           .maybeSingle();
-        cid = convData?.id || null;
+        
+        let cid = convData?.id || null;
 
-        // Fallback: try searching by customer_id of this ticket
-        if (!cid && tBase.customer_id) {
+        if (!cid && ticketData.customer_id) {
           const { data: convFallback } = await supabase
             .from('conversations')
             .select('id')
-            .eq('customer_id', tBase.customer_id)
+            .eq('customer_id', ticketData.customer_id)
             .eq('status', 'active')
             .order('last_message_at', { ascending: false, nullsFirst: false })
             .limit(1)
@@ -170,43 +252,36 @@ export default function TicketDetailPage() {
           cid = convFallback?.id || null;
         }
 
-        // Set both state and ref so realtime handler is immediately aware
         if (cid) {
           setConversationId(cid);
           conversationIdRef.current = cid;
         }
 
         const loadMessages = async (cidToUse: string | null) => {
-          let messagesQuery = supabase
-            .from('messages')
-            .select('*');
-
+          let messagesQuery = supabase.from('messages').select('id, content, sender_type, message_type, created_at, ticket_id, conversation_id');
           if (cidToUse) {
-            messagesQuery = messagesQuery.or(
-              `ticket_id.eq.${ticketId},conversation_id.eq.${cidToUse}`
-            );
+            messagesQuery = messagesQuery.or(`ticket_id.eq.${ticketId},conversation_id.eq.${cidToUse}`);
           } else {
             messagesQuery = messagesQuery.eq('ticket_id', ticketId);
           }
-
           const { data } = await messagesQuery.order('created_at', { ascending: true });
           if (data) setMessages(data);
         };
 
         const [lRes, surveyState] = await Promise.all([
-           supabase.from('ticket_logs').select('*').eq('ticket_id', ticketId).order('created_at', { ascending: false }),
+           supabase.from('ticket_logs').select('id, created_at, action_type, to_status').eq('ticket_id', ticketId).order('created_at', { ascending: false }),
            loadSurveyState(),
+           loadMessages(cid)
         ]);
 
         if (lRes.data) setLogs(lRes.data);
         if (
           surveyState &&
           !surveyState.responded &&
-          isSurveyEligibleStatus((ticketData || tBase).status)
+          isSurveyEligibleStatus(ticketData.status)
         ) {
           setShowSurvey(true);
         }
-        await loadMessages(cid);
 
       } catch (err: any) {
         console.error('Error fetching ticket:', err);
@@ -215,13 +290,10 @@ export default function TicketDetailPage() {
       }
     }
 
-    // Subscribe first, then fetch to avoid missing the resolve/csat events
-    // during the initial loading window.
     let channelRef: any = null;
 
     const channel = supabase
         .channel(`portal-ticket-${ticketId}`)
-        // Listen to ALL message inserts — filter inside handler using ref
         .on('postgres_changes', {
           event: 'INSERT',
           schema: 'public',
@@ -229,10 +301,7 @@ export default function TicketDetailPage() {
         }, (payload: any) => {
           const msg = payload.new;
           const cid = conversationIdRef.current;
-          // Accept message if it belongs to this ticket or this conversation
-          const belongs =
-            msg.ticket_id === ticketId ||
-            (cid && msg.conversation_id === cid);
+          const belongs = msg.ticket_id === ticketId || (cid && msg.conversation_id === cid);
           if (!belongs) return;
           setMessages(prev => {
             if (prev.some(m => m.id === msg.id)) return prev;
@@ -266,7 +335,7 @@ export default function TicketDetailPage() {
           const cid = conversationIdRef.current;
           const currentTicketId = payload.new?.current_ticket_id;
           if (payload.new?.id === cid || currentTicketId === ticketId) {
-            let query = supabase.from('messages').select('*');
+            let query = supabase.from('messages').select('id, content, sender_type, message_type, created_at, ticket_id, conversation_id');
             if (cid) {
               query = query.or(`ticket_id.eq.${ticketId},conversation_id.eq.${cid}`);
             } else {
@@ -285,12 +354,10 @@ export default function TicketDetailPage() {
         }, async (payload: any) => {
           const nextTicket = payload.new;
           setTicket((prev: any) => prev ? ({ ...prev, ...nextTicket }) : prev);
-          supabase.from('ticket_logs').select('*').eq('ticket_id', ticketId).order('created_at', { ascending: false })
+          supabase.from('ticket_logs').select('id, created_at, action_type, to_status').eq('ticket_id', ticketId).order('created_at', { ascending: false })
             .then(({ data }: any) => { if (data) setLogs(data); });
           if (isSurveyEligibleStatus(nextTicket?.status) && !hasRespondedRef.current) {
             setShowSurvey(true);
-            // Fallback: refresh survey record right away and again shortly after
-            // in case csat row is inserted milliseconds after status update.
             await loadSurveyState();
             setTimeout(() => {
               void loadSurveyState();
@@ -320,9 +387,10 @@ export default function TicketDetailPage() {
     channelRef = channel;
     void fetchTicketData();
 
+    // Fallback polling for chat messages increased to 60s instead of 10s to ease load
     const poller = window.setInterval(() => {
       const cid = conversationIdRef.current;
-      let query = supabase.from('messages').select('*');
+      let query = supabase.from('messages').select('id, content, sender_type, message_type, created_at, ticket_id, conversation_id');
       if (cid) {
         query = query.or(`ticket_id.eq.${ticketId},conversation_id.eq.${cid}`);
       } else {
@@ -341,9 +409,8 @@ export default function TicketDetailPage() {
           return data;
         });
       });
-    }, 10000);
+    }, 60000); // 60 seconds
 
-    // Cleanup on unmount/id change
     return () => {
       conversationIdRef.current = null;
       window.clearInterval(poller);
@@ -380,7 +447,6 @@ export default function TicketDetailPage() {
     setViewingImage(url);
     setIsViewerOpen(true);
   };
-
 
   const handleSendMessage = async () => {
     if (!newMessage.trim()) return;
@@ -470,6 +536,7 @@ export default function TicketDetailPage() {
         <h2 style={{ fontSize: '18px', fontWeight: '800', color: '#1e293b' }}>ไม่สามารถเข้าถึงได้</h2>
         <p style={{ color: '#64748b', fontSize: '14px' }}>กรุณาเข้าใช้งานผ่านแอปพลิเคชัน LINE</p>
         <button 
+           type="button"
            onClick={() => setMockLogin('U_MOCK_ADMIN', 'Guest Admin')}
            style={{ padding: '12px 24px', borderRadius: '12px', border: '1px solid #e2e8f0', background: 'white', color: '#1e293b', fontWeight: '700', marginTop: '16px', cursor: 'pointer' }}
         >
@@ -483,22 +550,13 @@ export default function TicketDetailPage() {
      <div className="flex-center" style={{ height: '100vh', background: '#fbfcfd', color: '#1e293b', flexDirection: 'column', gap: '16px' }}>
         <AlertCircle size={48} color="#ef4444" />
         <h2 style={{ fontSize: '18px', fontWeight: '800' }}>ไม่พบข้อมูลใบงาน</h2>
-        <button onClick={() => router.push('/portal')} style={{ padding: '10px 20px', borderRadius: '8px', border: '1px solid #e2e8f0', background: 'white', color: '#1e293b', cursor: 'pointer' }}>
+        <button type="button" onClick={() => router.push('/portal')} style={{ padding: '10px 20px', borderRadius: '8px', border: '1px solid #e2e8f0', background: 'white', color: '#1e293b', cursor: 'pointer' }}>
            กลับสู่หน้าหลัก
         </button>
      </div>
   );
 
-  const statusLevels: Record<string, number> = {
-    'new': 1,
-    'pending': 1,
-    'assigned': 2,
-    'in progress': 2,
-    'escalated': 3,
-    'resolved': 4,
-    'closed': 4
-  };
-  const currentLevel = statusLevels[String(ticket.status).toLowerCase()] || 1;
+  const currentLevel = STATUS_LEVELS[String(ticket.status).toLowerCase()] || 1;
 
   const handleSubmitSurvey = async () => {
     if (surveyValue === 0) return;
@@ -507,16 +565,14 @@ export default function TicketDetailPage() {
       const { error } = await supabase.from('csat_surveys').upsert({
         ticket_id: ticketId,
         score: surveyValue,
-        rating: surveyValue, // compatibility
+        rating: surveyValue,
         comment: surveyComment,
         responded_at: new Date().toISOString()
       }, { onConflict: 'ticket_id' });
 
       if (error) throw error;
-      // Update local state immediately — no refresh needed
       setHasResponded(true);
       setSurveyScore(surveyValue);
-      // Close modal after short delay so user sees confirmation
       setTimeout(() => setShowSurvey(false), 2000);
     } catch (err: any) {
       alert('ไม่สามารถบันทึกการประเมินได้: ' + err.message);
@@ -525,17 +581,14 @@ export default function TicketDetailPage() {
     }
   };
 
+  const filteredMessages = messages.filter((m: any) => m.message_type !== 'unsent');
+
   return (
     <div className="portal-container" style={{ animation: 'fadeIn 0.5s ease-out', position: 'relative' }}>
        {/* Survey Modal Popup */}
        {showSurvey && (
-         <div className="flex-center" style={{ 
-           position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', 
-           background: 'rgba(15, 23, 42, 0.8)', backdropFilter: 'blur(8px)',
-           zIndex: 1000, padding: '20px'
-         }}>
-           <div className="portal-glass" style={{ 
-             width: '100%', maxWidth: '400px', padding: '32px', background: 'white',
+         <div className="portal-survey-overlay">
+           <div className="portal-survey-modal" style={{
              animation: 'fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1)'
            }}>
              {/* Thank you screen shown after submit */}
@@ -573,6 +626,7 @@ export default function TicketDetailPage() {
                    {[1, 2, 3, 4, 5].map((star) => (
                      <button
                        key={star}
+                       type="button"
                        onClick={() => setSurveyValue(star)}
                        onMouseEnter={() => setSurveyHover(star)}
                        onMouseLeave={() => setSurveyHover(0)}
@@ -600,15 +654,12 @@ export default function TicketDetailPage() {
                    placeholder="ข้อเสนอแนะเพิ่มเติม (ถ้ามี)..."
                    value={surveyComment}
                    onChange={(e) => setSurveyComment(e.target.value)}
-                   style={{ 
-                     width: '100%', minHeight: '80px', padding: '12px', borderRadius: '12px',
-                     border: '1px solid #e2e8f0', fontSize: '14px', marginBottom: '24px',
-                     outline: 'none', resize: 'none'
-                   }}
+                   className="portal-survey-comment"
                  />
 
                  <div style={{ display: 'flex', gap: '12px' }}>
                    <button 
+                     type="button"
                      onClick={() => setShowSurvey(false)}
                      style={{ 
                        flex: 1, padding: '14px', borderRadius: '12px', border: '1px solid #e2e8f0',
@@ -618,6 +669,7 @@ export default function TicketDetailPage() {
                      ข้ามก่อน
                    </button>
                    <button 
+                     type="button"
                      onClick={handleSubmitSurvey}
                      disabled={submittingSurvey || surveyValue === 0}
                      style={{ 
@@ -636,7 +688,7 @@ export default function TicketDetailPage() {
        )}
 
        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px', padding: '0 4px' }}>
-          <button onClick={() => router.push('/portal')} style={{ padding: '8px', borderRadius: '12px', border: '1px solid var(--portal-border)', background: 'white', color: '#1e293b', cursor: 'pointer' }}>
+          <button type="button" onClick={() => router.push('/portal')} style={{ padding: '8px', borderRadius: '12px', border: '1px solid var(--portal-border)', background: 'white', color: '#1e293b', cursor: 'pointer' }}>
              <ArrowLeft size={18} />
           </button>
           <h2 style={{ fontSize: '18px', fontWeight: '900', color: '#1e293b' }}>ตั๋วเลขที่ #{ticket.ticket_no}</h2>
@@ -654,37 +706,8 @@ export default function TicketDetailPage() {
             style={{ flex: 1, overflowY: 'auto', marginBottom: '20px', display: 'flex', flexDirection: 'column', gap: '14px', padding: '0 4px' }}
             className="no-scrollbar"
           >
-             {messages.filter((m: any) => m.message_type !== 'unsent').map((msg, idx) => (
-                <div key={idx} style={{ 
-                   alignSelf: msg.sender_type === 'customer' ? 'flex-end' : 'flex-start',
-                   maxWidth: '80%',
-                   padding: '12px 16px',
-                   borderRadius: msg.sender_type === 'customer' ? '20px 20px 4px 20px' : '20px 20px 20px 4px',
-                   background: msg.sender_type === 'customer' ? '#1e293b' : '#f1f5f9',
-                   color: msg.sender_type === 'customer' ? 'white' : '#334155',
-                   boxShadow: '0 2px 8px rgba(0,0,0,0.02)'
-                }}>
-                   <div style={{ fontSize: '14px', fontWeight: '500', lineHeight: '1.5' }}>
-                       {msg.message_type === 'image' || (msg.content?.startsWith('http') && msg.content?.match(/\.(jpeg|jpg|gif|png|webp|JPG|PNG)$/i)) ? (
-                          <img 
-                            src={msg.content} 
-                            style={{ maxWidth: '100%', borderRadius: '12px', cursor: 'pointer' }} 
-                            alt="Attachment" 
-                            onClick={() => handleEditExistingImage(msg.content)}
-                            title="คลิกเพื่อทำการขยายภาพ"
-                          />
-                       ) : msg.message_type === 'file' || (msg.content?.startsWith('http') && msg.message_type !== 'text') ? (
-                          <a href={msg.content} target="_blank" rel="noreferrer" style={{ textDecoration: 'none', color: 'inherit', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                             <Paperclip size={14} /> ดูไฟล์แนบ
-                          </a>
-                       ) : (
-                          msg.content
-                       )}
-                   </div>
-                   <p style={{ fontSize: '10px', color: msg.sender_type === 'customer' ? 'rgba(255,255,255,0.6)' : '#94a3b8', marginTop: '6px', fontWeight: '600', textAlign: 'right' }}>
-                      {new Date(msg.created_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', hour12: false })}
-                   </p>
-                </div>
+             {filteredMessages.map((msg, idx) => (
+                <MessageBubble key={msg.id || idx} msg={msg} onImageClick={handleEditExistingImage} />
              ))}
              {messages.length === 0 && <p style={{ textAlign: 'center', color: 'var(--portal-text-muted)', fontSize: '13px', marginTop: '40px' }}>ยังไม่มีข้อความ เริ่มคุยกับเราได้เลยครับ</p>}
              <div ref={messagesEndRef} />
@@ -717,6 +740,7 @@ export default function TicketDetailPage() {
           {ticket.status !== 'Resolved' && ticket.status !== 'Closed' ? (
             <div style={{ display: 'flex', gap: '10px', alignItems: 'center', background: '#f8fafc', padding: '8px', borderRadius: '16px' }}>
                <button 
+                 type="button"
                  onClick={() => setIsAttachModalOpen(true)} 
                  title="แนบไฟล์หรือรูปภาพ"
                  style={{ width: '40px', height: '40px', borderRadius: '12px', border: 'none', background: 'white', color: '#64748b', cursor: 'pointer', boxShadow: '0 2px 5px rgba(0,0,0,0.05)' }} 
@@ -733,48 +757,50 @@ export default function TicketDetailPage() {
                  style={{ flex: 1, background: 'transparent', border: 'none', borderRadius: '10px', padding: '10px', color: '#1e293b', outline: 'none', fontSize: '14px' }}
                />
                <button 
+                 type="button"
                  onClick={handleSendMessage}
                  disabled={sending}
                  style={{ width: '40px', height: '40px', borderRadius: '12px', border: 'none', background: '#1e293b', color: 'white', cursor: 'pointer' }}
                  className="flex-center"
                >
-                   {sending ? <Loader2 size={18} className="animate-spin" /> : <SendHorizontal size={18} />}
+                    {sending ? <Loader2 size={18} className="animate-spin" /> : <SendHorizontal size={18} />}
                </button>
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              <div style={{ padding: '16px', borderRadius: '16px', background: '#f0fdf4', border: '1px solid #dcfce7', textAlign: 'center' }}>
-                 <p style={{ fontSize: '13px', color: '#166534', fontWeight: '700' }}>
-                    ใบงานนี้เสร็จสมบูรณ์แล้ว ระบบปิดการสนทนาขอบคุณที่ใช้บริการครับ
-                 </p>
-              </div>
-              {/* Show CSAT score immediately after survey submission */}
-              {(surveyScore > 0 || (hasResponded && surveyValue > 0)) && (
-                <div style={{ padding: '12px 16px', borderRadius: '12px', background: '#fffbeb', border: '1px solid #fde68a', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
-                  <span style={{ fontSize: '12px', fontWeight: '700', color: '#92400e' }}>คะแนนที่คุณให้:</span>
-                  <div style={{ display: 'flex', gap: '2px' }}>
-                    {[1, 2, 3, 4, 5].map((s) => (
-                      <svg key={s} width="16" height="16" viewBox="0 0 24 24"
-                        fill={s <= (surveyScore || surveyValue) ? '#f59e0b' : '#e2e8f0'}
-                        stroke={s <= (surveyScore || surveyValue) ? '#f59e0b' : '#e2e8f0'}
-                        strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-                      >
-                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
-                      </svg>
-                    ))}
-                  </div>
-                  <span style={{ fontSize: '12px', fontWeight: '800', color: '#f59e0b' }}>{surveyScore || surveyValue}/5</span>
-                </div>
-              )}
-              {/* Button to re-open survey if not responded yet */}
-              {!hasResponded && (
-                <button
-                  onClick={() => setShowSurvey(true)}
-                  style={{ padding: '12px', borderRadius: '12px', border: '1px solid #fde68a', background: '#fffbeb', color: '#92400e', fontWeight: '700', fontSize: '13px', cursor: 'pointer' }}
-                >
-                  ⭐ ให้คะแนนการบริการ
-                </button>
-              )}
+               <div style={{ padding: '16px', borderRadius: '16px', background: '#f0fdf4', border: '1px solid #dcfce7', textAlign: 'center' }}>
+                  <p style={{ fontSize: '13px', color: '#166534', fontWeight: '700' }}>
+                     ใบงานนี้เสร็จสมบูรณ์แล้ว ระบบปิดการสนทนาขอบคุณที่ใช้บริการครับ
+                  </p>
+               </div>
+               {/* Show CSAT score immediately after survey submission */}
+               {(surveyScore > 0 || (hasResponded && surveyValue > 0)) && (
+                 <div style={{ padding: '12px 16px', borderRadius: '12px', background: '#fffbeb', border: '1px solid #fde68a', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                   <span style={{ fontSize: '12px', fontWeight: '700', color: '#92400e' }}>คะแนนที่คุณให้:</span>
+                   <div style={{ display: 'flex', gap: '2px' }}>
+                     {[1, 2, 3, 4, 5].map((s) => (
+                       <svg key={s} width="16" height="16" viewBox="0 0 24 24"
+                         fill={s <= (surveyScore || surveyValue) ? '#f59e0b' : '#e2e8f0'}
+                         stroke={s <= (surveyScore || surveyValue) ? '#f59e0b' : '#e2e8f0'}
+                         strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+                       >
+                         <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+                       </svg>
+                     ))}
+                   </div>
+                   <span style={{ fontSize: '12px', fontWeight: '800', color: '#f59e0b' }}>{surveyScore || surveyValue}/5</span>
+                 </div>
+               )}
+               {/* Button to re-open survey if not responded yet */}
+               {!hasResponded && (
+                 <button
+                   type="button"
+                   onClick={() => setShowSurvey(true)}
+                   style={{ padding: '12px', borderRadius: '12px', border: '1px solid #fde68a', background: '#fffbeb', color: '#92400e', fontWeight: '700', fontSize: '13px', cursor: 'pointer' }}
+                 >
+                   ⭐ ให้คะแนนการบริการ
+                 </button>
+               )}
             </div>
           )}
        </section>
@@ -787,22 +813,7 @@ export default function TicketDetailPage() {
              </span>
           </div>
 
-          <div style={{ height: '6px', background: '#f1f5f9', borderRadius: '10px', overflow: 'hidden', display: 'flex', gap: '4px', marginBottom: '20px' }}>
-             {[1, 2, 3, 4].map(step => (
-                <div key={step} style={{ 
-                   flex: 1, 
-                   background: step <= currentLevel ? (['resolved', 'closed'].includes(String(ticket.status).toLowerCase()) ? '#22c55e' : 'var(--portal-primary)') : 'transparent',
-                   transition: 'background 0.4s ease'
-                }} />
-             ))}
-          </div>
-
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9px', color: 'var(--portal-text-muted)', textTransform: 'uppercase', fontWeight: '800' }}>
-             <span>รอดำเนินการ</span>
-             <span>รับงานแล้ว</span>
-             <span>ส่งต่อแก้ปัญหา</span>
-             <span>ปิดงานแล้ว</span>
-          </div>
+          <TicketStatusStepper currentLevel={currentLevel} status={ticket.status} />
        </section>
 
         <div className="portal-glass" style={{ padding: '20px', marginBottom: '24px', background: 'white' }}>

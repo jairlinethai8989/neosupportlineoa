@@ -46,6 +46,11 @@ export async function middleware(request: MiddlewareRequest) {
     return NextResponse.next();
   }
 
+  // Early return for non-login public routes to bypass Supabase client creation and session query
+  if (isPublicRoute && pathname !== '/login') {
+    return NextResponse.next();
+  }
+
   // 3. Setup Response & Supabase
   let response = NextResponse.next({
     request: { headers: request.headers },

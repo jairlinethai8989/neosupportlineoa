@@ -1,5 +1,26 @@
+import { Inter, Prompt, IBM_Plex_Sans_Thai } from 'next/font/google';
 import "./globals.css";
-/* eslint-disable @next/next/no-page-custom-font */
+
+const inter = Inter({
+  subsets: ['latin'],
+  weight: ['300', '400', '500', '600', '700'],
+  variable: '--font-inter',
+  display: 'swap',
+});
+
+const prompt = Prompt({
+  subsets: ['thai', 'latin'],
+  weight: ['300', '400', '500', '600', '700'],
+  variable: '--font-prompt',
+  display: 'swap',
+});
+
+const ibmPlexThai = IBM_Plex_Sans_Thai({
+  subsets: ['thai', 'latin'],
+  weight: ['300', '400', '500', '600', '700'],
+  variable: '--font-ibm-plex-thai',
+  display: 'swap',
+});
 
 export const metadata = {
   title: "Neo Support | Customer Support Omnichannel",
@@ -12,12 +33,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="th" data-theme="light">
-      <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
-      </head>
+    <html lang="th" data-theme="light" className={`${inter.variable} ${prompt.variable} ${ibmPlexThai.variable}`}>
       <body>
         {children}
       </body>
