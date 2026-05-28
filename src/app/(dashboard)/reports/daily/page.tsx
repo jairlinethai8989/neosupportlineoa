@@ -691,7 +691,7 @@ export default function DailyReportPage() {
 
       <div className="glass" style={{ flex: 1, borderRadius: '16px', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
         <div style={{ overflowX: 'auto', overflowY: 'auto', height: '100%', background: 'var(--bg-card)' }}>
-          <table style={{ width: '100%', minWidth: `${tableMinWidth}px`, borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
+          <table style={{ width: '100%', minWidth: `${tableMinWidth}px`, tableLayout: 'fixed', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
             <thead style={{ position: 'sticky', top: 0, zIndex: 10, background: 'var(--primary)', color: 'white', fontWeight: '700' }}>
               <tr>
                 {columns.map((column) => (
@@ -704,6 +704,8 @@ export default function DailyReportPage() {
                       ...getColWidth(column.id),
                       borderRight: '1px solid rgba(255,255,255,0.15)',
                       whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
                       textTransform: 'uppercase',
                       fontSize: '11px',
                       letterSpacing: '0.8px',

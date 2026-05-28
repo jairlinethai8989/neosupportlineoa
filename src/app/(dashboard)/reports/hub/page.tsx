@@ -94,7 +94,7 @@ export default function ReportsPage() {
   const { t, locale } = useStaffLocale();
   const { userProfile } = useAppContext();
 
-  const [activeTab, setActiveTab] = useState<string>('hub');
+  const [activeTab, setActiveTab] = useState<string>('daily');
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState<ReportSet | null>(null);
   const [targetDate, setTargetDate] = useState(() => toYmd(new Date()));
@@ -113,8 +113,8 @@ export default function ReportsPage() {
 
   const renderTabBar = () => {
     const tabs = [
-      { id: 'hub', label: locale === 'th' ? '📂 ศูนย์จัดเก็บรายงาน' : '📂 Report Hub' },
       { id: 'daily', label: locale === 'th' ? '📝 รายงานประจำวัน' : '📝 Daily Report' },
+      { id: 'hub', label: locale === 'th' ? '📂 ศูนย์จัดเก็บรายงาน' : '📂 Report Hub' },
       { id: 'presentation', label: locale === 'th' ? '💻 Weekly Presentation' : '💻 Weekly Presentation' }
     ];
 
