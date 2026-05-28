@@ -1,46 +1,52 @@
-# รายงานสรุปการทำงานประจำวัน (Daily Report) - 27 พฤษภาคม 2026
-
-วันนี้เราได้ดำเนินการพัฒนาฟีเจอร์ใหม่และปรับปรุงดีไซน์ระบบ (UI/UX Refinement) ของระบบ Neo Line OA สำเร็จลุล่วงตามแผนงาน 2 ส่วนหลักดังนี้ครับ:
+# รายงานสรุปการทำงานประจำวัน (Daily Report) - 27-28 พฤษภาคม 2026
 
 ---
 
-## 🚀 1. ระบบประเมินผลการปฏิบัติงานพนักงาน 360 องศา (360-Degree Evaluation)
+## 🚀 28 พฤษภาคม 2026: เพิ่มประสิทธิภาพและจูนความเร็วหน้าจอฝั่งลูกค้า (Customer Portal Performance Tuning)
 
-เราได้ออกแบบและพัฒนาระบบประเมินแบบ 360 องศา เพื่อวัดผลงานของวิศวกรซัพพอร์ตระบบโรงพยาบาลอย่างเป็นรูปธรรม:
-* **ฐานข้อมูล (Database Schema):** เขียนไฟล์ [add_evaluation_360_schema.sql](file:///d:/Project%20APP/AntiGravity/neo_line_oa/add_evaluation_360_schema.sql) เพื่อสร้างตาราง `staff_evaluations_360` พร้อมเปิดใช้งาน Row Level Security (RLS) ปกป้องข้อมูลผู้ใช้งานและผู้ประเมิน
-* **ระบบหลังบ้าน (API Route):** พัฒนา [src/app/api/analytics/staff/evaluate-360/route.ts](file:///d:/Project%20APP/AntiGravity/neo_line_oa/src/app/api/analytics/staff/evaluate-360/route.ts) ดึงข้อมูลสรุปตั๋ว, Log การส่งเวร, และแชทจริงกับแพทย์/พยาบาลย้อนหลัง 30 วัน ส่งให้ **Gemini API** วิเคราะห์ระดับคะแนนแนะนำและคำแนะนำการทำงานโดยอัตโนมัติ
-* **หน้ากากผู้ใช้ (UI Form):** พัฒนาหน้าจอประเมินใน [src/app/(dashboard)/analytics/staff/evaluation-360/page.tsx](file:///d:/Project%20APP/AntiGravity/neo_line_oa/src/app/%28dashboard%29/analytics/staff/evaluation-360/page.tsx)
-  * **Weighted Calculator:** คำนวณคะแนนตามสัดส่วนถ่วงน้ำหนัก (หัวหน้า 40% / เพื่อนร่วมงาน 30% / ลูกค้า 20% / ตนเอง 10%) แบบ Real-time
-  * **AI Autofill Recommendation:** ป้อนคะแนนดิบและข้อวิจารณ์แนะนำจาก AI เพื่อช่วยให้หัวหน้างานประเมินได้รวดเร็วขึ้น
-* **ปรับโครงสร้างเมนูและการวิเคราะห์:**
-  * ปรับเปลี่ยนโทนสีหลักรองแอปจากสีม่วงเป็นสีน้ำเงินมหาสมุทร `#2563eb` ใน [src/app/globals.css](file:///d:/Project%20APP/AntiGravity/neo_line_oa/src/app/globals.css)
-  * ปรับแถบนำทางข้าง [src/components/layout/MainSidebar.tsx](file:///d:/Project%20APP/AntiGravity/neo_line_oa/src/components/layout/MainSidebar.tsx) เป็น Flat Hierarchy เพื่อความคล่องตัว
-  * ยุบรวมการเข้าถึงหน้าแดชบอร์ดรายงานที่กระจัดกระจายมารวมที่ [src/app/(dashboard)/analytics/page.tsx](file:///d:/Project%20APP/AntiGravity/neo_line_oa/src/app/%28dashboard%29/analytics/page.tsx) และ [src/app/(dashboard)/reports/hub/page.tsx](file:///d:/Project%20APP/AntiGravity/neo_line_oa/src/app/%28dashboard%29/reports/hub/page.tsx) แบบแบ่งแท็บย่อย (Tab-Based)
+วันนี้เราได้ดำเนินการตรวจสอบและปรับปรุงโครงสร้างโค้ดหน้าจอฝั่งลูกค้า (Customer Portal / LINE LIFF) ทั้งหมดเพื่อแก้ปัญหาหน้าจอโหลดช้า โดยมีรายละเอียดสำคัญดังนี้ครับ:
 
----
+### 1. การแก้ไขปัญหาคิวรีฐานข้อมูลซ้ำซ้อนและการเรียกเชื่อมต่อที่รวดเร็วขึ้น
+* **ลดปริมาณ Network Polling และประหยัดแบตเตอรี่ (Polling Rate Reduction)**:
+  - แก้ไขหน้าหลัก [src/app/portal/page.tsx](file:///d:/Project%20APP/AntiGravity/neo_line_oa/src/app/portal/page.tsx) โดยขยายช่วงเวลา Fallback Polling จากเดิมดึงข้อมูลทุก ๆ **5 วินาที** เป็น **60 วินาที**
+  - แก้ไขหน้ารายละเอียดตั๋ว [src/app/portal/tickets/[id]/page.tsx](file:///d:/Project%20APP/AntiGravity/neo_line_oa/src/app/portal/tickets/%5Bid%5D/page.tsx) ขยายช่วงเวลาดึงประวัติแชตจากทุก ๆ **10 วินาที** เป็น **60 วินาที**
+  - ทั้งสองหน้ายังคงทำงานแบบเรียลไทม์ผ่าน Supabase Realtime (Websockets) ร่วมกับ focus listener ได้อย่างแม่นยำ ป้องกันการส่งคิวรีถี่ ๆ ไปถล่มฐานข้อมูลฐานหลักโดยไม่จำเป็น
+* **ความเร็วระดับมิลลิวินาทีใน Middleware (Latency Bypass)**:
+  - ปรับปรุง [middleware.ts](file:///d:/Project%20APP/AntiGravity/neo_line_oa/middleware.ts) ให้เส้นทางสาธารณะของลูกค้า (`/portal`) ข้ามขั้นตอนการสร้าง Supabase client และ getSession ทันที (Early return) ช่วยประหยัดเวลา Handshake และลด Latency ของ API ไปราว ๆ 50-150ms ต่อหนึ่งหน้า
+* **ยุบรวมคิวรีแบบ Waterfall (Parallel Data Loading)**:
+  - รวมการตรวจสอบข้อมูลเบื้องต้นและดึงข้อมูลคู่ค้าโรงพยาบาลของตั๋วในหน้ารายละเอียดตั๋วให้อยู่ในคิวรีเดียวโดยใช้ join `assigned_agent:profiles!assigned_agent_id(*)` แทนการเรียกซ้ำสองครั้งย้อนหลัง
+  - รันการโหลด Ticket logs และการเช็คสถานะตอบแบบสอบถาม CSAT Survey แบบขนานด้วย `Promise.all`
 
-## 🎨 2. ยกระดับ UI/UX และการเข้าถึงระบบระดับพรีเมียม (Premium UI/UX Polish)
+### 2. แก้ปัญหาด้าน Rendering และสลัด DOM Bloat
+* **สกัด Component ลูกและป้องกันการเรนเดอร์แบบโดมิโน (Component Memoization)**:
+  - สกัดหน้าต่างประเมิน CSAT ออกเป็น `PortalSurveyModal` พร้อมห่อหุ้มด้วย `React.memo` เพื่อป้องกันการพิมพ์ความคิดเห็นหรือการเอารีดเมาส์ไปชี้ดาวประเมิน (Star Rating Hover) ส่งผลกระทบทำให้หน้าหลักและรายการตั๋วทั้งหมดต้อง re-render ใหม่
+  - สกัดและทำ `React.memo` ให้กับ `PortalTicketCard` (สำหรับการ์ดตั๋ว), `MessageBubble` (สำหรับการ์ดข้อความในแชท), และ `TicketStatusStepper` (สำหรับสเต็ปเปอร์สถานะ) ช่วยลด GC Pressure
+* **ลด Render-Blocking Fonts**:
+  - ลบ `@import` ลิงก์ฟอนต์ Google Fonts ใน [globals.css](file:///d:/Project%20APP/AntiGravity/neo_line_oa/src/app/globals.css) ซึ่งเป็นสาเหตุการขัดขวางการเรนเดอร์ (Render-blocking)
+  - หันไปเรียกใช้ `@next/font/google` ใน [layout.tsx](file:///d:/Project%20APP/AntiGravity/neo_line_oa/src/app/layout.tsx) เพื่อให้ระบบทำการ Optimize, Self-host, และดึงฟอนต์ (Prompt, Inter, IBM Plex Sans Thai) ทำงานร่วมกับ CSS Variables อย่างไหลลื่น ป้องกัน Layout Shift (CLS)
+* **การหน่วง Scroll Listener (Throttled Scroll)**:
+  - เพิ่ม logic ตรวจสอบการเลื่อนสกรอลล์ในหน้าแชตแชท เพื่อไม่ให้เรียกใช้ state update ปุ่ม Jump to Latest ทุก ๆ พิกเซลเวลาผู้ใช้เลื่อนจอ
 
-เราได้ทำการตกแต่งรายละเอียดของหน้าต่าง ๆ เพิ่มมิติความงาม ความเป็นระเบียบ และการควบคุมที่ง่ายต่อผู้ใช้:
-* **แท็บเปลี่ยนหน้าระดับพรีเมียม (Sticky Pill Tabs):**
-  * กำหนดแถบเมนูในหน้าวิเคราะห์และรายงานให้ยึดติดอยู่ด้านบนสุด (`position: 'sticky'`) ตลอดเวลาเพื่อป้องกันไม่ให้เมนูเลื่อนหาย
-  * ดีไซน์แบบ iOS Pill-Style พื้นหลังกระจกฝ้าโปร่งแสง พร้อมเอฟเฟกต์สีไล่เฉดและแสงเรืองสีฟ้าบนปุ่มที่ถูกเลือกเพื่อส่งเสริม Visual Hierarchy
-* **ลิ้นชักแสดงสไลด์ Weekly Report (Collapsible Presentation Drawer):**
-  * พัฒนาระบบย่อ/ขยายในหน้าเล่นสไลด์รายงาน Weekly Presentation ให้ย่อซ่อนเก็บได้ด้วย CSS Transition ที่นุ่มนวล โดยจะแสดงเป็นกรอบพรีวิวเชิญชวนเมื่อยังไม่มีรายงาน
-* **เกลี่ยสีประจำตัวและจัดแนวแถวคอลัมน์หน้าโปรไฟล์:**
-  * จัดระเบียบจุดเลือกสีธีมในหน้าโปรไฟล์ให้อยู่ในตารางสมมาตร **Grid 8 คอลัมน์ (8x3)** เรียงตัวตรงเป๊ะเสมอกันทุกปุ่ม
-  * ปรับกล่องข้อมูล 3 คอลัมน์หลักในหน้าโปรไฟล์ให้มีขนาดเท่ากันสมดุลในหน้าจอเดสก์ท็อป
-* **สมมาตรสัดส่วนหน้าแจ้งเตือน (Symmetrical Notifications Layout):**
-  * ปรับหน้าจอตั้งค่าการแจ้งเตือนจากเดิม `2fr 1fr` เป็น Grid แบบสมดุล `repeat(auto-fit, minmax(380px, 1fr))` กระจายน้ำหนักซ้ายขวาอย่างลงตัว ไร้พื้นที่ว่างสีดำด้านขวา
-* **ตกแต่ง TopBar และ Micro-Interactions:**
-  * **ภาพคนออนไลน์:** ยกเลิกการซ้อนทับภาพ Avatar พนักงาน นำระยะติดลบออก และจัดแถวเรียงเคียงข้างกันด้วย Flexbox ระยะห่าง `gap: '6px'` เพื่อความสบายตา
-  * **นาฬิกา TopBarClock:** ตกแต่งตัวแสดงวันเวลาให้อยู่ในกล่อง Pill ขุ่นสไตล์กระจกฝ้าพรีเมียม ปรับสีตัวหนังสือเป็นสีขาวสว่างเด่นชัดอ่านง่าย
-  * **ช่องเลือกวันเวลา (Picker Inputs):** ปรับแต่งตัวเลือกเวลา `input[type="time"]` ให้แสดงผลไอคอนชัดเจนสีขาวในโหมดมืด และเพิ่มเอฟเฟกต์การยืดขยายตัว (Scale 1.15) อย่างนุ่มนวลเมื่อเอาเมาส์ไปวาง (Hover Effect)
+### 3. การบีบอัดรูปภาพจริงในฟอร์มแจ้งปัญหาใหม่
+* **Image Compression 0.8**:
+  - แก้ไขไฟล์ [src/app/portal/create/page.tsx](file:///d:/Project%20APP/AntiGravity/neo_line_oa/src/app/portal/create/page.tsx) ปรับค่า Compression quality ลงเหลือ `0.8` (จากเดิม 1.0 ซึ่งไม่มีผลบีบอัดจริง) ช่วยให้การอัปโหลดไฟล์ภาพหลักฐานของลูกค้าก่อนส่งตั๋วและแชททำงานได้ไวขึ้นอย่างมาก
 
----
-
-## 🧪 ผลการยืนยันและการส่งมอบ (Verification & Handover)
-
+### 4. ตรวจสอบความถูกต้องและจัดส่งโค้ด (Verification & Handover)
 * **TypeScript Check:** รัน `npx tsc --noEmit` ผ่านฉลุย 100% ไม่มีข้อผิดพลาด
-* **Linter Check:** รัน `npm run lint` ผ่านฉลุย 100% ไม่มีข้อผิดพลาดค้างคาในโค้ดที่แก้ไข
-* **Git Commit & Push:** ทำการคอมมิทและพุชขึ้น branch `main` บน GitHub เรียบร้อยแล้ว (Commit Hash: `be3794d`)
+* **Linter Check:** รัน `npm run lint` ผ่านฉลุย 100% ไม่มีข้อผิดพลาดในโค้ดที่แก้ไข
+* **Production Build:** รัน `npm run build` ผ่าน Turbopack ประสบความสำเร็จครบ 50 หน้าเว็บเพจอย่างเรียบร้อย
+* **Git Commit & Push:** ทำการคอมมิทและพุชขึ้น branch `main` บน GitHub เรียบร้อยแล้ว (Commit Hash: `3c9697b`)
+
+---
+
+## 🚀 27 พฤษภาคม 2026: ระบบประเมินผลการปฏิบัติงานพนักงาน 360 องศา & ปรับปรุงดีไซน์ (UI/UX Refinement)
+
+เราได้ดำเนินการพัฒนาฟีเจอร์ประเมินแบบ 360 องศา พร้อมทั้งเก็บตกแต่งรายละเอียดดีไซน์ระบบ:
+* **Weighted Calculator:** คำนวณคะแนนตามสัดส่วนถ่วงน้ำหนัก (หัวหน้า 40% / เพื่อนร่วมงาน 30% / ลูกค้า 20% / ตนเอง 10%) แบบ Real-time
+* **AI Autofill Recommendation:** เชื่อมต่อ Gemini API วิเคราะห์ข้อมูลตั๋วประวัติย้อนหลัง 30 วัน
+* **UI/UX Polish:**
+  - เปลี่ยนแถบนำทางเป็น Flat Hierarchy
+  - แถบนำหน้าแบบยึดติดด้านบน (Sticky Pill Tabs)
+  - กลไกย่อซ่อนสไลด์รายงานใน Weekly Presentation
+  - เกลี่ยปุ่มเลือกสีธีมหน้าโปรไฟล์เป็น Grid 8 คอลัมน์สมมาตร
+  - ปรับการแจ้งเตือนและการ์ดผู้ใช้งาน TopBar (Online Staff Avatars) ให้เป็น Flex Gap เลิกซ้อนทับกัน
