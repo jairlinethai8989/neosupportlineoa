@@ -91,24 +91,126 @@ interface TicketStatusStepperProps {
 
 const TicketStatusStepper = React.memo(function TicketStatusStepper({ currentLevel, status }: TicketStatusStepperProps) {
   const isResolved = ['resolved', 'closed'].includes(status.toLowerCase());
+  
+  const steps = [
+    { level: 1, label: 'รอดำเนินการ' },
+    { level: 2, label: 'รับงานแล้ว' },
+    { level: 3, label: 'ส่งต่อแก้ปัญหา' },
+    { level: 4, label: 'ปิดงานแล้ว' }
+  ];
+
   return (
-    <>
-      <div style={{ height: '6px', background: '#f1f5f9', borderRadius: '10px', overflow: 'hidden', display: 'flex', gap: '4px', marginBottom: '20px' }}>
-        {[1, 2, 3, 4].map(step => (
-          <div key={step} style={{
-            flex: 1,
-            background: step <= currentLevel ? (isResolved ? '#22c55e' : 'var(--portal-primary)') : 'transparent',
-            transition: 'background 0.4s ease'
-          }} />
-        ))}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', margin: '12px 0 8px 0' }}>
+      {/* Connector lines and nodes */}
+      <div style={{ position: 'relative', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 12px' }}>
+        {/* Background Track Line */}
+        <div style={{
+          position: 'absolute',
+          left: '28px',
+          right: '28px',
+          height: '4px',
+          background: '#e2e8f0',
+          zIndex: 1,
+          borderRadius: '2px'
+        }} />
+        
+        {/* Active Progress Line */}
+        <div style={{
+          position: 'absolute',
+          left: '28px',
+          width: `${Math.max(0, Math.min(3, currentLevel - 1)) * 33.33}%`,
+          height: '4px',
+          background: isResolved ? '#22c55e' : 'var(--portal-primary)',
+          zIndex: 2,
+          borderRadius: '2px',
+          transition: 'width 0.4s ease'
+        }} />
+
+        {/* Circular Nodes */}
+        {steps.map((step) => {
+          const isActive = step.level === currentLevel;
+          const isCompleted = step.level < currentLevel;
+          const nodeColor = isResolved && (isCompleted || isActive) 
+            ? '#22c55e' 
+            : (isCompleted || isActive) 
+              ? 'var(--portal-primary)' 
+              : '#e2e8f0';
+
+          return (
+            <div
+              key={step.level}
+              style={{
+                width: '32px',
+                height: '32px',
+                borderRadius: '50%',
+                background: isActive ? 'white' : nodeColor,
+                border: `3px solid ${nodeColor}`,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                zIndex: 3,
+                boxShadow: isActive 
+                  ? `0 0 10px rgba(0, 242, 254, 0.4)` 
+                  : '0 2px 4px rgba(0,0,0,0.02)',
+                transition: 'all 0.4s ease',
+                position: 'relative'
+              }}
+            >
+              {isCompleted ? (
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+              ) : isActive ? (
+                <span style={{
+                  width: '10px',
+                  height: '10px',
+                  borderRadius: '50%',
+                  background: isResolved ? '#22c55e' : 'var(--portal-primary)',
+                  boxShadow: `0 0 6px ${isResolved ? '#22c55e' : 'var(--portal-primary)'}`,
+                  display: 'inline-block'
+                }} />
+              ) : (
+                <span style={{ fontSize: '11px', fontWeight: '800', color: '#94a3b8' }}>
+                  {step.level}
+                </span>
+              )}
+            </div>
+          );
+        })}
       </div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9px', color: 'var(--portal-text-muted)', textTransform: 'uppercase', fontWeight: '800' }}>
-        <span>รอดำเนินการ</span>
-        <span>รับงานแล้ว</span>
-        <span>ส่งต่อแก้ปัญหา</span>
-        <span>ปิดงานแล้ว</span>
+
+      {/* Step Labels */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0 4px' }}>
+        {steps.map((step) => {
+          const isActive = step.level === currentLevel;
+          const isCompleted = step.level < currentLevel;
+          let labelColor = '#64748b'; // Muted slate
+          if (isActive) {
+            labelColor = isResolved ? '#166534' : 'var(--portal-primary)';
+          } else if (isCompleted) {
+            labelColor = '#334155'; // Darker text for completed
+          }
+
+          return (
+            <div
+              key={step.level}
+              style={{
+                flex: 1,
+                textAlign: 'center',
+                fontSize: '11px',
+                fontWeight: isActive ? '900' : '800',
+                color: labelColor,
+                transition: 'color 0.4s ease',
+                lineHeight: '1.2',
+                maxWidth: '80px'
+              }}
+            >
+              {step.label}
+            </div>
+          );
+        })}
       </div>
-    </>
+    </div>
   );
 });
 
@@ -556,7 +658,23 @@ export default function TicketDetailPage() {
      </div>
   );
 
-  const currentLevel = STATUS_LEVELS[String(ticket.status).toLowerCase()] || 1;
+  let currentLevel = STATUS_LEVELS[String(ticket.status).toLowerCase()] || 1;
+  if (currentLevel === 1 && ticket.assigned_agent_id) {
+    currentLevel = 2;
+  }
+
+  const getFriendlyStatus = () => {
+    const s = String(ticket.status).toLowerCase();
+    const hasAgent = !!ticket.assigned_agent_id;
+    if (s === 'resolved') return 'แก้ไขเสร็จสิ้น (Resolved)';
+    if (s === 'closed') return 'ปิดใบงานแล้ว (Closed)';
+    if (s === 'escalated') return 'ส่งต่อผู้เชี่ยวชาญ (Escalated)';
+    if (s === 'assigned') return 'รับงานแล้ว (Assigned)';
+    if (s === 'in progress') return 'กำลังดำเนินการ (In Progress)';
+    if (s === 'pending') return 'รอดำเนินการ (Pending)';
+    if (hasAgent) return 'รับงานแล้ว (Assigned)';
+    return 'รอดำเนินการ (New)';
+  };
 
   const handleSubmitSurvey = async () => {
     if (surveyValue === 0) return;
@@ -808,8 +926,8 @@ export default function TicketDetailPage() {
        <section className="portal-glass" style={{ padding: '24px', marginBottom: '24px', background: 'white', border: '1px solid var(--portal-border)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px', alignItems: 'center' }}>
              <h3 style={{ fontSize: '12px', fontWeight: '800', color: 'var(--portal-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>สถานะปัจจุบัน</h3>
-             <span style={{ fontSize: '14px', fontWeight: '900', color: ticket.status === 'Resolved' ? '#166534' : 'var(--portal-primary)' }}>
-                {ticket.status}
+             <span style={{ fontSize: '13px', fontWeight: '900', color: ['resolved', 'closed'].includes(String(ticket.status).toLowerCase()) ? '#22c55e' : 'var(--portal-primary)' }}>
+                {getFriendlyStatus()}
              </span>
           </div>
 
