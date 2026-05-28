@@ -2,14 +2,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { 
-  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, 
-  PieChart, Pie, Cell 
-} from 'recharts';
-import { Brain, Filter, Activity, FileText, Users, Building, AlertTriangle } from 'lucide-react';
-import ActivityHeatmap from '@/components/analytics/ActivityHeatmap';
-
-const COLORS = ['#06b6d4', '#3b82f6', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981'];
+import { Brain, Filter, Activity, AlertTriangle, Building } from 'lucide-react';
 
 export default function InsightsPage() {
   const [data, setData] = useState<any>(null);
@@ -179,131 +172,6 @@ export default function InsightsPage() {
         </div>
       )}
 
-      {/* Top Row: Hospitals & Issue Types */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '24px' }}>
-        <div className="glass" style={{ border: '1px solid var(--border)', borderRadius: '16px', padding: '24px' }}>
-          <h2 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-main)' }}>
-            <Building size={20} color="var(--primary)" />
-            Top Hospitals by Volume
-          </h2>
-          <div style={{ height: '300px', width: '100%' }}>
-            {data?.topHospitals?.length > 0 ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={data.topHospitals} layout="vertical" margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-                  <XAxis type="number" stroke="var(--text-muted)" fontSize={12} tickLine={false} axisLine={false} />
-                  <YAxis dataKey="name" type="category" width={120} stroke="var(--text-muted)" fontSize={12} tickLine={false} axisLine={false} />
-                  <Tooltip 
-                    cursor={{fill: 'var(--bg-card)'}}
-                    contentStyle={{ backgroundColor: 'var(--bg-sidebar)', border: '1px solid var(--border)', borderRadius: '8px', color: 'var(--text-main)' }}
-                  />
-                  <Bar dataKey="count" fill="var(--primary)" radius={[0, 4, 4, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            ) : (
-              <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-dim)' }}>ไม่มีข้อมูล</div>
-            )}
-          </div>
-        </div>
-
-        <div className="glass" style={{ border: '1px solid var(--border)', borderRadius: '16px', padding: '24px' }}>
-          <h2 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-main)' }}>
-            <Activity size={20} color="#a855f7" />
-            Issue Types Breakdown
-          </h2>
-          <div style={{ height: '300px', width: '100%' }}>
-            {data?.issueTypes?.length > 0 ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={data.issueTypes}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={70}
-                    outerRadius={110}
-                    paddingAngle={5}
-                    dataKey="count"
-                  >
-                    {data.issueTypes.map((entry: any, index: number) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip 
-                    contentStyle={{ backgroundColor: 'var(--bg-sidebar)', border: '1px solid var(--border)', borderRadius: '8px', color: 'var(--text-main)' }}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
-            ) : (
-              <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-dim)' }}>ไม่มีข้อมูล</div>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Middle Row: New Features (Top Subjects & Top Staff) */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '24px' }}>
-        <div className="glass" style={{ border: '1px solid var(--border)', borderRadius: '16px', padding: '24px' }}>
-          <h2 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-main)' }}>
-            <FileText size={20} color="#ec4899" />
-            เรื่องที่แจ้งมาบ่อยที่สุด (Top Subjects)
-          </h2>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            {data?.topSubjects?.length > 0 ? (
-              data.topSubjects.map((subject: any, idx: number) => (
-                <div key={idx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px', background: 'var(--bg-card)', borderRadius: '8px', border: '1px solid var(--border)' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    <div style={{ width: '24px', height: '24px', borderRadius: '50%', background: 'var(--bg-sidebar)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', color: 'var(--text-muted)' }}>
-                      {idx + 1}
-                    </div>
-                    <span style={{ fontSize: '14px', color: 'var(--text-main)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '250px' }}>{subject.name}</span>
-                  </div>
-                  <span style={{ color: 'var(--primary)', fontWeight: '700' }}>{subject.count} เคส</span>
-                </div>
-              ))
-            ) : (
-              <div style={{ textAlign: 'center', color: 'var(--text-dim)', padding: '32px 0' }}>ไม่มีข้อมูล</div>
-            )}
-          </div>
-        </div>
-
-        <div className="glass" style={{ border: '1px solid var(--border)', borderRadius: '16px', padding: '24px' }}>
-          <h2 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-main)' }}>
-            <Users size={20} color="var(--success)" />
-            เจ้าหน้าที่โรงพยาบาลที่แจ้งบ่อยที่สุด
-          </h2>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            {data?.topStaff?.length > 0 ? (
-              data.topStaff.map((staff: any, idx: number) => (
-                <div key={idx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px', background: 'var(--bg-card)', borderRadius: '8px', border: '1px solid var(--border)' }}>
-                  <div style={{ display: 'flex', flexDirection: 'column' }}>
-                    <span style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text-main)' }}>{staff.name}</span>
-                    <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{staff.hospital}</span>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{ color: 'var(--success)', fontWeight: '700', fontSize: '18px' }}>{staff.count}</span>
-                    <span style={{ fontSize: '12px', color: 'var(--text-dim)' }}>ใบงาน</span>
-                  </div>
-                </div>
-              ))
-            ) : (
-              <div style={{ textAlign: 'center', color: 'var(--text-dim)', padding: '32px 0' }}>ไม่มีข้อมูล</div>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Bottom Row: Activity Heatmap */}
-      <div className="glass" style={{ border: '1px solid var(--border)', borderRadius: '16px', padding: '24px' }}>
-        <h2 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-main)' }}>
-          <Activity size={20} color="var(--primary)" />
-          ความหนาแน่นของการแจ้งปัญหา (Activity Heatmap)
-        </h2>
-        {data?.heatmapData && data.heatmapData.length > 0 ? (
-          <ActivityHeatmap data={data.heatmapData} />
-        ) : (
-          <div style={{ textAlign: 'center', color: 'var(--text-dim)', padding: '32px 0' }}>ไม่มีข้อมูล</div>
-        )}
-      </div>
-      
       <style dangerouslySetInnerHTML={{__html: `
         @keyframes spin {
           from { transform: rotate(0deg); }
