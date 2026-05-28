@@ -41,8 +41,20 @@ export default function NotificationSettingsPage() {
         ? t('settingsNotifications.femaleVoice')
         : t('settingsNotifications.maleVoice');
     }
-    return t('settingsNotifications.soundBeep');
-  }, [isSoundEnabled, soundMode, soundVoice, t]);
+    switch (soundMode) {
+      case 'beep-retro':
+        return locale === 'th' ? 'เสียง Beep (Retro 8-bit)' : 'Beep (Retro 8-bit)';
+      case 'beep-cosmic':
+        return locale === 'th' ? 'เสียง Beep (Cosmic Echo)' : 'Beep (Cosmic Echo)';
+      case 'beep-digital':
+        return locale === 'th' ? 'เสียง Beep (Digital Double)' : 'Beep (Digital Double)';
+      case 'beep-alert':
+        return locale === 'th' ? 'เสียง Beep (Urgent Alert)' : 'Beep (Urgent Alert)';
+      case 'beep':
+      default:
+        return t('settingsNotifications.soundBeep');
+    }
+  }, [isSoundEnabled, soundMode, soundVoice, t, locale]);
 
   const pushToast = (title: string, body: string, duration = 9000) => {
     addToast({
@@ -163,8 +175,8 @@ export default function NotificationSettingsPage() {
                 style={{
                   padding: '16px',
                   borderRadius: '16px',
-                  border: `1px solid ${soundMode === 'beep' ? 'var(--primary)' : 'var(--border)'}`,
-                  background: soundMode === 'beep' ? 'rgba(0,242,254,0.06)' : 'transparent',
+                  border: `1px solid ${soundMode.startsWith('beep') ? 'var(--primary)' : 'var(--border)'}`,
+                  background: soundMode.startsWith('beep') ? 'rgba(0,242,254,0.06)' : 'transparent',
                   cursor: isSoundEnabled ? 'pointer' : 'not-allowed',
                   opacity: isSoundEnabled ? 1 : 0.5,
                   textAlign: 'left',
@@ -200,6 +212,51 @@ export default function NotificationSettingsPage() {
                 </div>
               </button>
             </div>
+
+            {soundMode.startsWith('beep') && (
+              <div style={{ marginTop: '16px', display: 'flex', flexDirection: 'column', gap: '8px', padding: '12px', background: 'rgba(255,255,255,0.02)', borderRadius: '12px', border: '1px solid var(--border)' }}>
+                <div style={{ fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '4px' }}>
+                  {locale === 'th' ? 'เลือกรูปแบบเสียง Beep' : 'Choose Beep Style'}
+                </div>
+                
+                {[
+                  { id: 'beep', label: locale === 'th' ? '🔊 Classic Beep (มาตรฐาน)' : '🔊 Classic Beep (Standard)' },
+                  { id: 'beep-retro', label: locale === 'th' ? '👾 Retro 8-bit (เกมย้อนยุค)' : '👾 Retro 8-bit (Retro Game)' },
+                  { id: 'beep-cosmic', label: locale === 'th' ? '🌌 Cosmic Echo (เสียงก้องอวกาศ)' : '🌌 Cosmic Echo (Space Echo)' },
+                  { id: 'beep-digital', label: locale === 'th' ? '🤖 Digital Double (เสียงเตือนคู่ดิจิทัล)' : '🤖 Digital Double (Double Pulse)' },
+                  { id: 'beep-alert', label: locale === 'th' ? '🚨 Urgent Alert (แจ้งเตือนเร่งด่วน)' : '🚨 Urgent Alert (Urgent Siren)' },
+                ].map((option) => {
+                  const isSelected = soundMode === option.id;
+                  return (
+                    <button
+                      key={option.id}
+                      onClick={() => setSoundMode(option.id as any)}
+                      disabled={!isSoundEnabled}
+                      className="glass-interactive"
+                      style={{
+                        padding: '10px 14px',
+                        borderRadius: '8px',
+                        border: `1px solid ${isSelected ? 'var(--primary)' : 'transparent'}`,
+                        background: isSelected ? 'rgba(0,242,254,0.08)' : 'transparent',
+                        color: isSelected ? 'var(--text-main)' : 'var(--text-muted)',
+                        cursor: isSoundEnabled ? 'pointer' : 'not-allowed',
+                        textAlign: 'left',
+                        fontSize: '12px',
+                        fontWeight: isSelected ? '800' : '500',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        width: '100%',
+                        transition: 'all 0.15s ease'
+                      }}
+                    >
+                      <span>{option.label}</span>
+                      {isSelected && <span style={{ color: 'var(--primary)', fontSize: '10px' }}>● ACTIVE</span>}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
 
             {soundMode === 'voice' && (
               <div style={{ marginTop: '16px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>

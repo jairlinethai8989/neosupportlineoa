@@ -22,7 +22,7 @@ const VOICE_AUDIO_SRC = {
   male: '/audio/new-ticket-male.mp3',
 } as const;
 
-export type NotificationSoundMode = 'beep' | 'voice';
+export type NotificationSoundMode = 'beep' | 'beep-retro' | 'beep-cosmic' | 'beep-digital' | 'beep-alert' | 'voice';
 export type NotificationVoiceOption = 'female' | 'male';
 
 export type SoundTestFailureCode =
@@ -179,12 +179,45 @@ export function useNotifications(
         playTone(now + 0.035, 0.18, 1975.53, 'sine', 0.035);
         return;
       }
-      playTone(now + 0.02, 0.24, 1046.5, 'triangle', 0.12);
-      playTone(now + 0.035, 0.2, 2093, 'sine', 0.04);
-      playTone(now + 0.28, 0.34, 783.99, 'triangle', 0.11);
-      playTone(now + 0.3, 0.26, 1567.98, 'sine', 0.03);
+
+      // Check current soundMode to determine Beep style
+      switch (soundMode) {
+        case 'beep-retro':
+          // Retro 8-bit arpeggio sound
+          playTone(now + 0.02, 0.08, 523.25, 'square', 0.07); // C5
+          playTone(now + 0.10, 0.08, 659.25, 'square', 0.07); // E5
+          playTone(now + 0.18, 0.08, 783.99, 'square', 0.07); // G5
+          playTone(now + 0.26, 0.22, 1046.50, 'square', 0.07); // C6
+          break;
+        case 'beep-cosmic':
+          // Cosmic echo sweeping sound
+          playTone(now + 0.02, 0.4, 880.00, 'sine', 0.08); // A5
+          playTone(now + 0.12, 0.35, 1109.73, 'triangle', 0.04); // C#6 (Subtle harmony)
+          playTone(now + 0.22, 0.3, 1318.51, 'sine', 0.03); // E6
+          break;
+        case 'beep-digital':
+          // Fast digital double chime pulse
+          playTone(now + 0.02, 0.12, 1200, 'sine', 0.1);
+          playTone(now + 0.14, 0.18, 1600, 'sine', 0.08);
+          break;
+        case 'beep-alert':
+          // Urgent support notification alert
+          playTone(now + 0.02, 0.15, 880.00, 'sawtooth', 0.05); // Dual sawtooth C6/A5 tone
+          playTone(now + 0.02, 0.15, 1046.50, 'triangle', 0.1); 
+          playTone(now + 0.20, 0.25, 880.00, 'sawtooth', 0.05);
+          playTone(now + 0.20, 0.25, 1046.50, 'triangle', 0.1);
+          break;
+        case 'beep':
+        default:
+          // Standard classic beep
+          playTone(now + 0.02, 0.24, 1046.5, 'triangle', 0.12);
+          playTone(now + 0.035, 0.2, 2093, 'sine', 0.04);
+          playTone(now + 0.28, 0.34, 783.99, 'triangle', 0.11);
+          playTone(now + 0.3, 0.26, 1567.98, 'sine', 0.03);
+          break;
+      }
     },
-    [getAudioContext]
+    [getAudioContext, soundMode]
   );
 
   const announceMuteState = useCallback((muted: boolean) => {
