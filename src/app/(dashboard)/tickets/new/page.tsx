@@ -50,14 +50,15 @@ export default function CreateInternalTicketPage() {
         setStaffProfile(p);
       }
 
-      // 2. Fetch Hospitals and Company Settings
-      const [{ data: hData }, { data: settings }] = await Promise.all([
+      // 2. Fetch Hospitals and Ticket Subject Types
+      const [{ data: hData }, { data: subjectsRes }] = await Promise.all([
         supabase.from('hospitals').select('*').eq('is_active', true).order('name', { ascending: true }),
-        supabase.from('company_settings').select('subject_types').maybeSingle()
+        supabase.from('ticket_subject_types').select('name').eq('is_active', true).order('name', { ascending: true })
       ]);
       
       setHospitals(hData || []);
-      setSubjectTypes(settings?.subject_types || ['ลบ', 'แก้ไขออเดอร์', 'แจ้ง error', 'เรื่องอื่นๆ']);
+      const subjects = subjectsRes?.map((s: any) => s.name) || [];
+      setSubjectTypes(subjects.length > 0 ? subjects : ['ลบ', 'แก้ไขออเดอร์', 'แจ้ง error', 'เรื่องอื่นๆ']);
     }
     init();
   }, []);

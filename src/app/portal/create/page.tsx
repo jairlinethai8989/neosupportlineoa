@@ -35,16 +35,17 @@ export default function CreateTicketPage() {
       if (!profile?.userId) return;
 
       async function checkCustomer() {
-         const [{ data: customer }, { data: settings }] = await Promise.all([
+         const [{ data: customer }, { data: subjectsRes }] = await Promise.all([
             supabase.from('customers').select('*, hospitals(name, abbreviation)').eq('line_user_id', profile?.userId).maybeSingle(),
-            supabase.from('company_settings').select('subject_types').maybeSingle()
+            supabase.from('ticket_subject_types').select('name').eq('is_active', true).order('name', { ascending: true })
          ]);
 
          if (!customer || !customer.hospital_id) {
             router.push('/portal');
          } else {
             setCustomerData(customer);
-            setSubjectTypes(settings?.subject_types || ['ลบ', 'แก้ไขออเดอร์', 'แจ้ง error', 'เรื่องอื่นๆ']);
+            const subjects = subjectsRes?.map((s: any) => s.name) || [];
+            setSubjectTypes(subjects.length > 0 ? subjects : ['ลบ', 'แก้ไขออเดอร์', 'แจ้ง error', 'เรื่องอื่นๆ']);
          }
          setChecking(false);
       }
