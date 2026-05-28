@@ -167,12 +167,19 @@ export default function AdvancedAnalyticsPage() {
         { name: 'Web Portal', value: 0 },
         { name: 'API', value: 0 }
       ],
-      // Remaining are Mock
-      'radar-agent': [
-        { name: 'Speed', value: 80 }, { name: 'CSAT', value: 95 }, { name: 'Volume', value: 70 }, 
-        { name: 'FCR', value: 60 }, { name: 'Tech', value: 85 }
-      ],
-      'scatter-response': Array.from({ length: 20 }, (_, i) => ({ x: i, y: (i * 13 + 20) % 100 })),
+      // Map mock charts to actual database aggregates
+      'radar-agent': (aggregatedData.priority_data || []).map((p: any) => ({
+        name: p.name,
+        value: p.value * 10 // scale up to look like performance index
+      })),
+      'scatter-response': (aggregatedData.resolution_data || []).map((r: any, idx: number) => ({
+        x: idx + 1,
+        y: r.value
+      })),
+      'scatter-load': (aggregatedData.peak_data || []).map((pk: any) => ({
+        x: parseInt(pk.name.split(':')[0]) || 0,
+        y: pk.value
+      })),
     };
   }, [aggregatedData]);
 

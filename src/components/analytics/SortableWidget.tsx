@@ -143,7 +143,7 @@ export const SortableWidget = ({ id, chart, data, onRemove }: any) => {
             <chart.icon size={16} />
           </div>
           <h3 style={{ fontSize: '15px', fontWeight: '800', color: 'var(--text-main)', letterSpacing: '-0.3px' }}>{chart.name}</h3>
-          {(['radar-agent', 'radar-skill', 'scatter-response', 'scatter-load', 'composed-mix', 'tree-tags'].includes(id)) && (
+          {(['radar-skill', 'composed-mix', 'tree-tags'].includes(id)) && (
             <span style={{ fontSize: '9px', padding: '2px 6px', background: 'rgba(255, 171, 0, 0.1)', color: 'var(--warning)', borderRadius: '4px', fontWeight: '800' }}>MOCK DATA</span>
           )}
         </div>
