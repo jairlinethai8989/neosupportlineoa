@@ -122,8 +122,8 @@ export default function ReportsPage() {
       <div 
         style={{ 
           position: 'sticky', 
-          top: '-24px', 
-          zIndex: 50, 
+          top: '0px', 
+          zIndex: 99, 
           background: 'var(--bg-deep)', 
           paddingTop: '16px', 
           paddingBottom: '16px', 

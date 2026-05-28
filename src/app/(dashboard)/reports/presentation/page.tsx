@@ -185,7 +185,7 @@ export default function PresentationPage() {
   const [loading, setLoading] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [data, setData] = useState<PresentationData | null>(null);
-  const [isPreviewVisible, setIsPreviewVisible] = useState(true);
+  const [isPreviewVisible, setIsPreviewVisible] = useState(false);
   
   // Custom states for Drawer, Templates & AI
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
@@ -538,29 +538,27 @@ export default function PresentationPage() {
         </div>
 
         <div style={{ display: 'flex', gap: '12px', alignItems: 'center', paddingRight: '12px' }}>
-          {data && (
-            <button
-              onClick={() => setIsPreviewVisible(!isPreviewVisible)}
-              className="glass-interactive"
-              style={{
-                height: '44px',
-                padding: '0 16px',
-                borderRadius: '4px',
-                border: '1px solid ' + (isPreviewVisible ? 'var(--text-muted)' : 'var(--primary)'),
-                background: isPreviewVisible ? 'transparent' : 'var(--primary-transparent)',
-                color: isPreviewVisible ? 'var(--text-muted)' : 'var(--primary)',
-                fontWeight: '750',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                cursor: 'pointer',
-                fontSize: '12px',
-                transition: 'all 0.2s'
-              }}
-            >
-              {isPreviewVisible ? '🙈 ซ่อนรายงาน' : '👁️ แสดงรายงาน'}
-            </button>
-          )}
+          <button
+            onClick={() => setIsPreviewVisible(!isPreviewVisible)}
+            className="glass-interactive"
+            style={{
+              height: '44px',
+              padding: '0 16px',
+              borderRadius: '4px',
+              border: '1px solid ' + (isPreviewVisible ? 'var(--text-muted)' : 'var(--primary)'),
+              background: isPreviewVisible ? 'transparent' : 'var(--primary-transparent)',
+              color: isPreviewVisible ? 'var(--text-muted)' : 'var(--primary)',
+              fontWeight: '750',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              cursor: 'pointer',
+              fontSize: '12px',
+              transition: 'all 0.2s'
+            }}
+          >
+            {isPreviewVisible ? '🙈 ซ่อนรายงาน' : '👁️ แสดงรายงาน'}
+          </button>
 
           {/* Export Buttons */}
           <button
@@ -643,7 +641,7 @@ export default function PresentationPage() {
       </div>
 
       {/* Collapsed state placeholder banner */}
-      {!isPreviewVisible && data && (
+      {!isPreviewVisible && (
         <div style={{ display: 'flex', flex: 1, alignItems: 'center', justifyContent: 'center', background: 'var(--bg-card)', border: '1px dashed var(--border)', borderRadius: '12px', padding: '40px', textAlign: 'center', animation: 'fadeIn 0.3s', marginBottom: '24px' }}>
           <div>
             <Presentation size={48} color="var(--primary)" style={{ margin: '0 auto 16px', opacity: 0.7 }} />
