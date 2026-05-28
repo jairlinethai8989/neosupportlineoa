@@ -68,7 +68,7 @@ interface TopBarProps {
 
 export function TopBar({ isSidebarOpen, setIsSidebarOpen, isSidebarCollapsed, setIsSidebarCollapsed }: TopBarProps) {
   const router = useRouter();
-  const { userProfile: agent, updateStatus, companySettings } = useAppContext();
+  const { userProfile: agent, updateStatus, onlineUserIds, logout } = useAppContext();
   const { notifications, unreadCount, markAllRead, markAsRead, isMuted, toggleMute } = useNotificationContext();
   const { locale, toggleLocale, t } = useStaffLocale();
 
@@ -134,8 +134,6 @@ export function TopBar({ isSidebarOpen, setIsSidebarOpen, isSidebarCollapsed, se
 
   useEffect(() => {
     const filterOnline = () => {
-      const thresholdMinutes = companySettings?.active_threshold_minutes || 15;
-      const now = new Date();
       const filtered = profiles
         .map(p => {
           if (agent && p.id === agent.id) {
@@ -144,10 +142,8 @@ export function TopBar({ isSidebarOpen, setIsSidebarOpen, isSidebarCollapsed, se
           return p;
         })
         .filter(p => {
-          if (!p.last_seen) return false;
-          const lastSeenDate = new Date(p.last_seen);
-          const diffMinutes = (now.getTime() - lastSeenDate.getTime()) / 60000;
-          return diffMinutes <= thresholdMinutes;
+          if (agent && p.id === agent.id) return true;
+          return !!p.id && onlineUserIds.includes(p.id);
         });
 
       filtered.sort((a, b) => {
@@ -160,9 +156,7 @@ export function TopBar({ isSidebarOpen, setIsSidebarOpen, isSidebarCollapsed, se
     };
 
     filterOnline();
-    const filterInterval = setInterval(filterOnline, 30000);
-    return () => clearInterval(filterInterval);
-  }, [profiles, companySettings, agent]);
+  }, [profiles, agent, onlineUserIds]);
 
   useEffect(() => {
     function handleClick(event: MouseEvent) {
@@ -184,9 +178,7 @@ export function TopBar({ isSidebarOpen, setIsSidebarOpen, isSidebarCollapsed, se
   };
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
-    router.push('/login');
-    router.refresh();
+    await logout();
   };
 
   const handleNotifClick = (notif: AppNotification) => {

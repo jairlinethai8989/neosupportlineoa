@@ -52,8 +52,9 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   quick_replies JSONB NOT NULL DEFAULT '[]'::jsonb,
   resolution_templates JSONB NOT NULL DEFAULT '[]'::jsonb,
   updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT timezone('utc'::text, now()),
+  auto_logout_minutes INTEGER NOT NULL DEFAULT 0,
   CONSTRAINT profiles_role_check CHECK (role IN ('Agent', 'Administrator')),
-  CONSTRAINT profiles_status_check CHECK (status IN ('Active', 'Away', 'Offline'))
+  CONSTRAINT profiles_status_check CHECK (status IN ('Active', 'Away', 'Offline', 'Busy'))
 );
 
 CREATE TABLE IF NOT EXISTS public.company_settings (

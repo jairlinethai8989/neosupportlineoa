@@ -2,7 +2,7 @@
 /* eslint-disable @next/next/no-img-element */
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import {
   Bell,
   ChevronRight,
@@ -58,8 +58,7 @@ function isGroupItem(item: SidebarItem): item is SidebarGroupItem {
 
 function MainSidebarComponent({ onClickLink, isCollapsed = false }: SidebarProps) {
   const pathname = usePathname();
-  const router = useRouter();
-  const { companySettings: company, userProfile: profile } = useAppContext();
+  const { companySettings: company, userProfile: profile, logout } = useAppContext();
   const { unreadCount, newTicketsCount, slaAlertCount } = useNotificationContext();
   const { t } = useStaffLocale();
 
@@ -101,10 +100,8 @@ function MainSidebarComponent({ onClickLink, isCollapsed = false }: SidebarProps
   }, []);
 
   const handleLogout = useCallback(async () => {
-    await supabase.auth.signOut();
-    router.push('/login');
-    router.refresh();
-  }, [router]);
+    await logout();
+  }, [logout]);
 
   const toggleMenu = useCallback((name: string) => {
     setOpenMenus((prev) => (prev.includes(name) ? prev.filter((menu) => menu !== name) : [...prev, name]));

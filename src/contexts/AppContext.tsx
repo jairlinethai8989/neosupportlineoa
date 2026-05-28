@@ -14,6 +14,8 @@ interface AppContextType {
   ensureHospitals: () => Promise<void>;
   ensureDepartments: () => Promise<void>;
   updateStatus: (status: 'Active' | 'Busy') => Promise<void>;
+  onlineUserIds: string[];
+  logout: () => Promise<void>;
 }
 export interface UserProfile {
   id?: string;
@@ -26,6 +28,7 @@ export interface UserProfile {
   department?: string | null;
   quick_replies?: string[] | null;
   resolution_templates?: string[] | null;
+  auto_logout_minutes?: number | null;
   [key: string]: unknown;
 }
 export interface CompanySettings {
@@ -55,6 +58,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [departments, setDepartments] = useState<Array<Record<string, unknown>>>([]);
   const [loading, setLoading] = useState(true);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [onlineUserIds, setOnlineUserIds] = useState<string[]>([]);
   const hospitalsLoadedRef = React.useRef(false);
   const departmentsLoadedRef = React.useRef(false);
 
@@ -180,6 +184,21 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   }, [currentUserId, profileBypassAuth]);
 
+  const logout = useCallback(async () => {
+    if (currentUserId) {
+      try {
+        await supabase
+          .from('profiles')
+          .update({ status: 'Offline' })
+          .eq('id', currentUserId);
+      } catch (err) {
+        console.error('Failed to update status to Offline on logout:', err);
+      }
+    }
+    await supabase.auth.signOut();
+    window.location.href = '/login';
+  }, [currentUserId]);
+
   // Periodic heartbeat every 2 minutes when user is logged in
   useEffect(() => {
     if (!currentUserId) return;
@@ -220,6 +239,79 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       clearInterval(intervalId);
     };
   }, [currentUserId]);
+
+  // Supabase Realtime Presence for tracking online staff
+  useEffect(() => {
+    if (!currentUserId) {
+      setOnlineUserIds([]);
+      return;
+    }
+
+    const presenceChannel = supabase.channel('online-staff-presence', {
+      config: {
+        presence: {
+          key: currentUserId,
+        },
+      },
+    });
+
+    presenceChannel
+      .on('presence', { event: 'sync' }, () => {
+        const state = presenceChannel.presenceState();
+        const ids = Object.keys(state);
+        setOnlineUserIds(ids);
+      })
+      .subscribe(async (status) => {
+        if (status === 'SUBSCRIBED') {
+          await presenceChannel.track({
+            id: currentUserId,
+            online_at: new Date().toISOString(),
+          });
+        }
+      });
+
+    return () => {
+      void supabase.removeChannel(presenceChannel);
+    };
+  }, [currentUserId]);
+
+  // Inactivity (Auto Logout) Tracker
+  useEffect(() => {
+    if (!currentUserId || !userProfile?.auto_logout_minutes) return;
+
+    const timeoutMinutes = Number(userProfile.auto_logout_minutes);
+    if (timeoutMinutes <= 0) return;
+
+    const timeoutMs = timeoutMinutes * 60 * 1000;
+    let timer: NodeJS.Timeout;
+
+    const resetTimer = () => {
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        console.log('Inactivity timeout reached. Logging out...');
+        void logout();
+      }, timeoutMs);
+    };
+
+    const events = ['mousemove', 'keydown', 'click', 'scroll', 'touchstart'];
+    
+    const handleActivity = () => {
+      resetTimer();
+    };
+
+    events.forEach(event => {
+      window.addEventListener(event, handleActivity);
+    });
+
+    resetTimer();
+
+    return () => {
+      clearTimeout(timer);
+      events.forEach(event => {
+        window.removeEventListener(event, handleActivity);
+      });
+    };
+  }, [currentUserId, userProfile?.auto_logout_minutes, logout]);
 
   useEffect(() => {
     let cancelled = false;
@@ -319,6 +411,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         ensureHospitals,
         ensureDepartments,
         updateStatus,
+        onlineUserIds,
+        logout,
       }}
     >
       {children}

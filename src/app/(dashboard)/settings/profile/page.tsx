@@ -217,6 +217,7 @@ export default function ProfileSettingsPage() {
         signature_url: profile.signature_url,
         quick_replies: profile.quick_replies || [],
         resolution_templates: profile.resolution_templates || [],
+        auto_logout_minutes: profile.auto_logout_minutes ?? 0,
         updated_at: new Date().toISOString()
       }).eq('id', profile.id);
       
@@ -231,7 +232,8 @@ export default function ProfileSettingsPage() {
           department: profile.department,
           avatar_url: profile.avatar_url,
           theme_color: profile.theme_color,
-          signature_url: profile.signature_url
+          signature_url: profile.signature_url,
+          auto_logout_minutes: profile.auto_logout_minutes ?? 0
         },
         note: `Updated own profile information`
       });
@@ -434,6 +436,20 @@ export default function ProfileSettingsPage() {
                     <option value="">{t('settingsProfile.selectDepartment')}</option>
                     {companyDepts.map((d: string) => (<option key={d} value={d}>{d}</option>))}
                   </select>
+               </div>
+               <div>
+                  <label style={{ display: 'block', fontSize: '10px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '6px' }}>{t('settingsProfile.autoLogout')}</label>
+                  <select value={profile?.auto_logout_minutes ?? 0} onChange={e => setProfile({...profile, auto_logout_minutes: parseInt(e.target.value) || 0})} style={{ width: '100%', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '12px', padding: '12px', color: 'var(--text-main)', outline: 'none', fontWeight: '700', fontSize: '14px' }}>
+                    <option value={0}>{t('settingsProfile.autoLogoutNever')}</option>
+                    <option value={5}>{t('settingsProfile.autoLogout5Min')}</option>
+                    <option value={15}>{t('settingsProfile.autoLogout15Min')}</option>
+                    <option value={30}>{t('settingsProfile.autoLogout30Min')}</option>
+                    <option value={60}>{t('settingsProfile.autoLogout1Hour')}</option>
+                    <option value={120}>{t('settingsProfile.autoLogout2Hours')}</option>
+                  </select>
+                  <span style={{ display: 'block', fontSize: '11px', color: 'var(--text-muted)', marginTop: '6px', lineHeight: '1.4' }}>
+                    {t('settingsProfile.autoLogoutHint')}
+                  </span>
                </div>
 
                <div>
