@@ -6,42 +6,41 @@ import { Brain, Filter, Activity, AlertTriangle, Building } from 'lucide-react';
 
 export default function InsightsPage() {
   const [data, setData] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-  const [preset, setPreset] = useState('all'); // Change default to 'all' so data shows up
+  const [loading, setLoading] = useState(false);
+  const [preset, setPreset] = useState('30days'); // Start with 30 days as a reasonable default
   const [hospitalId, setHospitalId] = useState('all');
   const [hospitals, setHospitals] = useState<any[]>([]);
   const [customPrompt, setCustomPrompt] = useState('');
   const [generatingReport, setGeneratingReport] = useState(false);
   const [aiReport, setAiReport] = useState<any>(null);
 
+  // Light fetch for hospitals list only on mount
   useEffect(() => {
-    fetchData();
-  }, [preset, hospitalId]);
-
-  const fetchData = async () => {
-    setLoading(true);
-    try {
-      const res = await fetch(`/api/analytics/insights?preset=${preset}&hospitalId=${hospitalId}`);
-      if (!res.ok) throw new Error('Failed to fetch data');
-      const json = await res.json();
-      setData(json);
-      if (json.hospitals) {
-        setHospitals(json.hospitals);
+    async function fetchHospitals() {
+      try {
+        const res = await fetch('/api/analytics/insights?hospitalsOnly=true');
+        if (res.ok) {
+          const json = await res.json();
+          if (json.hospitals) {
+            setHospitals(json.hospitals);
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching hospitals:', err);
       }
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
     }
-  };
+    fetchHospitals();
+  }, []);
 
   const handleGenerateReport = async () => {
     setGeneratingReport(true);
     setAiReport(null);
+    setData(null);
     try {
       const res = await fetch(`/api/analytics/insights?preset=${preset}&hospitalId=${hospitalId}&ai=true&customPrompt=${encodeURIComponent(customPrompt)}`);
       if (!res.ok) throw new Error('Failed to generate AI report');
       const json = await res.json();
+      setData(json);
       if (json.aiReport) {
         setAiReport(json.aiReport);
       }
@@ -52,16 +51,8 @@ export default function InsightsPage() {
     }
   };
 
-  if (loading && !data) {
-    return (
-      <div style={{ display: 'flex', height: '80vh', alignItems: 'center', justifyContent: 'center' }}>
-        <div style={{ color: 'var(--primary)', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-          <Activity size={32} style={{ animation: 'spin 1s linear infinite', marginBottom: '16px' }} />
-          <p>กำลังโหลดข้อมูลเชิงลึก...</p>
-        </div>
-      </div>
-    );
-  }
+  // No initial loading screen
+
 
   return (
     <div className="animate-page-in" style={{ padding: '0', maxWidth: '100%', color: 'var(--text-main)', display: 'flex', flexDirection: 'column', gap: '24px' }}>

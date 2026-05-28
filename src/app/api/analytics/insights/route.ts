@@ -22,6 +22,20 @@ export async function GET(req: Request) {
       }
     }
 
+    // Query 0: Active Hospitals
+    const { data: hospitalsList, error: hospListErr } = await supabase
+      .from('hospitals')
+      .select('id, name')
+      .eq('is_active', true)
+      .order('name');
+    if (hospListErr) throw hospListErr;
+
+    // Check if client only wants hospitals list (light request)
+    const hospitalsOnly = searchParams.get('hospitalsOnly') === 'true';
+    if (hospitalsOnly) {
+      return NextResponse.json({ hospitals: hospitalsList });
+    }
+
     // Determine date range based on preset
     const now = new Date();
     if (!startDate && preset !== 'all') {
@@ -33,14 +47,6 @@ export async function GET(req: Request) {
     if (!endDate && preset !== 'all') {
       endDate = now.toISOString();
     }
-
-    // Query 0: Active Hospitals
-    const { data: hospitalsList, error: hospListErr } = await supabase
-      .from('hospitals')
-      .select('id, name')
-      .eq('is_active', true)
-      .order('name');
-    if (hospListErr) throw hospListErr;
 
     // Combined Query: Fetch all required fields in a single query to reduce database load
     let combinedQuery = supabase
