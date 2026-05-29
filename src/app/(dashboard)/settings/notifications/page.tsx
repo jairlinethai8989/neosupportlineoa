@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Bell, ChevronLeft, Globe2, Play, Volume2, VolumeX } from 'lucide-react';
 import { useNotificationContext } from '@/contexts/NotificationContext';
 import { useStaffLocale } from '@/contexts/StaffLocaleContext';
+import { NotificationSoundMode } from '@/hooks/useNotifications';
 
 type NotifPermission = 'unsupported' | NotificationPermission;
 
@@ -219,20 +220,22 @@ export default function NotificationSettingsPage() {
                   {locale === 'th' ? 'เลือกรูปแบบเสียง Beep' : 'Choose Beep Style'}
                 </div>
                 
-                {[
-                  { id: 'beep', label: locale === 'th' ? '🔊 Classic Beep (มาตรฐาน)' : '🔊 Classic Beep (Standard)' },
-                  { id: 'beep-retro', label: locale === 'th' ? '👾 Retro 8-bit (เกมย้อนยุค)' : '👾 Retro 8-bit (Retro Game)' },
-                  { id: 'beep-cosmic', label: locale === 'th' ? '🌌 Cosmic Echo (เสียงก้องอวกาศ)' : '🌌 Cosmic Echo (Space Echo)' },
-                  { id: 'beep-digital', label: locale === 'th' ? '🤖 Digital Double (เสียงเตือนคู่ดิจิทัล)' : '🤖 Digital Double (Double Pulse)' },
-                  { id: 'beep-alert', label: locale === 'th' ? '🚨 Urgent Alert (แจ้งเตือนเร่งด่วน)' : '🚨 Urgent Alert (Urgent Siren)' },
-                ].map((option) => {
-                  const isSelected = soundMode === option.id;
-                  return (
-                    <button
-                      key={option.id}
-                      onClick={() => setSoundMode(option.id as any)}
-                      disabled={!isSoundEnabled}
-                      className="glass-interactive"
+                {(() => {
+                  const beepOptions: { id: NotificationSoundMode; label: string }[] = [
+                    { id: 'beep', label: locale === 'th' ? '🔊 Classic Beep (มาตรฐาน)' : '🔊 Classic Beep (Standard)' },
+                    { id: 'beep-retro', label: locale === 'th' ? '👾 Retro 8-bit (เกมย้อนยุค)' : '👾 Retro 8-bit (Retro Game)' },
+                    { id: 'beep-cosmic', label: locale === 'th' ? '🌌 Cosmic Echo (เสียงก้องอวกาศ)' : '🌌 Cosmic Echo (Space Echo)' },
+                    { id: 'beep-digital', label: locale === 'th' ? '🤖 Digital Double (เสียงเตือนคู่ดิจิทัล)' : '🤖 Digital Double (Double Pulse)' },
+                    { id: 'beep-alert', label: locale === 'th' ? '🚨 Urgent Alert (แจ้งเตือนเร่งด่วน)' : '🚨 Urgent Alert (Urgent Siren)' },
+                  ];
+                  return beepOptions.map((option) => {
+                    const isSelected = soundMode === option.id;
+                    return (
+                      <button
+                        key={option.id}
+                        onClick={() => setSoundMode(option.id)}
+                        disabled={!isSoundEnabled}
+                        className="glass-interactive"
                       style={{
                         padding: '10px 14px',
                         borderRadius: '8px',
@@ -254,7 +257,8 @@ export default function NotificationSettingsPage() {
                       {isSelected && <span style={{ color: 'var(--primary)', fontSize: '10px' }}>● ACTIVE</span>}
                     </button>
                   );
-                })}
+                });
+              })()}
               </div>
             )}
 

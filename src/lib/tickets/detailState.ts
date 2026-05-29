@@ -6,7 +6,7 @@ function normalizeStatus(status: string | null | undefined) {
 
 export function isResolvedOrClosedStatus(status: string | null | undefined) {
   const normalized = normalizeStatus(status);
-  return normalized === 'resolved' || normalized === 'closed';
+  return normalized === 'resolved' || normalized === 'closed' || normalized === 'fix completed';
 }
 
 export function isNewStatus(status: string | null | undefined) {

@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import React, { useState } from 'react';
 import Image from 'next/image';
@@ -50,7 +50,11 @@ export const TicketSidebar: React.FC<TicketSidebarProps> = ({
   const { t } = useStaffLocale();
   void onTransfer;
 
-  const isResolved = currentTicket?.status === 'Resolved' || currentTicket?.status === 'Closed';
+  const statusLower = currentTicket?.status?.toLowerCase();
+  const isResolved =
+    statusLower === 'resolved' ||
+    statusLower === 'closed' ||
+    statusLower === 'fix completed';
   const isOwner = currentTicket?.assigned_agent_id === agent?.id;
   const isAdmin = agent?.role === 'Administrator';
   const isSessionActive = !isResolved && !!(selectedChat.status === 'active' || selectedChat.is_active);

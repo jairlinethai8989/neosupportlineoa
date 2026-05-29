@@ -345,7 +345,8 @@ export function useInboxConversation({
 
     if (!newMessage.trim() || !selectedChat || !agent) return;
 
-    if (currentTicket?.status === 'Resolved' || currentTicket?.status === 'Closed') {
+    const statusLower = currentTicket?.status?.toLowerCase();
+    if (statusLower === 'resolved' || statusLower === 'closed' || statusLower === 'fix completed') {
       addToast(getInboxWarningToast('ไม่สามารถส่งข้อความได้', getInboxClosedTicketMessage()));
       return;
     }
@@ -450,10 +451,11 @@ export function useInboxConversation({
       // Network can fail after server successfully commits resolve.
       // Re-check ticket state once before showing failure.
       const refreshedTicket = await getInboxTicketById(ticketId);
+      const refreshedStatusLower = refreshedTicket?.status?.toLowerCase();
       const isActuallyResolved =
-        refreshedTicket?.status === 'Resolved' || 
-        refreshedTicket?.status === 'Closed' || 
-        refreshedTicket?.status === 'Fix Completed';
+        refreshedStatusLower === 'resolved' || 
+        refreshedStatusLower === 'closed' || 
+        refreshedStatusLower === 'fix completed';
 
       if (isActuallyResolved && refreshedTicket) {
         setCurrentTicket(refreshedTicket);

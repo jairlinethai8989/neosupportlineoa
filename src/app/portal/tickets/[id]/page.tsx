@@ -29,13 +29,14 @@ const STATUS_LEVELS: Record<string, number> = {
   'assigned': 2,
   'in progress': 2,
   'escalated': 3,
+  'fix completed': 4,
   'resolved': 4,
   'closed': 4
 };
 
 function isSurveyEligibleStatus(status: unknown) {
   const s = String(status || '').toLowerCase();
-  return s === 'resolved' || s === 'closed';
+  return s === 'resolved' || s === 'closed' || s === 'fix completed';
 }
 
 // 1. Memoized Message Bubble to prevent massive DOM re-renders during chat scrolling
@@ -90,7 +91,13 @@ interface TicketStatusStepperProps {
 }
 
 const TicketStatusStepper = React.memo(function TicketStatusStepper({ currentLevel, status }: TicketStatusStepperProps) {
+  const isPending = status.toLowerCase() === 'pending';
   const isResolved = ['resolved', 'closed'].includes(status.toLowerCase());
+  const themeColor = isResolved 
+    ? '#22c55e' 
+    : isPending 
+      ? '#f97316' 
+      : 'var(--portal-primary)';
   
   const steps = [
     { level: 1, label: 'รอดำเนินการ' },
@@ -120,7 +127,7 @@ const TicketStatusStepper = React.memo(function TicketStatusStepper({ currentLev
           left: '28px',
           width: `${Math.max(0, Math.min(3, currentLevel - 1)) * 33.33}%`,
           height: '4px',
-          background: isResolved ? '#22c55e' : 'var(--portal-primary)',
+          background: themeColor,
           zIndex: 2,
           borderRadius: '2px',
           transition: 'width 0.4s ease'
@@ -132,9 +139,11 @@ const TicketStatusStepper = React.memo(function TicketStatusStepper({ currentLev
           const isCompleted = step.level < currentLevel;
           const nodeColor = isResolved && (isCompleted || isActive) 
             ? '#22c55e' 
-            : (isCompleted || isActive) 
-              ? 'var(--portal-primary)' 
-              : '#e2e8f0';
+            : isPending && isActive
+              ? '#f97316'
+              : (isCompleted || isActive) 
+                ? 'var(--portal-primary)' 
+                : '#e2e8f0';
 
           return (
             <div
@@ -150,7 +159,7 @@ const TicketStatusStepper = React.memo(function TicketStatusStepper({ currentLev
                 justifyContent: 'center',
                 zIndex: 3,
                 boxShadow: isActive 
-                  ? `0 0 10px rgba(0, 242, 254, 0.4)` 
+                  ? `0 0 10px ${isPending ? 'rgba(249, 115, 22, 0.4)' : 'rgba(0, 242, 254, 0.4)'}` 
                   : '0 2px 4px rgba(0,0,0,0.02)',
                 transition: 'all 0.4s ease',
                 position: 'relative'
@@ -161,14 +170,20 @@ const TicketStatusStepper = React.memo(function TicketStatusStepper({ currentLev
                   <polyline points="20 6 9 17 4 12" />
                 </svg>
               ) : isActive ? (
-                <span style={{
-                  width: '10px',
-                  height: '10px',
-                  borderRadius: '50%',
-                  background: isResolved ? '#22c55e' : 'var(--portal-primary)',
-                  boxShadow: `0 0 6px ${isResolved ? '#22c55e' : 'var(--portal-primary)'}`,
-                  display: 'inline-block'
-                }} />
+                isPending ? (
+                  <span style={{ fontSize: '13px', fontWeight: '900', color: '#f97316', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    ⚠️
+                  </span>
+                ) : (
+                  <span style={{
+                    width: '10px',
+                    height: '10px',
+                    borderRadius: '50%',
+                    background: isResolved ? '#22c55e' : 'var(--portal-primary)',
+                    boxShadow: `0 0 6px ${isResolved ? '#22c55e' : 'var(--portal-primary)'}`,
+                    display: 'inline-block'
+                  }} />
+                )
               ) : (
                 <span style={{ fontSize: '11px', fontWeight: '800', color: '#94a3b8' }}>
                   {step.level}
@@ -186,7 +201,11 @@ const TicketStatusStepper = React.memo(function TicketStatusStepper({ currentLev
           const isCompleted = step.level < currentLevel;
           let labelColor = '#64748b'; // Muted slate
           if (isActive) {
-            labelColor = isResolved ? '#166534' : 'var(--portal-primary)';
+            labelColor = isResolved 
+              ? '#166534' 
+              : isPending 
+                ? '#c2410c' 
+                : 'var(--portal-primary)';
           } else if (isCompleted) {
             labelColor = '#334155'; // Darker text for completed
           }
@@ -293,6 +312,7 @@ export default function TicketDetailPage() {
     };
   }, [ticketId]);
 
+  // 1. Fetch initial ticket data once isReady and ticketId are available
   useEffect(() => {
     if (!ticketId) return;
 
@@ -382,7 +402,7 @@ export default function TicketDetailPage() {
           !surveyState.responded &&
           isSurveyEligibleStatus(ticketData.status)
         ) {
-          setShowSurvey(true);
+          router.push(`/portal?survey_ticket_id=${ticketId}`);
         }
 
       } catch (err: any) {
@@ -392,102 +412,194 @@ export default function TicketDetailPage() {
       }
     }
 
+    void fetchTicketData();
+
+    return () => {
+      conversationIdRef.current = null;
+      setConversationId(null);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isReady, profile?.userId, ticketId, loadSurveyState]);
+
+  // 2. Persistent Supabase Realtime subscription and polling loop for message sync
+  useEffect(() => {
+    if (!ticketId) return;
+
     let channelRef: any = null;
 
-    const channel = supabase
-        .channel(`portal-ticket-${ticketId}`)
-        .on('postgres_changes', {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'messages',
-        }, (payload: any) => {
-          const msg = payload.new;
-          const cid = conversationIdRef.current;
-          const belongs = msg.ticket_id === ticketId || (cid && msg.conversation_id === cid);
-          if (!belongs) return;
-          setMessages(prev => {
-            if (prev.some(m => m.id === msg.id)) return prev;
-            if (msg.sender_type === 'customer') {
-              const tempIdx = prev.findIndex(m => m.id?.toString().startsWith('temp_') && m.content === msg.content);
-              if (tempIdx !== -1) {
-                const next = [...prev];
-                next[tempIdx] = msg;
-                return next;
-              }
+    console.log(`[Realtime] Initializing portal ticket channel for: ${ticketId}, conversationId: ${conversationId}`);
+    let channel = supabase.channel(`portal-ticket-${ticketId}`);
+    
+    // A. Listen to messages for this ticket directly
+    channel = channel.on('postgres_changes', {
+      event: 'INSERT',
+      schema: 'public',
+      table: 'messages',
+      filter: `ticket_id=eq.${ticketId}`
+    }, (payload: any) => {
+      const msg = payload.new;
+      console.log('[Realtime] Message INSERT (ticket_id) received', msg);
+      setMessages(prev => {
+        if (prev.some(m => m.id === msg.id)) return prev;
+        if (msg.sender_type === 'customer') {
+          const tempIdx = prev.findIndex(m => m.id?.toString().startsWith('temp_') && m.content === msg.content);
+          if (tempIdx !== -1) {
+            const next = [...prev];
+            next[tempIdx] = msg;
+            return next;
+          }
+        }
+        return [...prev, msg];
+      });
+    }).on('postgres_changes', {
+      event: 'UPDATE',
+      schema: 'public',
+      table: 'messages',
+      filter: `ticket_id=eq.${ticketId}`
+    }, (payload: any) => {
+      const msg = payload.new;
+      console.log('[Realtime] Message UPDATE (ticket_id) received', msg);
+      setMessages(prev => prev.map(m => m.id === payload.new.id ? payload.new : m));
+    });
+
+    // B. Listen to messages for this conversation directly if we have one
+    if (conversationId) {
+      channel = channel.on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'messages',
+        filter: `conversation_id=eq.${conversationId}`
+      }, (payload: any) => {
+        const msg = payload.new;
+        console.log('[Realtime] Message INSERT (conversation_id) received', msg);
+        setMessages(prev => {
+          if (prev.some(m => m.id === msg.id)) return prev;
+          if (msg.sender_type === 'customer') {
+            const tempIdx = prev.findIndex(m => m.id?.toString().startsWith('temp_') && m.content === msg.content);
+            if (tempIdx !== -1) {
+              const next = [...prev];
+              next[tempIdx] = msg;
+              return next;
             }
-            return [...prev, msg];
-          });
-        })
-        .on('postgres_changes', {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'messages',
-        }, (payload: any) => {
-          const cid = conversationIdRef.current;
-          const msg = payload.new;
-          const belongs = msg.ticket_id === ticketId || (cid && msg.conversation_id === cid);
-          if (!belongs) return;
-          setMessages(prev => prev.map(m => m.id === payload.new.id ? payload.new : m));
-        })
-        .on('postgres_changes', {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'conversations',
-        }, (payload: any) => {
-          const cid = conversationIdRef.current;
-          const currentTicketId = payload.new?.current_ticket_id;
-          if (payload.new?.id === cid || currentTicketId === ticketId) {
-            let query = supabase.from('messages').select('id, content, sender_type, message_type, created_at, ticket_id, conversation_id');
-            if (cid) {
-              query = query.or(`ticket_id.eq.${ticketId},conversation_id.eq.${cid}`);
-            } else {
-              query = query.eq('ticket_id', ticketId);
-            }
-            query.order('created_at', { ascending: true }).then(({ data }: any) => {
-              if (data) setMessages(data);
-            });
           }
-        })
-        .on('postgres_changes', {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'tickets',
-          filter: `id=eq.${ticketId}`
-        }, async (payload: any) => {
-          const nextTicket = payload.new;
-          setTicket((prev: any) => prev ? ({ ...prev, ...nextTicket }) : prev);
-          supabase.from('ticket_logs').select('id, created_at, action_type, to_status').eq('ticket_id', ticketId).order('created_at', { ascending: false })
-            .then(({ data }: any) => { if (data) setLogs(data); });
-          if (isSurveyEligibleStatus(nextTicket?.status) && !hasRespondedRef.current) {
-            setShowSurvey(true);
-            await loadSurveyState();
-            setTimeout(() => {
-              void loadSurveyState();
-            }, 500);
-          }
-        })
-        .on('postgres_changes', {
-          event: '*',
-          schema: 'public',
-          table: 'csat_surveys',
-          filter: `ticket_id=eq.${ticketId}`
-        }, async (payload: any) => {
-          const nextSurvey = payload.new;
-          const value = nextSurvey?.score || nextSurvey?.rating || 0;
-          const responded = Boolean(nextSurvey?.responded_at || value);
-          if (responded) {
-            setHasResponded(true);
-            if (value) setSurveyScore(value);
-            return;
-          }
-          if (!hasRespondedRef.current && isSurveyEligibleStatus(ticketStatusRef.current || payload.old?.status)) {
-            setShowSurvey(true);
-          }
-        })
-        .subscribe();
+          return [...prev, msg];
+        });
+      }).on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'messages',
+        filter: `conversation_id=eq.${conversationId}`
+      }, (payload: any) => {
+        const msg = payload.new;
+        console.log('[Realtime] Message UPDATE (conversation_id) received', msg);
+        setMessages(prev => prev.map(m => m.id === payload.new.id ? payload.new : m));
+      });
+    }
+
+    // C. Listen to conversations linked to this ticket
+    channel = channel.on('postgres_changes', {
+      event: '*',
+      schema: 'public',
+      table: 'conversations',
+      filter: `current_ticket_id=eq.${ticketId}`
+    }, (payload: any) => {
+      const currentTicketId = payload.new?.current_ticket_id || payload.old?.current_ticket_id;
+      const newCid = payload.new?.id || payload.old?.id;
+      
+      console.log('[Realtime] Conversation event received (by ticket_id)', payload.new || payload.old);
+      
+      if (newCid && newCid !== conversationIdRef.current) {
+        console.log(`[Realtime] Associating ticket with conversation ID: ${newCid}`);
+        setConversationId(newCid);
+        conversationIdRef.current = newCid;
+      }
+
+      const targetCid = newCid || conversationId;
+      let query = supabase.from('messages').select('id, content, sender_type, message_type, created_at, ticket_id, conversation_id');
+      if (targetCid) {
+        query = query.or(`ticket_id.eq.${ticketId},conversation_id.eq.${targetCid}`);
+      } else {
+        query = query.eq('ticket_id', ticketId);
+      }
+      query.order('created_at', { ascending: true }).then(({ data }: any) => {
+        if (data) setMessages(data);
+      });
+    });
+
+    // D. Listen to the specific conversation if we have one
+    if (conversationId) {
+      channel = channel.on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'conversations',
+        filter: `id=eq.${conversationId}`
+      }, (payload: any) => {
+        console.log('[Realtime] Conversation event received (by id)', payload.new || payload.old);
+        const currentTicketId = payload.new?.current_ticket_id || payload.old?.current_ticket_id;
+        const newCid = payload.new?.id || payload.old?.id;
+        
+        if (newCid && newCid !== conversationIdRef.current) {
+          console.log(`[Realtime] Associating ticket with conversation ID: ${newCid}`);
+          setConversationId(newCid);
+          conversationIdRef.current = newCid;
+        }
+
+        const targetCid = newCid || conversationId;
+        let query = supabase.from('messages').select('id, content, sender_type, message_type, created_at, ticket_id, conversation_id');
+        if (targetCid) {
+          query = query.or(`ticket_id.eq.${ticketId},conversation_id.eq.${targetCid}`);
+        } else {
+          query = query.eq('ticket_id', ticketId);
+        }
+        query.order('created_at', { ascending: true }).then(({ data }: any) => {
+          if (data) setMessages(data);
+        });
+      });
+    }
+
+    // E. Listen to the specific ticket details
+    channel = channel.on('postgres_changes', {
+      event: 'UPDATE',
+      schema: 'public',
+      table: 'tickets',
+      filter: `id=eq.${ticketId}`
+    }, async (payload: any) => {
+      const nextTicket = payload.new;
+      console.log('[Realtime] Ticket UPDATE received', nextTicket);
+      setTicket((prev: any) => prev ? ({ ...prev, ...nextTicket }) : prev);
+      supabase.from('ticket_logs').select('id, created_at, action_type, to_status').eq('ticket_id', ticketId).order('created_at', { ascending: false })
+        .then(({ data }: any) => { if (data) setLogs(data); });
+      if (isSurveyEligibleStatus(nextTicket?.status) && !hasRespondedRef.current) {
+        router.push(`/portal?survey_ticket_id=${ticketId}`);
+      }
+    });
+
+    // F. Listen to the CSAT surveys
+    channel = channel.on('postgres_changes', {
+      event: '*',
+      schema: 'public',
+      table: 'csat_surveys',
+      filter: `ticket_id=eq.${ticketId}`
+    }, async (payload: any) => {
+      const nextSurvey = payload.new;
+      console.log('[Realtime] CSAT Survey event received', nextSurvey);
+      const value = nextSurvey?.score || nextSurvey?.rating || 0;
+      const responded = Boolean(nextSurvey?.responded_at || value);
+      if (responded) {
+        setHasResponded(true);
+        if (value) setSurveyScore(value);
+        return;
+      }
+      if (!hasRespondedRef.current && isSurveyEligibleStatus(ticketStatusRef.current || payload.old?.status)) {
+        setShowSurvey(true);
+      }
+    });
+
+    channel.subscribe((status) => {
+      console.log(`[Realtime] Subscription status for ticket ${ticketId} (conv: ${conversationId}):`, status);
+    });
 
     channelRef = channel;
-    void fetchTicketData();
 
     // Fallback polling for chat messages increased to 60s instead of 10s to ease load
     const poller = window.setInterval(() => {
@@ -514,12 +626,14 @@ export default function TicketDetailPage() {
     }, 60000); // 60 seconds
 
     return () => {
-      conversationIdRef.current = null;
       window.clearInterval(poller);
-      if (channelRef) supabase.removeChannel(channelRef);
+      if (channelRef) {
+        console.log(`[Realtime] Cleaning up channel for ticket: ${ticketId}`);
+        supabase.removeChannel(channelRef);
+      }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isReady, loadSurveyState, ticketId]);
+  }, [ticketId, conversationId]);
 
   useEffect(() => {
     if (!ticketId) return;
@@ -540,10 +654,12 @@ export default function TicketDetailPage() {
 
   useEffect(() => {
     if (isSurveyEligibleStatus(ticket?.status) && !hasResponded) {
-      const timer = setTimeout(() => setShowSurvey(true), 1500);
+      const timer = setTimeout(() => {
+        router.push(`/portal?survey_ticket_id=${ticketId}`);
+      }, 1500);
       return () => clearTimeout(timer);
     }
-  }, [ticket?.status, hasResponded]);
+  }, [ticket?.status, hasResponded, ticketId, router]);
 
   const handleEditExistingImage = (url: string) => {
     setViewingImage(url);
@@ -668,10 +784,11 @@ export default function TicketDetailPage() {
     const hasAgent = !!ticket.assigned_agent_id;
     if (s === 'resolved') return 'แก้ไขเสร็จสิ้น (Resolved)';
     if (s === 'closed') return 'ปิดใบงานแล้ว (Closed)';
+    if (s === 'fix completed') return 'แก้ไขเสร็จสิ้น (Fix Completed)';
     if (s === 'escalated') return 'ส่งต่อผู้เชี่ยวชาญ (Escalated)';
     if (s === 'assigned') return 'รับงานแล้ว (Assigned)';
     if (s === 'in progress') return 'กำลังดำเนินการ (In Progress)';
-    if (s === 'pending') return 'รอดำเนินการ (Pending)';
+    if (s === 'pending') return 'ติดปัญหา (Pending)';
     if (hasAgent) return 'รับงานแล้ว (Assigned)';
     return 'รอดำเนินการ (New)';
   };
@@ -924,12 +1041,39 @@ export default function TicketDetailPage() {
        </section>
 
        <section className="portal-glass" style={{ padding: '24px', marginBottom: '24px', background: 'white', border: '1px solid var(--portal-border)' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px', alignItems: 'center' }}>
-             <h3 style={{ fontSize: '12px', fontWeight: '800', color: 'var(--portal-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>สถานะปัจจุบัน</h3>
-             <span style={{ fontSize: '13px', fontWeight: '900', color: ['resolved', 'closed'].includes(String(ticket.status).toLowerCase()) ? '#22c55e' : 'var(--portal-primary)' }}>
-                {getFriendlyStatus()}
-             </span>
-          </div>
+           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px', alignItems: 'center' }}>
+              <h3 style={{ fontSize: '12px', fontWeight: '800', color: 'var(--portal-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>สถานะปัจจุบัน</h3>
+              <span style={{ 
+                fontSize: '13px', 
+                fontWeight: '900', 
+                color: ['resolved', 'closed'].includes(String(ticket.status).toLowerCase()) 
+                  ? '#22c55e' 
+                  : String(ticket.status).toLowerCase() === 'pending'
+                    ? '#f97316'
+                    : 'var(--portal-primary)' 
+              }}>
+                 {getFriendlyStatus()}
+              </span>
+           </div>
+
+           {String(ticket.status).toLowerCase() === 'pending' && (
+             <div style={{
+               padding: '12px 16px',
+               borderRadius: '12px',
+               background: '#fff7ed',
+               border: '1px solid #ffedd5',
+               color: '#c2410c',
+               fontSize: '13px',
+               fontWeight: '700',
+               marginBottom: '16px',
+               display: 'flex',
+               alignItems: 'center',
+               gap: '8px'
+             }}>
+               <span style={{ fontSize: '16px' }}>⚠️</span>
+               <span>ใบงานนี้ติดปัญหาชั่วคราว (Pending) - เจ้าหน้าที่อยู่ระหว่างการรอข้อมูลเพิ่มเติมหรือกำลังแก้ไขอย่างเร่งด่วน</span>
+             </div>
+           )}
 
           <TicketStatusStepper currentLevel={currentLevel} status={ticket.status} />
        </section>

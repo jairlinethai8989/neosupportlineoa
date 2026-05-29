@@ -22,11 +22,11 @@ import Skeleton from '@/components/ui/Skeleton';
 const ProfileRegistrationModal = React.lazy(() => import('@/components/portal/ProfileRegistrationModal'));
 
 const ITEMS_PER_PAGE = 5;
-const DONE_STATUSES = ['resolved', 'closed', 'canceled'];
+const DONE_STATUSES = ['resolved', 'closed', 'canceled', 'fix completed'];
 
 function isSurveyEligibleStatus(status: unknown) {
   const s = String(status || '').toLowerCase();
-  return s === 'resolved' || s === 'closed';
+  return s === 'resolved' || s === 'closed' || s === 'fix completed';
 }
 
 // 1. Memoized Survey Modal to prevent full page re-renders during star hover/typing
@@ -385,6 +385,44 @@ export default function PortalPage() {
     };
   }, [fetchTickets, profile?.userId]);
 
+  // Trigger CSAT survey directly if redirected with survey_ticket_id query parameter
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const params = new URLSearchParams(window.location.search);
+    const surveyTicketId = params.get('survey_ticket_id');
+    if (!surveyTicketId) return;
+
+    const checkDirectSurvey = async () => {
+      try {
+        const { data: ticketData } = await supabase
+          .from('tickets')
+          .select('id, ticket_no, subject, status, created_at, resolved_at')
+          .eq('id', surveyTicketId)
+          .maybeSingle();
+
+        if (ticketData && isSurveyEligibleStatus(ticketData.status)) {
+          // Check if already responded to CSAT
+          const { data: surveyRow } = await supabase
+            .from('csat_surveys')
+            .select('score, rating, responded_at')
+            .eq('ticket_id', surveyTicketId)
+            .maybeSingle();
+
+          const hasScore = Boolean(surveyRow?.score || surveyRow?.rating);
+          if (!surveyRow || (!surveyRow.responded_at && !hasScore)) {
+            setPendingSurveyTicket(ticketData);
+            setShowSurvey(true);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to check direct survey ticket:', err);
+      }
+    };
+
+    void checkDirectSurvey();
+  }, []);
+
   // Realtime subscription for ticket updates
   useEffect(() => {
     if (!customerData?.id) return;
@@ -558,7 +596,16 @@ export default function PortalPage() {
         setSurveyValue={setSurveyValue}
         setSurveyHover={setSurveyHover}
         setSurveyComment={setSurveyComment}
-        setShowSurvey={setShowSurvey}
+        setShowSurvey={(show) => {
+          setShowSurvey(show);
+          if (!show && typeof window !== 'undefined') {
+            const url = new URL(window.location.href);
+            if (url.searchParams.has('survey_ticket_id')) {
+              url.searchParams.delete('survey_ticket_id');
+              window.history.replaceState({}, '', url.toString());
+            }
+          }
+        }}
         onSubmit={handleSubmitSurvey}
       />
 

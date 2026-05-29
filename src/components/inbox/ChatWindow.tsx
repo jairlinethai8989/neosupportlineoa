@@ -102,7 +102,8 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
     );
   }
 
-  const isResolved = currentTicket?.status === 'Resolved' || currentTicket?.status === 'Closed';
+  const statusLower = currentTicket?.status?.toLowerCase();
+  const isResolved = statusLower === 'resolved' || statusLower === 'closed' || statusLower === 'fix completed';
   const isViewOnly = !!(agent?.role !== 'Administrator' && agent?.permissions?.inbox === 'view');
   const isUnassigned = !!(currentTicket && !currentTicket.assigned_agent_id);
   const normalizedConversationStatus = String(selectedChat.status || '')
