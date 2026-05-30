@@ -15,7 +15,7 @@ import { TicketChat } from '@/components/tickets/TicketChat';
 import { TicketSidebar, getTicketDuration } from '@/components/tickets/TicketSidebar';
 import Link from 'next/link';
 import Image from 'next/image';
-import { User, Clock, ChevronRight, ClipboardCheck, FileText, Paperclip, ExternalLink } from 'lucide-react';
+import { User, Clock, ChevronRight, ClipboardCheck, FileText, Paperclip, ExternalLink, AlertTriangle } from 'lucide-react';
 import { deleteMessageAction, closeConversationAction } from '@/app/actions/messageActions';
 import { compressImage } from '@/lib/utils/imageCompression';
 import { useNotificationContext } from '@/contexts/NotificationContext';
@@ -214,6 +214,8 @@ export default function StaffTicketDetailPage() {
   const [sending, setSending] = useState(false);
 
   const [showResolveModal, setShowResolveModal] = useState(false);
+  const [showRejectModal, setShowRejectModal] = useState(false);
+  const [rejectNote, setRejectNote] = useState('');
   const [resSummary, setResSummary] = useState('');
   const [editingImage, setEditingImage] = useState<string | null>(null);
   const [showEditor, setShowEditor] = useState(false);
@@ -973,10 +975,8 @@ export default function StaffTicketDetailPage() {
     user?.id,
   ]);
 
-  const handleRejectFixCompleted = useCallback(async () => {
+  const handleRejectFixCompleted = useCallback(async (note: string) => {
     if (!ticketId || !ticket || !user?.id) return;
-    const note = window.prompt('ระบุเหตุผลที่ส่งกลับแก้ไข (ไม่บังคับ):', '') || '';
-    if (!window.confirm('ยืนยันส่งงานกลับเพื่อแก้ไขต่อ?')) return;
 
     setUpdating(true);
     try {
@@ -991,6 +991,8 @@ export default function StaffTicketDetailPage() {
         title: 'ส่งกลับแก้ไขแล้ว',
         body: `ใบงาน #${ticket.ticket_no || ticketId} ถูกส่งกลับไปยังสถานะ ${newStatus}`,
       });
+      setShowRejectModal(false);
+      setRejectNote('');
       await fetchData();
     } catch (error) {
       addToast(getTicketDetailActionFailedToast('update ticket', error));
@@ -1139,7 +1141,7 @@ export default function StaffTicketDetailPage() {
           setResSummary('');
         }}
         onRejectFixCompleted={() => {
-          void handleRejectFixCompleted();
+          setShowRejectModal(true);
         }}
         onExportClick={() => setShowExportModal(true)}
         onAiSummaryClick={handleGenerateAISummary}
@@ -1342,6 +1344,43 @@ export default function StaffTicketDetailPage() {
         onPrint={handlePrintSummary}
         ticketNo={ticket?.ticket_no || ''}
       />
+
+      {showRejectModal && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+          <div className="glass animate-in zoom-in" style={{ width: '100%', maxWidth: '400px', background: 'var(--bg-card)', borderRadius: '24px', padding: '24px', boxShadow: '0 20px 50px rgba(0,0,0,0.2)' }}>
+            <h3 style={{ fontSize: '18px', fontWeight: '900', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-main)' }}>
+              <AlertTriangle color="var(--warning)" size={18} /> ส่งกลับเพื่อแก้ไขต่อ
+            </h3>
+            <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '20px' }}>
+              กรุณาระบุรายละเอียดและคำวิจารณ์เพื่อแจ้งแก่ผู้ปฏิบัติงานภายนอก
+            </p>
+            <textarea 
+              value={rejectNote} 
+              onChange={(e) => setRejectNote(e.target.value)} 
+              placeholder="ระบุเหตุผลที่ส่งกลับแก้ไข..." 
+              style={{ width: '100%', height: '120px', padding: '12px', borderRadius: '12px', border: '1px solid var(--border)', background: 'var(--bg-input)', color: 'var(--text-main)', fontSize: '14px', marginBottom: '20px', outline: 'none', resize: 'none' }} 
+            />
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button 
+                onClick={() => {
+                  setShowRejectModal(false);
+                  setRejectNote('');
+                }} 
+                style={{ flex: 1, padding: '12px', borderRadius: '12px', border: '1px solid var(--border)', background: 'none', color: 'var(--text-main)', fontWeight: '700', cursor: 'pointer' }}
+              >
+                ยกเลิก
+              </button>
+              <button
+                disabled={!rejectNote.trim() || updating}
+                onClick={() => void handleRejectFixCompleted(rejectNote.trim())}
+                style={{ flex: 2, padding: '12px', borderRadius: '12px', border: 'none', background: '#f59e0b', color: 'white', fontWeight: '800', cursor: 'pointer', opacity: (!rejectNote.trim() || updating) ? 0.7 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+              >
+                {updating ? <Loader2 size={16} className="animate-spin" /> : 'ยืนยันการส่งกลับ'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Hidden Report Template (for PDF Export) */}
       <div style={{ position: 'absolute', left: '-9999px', top: '-9999px' }}>

@@ -40,11 +40,11 @@ export const ticketService = {
     return claimTicketServerAction(ticketId);
   },
 
-  async updateStatus(ticketId: string, newStatus: string, agentId?: string, note?: string, escalationToken?: string) {
+  async updateStatus(ticketId: string, newStatus: string, agentId?: string, note?: string, escalationToken?: string, expiresInHours?: number) {
     assertUuid('ticketId', ticketId);
     assertOptionalUuid('agentId', agentId);
     assertNonEmpty('newStatus', newStatus);
-    return updateTicketStatusAction(ticketId, newStatus, note, escalationToken);
+    return updateTicketStatusAction(ticketId, newStatus, note, escalationToken, expiresInHours);
   },
 
   async transfer(ticketId: string, fromAgentId?: string, toAgentId?: string, toTeamId?: string, reason?: string) {

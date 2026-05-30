@@ -1,8 +1,8 @@
 'use server';
 
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
+import crypto from 'crypto';
 
-const ESCALATION_PIN = '1234';
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 type ExternalWorkStatus = 'In Progress' | 'Pending' | 'Fix Completed';
@@ -26,8 +26,8 @@ function getInvalidPinError() {
   return { error: 'Invalid PIN' as const };
 }
 
-function hasValidPin(pin: string) {
-  return pin === ESCALATION_PIN;
+function hasValidPin(pin: string, securePin: string) {
+  return pin === securePin;
 }
 
 function sanitizeExternalStatus(status: string): ExternalWorkStatus {
@@ -56,22 +56,15 @@ function buildExternalReport(input: {
   return lines.join('\n');
 }
 
-async function resolveTicketQuery(selectClause: string, ticketIdOrToken: string) {
-  let query = supabaseAdmin.from('tickets').select(selectClause);
-  query = isUuidLike(ticketIdOrToken)
-    ? query.eq('id', ticketIdOrToken)
-    : query.eq('escalation_token', ticketIdOrToken);
+async function getActiveHandoff(ticketIdOrToken: string) {
+  const query = supabaseAdmin.from('ticket_handoffs').select('*');
+  const isUuid = isUuidLike(ticketIdOrToken);
+  
+  const result = isUuid
+    ? await query.or(`id.eq."${ticketIdOrToken}",ticket_id.eq."${ticketIdOrToken}"`).order('created_at', { ascending: false }).limit(1).maybeSingle()
+    : await query.eq('token', ticketIdOrToken).maybeSingle();
 
-  return query.maybeSingle();
-}
-
-async function resolveRealTicketId(ticketIdOrToken: string) {
-  if (isUuidLike(ticketIdOrToken)) {
-    return ticketIdOrToken;
-  }
-
-  const { data: ticket } = await resolveTicketQuery('id', ticketIdOrToken);
-  return (ticket as { id: string } | null)?.id || null;
+  return result.data;
 }
 
 async function reopenConversationForTicket(ticketId: string) {
@@ -99,16 +92,34 @@ async function reopenConversationForTicket(ticketId: string) {
 
 export async function verifyEscalationPin(ticketId: string, pin: string) {
   try {
-    if (!hasValidPin(pin)) {
+    const handoff = await getActiveHandoff(ticketId);
+    if (!handoff) {
+      return { error: 'Handoff session not found or invalid token' };
+    }
+
+    // Verify PIN first
+    if (!hasValidPin(pin, handoff.secure_pin)) {
       return getInvalidPinError();
     }
 
-    const { data: ticket, error } = await resolveTicketQuery('*', ticketId);
-    if (error) {
-      return { error: `Database Error: ${error.message}` };
+    // Check expiration and update status in DB if needed, but DO NOT block access
+    const isExpired = handoff.status === 'Expired' || new Date(handoff.expires_at) < new Date();
+    if (isExpired && handoff.status !== 'Expired') {
+      await supabaseAdmin
+        .from('ticket_handoffs')
+        .update({ status: 'Expired', updated_at: new Date().toISOString() })
+        .eq('id', handoff.id);
+      handoff.status = 'Expired';
     }
-    if (!ticket) {
-      return { error: 'Ticket not found or invalid escalation token' };
+
+    const { data: ticket, error: ticketError } = await supabaseAdmin
+      .from('tickets')
+      .select('*')
+      .eq('id', handoff.ticket_id)
+      .maybeSingle();
+
+    if (ticketError || !ticket) {
+      return { error: 'Ticket details could not be found' };
     }
 
     const ticketRow = ticket as unknown as EscalationTicketRow;
@@ -142,7 +153,32 @@ export async function verifyEscalationPin(ticketId: string, pin: string) {
       .eq('ticket_id', ticketRow.id)
       .order('created_at', { ascending: true });
 
-    return { data: { ...ticketRow, customers: customer, hospitals: hospital, logs, messages } };
+    // Fetch Quality Verification Reviews (reject/approve history)
+    const { data: verifications } = await supabaseAdmin
+      .from('ticket_verifications')
+      .select('decision, feedback_notes, created_at')
+      .eq('ticket_id', ticketRow.id)
+      .order('created_at', { ascending: false });
+
+    // Fetch reports submitted under this handoff
+    const { data: reports } = await supabaseAdmin
+      .from('ticket_handoff_reports')
+      .select('*')
+      .eq('handoff_id', handoff.id)
+      .order('created_at', { ascending: false });
+
+    return { 
+      data: { 
+        ...ticketRow, 
+        customers: customer, 
+        hospitals: hospital, 
+        logs, 
+        messages, 
+        handoff,
+        verifications,
+        reports
+      } 
+    };
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Unknown error';
     return { error: `Escalation access check failed: ${message}` };
@@ -155,13 +191,17 @@ export async function claimEscalatedTicket(
   receiverName: string
 ) {
   try {
-    if (!hasValidPin(pin)) {
+    const handoff = await getActiveHandoff(ticketId);
+    if (!handoff) {
+      return { error: 'Handoff session not found' };
+    }
+
+    if (!hasValidPin(pin, handoff.secure_pin)) {
       return getInvalidPinError();
     }
 
-    const realId = await resolveRealTicketId(ticketId);
-    if (!realId) {
-      return { error: 'Ticket not found' };
+    if (handoff.status === 'Expired' || new Date(handoff.expires_at) < new Date()) {
+      return { error: 'This magic link has expired. Cannot claim ticket.' };
     }
 
     const timestamp = new Date().toISOString().replace('T', ' ').substring(0, 19);
@@ -169,7 +209,7 @@ export async function claimEscalatedTicket(
 
     const { error: logError } = await supabaseAdmin.from('ticket_logs').insert([
       {
-        ticket_id: realId,
+        ticket_id: handoff.ticket_id,
         action_type: 'claim',
         note: logNote,
       },
@@ -179,10 +219,20 @@ export async function claimEscalatedTicket(
       return { error: `Failed to record claim: ${logError.message}` };
     }
 
+    // Update handoff status to Claimed
+    await supabaseAdmin
+      .from('ticket_handoffs')
+      .update({ 
+        status: 'Claimed', 
+        assigned_to_external: receiverName, 
+        updated_at: new Date().toISOString() 
+      })
+      .eq('id', handoff.id);
+
     await supabaseAdmin
       .from('tickets')
       .update({ updated_at: new Date().toISOString() })
-      .eq('id', realId);
+      .eq('id', handoff.ticket_id);
 
     return { success: true };
   } catch (err: unknown) {
@@ -200,14 +250,24 @@ export async function updateEscalatedTicketStatus(
   attachmentUrls?: string[]
 ) {
   try {
-    if (!hasValidPin(pin)) {
+    const handoff = await getActiveHandoff(ticketId);
+    if (!handoff) {
+      return { error: 'Handoff session not found' };
+    }
+
+    if (!hasValidPin(pin, handoff.secure_pin)) {
       return getInvalidPinError();
     }
 
-    const { data: ticket, error: fetchError } = await resolveTicketQuery(
-      'id, ticket_no, status, assigned_agent_id, resolution_summary',
-      ticketId
-    );
+    if (handoff.status === 'Expired' || new Date(handoff.expires_at) < new Date()) {
+      return { error: 'This magic link has expired. Cannot submit new reports.' };
+    }
+
+    const { data: ticket, error: fetchError } = await supabaseAdmin
+      .from('tickets')
+      .select('id, ticket_no, status, assigned_agent_id, resolution_summary')
+      .eq('id', handoff.ticket_id)
+      .maybeSingle();
 
     if (fetchError || !ticket) {
       return { error: 'Ticket not found for escalation update' };
@@ -223,6 +283,32 @@ export async function updateEscalatedTicketStatus(
     });
     const updatedSummary = `${ticketRow.resolution_summary || ''}\n\n${reportText}`.trim();
 
+    // 1. Insert report details in ticket_handoff_reports
+    const { error: reportError } = await supabaseAdmin
+      .from('ticket_handoff_reports')
+      .insert([{
+        handoff_id: handoff.id,
+        status: nextStatus,
+        reporter_name: receiverName || handoff.assigned_to_external || 'External Team',
+        notes: notes,
+        attachments: attachmentUrls || []
+      }]);
+
+    if (reportError) {
+      return { error: `Failed to record progress report: ${reportError.message}` };
+    }
+
+    // 2. Update handoff status
+    const handoffNextStatus = nextStatus === 'Fix Completed' ? 'Completed' : 'Claimed';
+    await supabaseAdmin
+      .from('ticket_handoffs')
+      .update({ 
+        status: handoffNextStatus, 
+        updated_at: new Date().toISOString() 
+      })
+      .eq('id', handoff.id);
+
+    // 3. Update parent ticket status
     const { error: updateError } = await supabaseAdmin
       .from('tickets')
       .update({
@@ -269,5 +355,58 @@ export async function updateEscalatedTicketStatus(
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Unknown error';
     return { error: `Failed to submit escalation report: ${message}` };
+  }
+}
+
+export async function regenerateEscalationLink(ticketId: string, pin: string) {
+  try {
+    const handoff = await getActiveHandoff(ticketId);
+    if (!handoff) {
+      return { error: 'Handoff session not found' };
+    }
+
+    if (!hasValidPin(pin, handoff.secure_pin)) {
+      return getInvalidPinError();
+    }
+
+    const tokenToUse = crypto.randomUUID();
+    const securePin = Math.floor(1000 + Math.random() * 9000).toString();
+    const expiresAt = new Date(Date.now() + 72 * 60 * 60 * 1000).toISOString();
+
+    await supabaseAdmin
+      .from('ticket_handoffs')
+      .update({ status: 'Expired', updated_at: new Date().toISOString() })
+      .eq('ticket_id', handoff.ticket_id)
+      .neq('status', 'Completed');
+
+    const { error: insertError } = await supabaseAdmin
+      .from('ticket_handoffs')
+      .insert([{
+        ticket_id: handoff.ticket_id,
+        handoff_type: handoff.handoff_type,
+        token: tokenToUse,
+        secure_pin: securePin,
+        status: 'Active',
+        created_by: handoff.created_by,
+        expires_at: expiresAt,
+      }]);
+
+    if (insertError) {
+      return { error: `Failed to create new handoff: ${insertError.message}` };
+    }
+
+    await supabaseAdmin
+      .from('tickets')
+      .update({ escalation_token: tokenToUse, updated_at: new Date().toISOString() })
+      .eq('id', handoff.ticket_id);
+
+    return { 
+      success: true, 
+      token: tokenToUse, 
+      pin: securePin 
+    };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    return { error: `Failed to regenerate magic link: ${message}` };
   }
 }

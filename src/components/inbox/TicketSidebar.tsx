@@ -1,6 +1,5 @@
 'use client';
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
 import {
   AlertCircle,
@@ -19,6 +18,7 @@ import {
 import type { InboxAgent, InboxConversation, InboxTicket, InboxViewMode } from '@/types/inbox';
 import { ticketService } from '@/lib/services/ticketService';
 import { useStaffLocale } from '@/contexts/StaffLocaleContext';
+import { supabase } from '@/lib/supabase';
 
 interface TicketSidebarProps {
   selectedChat: InboxConversation;
@@ -66,13 +66,40 @@ export const TicketSidebar: React.FC<TicketSidebarProps> = ({
   const [showEscalateModal, setShowEscalateModal] = useState(false);
   const [showPendingConfirm, setShowPendingConfirm] = useState(false);
   const [escalationNote, setEscalationNote] = useState('');
+  const [expiryHours, setExpiryHours] = useState(72);
+  const [activeHandoff, setActiveHandoff] = useState<{ secure_pin: string; token: string; expires_at: string } | null>(null);
+
+  useEffect(() => {
+    if (!currentTicket?.id) {
+      setActiveHandoff(null);
+      return;
+    }
+    const fetchHandoff = async () => {
+      const { data } = await supabase
+        .from('ticket_handoffs')
+        .select('secure_pin, token, expires_at')
+        .eq('ticket_id', currentTicket.id)
+        .eq('status', 'Active')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (data) {
+        setActiveHandoff(data);
+      } else {
+        setActiveHandoff(null);
+      }
+    };
+    fetchHandoff();
+  }, [currentTicket?.id, currentTicket?.status]);
+
   const customer = selectedChat.customers;
   const hasCustomerIdentity = Boolean(customer?.display_name || customer?.avatar_url || customer?.line_user_id);
   const hasCustomerProfileMeta = Boolean(customer?.hospitals?.name || customer?.departments?.name || customer?.positions?.name);
   const shouldShowCustomerMetaSkeleton = !hasCustomerIdentity && !hasCustomerProfileMeta;
 
   const activeMagicLink =
-    magicLink || (currentTicket?.escalation_token ? `${window.location.origin}/escalate/${currentTicket.escalation_token}` : null);
+    magicLink || (activeHandoff?.token ? `${window.location.origin}/escalate/${activeHandoff.token}` : null);
 
   const handleCopyLink = (link: string) => {
     navigator.clipboard.writeText(link);
@@ -86,13 +113,31 @@ export const TicketSidebar: React.FC<TicketSidebarProps> = ({
     setIsProcessing(true);
       try {
         const randomToken = `P-${Math.random().toString(36).substring(2, 10).toUpperCase()}`;
-        await ticketService.updateStatus(currentTicket.id, 'Pending', undefined, undefined, randomToken);
-        setMagicLink(`${window.location.origin}/escalate/${randomToken}`);
+        const result = await ticketService.updateStatus(
+          currentTicket.id, 
+          'Pending', 
+          undefined, 
+          undefined, 
+          randomToken, 
+          expiryHours
+        );
+        if (result && 'escalation_token' in result) {
+          const genToken = result.escalation_token as string;
+          const genPin = (result as { escalation_pin?: string }).escalation_pin as string;
+          setMagicLink(`${window.location.origin}/escalate/${genToken}`);
+          setActiveHandoff({
+            token: genToken,
+            secure_pin: genPin,
+            expires_at: new Date(Date.now() + expiryHours * 60 * 60 * 1000).toISOString()
+          });
+        } else {
+          setMagicLink(`${window.location.origin}/escalate/${randomToken}`);
+        }
       } catch (err: unknown) {
         onWarn(t('common.messages.error'), err instanceof Error ? err.message : 'Unknown error');
       } finally {
-      setIsProcessing(false);
-    }
+        setIsProcessing(false);
+      }
   };
 
   return (
@@ -254,7 +299,7 @@ export const TicketSidebar: React.FC<TicketSidebarProps> = ({
               </div>
               <p style={{ fontSize: '10px', color: 'var(--text-dim)', marginTop: '8px' }}>
                 <Info size={10} style={{ verticalAlign: 'middle', marginRight: '4px' }} />
-                {t('inbox.pinCode')}: 1234
+                {t('inbox.pinCode')}: {activeHandoff?.secure_pin || '1234'}
               </p>
             </div>
           )}
@@ -297,6 +342,23 @@ export const TicketSidebar: React.FC<TicketSidebarProps> = ({
             </h3>
             <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '20px' }}>{t('inbox.escalateSubtitle')}</p>
             <textarea value={escalationNote} onChange={(e) => setEscalationNote(e.target.value)} placeholder={t('inbox.escalatePlaceholder')} style={{ width: '100%', height: '120px', padding: '12px', borderRadius: '12px', border: '1px solid var(--border)', background: 'var(--bg-input)', color: 'var(--text-main)', fontSize: '14px', marginBottom: '20px', outline: 'none', resize: 'none' }} />
+            
+            <div style={{ marginBottom: '20px' }}>
+              <label style={{ display: 'block', fontSize: '12px', fontWeight: '800', color: 'var(--text-muted)', marginBottom: '8px' }}>
+                กำหนดอายุลิงก์ส่งงาน (Link Expiry)
+              </label>
+              <select
+                value={expiryHours}
+                onChange={(e) => setExpiryHours(Number(e.target.value))}
+                style={{ width: '100%', padding: '12px', borderRadius: '12px', border: '1px solid var(--border)', background: 'var(--bg-input)', color: 'var(--text-main)', fontSize: '14px', outline: 'none' }}
+              >
+                <option value={24}>24 ชั่วโมง (1 วัน)</option>
+                <option value={72}>72 ชั่วโมง (3 วัน)</option>
+                <option value={168}>168 ชั่วโมง (7 วัน)</option>
+                <option value={720}>720 ชั่วโมง (30 วัน)</option>
+              </select>
+            </div>
+
             <div style={{ display: 'flex', gap: '12px' }}>
               <button onClick={() => setShowEscalateModal(false)} style={{ flex: 1, padding: '12px', borderRadius: '12px', border: '1px solid var(--border)', background: 'none', color: 'var(--text-main)', fontWeight: '700', cursor: 'pointer' }}>{t('common.cancel')}</button>
               <button
@@ -306,10 +368,28 @@ export const TicketSidebar: React.FC<TicketSidebarProps> = ({
                   setIsProcessing(true);
                   try {
                     const randomToken = `E-${Math.random().toString(36).substring(2, 10).toUpperCase()}`;
-                    await ticketService.updateStatus(currentTicket.id, 'Escalated', undefined, `[ESCALATION INSTRUCTIONS]: ${escalationNote}`, randomToken);
-                    const link = `${window.location.origin}/escalate/${randomToken}`;
-                    setMagicLink(link);
-                    handleCopyLink(link);
+                    const result = await ticketService.updateStatus(
+                      currentTicket.id, 
+                      'Escalated', 
+                      undefined, 
+                      `[ESCALATION INSTRUCTIONS]: ${escalationNote}`, 
+                      randomToken,
+                      expiryHours
+                    );
+                    if (result && 'escalation_token' in result) {
+                      const genToken = result.escalation_token as string;
+                      const genPin = (result as { escalation_pin?: string }).escalation_pin as string;
+                      setMagicLink(`${window.location.origin}/escalate/${genToken}`);
+                      setActiveHandoff({
+                        token: genToken,
+                        secure_pin: genPin,
+                        expires_at: new Date(Date.now() + expiryHours * 60 * 60 * 1000).toISOString()
+                      });
+                    } else {
+                      const link = `${window.location.origin}/escalate/${randomToken}`;
+                      setMagicLink(link);
+                      handleCopyLink(link);
+                    }
                     setShowEscalateModal(false);
                     setEscalationNote('');
                   } catch (err: unknown) {
@@ -334,6 +414,23 @@ export const TicketSidebar: React.FC<TicketSidebarProps> = ({
             <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '20px', lineHeight: '1.6' }}>
               {t('inbox.confirmPendingBody')}
             </p>
+
+            <div style={{ marginBottom: '20px' }}>
+              <label style={{ display: 'block', fontSize: '12px', fontWeight: '800', color: 'var(--text-muted)', marginBottom: '8px' }}>
+                กำหนดอายุลิงก์ส่งงาน (Link Expiry)
+              </label>
+              <select
+                value={expiryHours}
+                onChange={(e) => setExpiryHours(Number(e.target.value))}
+                style={{ width: '100%', padding: '12px', borderRadius: '12px', border: '1px solid var(--border)', background: 'var(--bg-input)', color: 'var(--text-main)', fontSize: '14px', outline: 'none' }}
+              >
+                <option value={24}>24 ชั่วโมง (1 วัน)</option>
+                <option value={72}>72 ชั่วโมง (3 วัน)</option>
+                <option value={168}>168 ชั่วโมง (7 วัน)</option>
+                <option value={720}>720 ชั่วโมง (30 วัน)</option>
+              </select>
+            </div>
+
             <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
               <button onClick={() => setShowPendingConfirm(false)} style={{ padding: '10px 14px', borderRadius: '12px', border: '1px solid var(--border)', background: 'none', color: 'var(--text-main)', fontWeight: '700', cursor: 'pointer' }}>
                 {t('common.cancel')}

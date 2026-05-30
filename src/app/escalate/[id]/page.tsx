@@ -25,6 +25,7 @@ import {
   claimEscalatedTicket,
   updateEscalatedTicketStatus,
   verifyEscalationPin,
+  regenerateEscalationLink,
 } from '@/app/actions/escalationActions';
 import { supabase } from '@/lib/supabase';
 import { useStaffLocale } from '@/contexts/StaffLocaleContext';
@@ -87,6 +88,11 @@ export default function EscalationPortalPage() {
   const [isUnlocked, setIsUnlocked] = useState(false);
   const [isClaimed, setIsClaimed] = useState(false);
   const [ticketData, setTicketData] = useState<TicketData | null>(null);
+  const [handoff, setHandoff] = useState<any | null>(null);
+  const [verifications, setVerifications] = useState<any[]>([]);
+  const [reports, setReports] = useState<any[]>([]);
+  const [newHandoffData, setNewHandoffData] = useState<{ token: string; pin: string } | null>(null);
+  const [copied, setCopied] = useState(false);
 
   const { t, locale, toggleLocale } = useStaffLocale();
 
@@ -121,6 +127,18 @@ export default function EscalationPortalPage() {
 
       const nextTicket = response.data as TicketData;
       setTicketData(nextTicket);
+      const hData = (response.data as any).handoff;
+      setHandoff(hData);
+      setVerifications((response.data as any).verifications || []);
+      setReports((response.data as any).reports || []);
+
+      if (hData && (hData.status === 'Claimed' || hData.status === 'Completed' || hData.status === 'Rejected')) {
+        setIsClaimed(true);
+        if (hData.assigned_to_external) {
+          setReceiverName(hData.assigned_to_external);
+        }
+      }
+
       setNewStatus(nextTicket?.status === 'Pending' ? 'Pending' : 'In Progress');
       setIsUnlocked(true);
     } catch (err: any) {
@@ -196,6 +214,32 @@ export default function EscalationPortalPage() {
     setAttachments((prev) => prev.filter((item) => item !== url));
   }
 
+  function handleCopyLink(link: string) {
+    navigator.clipboard.writeText(link);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }
+
+  async function handleRegenerateLink() {
+    setError('');
+    setLoading(true);
+    try {
+      const response = await regenerateEscalationLink(ticketId, pin);
+      if (response.error) {
+        setError(response.error);
+        return;
+      }
+      if (response.success && response.token && response.pin) {
+        setNewHandoffData({ token: response.token, pin: response.pin });
+        setSuccess('สร้างลิงก์เวิร์กสเปซใหม่สำเร็จแล้ว!');
+      }
+    } catch (err: any) {
+      setError(`ไม่สามารถสร้างลิงก์ใหม่ได้: ${err.message}`);
+    } finally {
+      setLoading(false);
+    }
+  }
+
   async function handleUpdate(event: FormEvent) {
     event.preventDefault();
     setError('');
@@ -220,6 +264,17 @@ export default function EscalationPortalPage() {
       setSuccess(t('escalation.reportSubmitted') || 'Escalation report submitted.');
       setNotes('');
       setAttachments([]);
+
+      // Reload data to reflect update immediately
+      const verifyRes = await verifyEscalationPin(ticketId, pin);
+      if (!verifyRes.error && verifyRes.data) {
+        const nextTicket = verifyRes.data as TicketData;
+        setTicketData(nextTicket);
+        const hData = (verifyRes.data as any).handoff;
+        setHandoff(hData);
+        setVerifications((verifyRes.data as any).verifications || []);
+        setReports((verifyRes.data as any).reports || []);
+      }
     } catch (err: any) {
       setError(`Unable to submit report: ${err.message}`);
     } finally {
@@ -455,19 +510,150 @@ export default function EscalationPortalPage() {
     );
   }
 
+  const isHandoffExpired = handoff?.status === 'Expired' || (handoff?.expires_at && new Date(handoff.expires_at) < new Date());
+  const rejectionVerifications = verifications.filter((v) => v.decision === 'Rejected');
+
   return (
-    <div style={{ 
-      display: 'grid', 
-      gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 450px), 1fr))', 
-      gap: '24px', 
-      alignItems: 'start' 
-    }}>
-      {/* Left Column */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-      <div
-        className="glass"
-        style={{ padding: '24px', background: '#ffffff', borderRadius: '24px', border: '1px solid #e2e8f0', position: 'relative' }}
-      >
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', width: '100%', maxWidth: '1200px', margin: '0 auto', paddingBottom: '40px' }}>
+      
+      {/* 1. Expired Magic Link Alert Banner */}
+      {isHandoffExpired && (
+        <div
+          className="glass"
+          style={{
+            padding: '24px',
+            borderRadius: '20px',
+            background: 'rgba(239, 68, 68, 0.08)',
+            border: '1px solid rgba(239, 68, 68, 0.25)',
+            backdropFilter: 'blur(16px)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '16px',
+            boxShadow: '0 10px 30px rgba(239, 68, 68, 0.05)',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <div style={{ padding: '8px', background: 'rgba(239, 68, 68, 0.15)', borderRadius: '12px', color: '#ef4444' }}>
+              <AlertCircle size={24} />
+            </div>
+            <div>
+              <h3 style={{ fontSize: '16px', fontWeight: 800, color: '#1e293b' }}>ลิงก์เข้าสู่เวิร์กสเปซหมดอายุแล้ว (Workspace Link Expired)</h3>
+              <p style={{ fontSize: '13px', color: '#64748b', marginTop: '2px' }}>
+                ลิงก์การส่งต่อนี้หมดอายุแล้ว คุณยังคงสามารถดูประวัติงานและแชทเดิมได้ แต่จะไม่สามารถบันทึกหรือส่งรายงานความคืบหน้าใหม่ได้
+              </p>
+            </div>
+          </div>
+          
+          {!newHandoffData ? (
+            <button
+              onClick={handleRegenerateLink}
+              disabled={loading}
+              style={{
+                alignSelf: 'flex-start',
+                background: '#ef4444',
+                color: 'white',
+                border: 'none',
+                padding: '10px 20px',
+                borderRadius: '12px',
+                fontWeight: 800,
+                cursor: loading ? 'not-allowed' : 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                fontSize: '13px',
+                boxShadow: '0 4px 12px rgba(239, 68, 68, 0.2)',
+                transition: 'all 0.2s'
+              }}
+            >
+              {loading ? <Loader2 className="animate-spin" size={16} /> : <Unlock size={16} />}
+              สร้างลิงก์ส่งงานใหม่ (Regenerate Magic Link)
+            </button>
+          ) : (
+            <div style={{ padding: '16px', background: 'rgba(16, 185, 129, 0.08)', border: '1px solid rgba(16, 185, 129, 0.2)', borderRadius: '12px', width: '100%' }}>
+              <h4 style={{ fontWeight: 800, color: '#10b981', fontSize: '14px', marginBottom: '8px' }}>สร้างลิงก์เวิร์กสเปซใหม่สำเร็จ!</h4>
+              <p style={{ fontSize: '13px', color: '#475569', marginBottom: '12px' }}>กรุณาคัดลอกลิงก์และรหัส PIN ใหม่เพื่อใช้เข้าทำงานต่อ:</p>
+              <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
+                <input readOnly value={`${window.location.origin}/escalate/${newHandoffData.token}`} style={{ flex: 1, padding: '10px 14px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '12px', background: '#f8fafc', outline: 'none' }} />
+                <button onClick={() => handleCopyLink(`${window.location.origin}/escalate/${newHandoffData.token}`)} style={{ background: '#10b981', color: 'white', border: 'none', borderRadius: '8px', padding: '10px 16px', cursor: 'pointer', fontWeight: 800, fontSize: '12px' }}>
+                  {copied ? 'คัดลอกแล้ว' : 'คัดลอกลิงก์'}
+                </button>
+              </div>
+              <div style={{ fontSize: '13px', fontWeight: 800, color: '#1e293b' }}>
+                PIN รหัสเข้างานใหม่: <span style={{ background: '#f1f5f9', padding: '4px 10px', borderRadius: '6px', border: '1px solid #cbd5e1', marginLeft: '6px', fontFamily: 'monospace', fontSize: '14px' }}>{newHandoffData.pin}</span>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* 2. Glassmorphic Rework Alert Banner (QA Rejection History) */}
+      {rejectionVerifications.length > 0 && (
+        <div
+          className="glass"
+          style={{
+            padding: '24px',
+            borderRadius: '20px',
+            background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.08) 0%, rgba(239, 68, 68, 0.08) 100%)',
+            border: '1px solid rgba(245, 158, 11, 0.25)',
+            backdropFilter: 'blur(16px)',
+            boxShadow: '0 10px 30px rgba(245, 158, 11, 0.05)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '16px',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <div style={{ padding: '8px', background: 'rgba(245, 158, 11, 0.15)', borderRadius: '12px', color: '#f59e0b' }}>
+              <AlertCircle size={24} />
+            </div>
+            <div>
+              <h3 style={{ fontSize: '16px', fontWeight: 800, color: '#1e293b' }}>งานถูกส่งกลับแก้ไขเพิ่มเติม (Rework Requested)</h3>
+              <p style={{ fontSize: '13px', color: '#64748b', marginTop: '2px' }}>
+                ผู้มอบหมายงานได้ตรวจสอบและส่งกลับให้แก้ไขเพิ่ม กรุณาดูรายละเอียดประวัติความคิดเห็นด้านล่างนี้
+              </p>
+            </div>
+          </div>
+          
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', background: 'rgba(255, 255, 255, 0.5)', borderRadius: '12px', padding: '16px', border: '1px solid rgba(245, 158, 11, 0.1)' }}>
+            <p style={{ fontSize: '12px', fontWeight: 800, color: '#78350f', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>
+              ประวัติความคิดเห็นที่ให้แก้ไข ({rejectionVerifications.length})
+            </p>
+            {rejectionVerifications.map((verification, idx) => (
+              <div key={idx} style={{ 
+                padding: '12px', 
+                background: 'rgba(255, 255, 255, 0.8)', 
+                borderLeft: '4px solid #ef4444', 
+                borderRadius: '8px', 
+                boxShadow: '0 2px 8px rgba(0,0,0,0.02)',
+                fontSize: '13px'
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', color: '#64748b', fontSize: '11px', marginBottom: '6px', fontWeight: 700 }}>
+                  <span>รอบแก้ไขที่ {rejectionVerifications.length - idx}</span>
+                  <span>{formatDateTime(verification.created_at)}</span>
+                </div>
+                <p style={{ color: '#1e293b', fontWeight: 600, whiteSpace: 'pre-wrap', lineHeight: 1.5 }}>
+                  {verification.feedback_notes || 'ไม่ได้ระบุเหตุผลการปฏิเสธ'}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Main Grid Content */}
+      <div style={{ 
+        display: 'grid', 
+        gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 450px), 1fr))', 
+        gap: '24px', 
+        alignItems: 'start',
+        width: '100%'
+      }}>
+        {/* Left Column */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+        <div
+          className="glass"
+          style={{ padding: '24px', background: '#ffffff', borderRadius: '24px', border: '1px solid #e2e8f0', position: 'relative' }}
+        >
         <div style={{ position: 'absolute', top: '24px', right: '24px', zIndex: 10 }}>
           <button
             type="button"
@@ -694,6 +880,67 @@ export default function EscalationPortalPage() {
         </div>
       )}
 
+      {reports && reports.length > 0 && (
+        <div
+          className="glass"
+          style={{ padding: '24px', background: '#ffffff', borderRadius: '24px', border: '1px solid #e2e8f0' }}
+        >
+          <h3
+            style={{
+              fontSize: '15px',
+              fontWeight: 800,
+              marginBottom: '20px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+            }}
+          >
+            <FileText size={18} color="var(--primary)" /> ประวัติการรายงานความคืบหน้า ({reports.length})
+          </h3>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            {reports.map((rep, idx) => (
+              <div key={rep.id || idx} style={{ borderBottom: idx < reports.length - 1 ? '1px solid #f1f5f9' : 'none', paddingBottom: idx < reports.length - 1 ? '16px' : '0' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                  <span style={{ 
+                    fontSize: '11px', 
+                    fontWeight: 900, 
+                    padding: '4px 8px', 
+                    borderRadius: '12px', 
+                    ...statusBadgeStyle(rep.status)
+                  }}>
+                    {rep.status}
+                  </span>
+                  <span style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 700 }}>
+                    โดย {rep.reporter_name}
+                  </span>
+                </div>
+                <p style={{ fontSize: '13px', color: '#334155', fontWeight: 600, lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>
+                  {rep.notes || 'ไม่มีบันทึกรายละเอียด'}
+                </p>
+                
+                {rep.attachments && rep.attachments.length > 0 && (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '10px' }}>
+                    {rep.attachments.map((url: string, aIdx: number) => (
+                      <div 
+                        key={`${url}-${aIdx}`} 
+                        style={{ width: '60px', height: '60px', borderRadius: '8px', overflow: 'hidden', border: '1px solid #cbd5e1', cursor: 'pointer' }}
+                        onClick={() => window.open(url, '_blank')}
+                      >
+                        <img src={url} alt="attachment" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      </div>
+                    ))}
+                  </div>
+                )}
+                
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: '#94a3b8', marginTop: '8px' }}>
+                  <Calendar size={12} /> {formatDateTime(rep.created_at)}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div
         className="glass"
         style={{ padding: '24px', background: '#ffffff', borderRadius: '24px', border: '1px solid #e2e8f0' }}
@@ -762,9 +1009,9 @@ export default function EscalationPortalPage() {
                 {t('escalation.returnStatus')}
               </label>
               <select
-                value={newStatus}
-                onChange={(event) => setNewStatus(event.target.value as ExternalReportStatus)}
-                disabled={loading || Boolean(success)}
+              value={newStatus}
+              onChange={(event) => setNewStatus(event.target.value as ExternalReportStatus)}
+              disabled={loading || Boolean(success) || isHandoffExpired}
                 style={{
                   width: '100%',
                   padding: '14px',
@@ -829,8 +1076,8 @@ export default function EscalationPortalPage() {
             <textarea
               value={notes}
               onChange={(event) => setNotes(event.target.value)}
-              disabled={loading || Boolean(success)}
-              placeholder="Describe what has been done or what is blocked..."
+              disabled={loading || Boolean(success) || isHandoffExpired}
+              placeholder={isHandoffExpired ? "ไม่สามารถเขียนบันทึกความคืบหน้าได้เนื่องจากลิงก์หมดอายุ" : "Describe what has been done or what is blocked..."}
               style={{
                 width: '100%',
                 minHeight: '90px',
@@ -892,7 +1139,7 @@ export default function EscalationPortalPage() {
                   )}
                 </div>
               ))}
-              {!success && (
+              {!success && !isHandoffExpired && (
                 <label
                   style={{
                     width: '80px',
@@ -931,20 +1178,20 @@ export default function EscalationPortalPage() {
 
           <button
             type="submit"
-            disabled={loading || Boolean(success)}
+            disabled={loading || Boolean(success) || isHandoffExpired}
             style={{
-              background: success ? '#94a3b8' : '#10b981',
+              background: success ? '#94a3b8' : isHandoffExpired ? '#cbd5e1' : '#10b981',
               color: 'white',
               border: 'none',
               padding: '16px',
               borderRadius: '12px',
               fontWeight: 800,
-              cursor: loading || Boolean(success) ? 'not-allowed' : 'pointer',
+              cursor: loading || Boolean(success) || isHandoffExpired ? 'not-allowed' : 'pointer',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               gap: '8px',
-              boxShadow: success ? 'none' : '0 8px 24px rgba(16, 185, 129, 0.25)',
+              boxShadow: (success || isHandoffExpired) ? 'none' : '0 8px 24px rgba(16, 185, 129, 0.25)',
               transition: 'all 0.3s',
             }}
           >
@@ -955,6 +1202,11 @@ export default function EscalationPortalPage() {
                 <CheckCircle size={18} />
                 {t('escalation.reportSubmitted')}
               </>
+            ) : isHandoffExpired ? (
+              <>
+                <AlertCircle size={18} />
+                ลิงก์หมดอายุแล้ว
+              </>
             ) : (
               <>
                 <Send size={18} />
@@ -963,6 +1215,7 @@ export default function EscalationPortalPage() {
             )}
           </button>
         </form>
+      </div>
       </div>
       </div>
     </div>

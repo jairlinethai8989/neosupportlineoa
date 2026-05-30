@@ -4,6 +4,7 @@ import { cookies } from 'next/headers';
 import { createServerClient } from '@supabase/ssr';
 import { invalidateAllLiveCaches } from '@/lib/cache/liveCache';
 import { invalidateAllPreviewCaches } from '@/lib/reports/previewCache';
+import crypto from 'crypto';
 
 type TicketUpdatePayload = Record<string, string | null>;
 
@@ -57,7 +58,49 @@ export async function claimTicketServerAction(ticketId: string) {
   return { ticket: result.ticket, conversationId: result.conversationId };
 }
 
-export async function updateTicketStatusAction(ticketId: string, newStatus: string, note?: string, escalationToken?: string) {
+async function createHandoffRecord(
+  ticketId: string,
+  status: 'Escalated' | 'Pending',
+  agentId: string,
+  escalationToken?: string,
+  expiresInHours?: number
+) {
+  const tokenToUse = escalationToken || crypto.randomUUID();
+  const securePin = Math.floor(1000 + Math.random() * 9000).toString();
+  const expiresAt = new Date(Date.now() + (expiresInHours || 72) * 60 * 60 * 1000).toISOString();
+
+  // Mark previous active handoffs for this ticket as Expired
+  await supabaseAdmin
+    .from('ticket_handoffs')
+    .update({ status: 'Expired', updated_at: new Date().toISOString() })
+    .eq('ticket_id', ticketId)
+    .eq('status', 'Active');
+
+  const { error } = await supabaseAdmin
+    .from('ticket_handoffs')
+    .insert([{
+      ticket_id: ticketId,
+      handoff_type: status,
+      token: tokenToUse,
+      secure_pin: securePin,
+      status: 'Active',
+      created_by: agentId,
+      expires_at: expiresAt,
+    }]);
+
+  if (error) {
+    console.error('Error inserting handoff record:', error);
+  }
+  return { token: tokenToUse, pin: securePin };
+}
+
+export async function updateTicketStatusAction(
+  ticketId: string,
+  newStatus: string,
+  note?: string,
+  escalationToken?: string,
+  expiresInHours?: number
+) {
   const user = await getSessionUser();
   await verifyAgentRole(user.id);
   const agentId = user.id;
@@ -72,7 +115,12 @@ export async function updateTicketStatusAction(ticketId: string, newStatus: stri
     status: newStatus,
     updated_at: new Date().toISOString()
   };
-  if (escalationToken) {
+
+  let handoffInfo: { token: string; pin: string } | null = null;
+  if (['Escalated', 'Pending'].includes(newStatus)) {
+    handoffInfo = await createHandoffRecord(ticketId, newStatus as 'Escalated' | 'Pending', agentId, escalationToken, expiresInHours);
+    updateData.escalation_token = handoffInfo.token;
+  } else if (escalationToken) {
     updateData.escalation_token = escalationToken;
   }
 
@@ -108,7 +156,12 @@ export async function updateTicketStatusAction(ticketId: string, newStatus: stri
 
   invalidateAllLiveCaches();
   invalidateAllPreviewCaches();
-  return ticket;
+
+  return {
+    ...ticket,
+    escalation_token: handoffInfo?.token || ticket.escalation_token,
+    escalation_pin: handoffInfo?.pin
+  };
 }
 
 export async function transferTicketAction(ticketId: string, toAgentId?: string, toTeamId?: string, reason?: string) {
@@ -132,6 +185,8 @@ export async function transferTicketAction(ticketId: string, toAgentId?: string,
 
    if (transferError) throw new Error(transferError.message);
 
+   const handoff = await createHandoffRecord(ticketId, 'Escalated', fromAgentId);
+
    await supabaseAdmin.from('ticket_logs').insert([{
      ticket_id: ticketId,
      action_type: 'transfer',
@@ -154,7 +209,12 @@ export async function transferTicketAction(ticketId: string, toAgentId?: string,
 
    invalidateAllLiveCaches();
    invalidateAllPreviewCaches();
-   return ticket;
+   
+   return {
+     ...ticket,
+     escalation_token: handoff.token,
+     escalation_pin: handoff.pin
+   };
 }
 
 export async function resolveTicketAction(
@@ -289,9 +349,40 @@ export async function resolveTicketAction(
      console.error('[ResolveAction] Post-update processing error:', postError);
    }
 
-   invalidateAllLiveCaches();
-   invalidateAllPreviewCaches();
-   return ticket;
+    // Record QA Approval verification if transitioning from Fix Completed
+    if (currentStatus === 'Fix Completed') {
+      try {
+        const { data: activeHandoff } = await supabaseAdmin
+          .from('ticket_handoffs')
+          .select('id')
+          .eq('ticket_id', ticketId)
+          .eq('status', 'Active')
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        await supabaseAdmin.from('ticket_verifications').insert([{
+          ticket_id: ticketId,
+          reviewer_id: agentId,
+          decision: 'Approved',
+          feedback_notes: resolutionSummary || null,
+          handoff_id: activeHandoff?.id || null
+        }]);
+
+        if (activeHandoff) {
+          await supabaseAdmin
+            .from('ticket_handoffs')
+            .update({ status: 'Completed', updated_at: new Date().toISOString() })
+            .eq('id', activeHandoff.id);
+        }
+      } catch (verError) {
+        console.error('[ResolveAction] Failed to record QA approval verification:', verError);
+      }
+    }
+
+    invalidateAllLiveCaches();
+    invalidateAllPreviewCaches();
+    return ticket;
 }
 
 export async function reviewFixCompletedAction(
@@ -321,7 +412,16 @@ export async function reviewFixCompletedAction(
     return currentTicket;
   }
 
-  // 1. Find the previous status before it transitioned to 'Fix Completed'
+  // 1. Find the active handoff and previous status before it transitioned to 'Fix Completed'
+  const { data: activeHandoff } = await supabaseAdmin
+    .from('ticket_handoffs')
+    .select('id, handoff_type')
+    .eq('ticket_id', ticketId)
+    .eq('status', 'Active')
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
   const { data: lastFixLog } = await supabaseAdmin
     .from('ticket_logs')
     .select('from_status')
@@ -331,7 +431,24 @@ export async function reviewFixCompletedAction(
     .limit(1)
     .maybeSingle();
 
-  const targetStatus = lastFixLog?.from_status || 'In Progress';
+  const targetStatus = activeHandoff?.handoff_type || lastFixLog?.from_status || 'In Progress';
+
+  // 2. Record QA Rejection verification
+  await supabaseAdmin.from('ticket_verifications').insert([{
+    ticket_id: ticketId,
+    reviewer_id: user.id,
+    decision: 'Rejected',
+    feedback_notes: note || null,
+    handoff_id: activeHandoff?.id || null
+  }]);
+
+  // 3. Mark active handoff as Rejected
+  if (activeHandoff) {
+    await supabaseAdmin
+      .from('ticket_handoffs')
+      .update({ status: 'Rejected', updated_at: new Date().toISOString() })
+      .eq('id', activeHandoff.id);
+  }
 
   const { data: updated, error: updateError } = await supabaseAdmin
     .from('tickets')
