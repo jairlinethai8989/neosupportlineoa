@@ -1,5 +1,19 @@
 # บันทึกความคืบหน้าโครงการ NeoSupport V2.0 (ล่าสุด 22 พฤษภาคม 2569)
 
+## ✅ สิ่งที่ทำสำเร็จแล้วในวันนี้ (30 พฤษภาคม 2569)
+
+1. **แก้ปัญหาแถบสถานะไม่เรียลไทม์บนหน้าจอ Portal ลูกค้า (สำเร็จ):**
+    * **Database Replica Identity:** เพิ่มสคริปต์แก้ไขโครงสร้างใน [alter_replica_identity.sql](file:///d:/Project%20APP/AntiGravity/neo_line_oa/alter_replica_identity.sql) เพื่อปรับ `REPLICA IDENTITY` ของตาราง `tickets`, `ticket_logs`, และ `csat_surveys` ให้เป็นแบบ `FULL` เพื่อแก้ไขปัญหาระบบ Realtime ส่งข้อมูลบางคอลัมน์ที่ไม่ถูกแก้ไขเป็นค่า `null`
+    * **State Mutation Safe Guard:** ปรับปรุงหน้าจอรายละเอียดใบงานของลูกค้า [page.tsx](file:///d:/Project%20APP/AntiGravity/neo_line_oa/src/app/portal/tickets/%5Bid%5D/page.tsx) ให้คัดกรองค่า `null` ใน payload อัปเดตออกก่อนทำการ Spread และสร้าง Background Query สำหรับดึงรายละเอียดพร้อมความสัมพันธ์ของใบงานฉบับเต็ม ทำให้ระบบ Stepper และไฟแจ้งเตือน ⚠️ ของสถานะ Pending สอดคล้องและอัปเดตแบบเรียลไทม์สมบูรณ์แบบ
+2. **เพิ่มฟังก์ชันการวาดลูกศรชี้ตำแหน่งในเครื่องมือแก้ไขรูปภาพ (สำเร็จ):**
+    * **Arrow Drawing Vector:** ติดตั้งโหมดวาดเขียน `'arrow'` (ลูกศร) เพิ่มเติมในโมดูลวาดรูป [ImageEditorModal.tsx (หลัก)](file:///d:/Project%20APP/AntiGravity/neo_line_oa/src/components/modals/ImageEditorModal.tsx) และ [ImageEditorModal.tsx (แชท)](file:///d:/Project%20APP/AntiGravity/neo_line_oa/src/components/chat/ImageEditorModal.tsx)
+    * **Mathematics Alignment:** ใช้สมการตรีโกณมิติ `Math.atan2` คำนวณหามุมวาดหัวลูกศร (Barbs) แบบขยับตามทิศทางเมาส์/สัมผัสได้สดๆ และแปรผันขนาดหัวลูกศรสัมพันธ์กับความกว้างเส้น `lineWidth` ได้สวยงามสากล โดยใช้ไอคอนควบคุม `ArrowUpRight` จาก `lucide-react`
+3. **Build & Build Verification:**
+    * ทำการทดสอบคอมไพล์เช็กประเภทข้อมูลด้วย `npx tsc --noEmit` และทำการ Build โครงการสำเร็จ 100% ไม่มีข้อผิดพลาด
+    * ทำการ Commit และ Push ขึ้น Repository Branch `main` (Commit ID: `62fa40c`)
+
+---
+
 ## 💡 ไอเดียและแผนงาน (22 พฤษภาคม 2569)
 
 **Database Architecture & Scaling Strategy (Supabase + Self-hosted PostgreSQL):**
