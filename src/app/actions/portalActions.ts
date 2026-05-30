@@ -76,19 +76,5 @@ export async function sendPortalMessageAction(
       .eq('id', conversation.id);
   }
 
-  // 6. Push LINE notification to internal staff group (non-blocking)
-  const groupId = process.env.LINE_GROUP_ID;
-  if (groupId) {
-    const displayName = customer.display_name || 'ลูกค้า';
-    const preview = messageType === 'text'
-      ? (content.length > 60 ? content.slice(0, 60) + '…' : content)
-      : '📎 ส่งไฟล์/รูปภาพ';
-
-    void sendLineGroupNotification(
-      `📩 ลูกค้าตอบกลับในใบงาน #${ticket.ticket_no}\nจาก: ${displayName}\nข้อความ: ${preview}`,
-      groupId
-    );
-  }
-
   return message;
 }

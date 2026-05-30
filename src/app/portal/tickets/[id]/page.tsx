@@ -543,17 +543,42 @@ export default function TicketDetailPage() {
         }
       })
 
-      .subscribe((status) => {
-        console.log(`[Realtime] Channel status for ticket ${ticketId}:`, status);
+      .subscribe((status, err) => {
+        console.log(`[Realtime] Channel status for ticket ${ticketId}:`, status, err || '');
+        if (status === 'CHANNEL_ERROR' || status === 'CLOSED') {
+          console.warn('[Realtime] Channel error or closed, forcing resync & reconnect.');
+          refetchMessages();
+          supabase.realtime.connect();
+        }
       });
 
-    // Fallback polling every 60s — catches any missed Realtime events
-    const poller = window.setInterval(() => {
-      refetchMessages();
-    }, 60000);
+    // Dynamic fallback polling to save mobile battery and handle disconnects
+    let poller: any = null;
+    const startPoller = (intervalMs: number) => {
+      if (poller) window.clearInterval(poller);
+      poller = window.setInterval(() => {
+        refetchMessages();
+      }, intervalMs);
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        // High frequency refresh when active
+        startPoller(15000);
+        refetchMessages();
+      } else {
+        // Low frequency refresh in background
+        startPoller(45000);
+      }
+    };
+
+    // Initial start
+    startPoller(document.visibilityState === 'visible' ? 15000 : 45000);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
 
     return () => {
-      window.clearInterval(poller);
+      if (poller) window.clearInterval(poller);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
       console.log(`[Realtime] Removing channel for ticket: ${ticketId}`);
       supabase.removeChannel(channel);
     };
