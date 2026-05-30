@@ -511,7 +511,26 @@ export default function TicketDetailPage() {
       }, (payload: any) => {
         const nextTicket = payload.new;
         console.log('[Realtime] Ticket UPDATE', nextTicket?.status);
-        setTicket((prev: any) => prev ? { ...prev, ...nextTicket } : prev);
+        
+        // Safety: Filter out null/undefined fields from Postgres UPDATE payload to avoid nulling out local state
+        const cleanUpdate: any = {};
+        Object.keys(nextTicket).forEach(key => {
+          if (nextTicket[key] !== null && nextTicket[key] !== undefined) {
+            cleanUpdate[key] = nextTicket[key];
+          }
+        });
+        setTicket((prev: any) => prev ? { ...prev, ...cleanUpdate } : prev);
+
+        // Background fetch to sync relations (e.g. assigned_agent details)
+        supabase
+          .from('tickets')
+          .select(`*, assigned_agent:profiles!assigned_agent_id(*)`)
+          .eq('id', ticketId)
+          .maybeSingle()
+          .then(({ data }: any) => {
+            if (data) setTicket(data);
+          });
+
         supabase
           .from('ticket_logs')
           .select('id, created_at, action_type, to_status')

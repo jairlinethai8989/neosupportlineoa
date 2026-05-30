@@ -13,6 +13,7 @@ import {
   Loader2,
   Minus,
   Plus,
+  ArrowUpRight,
 } from 'lucide-react';
 
 interface ImageEditorModalProps {
@@ -21,7 +22,7 @@ interface ImageEditorModalProps {
   onSave: (blob: Blob) => Promise<void>;
 }
 
-type Tool = 'pencil' | 'rect' | 'circle' | 'text';
+type Tool = 'pencil' | 'rect' | 'circle' | 'text' | 'arrow';
 
 const COLORS = ['#ff0000', '#ffff00', '#00f2fe', '#28c76f', '#ffffff', '#000000'];
 const MAX_RESOLUTION = 2048;
@@ -182,6 +183,8 @@ export default function ImageEditorModal({
     ctx.putImageData(snapshot, 0, 0);
     ctx.strokeStyle = color;
     ctx.lineWidth = lineWidth;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
     ctx.beginPath();
 
     if (tool === 'rect') {
@@ -189,6 +192,18 @@ export default function ImageEditorModal({
     } else if (tool === 'circle') {
       const radius = Math.hypot(point.x - startX, point.y - startY);
       ctx.arc(startX, startY, radius, 0, Math.PI * 2);
+      ctx.stroke();
+    } else if (tool === 'arrow') {
+      const endX = point.x;
+      const endY = point.y;
+      const angle = Math.atan2(endY - startY, endX - startX);
+      const headLength = Math.max(12, lineWidth * 3);
+      
+      ctx.moveTo(startX, startY);
+      ctx.lineTo(endX, endY);
+      ctx.lineTo(endX - headLength * Math.cos(angle - Math.PI / 6), endY - headLength * Math.sin(angle - Math.PI / 6));
+      ctx.moveTo(endX, endY);
+      ctx.lineTo(endX - headLength * Math.cos(angle + Math.PI / 6), endY - headLength * Math.sin(angle + Math.PI / 6));
       ctx.stroke();
     }
   };
@@ -385,6 +400,7 @@ export default function ImageEditorModal({
         <div style={{ display: 'flex', gap: '8px' }}>
           {[
             { id: 'pencil', icon: Pencil },
+            { id: 'arrow', icon: ArrowUpRight },
             { id: 'rect', icon: Square },
             { id: 'circle', icon: CircleIcon },
             { id: 'text', icon: Type },

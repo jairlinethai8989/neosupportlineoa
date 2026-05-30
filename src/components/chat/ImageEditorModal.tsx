@@ -13,7 +13,8 @@ import {
   Maximize,
   Undo,
   Minus,
-  Plus
+  Plus,
+  ArrowUpRight
 } from 'lucide-react';
 
 interface ImageEditorModalProps {
@@ -24,7 +25,7 @@ interface ImageEditorModalProps {
   saveLabel?: string;
 }
 
-type Tool = 'pencil' | 'rect' | 'circle' | 'text';
+type Tool = 'pencil' | 'rect' | 'circle' | 'text' | 'arrow';
 
 export default function ImageEditorModal({ isOpen, onClose, imageSrc, onSave, saveLabel }: ImageEditorModalProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -139,16 +140,30 @@ export default function ImageEditorModal({ isOpen, onClose, imageSrc, onSave, sa
     if (tool === 'pencil') {
       ctx.lineTo(pos.x, pos.y);
       ctx.stroke();
-    } else if (tool === 'rect' || tool === 'circle') {
+    } else if (tool === 'rect' || tool === 'circle' || tool === 'arrow') {
       ctx.putImageData(snapshot, 0, 0);
       ctx.strokeStyle = color;
       ctx.lineWidth = lineWidth;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
       if (tool === 'rect') {
         ctx.strokeRect(startPos.x, startPos.y, pos.x - startPos.x, pos.y - startPos.y);
-      } else {
+      } else if (tool === 'circle') {
         const radius = Math.sqrt(Math.pow(pos.x - startPos.x, 2) + Math.pow(pos.y - startPos.y, 2));
         ctx.beginPath();
         ctx.arc(startPos.x, startPos.y, radius, 0, 2 * Math.PI);
+        ctx.stroke();
+      } else if (tool === 'arrow') {
+        const endX = pos.x;
+        const endY = pos.y;
+        const angle = Math.atan2(endY - startPos.y, endX - startPos.x);
+        const headLength = Math.max(12, lineWidth * 3);
+        ctx.beginPath();
+        ctx.moveTo(startPos.x, startPos.y);
+        ctx.lineTo(endX, endY);
+        ctx.lineTo(endX - headLength * Math.cos(angle - Math.PI / 6), endY - headLength * Math.sin(angle - Math.PI / 6));
+        ctx.moveTo(endX, endY);
+        ctx.lineTo(endX - headLength * Math.cos(angle + Math.PI / 6), endY - headLength * Math.sin(angle + Math.PI / 6));
         ctx.stroke();
       }
     }
@@ -214,6 +229,7 @@ export default function ImageEditorModal({ isOpen, onClose, imageSrc, onSave, sa
         <div style={{ display: 'flex', gap: '8px', background: 'rgba(255,255,255,0.05)', padding: '6px', borderRadius: '16px' }}>
           {[
             { id: 'pencil', icon: Pencil, label: 'วาดเขียน' },
+            { id: 'arrow', icon: ArrowUpRight, label: 'ลูกศร' },
             { id: 'rect', icon: Square, label: 'สี่เหลี่ยม' },
             { id: 'circle', icon: CircleIcon, label: 'วงกลม' },
             { id: 'text', icon: Type, label: 'ข้อความ' },
