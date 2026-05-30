@@ -421,28 +421,36 @@ export default function TicketDetailPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isReady, profile?.userId, ticketId, loadSurveyState]);
 
-  // 2. Persistent Supabase Realtime subscription and polling loop for message sync
+  // 2. Stable Supabase Realtime subscription — depends ONLY on ticketId
+  // FIX #2 & #4: Channel is created once per ticketId and never torn down due to conversationId change.
+  // All handlers read conversationIdRef.current for the latest conversation ID without needing conversationId in deps.
   useEffect(() => {
     if (!ticketId) return;
 
-    let channelRef: any = null;
+    console.log(`[Realtime] Initializing stable channel for ticket: ${ticketId}`);
 
-    console.log(`[Realtime] Initializing portal ticket channel for: ${ticketId}, conversationId: ${conversationId}`);
-    let channel = supabase.channel(`portal-ticket-${ticketId}`);
-    
-    // A. Listen to messages for this ticket directly
-    channel = channel.on('postgres_changes', {
-      event: 'INSERT',
-      schema: 'public',
-      table: 'messages',
-      filter: `ticket_id=eq.${ticketId}`
-    }, (payload: any) => {
-      const msg = payload.new;
-      console.log('[Realtime] Message INSERT (ticket_id) received', msg);
+    // Helper: fetch all messages for this ticket (uses ref for latest conversationId)
+    const refetchMessages = () => {
+      const cid = conversationIdRef.current;
+      let q = supabase
+        .from('messages')
+        .select('id, content, sender_type, message_type, created_at, ticket_id, conversation_id');
+      q = cid
+        ? q.or(`ticket_id.eq.${ticketId},conversation_id.eq.${cid}`)
+        : q.eq('ticket_id', ticketId);
+      q.order('created_at', { ascending: true }).then(({ data }: any) => {
+        if (data) setMessages(data);
+      });
+    };
+
+    // Helper: deduplicated message insert handler
+    const handleMessageInsert = (msg: any) => {
       setMessages(prev => {
         if (prev.some(m => m.id === msg.id)) return prev;
         if (msg.sender_type === 'customer') {
-          const tempIdx = prev.findIndex(m => m.id?.toString().startsWith('temp_') && m.content === msg.content);
+          const tempIdx = prev.findIndex(
+            m => m.id?.toString().startsWith('temp_') && m.content === msg.content
+          );
           if (tempIdx !== -1) {
             const next = [...prev];
             next[tempIdx] = msg;
@@ -451,189 +459,107 @@ export default function TicketDetailPage() {
         }
         return [...prev, msg];
       });
-    }).on('postgres_changes', {
-      event: 'UPDATE',
-      schema: 'public',
-      table: 'messages',
-      filter: `ticket_id=eq.${ticketId}`
-    }, (payload: any) => {
-      const msg = payload.new;
-      console.log('[Realtime] Message UPDATE (ticket_id) received', msg);
-      setMessages(prev => prev.map(m => m.id === payload.new.id ? payload.new : m));
-    });
+    };
 
-    // B. Listen to messages for this conversation directly if we have one
-    if (conversationId) {
-      channel = channel.on('postgres_changes', {
+    const channel = supabase
+      .channel(`portal-ticket-stable-${ticketId}`)
+
+      // A. Messages by ticket_id (covers all messages regardless of conversation)
+      .on('postgres_changes', {
         event: 'INSERT',
         schema: 'public',
         table: 'messages',
-        filter: `conversation_id=eq.${conversationId}`
+        filter: `ticket_id=eq.${ticketId}`,
       }, (payload: any) => {
-        const msg = payload.new;
-        console.log('[Realtime] Message INSERT (conversation_id) received', msg);
-        setMessages(prev => {
-          if (prev.some(m => m.id === msg.id)) return prev;
-          if (msg.sender_type === 'customer') {
-            const tempIdx = prev.findIndex(m => m.id?.toString().startsWith('temp_') && m.content === msg.content);
-            if (tempIdx !== -1) {
-              const next = [...prev];
-              next[tempIdx] = msg;
-              return next;
-            }
-          }
-          return [...prev, msg];
-        });
-      }).on('postgres_changes', {
+        console.log('[Realtime] Message INSERT (ticket_id)', payload.new?.id);
+        handleMessageInsert(payload.new);
+      })
+      .on('postgres_changes', {
         event: 'UPDATE',
         schema: 'public',
         table: 'messages',
-        filter: `conversation_id=eq.${conversationId}`
+        filter: `ticket_id=eq.${ticketId}`,
       }, (payload: any) => {
-        const msg = payload.new;
-        console.log('[Realtime] Message UPDATE (conversation_id) received', msg);
+        console.log('[Realtime] Message UPDATE (ticket_id)', payload.new?.id);
         setMessages(prev => prev.map(m => m.id === payload.new.id ? payload.new : m));
-      });
-    }
+      })
 
-    // C. Listen to conversations linked to this ticket
-    channel = channel.on('postgres_changes', {
-      event: '*',
-      schema: 'public',
-      table: 'conversations',
-      filter: `current_ticket_id=eq.${ticketId}`
-    }, (payload: any) => {
-      const currentTicketId = payload.new?.current_ticket_id || payload.old?.current_ticket_id;
-      const newCid = payload.new?.id || payload.old?.id;
-      
-      console.log('[Realtime] Conversation event received (by ticket_id)', payload.new || payload.old);
-      
-      if (newCid && newCid !== conversationIdRef.current) {
-        console.log(`[Realtime] Associating ticket with conversation ID: ${newCid}`);
-        setConversationId(newCid);
-        conversationIdRef.current = newCid;
-      }
-
-      const targetCid = newCid || conversationId;
-      let query = supabase.from('messages').select('id, content, sender_type, message_type, created_at, ticket_id, conversation_id');
-      if (targetCid) {
-        query = query.or(`ticket_id.eq.${ticketId},conversation_id.eq.${targetCid}`);
-      } else {
-        query = query.eq('ticket_id', ticketId);
-      }
-      query.order('created_at', { ascending: true }).then(({ data }: any) => {
-        if (data) setMessages(data);
-      });
-    });
-
-    // D. Listen to the specific conversation if we have one
-    if (conversationId) {
-      channel = channel.on('postgres_changes', {
+      // B. Conversations linked to this ticket — discover conversationId dynamically
+      .on('postgres_changes', {
         event: '*',
         schema: 'public',
         table: 'conversations',
-        filter: `id=eq.${conversationId}`
+        filter: `current_ticket_id=eq.${ticketId}`,
       }, (payload: any) => {
-        console.log('[Realtime] Conversation event received (by id)', payload.new || payload.old);
-        const currentTicketId = payload.new?.current_ticket_id || payload.old?.current_ticket_id;
         const newCid = payload.new?.id || payload.old?.id;
-        
+        console.log('[Realtime] Conversation event (by ticket_id)', newCid);
         if (newCid && newCid !== conversationIdRef.current) {
-          console.log(`[Realtime] Associating ticket with conversation ID: ${newCid}`);
-          setConversationId(newCid);
+          console.log(`[Realtime] Discovered conversation: ${newCid}`);
           conversationIdRef.current = newCid;
+          setConversationId(newCid);
         }
+        // Re-fetch messages to capture any messages linked by conversation_id
+        refetchMessages();
+      })
 
-        const targetCid = newCid || conversationId;
-        let query = supabase.from('messages').select('id, content, sender_type, message_type, created_at, ticket_id, conversation_id');
-        if (targetCid) {
-          query = query.or(`ticket_id.eq.${ticketId},conversation_id.eq.${targetCid}`);
-        } else {
-          query = query.eq('ticket_id', ticketId);
+      // C. Ticket status updates
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'tickets',
+        filter: `id=eq.${ticketId}`,
+      }, (payload: any) => {
+        const nextTicket = payload.new;
+        console.log('[Realtime] Ticket UPDATE', nextTicket?.status);
+        setTicket((prev: any) => prev ? { ...prev, ...nextTicket } : prev);
+        supabase
+          .from('ticket_logs')
+          .select('id, created_at, action_type, to_status')
+          .eq('ticket_id', ticketId)
+          .order('created_at', { ascending: false })
+          .then(({ data }: any) => { if (data) setLogs(data); });
+        if (isSurveyEligibleStatus(nextTicket?.status) && !hasRespondedRef.current) {
+          router.push(`/portal?survey_ticket_id=${ticketId}`);
         }
-        query.order('created_at', { ascending: true }).then(({ data }: any) => {
-          if (data) setMessages(data);
-        });
+      })
+
+      // D. CSAT survey updates
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'csat_surveys',
+        filter: `ticket_id=eq.${ticketId}`,
+      }, (payload: any) => {
+        const nextSurvey = payload.new;
+        const value = nextSurvey?.score || nextSurvey?.rating || 0;
+        const responded = Boolean(nextSurvey?.responded_at || value);
+        if (responded) {
+          setHasResponded(true);
+          if (value) setSurveyScore(value);
+          return;
+        }
+        if (!hasRespondedRef.current && isSurveyEligibleStatus(ticketStatusRef.current || payload.old?.status)) {
+          setShowSurvey(true);
+        }
+      })
+
+      .subscribe((status) => {
+        console.log(`[Realtime] Channel status for ticket ${ticketId}:`, status);
       });
-    }
 
-    // E. Listen to the specific ticket details
-    channel = channel.on('postgres_changes', {
-      event: 'UPDATE',
-      schema: 'public',
-      table: 'tickets',
-      filter: `id=eq.${ticketId}`
-    }, async (payload: any) => {
-      const nextTicket = payload.new;
-      console.log('[Realtime] Ticket UPDATE received', nextTicket);
-      setTicket((prev: any) => prev ? ({ ...prev, ...nextTicket }) : prev);
-      supabase.from('ticket_logs').select('id, created_at, action_type, to_status').eq('ticket_id', ticketId).order('created_at', { ascending: false })
-        .then(({ data }: any) => { if (data) setLogs(data); });
-      if (isSurveyEligibleStatus(nextTicket?.status) && !hasRespondedRef.current) {
-        router.push(`/portal?survey_ticket_id=${ticketId}`);
-      }
-    });
-
-    // F. Listen to the CSAT surveys
-    channel = channel.on('postgres_changes', {
-      event: '*',
-      schema: 'public',
-      table: 'csat_surveys',
-      filter: `ticket_id=eq.${ticketId}`
-    }, async (payload: any) => {
-      const nextSurvey = payload.new;
-      console.log('[Realtime] CSAT Survey event received', nextSurvey);
-      const value = nextSurvey?.score || nextSurvey?.rating || 0;
-      const responded = Boolean(nextSurvey?.responded_at || value);
-      if (responded) {
-        setHasResponded(true);
-        if (value) setSurveyScore(value);
-        return;
-      }
-      if (!hasRespondedRef.current && isSurveyEligibleStatus(ticketStatusRef.current || payload.old?.status)) {
-        setShowSurvey(true);
-      }
-    });
-
-    channel.subscribe((status) => {
-      console.log(`[Realtime] Subscription status for ticket ${ticketId} (conv: ${conversationId}):`, status);
-    });
-
-    channelRef = channel;
-
-    // Fallback polling for chat messages increased to 60s instead of 10s to ease load
+    // Fallback polling every 60s — catches any missed Realtime events
     const poller = window.setInterval(() => {
-      const cid = conversationIdRef.current;
-      let query = supabase.from('messages').select('id, content, sender_type, message_type, created_at, ticket_id, conversation_id');
-      if (cid) {
-        query = query.or(`ticket_id.eq.${ticketId},conversation_id.eq.${cid}`);
-      } else {
-        query = query.eq('ticket_id', ticketId);
-      }
-      query.order('created_at', { ascending: true }).limit(200).then(({ data }: any) => {
-        if (!data) return;
-        setMessages(prev => {
-          const prevLast = prev[prev.length - 1];
-          const nextLast = data[data.length - 1];
-          const sameShape =
-            prev.length === data.length &&
-            prevLast?.id === nextLast?.id &&
-            prevLast?.updated_at === nextLast?.updated_at;
-          if (sameShape) return prev;
-          return data;
-        });
-      });
-    }, 60000); // 60 seconds
+      refetchMessages();
+    }, 60000);
 
     return () => {
       window.clearInterval(poller);
-      if (channelRef) {
-        console.log(`[Realtime] Cleaning up channel for ticket: ${ticketId}`);
-        supabase.removeChannel(channelRef);
-      }
+      console.log(`[Realtime] Removing channel for ticket: ${ticketId}`);
+      supabase.removeChannel(channel);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ticketId, conversationId]);
+  }, [ticketId]);
+  // NOTE: conversationId intentionally excluded — read via conversationIdRef to prevent channel teardown
 
   useEffect(() => {
     if (!ticketId) return;
