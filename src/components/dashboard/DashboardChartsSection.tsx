@@ -272,6 +272,8 @@ export function DashboardChartsSection({
              <div />
              {Array.from({length: 24}).map((_, i) => {
                const isKeyLabel = i === 0 || i === 6 || i === 12 || i === 18;
+               const cellBorderLeft = i === 8 ? '2px dashed rgba(255, 255, 255, 0.25)' : undefined;
+               const cellBorderRight = i === 18 ? '2px dashed rgba(255, 255, 255, 0.25)' : undefined;
                return (
                  <div 
                    key={`h-${i}`} 
@@ -280,7 +282,9 @@ export function DashboardChartsSection({
                      color: isKeyLabel ? 'var(--text-main)' : 'var(--text-muted)', 
                      fontWeight: isKeyLabel ? '800' : '400',
                      textAlign: 'center',
-                     minWidth: '20px'
+                     minWidth: '20px',
+                     borderLeft: cellBorderLeft,
+                     borderRight: cellBorderRight
                    }}
                  >
                    {i === 0 && '00:00'}
@@ -298,17 +302,23 @@ export function DashboardChartsSection({
               {heatmapData[dayIdx]?.map((val, hourIdx) => {
                 const isWorkingHours = hourIdx >= 8 && hourIdx <= 18;
                 const isPeak = val > 0 && (val / maxHeatmapValue) > 0.7;
+                
+                // Time-Zone Grouping: add left border at 08:00 and right border at 18:00 to group working hours
+                const cellBorderLeft = hourIdx === 8 ? '2px dashed rgba(255, 255, 255, 0.25)' : undefined;
+                const cellBorderRight = hourIdx === 18 ? '2px dashed rgba(255, 255, 255, 0.25)' : undefined;
+
                 return (
                   <div
                     key={`cell-${dayIdx}-${hourIdx}`}
-                    title={`${dayName} เวลา ${hourIdx.toString().padStart(2, '0')}:00 น. มี ${val} งาน${!isWorkingHours ? ' (นอกเวลาทำการ)' : ''}`}
+                    title={`${dayName} เวลา ${hourIdx.toString().padStart(2, '0')}:00 น. มี ${val} งาน${isWorkingHours ? ' (เวลาทำการ)' : ' (นอกเวลาทำการ)'}`}
                     style={{
                       height: '24px',
                       borderRadius: '6px',
                       background: getHeatmapColor(val),
                       border: getHeatmapBorder(val),
-                      boxShadow: isPeak ? (isWorkingHours ? '0 0 10px rgba(255, 159, 67, 0.6)' : '0 0 5px rgba(255, 159, 67, 0.3)') : 'none',
-                      opacity: isWorkingHours ? 1 : (val > 0 ? 0.45 : 0.15),
+                      borderLeft: cellBorderLeft || getHeatmapBorder(val),
+                      borderRight: cellBorderRight || getHeatmapBorder(val),
+                      boxShadow: isPeak ? '0 0 10px rgba(255, 159, 67, 0.6)' : 'none',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
@@ -319,14 +329,12 @@ export function DashboardChartsSection({
                     onMouseEnter={(e) => { 
                       e.currentTarget.style.transform = 'scale(1.15)'; 
                       e.currentTarget.style.zIndex = '10'; 
-                      e.currentTarget.style.opacity = '1';
                       if (isPeak) e.currentTarget.style.boxShadow = '0 0 16px rgba(255, 159, 67, 0.9)';
                     }}
                     onMouseLeave={(e) => { 
                       e.currentTarget.style.transform = 'scale(1)'; 
                       e.currentTarget.style.zIndex = '1'; 
-                      e.currentTarget.style.opacity = isWorkingHours ? '1' : (val > 0 ? '0.45' : '0.15');
-                      if (isPeak) e.currentTarget.style.boxShadow = isWorkingHours ? '0 0 10px rgba(255, 159, 67, 0.6)' : '0 0 5px rgba(255, 159, 67, 0.3)';
+                      if (isPeak) e.currentTarget.style.boxShadow = '0 0 10px rgba(255, 159, 67, 0.6)';
                     }}
                   >
                      {val > 0 && (
