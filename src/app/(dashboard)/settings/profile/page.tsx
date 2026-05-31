@@ -213,6 +213,7 @@ export default function ProfileSettingsPage() {
         full_name: profile.full_name,
         avatar_url: profile.avatar_url,
         department: profile.department,
+        landing_page: profile.landing_page || null,
         theme_color: profile.theme_color,
         signature_url: profile.signature_url,
         quick_replies: profile.quick_replies || [],
@@ -230,6 +231,7 @@ export default function ProfileSettingsPage() {
         new_data: { 
           full_name: profile.full_name, 
           department: profile.department,
+          landing_page: profile.landing_page || null,
           avatar_url: profile.avatar_url,
           theme_color: profile.theme_color,
           signature_url: profile.signature_url,
@@ -435,6 +437,14 @@ export default function ProfileSettingsPage() {
                   <select value={profile?.department || ''} onChange={e => setProfile({...profile, department: e.target.value})} style={{ width: '100%', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '12px', padding: '12px', color: 'var(--text-main)', outline: 'none', fontWeight: '700', fontSize: '14px' }}>
                     <option value="">{t('settingsProfile.selectDepartment')}</option>
                     {companyDepts.map((d: string) => (<option key={d} value={d}>{d}</option>))}
+                  </select>
+               </div>
+               <div>
+                  <label style={{ display: 'block', fontSize: '10px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '6px' }}>หน้าแรกหลังเข้าสู่ระบบ (Default Landing Page)</label>
+                  <select value={profile?.landing_page || ''} onChange={e => setProfile({...profile, landing_page: e.target.value})} style={{ width: '100%', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '12px', padding: '12px', color: 'var(--text-main)', outline: 'none', fontWeight: '700', fontSize: '14px' }}>
+                    <option value="">ค่าเริ่มต้นตามสิทธิ์ระบบ (Default by Role)</option>
+                    <option value="dashboard">หน้าแดชบอร์ดหลัก (Dashboard)</option>
+                    <option value="inbox">หน้ากล่องใบงาน (Ticket Inbox)</option>
                   </select>
                </div>
                <div>

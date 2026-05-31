@@ -38,8 +38,31 @@ export default function LoginPage() {
       if (signInError) throw signInError;
       
       const params = new URLSearchParams(window.location.search);
-      const redirectTo = params.get('redirectTo') || '/';
-      window.location.href = redirectTo;
+      let finalRedirectTo = params.get('redirectTo') || '/';
+      
+      if (!params.get('redirectTo') || finalRedirectTo === '/') {
+        // ดึงข้อมูล role และ landing_page จาก profiles
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role, landing_page')
+          .eq('id', data.user.id)
+          .single();
+          
+        if (profile?.landing_page === 'inbox') {
+          finalRedirectTo = '/portal/tickets';
+        } else if (profile?.landing_page === 'dashboard') {
+          finalRedirectTo = '/';
+        } else {
+          // ค่าเริ่มต้นตาม Role
+          if (profile?.role === 'Agent') {
+            finalRedirectTo = '/portal/tickets';
+          } else {
+            finalRedirectTo = '/'; // Dashboard
+          }
+        }
+      }
+
+      window.location.href = finalRedirectTo;
     } catch (err: any) {
       setError(err.message || 'รหัสผ่านหรือชื่อผู้ใช้ไม่ถูกต้อง');
     } finally {
