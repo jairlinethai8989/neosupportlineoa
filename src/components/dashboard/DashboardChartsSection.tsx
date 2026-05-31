@@ -296,17 +296,19 @@ export function DashboardChartsSection({
             <div key={`d-${dayIdx}`} style={{ display: 'grid', gridTemplateColumns: '40px repeat(24, minmax(20px, 1fr))', gap: '4px', alignItems: 'center' }}>
               <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: '700' }}>{dayName}</div>
               {heatmapData[dayIdx]?.map((val, hourIdx) => {
+                const isWorkingHours = hourIdx >= 8 && hourIdx <= 18;
                 const isPeak = val > 0 && (val / maxHeatmapValue) > 0.7;
                 return (
                   <div
                     key={`cell-${dayIdx}-${hourIdx}`}
-                    title={`${dayName} เวลา ${hourIdx.toString().padStart(2, '0')}:00 น. มี ${val} งาน`}
+                    title={`${dayName} เวลา ${hourIdx.toString().padStart(2, '0')}:00 น. มี ${val} งาน${!isWorkingHours ? ' (นอกเวลาทำการ)' : ''}`}
                     style={{
                       height: '24px',
                       borderRadius: '6px',
                       background: getHeatmapColor(val),
                       border: getHeatmapBorder(val),
-                      boxShadow: isPeak ? '0 0 10px rgba(255, 159, 67, 0.6)' : 'none',
+                      boxShadow: isPeak ? (isWorkingHours ? '0 0 10px rgba(255, 159, 67, 0.6)' : '0 0 5px rgba(255, 159, 67, 0.3)') : 'none',
+                      opacity: isWorkingHours ? 1 : (val > 0 ? 0.45 : 0.15),
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
@@ -317,12 +319,14 @@ export function DashboardChartsSection({
                     onMouseEnter={(e) => { 
                       e.currentTarget.style.transform = 'scale(1.15)'; 
                       e.currentTarget.style.zIndex = '10'; 
+                      e.currentTarget.style.opacity = '1';
                       if (isPeak) e.currentTarget.style.boxShadow = '0 0 16px rgba(255, 159, 67, 0.9)';
                     }}
                     onMouseLeave={(e) => { 
                       e.currentTarget.style.transform = 'scale(1)'; 
                       e.currentTarget.style.zIndex = '1'; 
-                      if (isPeak) e.currentTarget.style.boxShadow = '0 0 10px rgba(255, 159, 67, 0.6)';
+                      e.currentTarget.style.opacity = isWorkingHours ? '1' : (val > 0 ? '0.45' : '0.15');
+                      if (isPeak) e.currentTarget.style.boxShadow = isWorkingHours ? '0 0 10px rgba(255, 159, 67, 0.6)' : '0 0 5px rgba(255, 159, 67, 0.3)';
                     }}
                   >
                      {val > 0 && (
