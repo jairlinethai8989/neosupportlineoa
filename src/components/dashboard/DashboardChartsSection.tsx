@@ -170,20 +170,42 @@ export function DashboardChartsSection({
           </div>
           <div style={{ flex: 1, minHeight: '280px' }}>
             <ResponsiveContainer width="100%" height={280}>
-              <LineChart data={trendData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
+              <AreaChart data={trendData} margin={{ top: 10, right: 20, bottom: 5, left: 0 }}>
+                <defs>
+                  <linearGradient id="colorNew" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor={CHART_COLORS.primary} stopOpacity={0.4}/>
+                    <stop offset="95%" stopColor={CHART_COLORS.primary} stopOpacity={0.0}/>
+                  </linearGradient>
+                  <linearGradient id="colorResolved" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor={CHART_COLORS.success} stopOpacity={0.4}/>
+                    <stop offset="95%" stopColor={CHART_COLORS.success} stopOpacity={0.0}/>
+                  </linearGradient>
+                </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(128,128,128,0.1)" />
                 <XAxis dataKey="label" stroke="var(--text-muted)" fontSize={11} tickLine={false} axisLine={false} />
                 <YAxis stroke="var(--text-muted)" fontSize={11} tickLine={false} axisLine={false} allowDecimals={false} />
                 <Tooltip content={<CustomTooltip />} />
-                <Line
+                <Area
                   type="monotone"
                   dataKey={labels.newTickets}
-                  stroke="#ff9f43"
+                  stroke={CHART_COLORS.primary}
                   strokeWidth={3}
-                  dot={{ r: 4, fill: '#ff9f43', strokeWidth: 2, stroke: '#0a0e14' }}
-                  activeDot={{ r: 6, stroke: '#ff9f43', strokeWidth: 2, fill: '#0a0e14' }}
+                  fillOpacity={1}
+                  fill="url(#colorNew)"
+                  dot={{ r: 4, fill: CHART_COLORS.primary, strokeWidth: 2, stroke: '#0a0e14' }}
+                  activeDot={{ r: 6, stroke: CHART_COLORS.primary, strokeWidth: 2, fill: '#0a0e14' }}
                 />
-              </LineChart>
+                <Area
+                  type="monotone"
+                  dataKey={labels.resolved}
+                  stroke={CHART_COLORS.success}
+                  strokeWidth={3}
+                  fillOpacity={1}
+                  fill="url(#colorResolved)"
+                  dot={{ r: 4, fill: CHART_COLORS.success, strokeWidth: 2, stroke: '#0a0e14' }}
+                  activeDot={{ r: 6, stroke: CHART_COLORS.success, strokeWidth: 2, fill: '#0a0e14' }}
+                />
+              </AreaChart>
             </ResponsiveContainer>
           </div>
         </div>
