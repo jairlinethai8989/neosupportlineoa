@@ -27,6 +27,10 @@ export async function GET(req: Request) {
     const toDate = parseIsoDate(searchParams.get('to'));
     const includeLogs = searchParams.get('includeLogs') === '1';
 
+    const hospitalId = searchParams.get('hospitalId') || '';
+    const moduleFilter = searchParams.get('module') || '';
+    const issueType = searchParams.get('issueType') || '';
+
     if (!fromDate || !toDate) {
       return NextResponse.json({ error: 'Invalid from/to datetime.' }, { status: 400 });
     }
@@ -47,7 +51,7 @@ export async function GET(req: Request) {
 
     const fromIso = fromDate.toISOString();
     const toIso = toDate.toISOString();
-    const cacheKey = buildVersionedLiveCacheKey(`dashboard:${fromIso}:${toIso}:logs=${includeLogs ? '1' : '0'}`);
+    const cacheKey = buildVersionedLiveCacheKey(`dashboard:${fromIso}:${toIso}:logs=${includeLogs ? '1' : '0'}:hosp=${hospitalId}:mod=${moduleFilter}:type=${issueType}`);
     const cacheHitBeforeLoad = readLiveCache(cacheKey) !== null;
     const ttlMs = includeLogs
       ? CACHE_POLICY.live.dashboardSummaryWithLogsTtlMs
@@ -58,7 +62,10 @@ export async function GET(req: Request) {
       const { data: rpcData, error: rpcError } = await supabaseAdmin
         .rpc('get_dashboard_summary', {
           p_start_date: fromIso,
-          p_end_date: toIso
+          p_end_date: toIso,
+          p_hospital_id: hospitalId || null,
+          p_module: moduleFilter || null,
+          p_issue_type: issueType || null
         });
 
       if (rpcError) {

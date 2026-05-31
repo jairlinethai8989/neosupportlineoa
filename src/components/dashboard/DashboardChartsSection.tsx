@@ -120,7 +120,6 @@ export function DashboardChartsSection({
   // Helpers for Heatmap
   const DAYS_TH = ['อา.', 'จ.', 'อ.', 'พ.', 'พฤ.', 'ศ.', 'ส.'];
   
-  // Find max value in heatmap for color scaling
   const maxHeatmapValue = React.useMemo(() => {
     let max = 0;
     if (heatmapData && heatmapData.length === 7) {
@@ -130,11 +129,23 @@ export function DashboardChartsSection({
   }, [heatmapData]);
 
   const getHeatmapColor = (value: number) => {
-    if (value === 0) return 'rgba(255,255,255,0.03)';
+    if (value === 0) return 'rgba(255, 255, 255, 0.03)';
     const intensity = value / maxHeatmapValue;
-    const hue = (1 - intensity) * 50; 
-    const lightness = 50 - (intensity * 20);
-    return `hsl(${hue}, 100%, ${lightness}%)`;
+    if (intensity <= 0.33) {
+      return 'rgba(0, 242, 254, 0.3)'; // Electric Cyan for low density
+    } else if (intensity <= 0.7) {
+      return 'rgba(40, 199, 111, 0.6)'; // Neon Green for medium density
+    } else {
+      return 'rgba(255, 159, 67, 0.95)'; // Acid Orange/Gold for peak density
+    }
+  };
+
+  const getHeatmapBorder = (value: number) => {
+    if (value === 0) return '1px solid rgba(255, 255, 255, 0.05)';
+    const intensity = value / maxHeatmapValue;
+    if (intensity <= 0.33) return '1px solid rgba(0, 242, 254, 0.4)';
+    if (intensity <= 0.7) return '1px solid rgba(40, 199, 111, 0.6)';
+    return '1px solid rgba(255, 159, 67, 0.8)';
   };
 
   return (
@@ -257,42 +268,93 @@ export function DashboardChartsSection({
           <p style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>TICKET VOLUME BY DAY/HOUR</p>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', overflowX: 'auto', paddingBottom: '12px' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '40px repeat(24, minmax(20px, 1fr))', gap: '4px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '40px repeat(24, minmax(20px, 1fr))', gap: '4px', marginBottom: '4px' }}>
              <div />
-             {Array.from({length: 24}).map((_, i) => (
-               <div key={`h-${i}`} style={{ fontSize: '9px', color: 'var(--text-muted)', textAlign: 'center' }}>{i}</div>
-             ))}
+             {Array.from({length: 24}).map((_, i) => {
+               const isKeyLabel = i === 0 || i === 6 || i === 12 || i === 18;
+               return (
+                 <div 
+                   key={`h-${i}`} 
+                   style={{ 
+                     fontSize: isKeyLabel ? '9px' : '10px', 
+                     color: isKeyLabel ? 'var(--text-main)' : 'var(--text-muted)', 
+                     fontWeight: isKeyLabel ? '800' : '400',
+                     textAlign: 'center',
+                     minWidth: '20px'
+                   }}
+                 >
+                   {i === 0 && '00:00'}
+                   {i === 6 && '06:00'}
+                   {i === 12 && '12:00'}
+                   {i === 18 && '18:00'}
+                   {!isKeyLabel && '•'}
+                 </div>
+               );
+             })}
           </div>
           {heatmapData && heatmapData.length === 7 ? DAYS_TH.map((dayName, dayIdx) => (
             <div key={`d-${dayIdx}`} style={{ display: 'grid', gridTemplateColumns: '40px repeat(24, minmax(20px, 1fr))', gap: '4px', alignItems: 'center' }}>
               <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: '700' }}>{dayName}</div>
-              {heatmapData[dayIdx]?.map((val, hourIdx) => (
-                <div
-                  key={`cell-${dayIdx}-${hourIdx}`}
-                  title={`${dayName} เวลา ${hourIdx}:00 น. มี ${val} งาน`}
-                  style={{
-                    height: '24px',
-                    borderRadius: '4px',
-                    background: getHeatmapColor(val),
-                    border: '1px solid rgba(255,255,255,0.05)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    cursor: 'pointer',
-                    transition: 'transform 0.1s'
-                  }}
-                  onMouseEnter={(e) => { e.currentTarget.style.transform = 'scale(1.1)'; e.currentTarget.style.zIndex = '10'; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.zIndex = '1'; }}
-                >
-                   {val > 0 && maxHeatmapValue < 50 && <span style={{fontSize: '9px', opacity: 0.8, color: val > (maxHeatmapValue * 0.5) ? '#000' : '#fff'}}>{val}</span>}
-                </div>
-              ))}
+              {heatmapData[dayIdx]?.map((val, hourIdx) => {
+                const isPeak = val > 0 && (val / maxHeatmapValue) > 0.7;
+                return (
+                  <div
+                    key={`cell-${dayIdx}-${hourIdx}`}
+                    title={`${dayName} เวลา ${hourIdx.toString().padStart(2, '0')}:00 น. มี ${val} งาน`}
+                    style={{
+                      height: '24px',
+                      borderRadius: '6px',
+                      background: getHeatmapColor(val),
+                      border: getHeatmapBorder(val),
+                      boxShadow: isPeak ? '0 0 10px rgba(255, 159, 67, 0.6)' : 'none',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s',
+                      position: 'relative'
+                    }}
+                    onMouseEnter={(e) => { 
+                      e.currentTarget.style.transform = 'scale(1.15)'; 
+                      e.currentTarget.style.zIndex = '10'; 
+                      if (isPeak) e.currentTarget.style.boxShadow = '0 0 16px rgba(255, 159, 67, 0.9)';
+                    }}
+                    onMouseLeave={(e) => { 
+                      e.currentTarget.style.transform = 'scale(1)'; 
+                      e.currentTarget.style.zIndex = '1'; 
+                      if (isPeak) e.currentTarget.style.boxShadow = '0 0 10px rgba(255, 159, 67, 0.6)';
+                    }}
+                  >
+                     {val > 0 && (
+                       <span style={{
+                         fontSize: '9px', 
+                         fontWeight: '800', 
+                         color: (val / maxHeatmapValue) > 0.7 ? '#000' : 'var(--text-main)',
+                         textShadow: (val / maxHeatmapValue) <= 0.7 ? '0 1px 2px rgba(0,0,0,0.8)' : 'none'
+                       }}>
+                         {val}
+                       </span>
+                     )}
+                  </div>
+                );
+              })}
             </div>
           )) : (
             <div className="flex-center" style={{ height: '180px', color: 'var(--text-muted)', fontSize: '13px' }}>
               {labels.noResults}
             </div>
           )}
+        </div>
+        {/* Heatmap Legend */}
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', alignItems: 'center', marginTop: '12px', fontSize: '11px', color: 'var(--text-muted)', borderTop: '1px solid rgba(128,128,128,0.1)', paddingTop: '12px' }}>
+          <span>น้อย (Less)</span>
+          <div style={{ display: 'flex', gap: '4px' }}>
+            <div title="ไม่มีงาน" style={{ width: '14px', height: '14px', borderRadius: '3px', background: 'rgba(255, 255, 255, 0.03)', border: '1px solid rgba(255, 255, 255, 0.05)' }} />
+            <div title="หนาแน่นต่ำ (Electric Cyan)" style={{ width: '14px', height: '14px', borderRadius: '3px', background: 'rgba(0, 242, 254, 0.3)', border: '1px solid rgba(0, 242, 254, 0.4)' }} />
+            <div title="หนาแน่นปานกลาง (Neon Green)" style={{ width: '14px', height: '14px', borderRadius: '3px', background: 'rgba(40, 199, 111, 0.6)', border: '1px solid rgba(40, 199, 111, 0.6)' }} />
+            <div title="หนาแน่นสูง (Peak - Neon Orange)" style={{ width: '14px', height: '14px', borderRadius: '3px', background: 'rgba(255, 159, 67, 0.95)', border: '1px solid rgba(255, 159, 67, 0.8)', boxShadow: '0 0 6px rgba(255, 159, 67, 0.6)' }} />
+          </div>
+          <span>มาก (Peak)</span>
         </div>
       </div>
 

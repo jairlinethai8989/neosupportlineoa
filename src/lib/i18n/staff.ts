@@ -81,6 +81,7 @@ const messages: Record<StaffLocale, MessageDictionary> = {
       monthly: 'เดือนนี้',
       customRange: 'เลือกช่วงเวลา',
       exportReport: 'ส่งออกรายงาน',
+      heatmapVolume: 'ปริมาณใบงานรายชั่วโมง (Heatmap)',
     },
     inbox: {
       activeChats: 'แชทที่กำลังดำเนินการ',
@@ -711,6 +712,7 @@ const messages: Record<StaffLocale, MessageDictionary> = {
       monthly: 'This Month',
       customRange: 'Custom Range',
       exportReport: 'Export Report',
+      heatmapVolume: 'Hourly Ticket Volume (Heatmap)',
     },
     inbox: {
       activeChats: 'Active Chats',

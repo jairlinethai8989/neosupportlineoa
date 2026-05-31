@@ -177,11 +177,32 @@ export default function Home() {
   const [timeRange, setTimeRange] = useState<'today' | 'week' | 'month' | 'custom'>('week');
   const [customStart, setCustomStart] = useState('');
   const [customEnd, setCustomEnd] = useState('');
+  const [hospitalsList, setHospitalsList] = useState<any[]>([]);
+  const [modulesList, setModulesList] = useState<any[]>([]);
+  const [issueTypesList, setIssueTypesList] = useState<any[]>([]);
+
+  const [selectedHospital, setSelectedHospital] = useState<string>('');
+  const [selectedModule, setSelectedModule] = useState<string>('');
+  const [selectedIssueType, setSelectedIssueType] = useState<string>('');
+
+  useEffect(() => {
+    async function loadFilterOptions() {
+      const { data: hosps } = await supabase.from('hospitals').select('id, name').eq('is_active', true).order('name');
+      const { data: mods } = await supabase.from('ticket_modules').select('name').eq('is_active', true).order('name');
+      const { data: types } = await supabase.from('ticket_issue_types').select('name').eq('is_active', true).order('name');
+      
+      if (hosps) setHospitalsList(hosps);
+      if (mods) setModulesList(mods);
+      if (types) setIssueTypesList(types);
+    }
+    loadFilterOptions();
+  }, []);
+
   const dateWindow = useMemo(
     () => computeDateWindow(timeRange, customStart, customEnd),
     [timeRange, customStart, customEnd]
   );
-  const currentWindowKey = `${dateWindow.from.toISOString()}_${dateWindow.to.toISOString()}`;
+  const currentWindowKey = `${dateWindow.from.toISOString()}_${dateWindow.to.toISOString()}_h=${selectedHospital}_m=${selectedModule}_t=${selectedIssueType}`;
   const hasCache = dashboardCache?.key === currentWindowKey;
 
   const [stats, setStats] = useState<DashboardStats>(hasCache ? dashboardCache!.stats : EMPTY_STATS);
@@ -228,12 +249,23 @@ export default function Home() {
         customers!tickets_customer_id_fkey (display_name),
         assigned_agent:profiles!assigned_agent_id (full_name)
       `;
-      const { data, error } = await supabase
+      let query = supabase
         .from('tickets')
         .select(exportSelect)
         .gte('created_at', dateWindow.from.toISOString())
-        .lte('created_at', dateWindow.to.toISOString())
-        .order('created_at', { ascending: false });
+        .lte('created_at', dateWindow.to.toISOString());
+        
+      if (selectedHospital) {
+        query = query.eq('hospital_id', selectedHospital);
+      }
+      if (selectedModule) {
+        query = query.eq('module', selectedModule);
+      }
+      if (selectedIssueType) {
+        query = query.eq('issue_type', selectedIssueType);
+      }
+
+      const { data, error } = await query.order('created_at', { ascending: false });
 
       if (error) {
         console.error('Export fetch error:', error.message);
@@ -287,7 +319,7 @@ export default function Home() {
       try {
         const from = encodeURIComponent(dateWindow.from.toISOString());
         const to = encodeURIComponent(dateWindow.to.toISOString());
-        const res = await fetch(`/api/dashboard/summary?from=${from}&to=${to}`, { cache: 'no-store' });
+        const res = await fetch(`/api/dashboard/summary?from=${from}&to=${to}&hospitalId=${selectedHospital}&module=${selectedModule}&issueType=${selectedIssueType}`, { cache: 'no-store' });
         if (!res.ok) throw new Error(`Dashboard summary failed (${res.status})`);
         const payload = await res.json();
 
@@ -314,7 +346,7 @@ export default function Home() {
         if (!backgroundRefresh) setRecentLogs([]);
 
         // Load recent logs after first paint; do not block summary rendering.
-        void fetch(`/api/dashboard/summary?from=${from}&to=${to}&includeLogs=1`, { cache: 'no-store' })
+        void fetch(`/api/dashboard/summary?from=${from}&to=${to}&includeLogs=1&hospitalId=${selectedHospital}&module=${selectedModule}&issueType=${selectedIssueType}`, { cache: 'no-store' })
           .then(async (logRes) => {
             if (!logRes.ok || cancelled) return;
             const logPayload = await logRes.json();
@@ -336,7 +368,7 @@ export default function Home() {
         if (!cancelled && !backgroundRefresh) setIsLoading(false);
       }
     }
-    const currentKey = `${dateWindow.from.toISOString()}_${dateWindow.to.toISOString()}`;
+    const currentKey = `${dateWindow.from.toISOString()}_${dateWindow.to.toISOString()}_h=${selectedHospital}_m=${selectedModule}_t=${selectedIssueType}`;
     fetchDashboard(dashboardCache?.key === currentKey);
 
     let refreshTimer: ReturnType<typeof setTimeout> | null = null;
@@ -357,7 +389,7 @@ export default function Home() {
       if (refreshTimer) clearTimeout(refreshTimer);
       supabase.removeChannel(channel);
     };
-  }, [dateWindow.from, dateWindow.to, currentWindowKey]);
+  }, [dateWindow.from, dateWindow.to, currentWindowKey, selectedHospital, selectedModule, selectedIssueType]);
 
   const trendData = useMemo(() => {
     const days: { label: string; dateKey: string; [key: string]: any }[] = [];
@@ -598,6 +630,61 @@ export default function Home() {
             )}
           </div>
         </div>
+      </div>
+
+      {/* Filters Bar */}
+      <div className="glass" style={{ display: 'flex', gap: '16px', padding: '16px 24px', borderRadius: '16px', marginBottom: '24px', flexWrap: 'wrap', alignItems: 'center' }}>
+        <span style={{ fontSize: '12px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>ตัวกรองข้อมูล (FILTERS):</span>
+        
+        {/* Hospital Filter */}
+        <div style={{ display: 'flex', flexDirection: 'column', minWidth: '180px' }}>
+          <select 
+            value={selectedHospital} 
+            onChange={e => setSelectedHospital(e.target.value)}
+            style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '10px', padding: '8px 12px', color: 'var(--text-main)', fontSize: '13px', fontWeight: '700', outline: 'none' }}
+          >
+            <option value="">-- โรงพยาบาลทั้งหมด --</option>
+            {hospitalsList.map(h => <option key={h.id} value={h.id}>{h.name}</option>)}
+          </select>
+        </div>
+
+        {/* Module Filter */}
+        <div style={{ display: 'flex', flexDirection: 'column', minWidth: '180px' }}>
+          <select 
+            value={selectedModule} 
+            onChange={e => setSelectedModule(e.target.value)}
+            style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '10px', padding: '8px 12px', color: 'var(--text-main)', fontSize: '13px', fontWeight: '700', outline: 'none' }}
+          >
+            <option value="">-- โมดูลทั้งหมด --</option>
+            {modulesList.map(m => <option key={m.name} value={m.name}>{m.name}</option>)}
+          </select>
+        </div>
+
+        {/* Issue Type Filter */}
+        <div style={{ display: 'flex', flexDirection: 'column', minWidth: '180px' }}>
+          <select 
+            value={selectedIssueType} 
+            onChange={e => setSelectedIssueType(e.target.value)}
+            style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '10px', padding: '8px 12px', color: 'var(--text-main)', fontSize: '13px', fontWeight: '700', outline: 'none' }}
+          >
+            <option value="">-- ประเภทงานทั้งหมด --</option>
+            {issueTypesList.map(t => <option key={t.name} value={t.name}>{t.name}</option>)}
+          </select>
+        </div>
+
+        {/* Clear Filters Button */}
+        {(selectedHospital || selectedModule || selectedIssueType) && (
+          <button
+            onClick={() => {
+              setSelectedHospital('');
+              setSelectedModule('');
+              setSelectedIssueType('');
+            }}
+            style={{ background: 'rgba(234, 84, 85, 0.1)', color: 'var(--danger)', border: 'none', padding: '8px 16px', borderRadius: '10px', fontSize: '12px', fontWeight: '800', cursor: 'pointer', transition: 'all 0.2s' }}
+          >
+            ล้างตัวกรอง
+          </button>
+        )}
       </div>
 
       {/* KPI Cards */}
