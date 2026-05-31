@@ -185,6 +185,10 @@ export default function Home() {
   const [selectedModule, setSelectedModule] = useState<string>('');
   const [selectedIssueType, setSelectedIssueType] = useState<string>('');
 
+  const [tempHospital, setTempHospital] = useState<string>('');
+  const [tempModule, setTempModule] = useState<string>('');
+  const [tempIssueType, setTempIssueType] = useState<string>('');
+
   useEffect(() => {
     async function loadFilterOptions() {
       const { data: hosps } = await supabase.from('hospitals').select('id, name').eq('is_active', true).order('name');
@@ -639,8 +643,8 @@ export default function Home() {
         {/* Hospital Filter */}
         <div style={{ display: 'flex', flexDirection: 'column', minWidth: '180px' }}>
           <select 
-            value={selectedHospital} 
-            onChange={e => setSelectedHospital(e.target.value)}
+            value={tempHospital} 
+            onChange={e => setTempHospital(e.target.value)}
             style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '10px', padding: '8px 12px', color: 'var(--text-main)', fontSize: '13px', fontWeight: '700', outline: 'none' }}
           >
             <option value="">-- โรงพยาบาลทั้งหมด --</option>
@@ -651,8 +655,8 @@ export default function Home() {
         {/* Module Filter */}
         <div style={{ display: 'flex', flexDirection: 'column', minWidth: '180px' }}>
           <select 
-            value={selectedModule} 
-            onChange={e => setSelectedModule(e.target.value)}
+            value={tempModule} 
+            onChange={e => setTempModule(e.target.value)}
             style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '10px', padding: '8px 12px', color: 'var(--text-main)', fontSize: '13px', fontWeight: '700', outline: 'none' }}
           >
             <option value="">-- โมดูลทั้งหมด --</option>
@@ -663,8 +667,8 @@ export default function Home() {
         {/* Issue Type Filter */}
         <div style={{ display: 'flex', flexDirection: 'column', minWidth: '180px' }}>
           <select 
-            value={selectedIssueType} 
-            onChange={e => setSelectedIssueType(e.target.value)}
+            value={tempIssueType} 
+            onChange={e => setTempIssueType(e.target.value)}
             style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '10px', padding: '8px 12px', color: 'var(--text-main)', fontSize: '13px', fontWeight: '700', outline: 'none' }}
           >
             <option value="">-- ประเภทงานทั้งหมด --</option>
@@ -672,10 +676,41 @@ export default function Home() {
           </select>
         </div>
 
+        {/* Apply Filters Button */}
+        <button
+          onClick={() => {
+            setSelectedHospital(tempHospital);
+            setSelectedModule(tempModule);
+            setSelectedIssueType(tempIssueType);
+          }}
+          style={{
+            background: 'var(--primary)',
+            color: '#0a0e14',
+            border: 'none',
+            padding: '8px 20px',
+            borderRadius: '10px',
+            fontSize: '13px',
+            fontWeight: '800',
+            cursor: 'pointer',
+            transition: 'all 0.2s',
+            boxShadow: (tempHospital !== selectedHospital || tempModule !== selectedModule || tempIssueType !== selectedIssueType)
+              ? '0 0 12px var(--primary)'
+              : 'none',
+            opacity: (tempHospital !== selectedHospital || tempModule !== selectedModule || tempIssueType !== selectedIssueType) ? 1 : 0.8
+          }}
+          onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.02)'; }}
+          onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; }}
+        >
+          ใช้ตัวกรอง (Apply)
+        </button>
+
         {/* Clear Filters Button */}
-        {(selectedHospital || selectedModule || selectedIssueType) && (
+        {(tempHospital || tempModule || tempIssueType || selectedHospital || selectedModule || selectedIssueType) && (
           <button
             onClick={() => {
+              setTempHospital('');
+              setTempModule('');
+              setTempIssueType('');
               setSelectedHospital('');
               setSelectedModule('');
               setSelectedIssueType('');
