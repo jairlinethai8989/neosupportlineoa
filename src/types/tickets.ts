@@ -45,6 +45,7 @@ export interface TicketWorkspaceTicket {
   status: string | null;
   priority: string | null;
   created_at: string | null;
+  description?: string | null;
   module?: string | null;
   issue_type?: string | null;
   hospitals?: TicketWorkspaceHospital | null;

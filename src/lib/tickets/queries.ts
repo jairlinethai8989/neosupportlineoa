@@ -26,6 +26,7 @@ export const ticketWorkspaceTicketSelect = `
   ticket_no,
   customer_id,
   subject,
+  description,
   status,
   priority,
   created_at,

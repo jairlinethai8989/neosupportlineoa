@@ -613,7 +613,26 @@ export function useTicketWorkspace(filterCustomerId: string | null) {
         const ticketNo = String(ticket.ticket_no || '').toLowerCase();
         const subject = String(ticket.subject || '').toLowerCase();
         const customer = String(ticket.customers?.display_name || '').toLowerCase();
-        return ticketNo.includes(query) || subject.includes(query) || customer.includes(query);
+        const hospital = String(ticket.hospitals?.name || '').toLowerCase();
+        const agent = String(ticket.assigned_agent?.display_name || '').toLowerCase();
+        const status = String(ticket.status || '').toLowerCase();
+        const priority = String(ticket.priority || '').toLowerCase();
+        const moduleName = String(ticket.module || '').toLowerCase();
+        const issueType = String(ticket.issue_type || '').toLowerCase();
+        const description = String(ticket.description || '').toLowerCase();
+
+        return (
+          ticketNo.includes(query) ||
+          subject.includes(query) ||
+          customer.includes(query) ||
+          hospital.includes(query) ||
+          agent.includes(query) ||
+          status.includes(query) ||
+          priority.includes(query) ||
+          moduleName.includes(query) ||
+          issueType.includes(query) ||
+          description.includes(query)
+        );
       });
     }
 

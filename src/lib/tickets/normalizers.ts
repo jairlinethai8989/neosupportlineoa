@@ -94,6 +94,7 @@ export function normalizeTicketWorkspaceTicket(value: unknown): TicketWorkspaceT
     status: asString(value.status),
     priority: asString(value.priority),
     created_at: asString(value.created_at),
+    description: asString(value.description),
     module: asString(value.module),
     issue_type: asString(value.issue_type),
     hospitals: normalizeHospital(value.hospitals),
