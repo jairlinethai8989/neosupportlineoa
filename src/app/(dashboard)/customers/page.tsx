@@ -108,6 +108,18 @@ export default function CustomersPage() {
     fetchCustomers();
   }, []);
 
+  // Lock body scroll when modals are open to prevent page bounce/jump
+  useEffect(() => {
+    if (selectedCustomer || profileCustomer) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [selectedCustomer, profileCustomer]);
+
   const handleRefresh = () => {
     setIsRefreshing(true);
     fetchCustomers();
@@ -771,33 +783,16 @@ export default function CustomersPage() {
               </div>
 
               {/* Modal Footer Actions */}
-              <div style={{ padding: '20px 28px', borderTop: '1px solid var(--border)', display: 'flex', gap: '12px', justifyContent: 'flex-end', background: 'rgba(255, 255, 255, 0.01)' }}>
+              <div style={{ padding: '20px 28px', borderTop: '1px solid var(--border)', display: 'flex', gap: '12px', justifyContent: 'center', background: 'rgba(255, 255, 255, 0.01)' }}>
                 <button
-                  onClick={() => {
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
                     openHistory(profileCustomer);
                     setProfileCustomer(null);
                   }}
                   style={{
-                    padding: '0 20px',
-                    height: '48px',
-                    borderRadius: '12px',
-                    border: '1px solid var(--border)',
-                    background: 'var(--bg-deep)',
-                    color: 'var(--text-main)',
-                    fontWeight: '700',
-                    fontSize: '14px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                    cursor: 'pointer'
-                  }}
-                >
-                  <Ticket size={16} /> ประวัติการแจ้งงาน
-                </button>
-                <Link
-                  href={`/inbox?customerId=${profileCustomer.id}`}
-                  style={{
-                    padding: '0 24px',
+                    padding: '0 32px',
                     height: '48px',
                     borderRadius: '12px',
                     border: 'none',
@@ -808,12 +803,12 @@ export default function CustomersPage() {
                     display: 'flex',
                     alignItems: 'center',
                     gap: '8px',
-                    textDecoration: 'none',
+                    cursor: 'pointer',
                     boxShadow: `0 4px 15px -3px ${brand.accent}`
                   }}
                 >
-                  <MessageSquare size={16} /> เปิดห้องแชทลูกค้า
-                </Link>
+                  <Ticket size={16} /> ประวัติการแจ้งงาน
+                </button>
               </div>
 
             </div>
