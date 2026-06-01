@@ -568,7 +568,7 @@ export default function Evaluation360Page() {
                     <span style={{ fontSize: '14px', fontWeight: '900', color: 'var(--primary)' }}>{scores.system_data_expertise} / 5</span>
                   </div>
                   <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '12px' }}>
-                    ความถูกต้องและทักษะการตรวจสอบความผิดปกติของข้อมูลในโมดูลต่างๆ เช่น Admit, Doctor Order, Medication, Transfer, Billing และการประสานงานกับทีมหน้างานโรงพยาบาลได้ครบถ้วน
+                    ความถูกต้องและทักษะการตรวจสอบความผิดปกติของข้อมูลในโมดูลต่างๆ เช่น Admit, Doctor Order, Medication, Transfer, Billing และการประสานงานกับทีมหน้างานองค์กร/บริษัทได้ครบถ้วน
                   </p>
                   <input
                     type="range"
@@ -700,7 +700,7 @@ export default function Evaluation360Page() {
                     <span style={{ fontSize: '14px', fontWeight: '900', color: 'var(--secondary)' }}>{scores.crisis_communication} / 5</span>
                   </div>
                   <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '12px' }}>
-                    ให้ข้อมูลที่เป็นประโยชน์ เข้าใจง่าย ไม่ซับซ้อน อัปเดตความคืบหน้าให้ผู้ใช้ในโรงพยาบาลรับรู้เป็นระยะ และอธิบายแนวทางการหลีกเลี่ยงผลกระทบเชิงลึกได้ดีเยี่ยม
+                    ให้ข้อมูลที่เป็นประโยชน์ เข้าใจง่าย ไม่ซับซ้อน อัปเดตความคืบหน้าให้ผู้ใช้ในองค์กร/บริษัทรับรู้เป็นระยะ และอธิบายแนวทางการหลีกเลี่ยงผลกระทบเชิงลึกได้ดีเยี่ยม
                   </p>
                   <input
                     type="range"
@@ -720,7 +720,7 @@ export default function Evaluation360Page() {
                     <span style={{ fontSize: '14px', fontWeight: '900', color: 'var(--secondary)' }}>{scores.emotional_regulation} / 5</span>
                   </div>
                   <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '12px' }}>
-                    การรักษาความสุภาพนอบน้อมทั้งทางแชทและเสียง อดทนต่อความกดดันเมื่อผู้ใช้งานโรงพยาบาลมีสภาวะอารมณ์ตึงเครียดเนื่องจากระบบ Admit/Billing ขัดข้อง
+                    การรักษาความสุภาพนอบน้อมทั้งทางแชทและเสียง อดทนต่อความกดดันเมื่อผู้ใช้งานองค์กร/บริษัทมีสภาวะอารมณ์ตึงเครียดเนื่องจากระบบ Admit/Billing ขัดข้อง
                   </p>
                   <input
                     type="range"
@@ -939,7 +939,7 @@ export default function Evaluation360Page() {
                 <div style={{ borderTop: '1px solid var(--border)', paddingTop: '12px', display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
                   <AlertCircle size={14} color="var(--text-muted)" style={{ flexShrink: 0, marginTop: '2px' }} />
                   <p style={{ fontSize: '10px', color: 'var(--text-dim)', margin: 0, lineHeight: '1.4' }}>
-                    ข้อมูล KPI สถิติจริงดึงจากประวัติการเคลียร์ใบงานโมดูลโรงพยาบาลในช่วงวันที่ {dateRange.start} ถึง {dateRange.end}
+                    ข้อมูล KPI สถิติจริงดึงจากประวัติการเคลียร์ใบงานโมดูลองค์กร/บริษัทในช่วงวันที่ {dateRange.start} ถึง {dateRange.end}
                   </p>
                 </div>
 

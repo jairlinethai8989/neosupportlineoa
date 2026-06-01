@@ -398,11 +398,11 @@ export function DashboardChartsSection({
 
       <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '24px' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-          {/* Hospital Workload */}
+          {/* Organization Workload */}
           <div className="glass" style={{ padding: '24px', display: 'flex', flexDirection: 'column', flex: 1 }}>
             <div style={{ marginBottom: '16px' }}>
               <h2 style={{ fontSize: '16px', fontWeight: '800', marginBottom: '2px' }}>{labels.hospitalWorkload}</h2>
-              <p style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>HOSPITAL WORKLOAD</p>
+              <p style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>ORGANIZATION WORKLOAD</p>
             </div>
             <div style={{ flex: 1, minHeight: '320px' }}>
               {hospitalData.length > 0 ? (

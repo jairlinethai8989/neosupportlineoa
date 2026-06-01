@@ -183,7 +183,7 @@ export default function Home() {
   const [tempCustomStart, setTempCustomStart] = useState('');
   const [tempCustomEnd, setTempCustomEnd] = useState('');
 
-  const [hospitalsList, setHospitalsList] = useState<any[]>([]);
+  const [organizationsList, setOrganizationsList] = useState<any[]>([]);
   const [modulesList, setModulesList] = useState<any[]>([]);
   const [issueTypesList, setIssueTypesList] = useState<any[]>([]);
 
@@ -197,11 +197,11 @@ export default function Home() {
 
   useEffect(() => {
     async function loadFilterOptions() {
-      const { data: hosps } = await supabase.from('hospitals').select('id, name').eq('is_active', true).order('name');
+      const { data: hosps } = await supabase.from('organizations').select('id, name').eq('is_active', true).order('name');
       const { data: mods } = await supabase.from('ticket_modules').select('name').eq('is_active', true).order('name');
       const { data: types } = await supabase.from('ticket_issue_types').select('name').eq('is_active', true).order('name');
       
-      if (hosps) setHospitalsList(hosps);
+      if (hosps) setOrganizationsList(hosps);
       if (mods) setModulesList(mods);
       if (types) setIssueTypesList(types);
     }
@@ -266,7 +266,7 @@ export default function Home() {
         .lte('created_at', dateWindow.to.toISOString());
         
       if (selectedHospital) {
-        query = query.eq('hospital_id', selectedHospital);
+        query = query.eq('organization_id', selectedHospital);
       }
       if (selectedModule) {
         query = query.eq('module', selectedModule);
@@ -329,7 +329,7 @@ export default function Home() {
       try {
         const from = encodeURIComponent(dateWindow.from.toISOString());
         const to = encodeURIComponent(dateWindow.to.toISOString());
-        const res = await fetch(`/api/dashboard/summary?from=${from}&to=${to}&hospitalId=${selectedHospital}&module=${selectedModule}&issueType=${selectedIssueType}`, { cache: 'no-store' });
+        const res = await fetch(`/api/dashboard/summary?from=${from}&to=${to}&organizationId=${selectedHospital}&module=${selectedModule}&issueType=${selectedIssueType}`, { cache: 'no-store' });
         if (!res.ok) throw new Error(`Dashboard summary failed (${res.status})`);
         const payload = await res.json();
 
@@ -356,7 +356,7 @@ export default function Home() {
         if (!backgroundRefresh) setRecentLogs([]);
 
         // Load recent logs after first paint; do not block summary rendering.
-        void fetch(`/api/dashboard/summary?from=${from}&to=${to}&includeLogs=1&hospitalId=${selectedHospital}&module=${selectedModule}&issueType=${selectedIssueType}`, { cache: 'no-store' })
+        void fetch(`/api/dashboard/summary?from=${from}&to=${to}&includeLogs=1&organizationId=${selectedHospital}&module=${selectedModule}&issueType=${selectedIssueType}`, { cache: 'no-store' })
           .then(async (logRes) => {
             if (!logRes.ok || cancelled) return;
             const logPayload = await logRes.json();
@@ -663,15 +663,15 @@ export default function Home() {
         {/* Separator */}
         <div style={{ width: '1px', height: '24px', background: 'var(--border)', margin: '0 4px' }} />
 
-        {/* Hospital Filter */}
+        {/* Organization Filter */}
         <div style={{ display: 'flex', flexDirection: 'column', minWidth: '180px' }}>
           <select 
             value={tempHospital} 
             onChange={e => setTempHospital(e.target.value)}
             style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '10px', padding: '8px 12px', color: 'var(--text-main)', fontSize: '13px', fontWeight: '700', outline: 'none' }}
           >
-            <option value="">-- โรงพยาบาลทั้งหมด --</option>
-            {hospitalsList.map(h => <option key={h.id} value={h.id}>{h.name}</option>)}
+            <option value="">-- องค์กร/บริษัททั้งหมด --</option>
+            {organizationsList.map(h => <option key={h.id} value={h.id}>{h.name}</option>)}
           </select>
         </div>
 

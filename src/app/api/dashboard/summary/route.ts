@@ -27,7 +27,7 @@ export async function GET(req: Request) {
     const toDate = parseIsoDate(searchParams.get('to'));
     const includeLogs = searchParams.get('includeLogs') === '1';
 
-    const hospitalId = searchParams.get('hospitalId') || '';
+    const organizationId = searchParams.get('organizationId') || '';
     const moduleFilter = searchParams.get('module') || '';
     const issueType = searchParams.get('issueType') || '';
 
@@ -51,7 +51,7 @@ export async function GET(req: Request) {
 
     const fromIso = fromDate.toISOString();
     const toIso = toDate.toISOString();
-    const cacheKey = buildVersionedLiveCacheKey(`dashboard:${fromIso}:${toIso}:logs=${includeLogs ? '1' : '0'}:hosp=${hospitalId}:mod=${moduleFilter}:type=${issueType}`);
+    const cacheKey = buildVersionedLiveCacheKey(`dashboard:${fromIso}:${toIso}:logs=${includeLogs ? '1' : '0'}:hosp=${organizationId}:mod=${moduleFilter}:type=${issueType}`);
     const cacheHitBeforeLoad = readLiveCache(cacheKey) !== null;
     const ttlMs = includeLogs
       ? CACHE_POLICY.live.dashboardSummaryWithLogsTtlMs
@@ -63,7 +63,7 @@ export async function GET(req: Request) {
         .rpc('get_dashboard_summary', {
           p_start_date: fromIso,
           p_end_date: toIso,
-          p_hospital_id: hospitalId || null,
+          p_organization_id: organizationId || null,
           p_module: moduleFilter || null,
           p_issue_type: issueType || null
         });

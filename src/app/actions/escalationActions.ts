@@ -13,7 +13,7 @@ type EscalationTicketRow = {
   assigned_agent_id?: string | null;
   resolution_summary?: string | null;
   customer_id?: string | null;
-  hospital_id?: string | null;
+  organization_id?: string | null;
   messages?: Array<Record<string, unknown>> | null;
   [key: string]: unknown;
 };
@@ -132,11 +132,11 @@ export async function verifyEscalationPin(ticketId: string, pin: string) {
           .maybeSingle()
       : { data: null };
 
-    const { data: hospital } = ticketRow.hospital_id
+    const { data: organization } = ticketRow.organization_id
       ? await supabaseAdmin
-          .from('hospitals')
+          .from('organizations')
           .select('name')
-          .eq('id', ticketRow.hospital_id)
+          .eq('id', ticketRow.organization_id)
           .maybeSingle()
       : { data: null };
 
@@ -171,7 +171,7 @@ export async function verifyEscalationPin(ticketId: string, pin: string) {
       data: { 
         ...ticketRow, 
         customers: customer, 
-        hospitals: hospital, 
+        organizations: organization, 
         logs, 
         messages, 
         handoff,

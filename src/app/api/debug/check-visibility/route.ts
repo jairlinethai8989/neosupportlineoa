@@ -12,11 +12,11 @@ export async function GET() {
   const supabase = createClient(supabaseUrl, supabaseKey);
   
   try {
-    const { data: hospitals } = await supabase.from('hospitals').select('*');
+    const { data: organizations } = await supabase.from('organizations').select('*');
     const { data: depts } = await supabase.from('departments').select('*');
     const { data: positions } = await supabase.from('positions').select('*');
 
-    const { data: hCols } = await supabase.from('hospitals').select('*').limit(1);
+    const { data: hCols } = await supabase.from('organizations').select('*').limit(1);
     const { data: dCols } = await supabase.from('departments').select('*').limit(1);
     const { data: tCols } = await supabase.from('tickets').select('*').limit(1);
     const { data: cCols } = await supabase.from('customers').select('*').limit(1);
@@ -29,7 +29,7 @@ export async function GET() {
     return NextResponse.json({ 
       success: true, 
       counts: {
-        hospitals: hospitals?.length || 0,
+        organizations: organizations?.length || 0,
         departments: depts?.length || 0,
         positions: positions?.length || 0
       },
@@ -39,7 +39,7 @@ export async function GET() {
         has_chat_sessions: !!sessTry
       },
       columns: {
-        hospitals: hCols?.[0] ? Object.keys(hCols[0]) : [],
+        organizations: hCols?.[0] ? Object.keys(hCols[0]) : [],
         departments: dCols?.[0] ? Object.keys(dCols[0]) : [],
         tickets: tCols?.[0] ? Object.keys(tCols[0]) : [],
         customers: cCols?.[0] ? Object.keys(cCols[0]) : []

@@ -48,7 +48,7 @@ type PresentationData = {
     topCategory: { name: string; count: number };
   };
   categories: { name: string; count: number }[];
-  topHospitals: {
+  topOrganizations: {
     name: string;
     totalTickets: number;
     resolvedTickets: number;
@@ -80,7 +80,7 @@ const PRESET_PROMPTS = [
   {
     id: 'technical',
     label: '🛠️ เจาะลึกความเสี่ยงเชิงเทคนิค (Technical & SLA Focus)',
-    prompt: 'โปรดวิเคราะห์ตั๋วที่ค้างชี้ชัดว่าโรงพยาบาลไหนมีปัญหาคอขวดสูงสุด ปัญหาเชิงเทคนิคหลักคืออะไร และขั้นตอนการแก้ไขด่วนตามกำหนดเวลา SLA'
+    prompt: 'โปรดวิเคราะห์ตั๋วที่ค้างชี้ชัดว่าองค์กร/บริษัทไหนมีปัญหาคอขวดสูงสุด ปัญหาเชิงเทคนิคหลักคืออะไร และขั้นตอนการแก้ไขด่วนตามกำหนดเวลา SLA'
   },
   {
     id: 'motivational',
@@ -345,7 +345,7 @@ export default function PresentationPage() {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (!data) return;
-      const totalSlides = 2 + (aiInsights ? 1 : 0) + (data?.topHospitals?.length || 0);
+      const totalSlides = 2 + (aiInsights ? 1 : 0) + (data?.topOrganizations?.length || 0);
       if (e.key === 'ArrowRight') {
         setCurrentSlideIndex((prev) => Math.min(prev + 1, totalSlides - 1));
       } else if (e.key === 'ArrowLeft') {
@@ -514,7 +514,7 @@ export default function PresentationPage() {
   };
 
   const hasAI = !!aiInsights;
-  const totalSlides = data ? 2 + (hasAI ? 1 : 0) + (data.topHospitals?.length || 0) : 0;
+  const totalSlides = data ? 2 + (hasAI ? 1 : 0) + (data.topOrganizations?.length || 0) : 0;
 
   return (
     <div className="animate-page-in" style={{ height: 'calc(100vh - 40px)', display: 'flex', flexDirection: 'column', overflow: 'hidden', paddingRight: '24px' }}>
@@ -793,7 +793,7 @@ export default function PresentationPage() {
                         {aiInsights.executiveSummary}
                       </div>
                     ) : (
-                      `สัปดาห์วันที่ ${data.dateRange.start} ถึง ${data.dateRange.end} - ระบบได้ทำการจัดทำสถิติรายงานรอบสัปดาห์ดึงข้อมูลตั๋วงาน ปัญหาคอขวดหลัก และการให้บริการรายโรงพยาบาล เพื่อใช้สำหรับประชุมปรับปรุงประสิทธิภาพและวิเคราะห์ความเสถียรของหน้างานตามเกณฑ์มาตรฐาน SLA`
+                      `สัปดาห์วันที่ ${data.dateRange.start} ถึง ${data.dateRange.end} - ระบบได้ทำการจัดทำสถิติรายงานรอบสัปดาห์ดึงข้อมูลตั๋วงาน ปัญหาคอขวดหลัก และการให้บริการรายองค์กร/บริษัท เพื่อใช้สำหรับประชุมปรับปรุงประสิทธิภาพและวิเคราะห์ความเสถียรของหน้างานตามเกณฑ์มาตรฐาน SLA`
                     )}
                   </div>
 
@@ -814,7 +814,7 @@ export default function PresentationPage() {
                       <div style={{ fontSize: '11px', color: activeTheme.textMuted, marginTop: '4px' }}>ปิดงานสำเร็จ {data.summary.resolvedTickets} เคส</div>
                     </div>
                     <div style={{ borderLeft: `2px solid ${activeTheme.accent2}`, paddingLeft: '20px' }}>
-                      <div style={{ fontSize: '11px', color: activeTheme.accent2, fontWeight: '700', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '6px' }}>Top Hospital</div>
+                      <div style={{ fontSize: '11px', color: activeTheme.accent2, fontWeight: '700', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '6px' }}>Top Organization</div>
                       <div style={{ fontSize: '24px', fontWeight: '800', color: activeTheme.textMain, lineHeight: 1.2, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
                         {data.summary.topHospital.name}
                       </div>
@@ -957,13 +957,13 @@ export default function PresentationPage() {
                 )}
 
                 {/* 
-                  Slides 4-13 (Dynamic): Top Hospitals Deep Dive
+                  Slides 4-13 (Dynamic): Top Organizations Deep Dive
                 */}
-                {data.topHospitals.map((hospital, index) => {
+                {data.topOrganizations.map((organization, index) => {
                   const slideNum = index + 2 + (hasAI ? 1 : 0); // adjust dynamic offset
                   const isActive = currentSlideIndex === slideNum;
                   
-                  const customInsight = aiInsights?.hospitalInsights?.[hospital.name];
+                  const customInsight = aiInsights?.hospitalInsights?.[organization.name];
                   
                   return (
                     <div 
@@ -983,20 +983,20 @@ export default function PresentationPage() {
                               Rank #{String(index + 1).padStart(2, '0')}
                             </div>
                             <div style={{ color: activeTheme.textMuted, fontSize: '11px', fontWeight: '700', letterSpacing: '1px', textTransform: 'uppercase' }}>
-                              Hospital Operational Detail
+                              Organization Operational Detail
                             </div>
                           </div>
                           <h2 style={{ fontSize: '26px', fontWeight: '800', color: activeTheme.textMain, letterSpacing: '-0.5px', margin: 0, maxWidth: '650px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                            {hospital.name}
+                            {organization.name}
                           </h2>
                         </div>
                         <div style={{ display: 'flex', gap: '24px', textAlign: 'right' }}>
                           <div>
-                            <div style={{ fontSize: '28px', fontWeight: '900', color: activeTheme.textMain, lineHeight: 1 }}>{hospital.totalTickets}</div>
+                            <div style={{ fontSize: '28px', fontWeight: '900', color: activeTheme.textMain, lineHeight: 1 }}>{organization.totalTickets}</div>
                             <div style={{ fontSize: '10px', color: activeTheme.textMuted, textTransform: 'uppercase', fontWeight: '700', marginTop: '4px' }}>Tickets</div>
                           </div>
                           <div>
-                            <div style={{ fontSize: '28px', fontWeight: '900', color: activeTheme.accent1, lineHeight: 1, textShadow: activeTheme.glowText }}>{hospital.resolvedTickets}</div>
+                            <div style={{ fontSize: '28px', fontWeight: '900', color: activeTheme.accent1, lineHeight: 1, textShadow: activeTheme.glowText }}>{organization.resolvedTickets}</div>
                             <div style={{ fontSize: '10px', color: activeTheme.accent1, textTransform: 'uppercase', fontWeight: '700', marginTop: '4px' }}>Resolved</div>
                           </div>
                         </div>
@@ -1015,12 +1015,12 @@ export default function PresentationPage() {
                               </tr>
                             </thead>
                             <tbody>
-                              {hospital.tickets.length === 0 ? (
+                              {organization.tickets.length === 0 ? (
                                 <tr>
                                   <td colSpan={4} style={{ padding: '16px', textAlign: 'center', color: activeTheme.textMuted }}>ไม่มีข้อมูลตั๋วในสัปดาห์นี้</td>
                                 </tr>
                               ) : (
-                                hospital.tickets.slice(0, 4).map((t, tIdx) => {
+                                organization.tickets.slice(0, 4).map((t, tIdx) => {
                                   const isResolved = t.status === 'Resolved' || t.status === 'Closed';
                                   return (
                                     <tr key={tIdx} style={{ borderTop: activeTheme.borderThin }}>
@@ -1057,7 +1057,7 @@ export default function PresentationPage() {
                               <Bot size={14} /> {customInsight ? 'AI ANALYST INSIGHT & RECOMMENDATION' : 'WEEKLY LOCAL NOTES'}
                             </div>
                             <p style={{ fontSize: '12px', color: activeTheme.textMain, lineHeight: 1.5, margin: 0 }}>
-                              {customInsight || `โรงพยาบาล ${hospital.name} มีปริมาณงานสะสมรวม ${hospital.totalTickets} เคสในรอบสัปดาห์ ควรติดตามการอัปเกรดความเสถียรและประสานงานสุ่มตรวจสอบข้อมูลการทำงานของตั๋วอย่างใกล้ชิด`}
+                              {customInsight || `องค์กร/บริษัท ${organization.name} มีปริมาณงานสะสมรวม ${organization.totalTickets} เคสในรอบสัปดาห์ ควรติดตามการอัปเกรดความเสถียรและประสานงานสุ่มตรวจสอบข้อมูลการทำงานของตั๋วอย่างใกล้ชิด`}
                             </p>
                           </div>
                         </div>
@@ -1266,7 +1266,7 @@ export default function PresentationPage() {
                   <span style={{ fontSize: '9px', color: '#10b981', fontWeight: '800' }}>MANUAL PROMPT</span>
                 </div>
                 <textarea
-                  placeholder="ตัวอย่างเช่น: 'เน้นสรุปประเด็นของโรงพยาบาลนางรองเป็นพิเศษ', 'วิเคราะห์เคสปิดช้าเกินเกณฑ์', 'แสดงข้อมูลและชี้จุดบกพร่องของวิศวกร'"
+                  placeholder="ตัวอย่างเช่น: 'เน้นสรุปประเด็นขององค์กร/บริษัทนางรองเป็นพิเศษ', 'วิเคราะห์เคสปิดช้าเกินเกณฑ์', 'แสดงข้อมูลและชี้จุดบกพร่องของวิศวกร'"
                   value={customPrompt}
                   onChange={(e) => setCustomPrompt(e.target.value)}
                   style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: '4px', padding: '12px 14px', color: '#f8fafc', outline: 'none', fontSize: '12px', resize: 'none', fontFamily: 'inherit', height: '120px', lineHeight: '1.6' }}

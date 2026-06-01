@@ -14,7 +14,7 @@ import { CACHE_POLICY } from '@/lib/cache/policy';
 type PreviewTicketRow = {
   id: string;
   status: string;
-  hospitals: { name: string | null } | { name: string | null }[] | null;
+  organizations: { name: string | null } | { name: string | null }[] | null;
 };
 
 function parseDateParam(value: string | null): string | null {
@@ -42,7 +42,7 @@ function buildPreviewSummary(rows: PreviewTicketRow[]) {
       unresolvedCount += 1;
     }
 
-    const hospitalNode = Array.isArray(row.hospitals) ? row.hospitals[0] : row.hospitals;
+    const hospitalNode = Array.isArray(row.organizations) ? row.organizations[0] : row.organizations;
     const hospitalName = hospitalNode?.name || '';
     hospitalGroups[hospitalName] = (hospitalGroups[hospitalName] || 0) + 1;
   }
@@ -86,7 +86,7 @@ export async function GET(req: Request) {
       CACHE_POLICY.reports.hubPreviewTtlMs,
       async () => {
       const { startIso, endIso } = buildDayRangeUtc(date);
-      const ticketPreviewSelect = 'id, status, hospitals(name)';
+      const ticketPreviewSelect = 'id, status, organizations(name)';
 
       const orFilter = [
         `and(created_at.gte.${startIso},created_at.lte.${endIso})`,
@@ -105,7 +105,7 @@ export async function GET(req: Request) {
 
       const rows = ((data || []) as PreviewTicketRow[]).map((row) => ({
         ...row,
-        hospitals: Array.isArray(row.hospitals) ? row.hospitals[0] || null : row.hospitals,
+        organizations: Array.isArray(row.organizations) ? row.organizations[0] || null : row.organizations,
       }));
       
       let targetGroupName = '';

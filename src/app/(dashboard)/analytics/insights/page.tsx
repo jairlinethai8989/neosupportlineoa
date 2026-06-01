@@ -8,28 +8,28 @@ export default function InsightsPage() {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [preset, setPreset] = useState('30days'); // Start with 30 days as a reasonable default
-  const [hospitalId, setHospitalId] = useState('all');
-  const [hospitals, setHospitals] = useState<any[]>([]);
+  const [organizationId, setHospitalId] = useState('all');
+  const [organizations, setOrganizations] = useState<any[]>([]);
   const [customPrompt, setCustomPrompt] = useState('');
   const [generatingReport, setGeneratingReport] = useState(false);
   const [aiReport, setAiReport] = useState<any>(null);
 
-  // Light fetch for hospitals list only on mount
+  // Light fetch for organizations list only on mount
   useEffect(() => {
-    async function fetchHospitals() {
+    async function fetchOrganizations() {
       try {
-        const res = await fetch('/api/analytics/insights?hospitalsOnly=true');
+        const res = await fetch('/api/analytics/insights?organizationsOnly=true');
         if (res.ok) {
           const json = await res.json();
-          if (json.hospitals) {
-            setHospitals(json.hospitals);
+          if (json.organizations) {
+            setOrganizations(json.organizations);
           }
         }
       } catch (err) {
-        console.error('Error fetching hospitals:', err);
+        console.error('Error fetching organizations:', err);
       }
     }
-    fetchHospitals();
+    fetchOrganizations();
   }, []);
 
   const handleGenerateReport = async () => {
@@ -37,7 +37,7 @@ export default function InsightsPage() {
     setAiReport(null);
     setData(null);
     try {
-      const res = await fetch(`/api/analytics/insights?preset=${preset}&hospitalId=${hospitalId}&ai=true&customPrompt=${encodeURIComponent(customPrompt)}`);
+      const res = await fetch(`/api/analytics/insights?preset=${preset}&organizationId=${organizationId}&ai=true&customPrompt=${encodeURIComponent(customPrompt)}`);
       if (!res.ok) throw new Error('Failed to generate AI report');
       const json = await res.json();
       setData(json);
@@ -82,16 +82,16 @@ export default function InsightsPage() {
               </select>
             </div>
 
-            {/* Hospital Filter */}
+            {/* Organization Filter */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--bg-card)', padding: '8px 16px', borderRadius: '12px', border: '1px solid var(--border)' }}>
               <Building size={16} color="var(--primary)" />
               <select 
-                value={hospitalId} 
+                value={organizationId} 
                 onChange={(e) => setHospitalId(e.target.value)}
                 style={{ background: 'transparent', border: 'none', color: 'var(--text-main)', fontSize: '14px', outline: 'none', maxWidth: '200px' }}
               >
-                <option value="all">โรงพยาบาลทั้งหมด</option>
-                {hospitals.map((h: any) => (
+                <option value="all">องค์กร/บริษัททั้งหมด</option>
+                {organizations.map((h: any) => (
                   <option key={h.id} value={h.id}>{h.name}</option>
                 ))}
               </select>

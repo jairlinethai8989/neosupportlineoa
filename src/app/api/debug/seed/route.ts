@@ -13,19 +13,19 @@ export async function GET() {
   const supabase = createClient(supabaseUrl, supabaseKey);
   
   const results = {
-    hospitals: '',
+    organizations: '',
     departments: '',
     positions: ''
   };
 
   try {
-    // 1. Hospital
-    const { data: hData } = await supabase.from('hospitals').select('id').limit(1);
+    // 1. Organization
+    const { data: hData } = await supabase.from('organizations').select('id').limit(1);
     if (!hData || hData.length === 0) {
-      await supabase.from('hospitals').insert([{ name: 'โรงพยาบาลทั่วไป (ศูนย์หลัก)', is_active: true }]);
-      results.hospitals = 'Seeded default hospital.';
+      await supabase.from('organizations').insert([{ name: 'องค์กร/บริษัททั่วไป (ศูนย์หลัก)', is_active: true }]);
+      results.organizations = 'Seeded default organization.';
     } else {
-      results.hospitals = 'Already exists.';
+      results.organizations = 'Already exists.';
     }
 
     // 2. Department

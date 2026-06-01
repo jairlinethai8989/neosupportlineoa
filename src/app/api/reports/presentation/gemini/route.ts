@@ -7,11 +7,11 @@ export const runtime = 'nodejs';
 
 // Pre-defined fallback AI responses in Thai if no API key is configured or on error
 const fallbackInsights = {
-  executiveSummary: "ภาพรวมการดำเนินงานในสัปดาห์นี้มีความมั่นคงสูงด้วยจำนวนตั๋วสะสมทั้งหมด 4 รายการ โดยมีอัตราการปิดงานที่ 25% (ปิดแล้ว 1 รายการ) โรงพยาบาลสะเมิงมียอดแจ้งปัญหามากที่สุดจำนวน 3 รายการ ซึ่งประเด็นหลักที่ต้องจับตามองคือเรื่องปัญหา PB ที่เกิดขึ้นซ้ำๆ ทีมงานควรจัดลำดับความสำคัญในการหาสาเหตุหลักร่วมกับวิศวกรเพื่อลดความล่าช้าในการแก้ไขปัญหาในระยะยาว",
+  executiveSummary: "ภาพรวมการดำเนินงานในสัปดาห์นี้มีความมั่นคงสูงด้วยจำนวนตั๋วสะสมทั้งหมด 4 รายการ โดยมีอัตราการปิดงานที่ 25% (ปิดแล้ว 1 รายการ) องค์กร/บริษัทสะเมิงมียอดแจ้งปัญหามากที่สุดจำนวน 3 รายการ ซึ่งประเด็นหลักที่ต้องจับตามองคือเรื่องปัญหา PB ที่เกิดขึ้นซ้ำๆ ทีมงานควรจัดลำดับความสำคัญในการหาสาเหตุหลักร่วมกับวิศวกรเพื่อลดความล่าช้าในการแก้ไขปัญหาในระยะยาว",
   keyChallenges: [
     {
       title: "ความเสถียรของระบบ (PB)",
-      description: "ตรวจพบการเกิดเคสประเภท PB ซ้ำซ้อนที่โรงพยาบาลสะเมิงถึง 3 ครั้ง ซึ่งเป็นปัญหาคอขวดหลักของสัปดาห์นี้"
+      description: "ตรวจพบการเกิดเคสประเภท PB ซ้ำซ้อนที่องค์กร/บริษัทสะเมิงถึง 3 ครั้ง ซึ่งเป็นปัญหาคอขวดหลักของสัปดาห์นี้"
     },
     {
       title: "อัตราความเร็วในการแก้ปัญหา (Resolution Rate)",
@@ -25,7 +25,7 @@ const fallbackInsights = {
       targetDate: "2026-05-26"
     },
     {
-      action: "จัดตั้งคู่มือแก้ไขปัญหาเบื้องต้น (SOP) สำหรับเคสโรงพยาบาลสะเมิงเพื่อลด Resolution Time",
+      action: "จัดตั้งคู่มือแก้ไขปัญหาเบื้องต้น (SOP) สำหรับเคสองค์กร/บริษัทสะเมิงเพื่อลด Resolution Time",
       owner: "ทีมซัพพอร์ตหน้างาน (On-site Support Team)",
       targetDate: "2026-05-28"
     },
@@ -36,7 +36,7 @@ const fallbackInsights = {
     }
   ],
   hospitalInsights: {
-    "โรงพยาบาลสะเมิง": "แนะนำให้รีบจัดลำดับความสำคัญของปัญหา PB เป็นเคสระดับวิกฤต (Critical SLA) และส่งเจ้าหน้าที่ประสานงานประสานข้อมูลเชิงลึกในวันจันทร์นี้ เนื่องจากมียอดรายงานซ้ำกันถึง 3 เคส"
+    "องค์กร/บริษัทสะเมิง": "แนะนำให้รีบจัดลำดับความสำคัญของปัญหา PB เป็นเคสระดับวิกฤต (Critical SLA) และส่งเจ้าหน้าที่ประสานงานประสานข้อมูลเชิงลึกในวันจันทร์นี้ เนื่องจากมียอดรายงานซ้ำกันถึง 3 เคส"
   }
 };
 
@@ -99,10 +99,10 @@ export async function POST(req: Request) {
     const topCategoryCount = ticketData.summary.topCategory.count;
 
     let hospitalDetailsText = '';
-    if (ticketData.topHospitals && ticketData.topHospitals.length > 0) {
-      hospitalDetailsText = ticketData.topHospitals.map((h: any, idx: number) => {
+    if (ticketData.topOrganizations && ticketData.topOrganizations.length > 0) {
+      hospitalDetailsText = ticketData.topOrganizations.map((h: any, idx: number) => {
         const ticketSubjects = h.tickets.map((t: any) => `- ${t.subject} (${t.status})`).join('\n');
-        return `โรงพยาบาลอันดับที่ ${idx + 1}: ${h.name}
+        return `องค์กร/บริษัทอันดับที่ ${idx + 1}: ${h.name}
 - ตั๋วงานทั้งหมด: ${h.totalTickets} เคส (ปิดแล้ว: ${h.resolvedTickets} เคส)
 - รายการเรื่องที่แจ้ง:
 ${ticketSubjects}`;
@@ -114,10 +114,10 @@ ${ticketSubjects}`;
 ข้อมูลสถิติประจำสัปดาห์:
 - จำนวนปัญหาทั้งหมด (Total Volume): ${totalTickets} เคส
 - อัตราปิดงานสำเร็จ (Resolution Rate): ${resolvedRate}%
-- โรงพยาบาลที่แจ้งปัญหาสูงสุด: ${topHospital} (${topHospitalCount} เคส)
+- องค์กร/บริษัทที่แจ้งปัญหาสูงสุด: ${topHospital} (${topHospitalCount} เคส)
 - ประเภทปัญหาที่พบสูงสุด: ${topCategory} (${topCategoryCount} เคส)
 
-รายละเอียดเคสเชิงลึกแบ่งรายโรงพยาบาลหลัก:
+รายละเอียดเคสเชิงลึกแบ่งรายองค์กร/บริษัทหลัก:
 ${hospitalDetailsText}
 
 คำแนะนำ/โจทย์ที่ผู้ใช้อยากให้เน้นเพิ่มเติม:
@@ -247,7 +247,7 @@ ${hospitalDetailsText}
                     },
                     hospitalInsights: {
                       type: 'OBJECT',
-                      description: 'คีย์ค่าแนะนำเชิงลึกรายโรงพยาบาล โดยคีย์เป็นชื่อโรงพยาบาลเป้าหมาย (เช่น โรงพยาบาลสะเมิง) และค่าเป็นข้อความวิเคราะห์สั้นๆ เจาะจงสำหรับโรงพยาบาลนั้น',
+                      description: 'คีย์ค่าแนะนำเชิงลึกรายองค์กร/บริษัท โดยคีย์เป็นชื่อองค์กร/บริษัทเป้าหมาย (เช่น องค์กร/บริษัทสะเมิง) และค่าเป็นข้อความวิเคราะห์สั้นๆ เจาะจงสำหรับองค์กร/บริษัทนั้น',
                       properties: {}
                     }
                   },

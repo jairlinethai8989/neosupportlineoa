@@ -35,7 +35,7 @@ export default function CreateInternalTicketPage() {
   const [subjectTypes, setSubjectTypes] = useState<string[]>([]);
   
   // UI State
-  const [hospitals, setHospitals] = useState<any[]>([]);
+  const [organizations, setOrganizations] = useState<any[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -50,13 +50,13 @@ export default function CreateInternalTicketPage() {
         setStaffProfile(p);
       }
 
-      // 2. Fetch Hospitals and Ticket Subject Types
+      // 2. Fetch Organizations and Ticket Subject Types
       const [{ data: hData }, { data: subjectsRes }] = await Promise.all([
-        supabase.from('hospitals').select('*').eq('is_active', true).order('name', { ascending: true }),
+        supabase.from('organizations').select('*').eq('is_active', true).order('name', { ascending: true }),
         supabase.from('ticket_subject_types').select('name').eq('is_active', true).order('name', { ascending: true })
       ]);
       
-      setHospitals(hData || []);
+      setOrganizations(hData || []);
       const subjects = subjectsRes?.map((s: any) => s.name) || [];
       setSubjectTypes(subjects.length > 0 ? subjects : ['ลบ', 'แก้ไขออเดอร์', 'แจ้ง error', 'เรื่องอื่นๆ']);
     }
@@ -72,7 +72,7 @@ export default function CreateInternalTicketPage() {
     Critical: '#8b5cf6',
   };
 
-  const filteredHospitals = hospitals.filter(h => 
+  const filteredOrganizations = organizations.filter(h => 
     h.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     h.abbreviation?.toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -96,7 +96,7 @@ export default function CreateInternalTicketPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedHospitalId) {
-      setError('กรุณาเลือกโรงพยาบาล (Please select a hospital)');
+      setError('กรุณาเลือกองค์กร/บริษัท (Please select a organization)');
       return;
     }
     if (!subject.trim()) {
@@ -157,7 +157,7 @@ export default function CreateInternalTicketPage() {
               line_user_id: staffCustomerKey,
               display_name: `${staffProfile.full_name || 'Staff'} (Internal)`,
               full_name: staffProfile.full_name || 'Internal Staff',
-              hospital_id: selectedHospitalId, // Assign to the selected hospital
+              organization_id: selectedHospitalId, // Assign to the selected organization
             }])
             .select('id')
             .single();
@@ -195,7 +195,7 @@ export default function CreateInternalTicketPage() {
       const ticketPayload = {
         ticket_no: tempNo, 
         customer_id: staffCustomerId, 
-        hospital_id: selectedHospitalId, 
+        organization_id: selectedHospitalId, 
         subject: `[Private] ${subject}`,
         description: description || subject,
         status: 'New',
@@ -266,7 +266,7 @@ export default function CreateInternalTicketPage() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const selectedHospital = hospitals.find(h => h.id === selectedHospitalId);
+  const selectedHospital = organizations.find(h => h.id === selectedHospitalId);
 
   return (
     <div style={{ animation: 'fadeIn 0.5s ease-out', maxWidth: '100%', margin: '0', padding: '24px 32px 100px' }}>
@@ -276,8 +276,8 @@ export default function CreateInternalTicketPage() {
           <ArrowLeft size={20} />
         </Link>
         <div>
-          <h1 style={{ fontSize: '28px', fontWeight: '900', color: 'var(--text-main)', letterSpacing: '-1px' }}>สร้างใบงานใหม่ (สำหรับโรงพยาบาล)</h1>
-          <p style={{ color: 'var(--text-muted)', fontSize: '14px' }}>การสร้างใบงานระบุเจาะจงกลุ่มเป้าหมาย (Hospital Private Ticket)</p>
+          <h1 style={{ fontSize: '28px', fontWeight: '900', color: 'var(--text-main)', letterSpacing: '-1px' }}>สร้างใบงานใหม่ (สำหรับองค์กร/บริษัท)</h1>
+          <p style={{ color: 'var(--text-muted)', fontSize: '14px' }}>การสร้างใบงานระบุเจาะจงกลุ่มเป้าหมาย (Organization Private Ticket)</p>
         </div>
       </div>
 
@@ -290,9 +290,9 @@ export default function CreateInternalTicketPage() {
             </div>
           )}
 
-          {/* 1. Hospital Selection Listbox */}
+          {/* 1. Organization Selection Listbox */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', position: 'relative' }} ref={hospitalRef}>
-            <label style={{ fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px' }}>เลือกโรงพยาบาล (SELECT HOSPITAL)</label>
+            <label style={{ fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px' }}>เลือกองค์กร/บริษัท (SELECT ORGANIZATION)</label>
             <div 
               onClick={() => setIsHospitalOpen(!isHospitalOpen)}
               className="glass-interactive"
@@ -311,7 +311,7 @@ export default function CreateInternalTicketPage() {
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                 <Building size={18} style={{ color: selectedHospital ? 'var(--primary)' : 'var(--text-muted)' }} />
                 <span style={{ fontSize: '15px', color: selectedHospital ? 'var(--text-main)' : 'var(--text-muted)', fontWeight: selectedHospital ? '700' : '400' }}>
-                  {selectedHospital ? selectedHospital.name : 'ค้นหาหรือเลือกโรงพยาบาล...'}
+                  {selectedHospital ? selectedHospital.name : 'ค้นหาหรือเลือกองค์กร/บริษัท...'}
                 </span>
               </div>
               <ChevronDown size={18} style={{ color: 'var(--text-muted)', transform: isHospitalOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
@@ -353,7 +353,7 @@ export default function CreateInternalTicketPage() {
                    />
                 </div>
                 <div className="custom-scrollbar" style={{ maxHeight: '250px', overflowY: 'auto' }}>
-                  {filteredHospitals.length > 0 ? filteredHospitals.map(h => (
+                  {filteredOrganizations.length > 0 ? filteredOrganizations.map(h => (
                     <div 
                       key={h.id}
                       onClick={() => { setSelectedHospitalId(h.id); setIsHospitalOpen(false); }}
@@ -374,7 +374,7 @@ export default function CreateInternalTicketPage() {
                       {h.abbreviation && <span style={{ fontSize: '10px', color: 'var(--text-muted)', background: 'rgba(255,255,255,0.05)', padding: '2px 6px', borderRadius: '4px' }}>{h.abbreviation}</span>}
                     </div>
                   )) : (
-                    <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>ไม่พบรายชื่อโรงพยาบาล</div>
+                    <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>ไม่พบรายชื่อองค์กร/บริษัท</div>
                   )}
                 </div>
               </div>

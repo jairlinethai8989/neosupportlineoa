@@ -71,7 +71,7 @@ export const InboxSidebar: React.FC<InboxSidebarProps> = ({
         ) : (
           conversations.map((chat) => {
             const active = isConversationActive(chat);
-            const hospitalName = chat.customers?.hospitals?.name;
+            const hospitalName = chat.customers?.organizations?.name;
             const colors = getHospitalColorStyles(hospitalName);
 
             return (

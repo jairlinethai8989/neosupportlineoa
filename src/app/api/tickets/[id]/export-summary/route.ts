@@ -21,7 +21,7 @@ type TicketRow = {
   customers: {
     display_name: string | null;
     line_user_id: string | null;
-    hospitals: { name: string | null } | null;
+    organizations: { name: string | null } | null;
   } | null;
   assigned_agent: { display_name: string | null } | null;
   department_data: { name: string | null } | null;
@@ -70,7 +70,7 @@ export async function GET(_req: Request, { params }: Params) {
         customers:customers!tickets_customer_id_fkey(
           display_name,
           line_user_id,
-          hospitals!hospital_id(name)
+          organizations!organization_id(name)
         ),
         assigned_agent:profiles!assigned_agent_id(display_name:full_name),
         department_data:departments!current_department_id(name)
@@ -92,7 +92,7 @@ export async function GET(_req: Request, { params }: Params) {
 
     const ticket = ticketData as unknown as TicketRow;
     const customer = asObject(ticket.customers);
-    const hospital = asObject(customer?.hospitals);
+    const organization = asObject(customer?.organizations);
     const agent = asObject(ticket.assigned_agent);
     const department = asObject(ticket.department_data);
 
@@ -119,7 +119,7 @@ export async function GET(_req: Request, { params }: Params) {
         ['Module', ticket.module || '-'],
         ['Issue Type', ticket.issue_type || '-'],
         ['Customer', customer?.display_name || '-'],
-        ['Hospital', hospital?.name || '-'],
+        ['Organization', organization?.name || '-'],
         ['Department', department?.name || '-'],
         ['Assigned Agent', agent?.display_name || '-'],
         ['Created At', createdAt],

@@ -193,7 +193,7 @@ export default function ReportsPage() {
   );
 
   const hospitalLabel = useMemo(
-    () => (locale === 'th' ? 'สรุปรายโรงพยาบาล' : 'Hospital Summary'),
+    () => (locale === 'th' ? 'สรุปรายองค์กร/บริษัท' : 'Organization Summary'),
     [locale]
   );
   const reportModeLabel = useMemo(

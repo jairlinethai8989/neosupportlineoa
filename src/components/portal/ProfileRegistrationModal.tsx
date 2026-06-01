@@ -20,7 +20,7 @@ interface ProfileRegistrationModalProps {
 }
 
 export default function ProfileRegistrationModal({ isOpen, profile, existingCustomer, onComplete, onClose }: ProfileRegistrationModalProps) {
-  const [hospitals, setHospitals] = useState<any[]>([]);
+  const [organizations, setOrganizations] = useState<any[]>([]);
   const [departments, setDepartments] = useState<any[]>([]);
   const [positions, setPositions] = useState<any[]>([]);
   const [loadingOpts, setLoadingOpts] = useState(true);
@@ -42,8 +42,8 @@ export default function ProfileRegistrationModal({ isOpen, profile, existingCust
       setError('');
       try {
         const [hRes, dRes, pRes] = await Promise.all([
-          supabase.from('hospitals').select('*').order('name'),
-          supabase.from('departments').select('*').eq('dept_type', 'hospital').eq('is_active', true).order('name'),
+          supabase.from('organizations').select('*').order('name'),
+          supabase.from('departments').select('*').eq('dept_type', 'organization').eq('is_active', true).order('name'),
           supabase.from('positions').select('*').order('name')
         ]);
 
@@ -51,17 +51,17 @@ export default function ProfileRegistrationModal({ isOpen, profile, existingCust
         if (dRes.error) console.error('D-Err:', dRes.error);
         if (pRes.error) console.error('P-Err:', pRes.error);
 
-        if (hRes.data) setHospitals(hRes.data);
+        if (hRes.data) setOrganizations(hRes.data);
         if (dRes.data) setDepartments(dRes.data);
         if (pRes.data) setPositions(pRes.data);
 
         if (hRes.data?.length === 0) {
-          console.warn('Hospitals table is empty for public/anon user.');
+          console.warn('Organizations table is empty for public/anon user.');
         }
 
         if (existingCustomer) {
           setDisplayName(existingCustomer.display_name || '');
-          setSelectedHospital(existingCustomer.hospital_id || '');
+          setSelectedHospital(existingCustomer.organization_id || '');
           setSelectedDept(existingCustomer.department_id || '');
           setSelectedPosition(existingCustomer.position_id || '');
         } else if (profile?.displayName) {
@@ -103,7 +103,7 @@ export default function ProfileRegistrationModal({ isOpen, profile, existingCust
         display_name: displayName, // Keep as primary display name
         full_name: displayName,    // Store as dedicated real name field
         line_username: profile.displayName || null, // Store LINE nickname
-        hospital_id: selectedHospital,
+        organization_id: selectedHospital,
         department_id: selectedDept,
         position_id: selectedPosition,
         updated_at: new Date().toISOString()
@@ -203,18 +203,18 @@ export default function ProfileRegistrationModal({ isOpen, profile, existingCust
             />
           </div>
 
-          {/* Hospital Select */}
+          {/* Organization Select */}
           <div style={{ position: 'relative' }}>
             <label style={labelStyle}>โรงพยาบาล</label>
             <select
               value={selectedHospital}
-              onChange={e => setSelectedHospital(e.target.value)}
+              onChange={(e) => setSelectedHospital(e.target.value)}
               disabled={loadingOpts || submitting}
               style={inputStyle}
               required
             >
-              <option value="" disabled style={{ background: '#1a1d23' }}>เลือกโรงพยาบาล...</option>
-              {hospitals.map(h => (
+              <option value="" disabled style={{ background: '#1a1d23' }}>โปรดเลือกโรงพยาบาล...</option>
+              {organizations.map(h => (
                 <option key={h.id} value={h.id} style={{ background: '#1a1d23' }}>{h.name}</option>
               ))}
             </select>
@@ -282,7 +282,7 @@ export default function ProfileRegistrationModal({ isOpen, profile, existingCust
               )}
             </button>
 
-            {isEditing && existingCustomer?.hospital_id && onClose && (
+            {isEditing && existingCustomer?.organization_id && onClose && (
               <button
                 type="button"
                 onClick={onClose}

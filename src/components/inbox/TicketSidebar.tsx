@@ -95,7 +95,7 @@ export const TicketSidebar: React.FC<TicketSidebarProps> = ({
 
   const customer = selectedChat.customers;
   const hasCustomerIdentity = Boolean(customer?.display_name || customer?.avatar_url || customer?.line_user_id);
-  const hasCustomerProfileMeta = Boolean(customer?.hospitals?.name || customer?.departments?.name || customer?.positions?.name);
+  const hasCustomerProfileMeta = Boolean(customer?.organizations?.name || customer?.departments?.name || customer?.positions?.name);
   const shouldShowCustomerMetaSkeleton = !hasCustomerIdentity && !hasCustomerProfileMeta;
 
   const activeMagicLink =
@@ -205,7 +205,7 @@ export const TicketSidebar: React.FC<TicketSidebarProps> = ({
             </div>
             <div style={{ display: 'grid', gap: '10px', alignContent: 'center', flex: '1 1 180px', minWidth: '0' }}>
               <p style={{ margin: 0, fontSize: '12px', color: 'var(--text-main)' }}>
-                {t('inbox.hospital')}: <strong>{customer?.hospitals?.name || '-'}</strong>
+                {t('inbox.organization')}: <strong>{customer?.organizations?.name || '-'}</strong>
               </p>
               <p style={{ margin: 0, fontSize: '12px', color: 'var(--text-main)' }}>
                 {t('inbox.department')}: <strong>{customer?.departments?.name || '-'}</strong>

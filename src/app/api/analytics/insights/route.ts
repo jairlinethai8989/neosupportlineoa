@@ -8,7 +8,7 @@ export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
     const preset = searchParams.get('preset') || 'all'; // 7days, 30days, all
-    const hospitalId = searchParams.get('hospitalId');
+    const organizationId = searchParams.get('organizationId');
     let startDate = searchParams.get('startDate');
     let endDate = searchParams.get('endDate');
 
@@ -22,18 +22,18 @@ export async function GET(req: Request) {
       }
     }
 
-    // Query 0: Active Hospitals
-    const { data: hospitalsList, error: hospListErr } = await supabase
-      .from('hospitals')
+    // Query 0: Active Organizations
+    const { data: organizationsList, error: hospListErr } = await supabase
+      .from('organizations')
       .select('id, name')
       .eq('is_active', true)
       .order('name');
     if (hospListErr) throw hospListErr;
 
-    // Check if client only wants hospitals list (light request)
-    const hospitalsOnly = searchParams.get('hospitalsOnly') === 'true';
-    if (hospitalsOnly) {
-      return NextResponse.json({ hospitals: hospitalsList });
+    // Check if client only wants organizations list (light request)
+    const organizationsOnly = searchParams.get('organizationsOnly') === 'true';
+    if (organizationsOnly) {
+      return NextResponse.json({ organizations: organizationsList });
     }
 
     // Determine date range based on preset
@@ -52,21 +52,21 @@ export async function GET(req: Request) {
     let combinedQuery = supabase
       .from('tickets')
       .select(`
-        hospital_id,
-        hospitals (name),
+        organization_id,
+        organizations (name),
         issue_type,
         subject,
         customer_id,
         customers!tickets_customer_id_fkey (
           display_name,
-          hospitals (name)
+          organizations (name)
         ),
         created_at
       `);
 
     if (startDate) combinedQuery = combinedQuery.gte('created_at', startDate);
     if (endDate) combinedQuery = combinedQuery.lte('created_at', endDate);
-    if (hospitalId && hospitalId !== 'all') combinedQuery = combinedQuery.eq('hospital_id', hospitalId);
+    if (organizationId && organizationId !== 'all') combinedQuery = combinedQuery.eq('organization_id', organizationId);
 
     const { data: rawTickets, error: queryErr } = await combinedQuery;
     if (queryErr) throw queryErr;
@@ -75,15 +75,15 @@ export async function GET(req: Request) {
     const hospitalCounts: Record<string, { name: string; count: number }> = {};
     const issueCounts: Record<string, number> = {};
     const subjectCounts: Record<string, number> = {};
-    const staffCounts: Record<string, { name: string; hospital: string; count: number }> = {};
+    const staffCounts: Record<string, { name: string; organization: string; count: number }> = {};
     const heatmapMatrix = Array.from({ length: 7 }, () => Array.from({ length: 24 }, () => 0));
 
     rawTickets?.forEach((t: any) => {
-      // Grouping by hospital
-      const hid = t.hospital_id;
+      // Grouping by organization
+      const hid = t.organization_id;
       if (hid) {
         if (!hospitalCounts[hid]) {
-          hospitalCounts[hid] = { name: t.hospitals?.name || 'Unknown', count: 0 };
+          hospitalCounts[hid] = { name: t.organizations?.name || 'Unknown', count: 0 };
         }
         hospitalCounts[hid].count += 1;
       }
@@ -96,13 +96,13 @@ export async function GET(req: Request) {
       const subject = t.subject || 'ไม่ระบุ';
       subjectCounts[subject] = (subjectCounts[subject] || 0) + 1;
 
-      // Grouping by hospital staff
+      // Grouping by organization staff
       const cid = t.customer_id;
       if (cid) {
         if (!staffCounts[cid]) {
           staffCounts[cid] = { 
             name: t.customers?.display_name || 'Unknown', 
-            hospital: t.customers?.hospitals?.name || 'Unknown',
+            organization: t.customers?.organizations?.name || 'Unknown',
             count: 0 
           };
         }
@@ -118,7 +118,7 @@ export async function GET(req: Request) {
       }
     });
 
-    const topHospitals = Object.values(hospitalCounts).sort((a, b) => b.count - a.count).slice(0, 10);
+    const topOrganizations = Object.values(hospitalCounts).sort((a, b) => b.count - a.count).slice(0, 10);
     const issueTypes = Object.entries(issueCounts).map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count);
     const topSubjects = Object.entries(subjectCounts).map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count).slice(0, 10);
     const topStaff = Object.values(staffCounts).sort((a, b) => b.count - a.count).slice(0, 10);
@@ -154,18 +154,18 @@ export async function GET(req: Request) {
 
       if (apiKey) {
         try {
-          const topHospitalsText = topHospitals.map((h, i) => `- อันดับ ${i + 1} ${h.name}: ${h.count} เคส`).join('\n');
+          const topOrganizationsText = topOrganizations.map((h, i) => `- อันดับ ${i + 1} ${h.name}: ${h.count} เคส`).join('\n');
           const issueTypesText = issueTypes.map(it => `- ${it.name}: ${it.count} เคส`).join('\n');
           const topSubjectsText = topSubjects.map((s, i) => `- อันดับ ${i + 1} ${s.name}: ${s.count} เคส`).join('\n');
-          const topStaffText = topStaff.map((st, i) => `- อันดับ ${i + 1} ${st.name} (${st.hospital}): ${st.count} เคส`).join('\n');
+          const topStaffText = topStaff.map((st, i) => `- อันดับ ${i + 1} ${st.name} (${st.organization}): ${st.count} เคส`).join('\n');
 
           const customPrompt = searchParams.get('customPrompt');
           let systemInstructions = `คุณคือผู้เชี่ยวชาญด้าน Service Operations และผู้ช่วยวิเคราะห์ข้อมูลระดับสูงสำหรับทีม Neo Support
 หน้าที่ของคุณคือการอ่านสถิติการแจ้งเคสปัญหาประจำสัปดาห์หรือภาพรวมเหล่านี้ แล้วเขียนวิเคราะห์ข้อมูลเชิงลึกเป็นภาษาไทยให้ออกมาเป็นวิเคราะห์ข้อมูลระดับบริหาร สรุปปัญหา และแนวทางการแก้ไข (Actionable Insights) ที่สัมพันธ์กับตัวเลขข้อมูลสถิติจริงที่ส่งให้เท่านั้น ห้ามแต่งข้อมูลขึ้นมาเองนอกเหนือจากสถิตินี้!
 
 ข้อมูลสถิติจริงของตั๋วงาน:
-1. โรงพยาบาลที่แจ้งปัญหาสูงสุด:
-${topHospitalsText || 'ไม่มีข้อมูล'}
+1. องค์กร/บริษัทที่แจ้งปัญหาสูงสุด:
+${topOrganizationsText || 'ไม่มีข้อมูล'}
 
 2. ประเภทปัญหาที่พบ (Issue Types):
 ${issueTypesText || 'ไม่มีข้อมูล'}
@@ -173,13 +173,13 @@ ${issueTypesText || 'ไม่มีข้อมูล'}
 3. หัวเรื่องที่แจ้งมาบ่อยที่สุด (Top Subjects):
 ${topSubjectsText || 'ไม่มีข้อมูล'}
 
-4. เจ้าหน้าที่โรงพยาบาลที่แจ้งบ่อยที่สุด (Top Staffs):
+4. เจ้าหน้าที่องค์กร/บริษัทที่แจ้งบ่อยที่สุด (Top Staffs):
 ${topStaffText || 'ไม่มีข้อมูล'}
 
 กรุณาสรุปประเด็นปัญหาให้สัมพันธ์กับสถิติด้านบนนี้อย่างถูกต้องที่สุด ห้ามอ้างอิงข้อมูลลอยๆ ที่ไม่ตรงกัน`;
 
           if (customPrompt) {
-            systemInstructions += `\n\nคำแนะนำ/โจทย์ที่ผู้ใช้อยากให้วิเคราะห์เพิ่มเติมเป็นพิเศษ:\n"${customPrompt}"\n\nสำคัญมาก: หากผู้ใช้ระบุถึงโรงพยาบาลใด หรือประเด็นประเภทปัญหาใดเป็นพิเศษในคำแนะนำเพิ่มเติมด้านบนนี้ ให้คุณทำการเจาะลึกวิเคราะห์และให้คำแนะนำเฉพาะของโรงพยาบาล/ประเด็นนั้นๆ เป็นสัดส่วนหลักในทุกหัวข้อบทวิเคราะห์ (สรุปภาพรวม/ความท้าทาย/แนวทางแก้ไข) ถึงแม้ว่าข้อมูลในสถิติตัวเลขรวม โรงพยาบาล/ประเด็นดังกล่าวจะไม่ได้มียอดสูงสุดก็ตาม โดยวิเคราะห์อ้างอิงบนฐานข้อมูลจริงที่มีของเรื่องนั้นในสถิติ`;
+            systemInstructions += `\n\nคำแนะนำ/โจทย์ที่ผู้ใช้อยากให้วิเคราะห์เพิ่มเติมเป็นพิเศษ:\n"${customPrompt}"\n\nสำคัญมาก: หากผู้ใช้ระบุถึงองค์กร/บริษัทใด หรือประเด็นประเภทปัญหาใดเป็นพิเศษในคำแนะนำเพิ่มเติมด้านบนนี้ ให้คุณทำการเจาะลึกวิเคราะห์และให้คำแนะนำเฉพาะขององค์กร/บริษัท/ประเด็นนั้นๆ เป็นสัดส่วนหลักในทุกหัวข้อบทวิเคราะห์ (สรุปภาพรวม/ความท้าทาย/แนวทางแก้ไข) ถึงแม้ว่าข้อมูลในสถิติตัวเลขรวม องค์กร/บริษัท/ประเด็นดังกล่าวจะไม่ได้มียอดสูงสุดก็ตาม โดยวิเคราะห์อ้างอิงบนฐานข้อมูลจริงที่มีของเรื่องนั้นในสถิติ`;
           }
 
           const endpoints = [
@@ -275,12 +275,12 @@ ${topStaffText || 'ไม่มีข้อมูล'}
 
       // If API key is missing or call failed, return high-fidelity simulated report based on actual values
       if (!aiReport) {
-        const topHospName = topHospitals[0]?.name || 'โรงพยาบาล';
+        const topHospName = topOrganizations[0]?.name || 'องค์กร/บริษัท';
         const topSubjName = topSubjects[0]?.name || 'ปัญหาทั่วไป';
         aiReport = {
-          executiveSummary: `จากการวิเคราะห์ข้อมูลประเด็นปัญหาพบว่า โรงพยาบาลที่แจ้งเรื่องเข้ามามากที่สุดคือ ${topHospName} โดยหัวข้อที่ผู้ใช้งานแจ้งมาบ่อยที่สุดเกี่ยวข้องกับ "${topSubjName}" เพื่อเพิ่มประสิทธิภาพการบริการ ควรติดตามปัญหาดังกล่าวอย่างใกล้ชิด`,
+          executiveSummary: `จากการวิเคราะห์ข้อมูลประเด็นปัญหาพบว่า องค์กร/บริษัทที่แจ้งเรื่องเข้ามามากที่สุดคือ ${topHospName} โดยหัวข้อที่ผู้ใช้งานแจ้งมาบ่อยที่สุดเกี่ยวข้องกับ "${topSubjName}" เพื่อเพิ่มประสิทธิภาพการบริการ ควรติดตามปัญหาดังกล่าวอย่างใกล้ชิด`,
           keyChallenges: [
-            { title: `เคสหนาแน่นจาก ${topHospName}`, description: `พบปริมาณงานสะสมค่อนข้างสูงจากโรงพยาบาลนี้ โดยเฉพาะปัญหาประเภท "${topSubjName}"` }
+            { title: `เคสหนาแน่นจาก ${topHospName}`, description: `พบปริมาณงานสะสมค่อนข้างสูงจากองค์กร/บริษัทนี้ โดยเฉพาะปัญหาประเภท "${topSubjName}"` }
           ],
           actionItems: [
             { action: `จัดประชุมตรวจสอบสาเหตุร่วมกับเจ้าหน้าที่ ${topHospName}`, owner: "ทีม Support", targetDate: new Date(Date.now() + 7 * 24 * 3600 * 1000).toISOString().split('T')[0] }
@@ -290,8 +290,8 @@ ${topStaffText || 'ไม่มีข้อมูล'}
     }
 
     return NextResponse.json({
-      hospitals: hospitalsList,
-      topHospitals,
+      organizations: organizationsList,
+      topOrganizations,
       issueTypes,
       topSubjects,
       topStaff,

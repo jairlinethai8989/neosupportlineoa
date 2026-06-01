@@ -36,11 +36,11 @@ export default function CreateTicketPage() {
 
       async function checkCustomer() {
          const [{ data: customer }, { data: subjectsRes }] = await Promise.all([
-            supabase.from('customers').select('*, hospitals(name, abbreviation)').eq('line_user_id', profile?.userId).maybeSingle(),
+            supabase.from('customers').select('*, organizations(name, abbreviation)').eq('line_user_id', profile?.userId).maybeSingle(),
             supabase.from('ticket_subject_types').select('name').eq('is_active', true).order('name', { ascending: true })
          ]);
 
-         if (!customer || !customer.hospital_id) {
+         if (!customer || !customer.organization_id) {
             router.push('/portal');
          } else {
             setCustomerData(customer);
@@ -78,7 +78,7 @@ export default function CreateTicketPage() {
 
       try {
          // 1. Generate a highly unique Ticket ID
-         const hospitalAbbr = customerData.hospitals?.abbreviation || 'NEO';
+         const hospitalAbbr = customerData.organizations?.abbreviation || 'NEO';
          const now = new Date();
          const dateStr = now.toISOString().slice(2, 10).replace(/-/g, '');
          const randomSuffix = Math.random().toString(36).substring(2, 8).toUpperCase();
@@ -105,7 +105,7 @@ export default function CreateTicketPage() {
          const ticketPayload: any = {
             ticket_no: ticketNo,
             customer_id: customerData.id,
-            hospital_id: customerData.hospital_id,
+            organization_id: customerData.organization_id,
             current_department_id: customerData.department_id,
             subject: subject.trim(),
             description: description,

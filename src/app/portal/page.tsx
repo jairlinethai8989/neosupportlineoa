@@ -323,7 +323,7 @@ export default function PortalPage() {
       if (!customerId) {
         const { data } = await supabase
           .from('customers')
-          .select('*, hospitals(name, abbreviation)')
+          .select('*, organizations(name, abbreviation)')
           .eq('line_user_id', profile.userId)
           .maybeSingle();
         customer = data;

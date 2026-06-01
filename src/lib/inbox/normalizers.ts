@@ -40,8 +40,8 @@ export function normalizeInboxCustomer(value: unknown): InboxCustomer | null {
   const lineProfile = metadata && isRecord(metadata.line_profile) ? metadata.line_profile : null;
   const avatarFromMetadata = lineProfile ? asString(lineProfile.picture_url) : null;
 
-  const hospitals = isRecord(value.hospitals)
-    ? { id: asString(value.hospitals.id) || '', name: asString(value.hospitals.name) }
+  const organizations = isRecord(value.organizations)
+    ? { id: asString(value.organizations.id) || '', name: asString(value.organizations.name) }
     : null;
   const departments = isRecord(value.departments)
     ? { id: asString(value.departments.id) || '', name: asString(value.departments.name) }
@@ -55,10 +55,10 @@ export function normalizeInboxCustomer(value: unknown): InboxCustomer | null {
     display_name: asString(value.display_name),
     line_user_id: asString(value.line_user_id),
     avatar_url: asString(value.avatar_url) || avatarFromMetadata,
-    hospital_id: asString(value.hospital_id),
+    organization_id: asString(value.organization_id),
     department_id: asString(value.department_id),
     position_id: asString(value.position_id),
-    hospitals,
+    organizations,
     departments,
     positions,
   };
@@ -86,10 +86,10 @@ function mergeInboxCustomerSources(
         : fallbackCustomer.display_name || primaryCustomer.display_name,
     line_user_id: primaryCustomer.line_user_id || fallbackCustomer.line_user_id,
     avatar_url: primaryCustomer.avatar_url || fallbackCustomer.avatar_url,
-    hospital_id: primaryCustomer.hospital_id || fallbackCustomer.hospital_id,
+    organization_id: primaryCustomer.organization_id || fallbackCustomer.organization_id,
     department_id: primaryCustomer.department_id || fallbackCustomer.department_id,
     position_id: primaryCustomer.position_id || fallbackCustomer.position_id,
-    hospitals: primaryCustomer.hospitals || fallbackCustomer.hospitals,
+    organizations: primaryCustomer.organizations || fallbackCustomer.organizations,
     departments: primaryCustomer.departments || fallbackCustomer.departments,
     positions: primaryCustomer.positions || fallbackCustomer.positions,
   };

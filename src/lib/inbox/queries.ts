@@ -25,10 +25,10 @@ export const inboxConversationSelect = `
     display_name,
     line_user_id,
     metadata,
-    hospital_id,
+    organization_id,
     department_id,
     position_id,
-    hospitals:hospital_id (id, name),
+    organizations:organization_id (id, name),
     departments:department_id (id, name),
     positions:position_id (id, name)
   ),
@@ -37,9 +37,9 @@ export const inboxConversationSelect = `
     ticket_no,
     subject,
     status,
-    hospital_id,
+    organization_id,
     current_department_id,
-    hospitals:hospital_id (id, name),
+    organizations:organization_id (id, name),
     departments:current_department_id (id, name)
   )
 `;
@@ -55,10 +55,10 @@ const inboxConversationSelectLegacy = `
     display_name,
     line_user_id,
     metadata,
-    hospital_id,
+    organization_id,
     department_id,
     position_id,
-    hospitals:hospital_id (id, name),
+    organizations:organization_id (id, name),
     departments:department_id (id, name),
     positions:position_id (id, name)
   ),
@@ -67,9 +67,9 @@ const inboxConversationSelectLegacy = `
     ticket_no,
     subject,
     status,
-    hospital_id,
+    organization_id,
     current_department_id,
-    hospitals:hospital_id (id, name),
+    organizations:organization_id (id, name),
     departments:current_department_id (id, name)
   )
 `;
@@ -83,16 +83,16 @@ export const inboxConversationSelectForList = `
   customers (
     id,
     display_name,
-    hospital_id,
-    hospitals:hospital_id (id, name)
+    organization_id,
+    organizations:organization_id (id, name)
   ),
   ticket_data:current_ticket_id (
     id,
     ticket_no,
     subject,
     status,
-    hospital_id,
-    hospitals:hospital_id (id, name)
+    organization_id,
+    organizations:organization_id (id, name)
   )
 `;
 
@@ -105,16 +105,16 @@ const inboxConversationSelectForListLegacy = `
   customers (
     id,
     display_name,
-    hospital_id,
-    hospitals:hospital_id (id, name)
+    organization_id,
+    organizations:organization_id (id, name)
   ),
   ticket_data:current_ticket_id (
     id,
     ticket_no,
     subject,
     status,
-    hospital_id,
-    hospitals:hospital_id (id, name)
+    organization_id,
+    organizations:organization_id (id, name)
   )
 `;
 
@@ -194,10 +194,10 @@ type EnrichCustomerRow = {
   display_name: string | null;
   line_user_id: string | null;
   avatar_url?: string | null;
-  hospital_id?: string | null;
+  organization_id?: string | null;
   department_id?: string | null;
   position_id?: string | null;
-  hospitals?: { id: string; name: string | null } | null;
+  organizations?: { id: string; name: string | null } | null;
   departments?: { id: string; name: string | null } | null;
   positions?: { id: string; name: string | null } | null;
 };
@@ -208,9 +208,9 @@ type EnrichTicketRow = {
   subject: string | null;
   status: string | null;
   customer_id: string | null;
-  hospital_id?: string | null;
+  organization_id?: string | null;
   current_department_id?: string | null;
-  hospitals?: { id: string; name: string | null } | null;
+  organizations?: { id: string; name: string | null } | null;
   departments?: { id: string; name: string | null } | null;
 };
 
@@ -249,10 +249,10 @@ async function enrichConversationsIfNeeded(
             line_user_id,
             avatar_url,
             metadata,
-            hospital_id,
+            organization_id,
             department_id,
             position_id,
-            hospitals:hospital_id (id, name),
+            organizations:organization_id (id, name),
             departments:department_id (id, name),
             positions:position_id (id, name)
           `)
@@ -261,7 +261,7 @@ async function enrichConversationsIfNeeded(
     ticketIds.length
       ? supabase
           .from('tickets')
-          .select('id,ticket_no,subject,status,customer_id,hospital_id,current_department_id,hospitals:hospital_id(id,name),departments:current_department_id(id,name)')
+          .select('id,ticket_no,subject,status,customer_id,organization_id,current_department_id,organizations:organization_id(id,name),departments:current_department_id(id,name)')
           .in('id', ticketIds)
       : Promise.resolve({ data: [], error: null }),
   ]);
@@ -273,14 +273,14 @@ async function enrichConversationsIfNeeded(
         id: row.id,
         display_name: typeof row.display_name === 'string' ? row.display_name : null,
         line_user_id: typeof row.line_user_id === 'string' ? row.line_user_id : null,
-        hospital_id: typeof row.hospital_id === 'string' ? row.hospital_id : null,
+        organization_id: typeof row.organization_id === 'string' ? row.organization_id : null,
         department_id: typeof row.department_id === 'string' ? row.department_id : null,
         position_id: typeof row.position_id === 'string' ? row.position_id : null,
-        hospitals:
-          row.hospitals && typeof row.hospitals === 'object'
+        organizations:
+          row.organizations && typeof row.organizations === 'object'
             ? {
-                id: typeof (row.hospitals as Record<string, unknown>).id === 'string' ? (row.hospitals as Record<string, unknown>).id as string : '',
-                name: typeof (row.hospitals as Record<string, unknown>).name === 'string' ? (row.hospitals as Record<string, unknown>).name as string : null,
+                id: typeof (row.organizations as Record<string, unknown>).id === 'string' ? (row.organizations as Record<string, unknown>).id as string : '',
+                name: typeof (row.organizations as Record<string, unknown>).name === 'string' ? (row.organizations as Record<string, unknown>).name as string : null,
               }
             : null,
         departments:
@@ -321,12 +321,12 @@ async function enrichConversationsIfNeeded(
         subject: typeof row.subject === 'string' ? row.subject : null,
         status: typeof row.status === 'string' ? row.status : null,
         customer_id: typeof row.customer_id === 'string' ? row.customer_id : null,
-        hospital_id: typeof row.hospital_id === 'string' ? row.hospital_id : null,
+        organization_id: typeof row.organization_id === 'string' ? row.organization_id : null,
         current_department_id: typeof row.current_department_id === 'string' ? row.current_department_id : null,
-        hospitals: row.hospitals && typeof row.hospitals === 'object'
+        organizations: row.organizations && typeof row.organizations === 'object'
           ? {
-              id: typeof (row.hospitals as Record<string, unknown>).id === 'string' ? (row.hospitals as Record<string, unknown>).id as string : '',
-              name: typeof (row.hospitals as Record<string, unknown>).name === 'string' ? (row.hospitals as Record<string, unknown>).name as string : null,
+              id: typeof (row.organizations as Record<string, unknown>).id === 'string' ? (row.organizations as Record<string, unknown>).id as string : '',
+              name: typeof (row.organizations as Record<string, unknown>).name === 'string' ? (row.organizations as Record<string, unknown>).name as string : null,
             }
           : null,
         departments: row.departments && typeof row.departments === 'object'
@@ -356,9 +356,9 @@ async function enrichConversationsIfNeeded(
           ? {
               ...conversation.customers,
               // Override with ticket's snapshot data if available (Option A implementation)
-              hospital_id: ticketFromMap?.hospital_id || conversation.customers?.hospital_id || null,
+              organization_id: ticketFromMap?.organization_id || conversation.customers?.organization_id || null,
               department_id: ticketFromMap?.current_department_id || conversation.customers?.department_id || null,
-              hospitals: ticketFromMap?.hospitals || conversation.customers?.hospitals || null,
+              organizations: ticketFromMap?.organizations || conversation.customers?.organizations || null,
               departments: ticketFromMap?.departments || conversation.customers?.departments || null,
             } as any
           : {
@@ -367,10 +367,10 @@ async function enrichConversationsIfNeeded(
               line_user_id: customerFromMap.line_user_id,
               avatar_url: conversation.customers?.avatar_url || customerFromMap.avatar_url || null,
               // Override with ticket's snapshot data if available (Option A implementation)
-              hospital_id: ticketFromMap?.hospital_id || customerFromMap.hospital_id || null,
+              organization_id: ticketFromMap?.organization_id || customerFromMap.organization_id || null,
               department_id: ticketFromMap?.current_department_id || customerFromMap.department_id || null,
               position_id: customerFromMap.position_id || null,
-              hospitals: ticketFromMap?.hospitals || customerFromMap.hospitals || null,
+              organizations: ticketFromMap?.organizations || customerFromMap.organizations || null,
               departments: ticketFromMap?.departments || customerFromMap.departments || null,
               positions: customerFromMap.positions || null,
             },

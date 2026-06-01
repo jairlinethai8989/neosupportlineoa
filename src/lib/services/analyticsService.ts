@@ -135,8 +135,8 @@ export const analyticsService = {
         status,
         created_at,
         resolved_at,
-        hospital_id,
-        hospitals(name),
+        organization_id,
+        organizations(name),
         profiles!assigned_agent_id (
           full_name
         )

@@ -7,7 +7,7 @@ import { getReportBroadcastSettings, type ReportSet } from '@/lib/reports/broadc
 type DetailTicket = {
   subject: string;
   status: string | null;
-  hospitals?: { name?: string | null } | null;
+  organizations?: { name?: string | null } | null;
 };
 
 function parseDate(ymd: string | null): DateTime | null {
@@ -55,9 +55,9 @@ async function sendSetTwo(targetGroupId: string, dateLabel: string, startDateStr
 
   const grouped: Record<string, DetailTicket[]> = {};
   (details as DetailTicket[]).forEach((item) => {
-    const hospital = item.hospitals?.name || 'Unspecified hospital';
-    if (!grouped[hospital]) grouped[hospital] = [];
-    grouped[hospital].push(item);
+    const organization = item.organizations?.name || 'Unspecified organization';
+    if (!grouped[organization]) grouped[organization] = [];
+    grouped[organization].push(item);
   });
 
   const contents: Array<Record<string, unknown>> = [
@@ -65,8 +65,8 @@ async function sendSetTwo(targetGroupId: string, dateLabel: string, startDateStr
     { type: 'separator', margin: 'md' },
   ];
 
-  Object.entries(grouped).forEach(([hospital, tickets]) => {
-    contents.push({ type: 'text', text: `${hospital} (${tickets.length})`, margin: 'md', weight: 'bold', size: 'sm' });
+  Object.entries(grouped).forEach(([organization, tickets]) => {
+    contents.push({ type: 'text', text: `${organization} (${tickets.length})`, margin: 'md', weight: 'bold', size: 'sm' });
     tickets.slice(0, 15).forEach((ticket) => {
       contents.push({
         type: 'text',

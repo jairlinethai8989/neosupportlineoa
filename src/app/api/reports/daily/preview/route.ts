@@ -22,15 +22,15 @@ type RawTicket = {
   module: string | null;
   issue_type: string | null;
   priority: string | null;
-  hospitals: { name: string | null } | { name: string | null }[] | null;
+  organizations: { name: string | null } | { name: string | null }[] | null;
   customers:
     | {
         display_name: string | null;
-        hospitals: { name: string | null } | { name: string | null }[] | null;
+        organizations: { name: string | null } | { name: string | null }[] | null;
       }
     | {
         display_name: string | null;
-        hospitals: { name: string | null } | { name: string | null }[] | null;
+        organizations: { name: string | null } | { name: string | null }[] | null;
       }[]
     | null;
   assigned_agent: { display_name: string | null; theme_color?: string | null } | { display_name: string | null; theme_color?: string | null }[] | null;
@@ -72,9 +72,9 @@ function getDurationMs(start: string, end: string | null): number {
 }
 
 function normalizeRow(row: RawTicket): DailyPreviewRow {
-  const hospital = toObject(row.hospitals);
+  const organization = toObject(row.organizations);
   const customer = toObject(row.customers);
-  const customerHospital = toObject(customer?.hospitals || null);
+  const customerHospital = toObject(customer?.organizations || null);
   const assignee = toObject(row.assigned_agent);
 
   return {
@@ -89,7 +89,7 @@ function normalizeRow(row: RawTicket): DailyPreviewRow {
     module: row.module || '',
     issue_type: row.issue_type || '',
     priority: row.priority || '',
-    hospital_name: hospital?.name || customerHospital?.name || '',
+    hospital_name: organization?.name || customerHospital?.name || '',
     customer_name: customer?.display_name || '',
     assignee_name: assignee?.display_name || '',
     assignee_color: assignee?.theme_color || 'var(--primary)',
@@ -142,10 +142,10 @@ export async function GET(req: Request) {
         module,
         issue_type,
         priority,
-        hospitals!tickets_hospital_id_fkey ( name ),
+        organizations!tickets_organization_id_fkey ( name ),
         customers!tickets_customer_id_fkey (
           display_name,
-          hospitals!hospital_id ( name )
+          organizations!organization_id ( name )
         ),
         assigned_agent:profiles!assigned_agent_id( display_name:full_name, theme_color )
       `;

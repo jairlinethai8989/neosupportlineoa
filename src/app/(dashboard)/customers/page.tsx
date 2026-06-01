@@ -51,12 +51,12 @@ export default function CustomersPage() {
     setLoading(true);
     setError(null);
     try {
-      // Try fetching with hospitals (full detail)
+      // Try fetching with organizations (full detail)
       const { data, error: fetchErr } = await supabase
         .from('customers')
         .select(`
           *,
-          hospitals (name),
+          organizations (name),
           departments (name),
           positions (name)
         `)
@@ -64,7 +64,7 @@ export default function CustomersPage() {
 
       if (fetchErr) {
          console.warn('Initial fetch failed, trying basic fetch:', fetchErr.message);
-         // Fallback: Fetch without hospitals join (might be schema issue)
+         // Fallback: Fetch without organizations join (might be schema issue)
          const { data: basicData, error: basicErr } = await supabase
            .from('customers')
            .select('*')
@@ -153,8 +153,8 @@ export default function CustomersPage() {
             bValue = b.display_name;
             break;
           case 'organization':
-            aValue = `${a.hospitals?.name || ''} ${a.departments?.name || ''}`;
-            bValue = `${b.hospitals?.name || ''} ${b.departments?.name || ''}`;
+            aValue = `${a.organizations?.name || ''} ${a.departments?.name || ''}`;
+            bValue = `${b.organizations?.name || ''} ${b.departments?.name || ''}`;
             break;
           case 'created_at':
             aValue = new Date(a.created_at).getTime();
@@ -256,7 +256,7 @@ export default function CustomersPage() {
          {[
            { label: 'Total Customers', val: customers.length, color: 'var(--primary)', icon: Users },
            { label: 'Active Sessions', val: customers.filter(c => c.status === 'active').length || 0, color: 'var(--success)', icon: Ticket },
-           { label: 'Hospital Partners', val: [...new Set(customers.map(c => c.hospital_id).filter(Boolean))].length, color: '#7367f0', icon: Building },
+           { label: 'Organization Partners', val: [...new Set(customers.map(c => c.organization_id).filter(Boolean))].length, color: '#7367f0', icon: Building },
            { label: 'System Regions', val: 5, color: '#ff9f43', icon: MapPin },
          ].map((stat, i) => (
             <div key={i} className="glass" style={{ padding: '24px', borderRadius: '24px', position: 'relative', overflow: 'hidden' }}>
@@ -370,7 +370,7 @@ export default function CustomersPage() {
                        </td>
                        <td style={{ padding: '16px 20px', background: 'rgba(255, 255, 255, 0.02)' }}>
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                             <span style={{ fontSize: '14px', fontWeight: '700', color: 'var(--primary)' }}>{c.hospitals?.name || 'Unspecified'}</span>
+                             <span style={{ fontSize: '14px', fontWeight: '700', color: 'var(--primary)' }}>{c.organizations?.name || 'Unspecified'}</span>
                               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                  <span style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: '600' }}>
                                     {c.departments?.name || 'No Department'}
@@ -578,7 +578,7 @@ export default function CustomersPage() {
 
       {/* 5. Customer Profile Modal */}
       {profileCustomer && (() => {
-        const brand = getHospitalColorStyles(profileCustomer.hospitals?.name);
+        const brand = getHospitalColorStyles(profileCustomer.organizations?.name);
         return (
           <div style={{
             position: 'fixed',
@@ -680,14 +680,14 @@ export default function CustomersPage() {
                 {/* 2. Detail Grid */}
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '24px' }}>
                   
-                  {/* Hospital */}
+                  {/* Organization */}
                   <div className="glass" style={{ padding: '16px', borderRadius: '16px', border: '1px solid var(--border)', background: 'var(--bg-deep)' }}>
                     <p style={{ fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <Building size={12} color={brand.accent} /> โรงพยาบาล
+                      <Building size={12} color={brand.accent} /> องค์กร/บริษัท
                     </p>
                     <p style={{ fontSize: '14px', fontWeight: '850', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: brand.accent, boxShadow: `0 0 10px ${brand.accent}` }} />
-                      {profileCustomer.hospitals?.name || 'ไม่ระบุ'}
+                      {profileCustomer.organizations?.name || 'ไม่ระบุ'}
                     </p>
                   </div>
 

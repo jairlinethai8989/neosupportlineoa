@@ -474,7 +474,7 @@ export function TicketsBoard({
                     const chatHref = convId
                       ? `/inbox?cid=${convId}&tid=${ticket.id}`
                       : `/inbox?tid=${ticket.id}`;
-                    const hospitalName = ticket.hospitals?.name || t('tickets.noHospital');
+                    const hospitalName = ticket.organizations?.name || t('tickets.noHospital');
                     const claimAction = getClaimActionState(ticket.id, claimingId, isViewOnly, {
                       viewOnly: t('tickets.viewOnlyAccess'),
                       claiming: t('tickets.claiming'),

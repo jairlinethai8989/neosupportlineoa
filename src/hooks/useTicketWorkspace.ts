@@ -150,8 +150,8 @@ function getTicketWorkspaceSortValue(ticket: TicketWorkspaceTicket, key: string)
       return ticket.ticket_no || '';
     case 'subject':
       return ticket.subject || '';
-    case 'hospital':
-      return ticket.hospitals?.name || '';
+    case 'organization':
+      return ticket.organizations?.name || '';
     case 'customer':
       return ticket.customers?.display_name || (ticket.assigned_agent ? `👷‍♂️ ${ticket.assigned_agent.display_name}` : '');
     case 'agent':
@@ -613,7 +613,7 @@ export function useTicketWorkspace(filterCustomerId: string | null) {
         const ticketNo = String(ticket.ticket_no || '').toLowerCase();
         const subject = String(ticket.subject || '').toLowerCase();
         const customer = String(ticket.customers?.display_name || '').toLowerCase();
-        const hospital = String(ticket.hospitals?.name || '').toLowerCase();
+        const organization = String(ticket.organizations?.name || '').toLowerCase();
         const agent = String(ticket.assigned_agent?.display_name || '').toLowerCase();
         const status = String(ticket.status || '').toLowerCase();
         const priority = String(ticket.priority || '').toLowerCase();
@@ -625,7 +625,7 @@ export function useTicketWorkspace(filterCustomerId: string | null) {
           ticketNo.includes(query) ||
           subject.includes(query) ||
           customer.includes(query) ||
-          hospital.includes(query) ||
+          organization.includes(query) ||
           agent.includes(query) ||
           status.includes(query) ||
           priority.includes(query) ||

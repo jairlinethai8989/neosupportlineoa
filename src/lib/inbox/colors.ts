@@ -1,6 +1,6 @@
 /**
  * Utility to generate unique, beautiful, and dark-mode friendly progressive gradients
- * and HSL colors for each hospital based on their name.
+ * and HSL colors for each organization based on their name.
  */
 export interface HospitalColorStyles {
   accent: string;

@@ -7,7 +7,7 @@ import { useStaffLocale } from '@/contexts/StaffLocaleContext';
 import { translateTicketStatus } from '@/lib/i18n/staff';
 import type { TicketWorkspaceSortConfig, TicketWorkspaceTicket } from '@/types/tickets';
 
-type SortableColumnKey = 'ticket_no' | 'subject' | 'hospital' | 'customer' | 'agent' | 'status' | 'created_at';
+type SortableColumnKey = 'ticket_no' | 'subject' | 'organization' | 'customer' | 'agent' | 'status' | 'created_at';
 type TableColumn = {
   key: SortableColumnKey | 'actions';
   label: string;
@@ -132,7 +132,7 @@ export function TicketsTable({
     { key: 'ticket_no', label: t('tickets.ticketId') },
     { key: 'created_at', label: 'วันที่แจ้งงาน' },
     { key: 'subject', label: t('tickets.subject') },
-    { key: 'hospital', label: t('tickets.hospital') },
+    { key: 'organization', label: t('tickets.organization') },
     { key: 'customer', label: t('tickets.customer') },
     { key: 'agent', label: t('tickets.agent') },
     { key: 'status', label: t('tickets.status') },
@@ -168,7 +168,7 @@ export function TicketsTable({
         <tbody>
           {filteredTickets.map((ticket) => {
             const convId = getConvId(ticket);
-            const hospitalName = ticket.hospitals?.name || t('tickets.noData');
+            const hospitalName = ticket.organizations?.name || t('tickets.noData');
             const customerName =
               ticket.customers?.display_name ||
               ticket.assigned_agent?.display_name ||

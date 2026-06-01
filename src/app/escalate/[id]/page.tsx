@@ -48,7 +48,7 @@ type TicketData = {
   customers?: {
     display_name?: string | null;
   } | null;
-  hospitals?: {
+  organizations?: {
     name?: string | null;
   } | null;
   logs?: TicketLog[] | null;
@@ -722,7 +722,7 @@ export default function EscalationPortalPage() {
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <Building2 size={14} color="#94a3b8" />
             <span style={{ fontSize: '13px', fontWeight: 700, color: '#475569' }}>
-              {ticketData?.hospitals?.name || 'N/A'}
+              {ticketData?.organizations?.name || 'N/A'}
             </span>
           </div>
         </div>

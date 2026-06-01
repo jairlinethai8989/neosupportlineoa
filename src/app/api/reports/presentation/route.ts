@@ -12,7 +12,7 @@ type RawTicket = {
   subject: string | null;
   issue_type: string | null;
   priority: string | null;
-  hospitals: { name: string | null } | { name: string | null }[] | null;
+  organizations: { name: string | null } | { name: string | null }[] | null;
 };
 
 export type PresentationTicket = {
@@ -40,7 +40,7 @@ export type PresentationData = {
     topCategory: { name: string; count: number };
   };
   categories: { name: string; count: number }[];
-  topHospitals: HospitalSummary[];
+  topOrganizations: HospitalSummary[];
 };
 
 function parseDateParam(value: string | null): string | null {
@@ -63,12 +63,12 @@ function normalizeIssueType(ticket: RawTicket): string {
 }
 
 function getHospitalName(ticket: RawTicket): string {
-  const h = ticket.hospitals;
-  if (!h) return 'ไม่ระบุโรงพยาบาล';
+  const h = ticket.organizations;
+  if (!h) return 'ไม่ระบุองค์กร/บริษัท';
   if (Array.isArray(h)) {
-    return h[0]?.name || 'ไม่ระบุโรงพยาบาล';
+    return h[0]?.name || 'ไม่ระบุองค์กร/บริษัท';
   }
-  return h.name || 'ไม่ระบุโรงพยาบาล';
+  return h.name || 'ไม่ระบุองค์กร/บริษัท';
 }
 
 export async function GET(req: Request) {
@@ -108,7 +108,7 @@ export async function GET(req: Request) {
         subject,
         issue_type,
         priority,
-        hospitals!tickets_hospital_id_fkey ( name )
+        organizations!tickets_organization_id_fkey ( name )
       `)
       .gte('created_at', startIso)
       .lte('created_at', endIso)
@@ -163,8 +163,8 @@ export async function GET(req: Request) {
 
     const topCategory = categoriesArray.length > 0 ? categoriesArray[0] : { name: '-', count: 0 };
 
-    // 3. Sort Hospitals
-    const hospitalsArray = Object.entries(hospitalGroups)
+    // 3. Sort Organizations
+    const organizationsArray = Object.entries(hospitalGroups)
       .map(([name, data]) => ({
         name,
         totalTickets: data.total,
@@ -173,12 +173,12 @@ export async function GET(req: Request) {
       }))
       .sort((a, b) => b.totalTickets - a.totalTickets);
 
-    const topHospital = hospitalsArray.length > 0 
-      ? { name: hospitalsArray[0].name, count: hospitalsArray[0].totalTickets } 
+    const topHospital = organizationsArray.length > 0 
+      ? { name: organizationsArray[0].name, count: organizationsArray[0].totalTickets } 
       : { name: '-', count: 0 };
 
-    // 4. Select Top 10 Hospitals for Presentation
-    const top10Hospitals = hospitalsArray.slice(0, 10);
+    // 4. Select Top 10 Organizations for Presentation
+    const top10Organizations = organizationsArray.slice(0, 10);
 
     const payload: PresentationData = {
       dateRange: { start, end },
@@ -190,7 +190,7 @@ export async function GET(req: Request) {
         topCategory,
       },
       categories: categoriesArray,
-      topHospitals: top10Hospitals,
+      topOrganizations: top10Organizations,
     };
 
     return NextResponse.json(payload, {

@@ -7,11 +7,11 @@ interface AppContextType {
   authUserId: string | null;
   userProfile: UserProfile | null;
   companySettings: CompanySettings | null;
-  hospitals: Array<Record<string, unknown>>;
+  organizations: Array<Record<string, unknown>>;
   departments: Array<Record<string, unknown>>;
   loading: boolean;
-  refreshData: (type?: 'all' | 'profile' | 'settings' | 'hospitals' | 'departments') => Promise<void>;
-  ensureHospitals: () => Promise<void>;
+  refreshData: (type?: 'all' | 'profile' | 'settings' | 'organizations' | 'departments') => Promise<void>;
+  ensureOrganizations: () => Promise<void>;
   ensureDepartments: () => Promise<void>;
   updateStatus: (status: 'Active' | 'Busy') => Promise<void>;
   onlineUserIds: string[];
@@ -46,7 +46,7 @@ export interface CompanySettings {
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
-type RefreshScope = 'all' | 'profile' | 'settings' | 'hospitals' | 'departments';
+type RefreshScope = 'all' | 'profile' | 'settings' | 'organizations' | 'departments';
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const profileBypassAuth =
@@ -54,12 +54,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     process.env.NEXT_PUBLIC_PROFILE_BYPASS_AUTH === '1';
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [companySettings, setCompanySettings] = useState<CompanySettings | null>(null);
-  const [hospitals, setHospitals] = useState<Array<Record<string, unknown>>>([]);
+  const [organizations, setOrganizations] = useState<Array<Record<string, unknown>>>([]);
   const [departments, setDepartments] = useState<Array<Record<string, unknown>>>([]);
   const [loading, setLoading] = useState(true);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [onlineUserIds, setOnlineUserIds] = useState<string[]>([]);
-  const hospitalsLoadedRef = React.useRef(false);
+  const organizationsLoadedRef = React.useRef(false);
   const departmentsLoadedRef = React.useRef(false);
 
   const fetchProfile = useCallback(async (userId: string) => {
@@ -86,11 +86,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setCompanySettings(data as CompanySettings);
   }, []);
 
-  const fetchHospitals = useCallback(async () => {
-    const { data, error } = await supabase.from('hospitals').select('*').order('name');
+  const fetchOrganizations = useCallback(async () => {
+    const { data, error } = await supabase.from('organizations').select('*').order('name');
     if (error) throw error;
-    setHospitals(data || []);
-    hospitalsLoadedRef.current = true;
+    setOrganizations(data || []);
+    organizationsLoadedRef.current = true;
   }, []);
 
   const fetchDepartments = useCallback(async () => {
@@ -100,10 +100,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     departmentsLoadedRef.current = true;
   }, []);
 
-  const ensureHospitals = useCallback(async () => {
-    if (hospitalsLoadedRef.current) return;
-    await fetchHospitals();
-  }, [fetchHospitals]);
+  const ensureOrganizations = useCallback(async () => {
+    if (organizationsLoadedRef.current) return;
+    await fetchOrganizations();
+  }, [fetchOrganizations]);
 
   const ensureDepartments = useCallback(async () => {
     if (departmentsLoadedRef.current) return;
@@ -128,7 +128,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           await Promise.all([
             fetchProfile(userId as string),
             fetchSettings(),
-            fetchHospitals(),
+            fetchOrganizations(),
             fetchDepartments(),
           ]);
           return;
@@ -144,8 +144,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           return;
         }
 
-        if (type === 'hospitals') {
-          await fetchHospitals();
+        if (type === 'organizations') {
+          await fetchOrganizations();
           return;
         }
 
@@ -156,7 +156,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         console.error('AppProvider refresh error:', err);
       }
     },
-    [currentUserId, fetchDepartments, fetchHospitals, fetchProfile, fetchSettings]
+    [currentUserId, fetchDepartments, fetchOrganizations, fetchProfile, fetchSettings]
   );
 
   const updateStatus = useCallback(async (status: 'Active' | 'Busy') => {
@@ -348,7 +348,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             permissions: null,
           });
           setLoading(false);
-          void Promise.all([fetchSettings(), fetchHospitals(), fetchDepartments()]).catch((err) => {
+          void Promise.all([fetchSettings(), fetchOrganizations(), fetchDepartments()]).catch((err) => {
             console.error('AppProvider profile bypass background load error:', err);
           });
           return;
@@ -365,7 +365,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         setLoading(false);
 
         // Background data: do not block first paint.
-        // Only profile + settings are critical. Hospitals/departments are lazy-loaded by pages that need them.
+        // Only profile + settings are critical. Organizations/departments are lazy-loaded by pages that need them.
         void fetchProfile(user.id).catch(err => console.error('AppProvider profile load error:', err));
         void fetchSettings().catch((err) => {
           console.error('AppProvider settings load error:', err);
@@ -396,7 +396,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       supabase.removeChannel(settingsChannel);
       if (profileChannel) supabase.removeChannel(profileChannel);
     };
-  }, [fetchDepartments, fetchHospitals, fetchProfile, fetchSettings, profileBypassAuth]);
+  }, [fetchDepartments, fetchOrganizations, fetchProfile, fetchSettings, profileBypassAuth]);
 
   return (
     <AppContext.Provider
@@ -404,11 +404,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         authUserId: currentUserId,
         userProfile,
         companySettings,
-        hospitals,
+        organizations,
         departments,
         loading,
         refreshData,
-        ensureHospitals,
+        ensureOrganizations,
         ensureDepartments,
         updateStatus,
         onlineUserIds,

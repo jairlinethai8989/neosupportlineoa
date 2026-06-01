@@ -25,24 +25,24 @@ import { auditService } from '@/lib/services/auditService';
 import { useAppContext } from '@/contexts/AppContext';
 import { useStaffLocale } from '@/contexts/StaffLocaleContext';
 
-type Tab = 'hospitals' | 'departments' | 'hospital_depts' | 'positions' | 'modules' | 'issue_types' | 'subject_types' | 'line_groups' | 'google_sheets' | 'gemini_api';
+type Tab = 'organizations' | 'departments' | 'hospital_depts' | 'positions' | 'modules' | 'issue_types' | 'subject_types' | 'line_groups' | 'google_sheets' | 'gemini_api';
 
 export default function MasterSettingsPage() {
   const { t } = useStaffLocale();
   const { 
-    hospitals: ctxHospitals, 
+    organizations: ctxOrganizations, 
     departments: ctxDepartments, 
     companySettings: ctxGlobalSettings, 
     refreshData,
     userProfile,
-    ensureHospitals,
+    ensureOrganizations,
     ensureDepartments
   } = useAppContext();
 
   useEffect(() => {
-    if (ensureHospitals) void ensureHospitals();
+    if (ensureOrganizations) void ensureOrganizations();
     if (ensureDepartments) void ensureDepartments();
-  }, [ensureHospitals, ensureDepartments]);
+  }, [ensureOrganizations, ensureDepartments]);
 
   const canEdit = React.useMemo(() => {
     if (userProfile?.role === 'Administrator') return true;
@@ -51,12 +51,12 @@ export default function MasterSettingsPage() {
 
   const { addToast } = useNotificationContext();
 
-  const [activeTab, setActiveTab] = useState<Tab>('hospitals');
+  const [activeTab, setActiveTab] = useState<Tab>('organizations');
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
   
-  const [hospitals, setHospitals] = useState<any[]>(ctxHospitals);
+  const [organizations, setOrganizations] = useState<any[]>(ctxOrganizations);
   const [globalSettings, setGlobalSettings] = useState<any>(ctxGlobalSettings);
   
   // Form State
@@ -69,8 +69,8 @@ export default function MasterSettingsPage() {
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    setHospitals(ctxHospitals);
-  }, [ctxHospitals]);
+    setOrganizations(ctxOrganizations);
+  }, [ctxOrganizations]);
 
   useEffect(() => {
     setGlobalSettings(ctxGlobalSettings);
@@ -85,15 +85,15 @@ export default function MasterSettingsPage() {
   };
 
   const fetchData = React.useCallback(async () => {
-    if (activeTab === 'hospitals') {
-      setItems(ctxHospitals);
+    if (activeTab === 'organizations') {
+      setItems(ctxOrganizations);
       return;
     }
 
     if (activeTab === 'departments' || activeTab === 'hospital_depts') {
       const filtered = activeTab === 'departments' 
         ? ctxDepartments.filter(d => d.dept_type === 'organization')
-        : ctxDepartments.filter(d => d.dept_type === 'hospital');
+        : ctxDepartments.filter(d => d.dept_type === 'organization');
       setItems(filtered);
       return;
     }
@@ -123,7 +123,7 @@ export default function MasterSettingsPage() {
     } finally {
       setLoading(false);
     }
-  }, [activeTab, ctxHospitals, ctxDepartments, addToast]);
+  }, [activeTab, ctxOrganizations, ctxDepartments, addToast]);
 
   useEffect(() => {
     fetchData();
@@ -142,7 +142,7 @@ export default function MasterSettingsPage() {
       is_active: true 
     };
 
-    if (activeTab === 'hospitals') {
+    if (activeTab === 'organizations') {
       payload.abbreviation = newItemAbbr.trim() || newItemName.slice(0, 10).toUpperCase();
       payload.ticket_prefix = `SRS_${payload.abbreviation}_`;
     }
@@ -157,7 +157,7 @@ export default function MasterSettingsPage() {
     }
 
     if (activeTab === 'hospital_depts') {
-      payload.dept_type = 'hospital';
+      payload.dept_type = 'organization';
     } else if (activeTab === 'departments') {
       payload.dept_type = 'organization';
     }
@@ -172,7 +172,7 @@ export default function MasterSettingsPage() {
       setNewItemAbbr('');
       setIsAdding(false);
       
-      if (activeTab === 'hospitals') await refreshData('hospitals');
+      if (activeTab === 'organizations') await refreshData('organizations');
       else if (activeTab === 'departments' || activeTab === 'hospital_depts') await refreshData('departments');
       else fetchData();
 
@@ -201,7 +201,7 @@ export default function MasterSettingsPage() {
     const table = getTableName(activeTab);
 
     const updateData: any = { name: editItemName };
-    if (activeTab === 'hospitals') {
+    if (activeTab === 'organizations') {
       updateData.abbreviation = editItemAbbr.trim() || editItemName.slice(0, 10).toUpperCase();
     }
     if (activeTab === 'line_groups') {
@@ -216,7 +216,7 @@ export default function MasterSettingsPage() {
     } else {
       setEditingId(null);
       
-      if (activeTab === 'hospitals') await refreshData('hospitals');
+      if (activeTab === 'organizations') await refreshData('organizations');
       else if (activeTab === 'departments' || activeTab === 'hospital_depts') await refreshData('departments');
       else fetchData();
 
@@ -227,7 +227,7 @@ export default function MasterSettingsPage() {
         entity_type: table.toUpperCase(),
         entity_id: id,
         new_data: updateData,
-        note: `Updated ${table} to: ${editItemName} ${activeTab === 'hospitals' ? `(${editItemAbbr})` : ''}`
+        note: `Updated ${table} to: ${editItemName} ${activeTab === 'organizations' ? `(${editItemAbbr})` : ''}`
       });
 
       addToast({
@@ -249,7 +249,7 @@ export default function MasterSettingsPage() {
       console.error('Toggle status Error:', error);
       alert(`${t('common.messages.saveFailed')}: ${error.message}`);
     } else {
-      if (activeTab === 'hospitals') await refreshData('hospitals');
+      if (activeTab === 'organizations') await refreshData('organizations');
       else if (activeTab === 'departments' || activeTab === 'hospital_depts') await refreshData('departments');
       else fetchData();
 
@@ -275,7 +275,7 @@ export default function MasterSettingsPage() {
   const filteredItems = items.filter(i => i.name.toLowerCase().includes(search.toLowerCase()));
 
   const TAB_CONFIG = {
-    hospitals: { title: t('settingsMaster.tabs.hospitals'), icon: Building2, desc: t('settingsMaster.descriptions.hospitals') },
+    organizations: { title: t('settingsMaster.tabs.organizations'), icon: Building2, desc: t('settingsMaster.descriptions.organizations') },
     departments: { title: t('settingsMaster.tabs.departments'), icon: Users, desc: t('settingsMaster.descriptions.departments') },
     hospital_depts: { title: t('settingsMaster.tabs.hospitalDepartments'), icon: Layout, desc: t('settingsMaster.descriptions.hospitalDepartments') },
     positions: { title: t('settingsMaster.tabs.positions'), icon: Briefcase, desc: t('settingsMaster.descriptions.positions') },
@@ -302,7 +302,7 @@ export default function MasterSettingsPage() {
 
       {/* Tabs Selector */}
       <div style={{ display: 'flex', gap: '8px', marginBottom: '32px', background: 'rgba(255,255,255,0.03)', padding: '6px', borderRadius: '16px', border: '1px solid var(--border)', width: 'fit-content', flexWrap: 'wrap' }}>
-        {(['hospitals', 'departments', 'hospital_depts', 'positions', 'modules', 'issue_types', 'subject_types', 'line_groups', 'google_sheets', 'gemini_api'] as Tab[]).map(t => (
+        {(['organizations', 'departments', 'hospital_depts', 'positions', 'modules', 'issue_types', 'subject_types', 'line_groups', 'google_sheets', 'gemini_api'] as Tab[]).map(t => (
           <button
             key={t}
             onClick={() => setActiveTab(t)}
@@ -370,7 +370,7 @@ export default function MasterSettingsPage() {
                    onKeyDown={e => e.key === 'Enter' && handleAdd()}
                  />
                  
-                 {(activeTab === 'hospitals' || activeTab === 'line_groups') && (
+                 {(activeTab === 'organizations' || activeTab === 'line_groups') && (
                    <input 
                      type="text" 
                      placeholder={activeTab === 'line_groups' ? 'LINE Group ID' : t('settingsMaster.abbreviation')} 
@@ -387,7 +387,7 @@ export default function MasterSettingsPage() {
                      style={{ flex: 1, minWidth: '150px', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', borderRadius: '12px', padding: '14px 20px', color: 'var(--text-main)', fontSize: '15px', outline: 'none', cursor: 'pointer' }}
                    >
                      <option value="">{t('settingsMaster.selectHospital')}</option>
-                     {hospitals.map(h => <option key={h.id} value={h.id}>{h.name}</option>)}
+                     {organizations.map(h => <option key={h.id} value={h.id}>{h.name}</option>)}
                    </select>
                  )}
 
@@ -432,7 +432,7 @@ export default function MasterSettingsPage() {
                                style={{ background: 'rgba(0, 242, 254, 0.05)', border: '1px solid var(--primary)', borderRadius: '8px', padding: '8px 12px', color: 'var(--text-main)', fontSize: '15px', fontWeight: '700', outline: 'none', width: '250px' }}
                                onKeyDown={e => e.key === 'Enter' && handleUpdate(item.id)}
                              />
-                             {(activeTab === 'hospitals' || activeTab === 'line_groups') && (
+                             {(activeTab === 'organizations' || activeTab === 'line_groups') && (
                                <input 
                                  type="text" 
                                  placeholder={activeTab === 'line_groups' ? 'LINE Group ID' : "ย่อ"}
@@ -447,7 +447,7 @@ export default function MasterSettingsPage() {
                            <div>
                               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                 <p style={{ fontSize: '15px', fontWeight: '700', color: item.is_active ? 'var(--text-main)' : 'var(--text-muted)' }}>{item.name}</p>
-                                {(activeTab === 'hospitals' && item.abbreviation) && (
+                                {(activeTab === 'organizations' && item.abbreviation) && (
                                   <span style={{ fontSize: '11px', background: 'rgba(255,255,255,0.1)', padding: '2px 6px', borderRadius: '4px', color: 'var(--text-muted)' }}>
                                     {item.abbreviation}
                                   </span>

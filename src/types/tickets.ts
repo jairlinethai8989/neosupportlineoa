@@ -48,12 +48,12 @@ export interface TicketWorkspaceTicket {
   description?: string | null;
   module?: string | null;
   issue_type?: string | null;
-  hospitals?: TicketWorkspaceHospital | null;
+  organizations?: TicketWorkspaceHospital | null;
   customers?: TicketWorkspaceCustomer | null;
   assigned_agent?: TicketWorkspaceAssignedAgent | null;
   department_data?: { id: string; name: string } | null;
   current_department_id?: string | null;
-  hospital_id?: string | null;
+  organization_id?: string | null;
   escalation_token?: string | null;
 }
 
@@ -85,7 +85,7 @@ export interface TicketDetailCustomer {
   full_name?: string | null;
   line_username?: string | null;
   avatar_url?: string | null;
-  hospitals?: { id: string; name: string } | null;
+  organizations?: { id: string; name: string } | null;
 }
 
 export interface TicketDetailAssignedAgent {
@@ -115,7 +115,7 @@ export interface TicketDetailTicket {
   resolved_at: string | null;
   assigned_agent_id: string | null;
   current_department_id: string | null;
-  hospital_id: string | null;
+  organization_id: string | null;
   escalation_token?: string | null;
   resolution_summary?: string | null;
   ai_analysis?: AIAnalysis | null;

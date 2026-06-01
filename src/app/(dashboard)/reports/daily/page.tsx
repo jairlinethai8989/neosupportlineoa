@@ -37,7 +37,7 @@ const INITIAL_COLUMN_WIDTHS: Record<string, number> = {
   sequence: 72,
   status: 84,
   date: 120,
-  hospital: 170,
+  organization: 170,
   customer: 130,
   subject: 190,
   additionalDetails: 180,
@@ -121,7 +121,7 @@ export default function DailyReportPage() {
       { id: 'sequence', label: t('reports.columns.sequence') || 'ลำดับ', sortKey: 'sequence' },
       { id: 'status', label: t('reports.columns.status'), sortKey: 'status' },
       { id: 'date', label: t('reports.columns.date'), sortKey: 'date' },
-      { id: 'hospital', label: t('reports.columns.hospital'), sortKey: 'hospital' },
+      { id: 'organization', label: t('reports.columns.organization'), sortKey: 'organization' },
       { id: 'customer', label: t('reports.columns.customer'), sortKey: 'customer' },
       { id: 'subject', label: t('reports.columns.subject'), sortKey: 'subject' },
       { id: 'additionalDetails', label: t('reports.columns.additionalDetails'), sortKey: 'description' },
@@ -233,7 +233,7 @@ export default function DailyReportPage() {
         switch (sortConfig.key) {
           case 'status': valA = a.status; valB = b.status; break;
           case 'date': valA = a.created_at; valB = b.created_at; break;
-          case 'hospital': valA = a.hospital_name; valB = b.hospital_name; break;
+          case 'organization': valA = a.hospital_name; valB = b.hospital_name; break;
           case 'customer': valA = a.customer_name || a.assignee_name; valB = b.customer_name || b.assignee_name; break;
           case 'subject': valA = a.subject_only; valB = b.subject_only; break;
           case 'description': valA = a.description; valB = b.description; break;
@@ -490,7 +490,7 @@ export default function DailyReportPage() {
       return {
         [t('reports.columns.status')]: ticket.status,
         [t('reports.columns.date')]: createdAt.toLocaleDateString('th-TH'),
-        [t('reports.columns.hospital')]: ticket.hospital_name || '-',
+        [t('reports.columns.organization')]: ticket.hospital_name || '-',
         [t('reports.columns.customer')]: ticket.customer_name || (ticket.assignee_name || '-'),
         [t('reports.columns.subject')]: ticket.subject_only || '-',
         [t('reports.columns.additionalDetails')]: ticket.description || '-',
@@ -753,7 +753,7 @@ export default function DailyReportPage() {
                       {ticket.status === 'Resolved' || ticket.status === 'Closed' ? '✅' : (ticket.status === 'New' ? '⚪' : '🔄')}
                     </td>
                     <td style={{ padding: '12px 16px', ...getColWidth('date') }}>{new Date(ticket.created_at).toLocaleDateString('th-TH')}</td>
-                    <td style={{ padding: '12px 16px', fontWeight: '700', color: 'var(--text-main)', ...getColWidth('hospital') }}>{ticket.hospital_name || '-'}</td>
+                    <td style={{ padding: '12px 16px', fontWeight: '700', color: 'var(--text-main)', ...getColWidth('organization') }}>{ticket.hospital_name || '-'}</td>
                     <td style={{ padding: '12px 16px', ...getColWidth('customer') }}>{ticket.customer_name || (ticket.assignee_name ? `👷‍♂️ ${ticket.assignee_name}` : '-')}</td>
                     <td style={{ padding: '12px 16px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', ...getColWidth('subject') }}>
                       <AlignLeft size={12} style={{ display: 'inline', marginRight: '6px', opacity: 0.5 }} />

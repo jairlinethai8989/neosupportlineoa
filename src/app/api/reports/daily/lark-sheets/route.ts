@@ -17,15 +17,15 @@ type RawTicket = {
   module: string | null;
   issue_type: string | null;
   priority: string | null;
-  hospitals: { name: string | null } | { name: string | null }[] | null;
+  organizations: { name: string | null } | { name: string | null }[] | null;
   customers:
     | {
         display_name: string | null;
-        hospitals: { name: string | null } | { name: string | null }[] | null;
+        organizations: { name: string | null } | { name: string | null }[] | null;
       }
     | {
         display_name: string | null;
-        hospitals: { name: string | null } | { name: string | null }[] | null;
+        organizations: { name: string | null } | { name: string | null }[] | null;
       }[]
     | null;
   assigned_agent: { display_name: string | null } | { display_name: string | null }[] | null;
@@ -54,9 +54,9 @@ function getDurationStr(start: string, end: string | null): string {
 
 // Convert DB rows to Lark Sheet array format
 function getExportRowArray(row: RawTicket): string[] {
-  const hospital = toObject(row.hospitals);
+  const organization = toObject(row.organizations);
   const customer = toObject(row.customers);
-  const customerHospital = toObject(customer?.hospitals || null);
+  const customerHospital = toObject(customer?.organizations || null);
   const assignee = toObject(row.assigned_agent);
 
   const createdAt = new Date(row.created_at);
@@ -65,7 +65,7 @@ function getExportRowArray(row: RawTicket): string[] {
   return [
     row.status || '',
     createdAt.toLocaleDateString('th-TH'),
-    hospital?.name || customerHospital?.name || '',
+    organization?.name || customerHospital?.name || '',
     customer?.display_name || '',
     getTicketSubjectOnly(row.subject, row.description),
     row.description || '',
@@ -191,10 +191,10 @@ export async function POST(req: Request) {
       module,
       issue_type,
       priority,
-      hospitals!tickets_hospital_id_fkey ( name ),
+      organizations!tickets_organization_id_fkey ( name ),
       customers!tickets_customer_id_fkey (
         display_name,
-        hospitals!hospital_id ( name )
+        organizations!organization_id ( name )
       ),
       assigned_agent:profiles!assigned_agent_id( display_name:full_name )
     `;

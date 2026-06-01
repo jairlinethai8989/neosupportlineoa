@@ -97,12 +97,12 @@ export function normalizeTicketWorkspaceTicket(value: unknown): TicketWorkspaceT
     description: asString(value.description),
     module: asString(value.module),
     issue_type: asString(value.issue_type),
-    hospitals: normalizeHospital(value.hospitals),
+    organizations: normalizeHospital(value.organizations),
     customers: normalizeCustomer(value.customers),
     assigned_agent: normalizeAssignedAgent(value.assigned_agent),
     department_data: normalizeDepartmentData(value.department_data),
     current_department_id: asString(value.current_department_id),
-    hospital_id: asString(value.hospital_id),
+    organization_id: asString(value.organization_id),
   };
 }
 
