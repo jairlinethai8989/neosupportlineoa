@@ -178,12 +178,12 @@ export default function DailyReportPage() {
       start = now;
       end = now;
     } else if (type === 'week') {
-      const day = now.getDay();
-      const diff = now.getDate() - day + (day === 0 ? -6 : 1);
-      start = new Date(now.setDate(diff));
+      start = new Date();
+      start.setDate(start.getDate() - 7);
       end = new Date();
     } else if (type === 'month') {
-      start = new Date(now.getFullYear(), now.getMonth(), 1);
+      start = new Date();
+      start.setDate(start.getDate() - 30);
       end = new Date();
     }
 

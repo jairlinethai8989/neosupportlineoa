@@ -157,7 +157,7 @@ function computeDateWindow(
     from.setHours(0, 0, 0, 0);
   } else if (timeRange === 'month') {
     from = new Date();
-    from.setMonth(from.getMonth() - 1);
+    from.setDate(from.getDate() - 30);
     from.setHours(0, 0, 0, 0);
   } else {
     from = customStart ? new Date(customStart) : new Date();

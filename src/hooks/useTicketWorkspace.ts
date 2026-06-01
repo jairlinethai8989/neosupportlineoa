@@ -125,15 +125,11 @@ function getTicketWorkspaceDateRange(
     from.setHours(0, 0, 0, 0);
   } else if (timeRange === 'week') {
     from = new Date();
-    // Set to Monday of this week
-    const day = from.getDay();
-    const diff = from.getDate() - day + (day === 0 ? -6 : 1);
-    from.setDate(diff);
+    from.setDate(from.getDate() - 7);
     from.setHours(0, 0, 0, 0);
   } else if (timeRange === 'month') {
     from = new Date();
-    // Set to 1st of this month
-    from.setDate(1);
+    from.setDate(from.getDate() - 30);
     from.setHours(0, 0, 0, 0);
   } else if (timeRange === 'custom') {
     from = customStart ? new Date(customStart) : new Date();
