@@ -32,7 +32,7 @@ export const InboxSidebar: React.FC<InboxSidebarProps> = ({
   hasNextPage,
   onPageChange,
 }) => {
-  const { t } = useStaffLocale();
+  const { locale, t } = useStaffLocale();
 
   return (
     <div
@@ -210,43 +210,77 @@ export const InboxSidebar: React.FC<InboxSidebarProps> = ({
       {(hasNextPage || currentPage > 1 || conversations.length > 0) && (
         <div
           style={{
-            padding: '12px 24px',
+            padding: '16px 24px',
             borderTop: '1px solid var(--border)',
             display: 'flex',
-            justifyContent: 'space-between',
+            justifyContent: 'center',
             alignItems: 'center',
             background: 'rgba(255,255,255,0.01)',
           }}
         >
-          <span style={{ fontSize: '12px', color: 'var(--text-dim)', fontWeight: '700' }}>
-            หน้า {currentPage}
-          </span>
-          <div style={{ display: 'flex', gap: '8px' }}>
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            background: 'rgba(255, 255, 255, 0.03)',
+            border: '1px solid var(--border)',
+            borderRadius: '12px',
+            padding: '3px 6px',
+            boxShadow: 'inset 0 1px 3px rgba(0, 0, 0, 0.2)',
+          }}>
             <button
               disabled={currentPage <= 1}
               onClick={() => onPageChange(currentPage - 1)}
+              className="glass-interactive flex-center"
               style={{
-                padding: '8px',
-                borderRadius: '8px',
-                background: 'var(--bg-input)',
+                width: '28px',
+                height: '28px',
+                background: currentPage <= 1 ? 'transparent' : 'rgba(255, 255, 255, 0.06)',
                 border: '1px solid var(--border)',
-                color: currentPage <= 1 ? 'var(--text-muted)' : 'var(--text-main)',
+                borderRadius: '8px',
+                color: currentPage <= 1 ? 'var(--text-dim)' : 'var(--primary)',
                 cursor: currentPage <= 1 ? 'not-allowed' : 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                opacity: currentPage <= 1 ? 0.2 : 1,
+                transition: 'all 0.2s ease-in-out',
+                boxShadow: currentPage <= 1 ? 'none' : '0 2px 8px rgba(0, 242, 254, 0.15)',
               }}
+              title={locale === 'th' ? 'ก่อนหน้า' : 'Previous'}
             >
               <ChevronLeft size={16} />
             </button>
+            <span style={{
+              fontSize: '11px',
+              fontWeight: '800',
+              color: 'var(--text-main)',
+              minWidth: '45px',
+              textAlign: 'center',
+              letterSpacing: '0.5px'
+            }}>
+              {locale === 'th' ? 'หน้า' : 'Page'} {currentPage}
+            </span>
             <button
               disabled={!hasNextPage}
               onClick={() => onPageChange(currentPage + 1)}
+              className="glass-interactive flex-center"
               style={{
-                padding: '8px',
-                borderRadius: '8px',
-                background: 'var(--bg-input)',
+                width: '28px',
+                height: '28px',
+                background: !hasNextPage ? 'transparent' : 'rgba(255, 255, 255, 0.06)',
                 border: '1px solid var(--border)',
-                color: !hasNextPage ? 'var(--text-muted)' : 'var(--text-main)',
+                borderRadius: '8px',
+                color: !hasNextPage ? 'var(--text-dim)' : 'var(--primary)',
                 cursor: !hasNextPage ? 'not-allowed' : 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                opacity: !hasNextPage ? 0.2 : 1,
+                transition: 'all 0.2s ease-in-out',
+                boxShadow: !hasNextPage ? 'none' : '0 2px 8px rgba(0, 242, 254, 0.15)',
               }}
+              title={locale === 'th' ? 'ถัดไป' : 'Next'}
             >
               <ChevronRight size={16} />
             </button>
