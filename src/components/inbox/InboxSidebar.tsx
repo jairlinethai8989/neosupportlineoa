@@ -1,6 +1,6 @@
 'use client';
 import React from 'react';
-import { Search, Mail, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Mail, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useStaffLocale } from '@/contexts/StaffLocaleContext';
 import type { InboxConversation, InboxViewMode } from '@/types/inbox';
 import { getHospitalColorStyles } from '@/lib/inbox/colors';
@@ -60,31 +60,6 @@ export const InboxSidebar: React.FC<InboxSidebarProps> = ({
         <p style={{ fontSize: '12px', color: 'var(--text-dim)', marginTop: '4px' }}>
           {t('inbox.queueSubtitle')}
         </p>
-      </div>
-
-      <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--border)' }}>
-        <div style={{ position: 'relative' }}>
-          <Search
-            style={{ position: 'absolute', left: '12px', top: '12px', color: 'var(--text-muted)' }}
-            size={16}
-            aria-hidden="true"
-          />
-          <input
-            type="text"
-            placeholder={t('inbox.searchPlaceholder')}
-            aria-label={t('inbox.searchPlaceholder')}
-            style={{
-              width: '100%',
-              background: 'var(--bg-input)',
-              border: '1px solid var(--border)',
-              borderRadius: '10px',
-              padding: '10px 12px 10px 40px',
-              color: 'var(--text-main)',
-              fontSize: '13px',
-              outline: 'none',
-            }}
-          />
-        </div>
       </div>
 
       <div style={{ flex: 1, overflowY: 'auto' }} className="no-scrollbar">
