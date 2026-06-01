@@ -11,6 +11,8 @@
   - รันสคริปต์การปรับปรุงฟีลด์ คีย์นอก (Foreign Keys) และ Index จาก `hospital_id` เป็น `organization_id` ในทุกตารางที่เกี่ยวข้อง
   - ดำเนินการลบและสร้างฟังก์ชันคำนวณสรุปข้อมูลแดชบอร์ด (`get_dashboard_summary`) ใหม่ เพื่อเปลี่ยนอินพุตพารามิเตอร์และตัวแปรภายในทั้งหมดจาก `p_hospital_id` เป็น `p_organization_id`
   - ย้ายการตั้งค่าของกลุ่มองค์กรต่าง ๆ ให้สอดคล้องกันโดยไม่กระทบกับข้อมูลเดิมในระบบ
+  - ดำเนินการเปลี่ยนชื่อข้อจำกัดคีย์นอก (Foreign Key Constraints) `tickets_hospital_id_fkey` และ `customers_hospital_id_fkey` ให้เป็น `tickets_organization_id_fkey` และ `customers_organization_id_fkey` เพื่อให้สอดคล้องตามโครงสร้างข้อมูลใหม่และแก้ไขปัญหาการโหลดหน้าจัดการใบงาน (Failed to load tickets) สำเร็จ
+
 
 ### 2. การล้างและปรับปรุงโค้ดโปรแกรม (Codebase Refactoring)
 * **ปรับเปลี่ยนคำศัพท์ในส่วน Logic และ API:**
