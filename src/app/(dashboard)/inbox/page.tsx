@@ -325,7 +325,8 @@ function InboxContent() {
     return () => {
       cancelled = true;
     };
-  }, [cid, tid, conversations]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cid, tid]);
 
   useEffect(() => {
     if (!inboxLoading && conversations.length === 0 && page > 1) {
@@ -431,15 +432,6 @@ function InboxContent() {
             query ? `${window.location.pathname}?${query}` : window.location.pathname
           );
 
-          // Asynchronously enrich selected chat details in the background
-          try {
-            const enriched = await getInboxConversationById(conversation.id);
-            if (enriched) {
-              setSelectedChat((prev) => (prev?.id === conversation.id ? enriched : prev));
-            }
-          } catch (e) {
-            console.error('Failed to enrich selected conversation:', e);
-          }
         }}
         viewMode={viewMode}
         currentPage={page}

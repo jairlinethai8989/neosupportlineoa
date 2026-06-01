@@ -177,6 +177,12 @@ export default function Home() {
   const [timeRange, setTimeRange] = useState<'today' | 'week' | 'month' | 'custom'>('week');
   const [customStart, setCustomStart] = useState('');
   const [customEnd, setCustomEnd] = useState('');
+
+  // Temp Date Filter State for custom range selection before Apply is clicked
+  const [tempTimeRange, setTempTimeRange] = useState<'today' | 'week' | 'month' | 'custom'>('week');
+  const [tempCustomStart, setTempCustomStart] = useState('');
+  const [tempCustomEnd, setTempCustomEnd] = useState('');
+
   const [hospitalsList, setHospitalsList] = useState<any[]>([]);
   const [modulesList, setModulesList] = useState<any[]>([]);
   const [issueTypesList, setIssueTypesList] = useState<any[]>([]);
@@ -502,54 +508,9 @@ export default function Home() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px', flexWrap: 'wrap', gap: '16px' }}>
         <div>
           <h1 style={{ fontSize: '28px', fontWeight: '800', marginBottom: '4px' }}>{t('dashboard.managementSummary')}</h1>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <p style={{ color: 'var(--text-muted)', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-              {t('dashboard.executiveSummary')}
-            </p>
-            <div style={{ display: 'flex', background: 'var(--bg-card)', padding: '4px', borderRadius: '10px', border: '1px solid var(--border)' }}>
-              {[
-                { id: 'today', label: t('dashboard.daily') },
-                { id: 'week', label: t('dashboard.weekly') },
-                { id: 'month', label: t('dashboard.monthly') },
-                { id: 'custom', label: t('dashboard.customRange') }
-              ].map(opt => (
-                <button
-                  key={opt.id}
-                  onClick={() => setTimeRange(opt.id as any)}
-                  style={{
-                    padding: '4px 12px',
-                    borderRadius: '7px',
-                    fontSize: '11px',
-                    fontWeight: '800',
-                    border: 'none',
-                    cursor: 'pointer',
-                    background: timeRange === opt.id ? 'var(--primary)' : 'transparent',
-                    color: timeRange === opt.id ? '#0a0e14' : 'var(--text-muted)',
-                    transition: 'all 0.2s'
-                  }}
-                >
-                  {opt.label}
-                </button>
-              ))}
-            </div>
-            {timeRange === 'custom' && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', animation: 'fadeIn 0.3s ease-out' }}>
-                <input 
-                  type="date" 
-                  value={customStart} 
-                  onChange={e => setCustomStart(e.target.value)}
-                  style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '8px', padding: '4px 8px', color: 'var(--text-main)', fontSize: '11px' }}
-                />
-                <span style={{ color: 'var(--text-muted)', fontSize: '11px' }}>—</span>
-                <input 
-                  type="date" 
-                  value={customEnd} 
-                  onChange={e => setCustomEnd(e.target.value)}
-                  style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '8px', padding: '4px 8px', color: 'var(--text-main)', fontSize: '11px' }}
-                />
-              </div>
-            )}
-          </div>
+          <p style={{ color: 'var(--text-muted)', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+            {t('dashboard.executiveSummary')}
+          </p>
         </div>
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 16px', borderRadius: '12px', border: '1px solid var(--border)', background: 'rgba(0, 242, 254, 0.05)' }}>
@@ -640,6 +601,68 @@ export default function Home() {
       <div className="glass" style={{ display: 'flex', gap: '16px', padding: '16px 24px', borderRadius: '16px', marginBottom: '24px', flexWrap: 'wrap', alignItems: 'center' }}>
         <span style={{ fontSize: '12px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>ตัวกรองข้อมูล (FILTERS):</span>
         
+        {/* Date Selector Quick Range */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', background: 'var(--bg-card)', padding: '4px', borderRadius: '10px', border: '1px solid var(--border)' }}>
+            {[
+              { id: 'today', label: t('dashboard.daily') },
+              { id: 'week', label: t('dashboard.weekly') },
+              { id: 'month', label: t('dashboard.monthly') },
+              { id: 'custom', label: t('dashboard.customRange') }
+            ].map(opt => (
+              <button
+                key={opt.id}
+                onClick={() => {
+                  if (opt.id === 'custom') {
+                    setTempTimeRange('custom');
+                  } else {
+                    setTimeRange(opt.id as any);
+                    setTempTimeRange(opt.id as any);
+                    // Automatically apply immediately for quick pills
+                    setSelectedHospital(tempHospital);
+                    setSelectedModule(tempModule);
+                    setSelectedIssueType(tempIssueType);
+                  }
+                }}
+                style={{
+                  padding: '6px 12px',
+                  borderRadius: '7px',
+                  fontSize: '11px',
+                  fontWeight: '800',
+                  border: 'none',
+                  cursor: 'pointer',
+                  background: tempTimeRange === opt.id ? 'var(--primary)' : 'transparent',
+                  color: tempTimeRange === opt.id ? '#0a0e14' : 'var(--text-muted)',
+                  transition: 'all 0.2s'
+                }}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+
+          {tempTimeRange === 'custom' && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', animation: 'fadeIn 0.3s ease-out' }}>
+              <input 
+                type="date" 
+                value={tempCustomStart} 
+                onChange={e => setTempCustomStart(e.target.value)}
+                style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '10px', padding: '6px 10px', color: 'var(--text-main)', fontSize: '11px', fontWeight: '700', outline: 'none' }}
+              />
+              <span style={{ color: 'var(--text-muted)', fontSize: '11px' }}>—</span>
+              <input 
+                type="date" 
+                value={tempCustomEnd} 
+                onChange={e => setTempCustomEnd(e.target.value)}
+                style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '10px', padding: '6px 10px', color: 'var(--text-main)', fontSize: '11px', fontWeight: '700', outline: 'none' }}
+              />
+            </div>
+          )}
+        </div>
+
+        {/* Separator */}
+        <div style={{ width: '1px', height: '24px', background: 'var(--border)', margin: '0 4px' }} />
+
         {/* Hospital Filter */}
         <div style={{ display: 'flex', flexDirection: 'column', minWidth: '180px' }}>
           <select 
@@ -682,6 +705,11 @@ export default function Home() {
             setSelectedHospital(tempHospital);
             setSelectedModule(tempModule);
             setSelectedIssueType(tempIssueType);
+            setTimeRange(tempTimeRange);
+            if (tempTimeRange === 'custom') {
+              setCustomStart(tempCustomStart);
+              setCustomEnd(tempCustomEnd);
+            }
           }}
           style={{
             background: 'var(--primary)',
@@ -693,10 +721,22 @@ export default function Home() {
             fontWeight: '800',
             cursor: 'pointer',
             transition: 'all 0.2s',
-            boxShadow: (tempHospital !== selectedHospital || tempModule !== selectedModule || tempIssueType !== selectedIssueType)
+            boxShadow: (
+              tempHospital !== selectedHospital || 
+              tempModule !== selectedModule || 
+              tempIssueType !== selectedIssueType || 
+              tempTimeRange !== timeRange ||
+              (tempTimeRange === 'custom' && (tempCustomStart !== customStart || tempCustomEnd !== customEnd))
+            )
               ? '0 0 12px var(--primary)'
               : 'none',
-            opacity: (tempHospital !== selectedHospital || tempModule !== selectedModule || tempIssueType !== selectedIssueType) ? 1 : 0.8
+            opacity: (
+              tempHospital !== selectedHospital || 
+              tempModule !== selectedModule || 
+              tempIssueType !== selectedIssueType || 
+              tempTimeRange !== timeRange ||
+              (tempTimeRange === 'custom' && (tempCustomStart !== customStart || tempCustomEnd !== customEnd))
+            ) ? 1 : 0.8
           }}
           onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.02)'; }}
           onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; }}
@@ -705,7 +745,7 @@ export default function Home() {
         </button>
 
         {/* Clear Filters Button */}
-        {(tempHospital || tempModule || tempIssueType || selectedHospital || selectedModule || selectedIssueType) && (
+        {(tempHospital || tempModule || tempIssueType || selectedHospital || selectedModule || selectedIssueType || tempTimeRange !== 'week' || timeRange !== 'week' || tempCustomStart || tempCustomEnd) && (
           <button
             onClick={() => {
               setTempHospital('');
@@ -714,6 +754,12 @@ export default function Home() {
               setSelectedHospital('');
               setSelectedModule('');
               setSelectedIssueType('');
+              setTempTimeRange('week');
+              setTimeRange('week');
+              setTempCustomStart('');
+              setTempCustomEnd('');
+              setCustomStart('');
+              setCustomEnd('');
             }}
             style={{ background: 'rgba(234, 84, 85, 0.1)', color: 'var(--danger)', border: 'none', padding: '8px 16px', borderRadius: '10px', fontSize: '12px', fontWeight: '800', cursor: 'pointer', transition: 'all 0.2s' }}
           >

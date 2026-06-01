@@ -14,17 +14,17 @@ import {
   RefreshCw,
 } from 'lucide-react';
 import dynamic from 'next/dynamic';
-import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
-import { arrayMove, SortableContext, sortableKeyboardCoordinates, rectSortingStrategy } from '@dnd-kit/sortable';
-
-// Dynamic import: recharts (~300KB) and dnd useSortable loaded only when Analytics page is visited
-const SortableWidget = dynamic(
-  () => import('@/components/analytics/SortableWidget').then(m => m.SortableWidget),
+const SortableWidgetGrid = dynamic(
+  () => import('@/components/analytics/SortableWidgetGrid').then(m => m.SortableWidgetGrid),
   {
     ssr: false,
     loading: () => (
-      <div className="glass" style={{ height: '340px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontSize: '14px' }}>
-        กำลังโหลดกราฟ...
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(400px, 1fr))', gap: '24px' }}>
+        {[1, 2, 3, 4].map(i => (
+          <div key={i} className="glass" style={{ height: '340px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontSize: '14px' }}>
+            กำลังโหลดกราฟ...
+          </div>
+        ))}
       </div>
     ),
   }
@@ -35,10 +35,10 @@ import { exportDashboardAsPDF, printDataTable } from '@/lib/utils/exportUtils';
 import Skeleton from '@/components/ui/Skeleton';
 import { ExportPreviewModal, type ExportPreviewData } from '@/components/ui/ExportPreviewModal';
 
-import PersonalAnalyticsPage from './personal/page';
-import StaffAnalyticsPage from './staff/page';
-import Evaluation360Page from './staff/evaluation-360/page';
-import InsightsPage from './insights/page';
+const PersonalAnalyticsPage = dynamic(() => import('./personal/page'));
+const StaffAnalyticsPage = dynamic(() => import('./staff/page'));
+const Evaluation360Page = dynamic(() => import('./staff/evaluation-360/page'));
+const InsightsPage = dynamic(() => import('./insights/page'));
 import { useAppContext } from '@/contexts/AppContext';
 
 /**
@@ -121,10 +121,7 @@ export default function AdvancedAnalyticsPage() {
   const [previewData, setPreviewData] = useState<ExportPreviewData | null>(null);
   const [pendingFormat, setPendingFormat] = useState<'excel' | 'pdf' | null>(null);
 
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
-  );
+
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -183,16 +180,7 @@ export default function AdvancedAnalyticsPage() {
     };
   }, [aggregatedData]);
 
-  const handleDragEnd = (event: any) => {
-    const { active, over } = event;
-    if (active.id !== over.id) {
-      setActiveWidgets((items) => {
-        const oldIndex = items.indexOf(active.id);
-        const newIndex = items.indexOf(over.id);
-        return arrayMove(items, oldIndex, newIndex);
-      });
-    }
-  };
+
 
   const handleExport = async (format: 'excel' | 'pdf') => {
     setExporting(true);
@@ -212,7 +200,8 @@ export default function AdvancedAnalyticsPage() {
           `)
           .gte('created_at', dateRange.start)
           .lte('created_at', dateRange.end)
-          .order('created_at', { ascending: false });
+          .order('created_at', { ascending: false })
+          .limit(5000);
         
         if (error) throw error;
         currentTickets = data || [];
@@ -721,25 +710,12 @@ export default function AdvancedAnalyticsPage() {
       </div>
 
       {/* Dashboard Grid with DND */}
-      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-        <SortableContext items={activeWidgets} strategy={rectSortingStrategy}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(400px, 1fr))', gap: '24px' }}>
-            {activeWidgets.map(id => {
-              const chart = CHART_TYPES.find(c => c.id === id);
-              if (!chart) return null;
-              return (
-                <SortableWidget 
-                  key={id} 
-                  id={id} 
-                  chart={chart} 
-                  data={chartDataMap[id as keyof typeof chartDataMap] || []}
-                  onRemove={(rid: string) => setActiveWidgets(prev => prev.filter(w => w !== rid))}
-                />
-              );
-            })}
-          </div>
-        </SortableContext>
-      </DndContext>
+      <SortableWidgetGrid
+        activeWidgets={activeWidgets}
+        setActiveWidgets={setActiveWidgets}
+        CHART_TYPES={CHART_TYPES}
+        chartDataMap={chartDataMap}
+      />
 
       {loading && (
         <div style={{ position: 'fixed', bottom: '40px', left: '50%', transform: 'translateX(-50%)', background: 'var(--primary)', color: 'black', padding: '12px 24px', borderRadius: '30px', fontWeight: '900', boxShadow: '0 8px 32px rgba(0,242,254,0.4)', display: 'flex', alignItems: 'center', gap: '12px' }}>

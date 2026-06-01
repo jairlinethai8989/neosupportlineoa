@@ -23,10 +23,11 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="main-layout">
-      <ToastContainer />
+    <NotificationProvider>
+      <div className="main-layout">
+        <ToastContainer />
 
-      {isSidebarOpen && <div className="sidebar-overlay" onClick={() => setIsSidebarOpen(false)} />}
+        {isSidebarOpen && <div className="sidebar-overlay" onClick={() => setIsSidebarOpen(false)} />}
 
       <div
         className={`sidebar ${isSidebarOpen ? 'open' : ''} ${isSidebarCollapsed ? 'collapsed' : ''}`}
@@ -83,7 +84,8 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
           `,
         }}
       />
-    </div>
+      </div>
+    </NotificationProvider>
   );
 }
 
@@ -91,9 +93,7 @@ export default function DashboardLayout({ children }: Readonly<{ children: React
   return (
     <AppProvider>
       <StaffLocaleProvider>
-        <NotificationProvider>
-          <DashboardInner>{children}</DashboardInner>
-        </NotificationProvider>
+        <DashboardInner>{children}</DashboardInner>
       </StaffLocaleProvider>
     </AppProvider>
   );

@@ -41,7 +41,7 @@ const DEFAULT_MODULES = [
   'Consultation',
   'All',
 ];
-const WORKSPACE_TICKETS_PAGE_SIZE = 150;
+const WORKSPACE_TICKETS_PAGE_SIZE = 50;
 type TicketCursor = { createdAt: string; id: string } | null;
 
 function getTicketStatus(
@@ -352,9 +352,7 @@ export function useTicketWorkspace(filterCustomerId: string | null) {
       const customerIds = pageTickets
         .map((ticket) => ticket.customer_id)
         .filter((id): id is string => Boolean(id));
-      const pageConversations = await listTicketWorkspaceConversationsByTicketIds(ticketIds, customerIds);
-      setConversations(pageConversations);
-
+      
       const now = Date.now();
       for (const [ticketId, expiresAt] of pendingRealtimeTicketIdsRef.current.entries()) {
         if (expiresAt <= now) {
@@ -363,6 +361,9 @@ export function useTicketWorkspace(filterCustomerId: string | null) {
       }
 
       if (isSilent) {
+        const pageConversations = await listTicketWorkspaceConversationsByTicketIds(ticketIds, customerIds);
+        setConversations(pageConversations);
+
         const pendingRealtimeTicketIds = new Set(pendingRealtimeTicketIdsRef.current.keys());
         setTickets((previousTickets) =>
           mergeWorkspaceTicketsForSilentRefresh(
@@ -375,7 +376,19 @@ export function useTicketWorkspace(filterCustomerId: string | null) {
           )
         );
       } else {
+        // Unblock UI immediately for tickets
         setTickets(pageTickets);
+        setLoading(false);
+
+        // Fetch conversations asynchronously without blocking the UI
+        listTicketWorkspaceConversationsByTicketIds(ticketIds, customerIds)
+          .then((pageConversations) => {
+            setConversations(pageConversations);
+          })
+          .catch((err) => {
+            console.error('Fetch conversations error:', err);
+            setDebugError(err instanceof Error ? err.message : 'Failed to load conversations');
+          });
       }
     } catch (error) {
       console.error('Fetch tickets/conversations error:', error);
@@ -405,13 +418,14 @@ export function useTicketWorkspace(filterCustomerId: string | null) {
       // 2. Fetch full data (with relations) and retry logic for replica delays
       try {
         let latestTicket = null;
-        for (let i = 0; i < 3; i++) {
+        for (let i = 0; i < 2; i++) {
           try {
             latestTicket = await getTicketWorkspaceTicketById(ticketId);
             if (latestTicket) break;
+            if (i < 1) await new Promise((resume) => setTimeout(resume, 1500));
           } catch (err) {
-            if (i === 2) throw err;
-            await new Promise((resume) => setTimeout(resume, 1000));
+            if (i === 1) throw err;
+            await new Promise((resume) => setTimeout(resume, 1500));
           }
         }
 

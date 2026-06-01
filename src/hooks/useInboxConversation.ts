@@ -120,15 +120,27 @@ export function useInboxConversation({
 
       const optimisticClaim = urlParams.get('oc') === '1';
 
-      // 1. Prioritize Ticket ID from URL (Deep Link)
+      let targetTicketId: string | null = null;
+      let targetTicketData: any = null;
+
       const shouldUseUrlTicket =
         Boolean(urlTicketId) &&
         (!urlConversationId || urlConversationId === selectedChat!.id);
 
       if (shouldUseUrlTicket && urlTicketId) {
-        const ticket = await getInboxTicketById(urlTicketId);
+        targetTicketId = urlTicketId;
+      } else if (latestMessageTicketId) {
+        targetTicketId = latestMessageTicketId;
+      } else if (selectedChat!.ticket_data) {
+        targetTicketData = selectedChat!.ticket_data;
+      } else if (selectedChat!.current_ticket_id) {
+        targetTicketId = selectedChat!.current_ticket_id;
+      }
+
+      if (targetTicketId) {
+        const ticket = await getInboxTicketById(targetTicketId);
         if (ticket) {
-          if (optimisticClaim && agent) {
+          if (optimisticClaim && agent && (targetTicketId === urlTicketId || targetTicketId === latestMessageTicketId)) {
             ticket.assigned_agent_id = agent.id;
             ticket.status = 'In Progress';
           }
@@ -137,25 +149,11 @@ export function useInboxConversation({
         }
       }
 
-      // 2. Prefer ticket bound to this conversation's message stream.
-      if (latestMessageTicketId) {
-        const messageTicket = await getInboxTicketById(latestMessageTicketId);
-        if (messageTicket) {
-          if (optimisticClaim && agent) {
-            messageTicket.assigned_agent_id = agent.id;
-            messageTicket.status = 'In Progress';
-          }
-          setCurrentTicket(messageTicket);
-          return;
-        }
-      }
-
-      // 3. Use Metadata if available from query
-      if (selectedChat!.ticket_data) {
+      if (targetTicketData) {
         setCurrentTicket({
-          id: selectedChat!.ticket_data.id,
-          ticket_no: selectedChat!.ticket_data.ticket_no,
-          subject: selectedChat!.ticket_data.subject,
+          id: targetTicketData.id,
+          ticket_no: targetTicketData.ticket_no,
+          subject: targetTicketData.subject,
           customer_id: selectedChat!.customer_id,
           status: 'In Progress',
           assigned_agent_id: null,
@@ -166,13 +164,6 @@ export function useInboxConversation({
         return;
       }
 
-      // 4. Fallback to current_ticket_id on record
-      if (selectedChat!.current_ticket_id) {
-        setCurrentTicket(await getInboxTicketById(selectedChat!.current_ticket_id));
-        return;
-      }
-
-      // 5. Safe fallback: derive ticket only from messages inside this conversation.
       const conversationTicket = await getLatestInboxTicketForConversation(selectedChat!.id);
       if (conversationTicket) {
         setCurrentTicket(conversationTicket);
