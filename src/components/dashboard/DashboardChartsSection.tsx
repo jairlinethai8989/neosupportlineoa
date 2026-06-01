@@ -272,7 +272,7 @@ export function DashboardChartsSection({
           <p style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>TICKET VOLUME BY DAY/HOUR</p>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', overflowX: 'auto', paddingBottom: '12px' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '40px repeat(24, minmax(20px, 1fr))', gap: '4px', marginBottom: '4px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '40px ' + Array.from({length: 24}).map((_, i) => (i >= 8 && i <= 18) ? '1fr' : '0.5fr').join(' '), gap: '4px', marginBottom: '4px' }}>
              <div />
              {Array.from({length: 24}).map((_, i) => {
                const isKeyLabel = i === 0 || i === 6 || i === 12 || i === 18;
@@ -286,7 +286,7 @@ export function DashboardChartsSection({
                      color: isKeyLabel ? 'var(--text-main)' : 'var(--text-muted)', 
                      fontWeight: isKeyLabel ? '800' : '400',
                      textAlign: 'center',
-                     minWidth: '20px',
+                     minWidth: '10px',
                      borderLeft: cellBorderLeft,
                      borderRight: cellBorderRight
                    }}
@@ -301,7 +301,7 @@ export function DashboardChartsSection({
              })}
           </div>
           {heatmapData && heatmapData.length === 7 ? DAYS_TH.map((dayName, dayIdx) => (
-            <div key={`d-${dayIdx}`} style={{ display: 'grid', gridTemplateColumns: '40px repeat(24, minmax(20px, 1fr))', gap: '4px', alignItems: 'center' }}>
+            <div key={`d-${dayIdx}`} style={{ display: 'grid', gridTemplateColumns: '40px ' + Array.from({length: 24}).map((_, i) => (i >= 8 && i <= 18) ? '1fr' : '0.5fr').join(' '), gap: '4px', alignItems: 'center' }}>
               <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: '700' }}>{dayName}</div>
               {heatmapData[dayIdx]?.map((val, hourIdx) => {
                 const isWorkingHours = hourIdx >= 8 && hourIdx <= 18;
@@ -311,18 +311,38 @@ export function DashboardChartsSection({
                 const cellBorderLeft = hourIdx === 8 ? '2px solid rgba(255, 255, 255, 0.6)' : undefined;
                 const cellBorderRight = hourIdx === 18 ? '2px solid rgba(255, 255, 255, 0.6)' : undefined;
 
+                // Color configuration for working vs non-working hours
+                let cellBg = getHeatmapColor(val);
+                let cellBorder = getHeatmapBorder(val);
+                if (!isWorkingHours) {
+                  if (val === 0) {
+                    cellBg = 'rgba(128, 128, 128, 0.08)'; // Muted gray background for non-working hours
+                    cellBorder = '1px solid rgba(255, 255, 255, 0.02)';
+                  } else {
+                    const intensity = val / maxHeatmapValue;
+                    if (intensity <= 0.33) {
+                      cellBg = 'rgba(110, 115, 125, 0.25)'; // Slate gray for low volume
+                    } else if (intensity <= 0.7) {
+                      cellBg = 'rgba(130, 135, 145, 0.45)'; // Medium gray
+                    } else {
+                      cellBg = 'rgba(165, 170, 180, 0.75)'; // High gray
+                    }
+                    cellBorder = '1px solid rgba(255, 255, 255, 0.15)';
+                  }
+                }
+
                 return (
                   <div
                     key={`cell-${dayIdx}-${hourIdx}`}
                     title={`${dayName} เวลา ${hourIdx.toString().padStart(2, '0')}:00 น. มี ${val} งาน${isWorkingHours ? ' (เวลาทำการ)' : ' (นอกเวลาทำการ)'}`}
                     style={{
-                      height: '24px',
+                      height: isWorkingHours ? '24px' : '12px',
                       borderRadius: '6px',
-                      background: getHeatmapColor(val),
-                      border: getHeatmapBorder(val),
-                      borderLeft: cellBorderLeft || getHeatmapBorder(val),
-                      borderRight: cellBorderRight || getHeatmapBorder(val),
-                      boxShadow: isPeak ? '0 0 10px rgba(255, 159, 67, 0.6)' : 'none',
+                      background: cellBg,
+                      border: cellBorder,
+                      borderLeft: cellBorderLeft || cellBorder,
+                      borderRight: cellBorderRight || cellBorder,
+                      boxShadow: (isPeak && isWorkingHours) ? '0 0 10px rgba(255, 159, 67, 0.6)' : 'none',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
@@ -333,20 +353,20 @@ export function DashboardChartsSection({
                     onMouseEnter={(e) => { 
                       e.currentTarget.style.transform = 'scale(1.15)'; 
                       e.currentTarget.style.zIndex = '10'; 
-                      if (isPeak) e.currentTarget.style.boxShadow = '0 0 16px rgba(255, 159, 67, 0.9)';
+                      if (isPeak && isWorkingHours) e.currentTarget.style.boxShadow = '0 0 16px rgba(255, 159, 67, 0.9)';
                     }}
                     onMouseLeave={(e) => { 
                       e.currentTarget.style.transform = 'scale(1)'; 
                       e.currentTarget.style.zIndex = '1'; 
-                      if (isPeak) e.currentTarget.style.boxShadow = '0 0 10px rgba(255, 159, 67, 0.6)';
+                      if (isPeak && isWorkingHours) e.currentTarget.style.boxShadow = '0 0 10px rgba(255, 159, 67, 0.6)';
                     }}
                   >
                      {val > 0 && (
                        <span style={{
-                         fontSize: '9px', 
+                         fontSize: isWorkingHours ? '9px' : '8px', 
                          fontWeight: '800', 
-                         color: (val / maxHeatmapValue) > 0.7 ? '#000' : 'var(--text-main)',
-                         textShadow: (val / maxHeatmapValue) <= 0.7 ? '0 1px 2px rgba(0,0,0,0.8)' : 'none'
+                         color: isWorkingHours && (val / maxHeatmapValue) > 0.7 ? '#000' : 'var(--text-main)',
+                         textShadow: (!isWorkingHours || (val / maxHeatmapValue) <= 0.7) ? '0 1px 2px rgba(0,0,0,0.8)' : 'none'
                        }}>
                          {val}
                        </span>
