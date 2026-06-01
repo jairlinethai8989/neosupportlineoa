@@ -272,36 +272,38 @@ export function DashboardChartsSection({
           <p style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>TICKET VOLUME BY DAY/HOUR</p>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', overflowX: 'auto', paddingBottom: '12px' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '40px ' + Array.from({length: 24}).map((_, i) => (i >= 8 && i <= 18) ? '1fr' : '0.5fr').join(' '), gap: '4px', marginBottom: '4px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '40px ' + Array.from({length: 24}).map((_, i) => (i >= 8 && i <= 18) ? '1.2fr' : '0.6fr').join(' '), gap: '4px', marginBottom: '4px' }}>
              <div />
              {Array.from({length: 24}).map((_, i) => {
-               const isKeyLabel = i === 0 || i === 6 || i === 12 || i === 18;
-               const cellBorderLeft = i === 8 ? '2px solid rgba(255, 255, 255, 0.6)' : undefined;
-               const cellBorderRight = i === 18 ? '2px solid rgba(255, 255, 255, 0.6)' : undefined;
-               return (
-                 <div 
-                   key={`h-${i}`} 
-                   style={{ 
-                     fontSize: isKeyLabel ? '9px' : '10px', 
-                     color: isKeyLabel ? 'var(--text-main)' : 'var(--text-muted)', 
-                     fontWeight: isKeyLabel ? '800' : '400',
-                     textAlign: 'center',
-                     minWidth: '10px',
-                     borderLeft: cellBorderLeft,
-                     borderRight: cellBorderRight
-                   }}
-                 >
-                   {i === 0 && '00:00'}
-                   {i === 6 && '06:00'}
-                   {i === 12 && '12:00'}
-                   {i === 18 && '18:00'}
-                   {!isKeyLabel && '•'}
-                 </div>
-               );
+                const isWorkHourLabel = i >= 8 && i <= 18;
+                const isKeyLabel = isWorkHourLabel || i === 0 || i === 6 || i === 12 || i === 18;
+                const cellBorderLeft = i === 8 ? '2px solid rgba(255, 255, 255, 0.6)' : undefined;
+                const cellBorderRight = i === 18 ? '2px solid rgba(255, 255, 255, 0.6)' : undefined;
+                
+                const labelText = isWorkHourLabel 
+                  ? `${i.toString().padStart(2, '0')}:00` 
+                  : (i === 0 ? '00:00' : (i === 6 ? '06:00' : '•'));
+
+                return (
+                  <div 
+                    key={`h-${i}`} 
+                    style={{ 
+                      fontSize: isWorkHourLabel ? '8px' : (isKeyLabel ? '9px' : '10px'), 
+                      color: isKeyLabel ? 'var(--text-main)' : 'var(--text-muted)', 
+                      fontWeight: isKeyLabel ? '800' : '400',
+                      textAlign: 'center',
+                      minWidth: '10px',
+                      borderLeft: cellBorderLeft,
+                      borderRight: cellBorderRight
+                    }}
+                  >
+                    {labelText}
+                  </div>
+                );
              })}
           </div>
           {heatmapData && heatmapData.length === 7 ? DAYS_TH.map((dayName, dayIdx) => (
-            <div key={`d-${dayIdx}`} style={{ display: 'grid', gridTemplateColumns: '40px ' + Array.from({length: 24}).map((_, i) => (i >= 8 && i <= 18) ? '1fr' : '0.5fr').join(' '), gap: '4px', alignItems: 'center' }}>
+            <div key={`d-${dayIdx}`} style={{ display: 'grid', gridTemplateColumns: '40px ' + Array.from({length: 24}).map((_, i) => (i >= 8 && i <= 18) ? '1.2fr' : '0.6fr').join(' '), gap: '4px', alignItems: 'center' }}>
               <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: '700' }}>{dayName}</div>
               {heatmapData[dayIdx]?.map((val, hourIdx) => {
                 const isWorkingHours = hourIdx >= 8 && hourIdx <= 18;
@@ -336,7 +338,7 @@ export function DashboardChartsSection({
                     key={`cell-${dayIdx}-${hourIdx}`}
                     title={`${dayName} เวลา ${hourIdx.toString().padStart(2, '0')}:00 น. มี ${val} งาน${isWorkingHours ? ' (เวลาทำการ)' : ' (นอกเวลาทำการ)'}`}
                     style={{
-                      height: isWorkingHours ? '24px' : '12px',
+                      height: '24px',
                       borderRadius: '6px',
                       background: cellBg,
                       border: cellBorder,
@@ -363,7 +365,7 @@ export function DashboardChartsSection({
                   >
                      {val > 0 && (
                        <span style={{
-                         fontSize: isWorkingHours ? '9px' : '8px', 
+                         fontSize: '9px', 
                          fontWeight: '800', 
                          color: isWorkingHours && (val / maxHeatmapValue) > 0.7 ? '#000' : 'var(--text-main)',
                          textShadow: (!isWorkingHours || (val / maxHeatmapValue) <= 0.7) ? '0 1px 2px rgba(0,0,0,0.8)' : 'none'
