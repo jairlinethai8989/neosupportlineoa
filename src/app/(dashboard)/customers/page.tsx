@@ -225,13 +225,7 @@ export default function CustomersPage() {
            >
               <RefreshCcw size={20} className={isRefreshing ? 'animate-spin' : ''} />
            </button>
-           <Link 
-             href="/portal"
-             className="glass-interactive flex-center" 
-             style={{ padding: '0 20px', height: '48px', borderRadius: '12px', border: 'none', background: 'var(--primary)', color: 'black', fontWeight: '800', gap: '8px', textDecoration: 'none' }}
-           >
-              <Plus size={20} /> Add Customer (via Portal)
-           </Link>
+           {/* Removed Add Customer button */}
         </div>
       </div>
 

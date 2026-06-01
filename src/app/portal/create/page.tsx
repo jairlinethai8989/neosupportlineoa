@@ -106,6 +106,7 @@ export default function CreateTicketPage() {
             ticket_no: ticketNo,
             customer_id: customerData.id,
             hospital_id: customerData.hospital_id,
+            current_department_id: customerData.department_id,
             subject: subject.trim(),
             description: description,
             status: 'New',

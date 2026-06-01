@@ -36,7 +36,11 @@ export const inboxConversationSelect = `
     id,
     ticket_no,
     subject,
-    status
+    status,
+    hospital_id,
+    current_department_id,
+    hospitals:hospital_id (id, name),
+    departments:current_department_id (id, name)
   )
 `;
 
@@ -62,7 +66,11 @@ const inboxConversationSelectLegacy = `
     id,
     ticket_no,
     subject,
-    status
+    status,
+    hospital_id,
+    current_department_id,
+    hospitals:hospital_id (id, name),
+    departments:current_department_id (id, name)
   )
 `;
 
@@ -82,7 +90,9 @@ export const inboxConversationSelectForList = `
     id,
     ticket_no,
     subject,
-    status
+    status,
+    hospital_id,
+    hospitals:hospital_id (id, name)
   )
 `;
 
@@ -102,7 +112,9 @@ const inboxConversationSelectForListLegacy = `
     id,
     ticket_no,
     subject,
-    status
+    status,
+    hospital_id,
+    hospitals:hospital_id (id, name)
   )
 `;
 
@@ -196,6 +208,10 @@ type EnrichTicketRow = {
   subject: string | null;
   status: string | null;
   customer_id: string | null;
+  hospital_id?: string | null;
+  current_department_id?: string | null;
+  hospitals?: { id: string; name: string | null } | null;
+  departments?: { id: string; name: string | null } | null;
 };
 
 async function enrichConversationsIfNeeded(
@@ -245,7 +261,7 @@ async function enrichConversationsIfNeeded(
     ticketIds.length
       ? supabase
           .from('tickets')
-          .select('id,ticket_no,subject,status,customer_id')
+          .select('id,ticket_no,subject,status,customer_id,hospital_id,current_department_id,hospitals:hospital_id(id,name),departments:current_department_id(id,name)')
           .in('id', ticketIds)
       : Promise.resolve({ data: [], error: null }),
   ]);
@@ -305,6 +321,20 @@ async function enrichConversationsIfNeeded(
         subject: typeof row.subject === 'string' ? row.subject : null,
         status: typeof row.status === 'string' ? row.status : null,
         customer_id: typeof row.customer_id === 'string' ? row.customer_id : null,
+        hospital_id: typeof row.hospital_id === 'string' ? row.hospital_id : null,
+        current_department_id: typeof row.current_department_id === 'string' ? row.current_department_id : null,
+        hospitals: row.hospitals && typeof row.hospitals === 'object'
+          ? {
+              id: typeof (row.hospitals as Record<string, unknown>).id === 'string' ? (row.hospitals as Record<string, unknown>).id as string : '',
+              name: typeof (row.hospitals as Record<string, unknown>).name === 'string' ? (row.hospitals as Record<string, unknown>).name as string : null,
+            }
+          : null,
+        departments: row.departments && typeof row.departments === 'object'
+          ? {
+              id: typeof (row.departments as Record<string, unknown>).id === 'string' ? (row.departments as Record<string, unknown>).id as string : '',
+              name: typeof (row.departments as Record<string, unknown>).name === 'string' ? (row.departments as Record<string, unknown>).name as string : null,
+            }
+          : null,
       });
     }
   });
@@ -323,17 +353,25 @@ async function enrichConversationsIfNeeded(
       ...conversation,
       customers:
         conversation.customers?.display_name || !customerFromMap
-          ? conversation.customers
+          ? {
+              ...conversation.customers,
+              // Override with ticket's snapshot data if available (Option A implementation)
+              hospital_id: ticketFromMap?.hospital_id || conversation.customers?.hospital_id || null,
+              department_id: ticketFromMap?.current_department_id || conversation.customers?.department_id || null,
+              hospitals: ticketFromMap?.hospitals || conversation.customers?.hospitals || null,
+              departments: ticketFromMap?.departments || conversation.customers?.departments || null,
+            } as any
           : {
               id: customerFromMap.id,
               display_name: customerFromMap.display_name,
               line_user_id: customerFromMap.line_user_id,
               avatar_url: conversation.customers?.avatar_url || customerFromMap.avatar_url || null,
-              hospital_id: customerFromMap.hospital_id || null,
-              department_id: customerFromMap.department_id || null,
+              // Override with ticket's snapshot data if available (Option A implementation)
+              hospital_id: ticketFromMap?.hospital_id || customerFromMap.hospital_id || null,
+              department_id: ticketFromMap?.current_department_id || customerFromMap.department_id || null,
               position_id: customerFromMap.position_id || null,
-              hospitals: customerFromMap.hospitals || null,
-              departments: customerFromMap.departments || null,
+              hospitals: ticketFromMap?.hospitals || customerFromMap.hospitals || null,
+              departments: ticketFromMap?.departments || customerFromMap.departments || null,
               positions: customerFromMap.positions || null,
             },
       ticket_data:
