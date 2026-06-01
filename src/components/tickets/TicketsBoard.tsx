@@ -380,49 +380,72 @@ export function TicketsBoard({
                 </h3>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   {totalPages > 1 && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginRight: '4px' }}>
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      background: 'rgba(255, 255, 255, 0.03)',
+                      border: '1px solid var(--border)',
+                      borderRadius: '12px',
+                      padding: '3px 6px',
+                      marginRight: '6px',
+                      boxShadow: 'inset 0 1px 3px rgba(0, 0, 0, 0.2)'
+                    }}>
                       <button
                         onClick={() => setColumnPages((prev) => ({ ...prev, [columnId]: Math.max(1, currentPage - 1) }))}
                         disabled={currentPage === 1}
+                        className="glass-interactive flex-center"
                         style={{
-                          background: 'rgba(255,255,255,0.05)',
+                          width: '28px',
+                          height: '28px',
+                          background: currentPage === 1 ? 'transparent' : 'rgba(255, 255, 255, 0.06)',
                           border: '1px solid var(--border)',
-                          borderRadius: '6px',
-                          color: currentPage === 1 ? 'var(--text-dim)' : 'var(--text-main)',
+                          borderRadius: '8px',
+                          color: currentPage === 1 ? 'var(--text-dim)' : config.color,
                           cursor: currentPage === 1 ? 'not-allowed' : 'pointer',
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
-                          padding: '4px',
-                          opacity: currentPage === 1 ? 0.3 : 1,
-                          transition: 'all 0.2s',
+                          opacity: currentPage === 1 ? 0.2 : 1,
+                          transition: 'all 0.2s ease-in-out',
+                          boxShadow: currentPage === 1 ? 'none' : `0 2px 8px ${config.glow}`,
                         }}
                         title={locale === 'th' ? 'ก่อนหน้า' : 'Previous'}
                       >
-                        <ChevronLeft size={12} />
+                        <ChevronLeft size={16} />
                       </button>
-                      <span style={{ fontSize: '10px', fontWeight: '800', color: 'var(--text-muted)', minWidth: '24px', textAlign: 'center' }}>
-                        {currentPage}/{totalPages}
+                      <span style={{
+                        fontSize: '11px',
+                        fontWeight: '800',
+                        color: 'var(--text-main)',
+                        minWidth: '32px',
+                        textAlign: 'center',
+                        letterSpacing: '0.5px'
+                      }}>
+                        {currentPage}<span style={{ color: 'var(--text-dim)', fontWeight: '500', margin: '0 1px' }}>/</span>{totalPages}
                       </span>
                       <button
                         onClick={() => setColumnPages((prev) => ({ ...prev, [columnId]: Math.min(totalPages, currentPage + 1) }))}
                         disabled={currentPage === totalPages}
+                        className="glass-interactive flex-center"
                         style={{
-                          background: 'rgba(255,255,255,0.05)',
+                          width: '28px',
+                          height: '28px',
+                          background: currentPage === totalPages ? 'transparent' : 'rgba(255, 255, 255, 0.06)',
                           border: '1px solid var(--border)',
-                          borderRadius: '6px',
-                          color: currentPage === totalPages ? 'var(--text-dim)' : 'var(--text-main)',
+                          borderRadius: '8px',
+                          color: currentPage === totalPages ? 'var(--text-dim)' : config.color,
                           cursor: currentPage === totalPages ? 'not-allowed' : 'pointer',
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
-                          padding: '4px',
-                          opacity: currentPage === totalPages ? 0.3 : 1,
-                          transition: 'all 0.2s',
+                          opacity: currentPage === totalPages ? 0.2 : 1,
+                          transition: 'all 0.2s ease-in-out',
+                          boxShadow: currentPage === totalPages ? 'none' : `0 2px 8px ${config.glow}`,
                         }}
                         title={locale === 'th' ? 'ถัดไป' : 'Next'}
                       >
-                        <ChevronRight size={12} />
+                        <ChevronRight size={16} />
                       </button>
                     </div>
                   )}
