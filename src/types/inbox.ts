@@ -26,6 +26,7 @@ export interface InboxConversation {
     ticket_no: string | null;
     subject: string | null;
     status?: string | null;
+    organizations?: { id?: string; name: string | null } | null;
   } | null;
 }
 

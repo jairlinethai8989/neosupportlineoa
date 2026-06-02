@@ -205,7 +205,7 @@ export const TicketSidebar: React.FC<TicketSidebarProps> = ({
             </div>
             <div style={{ display: 'grid', gap: '10px', alignContent: 'center', flex: '1 1 180px', minWidth: '0' }}>
               <p style={{ margin: 0, fontSize: '12px', color: 'var(--text-main)' }}>
-                {t('inbox.organization')}: <strong>{customer?.organizations?.name || '-'}</strong>
+                {t('inbox.organization')}: <strong>{selectedChat.ticket_data?.organizations?.name || customer?.organizations?.name || '-'}</strong>
               </p>
               <p style={{ margin: 0, fontSize: '12px', color: 'var(--text-main)' }}>
                 {t('inbox.department')}: <strong>{customer?.departments?.name || '-'}</strong>
