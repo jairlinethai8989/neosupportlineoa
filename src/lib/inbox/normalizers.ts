@@ -115,6 +115,9 @@ export function normalizeInboxConversation(value: unknown): InboxConversation | 
       ticket_no: asString(ticketData.ticket_no),
       subject: asString(ticketData.subject),
       status: asString(ticketData.status),
+      organizations: isRecord(ticketData.organizations)
+        ? { id: asString(ticketData.organizations.id) || '', name: asString(ticketData.organizations.name) }
+        : null,
     } : null,
   };
 }

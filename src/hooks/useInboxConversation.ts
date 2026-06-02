@@ -121,7 +121,7 @@ export function useInboxConversation({
       const optimisticClaim = urlParams.get('oc') === '1';
 
       let targetTicketId: string | null = null;
-      let targetTicketData: any = null;
+      let targetTicketData: InboxConversation['ticket_data'] = null;
 
       const shouldUseUrlTicket =
         Boolean(urlTicketId) &&

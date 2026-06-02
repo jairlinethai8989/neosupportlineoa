@@ -360,7 +360,7 @@ async function enrichConversationsIfNeeded(
               department_id: ticketFromMap?.current_department_id || conversation.customers?.department_id || null,
               organizations: ticketFromMap?.organizations || conversation.customers?.organizations || null,
               departments: ticketFromMap?.departments || conversation.customers?.departments || null,
-            } as any
+            } as InboxCustomer
           : {
               id: customerFromMap.id,
               display_name: customerFromMap.display_name,
@@ -376,12 +376,21 @@ async function enrichConversationsIfNeeded(
             },
       ticket_data:
         conversation.ticket_data?.ticket_no || !ticketFromMap
-          ? conversation.ticket_data
+          ? (conversation.ticket_data
+              ? {
+                  ...conversation.ticket_data,
+                  organizations:
+                    conversation.ticket_data.organizations ||
+                    ticketFromMap?.organizations ||
+                    null,
+                }
+              : null)
           : {
               id: ticketFromMap.id,
               ticket_no: ticketFromMap.ticket_no,
               subject: ticketFromMap.subject,
               status: ticketFromMap.status,
+              organizations: ticketFromMap.organizations || null,
             },
     };
   });
