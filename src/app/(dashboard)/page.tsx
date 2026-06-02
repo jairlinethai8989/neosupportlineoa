@@ -63,7 +63,7 @@ let dashboardCache: {
   trendRows: TrendRow[];
   statusRows: ValueRow[];
   priorityRows: ValueRow[];
-  hospitalRows: ValueRow[];
+  organizationRows: ValueRow[];
   agentRows: AgentRow[];
   heatmap: number[][];
 } | null = null;
@@ -219,7 +219,7 @@ export default function Home() {
   const [trendRows, setTrendRows] = useState<TrendRow[]>(hasCache ? dashboardCache!.trendRows : []);
   const [statusRows, setStatusRows] = useState<ValueRow[]>(hasCache ? dashboardCache!.statusRows : []);
   const [priorityRows, setPriorityRows] = useState<ValueRow[]>(hasCache ? dashboardCache!.priorityRows : []);
-  const [hospitalRows, setHospitalRows] = useState<ValueRow[]>(hasCache ? dashboardCache!.hospitalRows : []);
+  const [organizationRows, setOrganizationRows] = useState<ValueRow[]>(hasCache ? dashboardCache!.organizationRows : []);
   const [agentRows, setAgentRows] = useState<AgentRow[]>(hasCache ? dashboardCache!.agentRows : []);
   const [heatmap, setHeatmap] = useState<number[][]>(hasCache ? dashboardCache!.heatmap : []);
   
@@ -338,7 +338,7 @@ export default function Home() {
         setTrendRows(payload.trendByDay || []);
         setStatusRows(payload.statusData || []);
         setPriorityRows(payload.priorityData || []);
-        setHospitalRows(payload.hospitalData || []);
+        setOrganizationRows(payload.organizationData || []);
         setAgentRows(payload.agentData || []);
         setHeatmap(payload.heatmap || []);
         
@@ -348,7 +348,7 @@ export default function Home() {
           trendRows: payload.trendByDay || [],
           statusRows: payload.statusData || [],
           priorityRows: payload.priorityData || [],
-          hospitalRows: payload.hospitalData || [],
+          organizationRows: payload.organizationData || [],
           agentRows: payload.agentData || [],
           heatmap: payload.heatmap || [],
         };
@@ -370,7 +370,7 @@ export default function Home() {
         setTrendRows([]);
         setStatusRows([]);
         setPriorityRows([]);
-        setHospitalRows([]);
+        setOrganizationRows([]);
         setAgentRows([]);
         setHeatmap([]);
         setRecentLogs([]);
@@ -438,14 +438,14 @@ export default function Home() {
       })),
     [priorityRows]
   );
-  const hospitalData = useMemo(
+  const organizationData = useMemo(
     () =>
-      hospitalRows.map(({ name, value }, index) => ({
-        name,
+      organizationRows.map(({ name, value }, index) => ({
+        name: name || 'ไม่ระบุ',
         value,
-        fill: HOSPITAL_COLORS[index % HOSPITAL_COLORS.length],
+        fill: ['#00f2fe', '#4facfe', '#00d4ff', '#80f9ff', '#b3fbff'][index % 5],
       })),
-    [hospitalRows]
+    [organizationRows]
   );
 
   const agentData = useMemo(
@@ -843,7 +843,7 @@ export default function Home() {
         <DashboardChartsSection
           trendData={trendData}
           statusData={statusData}
-          hospitalData={hospitalData}
+          organizationData={organizationData}
           agentData={agentData}
           recentLogs={recentLogs}
           totalAll={stats.totalAll}
@@ -855,7 +855,7 @@ export default function Home() {
             statusDistribution: t('dashboard.statusDistribution'),
             allTab: t('dashboard.tabs.all'),
             priorityBreakdown: t('dashboard.priorityBreakdown'),
-            hospitalWorkload: t('dashboard.hospitalWorkload'),
+            organizationWorkload: t('dashboard.organizationWorkload'),
             agentWorkload: t('dashboard.agentWorkload'),
             recentActivity: t('dashboard.recentActivity'),
             noResults: t('common.messages.noResults'),

@@ -84,7 +84,7 @@ const PieTooltip = ({ active, payload }: any) => {
 type DashboardChartsSectionProps = {
   trendData: TrendPoint[];
   statusData: ChartDatum[];
-  hospitalData: ChartDatum[];
+  organizationData: ChartDatum[];
   agentData: AgentDatum[];
   recentLogs: RecentLog[];
   totalAll: number;
@@ -96,7 +96,7 @@ type DashboardChartsSectionProps = {
     statusDistribution: string;
     allTab: string;
     priorityBreakdown: string;
-    hospitalWorkload: string;
+    organizationWorkload: string;
     agentWorkload: string;
     recentActivity: string;
     noResults: string;
@@ -108,7 +108,7 @@ type DashboardChartsSectionProps = {
 export function DashboardChartsSection({
   trendData,
   statusData,
-  hospitalData,
+  organizationData,
   agentData,
   recentLogs,
   totalAll,
@@ -401,19 +401,19 @@ export function DashboardChartsSection({
           {/* Organization Workload */}
           <div className="glass" style={{ padding: '24px', display: 'flex', flexDirection: 'column', flex: 1 }}>
             <div style={{ marginBottom: '16px' }}>
-              <h2 style={{ fontSize: '16px', fontWeight: '800', marginBottom: '2px' }}>{labels.hospitalWorkload}</h2>
+              <h2 style={{ fontSize: '16px', fontWeight: '800', marginBottom: '2px' }}>{labels.organizationWorkload}</h2>
               <p style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>ORGANIZATION WORKLOAD</p>
             </div>
             <div style={{ flex: 1, minHeight: '320px' }}>
-              {hospitalData.length > 0 ? (
+              {organizationData.length > 0 ? (
                 <ResponsiveContainer width="100%" height={320}>
-                  <BarChart layout="vertical" data={hospitalData} margin={{ top: 5, right: 20, bottom: 5, left: -10 }}>
+                  <BarChart layout="vertical" data={organizationData} margin={{ top: 5, right: 20, bottom: 5, left: -10 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="rgba(128,128,128,0.1)" horizontal={false} />
                     <XAxis type="number" stroke="var(--text-muted)" fontSize={11} tickLine={false} axisLine={false} allowDecimals={false} />
                     <YAxis dataKey="name" type="category" stroke="var(--text-muted)" fontSize={11} tickLine={false} axisLine={false} width={120} />
                     <Tooltip content={<CustomTooltip />} />
                     <Bar dataKey="value" radius={[0, 6, 6, 0]} barSize={24}>
-                      {hospitalData.map((entry, index) => (
+                      {organizationData.map((entry, index) => (
                         <Cell key={`cell-${index}`} fill={entry.fill || CHART_COLORS.primary} />
                       ))}
                     </Bar>

@@ -76,10 +76,10 @@ export async function GET(req: Request) {
       const parsed = typeof rpcData === 'string' ? JSON.parse(rpcData) : rpcData;
       const rawPayload = parsed || {
         stats: { totalToday: 0, yesterdayCount: 0, newTickets: 0, inProgress: 0, pending: 0, escalated: 0, resolved: 0, totalAll: 0, avgCsat: 0.0 },
-        statusData: [], priorityData: [], hospitalData: [], agentData: [], createdCountsByDay: {}, resolvedCountsByDay: {}
+        statusData: [], priorityData: [], organizationData: [], agentData: [], createdCountsByDay: {}, resolvedCountsByDay: {}
       };
 
-      const { stats, statusData, priorityData, hospitalData, agentData, createdCountsByDay, resolvedCountsByDay } = rawPayload as any;
+      const { stats, statusData, priorityData, organizationData, agentData, createdCountsByDay, resolvedCountsByDay } = rawPayload as any;
 
       // Calculate Trend Percentage
       const trendPct = stats.yesterdayCount > 0 
@@ -162,7 +162,7 @@ export async function GET(req: Request) {
         trendByDay,
         statusData,
         priorityData,
-        hospitalData,
+        organizationData,
         agentData,
         recentLogs,
         heatmap,
