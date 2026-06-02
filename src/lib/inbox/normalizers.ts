@@ -39,6 +39,7 @@ export function normalizeInboxCustomer(value: unknown): InboxCustomer | null {
   const metadata = isRecord(value.metadata) ? value.metadata : null;
   const lineProfile = metadata && isRecord(metadata.line_profile) ? metadata.line_profile : null;
   const avatarFromMetadata = lineProfile ? asString(lineProfile.picture_url) : null;
+  const displayNameFromMetadata = lineProfile ? asString(lineProfile.display_name) : null;
 
   const organizations = isRecord(value.organizations)
     ? { id: asString(value.organizations.id) || '', name: asString(value.organizations.name) }
@@ -50,9 +51,14 @@ export function normalizeInboxCustomer(value: unknown): InboxCustomer | null {
     ? { id: asString(value.positions.id) || '', name: asString(value.positions.name) }
     : null;
 
+  const rawDisplayName = asString(value.display_name);
+  const displayName = !rawDisplayName || rawDisplayName.toLowerCase() === 'line user'
+    ? displayNameFromMetadata || rawDisplayName
+    : rawDisplayName;
+
   return {
     id: asString(value.id) || '',
-    display_name: asString(value.display_name),
+    display_name: displayName,
     line_user_id: asString(value.line_user_id),
     avatar_url: asString(value.avatar_url) || avatarFromMetadata,
     organization_id: asString(value.organization_id),

@@ -85,7 +85,7 @@ export const inboxConversationSelectForList = `
     id,
     display_name,
     line_user_id,
-    avatar_url,
+    metadata,
     organization_id,
     organizations:organization_id (id, name)
   ),
@@ -109,7 +109,7 @@ const inboxConversationSelectForListLegacy = `
     id,
     display_name,
     line_user_id,
-    avatar_url,
+    metadata,
     organization_id,
     organizations:organization_id (id, name)
   ),
@@ -252,7 +252,6 @@ async function enrichConversationsIfNeeded(
             id,
             display_name,
             line_user_id,
-            avatar_url,
             metadata,
             organization_id,
             department_id,
