@@ -139,8 +139,6 @@ export const InboxSidebar: React.FC<InboxSidebarProps> = ({
                         marginTop: '3px',
                         marginBottom: '3px',
                         letterSpacing: '0.3px',
-                        boxShadow: `0 2px 8px ${colors.bg}`,
-                        opacity: 0.95
                       }}>
                         {hospitalName}
                       </span>
@@ -148,14 +146,14 @@ export const InboxSidebar: React.FC<InboxSidebarProps> = ({
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', minHeight: '12px' }}>
                       {chat.ticket_data?.subject ? (
                         <span style={{ 
-                          fontSize: '10px', 
+                          fontSize: '11px', 
                           color: 'var(--text-muted)',
                           fontWeight: '500',
                           maxWidth: '210px',
                           overflow: 'hidden',
                           textOverflow: 'ellipsis',
                           whiteSpace: 'nowrap',
-                          fontStyle: 'italic'
+                          marginTop: '2px',
                         }}>
                           {chat.ticket_data.subject}
                         </span>

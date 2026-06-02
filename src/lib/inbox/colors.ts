@@ -30,16 +30,15 @@ export function getHospitalColorStyles(hospitalName?: string | null): HospitalCo
   // Distribute hue evenly across 0-360 degrees
   const hue = Math.abs(hash) % 360;
   
-  // Saturation: 85% for vibrant neon colors that pop on dark background
-  // Lightness: 60% for crisp readability and optimal contrast on dark backgrounds
-  const baseColor = `hsl(${hue}, 85%, 60%)`;
-  const bgColor = `hsla(${hue}, 85%, 60%, 0.08)`;
-  const textColor = `hsl(${hue}, 90%, 75%)`;
-  const borderColor = `hsla(${hue}, 85%, 60%, 0.2)`;
+  // Use CSS variables for theme-aware color dynamics, falling back to dark mode presets
+  const baseColor = `hsl(${hue}, var(--badge-sat, 70%), var(--badge-light, 60%))`;
+  const bgColor = `hsla(${hue}, var(--badge-sat, 70%), var(--badge-light-bg, 55%), var(--badge-opacity, 0.1))`;
+  const textColor = `hsl(${hue}, var(--badge-sat, 70%), var(--badge-light-text, 85%))`;
+  const borderColor = `hsla(${hue}, var(--badge-sat, 70%), var(--badge-light-border, 55%), var(--badge-border-opacity, 0.25))`;
   
   // 45 degrees progressive shift for standard modern gradients
   const nextHue = (hue + 45) % 360;
-  const gradient = `linear-gradient(135deg, hsl(${hue}, 85%, 60%) 0%, hsl(${nextHue}, 85%, 60%) 100%)`;
+  const gradient = `linear-gradient(135deg, hsl(${hue}, var(--badge-sat, 70%), var(--badge-light, 60%)) 0%, hsl(${nextHue}, var(--badge-sat, 70%), var(--badge-light, 60%)) 100%)`;
 
   return {
     accent: baseColor,
