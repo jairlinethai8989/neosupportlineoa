@@ -84,6 +84,8 @@ export const inboxConversationSelectForList = `
   customers (
     id,
     display_name,
+    line_user_id,
+    avatar_url,
     organization_id,
     organizations:organization_id (id, name)
   ),
@@ -106,6 +108,8 @@ const inboxConversationSelectForListLegacy = `
   customers (
     id,
     display_name,
+    line_user_id,
+    avatar_url,
     organization_id,
     organizations:organization_id (id, name)
   ),
@@ -356,6 +360,8 @@ async function enrichConversationsIfNeeded(
         conversation.customers?.display_name || !customerFromMap
           ? {
               ...conversation.customers,
+              line_user_id: conversation.customers?.line_user_id || customerFromMap?.line_user_id || null,
+              avatar_url: conversation.customers?.avatar_url || customerFromMap?.avatar_url || null,
               // Override with ticket's snapshot data if available (Option A implementation)
               organization_id: ticketFromMap?.organization_id || conversation.customers?.organization_id || null,
               department_id: ticketFromMap?.current_department_id || conversation.customers?.department_id || null,
