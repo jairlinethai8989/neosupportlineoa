@@ -10,6 +10,7 @@ import type {
   InboxAgent,
   InboxCompanySettings,
   InboxConversation,
+  InboxCustomer,
   InboxMessage,
   InboxTicket,
 } from '@/types/inbox';
