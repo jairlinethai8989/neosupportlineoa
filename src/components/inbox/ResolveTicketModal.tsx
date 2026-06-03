@@ -109,29 +109,6 @@ export function ResolveTicketModal({
           </p>
         </div>
 
-        {isChatActive && (
-          <div 
-            style={{ 
-              marginBottom: '28px', 
-              padding: '14px 20px', 
-              background: 'var(--danger)', 
-              borderRadius: '14px',
-              color: 'white',
-              fontSize: '14px',
-              fontWeight: '900',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '12px',
-              boxShadow: '0 8px 16px rgba(239, 68, 68, 0.4)',
-              animation: 'pulse 2s infinite',
-              border: '2px solid rgba(255,255,255,0.2)'
-            }}
-          >
-            <span style={{ fontSize: '18px' }}>⚠️</span>
-            <span>ต้องกด &ldquo;จบการสนทนา&rdquo; ที่หน้าหลักก่อนถึงจะปิดใบงานได้</span>
-          </div>
-        )}
 
         <div style={{ marginBottom: '16px' }}>
           <label

@@ -450,6 +450,11 @@ export default function StaffTicketDetailPage() {
         : []
     );
 
+    const companyTemplates = (companyResult.data?.resolution_templates as unknown[]) || [];
+    const mappedCompanyTemplates = companyTemplates.map(t => 
+      typeof t === 'string' ? t : String((t as Record<string, unknown>)?.content || t)
+    );
+
     const authUser = authResult.data.user;
     if (authUser) {
       const { data: profile } = await supabase
@@ -469,19 +474,19 @@ export default function StaffTicketDetailPage() {
         
         if (profile.resolution_templates && profile.resolution_templates.length > 0) {
           setPersonalResTemplates(profile.resolution_templates);
-        } else if (companyResult.data?.resolution_templates?.length) {
-          setPersonalResTemplates(companyResult.data.resolution_templates);
+        } else if (mappedCompanyTemplates.length) {
+          setPersonalResTemplates(mappedCompanyTemplates);
         } else {
           setPersonalResTemplates([]);
         }
       } else {
         setUser({ id: authUser.id });
-        if (companyResult.data?.resolution_templates?.length) {
-          setPersonalResTemplates(companyResult.data.resolution_templates);
+        if (mappedCompanyTemplates.length) {
+          setPersonalResTemplates(mappedCompanyTemplates);
         }
       }
-    } else if (companyResult.data?.resolution_templates?.length) {
-      setPersonalResTemplates(companyResult.data.resolution_templates);
+    } else if (mappedCompanyTemplates.length) {
+      setPersonalResTemplates(mappedCompanyTemplates);
     }
 
     staticMetaLoadedRef.current = true;
@@ -928,10 +933,6 @@ export default function StaffTicketDetailPage() {
     if (!ticketId || !ticket || !user?.id) return;
     if (!resSummary.trim() || !selectedModule || !selectedIssueType) {
       addToast(getTicketDetailValidationToast());
-      return;
-    }
-    if (isChatActive) {
-      addToast(getTicketDetailChatMustEndToast());
       return;
     }
 

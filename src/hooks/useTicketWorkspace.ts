@@ -500,8 +500,10 @@ export function useTicketWorkspace(filterCustomerId: string | null) {
 
       // Sync personal/global resolution templates
       const personalTemplates = appProfile.resolution_templates || [];
-      const globalTemplates = (appSettings?.resolution_templates as string[]) || [];
-      const templates = personalTemplates.length > 0 ? personalTemplates : globalTemplates;
+      const globalTemplates = (appSettings?.resolution_templates as unknown[]) || [];
+      const templates = personalTemplates.length > 0
+        ? personalTemplates
+        : globalTemplates.map(t => typeof t === 'string' ? t : String((t as Record<string, unknown>)?.content || t));
       setPersonalResTemplates(templates);
       cache.personalResTemplates = templates;
     }
@@ -714,18 +716,6 @@ export function useTicketWorkspace(filterCustomerId: string | null) {
 
   const handleExecuteResolve = useCallback(async () => {
     if (!resolvingTicket || !resSummary.trim()) return;
-
-    const activeConv = conversations.find(
-      (conversation) =>
-        (conversation.current_ticket_id === resolvingTicket.id ||
-          conversation.customer_id === resolvingTicket.customer_id) &&
-        ['active', 'open', 'new', 'pending'].includes((conversation.status || '').toLowerCase())
-    );
-
-    if (activeConv) {
-      addToast(getTicketWorkspaceActiveConversationToast());
-      return;
-    }
 
     try {
       setLoading(true);

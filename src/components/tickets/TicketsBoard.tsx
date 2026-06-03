@@ -593,7 +593,7 @@ export function TicketsBoard({
                                 </button>
                             )}
 
-                            {!isNew && (isInProgress || (convId && !['resolved', 'closed', 'pending', 'escalated'].includes(normalizedStatus))) && (
+                            {!isNew && (isInProgress || (convId && !['resolved', 'closed', 'pending', 'escalated', 'fix completed'].includes(normalizedStatus))) && (
                                 <Link
                                   href={chatHref}
                                   title={t('tickets.openInboxChat')}

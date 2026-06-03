@@ -250,7 +250,7 @@ export function TicketsTable({
                           : <><Zap size={14} />{t('tickets.claimTicket')}</>}
                       </button>
                     )}
-                    {convId && !['new', 'resolved', 'closed', 'pending', 'escalated'].includes(String(ticket.status || '').toLowerCase()) && (
+                    {convId && !['new', 'resolved', 'closed', 'pending', 'escalated', 'fix completed'].includes(String(ticket.status || '').toLowerCase()) && (
                       <Link
                         href={`/inbox?cid=${convId}`}
                         title={t('tickets.openInboxChat')}

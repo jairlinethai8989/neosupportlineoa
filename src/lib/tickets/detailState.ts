@@ -40,6 +40,6 @@ export function canResolveTicket(
   isOwnerOrAdmin: boolean,
   isChatActive: boolean
 ) {
-  return !isResolvedOrClosedStatus(status) && !isNewStatus(status) && isOwnerOrAdmin && !isChatActive;
+  return !isResolvedOrClosedStatus(status) && !isNewStatus(status) && isOwnerOrAdmin;
 }
 

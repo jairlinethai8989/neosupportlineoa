@@ -149,26 +149,7 @@ export const TicketHeader: React.FC<TicketHeaderProps> = ({
         >
           <FileDown size={18} /> Ticket Summary
         </button>
-        {!isResolvedOrClosed && !isNewStatus(status) && isOwnerOrAdmin && isChatActive && (
-          <button
-            disabled
-            className="flex-center"
-            style={{
-              padding: '0 20px',
-              height: '44px',
-              borderRadius: '12px',
-              border: '1px solid var(--border)',
-              background: 'rgba(255,255,255,0.05)',
-              color: 'var(--text-muted)',
-              fontWeight: '800',
-              gap: '8px',
-              cursor: 'not-allowed',
-            }}
-            title="Please end the live chat session before resolving this ticket."
-          >
-            <CheckCircle size={18} /> End Chat First
-          </button>
-        )}
+
         {canReviewFixCompleted && (
           <>
             <button
