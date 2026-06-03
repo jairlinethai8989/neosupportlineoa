@@ -87,7 +87,11 @@ export const inboxConversationSelectForList = `
     line_user_id,
     metadata,
     organization_id,
-    organizations:organization_id (id, name)
+    department_id,
+    position_id,
+    organizations:organization_id (id, name),
+    departments:department_id (id, name),
+    positions:position_id (id, name)
   ),
   ticket_data:current_ticket_id (
     id,
@@ -111,7 +115,11 @@ const inboxConversationSelectForListLegacy = `
     line_user_id,
     metadata,
     organization_id,
-    organizations:organization_id (id, name)
+    department_id,
+    position_id,
+    organizations:organization_id (id, name),
+    departments:department_id (id, name),
+    positions:position_id (id, name)
   ),
   ticket_data:current_ticket_id (
     id,
