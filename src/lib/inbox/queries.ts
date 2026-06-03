@@ -362,10 +362,12 @@ async function enrichConversationsIfNeeded(
               line_user_id: conversation.customers?.line_user_id || customerFromMap?.line_user_id || null,
               avatar_url: conversation.customers?.avatar_url || customerFromMap?.avatar_url || null,
               // Override with ticket's snapshot data if available (Option A implementation)
-              organization_id: ticketFromMap?.organization_id || conversation.customers?.organization_id || null,
-              department_id: ticketFromMap?.current_department_id || conversation.customers?.department_id || null,
-              organizations: ticketFromMap?.organizations || conversation.customers?.organizations || null,
-              departments: ticketFromMap?.departments || conversation.customers?.departments || null,
+              organization_id: ticketFromMap?.organization_id || conversation.customers?.organization_id || customerFromMap?.organization_id || null,
+              department_id: ticketFromMap?.current_department_id || conversation.customers?.department_id || customerFromMap?.department_id || null,
+              position_id: conversation.customers?.position_id || customerFromMap?.position_id || null,
+              organizations: ticketFromMap?.organizations || conversation.customers?.organizations || customerFromMap?.organizations || null,
+              departments: ticketFromMap?.departments || conversation.customers?.departments || customerFromMap?.departments || null,
+              positions: conversation.customers?.positions || customerFromMap?.positions || null,
             } as InboxCustomer
           : {
               id: customerFromMap.id,
