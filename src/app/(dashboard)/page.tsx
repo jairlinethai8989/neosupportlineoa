@@ -15,12 +15,14 @@ import {
   Activity,
   Zap
 } from 'lucide-react';
+import { useNotificationContext } from '@/contexts/NotificationContext';
 import { supabase } from '@/lib/supabase';
 import Skeleton from '@/components/ui/Skeleton';
 import { useStaffLocale } from '@/contexts/StaffLocaleContext';
 import { useAppContext } from '@/contexts/AppContext';
 import { useRouter } from 'next/navigation';
 import { ExportPreviewModal, type ExportPreviewData } from '@/components/ui/ExportPreviewModal';
+import useSWR from 'swr';
 const DashboardChartsSection = React.lazy(() =>
   import('@/components/dashboard/DashboardChartsSection').then((module) => ({
     default: module.DashboardChartsSection,
@@ -58,16 +60,6 @@ const EMPTY_STATS: DashboardStats = {
 };
 
 let exportUtilsPromise: Promise<ExportUtilsModule> | null = null;
-let dashboardCache: {
-  key: string;
-  stats: DashboardStats;
-  trendRows: TrendRow[];
-  statusRows: ValueRow[];
-  priorityRows: ValueRow[];
-  organizationRows: ValueRow[];
-  agentRows: AgentRow[];
-  heatmap: number[][];
-} | null = null;
 
 async function loadExportUtils(): Promise<ExportUtilsModule> {
   if (!exportUtilsPromise) {
@@ -204,6 +196,7 @@ export default function Home() {
 
   useEffect(() => {
     if (contextOrgs.length > 0) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setOrganizationsList(contextOrgs as any[]);
     }
   }, [contextOrgs]);
@@ -212,9 +205,11 @@ export default function Home() {
   useEffect(() => {
     if (companySettings?.modules?.length || companySettings?.issue_types?.length) {
       if (companySettings.modules?.length) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setModulesList(companySettings.modules.map((name: string) => ({ name })));
       }
       if (companySettings.issue_types?.length) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setIssueTypesList(companySettings.issue_types.map((name: string) => ({ name })));
       }
       return;
@@ -234,25 +229,30 @@ export default function Home() {
     [timeRange, customStart, customEnd]
   );
   const currentWindowKey = `${dateWindow.from.toISOString()}_${dateWindow.to.toISOString()}_h=${selectedHospital}_m=${selectedModule}_t=${selectedIssueType}`;
-  const hasCache = dashboardCache?.key === currentWindowKey;
 
-  const [stats, setStats] = useState<DashboardStats>(hasCache ? dashboardCache!.stats : EMPTY_STATS);
-  const [trendRows, setTrendRows] = useState<TrendRow[]>(hasCache ? dashboardCache!.trendRows : []);
-  const [statusRows, setStatusRows] = useState<ValueRow[]>(hasCache ? dashboardCache!.statusRows : []);
-  const [priorityRows, setPriorityRows] = useState<ValueRow[]>(hasCache ? dashboardCache!.priorityRows : []);
-  const [organizationRows, setOrganizationRows] = useState<ValueRow[]>(hasCache ? dashboardCache!.organizationRows : []);
-  const [agentRows, setAgentRows] = useState<AgentRow[]>(hasCache ? dashboardCache!.agentRows : []);
-  const [heatmap, setHeatmap] = useState<number[][]>(hasCache ? dashboardCache!.heatmap : []);
+  const fetchUrl = `/api/dashboard/summary?from=${encodeURIComponent(dateWindow.from.toISOString())}&to=${encodeURIComponent(dateWindow.to.toISOString())}&organizationId=${selectedHospital}&module=${selectedModule}&issueType=${selectedIssueType}`;
+  const { data: payload, isLoading: isSwrLoading, mutate } = useSWR(fetchUrl);
+  
+  const logsFetchUrl = payload ? `/api/dashboard/summary?from=${encodeURIComponent(dateWindow.from.toISOString())}&to=${encodeURIComponent(dateWindow.to.toISOString())}&includeLogs=1&organizationId=${selectedHospital}&module=${selectedModule}&issueType=${selectedIssueType}` : null;
+  const { data: logsPayload } = useSWR(logsFetchUrl);
+
+  const stats = payload?.stats || EMPTY_STATS;
+  const trendRows = payload?.trendByDay || [];
+  const statusRows = payload?.statusData || [];
+  const priorityRows = payload?.priorityData || [];
+  const organizationRows = payload?.organizationData || [];
+  const agentRows = payload?.agentData || [];
+  const heatmap = payload?.heatmap || [];
+  const recentLogs = logsPayload?.recentLogs || [];
+  const isLoading = isSwrLoading && !payload; // Use data to prevent layout thrashing on revalidation
   
   const [exportTicketsRows, setExportTicketsRows] = useState<any[]>([]);
   const [exportTicketsKey, setExportTicketsKey] = useState<string>('');
-  const [recentLogs, setRecentLogs] = useState<LogRow[]>([]);
   const [showExportMenu, setShowExportMenu] = useState(false);
   const exportRef = React.useRef<HTMLDivElement>(null);
   const [showExportPreview, setShowExportPreview] = useState(false);
   const [previewData, setPreviewData] = useState<ExportPreviewData | null>(null);
   const [pendingFormat, setPendingFormat] = useState<'xlsx' | 'pdf' | null>(null);
-  const [isLoading, setIsLoading] = useState(!hasCache);
 
   // Click outside to close export menu
   useEffect(() => {
@@ -342,85 +342,18 @@ export default function Home() {
     setShowExportPreview(false);
   };
 
+  const { lastDbEvent } = useNotificationContext();
+
   useEffect(() => {
-    let cancelled = false;
-
-    async function fetchDashboard(backgroundRefresh = false) {
-      if (!backgroundRefresh) setIsLoading(true);
-      try {
-        const from = encodeURIComponent(dateWindow.from.toISOString());
-        const to = encodeURIComponent(dateWindow.to.toISOString());
-        const res = await fetch(`/api/dashboard/summary?from=${from}&to=${to}&organizationId=${selectedHospital}&module=${selectedModule}&issueType=${selectedIssueType}`, { cache: 'no-store' });
-        if (!res.ok) throw new Error(`Dashboard summary failed (${res.status})`);
-        const payload = await res.json();
-
-        if (cancelled) return;
-        setStats(payload.stats || EMPTY_STATS);
-        setTrendRows(payload.trendByDay || []);
-        setStatusRows(payload.statusData || []);
-        setPriorityRows(payload.priorityData || []);
-        setOrganizationRows(payload.organizationData || []);
-        setAgentRows(payload.agentData || []);
-        setHeatmap(payload.heatmap || []);
-        
-        dashboardCache = {
-          key: currentWindowKey,
-          stats: payload.stats || EMPTY_STATS,
-          trendRows: payload.trendByDay || [],
-          statusRows: payload.statusData || [],
-          priorityRows: payload.priorityData || [],
-          organizationRows: payload.organizationData || [],
-          agentRows: payload.agentData || [],
-          heatmap: payload.heatmap || [],
-        };
-        
-        if (!backgroundRefresh) setRecentLogs([]);
-
-        // Load recent logs after first paint; do not block summary rendering.
-        void fetch(`/api/dashboard/summary?from=${from}&to=${to}&includeLogs=1&organizationId=${selectedHospital}&module=${selectedModule}&issueType=${selectedIssueType}`, { cache: 'no-store' })
-          .then(async (logRes) => {
-            if (!logRes.ok || cancelled) return;
-            const logPayload = await logRes.json();
-            if (!cancelled) setRecentLogs(logPayload.recentLogs || []);
-          })
-          .catch(() => {});
-      } catch (error) {
-        if (cancelled) return;
-        console.error(error);
-        setStats(EMPTY_STATS);
-        setTrendRows([]);
-        setStatusRows([]);
-        setPriorityRows([]);
-        setOrganizationRows([]);
-        setAgentRows([]);
-        setHeatmap([]);
-        setRecentLogs([]);
-      } finally {
-        if (!cancelled && !backgroundRefresh) setIsLoading(false);
-      }
-    }
-    const currentKey = `${dateWindow.from.toISOString()}_${dateWindow.to.toISOString()}_h=${selectedHospital}_m=${selectedModule}_t=${selectedIssueType}`;
-    fetchDashboard(dashboardCache?.key === currentKey);
-
-    let refreshTimer: ReturnType<typeof setTimeout> | null = null;
-    const scheduleRefresh = () => {
-      if (refreshTimer) clearTimeout(refreshTimer);
-      refreshTimer = setTimeout(() => {
-        void fetchDashboard(true);
+    if (!lastDbEvent) return;
+    // Refresh when tickets or ticket_logs change
+    if (lastDbEvent.table === 'tickets' || lastDbEvent.table === 'ticket_logs') {
+      const timer = setTimeout(() => {
+        void mutate();
       }, 300);
-    };
-
-    const channel = supabase.channel('dashboard-updates')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'tickets' }, scheduleRefresh)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'ticket_logs' }, scheduleRefresh)
-      .subscribe();
-
-    return () => {
-      cancelled = true;
-      if (refreshTimer) clearTimeout(refreshTimer);
-      supabase.removeChannel(channel);
-    };
-  }, [dateWindow.from, dateWindow.to, currentWindowKey, selectedHospital, selectedModule, selectedIssueType]);
+      return () => clearTimeout(timer);
+    }
+  }, [lastDbEvent, mutate]);
 
   const trendData = useMemo(() => {
     const days: { label: string; dateKey: string; [key: string]: any }[] = [];
@@ -442,7 +375,7 @@ export default function Home() {
 
   const statusData = useMemo(
     () =>
-      statusRows.map(({ name, value }) => ({
+      statusRows.map(({ name, value }: { name: string; value: number }) => ({
         name,
         value,
         fill: STATUS_COLORS[name] || '#4facfe',
@@ -452,7 +385,7 @@ export default function Home() {
 
   const priorityData = useMemo(
     () =>
-      priorityRows.map(({ name, value }) => ({
+      priorityRows.map(({ name, value }: { name: string; value: number }) => ({
         name,
         value,
         fill: PRIORITY_COLORS[name] || '#4facfe',
@@ -461,7 +394,7 @@ export default function Home() {
   );
   const organizationData = useMemo(
     () =>
-      organizationRows.map(({ name, value }, index) => ({
+      organizationRows.map(({ name, value }: { name: string; value: number }, index: number) => ({
         name: name || 'ไม่ระบุ',
         value,
         fill: ['#00f2fe', '#4facfe', '#00d4ff', '#80f9ff', '#b3fbff'][index % 5],
@@ -471,7 +404,7 @@ export default function Home() {
 
   const agentData = useMemo(
     () =>
-      agentRows.map(({ name, value }) => ({
+      agentRows.map(({ name, value }: { name: string; value: number }) => ({
         name: name.length > 12 ? `${name.substring(0, 12)}...` : name,
         value,
       })),

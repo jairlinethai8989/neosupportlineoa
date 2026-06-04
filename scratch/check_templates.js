@@ -1,0 +1,27 @@
+const { createClient } = require('@supabase/supabase-js');
+const dotenv = require('dotenv');
+dotenv.config({ path: '.env.production.local' });
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+const supabase = createClient(supabaseUrl, supabaseKey);
+
+async function check() {
+  const { data: profileData, error: profileErr } = await supabase
+    .from('profiles')
+    .select('id, full_name, email, role, resolution_templates')
+    .limit(5);
+
+  if (profileErr) console.error('Profile Error:', profileErr);
+  console.log('Profiles Resolution Templates:', JSON.stringify(profileData, null, 2));
+
+  const { data: companyData, error: companyErr } = await supabase
+    .from('company_settings')
+    .select('id, resolution_templates')
+    .limit(1);
+
+  if (companyErr) console.error('Company Error:', companyErr);
+  console.log('Company Settings Resolution Templates:', JSON.stringify(companyData, null, 2));
+}
+
+check();

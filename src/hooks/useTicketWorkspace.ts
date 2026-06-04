@@ -187,7 +187,7 @@ let ticketWorkspaceCache: TicketWorkspaceCache | null = null;
 
 export function useTicketWorkspace(filterCustomerId: string | null) {
   const router = useRouter();
-  const { addToast, latestTicketRealtimeEvent } = useNotificationContext();
+  const { addToast, lastDbEvent } = useNotificationContext();
   const { userProfile: appProfile, companySettings: appSettings } = useAppContext();
 
   const getOrInitializeCache = useCallback((): TicketWorkspaceCache => {
@@ -526,10 +526,11 @@ export function useTicketWorkspace(filterCustomerId: string | null) {
     void fetchDataRef.current(hasCache);
   }, [timeRange, customStart, customEnd, ticketPage, filterCustomerId, getOrInitializeCache]);
 
-  // 3. Supabase Realtime Channel Subscription (Set up exactly ONCE on mount)
+  // 3. Central Realtime Integration
   useEffect(() => {
-    let realtimeTimer: ReturnType<typeof setTimeout> | null = null;
+    if (!lastDbEvent) return;
 
+    let realtimeTimer: ReturnType<typeof setTimeout> | null = null;
     const scheduleDataRefresh = () => {
       if (realtimeTimer) clearTimeout(realtimeTimer);
       realtimeTimer = setTimeout(() => {
@@ -537,46 +538,34 @@ export function useTicketWorkspace(filterCustomerId: string | null) {
       }, 4000);
     };
 
-    const channel = supabase
-      .channel('workspace-realtime')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'tickets' }, (payload) => {
-        const ticketId = String(payload.new.id || '');
-        if (!ticketId) return;
+    const { table, action, payload } = lastDbEvent;
 
-        void syncRef.current(ticketId, payload.new);
-        scheduleDataRefresh();
-      })
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'tickets' }, (payload) => {
-        const ticketId = String(payload.new.id || payload.old.id || '');
-        if (!ticketId) return;
-
-        void syncRef.current(ticketId, payload.new);
-        scheduleDataRefresh();
-      })
-      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'tickets' }, (payload) => {
-        const ticketId = String(payload.old.id || '');
-        if (!ticketId) return;
-
-        pendingRealtimeTicketIdsRef.current.delete(ticketId);
-        setTickets((previousTickets) =>
-          previousTickets.filter((ticket) => ticket.id !== ticketId)
-        );
-        scheduleDataRefresh();
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'conversations' }, () => {
-        scheduleDataRefresh();
-      })
-      .subscribe((status) => {
-        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-          setDebugError(`Workspace realtime ${status.toLowerCase()}`);
+    if (table === 'tickets') {
+      const p = payload as any;
+      if (action === 'INSERT' || action === 'UPDATE') {
+        const ticketId = String(p.new?.id || p.old?.id || '');
+        if (ticketId) {
+          void syncRef.current(ticketId, p.new);
+          scheduleDataRefresh();
         }
-      });
+      } else if (action === 'DELETE') {
+        const ticketId = String(p.old?.id || '');
+        if (ticketId) {
+          pendingRealtimeTicketIdsRef.current.delete(ticketId);
+          setTickets((previousTickets) =>
+            previousTickets.filter((ticket) => ticket.id !== ticketId)
+          );
+          scheduleDataRefresh();
+        }
+      }
+    } else if (table === 'conversations') {
+      scheduleDataRefresh();
+    }
 
     return () => {
       if (realtimeTimer) clearTimeout(realtimeTimer);
-      supabase.removeChannel(channel);
     };
-  }, []);
+  }, [lastDbEvent]);
 
   useEffect(() => {
     if (userProfile?.user_id) {
@@ -593,14 +582,6 @@ export function useTicketWorkspace(filterCustomerId: string | null) {
       localStorage.setItem(`neo_ticket_viewMode_${userProfile.user_id}`, mode);
     }
   }, [userProfile?.user_id]);
-
-  useEffect(() => {
-    if (!latestTicketRealtimeEvent?.ticketId) return;
-    void syncTicketFromRealtime(
-      latestTicketRealtimeEvent.ticketId,
-      latestTicketRealtimeEvent.payload
-    );
-  }, [latestTicketRealtimeEvent, syncTicketFromRealtime]);
 
   const filteredTickets = useMemo(() => {
     let result = [...tickets];

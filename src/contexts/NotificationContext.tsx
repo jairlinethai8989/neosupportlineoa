@@ -7,7 +7,7 @@ import {
   NotificationSoundMode,
   NotificationVoiceOption,
   SoundTestResult,
-  LatestTicketRealtimeEvent,
+  RealtimeDbEvent,
 } from '@/hooks/useNotifications';
 import { useStaffLocale } from './StaffLocaleContext';
 import { useAppContext } from './AppContext';
@@ -26,7 +26,8 @@ interface NotificationContextValue {
   addToast: (toast: ToastNotif) => void;
   agentId: string | null;
   newTicketsCount: number;
-  latestTicketRealtimeEvent: LatestTicketRealtimeEvent | null;
+  inboxCount: number;
+  lastDbEvent: RealtimeDbEvent | null;
   isMuted: boolean;
   soundMode: NotificationSoundMode;
   soundVoice: NotificationVoiceOption;
@@ -53,7 +54,8 @@ const NotificationContext = createContext<NotificationContextValue>({
   addToast: () => {},
   agentId: null,
   newTicketsCount: 0,
-  latestTicketRealtimeEvent: null,
+  inboxCount: 0,
+  lastDbEvent: null,
   isMuted: true,
   soundMode: 'beep',
   soundVoice: 'female',

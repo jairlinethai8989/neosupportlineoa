@@ -5,10 +5,11 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
-import ImageEditorModal from '@/components/modals/ImageEditorModal';
-import ImageViewerModal from '@/components/modals/ImageViewerModal';
-import SummaryExportModal from '@/components/modals/SummaryExportModal';
-import { ResolveTicketModal } from '@/components/inbox/ResolveTicketModal';
+import dynamic from 'next/dynamic';
+const ImageEditorModal = dynamic(() => import('@/components/modals/ImageEditorModal'));
+const ImageViewerModal = dynamic(() => import('@/components/modals/ImageViewerModal'));
+const SummaryExportModal = dynamic(() => import('@/components/modals/SummaryExportModal'));
+const ResolveTicketModal = dynamic(() => import('@/components/inbox/ResolveTicketModal').then(mod => mod.ResolveTicketModal));
 import { ticketService } from '@/lib/services/ticketService';
 import { TicketHeader } from '@/components/tickets/TicketHeader';
 import { TicketChat } from '@/components/tickets/TicketChat';
@@ -1306,7 +1307,7 @@ export default function StaffTicketDetailPage() {
             setShowViewer(false);
             setViewingImage(null);
           }}
-          onEdit={(imageUrl) => {
+          onEdit={(imageUrl: string) => {
             setEditingImage(imageUrl);
             setShowEditor(true);
           }}
@@ -1329,7 +1330,7 @@ export default function StaffTicketDetailPage() {
       <SummaryExportModal
         isOpen={showExportModal}
         onClose={() => setShowExportModal(false)}
-        onExport={async (format) => {
+        onExport={async (format: string) => {
           if (format === 'pdf') {
             await handleExportSummary();
           } else {

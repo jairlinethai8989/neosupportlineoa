@@ -29,11 +29,41 @@ import {
 import Link from 'next/link';
 import Skeleton from '@/components/ui/Skeleton';
 import { getHospitalColorStyles } from '@/lib/inbox/colors';
+import useSWR from 'swr';
 
 export default function CustomersPage() {
-  const [customers, setCustomers] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const fetcher = async () => {
+    // Try fetching with organizations (full detail)
+    const { data, error: fetchErr } = await supabase
+      .from('customers')
+      .select(`
+        *,
+        organizations (name),
+        departments (name),
+        positions (name)
+      `)
+      .order('created_at', { ascending: false });
+
+    if (fetchErr) {
+       console.warn('Initial fetch failed, trying basic fetch:', fetchErr.message);
+       // Fallback: Fetch without organizations join (might be schema issue)
+       const { data: basicData, error: basicErr } = await supabase
+         .from('customers')
+         .select('*')
+         .order('created_at', { ascending: false });
+       
+       if (basicErr) throw basicErr;
+       return basicData || [];
+    }
+    return data || [];
+  };
+
+  const { data: customersData, error: swrError, isLoading: isSwrLoading, mutate } = useSWR('customers_list', fetcher);
+  
+  const customers = customersData || [];
+  const loading = isSwrLoading && !customersData;
+  const error = swrError?.message || null;
+
   const [searchTerm, setSearchTerm] = useState('');
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' }>({ key: 'created_at', direction: 'desc' });
@@ -46,43 +76,6 @@ export default function CustomersPage() {
   // Profile Modal State
   const [profileCustomer, setProfileCustomer] = useState<any | null>(null);
   const [copiedId, setCopiedId] = useState(false);
-
-  const fetchCustomers = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      // Try fetching with organizations (full detail)
-      const { data, error: fetchErr } = await supabase
-        .from('customers')
-        .select(`
-          *,
-          organizations (name),
-          departments (name),
-          positions (name)
-        `)
-        .order('created_at', { ascending: false });
-
-      if (fetchErr) {
-         console.warn('Initial fetch failed, trying basic fetch:', fetchErr.message);
-         // Fallback: Fetch without organizations join (might be schema issue)
-         const { data: basicData, error: basicErr } = await supabase
-           .from('customers')
-           .select('*')
-           .order('created_at', { ascending: false });
-         
-         if (basicErr) throw basicErr;
-         setCustomers(basicData || []);
-      } else {
-         setCustomers(data || []);
-      }
-    } catch (err: any) {
-      console.error('CRITICAL: Error fetching customers:', err.message);
-      setError(err.message);
-    } finally {
-      setLoading(false);
-      setIsRefreshing(false);
-    }
-  };
 
   const openHistory = async (customer: any) => {
     setSelectedCustomer(customer);
@@ -104,10 +97,6 @@ export default function CustomersPage() {
     }
   };
 
-  useEffect(() => {
-    fetchCustomers();
-  }, []);
-
   // Lock body scroll when modals are open to prevent page bounce/jump
   useEffect(() => {
     if (selectedCustomer || profileCustomer) {
@@ -120,9 +109,10 @@ export default function CustomersPage() {
     };
   }, [selectedCustomer, profileCustomer]);
 
-  const handleRefresh = () => {
+  const handleRefresh = async () => {
     setIsRefreshing(true);
-    fetchCustomers();
+    await mutate();
+    setIsRefreshing(false);
   };
 
   const handleSort = (key: string) => {

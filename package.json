@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "analyze": "ANALYZE=true next build",
     "start": "next start",
     "lint": "eslint",
     "backfill:line-customers": "node backfill_line_customer_profiles.js",
@@ -35,10 +36,12 @@
     "react-dom": "19.2.4",
     "react-easy-crop": "^5.5.7",
     "recharts": "^3.8.1",
+    "swr": "^2.4.1",
     "tailwind-merge": "^3.5.0",
     "xlsx": "^0.18.5"
   },
   "devDependencies": {
+    "@next/bundle-analyzer": "^16.2.7",
     "@playwright/test": "^1.59.1",
     "@types/node": "^20",
     "@types/react": "^19",

@@ -40,6 +40,7 @@ const StaffAnalyticsPage = dynamic(() => import('./staff/page'));
 const Evaluation360Page = dynamic(() => import('./staff/evaluation-360/page'));
 const InsightsPage = dynamic(() => import('./insights/page'));
 import { useAppContext } from '@/contexts/AppContext';
+import useSWR from 'swr';
 
 /**
  * 1. Define Chart Types & Mock Logic for 16 variations
@@ -78,10 +79,8 @@ async function loadHtml2Canvas() {
   if (!html2CanvasPromise) {
     html2CanvasPromise = import('html2canvas').then((module) => module.default);
   }
-
   return html2CanvasPromise;
 }
-
 
 /**
  * 2. Main Analytics Page
@@ -111,40 +110,27 @@ export default function AdvancedAnalyticsPage() {
     start: DateTime.now().minus({ months: 1 }).toISODate(),
     end: DateTime.now().toISODate()
   });
-  const [loading, setLoading] = useState(true);
+
+  const fetcher = async () => {
+    const { data, error } = await supabase.rpc('get_analytics_dashboard_v2', {
+      start_date: dateRange.start,
+      end_date: dateRange.end
+    });
+    if (error) throw error;
+    return data;
+  };
+
+  const currentKey = `analytics_${dateRange.start}_${dateRange.end}`;
+  const { data: aggregatedData, isLoading: isSwrLoading } = useSWR(currentKey, fetcher);
+  const loading = isSwrLoading && !aggregatedData;
+
   const [exporting, setExporting] = useState(false);
   const [tickets, setTickets] = useState<any[]>([]);
-  const [aggregatedData, setAggregatedData] = useState<any>(null);
   const [showWidgetSelector, setShowWidgetSelector] = useState(false);
   
   const [showPreview, setShowPreview] = useState(false);
   const [previewData, setPreviewData] = useState<ExportPreviewData | null>(null);
   const [pendingFormat, setPendingFormat] = useState<'excel' | 'pdf' | null>(null);
-
-
-
-  const fetchData = useCallback(async () => {
-    setLoading(true);
-    try {
-      const { data, error } = await supabase.rpc('get_analytics_dashboard_v2', {
-        start_date: dateRange.start,
-        end_date: dateRange.end
-      });
-
-      if (error) throw error;
-      setAggregatedData(data);
-      // Reset raw tickets so they are only fetched on demand for export
-      setTickets([]);
-    } catch (err) {
-      console.error('Fetch analytics failed:', err);
-    } finally {
-      setLoading(false);
-    }
-  }, [dateRange.end, dateRange.start]);
-
-  useEffect(() => {
-    void fetchData();
-  }, [fetchData]);
 
   const chartDataMap = useMemo(() => {
     if (!aggregatedData) return {};

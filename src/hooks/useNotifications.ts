@@ -34,8 +34,9 @@ export type SoundTestResult =
   | { ok: true; hint: string }
   | { ok: false; code: SoundTestFailureCode; detail: string; hint: string };
 
-export interface LatestTicketRealtimeEvent {
-  ticketId: string;
+export interface RealtimeDbEvent {
+  table: string;
+  action: 'INSERT' | 'UPDATE' | 'DELETE';
   payload: unknown;
   occurredAt: number;
 }
@@ -58,7 +59,8 @@ export function useNotifications(
   const [unreadCount, setUnreadCount] = useState(0);
   const [slaAlertCount, setSlaAlertCount] = useState(0);
   const [newTicketsCount, setNewTicketsCount] = useState(0);
-  const [latestTicketRealtimeEvent, setLatestTicketRealtimeEvent] = useState<LatestTicketRealtimeEvent | null>(null);
+  const [inboxCount, setInboxCount] = useState(0);
+  const [lastDbEvent, setLastDbEvent] = useState<RealtimeDbEvent | null>(null);
 
   const notifications = useMemo(() => {
     return [...slaNotifs, ...logNotifs].sort((a, b) => {
@@ -463,6 +465,14 @@ export function useNotifications(
     if (count !== null) setNewTicketsCount(count);
   }, []);
 
+  const fetchInboxCount = useCallback(async () => {
+    const { count } = await supabase
+      .from('conversations')
+      .select('*', { count: 'exact', head: true })
+      .eq('status', 'active');
+    if (count !== null) setInboxCount(count);
+  }, []);
+
   const fetchSlaBreaches = useCallback(async () => {
     const twoHoursFromNow = new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString();
     
@@ -516,6 +526,10 @@ export function useNotifications(
     newTicketsCountTimerRef.current = setTimeout(() => { void fetchNewTicketsCount(); }, delayMs);
   }, [fetchNewTicketsCount]);
 
+  const scheduleFetchInboxCount = useCallback((delayMs = 800) => {
+    setTimeout(() => { void fetchInboxCount(); }, delayMs);
+  }, [fetchInboxCount]);
+
   const scheduleFetchSlaBreaches = useCallback((delayMs = 1200) => {
     if (slaRefreshTimerRef.current) clearTimeout(slaRefreshTimerRef.current);
     slaRefreshTimerRef.current = setTimeout(() => { void fetchSlaBreaches(); }, delayMs);
@@ -528,8 +542,10 @@ export function useNotifications(
   const playNewTicketSoundRef = useRef(playNewTicketSound);
   const fetchLogsRef = useRef(fetchLogs);
   const fetchNewTicketsCountRef = useRef(fetchNewTicketsCount);
+  const fetchInboxCountRef = useRef(fetchInboxCount);
   const scheduleFetchLogsRef = useRef(scheduleFetchLogs);
   const scheduleFetchNewTicketsCountRef = useRef(scheduleFetchNewTicketsCount);
+  const scheduleFetchInboxCountRef = useRef(scheduleFetchInboxCount);
   const scheduleFetchSlaBreachesRef = useRef(scheduleFetchSlaBreaches);
 
   // Sync refs with the latest state values on render
@@ -539,8 +555,10 @@ export function useNotifications(
   useEffect(() => { playNewTicketSoundRef.current = playNewTicketSound; }, [playNewTicketSound]);
   useEffect(() => { fetchLogsRef.current = fetchLogs; }, [fetchLogs]);
   useEffect(() => { fetchNewTicketsCountRef.current = fetchNewTicketsCount; }, [fetchNewTicketsCount]);
+  useEffect(() => { fetchInboxCountRef.current = fetchInboxCount; }, [fetchInboxCount]);
   useEffect(() => { scheduleFetchLogsRef.current = scheduleFetchLogs; }, [scheduleFetchLogs]);
   useEffect(() => { scheduleFetchNewTicketsCountRef.current = scheduleFetchNewTicketsCount; }, [scheduleFetchNewTicketsCount]);
+  useEffect(() => { scheduleFetchInboxCountRef.current = scheduleFetchInboxCount; }, [scheduleFetchInboxCount]);
   useEffect(() => { scheduleFetchSlaBreachesRef.current = scheduleFetchSlaBreaches; }, [scheduleFetchSlaBreaches]);
 
   // --- 6. Effects ---
@@ -573,15 +591,19 @@ export function useNotifications(
     setTimeout(() => { 
       void fetchLogsRef.current(); 
       void fetchNewTicketsCountRef.current(); 
+      void fetchInboxCountRef.current();
       scheduleFetchSlaBreachesRef.current(1600); 
     }, 2000);
 
-    const logChannel = supabase.channel(`logs-${agentId}`).on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'ticket_logs' }, (p) => {
-      const row = p.new as any; if (row.to_user_id !== agentId && row.performer_id !== agentId) return;
-      scheduleFetchLogsRef.current(250); scheduleFetchSlaBreachesRef.current(900);
-      if (isFirstLoad.current || !prefTransferRef.current) return;
-      addToastRef.current({ id: `t-log-${Date.now()}`, type: 'ticket', title: 'ใบงานได้รับการอัปเดต', body: row.note || 'ดูรายละเอียดในกล่องข้อความ', ticketId: row.ticket_id });
-    }).subscribe();
+    const logChannel = supabase.channel(`logs-${agentId}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'ticket_logs' }, (p) => {
+        setLastDbEvent({ table: 'ticket_logs', action: p.eventType as any, payload: p, occurredAt: Date.now() });
+        if (p.eventType !== 'INSERT') return;
+        const row = p.new as any; if (row.to_user_id !== agentId && row.performer_id !== agentId) return;
+        scheduleFetchLogsRef.current(250); scheduleFetchSlaBreachesRef.current(900);
+        if (isFirstLoad.current || !prefTransferRef.current) return;
+        addToastRef.current({ id: `t-log-${Date.now()}`, type: 'ticket', title: 'ใบงานได้รับการอัปเดต', body: row.note || 'ดูรายละเอียดในกล่องข้อความ', ticketId: row.ticket_id });
+      }).subscribe();
 
     const msgChannel = supabase.channel(`msgs-${agentId}`).on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (p) => {
       const row = p.new as any; if (row.sender_type !== 'customer' || row.message_type === 'system') return;
@@ -589,23 +611,38 @@ export function useNotifications(
       addToastRef.current({ id: `t-msg-${Date.now()}`, type: 'message', title: getStaffMessage(locale, 'notificationsHub.alerts.newMessageTitle'), body: (row.content as string)?.slice(0, 60), conversationId: row.conversation_id });
     }).subscribe();
 
-    const ticketChannel = supabase.channel('tickets').on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'tickets' }, (p) => {
-      const row = p.new as any; scheduleFetchNewTicketsCountRef.current(400);
-      if ((row.status || '').toLowerCase() !== 'new' || isFirstLoad.current) return;
-      setLatestTicketRealtimeEvent({ ticketId: String(row.id), payload: row, occurredAt: Date.now() });
-      addToastRef.current({ id: `t-tkt-${Date.now()}`, type: 'ticket', title: getStaffMessage(locale, 'notificationsHub.alerts.newTicketTitle'), body: row.subject, ticketId: row.id, ticketNo: row.ticket_no });
-      playNewTicketSoundRef.current();
-    }).on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'tickets' }, (p) => {
-      const ns = String((p.new as any).status).toLowerCase();
-      const ps = String((p.old as any).status).toLowerCase();
-      if (ns === 'new' || ps === 'new') scheduleFetchNewTicketsCountRef.current(450);
-    }).on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'tickets' }, () => { scheduleFetchNewTicketsCountRef.current(450); }).subscribe();
+    const ticketChannel = supabase.channel('tickets')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'tickets' }, (p) => {
+        setLastDbEvent({ table: 'tickets', action: 'INSERT', payload: p, occurredAt: Date.now() });
+        const row = p.new as any; scheduleFetchNewTicketsCountRef.current(400);
+        if ((row.status || '').toLowerCase() !== 'new' || isFirstLoad.current) return;
+        addToastRef.current({ id: `t-tkt-${Date.now()}`, type: 'ticket', title: getStaffMessage(locale, 'notificationsHub.alerts.newTicketTitle'), body: row.subject, ticketId: row.id, ticketNo: row.ticket_no });
+        playNewTicketSoundRef.current();
+      })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'tickets' }, (p) => {
+        setLastDbEvent({ table: 'tickets', action: 'UPDATE', payload: p, occurredAt: Date.now() });
+        const ns = String((p.new as any).status).toLowerCase();
+        const ps = String((p.old as any).status).toLowerCase();
+        if (ns === 'new' || ps === 'new') scheduleFetchNewTicketsCountRef.current(450);
+      })
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'tickets' }, (p) => { 
+        setLastDbEvent({ table: 'tickets', action: 'DELETE', payload: p, occurredAt: Date.now() });
+        scheduleFetchNewTicketsCountRef.current(450); 
+      })
+      .subscribe();
+
+    const conversationChannel = supabase.channel('conversations')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'conversations' }, (p) => {
+        setLastDbEvent({ table: 'conversations', action: p.eventType as any, payload: p, occurredAt: Date.now() });
+        scheduleFetchInboxCountRef.current(400);
+      })
+      .subscribe();
 
     const slaInterval = setInterval(() => { scheduleFetchSlaBreachesRef.current(0); }, 120_000);
     const firstLoadTimer = setTimeout(() => { isFirstLoad.current = false; }, 2500);
 
     return () => {
-      supabase.removeChannel(logChannel); supabase.removeChannel(msgChannel); supabase.removeChannel(ticketChannel);
+      supabase.removeChannel(logChannel); supabase.removeChannel(msgChannel); supabase.removeChannel(ticketChannel); supabase.removeChannel(conversationChannel);
       clearInterval(slaInterval); clearTimeout(firstLoadTimer);
       if (logsRefreshTimerRef.current) clearTimeout(logsRefreshTimerRef.current);
       if (slaRefreshTimerRef.current) clearTimeout(slaRefreshTimerRef.current);
@@ -622,11 +659,11 @@ export function useNotifications(
   }, [primeAudio]);
 
   return useMemo(() => ({
-    notifications, toasts, unreadCount, slaAlertCount, newTicketsCount, latestTicketRealtimeEvent, isMuted, soundMode, soundVoice,
+    notifications, toasts, unreadCount, slaAlertCount, newTicketsCount, inboxCount, lastDbEvent, isMuted, soundMode, soundVoice,
     prefNewTicket, prefNewMessage, prefTransfer, prefSlaWarning, setSoundMode, setSoundVoice, updatePreference, testSound, toggleMute,
     markAsRead, markAllRead, clearNotifications, dismissToast, addToast
   }), [
-    notifications, toasts, unreadCount, slaAlertCount, newTicketsCount, latestTicketRealtimeEvent, isMuted, soundMode, soundVoice,
+    notifications, toasts, unreadCount, slaAlertCount, newTicketsCount, inboxCount, lastDbEvent, isMuted, soundMode, soundVoice,
     prefNewTicket, prefNewMessage, prefTransfer, prefSlaWarning, setSoundMode, setSoundVoice, updatePreference, testSound, toggleMute,
     markAsRead, markAllRead, clearNotifications, dismissToast, addToast
   ]);

@@ -89,11 +89,15 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
   );
 }
 
+import { SWRProvider } from '@/lib/swr-config';
+
 export default function DashboardLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <AppProvider>
       <StaffLocaleProvider>
-        <DashboardInner>{children}</DashboardInner>
+        <SWRProvider>
+          <DashboardInner>{children}</DashboardInner>
+        </SWRProvider>
       </StaffLocaleProvider>
     </AppProvider>
   );

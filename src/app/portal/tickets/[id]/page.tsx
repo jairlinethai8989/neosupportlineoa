@@ -1139,7 +1139,7 @@ export default function TicketDetailPage() {
              <ImageViewerModal 
                 imageUrl={viewingImage} 
                 onClose={() => setIsViewerOpen(false)} 
-                onEdit={(src) => {
+                onEdit={(src: string) => {
                    setIsViewerOpen(false);
                    setEditingImage(src);
                    setIsEditorOpen(true);

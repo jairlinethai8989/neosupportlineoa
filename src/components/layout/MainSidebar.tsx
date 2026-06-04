@@ -59,45 +59,13 @@ function isGroupItem(item: SidebarItem): item is SidebarGroupItem {
 function MainSidebarComponent({ onClickLink, isCollapsed = false }: SidebarProps) {
   const pathname = usePathname();
   const { companySettings: company, userProfile: profile, logout } = useAppContext();
-  const { unreadCount, newTicketsCount, slaAlertCount } = useNotificationContext();
+  const { unreadCount, newTicketsCount, slaAlertCount, inboxCount } = useNotificationContext();
   const { t } = useStaffLocale();
 
-  const [inboxCount, setInboxCount] = useState(0);
   const [openMenus, setOpenMenus] = useState<string[]>(DEFAULT_OPEN_MENUS);
 
   const userRole = profile?.role || '';
   const permissions = profile?.permissions || null;
-
-  useEffect(() => {
-    supabase
-      .from('conversations')
-      .select('*', { count: 'exact', head: true })
-      .eq('status', 'active')
-      .then((res) => {
-        if (res.count !== null) {
-          setInboxCount(res.count);
-        }
-      });
-
-    const channel = supabase
-      .channel('sidebar-sync')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'conversations' }, () => {
-        supabase
-          .from('conversations')
-          .select('*', { count: 'exact', head: true })
-          .eq('status', 'active')
-          .then((res) => {
-            if (res.count !== null) {
-              setInboxCount(res.count);
-            }
-          });
-      })
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, []);
 
   const handleLogout = useCallback(async () => {
     await logout();
