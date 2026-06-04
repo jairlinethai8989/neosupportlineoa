@@ -18,6 +18,7 @@ import {
 import { supabase } from '@/lib/supabase';
 import Skeleton from '@/components/ui/Skeleton';
 import { useStaffLocale } from '@/contexts/StaffLocaleContext';
+import { useAppContext } from '@/contexts/AppContext';
 import { useRouter } from 'next/navigation';
 import { ExportPreviewModal, type ExportPreviewData } from '@/components/ui/ExportPreviewModal';
 const DashboardChartsSection = React.lazy(() =>
@@ -171,6 +172,7 @@ function computeDateWindow(
 
 export default function Home() {
   const { t } = useStaffLocale();
+  const { organizations: contextOrgs, companySettings, ensureOrganizations } = useAppContext();
   const router = useRouter();
 
   // Date Filter State
@@ -195,18 +197,37 @@ export default function Home() {
   const [tempModule, setTempModule] = useState<string>('');
   const [tempIssueType, setTempIssueType] = useState<string>('');
 
+  // Sync organizations from AppContext (already fetched at layout level — zero extra queries)
   useEffect(() => {
-    async function loadFilterOptions() {
-      const { data: hosps } = await supabase.from('organizations').select('id, name').eq('is_active', true).order('name');
-      const { data: mods } = await supabase.from('ticket_modules').select('name').eq('is_active', true).order('name');
-      const { data: types } = await supabase.from('ticket_issue_types').select('name').eq('is_active', true).order('name');
-      
-      if (hosps) setOrganizationsList(hosps);
-      if (mods) setModulesList(mods);
-      if (types) setIssueTypesList(types);
+    void ensureOrganizations();
+  }, [ensureOrganizations]);
+
+  useEffect(() => {
+    if (contextOrgs.length > 0) {
+      setOrganizationsList(contextOrgs as any[]);
     }
-    loadFilterOptions();
-  }, []);
+  }, [contextOrgs]);
+
+  // Modules and issue types: use companySettings if already loaded, else fetch in parallel
+  useEffect(() => {
+    if (companySettings?.modules?.length || companySettings?.issue_types?.length) {
+      if (companySettings.modules?.length) {
+        setModulesList(companySettings.modules.map((name: string) => ({ name })));
+      }
+      if (companySettings.issue_types?.length) {
+        setIssueTypesList(companySettings.issue_types.map((name: string) => ({ name })));
+      }
+      return;
+    }
+    // Fallback: fetch in parallel (not sequential) if companySettings not yet ready
+    void Promise.all([
+      supabase.from('ticket_modules').select('name').eq('is_active', true).order('name'),
+      supabase.from('ticket_issue_types').select('name').eq('is_active', true).order('name'),
+    ]).then(([modsRes, typesRes]) => {
+      if (modsRes.data) setModulesList(modsRes.data);
+      if (typesRes.data) setIssueTypesList(typesRes.data);
+    });
+  }, [companySettings]);
 
   const dateWindow = useMemo(
     () => computeDateWindow(timeRange, customStart, customEnd),

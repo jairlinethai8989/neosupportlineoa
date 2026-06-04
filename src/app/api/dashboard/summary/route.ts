@@ -76,10 +76,11 @@ export async function GET(req: Request) {
       const parsed = typeof rpcData === 'string' ? JSON.parse(rpcData) : rpcData;
       const rawPayload = parsed || {
         stats: { totalToday: 0, yesterdayCount: 0, newTickets: 0, inProgress: 0, pending: 0, escalated: 0, resolved: 0, totalAll: 0, avgCsat: 0.0 },
-        statusData: [], priorityData: [], organizationData: [], agentData: [], createdCountsByDay: {}, resolvedCountsByDay: {}
+        statusData: [], priorityData: [], organizationData: [], agentData: [],
+        createdCountsByDay: {}, resolvedCountsByDay: {}, heatmapData: [],
       };
 
-      const { stats, statusData, priorityData, organizationData, agentData, createdCountsByDay, resolvedCountsByDay } = rawPayload as any;
+      const { stats, statusData, priorityData, organizationData, agentData, createdCountsByDay, resolvedCountsByDay, heatmapData } = rawPayload as any;
 
       // Calculate Trend Percentage
       const trendPct = stats.yesterdayCount > 0 
@@ -125,24 +126,12 @@ export async function GET(req: Request) {
         }));
       }
 
-      // 3. Fetch Data for Heatmap
+      // 3. Build Heatmap matrix from RPC-aggregated rows (max 168 rows, not 10,000)
       const heatmap = Array.from({ length: 7 }, () => Array(24).fill(0));
-      const { data: heatmapRaw, error: heatmapError } = await supabaseAdmin
-        .from('tickets')
-        .select('created_at')
-        .gte('created_at', fromIso)
-        .lte('created_at', toIso)
-        .order('created_at', { ascending: false })
-        .limit(10000);
-      
-      if (!heatmapError && heatmapRaw) {
-        heatmapRaw.forEach((t: any) => {
-          if (!t.created_at) return;
-          const d = new Date(t.created_at);
-          if (!isNaN(d.getTime())) {
-            const day = d.getDay(); // 0 = Sunday
-            const hour = d.getHours();
-            heatmap[day][hour]++;
+      if (Array.isArray(heatmapData)) {
+        (heatmapData as Array<{ dow: number; hour: number; cnt: number }>).forEach(({ dow, hour, cnt }) => {
+          if (dow >= 0 && dow <= 6 && hour >= 0 && hour <= 23) {
+            heatmap[dow][hour] = cnt;
           }
         });
       }

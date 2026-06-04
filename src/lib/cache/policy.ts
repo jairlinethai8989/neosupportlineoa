@@ -6,9 +6,10 @@ export const CACHE_POLICY = {
     hubResponseCacheControl: 'private, max-age=15, stale-while-revalidate=15',
   },
   live: {
-    dashboardSummaryTtlMs: 8_000,
-    dashboardSummaryWithLogsTtlMs: 4_000,
-    dashboardSummaryCacheControl: 'private, max-age=5, stale-while-revalidate=5',
+    dashboardSummaryTtlMs: 30_000,           // was 8s — now 30s to reduce cold-miss frequency
+    dashboardSummaryWithLogsTtlMs: 15_000,   // was 4s — now 15s
+    dashboardSummaryCacheControl: 'private, max-age=20, stale-while-revalidate=20',
   },
 } as const;
+
 
