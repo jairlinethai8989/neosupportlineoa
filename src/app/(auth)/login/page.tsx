@@ -49,13 +49,13 @@ export default function LoginPage() {
           .single();
           
         if (profile?.landing_page === 'inbox') {
-          finalRedirectTo = '/portal/tickets';
+          finalRedirectTo = '/inbox';
         } else if (profile?.landing_page === 'dashboard') {
           finalRedirectTo = '/';
         } else {
           // ค่าเริ่มต้นตาม Role
           if (profile?.role === 'Agent') {
-            finalRedirectTo = '/portal/tickets';
+            finalRedirectTo = '/inbox';
           } else {
             finalRedirectTo = '/'; // Dashboard
           }
