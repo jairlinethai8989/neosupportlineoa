@@ -16,6 +16,8 @@ import {
   Ticket,
   Users,
   TrendingUp,
+  Flame,
+  UserCog,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAppContext } from '@/contexts/AppContext';
@@ -50,7 +52,7 @@ type SidebarGroupItem = {
 
 type SidebarItem = SidebarLinkItem | SidebarGroupItem;
 
-const DEFAULT_OPEN_MENUS = ['Settings', 'Dashboard'];
+const DEFAULT_OPEN_MENUS: string[] = [];
 
 function isGroupItem(item: SidebarItem): item is SidebarGroupItem {
   return 'children' in item;
@@ -63,6 +65,30 @@ function MainSidebarComponent({ onClickLink, isCollapsed = false }: SidebarProps
   const { t } = useStaffLocale();
 
   const [openMenus, setOpenMenus] = useState<string[]>(DEFAULT_OPEN_MENUS);
+  const [hoveredItem, setHoveredItem] = useState<{
+    label: string;
+    top: number;
+  } | null>(null);
+
+  const handleMouseEnter = useCallback(
+    (event: React.MouseEvent<HTMLAnchorElement | HTMLButtonElement>, label: string) => {
+      if (!isCollapsed) return;
+      const rect = event.currentTarget.getBoundingClientRect();
+      const asideElement = event.currentTarget.closest('aside');
+      if (asideElement) {
+        const asideRect = asideElement.getBoundingClientRect();
+        setHoveredItem({
+          label,
+          top: rect.top - asideRect.top + rect.height / 2,
+        });
+      }
+    },
+    [isCollapsed]
+  );
+
+  const handleMouseLeave = useCallback(() => {
+    setHoveredItem(null);
+  }, []);
 
   const userRole = profile?.role || '';
   const permissions = profile?.permissions || null;
@@ -173,9 +199,9 @@ function MainSidebarComponent({ onClickLink, isCollapsed = false }: SidebarProps
         section: t('sidebar.sections.system'),
         items: [
           {
-            name: 'Settings',
-            label: t('sidebar.menu.settings'),
-            icon: Settings,
+            name: 'SettingsPersonal',
+            label: t('sidebar.menu.settingsPersonal'),
+            icon: UserCog,
             children: [
               { name: 'Profile', label: t('sidebar.menu.profile'), path: '/settings/profile' },
               {
@@ -183,6 +209,13 @@ function MainSidebarComponent({ onClickLink, isCollapsed = false }: SidebarProps
                 label: t('sidebar.menu.notificationSettings'),
                 path: '/settings/notifications',
               },
+            ],
+          },
+          {
+            name: 'Settings',
+            label: t('sidebar.menu.settingsSystem'),
+            icon: Settings,
+            children: [
               { name: 'Branding', label: t('sidebar.menu.branding'), path: '/settings/branding' },
               { name: 'Staff', label: t('sidebar.menu.staff'), path: '/settings/staff' },
               { name: 'SLA', label: t('sidebar.menu.sla'), path: '/settings/sla' },
@@ -222,7 +255,7 @@ function MainSidebarComponent({ onClickLink, isCollapsed = false }: SidebarProps
   );
 
   return (
-    <aside style={{ display: 'flex', flexDirection: 'column', height: '100%', background: 'var(--bg-sidebar)' }}>
+    <aside style={{ display: 'flex', flexDirection: 'column', height: '100%', background: 'var(--bg-sidebar)', position: 'relative' }}>
       <div
         style={{
           padding: isCollapsed ? '24px 12px' : '24px',
@@ -327,7 +360,9 @@ function MainSidebarComponent({ onClickLink, isCollapsed = false }: SidebarProps
                     <button
                       onClick={() => !isCollapsed && toggleMenu(item.name)}
                       className="sidebar-btn-premium"
-                      title={isCollapsed ? item.label : undefined}
+                      aria-label={isCollapsed ? item.label : undefined}
+                      onMouseEnter={(e: React.MouseEvent<HTMLButtonElement>) => handleMouseEnter(e, item.label)}
+                      onMouseLeave={handleMouseLeave}
                       style={{
                         width: '100%',
                         display: 'flex',
@@ -399,7 +434,9 @@ function MainSidebarComponent({ onClickLink, isCollapsed = false }: SidebarProps
                   href={item.path}
                   onClick={onClickLink}
                   className={`sidebar-btn-premium ${isActive ? 'active' : ''}`}
-                  title={isCollapsed ? item.label : undefined}
+                  aria-label={isCollapsed ? item.label : undefined}
+                  onMouseEnter={(e: React.MouseEvent<HTMLAnchorElement>) => handleMouseEnter(e, item.label)}
+                  onMouseLeave={handleMouseLeave}
                   style={{
                     display: 'flex',
                     alignItems: 'center',
@@ -417,22 +454,21 @@ function MainSidebarComponent({ onClickLink, isCollapsed = false }: SidebarProps
                   {!isCollapsed && item.count !== undefined && item.count > 0 && (
                     <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
                       {item.name === 'Notifications' && slaAlertCount > 0 && (
-                        <span
+                        <div
                           style={{
-                            fontSize: '10px',
                             background: '#ea5455',
                             color: 'white',
-                            padding: '2px 4px',
+                            padding: '3px',
                             borderRadius: '6px',
-                            fontWeight: '900',
                             display: 'flex',
                             alignItems: 'center',
+                            justifyContent: 'center',
                             boxShadow: '0 0 10px rgba(234, 84, 85, 0.4)',
                             animation: 'sidebar-pulse 2s infinite'
                           }}
                         >
-                          🔥
-                        </span>
+                          <Flame size={10} />
+                        </div>
                       )}
                       <span
                         style={{
@@ -479,34 +515,40 @@ function MainSidebarComponent({ onClickLink, isCollapsed = false }: SidebarProps
         )}
       </div>
 
+      {hoveredItem && (
+        <div
+          role="tooltip"
+          aria-label={hoveredItem.label}
+          style={{
+            position: 'absolute',
+            left: '100%',
+            top: `${hoveredItem.top}px`,
+            transform: 'translateY(-50%)',
+            marginLeft: '12px',
+            padding: '8px 14px',
+            background: '#1e293b',
+            color: 'white',
+            fontSize: '12px',
+            fontWeight: '700',
+            borderRadius: '8px',
+            whiteSpace: 'nowrap',
+            zIndex: 1000,
+            pointerEvents: 'none',
+            boxShadow: '0 10px 25px rgba(0,0,0,0.5)',
+            border: '1px solid rgba(255,255,255,0.15)',
+            animation: 'tooltipIn 0.2s ease-out',
+          }}
+        >
+          {hoveredItem.label}
+        </div>
+      )}
+
       <style
         dangerouslySetInnerHTML={{
           __html: `
             .sidebar-btn-premium {
               position: relative;
             }
-            @media (min-width: 1025px) {
-              .sidebar-btn-premium:hover::after {
-                content: attr(title);
-                position: absolute;
-                left: 100%;
-                margin-left: 12px;
-                padding: 8px 14px;
-                background: #1e293b;
-                color: white;
-                font-size: 12px;
-                font-weight: 700;
-                border-radius: 8px;
-                white-space: nowrap;
-                z-index: 1000;
-                pointer-events: none;
-                box-shadow: 0 10px 25px rgba(0,0,0,0.5);
-                border: 1px solid rgba(255,255,255,0.15);
-                display: ${isCollapsed ? 'block' : 'none'};
-                animation: tooltipIn 0.2s ease-out;
-              }
-            }
-
             @keyframes tooltipIn {
               from { opacity: 0; transform: translateX(-10px); }
               to { opacity: 1; transform: translateX(0); }

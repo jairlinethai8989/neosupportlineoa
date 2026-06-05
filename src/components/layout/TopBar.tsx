@@ -434,27 +434,7 @@ export function TopBar({ isSidebarOpen, setIsSidebarOpen, isSidebarCollapsed, se
           </div>
         )}
 
-        <button
-          onClick={toggleLocale}
-          className="glass-interactive"
-          title={locale === 'th' ? t('dashboard.switchToEnglish') : t('dashboard.switchToThai')}
-          style={{
-            padding: '8px 10px',
-            borderRadius: '8px',
-            border: '1px solid var(--border)',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            color: 'var(--text-main)',
-            background: 'transparent',
-            fontWeight: '800',
-            fontSize: '11px',
-          }}
-        >
-          <Languages size={16} />
-          <span>{locale.toUpperCase()}</span>
-        </button>
+
 
         <button
           onClick={toggleMute}
@@ -903,6 +883,34 @@ export function TopBar({ isSidebarOpen, setIsSidebarOpen, isSidebarCollapsed, se
                     </button>
                   </div>
                 )}
+              </div>
+
+              {/* Language Switcher */}
+              <div style={{ position: 'relative', marginTop: '4px' }}>
+                <button
+                  onClick={toggleLocale}
+                  className="glass-interactive"
+                  style={{
+                    width: '100%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '12px 16px',
+                    borderRadius: '10px',
+                    background: 'transparent',
+                    border: 'none',
+                    color: 'var(--text-main)',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <Languages size={16} color="var(--primary)" />
+                    <span style={{ fontSize: '12px', fontWeight: '600' }}>{t('common.language')}</span>
+                  </div>
+                  <span style={{ fontSize: '11px', fontWeight: '800', color: 'var(--primary)', textTransform: 'uppercase' }}>
+                    {locale.toUpperCase()}
+                  </span>
+                </button>
               </div>
 
               <div style={{ marginTop: '8px', borderTop: '1px solid var(--border)', paddingTop: '8px' }}>

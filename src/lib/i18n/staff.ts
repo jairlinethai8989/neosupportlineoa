@@ -250,14 +250,14 @@ const messages: Record<StaffLocale, MessageDictionary> = {
     sidebar: {
       sections: {
         operations: 'Operations',
-        intelligence: 'Intelligence',
-        system: 'System',
+        intelligence: 'ภาพรวมและรายงาน',
+        system: 'จัดการระบบ',
       },
       createTicket: 'สร้างใบงานใหม่',
       menu: {
         tickets: 'จัดการใบงาน',
         inbox: 'ห้องแชทลูกค้า',
-        notifications: 'การแจ้งเตือน',
+        notifications: 'ประวัติการแจ้งเตือน',
         dashboard: 'แดชบอร์ดและสถิติ',
         overview: 'ภาพรวมระบบ',
         performance: 'สถิติการทำงาน',
@@ -268,6 +268,8 @@ const messages: Record<StaffLocale, MessageDictionary> = {
         reportHub: 'ศูนย์รวมรายงาน',
         customers: 'ฐานข้อมูลลูกค้า',
         settings: 'การตั้งค่า',
+        settingsPersonal: 'ส่วนตัว',
+        settingsSystem: 'จัดการระบบ',
         profile: 'ข้อมูลส่วนตัว',
         notificationSettings: 'ตั้งค่าการแจ้งเตือน',
         branding: 'ข้อมูลองค์กร',
@@ -881,14 +883,14 @@ const messages: Record<StaffLocale, MessageDictionary> = {
     sidebar: {
       sections: {
         operations: 'Operations',
-        intelligence: 'Intelligence',
-        system: 'System',
+        intelligence: 'Intelligence & Reports',
+        system: 'System Settings',
       },
       createTicket: 'Create Ticket',
       menu: {
         tickets: 'Ticket Workspace',
         inbox: 'Customer Inbox',
-        notifications: 'Notifications',
+        notifications: 'Notification History',
         dashboard: 'Dashboards & Analytics',
         overview: 'Overview',
         performance: 'Performance',
@@ -899,6 +901,8 @@ const messages: Record<StaffLocale, MessageDictionary> = {
         reportHub: 'Report Hub',
         customers: 'Customers',
         settings: 'Settings',
+        settingsPersonal: 'Personal',
+        settingsSystem: 'System Settings',
         profile: 'Profile',
         notificationSettings: 'Notification Settings',
         branding: 'Organization',
