@@ -46,6 +46,7 @@ export interface AgentAnalyticsData {
   workloadTrend: WorkloadTrendPoint[];
   priorityData: ChartDataPoint[];
   categoryData: ChartDataPoint[];
+  hospitalData: ChartDataPoint[];
   slaData: SlaDataPoint[];
   timeline: AgentTimelineItem[];
 }
@@ -75,7 +76,8 @@ export const analyticsQueries = {
           issue_type,
           created_at,
           resolved_at,
-          sla_due_at
+          sla_due_at,
+          organizations:organization_id ( name )
         `)
         .eq('assigned_agent_id', agentId)
         .in('status', ['Assigned', 'In Progress', 'Escalated', 'Pending']),
@@ -90,7 +92,8 @@ export const analyticsQueries = {
           issue_type,
           created_at,
           resolved_at,
-          sla_due_at
+          sla_due_at,
+          organizations:organization_id ( name )
         `)
         .eq('assigned_agent_id', agentId)
         .in('status', ['Resolved', 'Closed'])
@@ -257,6 +260,17 @@ export const analyticsQueries = {
       .sort((a, b) => b.value - a.value)
       .slice(0, 10);
 
+    // 8.5 Workload by Hospital (resolved tickets grouped by organization name)
+    const hospitalCounts: Record<string, number> = {};
+    resolvedTickets.forEach((t) => {
+      const orgName = (t.organizations as any)?.name || 'General/Other (ไม่มีระบุ)';
+      hospitalCounts[orgName] = (hospitalCounts[orgName] || 0) + 1;
+    });
+    const hospitalData = Object.entries(hospitalCounts)
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 10);
+
     // 9. SLA compliance Doughnut Data
     const slaData = [
       { name: 'Compliant (ผ่านเกณฑ์)', value: slaCompliantCount },
@@ -316,6 +330,7 @@ export const analyticsQueries = {
       workloadTrend,
       priorityData,
       categoryData,
+      hospitalData,
       slaData,
       timeline,
     };

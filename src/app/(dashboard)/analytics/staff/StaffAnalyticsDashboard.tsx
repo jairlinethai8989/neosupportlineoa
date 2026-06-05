@@ -951,26 +951,26 @@ export function StaffAnalyticsDashboard({
           )}
         </div>
 
-        {/* Problem Category horizontal Bar Chart */}
+        {/* Hospital Solved horizontal Bar Chart */}
         <div className="glass" style={{ padding: '24px', gridColumn: 'span 2' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '12px' }}>
             <div style={{ background: 'rgba(115, 103, 240, 0.1)', padding: '6px', borderRadius: '8px', color: 'var(--secondary)' }}>
               <BarIcon size={16} />
             </div>
-            <h3 style={{ fontSize: '16px', fontWeight: '800', color: 'var(--text-main)' }}>สัดส่วนประเภทปัญหาที่ดูแลสูงสุด (Top Categories Handled)</h3>
+            <h3 style={{ fontSize: '16px', fontWeight: '800', color: 'var(--text-main)' }}>จำนวนโรงพยาบาลที่ถูกแก้ปัญหา</h3>
           </div>
 
-          {data.categoryData.length === 0 ? (
-            <div className="flex-center" style={{ height: '240px', color: 'var(--text-muted)' }}>ไม่มีข้อมูลบันทึกประเภทปัญหา</div>
+          {!data.hospitalData || data.hospitalData.length === 0 ? (
+            <div className="flex-center" style={{ height: '240px', color: 'var(--text-muted)' }}>ไม่มีข้อมูลการแก้ปัญหาของโรงพยาบาล</div>
           ) : (
             <ResponsiveContainer width="100%" height={240}>
-              <RechartsBarChart layout="vertical" data={data.categoryData}>
+              <RechartsBarChart layout="vertical" data={data.hospitalData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" horizontal={false} />
                 <XAxis type="number" stroke="var(--text-dim)" fontSize={11} axisLine={false} tickLine={false} />
                 <YAxis type="category" dataKey="name" stroke="var(--text-dim)" fontSize={11} axisLine={false} tickLine={false} width={150} />
                 <Tooltip contentStyle={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px' }} />
                 <Bar dataKey="value" fill="var(--primary)" radius={[0, 4, 4, 0]} barSize={16}>
-                  {data.categoryData.map((entry, index) => (
+                  {data.hospitalData.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
                   ))}
                 </Bar>
