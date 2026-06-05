@@ -63,8 +63,16 @@ export const analyticsQueries = {
     const start = DateTime.fromISO(startDateStr).startOf('day').toJSDate();
     const end = DateTime.fromISO(endDateStr).endOf('day').toJSDate();
 
-    // 1. Fetch active tickets + tickets resolved in date range in parallel, and get the lifetime total claimed count
-    const [activeResult, resolvedResult, countResult] = await Promise.all([
+    // Fetch all required data in parallel
+    const [
+      activeResult,
+      resolvedResult,
+      countResult,
+      reworkResult,
+      csatResult,
+      receiveResult,
+      timelineResult,
+    ] = await Promise.all([
       supabase
         .from('tickets')
         .select(`
@@ -102,11 +110,52 @@ export const analyticsQueries = {
       supabase
         .from('tickets')
         .select('*', { count: 'exact', head: true })
-        .eq('assigned_agent_id', agentId)
+        .eq('assigned_agent_id', agentId),
+      supabase
+        .from('ticket_logs')
+        .select('id, ticket:tickets!inner(assigned_agent_id)')
+        .eq('tickets.assigned_agent_id', agentId)
+        .eq('from_status', 'Fix Completed')
+        .in('to_status', ['In Progress', 'Pending', 'Escalated', 'Assigned'])
+        .gte('created_at', start.toISOString())
+        .lte('created_at', end.toISOString()),
+      supabase
+        .from('csat_surveys')
+        .select('score, tickets!inner(assigned_agent_id)')
+        .eq('tickets.assigned_agent_id', agentId)
+        .not('score', 'is', null)
+        .gte('created_at', start.toISOString())
+        .lte('created_at', end.toISOString()),
+      supabase
+        .from('ticket_logs')
+        .select('created_at, action_type, to_user_id, performer_id')
+        .or(`to_user_id.eq.${agentId},performer_id.eq.${agentId}`)
+        .in('action_type', ['claim', 'assign', 'transfer'])
+        .gte('created_at', start.toISOString())
+        .lte('created_at', end.toISOString()),
+      supabase
+        .from('ticket_logs')
+        .select(`
+          id,
+          action_type,
+          from_status,
+          to_status,
+          note,
+          created_at,
+          ticket:tickets(ticket_no, subject)
+        `)
+        .eq('performer_id', agentId)
+        .order('created_at', { ascending: false })
+        .limit(100)
     ]);
 
     if (activeResult.error) throw activeResult.error;
     if (resolvedResult.error) throw resolvedResult.error;
+    if (countResult.error) throw countResult.error;
+    if (reworkResult.error) throw reworkResult.error;
+    if (csatResult.error) throw csatResult.error;
+    if (receiveResult.error) throw receiveResult.error;
+    if (timelineResult.error) throw timelineResult.error;
 
     const agentTickets = [...(activeResult.data || []), ...(resolvedResult.data || [])];
 
@@ -124,17 +173,7 @@ export const analyticsQueries = {
     const totalClaimed = countResult.count || 0;
 
     // 3. Rework events count
-    // Fetch log records for tickets assigned to this agent where state returned from Fix Completed
-    const { data: reworkLogs, error: reworkError } = await supabase
-      .from('ticket_logs')
-      .select('id, ticket:tickets!inner(assigned_agent_id)')
-      .eq('tickets.assigned_agent_id', agentId)
-      .eq('from_status', 'Fix Completed')
-      .in('to_status', ['In Progress', 'Pending', 'Escalated', 'Assigned'])
-      .gte('created_at', start.toISOString())
-      .lte('created_at', end.toISOString());
-
-    if (reworkError) throw reworkError;
+    const reworkLogs = reworkResult.data;
     const reworkCount = reworkLogs?.length || 0;
     const reworkRate = resolvedCount > 0 ? parseFloat(((reworkCount / resolvedCount) * 100).toFixed(1)) : 0;
 
@@ -163,29 +202,12 @@ export const analyticsQueries = {
       slaRatedTicketsCount > 0 ? Math.round((slaCompliantCount / slaRatedTicketsCount) * 100) : 100;
 
     // 5. Average CSAT Score
-    const { data: csatSurveys, error: csatError } = await supabase
-      .from('csat_surveys')
-      .select('score, tickets!inner(assigned_agent_id)')
-      .eq('tickets.assigned_agent_id', agentId)
-      .not('score', 'is', null)
-      .gte('created_at', start.toISOString())
-      .lte('created_at', end.toISOString());
-
-    if (csatError) throw csatError;
-
+    const csatSurveys = csatResult.data;
     const scores = (csatSurveys || []).map((c) => c.score).filter(Boolean) as number[];
     const avgCsat = scores.length > 0 ? parseFloat((scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(1)) : 0;
 
-    // Fetch logs to calculate received tickets per day
-    const { data: receiveLogs, error: receiveError } = await supabase
-      .from('ticket_logs')
-      .select('created_at, action_type, to_user_id, performer_id')
-      .or(`to_user_id.eq.${agentId},performer_id.eq.${agentId}`)
-      .in('action_type', ['claim', 'assign', 'transfer'])
-      .gte('created_at', start.toISOString())
-      .lte('created_at', end.toISOString());
-
-    if (receiveError) throw receiveError;
+    // Received tickets logs
+    const receiveLogs = receiveResult.data;
 
     // Filter logs in JS to match precise assignment/claiming rules
     const receivedTicketsLogs = (receiveLogs || []).filter((log) => {
@@ -263,7 +285,8 @@ export const analyticsQueries = {
     // 8.5 Workload by Hospital (resolved tickets grouped by organization name)
     const hospitalCounts: Record<string, number> = {};
     resolvedTickets.forEach((t) => {
-      const orgName = (t.organizations as any)?.name || 'General/Other (ไม่มีระบุ)';
+      const orgs = t.organizations as unknown as { name: string } | { name: string }[] | null;
+      const orgName = (Array.isArray(orgs) ? orgs[0]?.name : orgs?.name) || 'General/Other (ไม่มีระบุ)';
       hospitalCounts[orgName] = (hospitalCounts[orgName] || 0) + 1;
     });
     const hospitalData = Object.entries(hospitalCounts)
@@ -278,22 +301,7 @@ export const analyticsQueries = {
     ];
 
     // 10. Activity Timeline (logs from ticket_logs performers)
-    const { data: timelineLogs, error: timelineError } = await supabase
-      .from('ticket_logs')
-      .select(`
-        id,
-        action_type,
-        from_status,
-        to_status,
-        note,
-        created_at,
-        ticket:tickets(ticket_no, subject)
-      `)
-      .eq('performer_id', agentId)
-      .order('created_at', { ascending: false })
-      .limit(100);
-
-    if (timelineError) throw timelineError;
+    const timelineLogs = timelineResult.data;
 
     const timeline = (((timelineLogs as unknown) as Array<{
       id: string;

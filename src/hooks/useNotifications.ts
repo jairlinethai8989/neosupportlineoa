@@ -611,7 +611,7 @@ export function useNotifications(
       addToastRef.current({ id: `t-msg-${Date.now()}`, type: 'message', title: getStaffMessage(locale, 'notificationsHub.alerts.newMessageTitle'), body: (row.content as string)?.slice(0, 60), conversationId: row.conversation_id });
     }).subscribe();
 
-    const ticketChannel = supabase.channel('tickets')
+    const ticketChannel = supabase.channel(`tickets-${agentId}`)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'tickets' }, (p) => {
         setLastDbEvent({ table: 'tickets', action: 'INSERT', payload: p, occurredAt: Date.now() });
         const row = p.new as any; scheduleFetchNewTicketsCountRef.current(400);
@@ -631,7 +631,7 @@ export function useNotifications(
       })
       .subscribe();
 
-    const conversationChannel = supabase.channel('conversations')
+    const conversationChannel = supabase.channel(`conversations-${agentId}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'conversations' }, (p) => {
         setLastDbEvent({ table: 'conversations', action: p.eventType as any, payload: p, occurredAt: Date.now() });
         scheduleFetchInboxCountRef.current(400);
