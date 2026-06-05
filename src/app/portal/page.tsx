@@ -14,7 +14,8 @@ import {
   ChevronLeft,
   ChevronRight,
   ChevronsLeft,
-  ChevronsRight
+  ChevronsRight,
+  Search
 } from 'lucide-react';
 import Link from 'next/link';
 import Skeleton from '@/components/ui/Skeleton';
@@ -225,7 +226,10 @@ const PortalTicketCard = React.memo(function PortalTicketCard({ ticket, isPast =
 
 export default function PortalPage() {
   const { profile, isReady, error: liffError, setMockLogin } = useLiff();
-  const [tickets, setTickets] = useState<any[]>([]);
+  const [activeTickets, setActiveTickets] = useState<any[]>([]);
+  const [pastTickets, setPastTickets] = useState<any[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
   const [customerData, setCustomerData] = useState<any>(null);
   const [fetching, setFetching] = useState(true);
   const [needsRegistration, setNeedsRegistration] = useState(false);
@@ -242,6 +246,17 @@ export default function PortalPage() {
   // FIX #3: Use ref for historyPage so fetchTickets doesn't recreate on page change
   const historyPageRef = useRef(historyPage);
   useEffect(() => { historyPageRef.current = historyPage; }, [historyPage]);
+
+  // Debounce search query
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  const debouncedSearchQueryRef = useRef(debouncedSearchQuery);
+  useEffect(() => { debouncedSearchQueryRef.current = debouncedSearchQuery; }, [debouncedSearchQuery]);
 
   // FIX #1: Cache customerId in ref → avoid re-querying customers table on every fetch
   const customerIdRef = useRef<string | null>(null);
@@ -307,7 +322,7 @@ export default function PortalPage() {
   );
 
   // FIX #1: fetchTickets only re-queries customers on first load (cached in ref)
-  // FIX #3: reads historyPageRef.current instead of historyPage to keep callback stable
+  // FIX #3: reads historyPageRef.current and debouncedSearchQueryRef.current instead of states to keep callback stable
   const fetchTickets = useCallback(async (silent = false) => {
     if (!profile?.userId) return;
     if (inFlightRef.current && silent) return;
@@ -342,27 +357,42 @@ export default function PortalPage() {
       setNeedsRegistration(false);
 
       const page = historyPageRef.current;
-      const thirtyDaysAgo = new Date();
-      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      const query = debouncedSearchQueryRef.current;
       const from = (page - 1) * ITEMS_PER_PAGE;
       const to = from + ITEMS_PER_PAGE - 1;
 
-      // FIX #1: Parallel fetch tickets + survey candidates simultaneously
-      const [ticketsRes] = await Promise.all([
+      // Build paginated query for past tickets
+      let pastQuery = supabase
+        .from('tickets')
+        .select('id, ticket_no, subject, status, created_at, resolved_at', { count: 'exact' })
+        .eq('customer_id', customerId)
+        .in('status', ['Resolved', 'Closed', 'Canceled', 'Fix Completed', 'resolved', 'closed', 'canceled', 'fix completed']);
+
+      if (query.trim()) {
+        const cleanQuery = query.trim();
+        pastQuery = pastQuery.or(`ticket_no.ilike.%${cleanQuery}%,subject.ilike.%${cleanQuery}%`);
+      }
+
+      const [activeRes, pastRes] = await Promise.all([
         supabase
           .from('tickets')
-          .select('id, ticket_no, subject, status, created_at, resolved_at', { count: 'exact' })
+          .select('id, ticket_no, subject, status, created_at, resolved_at')
           .eq('customer_id', customerId)
-          .or(`status.not.in.(Resolved,Closed,Canceled,Canceled),created_at.gte.${thirtyDaysAgo.toISOString()}`)
+          .not('status', 'in', '("Resolved","Closed","Canceled","Fix Completed","resolved","closed","canceled","fix completed")')
+          .order('created_at', { ascending: false }),
+        pastQuery
           .order('created_at', { ascending: false })
-          .range(from, to),
+          .range(from, to)
       ]);
 
-      if (ticketsRes.data) {
-        setTickets(ticketsRes.data);
-        void refreshPendingSurvey(customerId, ticketsRes.data);
+      if (activeRes.data) {
+        setActiveTickets(activeRes.data);
       }
-      if (ticketsRes.count !== null) setTotalHistory(ticketsRes.count);
+      if (pastRes.data) {
+        setPastTickets(pastRes.data);
+        void refreshPendingSurvey(customerId, [...(activeRes.data || []), ...pastRes.data]);
+      }
+      if (pastRes.count !== null) setTotalHistory(pastRes.count);
     } catch (err) {
       console.error('Portal Fetch Error:', err);
     } finally {
@@ -370,15 +400,15 @@ export default function PortalPage() {
       setFetching(false);
     }
   }, [profile?.userId, refreshPendingSurvey]);
-  // NOTE: historyPage intentionally excluded — read via historyPageRef to keep callback stable
+  // NOTE: historyPage/debouncedSearchQuery intentionally excluded — read via refs to keep callback stable
 
-  // Trigger re-fetch when historyPage changes (without recreating fetchTickets)
+  // Trigger re-fetch when historyPage or debouncedSearchQuery changes (without recreating fetchTickets)
   useEffect(() => {
     if (profile?.userId && customerIdRef.current) {
       void fetchTickets(true);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [historyPage]);
+  }, [historyPage, debouncedSearchQuery]);
 
   // Initial load + focus/popstate refresh (debounced)
   useEffect(() => {
@@ -546,14 +576,6 @@ export default function PortalPage() {
     }
   }, [pendingSurveyTicket, surveyValue, surveyComment, fetchTickets]);
 
-  // Memoized filter lists to avoid calculation on every single hover / state change
-  const activeTickets = React.useMemo(() => {
-    return tickets.filter(t => !DONE_STATUSES.includes(String(t.status || '').toLowerCase()));
-  }, [tickets]);
-
-  const pastTickets = React.useMemo(() => {
-    return tickets.filter(t => DONE_STATUSES.includes(String(t.status || '').toLowerCase()));
-  }, [tickets]);
 
   if (!isReady || (profile && fetching && !needsRegistration)) {
     return (
@@ -694,10 +716,39 @@ export default function PortalPage() {
            <Clock size={16} color="var(--portal-text-muted)" />
            <h3 style={{ fontSize: '13px', fontWeight: '800', color: 'var(--portal-text-muted)', textTransform: 'uppercase', letterSpacing: '0.8px' }}>ประวัติการแจ้งงาน</h3>
         </div>
+
+        <div style={{ position: 'relative', marginBottom: '16px' }}>
+          <Search 
+            size={18} 
+            color="var(--portal-text-muted)" 
+            style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)' }} 
+          />
+          <input
+            type="text"
+            placeholder="ค้นหาตามเลขใบงาน หรือ หัวข้อเรื่อง..."
+            value={searchQuery}
+            onChange={(e) => {
+              setSearchQuery(e.target.value);
+              setHistoryPage(1);
+            }}
+            style={{
+              width: '100%',
+              padding: '12px 16px 12px 42px',
+              borderRadius: '12px',
+              border: '1px solid var(--portal-border)',
+              fontSize: '13px',
+              outline: 'none',
+              transition: 'border-color 0.2s',
+              background: '#f8fafc',
+            }}
+          />
+        </div>
         
         {pastTickets.length === 0 ? (
           <div style={{ padding: '24px', textAlign: 'center', color: '#94a3b8', background: '#f8fafc', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
-            <p style={{ fontSize: '12px' }}>ยังไม่มีประวัติการแจ้งงาน</p>
+            <p style={{ fontSize: '12px' }}>
+              {searchQuery.trim() ? 'ไม่พบประวัติการแจ้งงานที่ตรงกับการค้นหา' : 'ยังไม่มีประวัติการแจ้งงาน'}
+            </p>
           </div>
         ) : (
           <>
