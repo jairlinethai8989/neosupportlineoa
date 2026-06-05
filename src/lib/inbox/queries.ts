@@ -514,78 +514,100 @@ export async function getInboxConversationById(id: string): Promise<InboxConvers
 export async function getInboxConversationByTicketId(
   ticketId: string
 ): Promise<InboxConversation | null> {
-  const { data, error } = await runConversationQueryWithAvatarFallback((selectClause) =>
-    supabase
-      .from('conversations')
-      .select(selectClause)
-      .eq('current_ticket_id', ticketId)
-      .order('last_message_at', { ascending: false, nullsFirst: false })
+  try {
+    const { data: conversationId, error: rpcError } = await supabase.rpc(
+      'get_conversation_id_by_ticket_id',
+      { p_ticket_id: ticketId }
+    );
+
+    if (rpcError) {
+      throw rpcError;
+    }
+
+    if (conversationId) {
+      return getInboxConversationById(conversationId);
+    }
+    return null;
+  } catch (err) {
+    // Optimistic fallback for local development or testing environments where migration is not applied yet
+    console.warn(
+      'RPC get_conversation_id_by_ticket_id failed or missing, falling back to sequential queries:',
+      err
+    );
+
+    const { data, error } = await runConversationQueryWithAvatarFallback((selectClause) =>
+      supabase
+        .from('conversations')
+        .select(selectClause)
+        .eq('current_ticket_id', ticketId)
+        .order('last_message_at', { ascending: false, nullsFirst: false })
+        .limit(1)
+        .maybeSingle()
+    );
+
+    if (error) throw error;
+    if (data) return normalizeInboxConversation(data);
+
+    const { data: messageRow, error: messageError } = await supabase
+      .from('messages')
+      .select('conversation_id')
+      .eq('ticket_id', ticketId)
+      .order('created_at', { ascending: false })
       .limit(1)
-      .maybeSingle()
-  );
+      .maybeSingle();
 
-  if (error) throw error;
-  if (data) return normalizeInboxConversation(data);
+    if (messageError) throw messageError;
+    const conversationId =
+      messageRow && typeof messageRow.conversation_id === 'string'
+        ? messageRow.conversation_id
+        : null;
 
-  const { data: messageRow, error: messageError } = await supabase
-    .from('messages')
-    .select('conversation_id')
-    .eq('ticket_id', ticketId)
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle();
+    if (conversationId) {
+      return getInboxConversationById(conversationId);
+    }
 
-  if (messageError) throw messageError;
-  const conversationId =
-    messageRow && typeof messageRow.conversation_id === 'string'
-      ? messageRow.conversation_id
-      : null;
+    // Fallback: Query the ticket to find customer_id and get the active/any conversation for that customer
+    const { data: ticketRow, error: ticketError } = await supabase
+      .from('tickets')
+      .select('customer_id')
+      .eq('id', ticketId)
+      .maybeSingle();
 
-  if (conversationId) {
-    return getInboxConversationById(conversationId);
+    if (ticketError) throw ticketError;
+
+    if (ticketRow?.customer_id) {
+      // 1. Try to find an active conversation for this customer
+      const { data: activeConv, error: activeConvError } = await runConversationQueryWithAvatarFallback((selectClause) =>
+        supabase
+          .from('conversations')
+          .select(selectClause)
+          .eq('customer_id', ticketRow.customer_id)
+          .eq('status', 'active')
+          .order('last_message_at', { ascending: false, nullsFirst: false })
+          .limit(1)
+          .maybeSingle()
+      );
+
+      if (activeConvError) throw activeConvError;
+      if (activeConv) return normalizeInboxConversation(activeConv);
+
+      // 2. Try to find any conversation for this customer
+      const { data: anyConv, error: anyConvError } = await runConversationQueryWithAvatarFallback((selectClause) =>
+        supabase
+          .from('conversations')
+          .select(selectClause)
+          .eq('customer_id', ticketRow.customer_id)
+          .order('last_message_at', { ascending: false, nullsFirst: false })
+          .limit(1)
+          .maybeSingle()
+      );
+
+      if (anyConvError) throw anyConvError;
+      if (anyConv) return normalizeInboxConversation(anyConv);
+    }
+
+    return null;
   }
-
-  // Fallback: Query the ticket to find customer_id and get the active/any conversation for that customer
-  const { data: ticketRow, error: ticketError } = await supabase
-    .from('tickets')
-    .select('customer_id')
-    .eq('id', ticketId)
-    .maybeSingle();
-
-  if (ticketError) throw ticketError;
-
-  if (ticketRow?.customer_id) {
-    // 1. Try to find an active conversation for this customer
-    const { data: activeConv, error: activeConvError } = await runConversationQueryWithAvatarFallback((selectClause) =>
-      supabase
-        .from('conversations')
-        .select(selectClause)
-        .eq('customer_id', ticketRow.customer_id)
-        .eq('status', 'active')
-        .order('last_message_at', { ascending: false, nullsFirst: false })
-        .limit(1)
-        .maybeSingle()
-    );
-
-    if (activeConvError) throw activeConvError;
-    if (activeConv) return normalizeInboxConversation(activeConv);
-
-    // 2. Try to find any conversation for this customer
-    const { data: anyConv, error: anyConvError } = await runConversationQueryWithAvatarFallback((selectClause) =>
-      supabase
-        .from('conversations')
-        .select(selectClause)
-        .eq('customer_id', ticketRow.customer_id)
-        .order('last_message_at', { ascending: false, nullsFirst: false })
-        .limit(1)
-        .maybeSingle()
-    );
-
-    if (anyConvError) throw anyConvError;
-    if (anyConv) return normalizeInboxConversation(anyConv);
-  }
-
-  return null;
 }
 
 export async function listInboxMessages(
