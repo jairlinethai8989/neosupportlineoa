@@ -132,11 +132,11 @@ export default function PersonalAnalyticsPage() {
     }
   };
 
-  // Pre-process priority chart data to prevent empty slices
-  const filteredPriorityData = useMemo(() => {
-    if (!data?.priorityData) return [];
-    return data.priorityData.filter(d => d.value > 0);
-  }, [data?.priorityData]);
+  // Pre-process category chart data to prevent empty slices
+  const filteredCategoryData = useMemo(() => {
+    if (!data?.categoryData) return [];
+    return data.categoryData.filter(d => d.value > 0);
+  }, [data?.categoryData]);
 
   const [currentTimelinePage, setCurrentTimelinePage] = useState(1);
   const ITEMS_PER_PAGE = 10;
@@ -266,24 +266,24 @@ export default function PersonalAnalyticsPage() {
               </div>
             </div>
 
-            {/* KPI 2 (Emphasized) */}
-            <div className="glass" style={{ padding: '24px', display: 'flex', alignItems: 'center', gap: '20px', position: 'relative', overflow: 'hidden', background: 'linear-gradient(145deg, rgba(0, 242, 254, 0.05), rgba(54, 153, 255, 0.15))', border: '1px solid rgba(0, 242, 254, 0.3)' }}>
-              <div style={{ background: 'linear-gradient(135deg, var(--primary), var(--secondary))', padding: '12px', borderRadius: '14px', boxShadow: '0 4px 12px rgba(0,242,254,0.4)' }}>
-                <Clock size={24} color="#fff" />
+            {/* KPI 2 (Average Close Time - Re-themed for Readability) */}
+            <div className="glass" style={{ padding: '24px', display: 'flex', alignItems: 'center', gap: '20px', position: 'relative', overflow: 'hidden' }}>
+              <div style={{ background: 'var(--primary-transparent)', padding: '12px', borderRadius: '14px' }}>
+                <Clock size={24} color="var(--primary)" />
               </div>
               <div style={{ zIndex: 1 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <p style={{ fontSize: '12px', color: 'var(--primary)', fontWeight: '800', textTransform: 'uppercase' }}>เวลาปิดงานเฉลี่ย</p>
-                  <span style={{ fontSize: '9px', background: 'rgba(0,242,254,0.2)', color: 'var(--primary)', padding: '2px 6px', borderRadius: '4px', fontWeight: '800' }}>SPEED METRIC</span>
+                  <p style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: '600' }}>เวลาปิดงานเฉลี่ย</p>
+                  <span style={{ fontSize: '9px', background: 'var(--primary-transparent)', color: 'var(--primary)', padding: '2px 6px', borderRadius: '4px', fontWeight: '800' }}>SPEED METRIC</span>
                 </div>
-                <h3 style={{ fontSize: '32px', fontWeight: '900', color: '#fff', marginTop: '4px', textShadow: '0 2px 10px rgba(0,242,254,0.5)' }}>
-                  {data.stats.avgResolutionTime} <span style={{ fontSize: '14px', fontWeight: '700', color: 'rgba(255,255,255,0.7)' }}>ชม.</span>
+                <h3 style={{ fontSize: '28px', fontWeight: '850', color: 'var(--text-main)', marginTop: '4px' }}>
+                  {data.stats.avgResolutionTime} <span style={{ fontSize: '14px', fontWeight: '600' }}>ชม.</span>
                 </h3>
-                <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
-                  <span style={{ fontSize: '11px', color: 'var(--text-main)', fontWeight: '600' }}>SLA ผ่านเกณฑ์ <span style={{color: 'var(--success)'}}>{data.stats.slaComplianceRate}%</span></span>
-                </div>
+                <span style={{ fontSize: '10px', color: 'var(--text-dim)' }}>
+                  SLA ผ่านเกณฑ์ <span style={{ color: 'var(--success)', fontWeight: '700' }}>{data.stats.slaComplianceRate}%</span>
+                </span>
               </div>
-              <div style={{ position: 'absolute', right: '-10px', bottom: '-15px', opacity: 0.1, transform: 'scale(1.5)', zIndex: 0 }}>
+              <div style={{ position: 'absolute', right: '-10px', bottom: '-15px', opacity: 0.05, transform: 'scale(1.5)', zIndex: 0 }}>
                 <Clock size={96} color="var(--primary)" />
               </div>
             </div>
@@ -334,23 +334,27 @@ export default function PersonalAnalyticsPage() {
 
           {/* Charts Grid */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '24px', marginBottom: '32px' }}>
-            {/* Resolution Volume Trend */}
+            {/* Workload Volume Trend */}
             <div className="glass" style={{ padding: '24px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '12px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                   <div style={{ background: 'rgba(0, 242, 254, 0.1)', padding: '6px', borderRadius: '8px', color: 'var(--primary)' }}>
                     <TrendingUp size={16} />
                   </div>
-                  <h3 style={{ fontSize: '16px', fontWeight: '800', color: 'var(--text-main)' }}>แนวโน้มการปิดงานรายวัน</h3>
+                  <h3 style={{ fontSize: '16px', fontWeight: '800', color: 'var(--text-main)' }}>ปริมาณงานของฉัน</h3>
                 </div>
               </div>
 
               <ResponsiveContainer width="100%" height={260}>
-                <AreaChart data={data.resolutionTrend}>
+                <AreaChart data={data.workloadTrend}>
                   <defs>
-                    <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="var(--primary)" stopOpacity={0.3} />
+                    <linearGradient id="colorReceived" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="var(--primary)" stopOpacity={0.2} />
                       <stop offset="95%" stopColor="var(--primary)" stopOpacity={0} />
+                    </linearGradient>
+                    <linearGradient id="colorClosed" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="var(--success)" stopOpacity={0.2} />
+                      <stop offset="95%" stopColor="var(--success)" stopOpacity={0} />
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
@@ -359,39 +363,40 @@ export default function PersonalAnalyticsPage() {
                   <Tooltip 
                     contentStyle={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px' }}
                     labelStyle={{ fontWeight: '700', fontSize: '12px', color: 'var(--text-main)' }}
-                    itemStyle={{ color: 'var(--primary)', fontSize: '12px' }}
+                    itemStyle={{ fontSize: '12px' }}
                   />
-                  <Area type="monotone" dataKey="value" stroke="var(--primary)" strokeWidth={3} fillOpacity={1} fill="url(#colorValue)" />
+                  <Area type="monotone" dataKey="received" name="งานที่รับ" stroke="var(--primary)" strokeWidth={3} fillOpacity={1} fill="url(#colorReceived)" />
+                  <Area type="monotone" dataKey="closed" name="งานที่ปิด" stroke="var(--success)" strokeWidth={3} fillOpacity={1} fill="url(#colorClosed)" />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
 
-            {/* Workload by Priority */}
+            {/* Workload by Category */}
             <div className="glass" style={{ padding: '24px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '12px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                   <div style={{ background: 'rgba(115, 103, 240, 0.1)', padding: '6px', borderRadius: '8px', color: 'var(--secondary)' }}>
                     <PieIcon size={16} />
                   </div>
-                  <h3 style={{ fontSize: '16px', fontWeight: '800', color: 'var(--text-main)' }}>สัดส่วนงานตามระดับความสำคัญ (Priority)</h3>
+                  <h3 style={{ fontSize: '16px', fontWeight: '800', color: 'var(--text-main)' }}>กราฟประเภทงาน</h3>
                 </div>
               </div>
 
-              {filteredPriorityData.length === 0 ? (
+              {filteredCategoryData.length === 0 ? (
                 <div className="flex-center" style={{ height: '260px', color: 'var(--text-muted)' }}>ไม่มีข้อมูลงานในระบบ</div>
               ) : (
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-around', flexWrap: 'wrap', gap: '16px' }}>
                   <ResponsiveContainer width={180} height={200}>
                     <PieChart>
                       <Pie
-                        data={filteredPriorityData}
+                        data={filteredCategoryData}
                         innerRadius={50}
                         outerRadius={75}
                         paddingAngle={4}
                         dataKey="value"
                       >
-                        {filteredPriorityData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={PRIORITY_COLORS[entry.name] || CHART_COLORS[index % CHART_COLORS.length]} />
+                        {filteredCategoryData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
                         ))}
                       </Pie>
                       <Tooltip />
@@ -399,9 +404,9 @@ export default function PersonalAnalyticsPage() {
                   </ResponsiveContainer>
 
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                    {filteredPriorityData.map((entry, idx) => (
+                    {filteredCategoryData.map((entry, idx) => (
                       <div key={entry.name} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        <div style={{ width: '12px', height: '12px', borderRadius: '4px', background: PRIORITY_COLORS[entry.name] || CHART_COLORS[idx % CHART_COLORS.length] }} />
+                        <div style={{ width: '12px', height: '12px', borderRadius: '4px', background: CHART_COLORS[idx % CHART_COLORS.length] }} />
                         <span style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-main)' }}>{entry.name}</span>
                         <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>({entry.value} ใบงาน)</span>
                       </div>

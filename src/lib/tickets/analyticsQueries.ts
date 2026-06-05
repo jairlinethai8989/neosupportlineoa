@@ -34,9 +34,16 @@ export interface AgentTimelineItem {
   subject: string;
 }
 
+export interface WorkloadTrendPoint {
+  name: string;
+  received: number;
+  closed: number;
+}
+
 export interface AgentAnalyticsData {
   stats: AgentStats;
   resolutionTrend: ChartDataPoint[];
+  workloadTrend: WorkloadTrendPoint[];
   priorityData: ChartDataPoint[];
   categoryData: ChartDataPoint[];
   slaData: SlaDataPoint[];
@@ -166,13 +173,39 @@ export const analyticsQueries = {
     const scores = (csatSurveys || []).map((c) => c.score).filter(Boolean) as number[];
     const avgCsat = scores.length > 0 ? parseFloat((scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(1)) : 0;
 
-    // 6. Resolution Trend (grouped by day)
+    // Fetch logs to calculate received tickets per day
+    const { data: receiveLogs, error: receiveError } = await supabase
+      .from('ticket_logs')
+      .select('created_at, action_type, to_user_id, performer_id')
+      .or(`to_user_id.eq.${agentId},performer_id.eq.${agentId}`)
+      .in('action_type', ['claim', 'assign', 'transfer'])
+      .gte('created_at', start.toISOString())
+      .lte('created_at', end.toISOString());
+
+    if (receiveError) throw receiveError;
+
+    // Filter logs in JS to match precise assignment/claiming rules
+    const receivedTicketsLogs = (receiveLogs || []).filter((log) => {
+      if (log.action_type === 'claim') {
+        return log.performer_id === agentId || log.to_user_id === agentId;
+      }
+      if (log.action_type === 'assign' || log.action_type === 'transfer') {
+        return log.to_user_id === agentId;
+      }
+      return false;
+    });
+
+    // 6. Resolution Trend & Workload Trend (grouped by day)
     const dailyCounts: Record<string, number> = {};
-    // Pre-fill last 15 days of the range with 0 to ensure continuous charts
+    const dailyReceivedCounts: Record<string, number> = {};
+    
+    // Pre-fill days of the range with 0 to ensure continuous charts
     let temp = DateTime.fromISO(startDateStr).startOf('day');
     const endLimit = DateTime.fromISO(endDateStr).endOf('day');
     while (temp.toMillis() <= endLimit.toMillis()) {
-      dailyCounts[temp.toFormat('dd MMM')] = 0;
+      const dayStr = temp.toFormat('dd MMM');
+      dailyCounts[dayStr] = 0;
+      dailyReceivedCounts[dayStr] = 0;
       temp = temp.plus({ days: 1 });
     }
 
@@ -180,14 +213,25 @@ export const analyticsQueries = {
       const dateStr = DateTime.fromISO(t.resolved_at!).toFormat('dd MMM');
       if (dailyCounts[dateStr] !== undefined) {
         dailyCounts[dateStr]++;
-      } else {
-        dailyCounts[dateStr] = 1;
+      }
+    });
+
+    receivedTicketsLogs.forEach((l) => {
+      const dateStr = DateTime.fromISO(l.created_at).toFormat('dd MMM');
+      if (dailyReceivedCounts[dateStr] !== undefined) {
+        dailyReceivedCounts[dateStr]++;
       }
     });
 
     const resolutionTrend = Object.entries(dailyCounts).map(([name, value]) => ({
       name,
       value,
+    }));
+
+    const workloadTrend = Object.entries(dailyCounts).map(([name, value]) => ({
+      name,
+      received: dailyReceivedCounts[name] || 0,
+      closed: value,
     }));
 
     // 7. Workload by Priority
@@ -269,6 +313,7 @@ export const analyticsQueries = {
         avgCsat,
       },
       resolutionTrend,
+      workloadTrend,
       priorityData,
       categoryData,
       slaData,
