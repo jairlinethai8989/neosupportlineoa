@@ -117,30 +117,35 @@ export async function listTicketWorkspaceTickets(input: {
   fromIso?: string;
   toIso?: string;
   limit?: number;
-  cursorCreatedAt?: string;
-  cursorId?: string;
+  page?: number;
+  searchTerm?: string;
+  sortKey?: string;
+  sortDirection?: 'asc' | 'desc';
 }): Promise<TicketWorkspaceTicket[]> {
-  const limit = Math.max(1, Math.min(input.limit || 120, 200));
+  const limit = Math.max(1, Math.min(input.limit || 50, 200));
+  const page = Math.max(1, input.page || 1);
+  const fromOffset = (page - 1) * limit;
+  const toOffset = page * limit - 1;
+
   let query = supabase
     .from('tickets')
-    .select(ticketWorkspaceTicketSelect)
-    .order('created_at', { ascending: false })
-    .order('id', { ascending: false })
-    .limit(limit);
+    .select(ticketWorkspaceTicketSelect);
 
-  if (input.cursorCreatedAt && input.cursorId) {
-    query = query.or(
-      `created_at.lt.${input.cursorCreatedAt},and(created_at.eq.${input.cursorCreatedAt},id.lt.${input.cursorId})`
-    );
-  } else if (input.cursorCreatedAt) {
-    query = query.lt('created_at', input.cursorCreatedAt);
+  // Apply Search
+  if (input.searchTerm && input.searchTerm.trim() !== '') {
+    const term = input.searchTerm.trim();
+    let searchFilter = `subject.ilike.%${term}%,description.ilike.%${term}%`;
+    if (/^\d+$/.test(term)) {
+      searchFilter += `,ticket_no.eq.${term}`;
+    } else {
+      searchFilter += `,ticket_no.ilike.%${term}%`;
+    }
+    query = query.or(searchFilter);
   }
 
+  // Apply Date Filter & Persistent statuses
   if (input.fromIso && input.toIso) {
-    // Persistent statuses that always show regardless of date range
-    // In Progress = not yet closed, must always be visible
     const persistentStatuses = 'New,Assigned,In Progress,Escalated,Fix Completed,Pending';
-    // Combine: (In date range) OR (Status is one of the persistent/pinned statuses)
     const filter = `and(created_at.gte.${input.fromIso},created_at.lte.${input.toIso}),status.in.(${persistentStatuses})`;
     query = query.or(filter);
   } else if (input.fromIso) {
@@ -148,6 +153,24 @@ export async function listTicketWorkspaceTickets(input: {
   } else if (input.toIso) {
     query = query.lte('created_at', input.toIso);
   }
+
+  // Apply Sorting
+  if (input.sortKey) {
+    let sortColumn = input.sortKey;
+    if (input.sortKey === 'organization') sortColumn = 'organization_id';
+    else if (input.sortKey === 'customer') sortColumn = 'customer_id';
+    else if (input.sortKey === 'agent') sortColumn = 'assigned_agent_id';
+
+    query = query.order(sortColumn, { ascending: input.sortDirection === 'asc' });
+  } else {
+    query = query.order('created_at', { ascending: false });
+  }
+
+  // Order by ID as secondary to ensure stable sorting
+  query = query.order('id', { ascending: false });
+
+  // Apply Offset Pagination
+  query = query.range(fromOffset, toOffset);
 
   const { data, error } = await query;
   if (error) throw error;

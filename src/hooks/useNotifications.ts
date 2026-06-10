@@ -595,7 +595,7 @@ export function useNotifications(
       scheduleFetchSlaBreachesRef.current(1600); 
     }, 2000);
 
-    const logChannel = supabase.channel(`logs-${agentId}`)
+    const consolidatedChannel = supabase.channel(`global-notifications-${agentId}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'ticket_logs' }, (p) => {
         setLastDbEvent({ table: 'ticket_logs', action: p.eventType as any, payload: p, occurredAt: Date.now() });
         if (p.eventType !== 'INSERT') return;
@@ -603,15 +603,12 @@ export function useNotifications(
         scheduleFetchLogsRef.current(250); scheduleFetchSlaBreachesRef.current(900);
         if (isFirstLoad.current || !prefTransferRef.current) return;
         addToastRef.current({ id: `t-log-${Date.now()}`, type: 'ticket', title: 'ใบงานได้รับการอัปเดต', body: row.note || 'ดูรายละเอียดในกล่องข้อความ', ticketId: row.ticket_id });
-      }).subscribe();
-
-    const msgChannel = supabase.channel(`msgs-${agentId}`).on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (p) => {
-      const row = p.new as any; if (row.sender_type !== 'customer' || row.message_type === 'system') return;
-      if (isFirstLoad.current || !prefNewMessageRef.current) return;
-      addToastRef.current({ id: `t-msg-${Date.now()}`, type: 'message', title: getStaffMessage(locale, 'notificationsHub.alerts.newMessageTitle'), body: (row.content as string)?.slice(0, 60), conversationId: row.conversation_id });
-    }).subscribe();
-
-    const ticketChannel = supabase.channel(`tickets-${agentId}`)
+      })
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (p) => {
+        const row = p.new as any; if (row.sender_type !== 'customer' || row.message_type === 'system') return;
+        if (isFirstLoad.current || !prefNewMessageRef.current) return;
+        addToastRef.current({ id: `t-msg-${Date.now()}`, type: 'message', title: getStaffMessage(locale, 'notificationsHub.alerts.newMessageTitle'), body: (row.content as string)?.slice(0, 60), conversationId: row.conversation_id });
+      })
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'tickets' }, (p) => {
         setLastDbEvent({ table: 'tickets', action: 'INSERT', payload: p, occurredAt: Date.now() });
         const row = p.new as any; scheduleFetchNewTicketsCountRef.current(400);
@@ -629,9 +626,6 @@ export function useNotifications(
         setLastDbEvent({ table: 'tickets', action: 'DELETE', payload: p, occurredAt: Date.now() });
         scheduleFetchNewTicketsCountRef.current(450); 
       })
-      .subscribe();
-
-    const conversationChannel = supabase.channel(`conversations-${agentId}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'conversations' }, (p) => {
         setLastDbEvent({ table: 'conversations', action: p.eventType as any, payload: p, occurredAt: Date.now() });
         scheduleFetchInboxCountRef.current(400);
@@ -642,7 +636,7 @@ export function useNotifications(
     const firstLoadTimer = setTimeout(() => { isFirstLoad.current = false; }, 2500);
 
     return () => {
-      supabase.removeChannel(logChannel); supabase.removeChannel(msgChannel); supabase.removeChannel(ticketChannel); supabase.removeChannel(conversationChannel);
+      supabase.removeChannel(consolidatedChannel);
       clearInterval(slaInterval); clearTimeout(firstLoadTimer);
       if (logsRefreshTimerRef.current) clearTimeout(logsRefreshTimerRef.current);
       if (slaRefreshTimerRef.current) clearTimeout(slaRefreshTimerRef.current);

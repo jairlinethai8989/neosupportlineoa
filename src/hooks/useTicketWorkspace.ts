@@ -315,7 +315,6 @@ export function useTicketWorkspace(filterCustomerId: string | null) {
     if (!isSilent) setLoading(true);
 
     const { fromIso, toIso } = getTicketWorkspaceDateRange(timeRange, customStart, customEnd);
-    const cursor = ticketCursorByPageRef.current.get(ticketPage) || undefined;
     const errors: string[] = [];
 
     try {
@@ -323,26 +322,17 @@ export function useTicketWorkspace(filterCustomerId: string | null) {
         fromIso,
         toIso,
         limit: WORKSPACE_TICKETS_PAGE_SIZE + 1,
-        cursorCreatedAt: cursor?.createdAt,
-        cursorId: cursor?.id,
+        page: ticketPage,
+        searchTerm,
+        sortKey: sortConfig.key,
+        sortDirection: sortConfig.direction,
       });
       const pageTickets = ticketResult.slice(0, WORKSPACE_TICKETS_PAGE_SIZE);
       const hasNext = ticketResult.length > WORKSPACE_TICKETS_PAGE_SIZE;
-      const nextCursorSource = pageTickets[pageTickets.length - 1];
       setHasNextTicketPage(hasNext);
       
       const cache = getOrInitializeCache();
       cache.hasNextPageByPage.set(ticketPage, hasNext);
-
-      if (hasNext && nextCursorSource?.created_at) {
-        ticketCursorByPageRef.current.set(ticketPage + 1, {
-          createdAt: nextCursorSource.created_at,
-          id: nextCursorSource.id,
-        });
-      } else {
-        ticketCursorByPageRef.current.delete(ticketPage + 1);
-      }
-      cache.ticketCursorByPage = ticketCursorByPageRef.current;
 
       const ticketIds = pageTickets.map((ticket) => ticket.id);
       const customerIds = pageTickets
@@ -398,7 +388,16 @@ export function useTicketWorkspace(filterCustomerId: string | null) {
     }
 
     if (!isSilent) setLoading(false);
-  }, [customEnd, customStart, ticketPage, timeRange, getOrInitializeCache]);
+  }, [
+    customEnd,
+    customStart,
+    ticketPage,
+    timeRange,
+    searchTerm,
+    sortConfig.key,
+    sortConfig.direction,
+    getOrInitializeCache,
+  ]);
 
   const syncTicketFromRealtime = useCallback(
     async (ticketId: string, fallbackValue?: unknown) => {
