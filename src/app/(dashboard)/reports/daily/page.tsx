@@ -153,7 +153,7 @@ export default function DailyReportPage() {
   const fetchTickets = async (start: string, end: string) => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/reports/daily/preview?start=${start}&end=${end}`, { cache: 'no-store' });
+      const res = await fetch(`/api/reports/daily/preview?start=${start}&end=${end}`);
       if (!res.ok) throw new Error(`Failed to load daily preview (${res.status})`);
       const payload = (await res.json()) as { rows?: DailyPreviewRow[] };
       setTickets(payload.rows || []);

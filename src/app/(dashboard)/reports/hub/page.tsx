@@ -290,14 +290,18 @@ export default function ReportsPage() {
   };
 
   useEffect(() => {
-    void fetchPreview();
+    if (activeTab === 'hub') {
+      void fetchPreview();
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [targetDate]);
+  }, [targetDate, activeTab]);
 
   useEffect(() => {
-    void fetchBroadcastSettings();
+    if (activeTab === 'hub') {
+      void fetchBroadcastSettings();
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [activeTab]);
 
   const groupedData = useMemo(() => {
     const normalizedHospitalGroups: Record<string, number> = {};
@@ -389,24 +393,6 @@ export default function ReportsPage() {
     }
   };
 
-  if (activeTab === 'daily') {
-    return (
-      <div className="animate-page-in" style={{ width: '100%' }}>
-        {renderTabBar()}
-        <DailyReportPage />
-      </div>
-    );
-  }
-
-  if (activeTab === 'presentation') {
-    return (
-      <div className="animate-page-in" style={{ width: '100%' }}>
-        {renderTabBar()}
-        <PresentationPage />
-      </div>
-    );
-  }
-
   return (
     <div
       style={{
@@ -417,16 +403,29 @@ export default function ReportsPage() {
       }}
     >
       {renderTabBar()}
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'flex-end',
-          marginBottom: '32px',
-          gap: '24px',
-          flexWrap: 'wrap',
-        }}
-      >
+
+      {/* Tab: Daily Report */}
+      <div style={{ display: activeTab === 'daily' ? 'block' : 'none', width: '100%' }}>
+        <DailyReportPage />
+      </div>
+
+      {/* Tab: Weekly Presentation */}
+      <div style={{ display: activeTab === 'presentation' ? 'block' : 'none', width: '100%' }}>
+        <PresentationPage />
+      </div>
+
+      {/* Tab: Report Hub */}
+      <div style={{ display: activeTab === 'hub' ? 'block' : 'none', width: '100%' }}>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'flex-end',
+            marginBottom: '32px',
+            gap: '24px',
+            flexWrap: 'wrap',
+          }}
+        >
         <div>
           <h1
             style={{
@@ -1009,6 +1008,7 @@ export default function ReportsPage() {
             </div>
           )}
         </div>
+      </div>
       </div>
     </div>
   );
