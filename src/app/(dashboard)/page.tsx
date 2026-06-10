@@ -230,11 +230,17 @@ export default function Home() {
   );
   const currentWindowKey = `${dateWindow.from.toISOString()}_${dateWindow.to.toISOString()}_h=${selectedHospital}_m=${selectedModule}_t=${selectedIssueType}`;
 
-  const fetchUrl = `/api/dashboard/summary?from=${encodeURIComponent(dateWindow.from.toISOString())}&to=${encodeURIComponent(dateWindow.to.toISOString())}&organizationId=${selectedHospital}&module=${selectedModule}&issueType=${selectedIssueType}`;
-  const { data: payload, isLoading: isSwrLoading, mutate } = useSWR(fetchUrl);
-  
-  const logsFetchUrl = payload ? `/api/dashboard/summary?from=${encodeURIComponent(dateWindow.from.toISOString())}&to=${encodeURIComponent(dateWindow.to.toISOString())}&includeLogs=1&organizationId=${selectedHospital}&module=${selectedModule}&issueType=${selectedIssueType}` : null;
-  const { data: logsPayload } = useSWR(logsFetchUrl);
+  const fetchUrl = `/api/dashboard/summary?from=${encodeURIComponent(dateWindow.from.toISOString())}&to=${encodeURIComponent(dateWindow.to.toISOString())}&includeLogs=1&organizationId=${selectedHospital}&module=${selectedModule}&issueType=${selectedIssueType}`;
+  const { data: payload, isLoading: isSwrLoading, mutate } = useSWR(
+    fetchUrl,
+    (url: string) => fetch(url).then((res) => {
+      if (!res.ok) throw new Error('Failed to fetch dashboard summary');
+      return res.json();
+    }),
+    {
+      revalidateOnFocus: false,
+    }
+  );
 
   const stats = payload?.stats || EMPTY_STATS;
   const trendRows = payload?.trendByDay || [];
@@ -243,7 +249,7 @@ export default function Home() {
   const organizationRows = payload?.organizationData || [];
   const agentRows = payload?.agentData || [];
   const heatmap = payload?.heatmap || [];
-  const recentLogs = logsPayload?.recentLogs || [];
+  const recentLogs = payload?.recentLogs || [];
   const isLoading = isSwrLoading && !payload; // Use data to prevent layout thrashing on revalidation
   
   const [exportTicketsRows, setExportTicketsRows] = useState<any[]>([]);

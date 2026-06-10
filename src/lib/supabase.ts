@@ -7,10 +7,4 @@ export const supabase = createBrowserClient(supabaseUrl, supabaseAnonKey, {
   realtime: {
     worker: true,
   },
-  global: {
-    headers: {
-      'Cache-Control': 'no-cache',
-      'Pragma': 'no-cache',
-    },
-  },
 });

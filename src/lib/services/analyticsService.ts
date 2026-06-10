@@ -10,30 +10,27 @@ export const analyticsService = {
     const today = DateTime.now().startOf('day').toFormat('yyyy-MM-dd\'T\'HH:mm:ssZZ');
     const now = DateTime.now().toFormat('yyyy-MM-dd\'T\'HH:mm:ssZZ');
 
-    // 1. Total active tickets
-    const { count: activeCount } = await supabase
-      .from('tickets')
-      .select('*', { count: 'exact', head: true })
-      .not('status', 'in', '("Closed","Resolved")');
-
-    // 2. Resolved today
-    const { count: resolvedToday } = await supabase
-      .from('tickets')
-      .select('*', { count: 'exact', head: true })
-      .eq('status', 'Resolved')
-      .gte('resolved_at', today);
-
-    // 3. SLA Breached
-    const { count: breachedCount } = await supabase
-      .from('tickets')
-      .select('*', { count: 'exact', head: true })
-      .lt('sla_due_at', now)
-      .not('status', 'in', '("Resolved","Closed")');
+    const [activeRes, resolvedRes, breachedRes] = await Promise.all([
+      supabase
+        .from('tickets')
+        .select('*', { count: 'exact', head: true })
+        .not('status', 'in', '("Closed","Resolved")'),
+      supabase
+        .from('tickets')
+        .select('*', { count: 'exact', head: true })
+        .eq('status', 'Resolved')
+        .gte('resolved_at', today),
+      supabase
+        .from('tickets')
+        .select('*', { count: 'exact', head: true })
+        .lt('sla_due_at', now)
+        .not('status', 'in', '("Resolved","Closed")')
+    ]);
 
     return {
-      activeTickets: activeCount || 0,
-      resolvedToday: resolvedToday || 0,
-      slaBreached: breachedCount || 0,
+      activeTickets: activeRes.count || 0,
+      resolvedToday: resolvedRes.count || 0,
+      slaBreached: breachedRes.count || 0,
       avgResponseTime: '12m'
     };
   },
@@ -50,7 +47,7 @@ export const analyticsService = {
   async getAgentPerformance() {
     const { data: agents } = await supabase
       .from('profiles')
-      .select('*, tickets(id, status, csat_surveys(score))');
+      .select('id, full_name, department, tickets(id, status, csat_surveys(score))');
     
     return agents?.map(agent => {
       const ticketsWithCSAT = agent.tickets?.filter((t: any) => t.csat_surveys && t.csat_surveys.score) || [];
@@ -70,51 +67,44 @@ export const analyticsService = {
    * Get stats for a specific time range (used for daily summaries)
    */
   async getSummaryStats(startDate: string, endDate: string) {
-    // 1. New tickets created in period
-    const { count: newTickets } = await supabase
-      .from('tickets')
-      .select('*', { count: 'exact', head: true })
-      .gte('created_at', startDate)
-      .lte('created_at', endDate);
-
-    // 2. Resolved in period
-    const { count: resolved } = await supabase
-      .from('tickets')
-      .select('*', { count: 'exact', head: true })
-      .eq('status', 'Resolved')
-      .gte('resolved_at', startDate)
-      .lte('resolved_at', endDate);
-
-    // 3. Status-Specific Counts (Current Totals)
-    const { count: inProgress } = await supabase
-      .from('tickets')
-      .select('*', { count: 'exact', head: true })
-      .eq('status', 'In Progress');
-
-    const { count: escalated } = await supabase
-      .from('tickets')
-      .select('*', { count: 'exact', head: true })
-      .eq('status', 'Escalated');
-
-    const { count: pending } = await supabase
-      .from('tickets')
-      .select('*', { count: 'exact', head: true })
-      .not('status', 'in', '("Resolved","Closed")');
-
-    // 4. SLA Breached (Due at < EndDate and not resolved)
-    const { count: breached } = await supabase
-      .from('tickets')
-      .select('*', { count: 'exact', head: true })
-      .lt('sla_due_at', endDate)
-      .not('status', 'in', '("Resolved","Closed")');
+    const [newTicketsRes, resolvedRes, inProgressRes, escalatedRes, pendingRes, breachedRes] = await Promise.all([
+      supabase
+        .from('tickets')
+        .select('*', { count: 'exact', head: true })
+        .gte('created_at', startDate)
+        .lte('created_at', endDate),
+      supabase
+        .from('tickets')
+        .select('*', { count: 'exact', head: true })
+        .eq('status', 'Resolved')
+        .gte('resolved_at', startDate)
+        .lte('resolved_at', endDate),
+      supabase
+        .from('tickets')
+        .select('*', { count: 'exact', head: true })
+        .eq('status', 'In Progress'),
+      supabase
+        .from('tickets')
+        .select('*', { count: 'exact', head: true })
+        .eq('status', 'Escalated'),
+      supabase
+        .from('tickets')
+        .select('*', { count: 'exact', head: true })
+        .not('status', 'in', '("Resolved","Closed")'),
+      supabase
+        .from('tickets')
+        .select('*', { count: 'exact', head: true })
+        .lt('sla_due_at', endDate)
+        .not('status', 'in', '("Resolved","Closed")')
+    ]);
 
     return {
-      total: pending || 0, // All non-resolved
-      new: newTickets || 0,
-      resolved: resolved || 0,
-      inProgress: inProgress || 0,
-      transferred: escalated || 0,
-      breached: breached || 0
+      total: pendingRes.count || 0, // All non-resolved
+      new: newTicketsRes.count || 0,
+      resolved: resolvedRes.count || 0,
+      inProgress: inProgressRes.count || 0,
+      transferred: escalatedRes.count || 0,
+      breached: breachedRes.count || 0
     };
   },
 

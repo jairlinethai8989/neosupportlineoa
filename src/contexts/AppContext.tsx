@@ -215,13 +215,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           .from('profiles')
           .update({ last_seen: now })
           .eq('id', currentUserId);
-          
-        // Re-fetch to guarantee local state is fresh, avoiding race conditions 
-        // with the initial load sequence
-        const { data } = await supabase.from('profiles').select('*').eq('id', currentUserId).single();
-        if (data) {
-          setUserProfile(prev => ({ ...prev, ...data, last_seen: now }));
-        }
       } catch (err) {
         console.error('Failed to send heartbeat in background:', err);
       }
