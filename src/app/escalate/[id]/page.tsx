@@ -26,12 +26,16 @@ import {
   updateEscalatedTicketStatus,
   verifyEscalationPin,
   regenerateEscalationLink,
+  createEscalationAttachmentUpload,
+  finalizeEscalationAttachment,
 } from '@/app/actions/escalationActions';
 import { supabase } from '@/lib/supabase';
 import { useStaffLocale } from '@/contexts/StaffLocaleContext';
 import { translateTicketStatus } from '@/lib/i18n/staff';
+import { PRIVATE_CHAT_MEDIA_BUCKET } from '@/lib/media/chatMediaPath';
 
 type ExternalReportStatus = 'In Progress' | 'Pending' | 'Fix Completed';
+type PendingAttachment = { path: string; url: string };
 
 type TicketLog = {
   action_type?: string | null;
@@ -111,7 +115,7 @@ export default function EscalationPortalPage() {
   const [newStatus, setNewStatus] = useState<ExternalReportStatus>('In Progress');
   const [notes, setNotes] = useState('');
   const [receiverName, setReceiverName] = useState('');
-  const [attachments, setAttachments] = useState<string[]>([]);
+  const [attachments, setAttachments] = useState<PendingAttachment[]>([]);
 
   async function handleUnlock(event: FormEvent) {
     event.preventDefault();
@@ -183,25 +187,37 @@ export default function EscalationPortalPage() {
     setError('');
 
     try {
-      const uploadedUrls: string[] = [];
+      const uploadedAttachments: PendingAttachment[] = [];
       for (let index = 0; index < files.length; index += 1) {
         const file = files[index];
-        const extension = file.name.split('.').pop() || 'jpg';
-        const fileName = `${ticketId}_ext_${Date.now()}_${index}.${extension}`;
-
-        const { error: uploadError } = await supabase.storage
-          .from('chat_media')
-          .upload(fileName, file);
-
-        if (uploadError) {
-          throw uploadError;
+        const authorization = await createEscalationAttachmentUpload(ticketId, pin, {
+          name: file.name,
+          type: file.type,
+          size: file.size,
+        });
+        if (
+          authorization.error ||
+          !authorization.path ||
+          !authorization.uploadToken ||
+          !authorization.contentType
+        ) {
+          throw new Error(authorization.error || 'Failed to authorize attachment upload.');
         }
+        const { error: uploadError } = await supabase.storage
+          .from(PRIVATE_CHAT_MEDIA_BUCKET)
+          .uploadToSignedUrl(authorization.path, authorization.uploadToken, file, {
+            contentType: authorization.contentType,
+          });
+        if (uploadError) throw uploadError;
 
-        const { data } = supabase.storage.from('chat_media').getPublicUrl(fileName);
-        uploadedUrls.push(data.publicUrl);
+        const finalized = await finalizeEscalationAttachment(ticketId, pin, authorization.path);
+        if (finalized.error || !finalized.path || !finalized.url) {
+          throw new Error(finalized.error || 'Failed to finalize attachment upload.');
+        }
+        uploadedAttachments.push({ path: finalized.path, url: finalized.url });
       }
 
-      setAttachments((prev) => [...prev, ...uploadedUrls]);
+      setAttachments((prev) => [...prev, ...uploadedAttachments]);
     } catch (err: any) {
       setError(`File upload failed: ${err.message}`);
     } finally {
@@ -210,8 +226,8 @@ export default function EscalationPortalPage() {
     }
   }
 
-  function removeAttachment(url: string) {
-    setAttachments((prev) => prev.filter((item) => item !== url));
+  function removeAttachment(path: string) {
+    setAttachments((prev) => prev.filter((item) => item.path !== path));
   }
 
   function handleCopyLink(link: string) {
@@ -253,7 +269,7 @@ export default function EscalationPortalPage() {
         newStatus,
         notes.trim(),
         receiverName,
-        attachments
+        attachments.map((attachment) => attachment.path)
       );
 
       if (response.error) {
@@ -1105,9 +1121,9 @@ export default function EscalationPortalPage() {
               Attachments
             </label>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
-              {attachments.map((url, index) => (
+              {attachments.map((attachment, index) => (
                 <div
-                  key={`${url}-${index}`}
+                  key={`${attachment.path}-${index}`}
                   style={{
                     position: 'relative',
                     width: '80px',
@@ -1117,11 +1133,11 @@ export default function EscalationPortalPage() {
                     border: '1px solid #e2e8f0',
                   }}
                 >
-                  <img src={url} alt="attachment" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  <img src={attachment.url} alt="attachment" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                   {!success && (
                     <button
                       type="button"
-                      onClick={() => removeAttachment(url)}
+                      onClick={() => removeAttachment(attachment.path)}
                       style={{
                         position: 'absolute',
                         top: '4px',
@@ -1221,4 +1237,3 @@ export default function EscalationPortalPage() {
     </div>
   );
 }
-

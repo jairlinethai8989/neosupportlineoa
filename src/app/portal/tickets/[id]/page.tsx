@@ -16,8 +16,9 @@ import {
   Paperclip
 } from 'lucide-react';
 import { useLiff } from '@/hooks/useLiff';
-import { sendPortalMessageAction } from '@/app/actions/portalActions';
+import { createPortalMediaUploadAction, finalizePortalMediaAction, getPortalTicketDetailAction, sendPortalMessageAction, submitPortalCsatAction } from '@/app/actions/portalActions';
 import { compressImage } from '@/lib/utils/imageCompression';
+import { PRIVATE_CHAT_MEDIA_BUCKET } from '@/lib/media/chatMediaPath';
 
 const ChatAttachmentModal = React.lazy(() => import('@/components/chat/ChatAttachmentModal'));
 const ImageEditorModal = React.lazy(() => import('@/components/modals/ImageEditorModal'));
@@ -237,7 +238,7 @@ export default function TicketDetailPage() {
   const { id } = useParams();
   const ticketId = Array.isArray(id) ? id[0] : id;
   const router = useRouter();
-  const { isReady, profile, error: liffError, setMockLogin } = useLiff();
+  const { isReady, profile, idToken, error: liffError, setMockLogin } = useLiff();
   const [ticket, setTicket] = useState<any | null>(null);
   const [logs, setLogs] = useState<any[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -261,6 +262,7 @@ export default function TicketDetailPage() {
   const messagesContainerRef = useRef<HTMLDivElement | null>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const conversationIdRef = useRef<string | null>(null);
+  const refreshInFlightRef = useRef(false);
   const hasRespondedRef = useRef(false);
   const ticketStatusRef = useRef<string | null>(null);
   const lastShowJumpRef = useRef(false);
@@ -288,322 +290,75 @@ export default function TicketDetailPage() {
     ticketStatusRef.current = ticket?.status || null;
   }, [ticket?.status]);
 
-  const loadSurveyState = useCallback(async () => {
-    if (!ticketId) return null;
-
-    const { data } = await supabase
-      .from('csat_surveys')
-      .select('score, rating, responded_at')
-      .eq('ticket_id', ticketId)
-      .maybeSingle();
-
-    const value = data?.score || data?.rating || 0;
-    const responded = Boolean(data?.responded_at || value);
-
-    if (responded) {
-      setHasResponded(true);
-      if (value) setSurveyScore(value);
+  const refreshTicket = useCallback(async (showLoading = false) => {
+    if (!ticketId || !idToken || refreshInFlightRef.current) return;
+    refreshInFlightRef.current = true;
+    if (showLoading) setLoading(true);
+    try {
+      const result = await getPortalTicketDetailAction(ticketId, idToken);
+      setTicket(result.ticket);
+      setLogs(result.logs);
+      setMessages((previous: any[]) => {
+        const serverMessages = result.messages as any[];
+        if (showLoading) return serverMessages;
+        const optimistic = previous.filter((message: any) => String(message.id || '').startsWith('temp-')).filter((message: any) =>
+          !serverMessages.some((saved: any) =>
+            saved.sender_type === message.sender_type &&
+            String(saved.content || '').trim() === String(message.content || '').trim() &&
+            Math.abs(Date.parse(saved.created_at) - Date.parse(message.created_at)) <= 30_000
+          )
+        );
+        return [...serverMessages, ...optimistic]
+          .sort((left: any, right: any) => Date.parse(left.created_at) - Date.parse(right.created_at));
+      });
+      setConversationId(result.conversationId);
+      conversationIdRef.current = result.conversationId;
+      setHasResponded(result.survey.responded);
+      setSurveyScore(result.survey.score);
+    } catch (err) {
+      console.error('Error fetching ticket:', err);
+      setTicket(null);
+    } finally {
+      refreshInFlightRef.current = false;
+      if (showLoading) setLoading(false);
     }
+  }, [idToken, ticketId]);
 
-    return {
-      responded,
-      value,
-      hasSurveyRecord: Boolean(data),
-    };
-  }, [ticketId]);
-
-  // 1. Fetch initial ticket data once isReady and ticketId are available
   useEffect(() => {
-    if (!ticketId) return;
+    if (!isReady || !idToken || !ticketId) return;
+    void refreshTicket(true);
+  }, [idToken, isReady, refreshTicket, ticketId]);
 
-    async function fetchTicketData() {
-      if (!ticketId) return;
-      setLoading(true);
-      try {
-        // Combined initial query with joins to avoid sequential waterfalls (fetched only once!)
-        const { data: ticketData, error: e1 } = await supabase
-          .from('tickets')
-          .select(`*, assigned_agent:profiles!assigned_agent_id(*)`)
-          .eq('id', ticketId)
-          .maybeSingle();
-
-        if (e1) throw e1;
-        if (!ticketData) {
-           setLoading(false);
-           return;
-        }
-
-        // SECURITY: Verify owner customer ID mapping with profile.userId
-        if (profile?.userId && ticketData.customer_id) {
-          const { data: ownerCustomer } = await supabase
-            .from('customers')
-            .select('id')
-            .eq('line_user_id', profile.userId)
-            .maybeSingle();
-
-          if (!ownerCustomer || ownerCustomer.id !== ticketData.customer_id) {
-            console.warn('Access denied: user does not own this ticket');
-            setTicket(null);
-            setLoading(false);
-            return;
-          }
-        }
-
-        setTicket(ticketData);
-
-        // Fetch conversation directly in parallel with message loaders
-        const { data: convData } = await supabase
-          .from('conversations')
-          .select('id')
-          .eq('current_ticket_id', ticketId)
-          .order('last_message_at', { ascending: false, nullsFirst: false })
-          .limit(1)
-          .maybeSingle();
-        
-        let cid = convData?.id || null;
-
-        if (!cid && ticketData.customer_id) {
-          const { data: convFallback } = await supabase
-            .from('conversations')
-            .select('id')
-            .eq('customer_id', ticketData.customer_id)
-            .eq('status', 'active')
-            .order('last_message_at', { ascending: false, nullsFirst: false })
-            .limit(1)
-            .maybeSingle();
-          cid = convFallback?.id || null;
-        }
-
-        if (cid) {
-          setConversationId(cid);
-          conversationIdRef.current = cid;
-        }
-
-        const loadMessages = async (cidToUse: string | null) => {
-          let messagesQuery = supabase.from('messages').select('id, content, sender_type, message_type, created_at, ticket_id, conversation_id');
-          if (cidToUse) {
-            messagesQuery = messagesQuery.or(`ticket_id.eq.${ticketId},conversation_id.eq.${cidToUse}`);
-          } else {
-            messagesQuery = messagesQuery.eq('ticket_id', ticketId);
-          }
-          const { data } = await messagesQuery.order('created_at', { ascending: true });
-          if (data) setMessages(data);
-        };
-
-        const [lRes, surveyState] = await Promise.all([
-           supabase.from('ticket_logs').select('id, created_at, action_type, to_status').eq('ticket_id', ticketId).order('created_at', { ascending: false }),
-           loadSurveyState(),
-           loadMessages(cid)
-        ]);
-
-        if (lRes.data) setLogs(lRes.data);
-        if (
-          surveyState &&
-          !surveyState.responded &&
-          isSurveyEligibleStatus(ticketData.status)
-        ) {
-          router.push(`/portal?survey_ticket_id=${ticketId}`);
-        }
-
-      } catch (err: any) {
-        console.error('Error fetching ticket:', err);
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    void fetchTicketData();
-
-    return () => {
-      conversationIdRef.current = null;
-      setConversationId(null);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isReady, profile?.userId, ticketId, loadSurveyState]);
-
-  // 2. Stable Supabase Realtime subscription — depends ONLY on ticketId
-  // FIX #2 & #4: Channel is created once per ticketId and never torn down due to conversationId change.
-  // All handlers read conversationIdRef.current for the latest conversation ID without needing conversationId in deps.
+  // Poll the ownership-checked Portal DTO instead of delivering database rows to the browser.
   useEffect(() => {
-    if (!ticketId) return;
-
-    console.log(`[Realtime] Initializing stable channel for ticket: ${ticketId}`);
-
-    // Helper: fetch all messages for this ticket (uses ref for latest conversationId)
-    const refetchMessages = () => {
-      const cid = conversationIdRef.current;
-      let q = supabase
-        .from('messages')
-        .select('id, content, sender_type, message_type, created_at, ticket_id, conversation_id');
-      q = cid
-        ? q.or(`ticket_id.eq.${ticketId},conversation_id.eq.${cid}`)
-        : q.eq('ticket_id', ticketId);
-      q.order('created_at', { ascending: true }).then(({ data }: any) => {
-        if (data) setMessages(data);
-      });
-    };
-
-    // Helper: deduplicated message insert handler
-    const handleMessageInsert = (msg: any) => {
-      setMessages(prev => {
-        if (prev.some(m => m.id === msg.id)) return prev;
-        if (msg.sender_type === 'customer') {
-          const tempIdx = prev.findIndex(
-            m => m.id?.toString().startsWith('temp_') && m.content === msg.content
-          );
-          if (tempIdx !== -1) {
-            const next = [...prev];
-            next[tempIdx] = msg;
-            return next;
-          }
-        }
-        return [...prev, msg];
-      });
-    };
-
-    const channel = supabase
-      .channel(`portal-ticket-stable-${ticketId}`)
-
-      // A. Messages by ticket_id (covers all messages regardless of conversation)
-      .on('postgres_changes', {
-        event: 'INSERT',
-        schema: 'public',
-        table: 'messages',
-        filter: `ticket_id=eq.${ticketId}`,
-      }, (payload: any) => {
-        console.log('[Realtime] Message INSERT (ticket_id)', payload.new?.id);
-        handleMessageInsert(payload.new);
-      })
-      .on('postgres_changes', {
-        event: 'UPDATE',
-        schema: 'public',
-        table: 'messages',
-        filter: `ticket_id=eq.${ticketId}`,
-      }, (payload: any) => {
-        console.log('[Realtime] Message UPDATE (ticket_id)', payload.new?.id);
-        setMessages(prev => prev.map(m => m.id === payload.new.id ? payload.new : m));
-      })
-
-      // B. Conversations linked to this ticket — discover conversationId dynamically
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'conversations',
-        filter: `current_ticket_id=eq.${ticketId}`,
-      }, (payload: any) => {
-        const newCid = payload.new?.id || payload.old?.id;
-        console.log('[Realtime] Conversation event (by ticket_id)', newCid);
-        if (newCid && newCid !== conversationIdRef.current) {
-          console.log(`[Realtime] Discovered conversation: ${newCid}`);
-          conversationIdRef.current = newCid;
-          setConversationId(newCid);
-        }
-        // Re-fetch messages to capture any messages linked by conversation_id
-        refetchMessages();
-      })
-
-      // C. Ticket status updates
-      .on('postgres_changes', {
-        event: 'UPDATE',
-        schema: 'public',
-        table: 'tickets',
-        filter: `id=eq.${ticketId}`,
-      }, (payload: any) => {
-        const nextTicket = payload.new;
-        console.log('[Realtime] Ticket UPDATE', nextTicket?.status);
-        
-        // Safety: Filter out null/undefined fields from Postgres UPDATE payload to avoid nulling out local state
-        const cleanUpdate: any = {};
-        Object.keys(nextTicket).forEach(key => {
-          if (nextTicket[key] !== null && nextTicket[key] !== undefined) {
-            cleanUpdate[key] = nextTicket[key];
-          }
-        });
-        setTicket((prev: any) => prev ? { ...prev, ...cleanUpdate } : prev);
-
-        // Background fetch to sync relations (e.g. assigned_agent details)
-        supabase
-          .from('tickets')
-          .select(`*, assigned_agent:profiles!assigned_agent_id(*)`)
-          .eq('id', ticketId)
-          .maybeSingle()
-          .then(({ data }: any) => {
-            if (data) setTicket(data);
-          });
-
-        supabase
-          .from('ticket_logs')
-          .select('id, created_at, action_type, to_status')
-          .eq('ticket_id', ticketId)
-          .order('created_at', { ascending: false })
-          .then(({ data }: any) => { if (data) setLogs(data); });
-        if (isSurveyEligibleStatus(nextTicket?.status) && !hasRespondedRef.current) {
-          router.push(`/portal?survey_ticket_id=${ticketId}`);
-        }
-      })
-
-      // D. CSAT survey updates
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'csat_surveys',
-        filter: `ticket_id=eq.${ticketId}`,
-      }, (payload: any) => {
-        const nextSurvey = payload.new;
-        const value = nextSurvey?.score || nextSurvey?.rating || 0;
-        const responded = Boolean(nextSurvey?.responded_at || value);
-        if (responded) {
-          setHasResponded(true);
-          if (value) setSurveyScore(value);
-          return;
-        }
-        if (!hasRespondedRef.current && isSurveyEligibleStatus(ticketStatusRef.current || payload.old?.status)) {
-          setShowSurvey(true);
-        }
-      })
-
-      .subscribe((status, err) => {
-        console.log(`[Realtime] Channel status for ticket ${ticketId}:`, status, err || '');
-        if (status === 'CHANNEL_ERROR' || status === 'CLOSED') {
-          console.warn('[Realtime] Channel error or closed, forcing resync & reconnect.');
-          refetchMessages();
-          supabase.realtime.connect();
-        }
-      });
-
-    // Dynamic fallback polling to save mobile battery and handle disconnects
-    let poller: any = null;
+    if (!ticketId || !idToken) return;
+    const refetchMessages = () => { void refreshTicket(false); };
+    let poller: ReturnType<typeof setInterval> | null = null;
     const startPoller = (intervalMs: number) => {
-      if (poller) window.clearInterval(poller);
-      poller = window.setInterval(() => {
+      if (poller) clearInterval(poller);
+      poller = setInterval(() => {
         refetchMessages();
       }, intervalMs);
     };
 
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
-        // High frequency refresh when active
-        startPoller(15000);
+        startPoller(10_000);
         refetchMessages();
       } else {
-        // Low frequency refresh in background
-        startPoller(45000);
+        startPoller(45_000);
       }
     };
 
     // Initial start
-    startPoller(document.visibilityState === 'visible' ? 15000 : 45000);
+    startPoller(document.visibilityState === 'visible' ? 10_000 : 45_000);
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
     return () => {
-      if (poller) window.clearInterval(poller);
+      if (poller) clearInterval(poller);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
-      console.log(`[Realtime] Removing channel for ticket: ${ticketId}`);
-      supabase.removeChannel(channel);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ticketId]);
-  // NOTE: conversationId intentionally excluded — read via conversationIdRef to prevent channel teardown
+  }, [idToken, refreshTicket, ticketId]);
 
   useEffect(() => {
     if (!ticketId) return;
@@ -616,11 +371,6 @@ export default function TicketDetailPage() {
     });
     return () => window.cancelAnimationFrame(frame);
   }, [messages]);
-
-  useEffect(() => {
-    if (!ticketId) return;
-    void loadSurveyState();
-  }, [loadSurveyState, ticketId]);
 
   useEffect(() => {
     if (isSurveyEligibleStatus(ticket?.status) && !hasResponded) {
@@ -653,11 +403,11 @@ export default function TicketDetailPage() {
     setSending(true);
 
     try {
-      if (!profile?.userId) throw new Error('LINE profile not loaded');
+      if (!idToken) throw new Error('LINE identity token not loaded');
       
       const sentMsg = await sendPortalMessageAction(
          ticketId as string,
-         profile.userId,
+         idToken,
          messageToSend,
          'text'
       );
@@ -690,20 +440,12 @@ export default function TicketDetailPage() {
         }
       }
 
-      const fileName = `${ticketId}_${Date.now()}.${ext}`;
-      const { error: uploadError } = await supabase.storage.from('chat_media').upload(fileName, fileToUpload, { contentType });
+      if (!idToken) throw new Error('LINE identity token not loaded');
+      const upload = await createPortalMediaUploadAction(ticketId as string, idToken, { name: file.name, type: contentType, size: fileToUpload.size });
+      const { error: uploadError } = await supabase.storage.from(PRIVATE_CHAT_MEDIA_BUCKET).uploadToSignedUrl(upload.path, upload.token, fileToUpload, { contentType: upload.contentType });
       if (uploadError) throw uploadError;
-
-      if (!profile?.userId) throw new Error('LINE profile not loaded');
-      const dbType = type === 'image' ? 'image' : 'file';
-      
-      const { data: { publicUrl } } = supabase.storage.from('chat_media').getPublicUrl(fileName);
-      await sendPortalMessageAction(
-         ticketId as string,
-         profile.userId,
-         publicUrl,
-         dbType
-      );
+      await finalizePortalMediaAction(ticketId as string, idToken, upload.path, upload.messageType);
+      await refreshTicket(false);
     } catch (err: any) {
       alert('Upload failed: ' + err.message);
     } finally {
@@ -767,15 +509,8 @@ export default function TicketDetailPage() {
     if (surveyValue === 0) return;
     setSubmittingSurvey(true);
     try {
-      const { error } = await supabase.from('csat_surveys').upsert({
-        ticket_id: ticketId,
-        score: surveyValue,
-        rating: surveyValue,
-        comment: surveyComment,
-        responded_at: new Date().toISOString()
-      }, { onConflict: 'ticket_id' });
-
-      if (error) throw error;
+      if (!idToken) throw new Error('LINE identity token not loaded');
+      await submitPortalCsatAction(ticketId as string, idToken, surveyValue, surveyComment);
       setHasResponded(true);
       setSurveyScore(surveyValue);
       setTimeout(() => setShowSurvey(false), 2000);

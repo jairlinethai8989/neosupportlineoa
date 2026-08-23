@@ -68,9 +68,8 @@ export const TicketSidebar: React.FC<TicketSidebarProps> = ({
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const magicLink = ticket.escalation_token 
-    ? `${typeof window !== 'undefined' ? window.location.origin : ''}/escalate/${ticket.escalation_token}` 
-    : null;
+  // Handoff credentials are intentionally never rehydrated from ticket rows.
+  const magicLink: string | null = null;
 
   const ticketStatus = ticket.status || '';
   const isResolvedOrClosed = isResolvedOrClosedStatus(ticketStatus);

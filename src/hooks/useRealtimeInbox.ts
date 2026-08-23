@@ -1,13 +1,11 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { supabase } from '@/lib/supabase';
 import {
-  getInboxConversationById,
-  listInboxConversations,
-  listInboxConversationsFallback,
-  listInboxConversationsV2,
-} from '@/lib/inbox/queries';
+  listInboxConversationsAction,
+  listInboxConversationsFallbackAction,
+  listInboxConversationsV2Action,
+} from '@/app/actions/inboxReadActions';
 import type { InboxConversation } from '@/types/inbox';
 
 export function sortConversations(items: InboxConversation[]) {
@@ -176,7 +174,7 @@ export function useRealtimeInbox(options: {
 
     try {
       const cursor = cursorByPageRef.current.get(page) || undefined;
-      const { data, hasNext, nextCursor } = await listInboxConversationsV2({
+      const { data, hasNext, nextCursor } = await listInboxConversationsV2Action({
         status: 'active',
         pageSize,
         cursorLastMessageAt: cursor?.lastMessageAt || null,
@@ -187,7 +185,7 @@ export function useRealtimeInbox(options: {
 
       if (data.length === 0) {
         // Last-resort fallback to avoid disappearing inbox when strict query shape/status mismatches.
-        const fallback = await listInboxConversationsFallback(pageSize);
+        const fallback = await listInboxConversationsFallbackAction(pageSize);
         if (controller.signal.aborted) return;
         const activeFallback = fallback.filter(isConversationActiveLike);
         if (activeFallback.length > 0) {
@@ -211,7 +209,7 @@ export function useRealtimeInbox(options: {
       }
       console.error('Fetch Inbox Error:', error);
       try {
-        const fallback = await listInboxConversations(pageSize);
+        const fallback = await listInboxConversationsAction(pageSize);
         if (controller.signal.aborted) return;
         const activeFallback = fallback.filter(isConversationActiveLike);
         setConversations(sortConversations(activeFallback));
@@ -263,53 +261,7 @@ export function useRealtimeInbox(options: {
 
   useEffect(() => {
     unmountedRef.current = false;
-    const channel = supabase
-      .channel('inbox-realtime-v6')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'conversations' },
-        async (payload) => {
-          if (page !== 1) {
-            scheduleRefresh(300);
-            return;
-          }
-
-          const eventType = payload.eventType;
-          const rowId = String((payload.new as { id?: string })?.id || (payload.old as { id?: string })?.id || '');
-          if (!rowId) {
-            scheduleRefresh(300);
-            return;
-          }
-
-          if (eventType === 'DELETE') {
-            setConversations((current) => current.filter((conversation) => conversation.id !== rowId));
-            scheduleRefresh(1200);
-            return;
-          }
-
-          try {
-            const latestConversation = await getInboxConversationById(rowId);
-            if (!latestConversation) {
-              scheduleRefresh(300);
-              return;
-            }
-
-            setConversations((current) => {
-              if (!isConversationActiveLike(latestConversation)) {
-                return current.filter((conversation) => conversation.id !== rowId);
-              }
-              return upsertConversation(current, latestConversation, pageSize);
-            });
-
-            // Reconcile pagination counts and ordering from server state.
-            scheduleRefresh(1200);
-          } catch (error) {
-            console.error('Inbox realtime patch error:', error);
-            scheduleRefresh(350);
-          }
-        }
-      )
-      .subscribe();
+    const pollingInterval = setInterval(() => scheduleRefresh(0), 10_000);
 
     return () => {
       unmountedRef.current = true;
@@ -318,7 +270,7 @@ export function useRealtimeInbox(options: {
       if (refreshTimerRef.current) {
         clearTimeout(refreshTimerRef.current);
       }
-      void supabase.removeChannel(channel);
+      clearInterval(pollingInterval);
     };
   }, [page, pageSize, scheduleRefresh]);
 

@@ -209,6 +209,15 @@ export const TicketChat: React.FC<TicketChatProps> = ({
                         objectFit: 'cover',
                       }}
                     />
+                  ) : msg.message_type === 'file' && (msg.media_path || msg.content) ? (
+                    <a
+                      href={(msg.media_path || msg.content) as string}
+                      target="_blank"
+                      rel="noreferrer"
+                      style={{ color: 'inherit', fontWeight: 700, textDecoration: 'underline' }}
+                    >
+                      Open attachment
+                    </a>
                   ) : (
                     <p
                       style={{

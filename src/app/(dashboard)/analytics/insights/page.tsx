@@ -5,8 +5,6 @@ import React, { useState, useEffect } from 'react';
 import { Brain, Filter, Activity, AlertTriangle, Building } from 'lucide-react';
 
 export default function InsightsPage() {
-  const [data, setData] = useState<any>(null);
-  const [loading, setLoading] = useState(false);
   const [preset, setPreset] = useState('30days'); // Start with 30 days as a reasonable default
   const [organizationId, setHospitalId] = useState('all');
   const [organizations, setOrganizations] = useState<any[]>([]);
@@ -35,12 +33,10 @@ export default function InsightsPage() {
   const handleGenerateReport = async () => {
     setGeneratingReport(true);
     setAiReport(null);
-    setData(null);
     try {
       const res = await fetch(`/api/analytics/insights?preset=${preset}&organizationId=${organizationId}&ai=true&customPrompt=${encodeURIComponent(customPrompt)}`);
       if (!res.ok) throw new Error('Failed to generate AI report');
       const json = await res.json();
-      setData(json);
       if (json.aiReport) {
         setAiReport(json.aiReport);
       }
@@ -111,9 +107,9 @@ export default function InsightsPage() {
           />
           <button 
             onClick={handleGenerateReport}
-            disabled={generatingReport || loading}
+            disabled={generatingReport}
             className="glass-interactive"
-            style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'linear-gradient(135deg, var(--primary) 0%, var(--border-active) 100%)', color: 'white', padding: '10px 20px', borderRadius: '12px', border: 'none', fontWeight: '700', fontSize: '14px', boxShadow: '0 4px 15px var(--primary-transparent)', cursor: (generatingReport || loading) ? 'not-allowed' : 'pointer', opacity: (generatingReport || loading) ? 0.6 : 1 }}
+            style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'linear-gradient(135deg, var(--primary) 0%, var(--border-active) 100%)', color: 'white', padding: '10px 20px', borderRadius: '12px', border: 'none', fontWeight: '700', fontSize: '14px', boxShadow: '0 4px 15px var(--primary-transparent)', cursor: generatingReport ? 'not-allowed' : 'pointer', opacity: generatingReport ? 0.6 : 1 }}
           >
             {generatingReport ? <Activity size={18} style={{ animation: 'spin 1s linear infinite' }} /> : <Brain size={18} />}
             {generatingReport ? 'กำลังวิเคราะห์...' : 'Generate AI Report'}

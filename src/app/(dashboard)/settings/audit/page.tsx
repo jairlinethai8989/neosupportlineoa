@@ -1,7 +1,6 @@
 'use client';
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState, useEffect, useCallback } from 'react';
-import { supabase } from '@/lib/supabase';
 import { 
   History, 
   Search, 
@@ -29,11 +28,17 @@ import {
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
-import { auditService } from '@/lib/services/auditService';
 import { useAppContext } from '@/contexts/AppContext';
 import { useStaffLocale } from '@/contexts/StaffLocaleContext';
 import { translateAuditAction, translateTicketStatus } from '@/lib/i18n/staff';
-import { clearSystemLogsAction, clearTicketLogsAction } from '@/app/actions/auditActions';
+import { downloadObjectsSpreadsheet } from '@/lib/exports/spreadsheet.browser';
+import {
+  clearSystemLogsAction,
+  clearTicketLogsAction,
+  getAuditAgentsAction,
+  getSystemLogsAction,
+  getTicketAuditLogsAction,
+} from '@/app/actions/auditActions';
 import { useNotificationContext } from '@/contexts/NotificationContext';
 
 // Export utils (loaded dynamically to keep page bundle size small)
@@ -77,30 +82,18 @@ export default function AuditLogPage() {
     setLoading(true);
     try {
       if (activeTab === 'ticket') {
-        let query = supabase
-          .from('ticket_logs')
-          .select(`
-            *,
-            performer:profiles!performer_id(full_name, avatar_url),
-            target_user:profiles!to_user_id(full_name),
-            tickets(ticket_no, subject)
-          `)
-          .order('created_at', { ascending: false })
-          .limit(limit);
-
-        if (selectedAgent !== 'all') query = query.eq('performer_id', selectedAgent);
-        if (selectedAction !== 'all') query = query.eq('action_type', selectedAction);
-
-        const { data, error } = await query;
-        if (error) throw error;
+        const data = await getTicketAuditLogsAction({
+          agentId: selectedAgent,
+          actionType: selectedAction,
+          limit,
+        });
         setLogs(data || []);
       } else {
-        const { data, error } = await auditService.getSystemLogs({
+        const data = await getSystemLogsAction({
           agentId: selectedAgent,
           actionType: selectedAction,
           limit: limit
         });
-        if (error) throw error;
         setLogs(data || []);
       }
     } catch (err) {
@@ -111,7 +104,7 @@ export default function AuditLogPage() {
   }, [activeTab, selectedAgent, selectedAction, limit]);
 
   const fetchAgents = useCallback(async () => {
-    const { data } = await supabase.from('profiles').select('id, full_name');
+    const data = await getAuditAgentsAction();
     setAgents(data || []);
   }, []);
 
@@ -195,11 +188,11 @@ export default function AuditLogPage() {
     }));
 
     try {
-      const XLSX = await import('xlsx');
-      const ws = XLSX.utils.json_to_sheet(dataToExport);
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, 'Audit Logs');
-      XLSX.writeFile(wb, `${t('settingsAudit.messages.exportPrefix')}_${activeTab}_${new Date().getTime()}.xlsx`);
+      await downloadObjectsSpreadsheet(
+        dataToExport,
+        `${t('settingsAudit.messages.exportPrefix')}_${activeTab}_${new Date().getTime()}.xlsx`,
+        'Audit Logs'
+      );
     } catch (err) {
       console.error('Audit Log Excel Export Error:', err);
       addToast({

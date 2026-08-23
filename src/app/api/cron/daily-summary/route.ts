@@ -3,6 +3,8 @@ import { DateTime } from 'luxon';
 import { analyticsService } from '@/lib/services/analyticsService';
 import { sendLineGroupFlexNotification } from '@/lib/utils/lineNotifications';
 import { getReportBroadcastSettings, type ReportSet } from '@/lib/reports/broadcastSettings';
+import { isAuthorizedCronRequest } from '@/lib/auth/cronAuthorization';
+import { getStaffAuth } from '@/lib/auth/staffAuthorization';
 
 type DetailTicket = {
   subject: string;
@@ -84,14 +86,18 @@ async function sendSetTwo(targetGroupId: string, dateLabel: string, startDateStr
 }
 
 export async function GET(req: Request) {
-  const { searchParams } = new URL(req.url);
-  const key = searchParams.get('key');
   const cronSecret = process.env.CRON_SECRET;
 
   if (!cronSecret) return NextResponse.json({ error: 'System not configured for cron' }, { status: 500 });
-  if (key !== cronSecret) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!isAuthorizedCronRequest(req, cronSecret)) {
+    const staff = await getStaffAuth({ permission: 'reports', level: 'edit' });
+    if (!staff) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+  }
 
   try {
+    const { searchParams } = new URL(req.url);
     const now = DateTime.now().setZone('Asia/Bangkok');
     const requestedSet = searchParams.get('set');
     const requestedDate = parseDate(searchParams.get('date'));

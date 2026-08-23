@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextResponse } from 'next/server';
-import { createSupabaseServerClient } from '@/lib/supabase-server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
+import { getStaffAuth } from '@/lib/auth/staffAuthorization';
 import {
   buildVersionedLiveCacheKey,
   getOrSetLiveCache,
@@ -22,6 +22,9 @@ function toObject<T>(value: T | T[] | null | undefined): T | null {
 
 export async function GET(req: Request) {
   try {
+    const auth = await getStaffAuth({ permission: 'analytics', level: 'view' });
+    if (!auth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
     const { searchParams } = new URL(req.url);
     const fromDate = parseIsoDate(searchParams.get('from'));
     const toDate = parseIsoDate(searchParams.get('to'));
@@ -33,20 +36,6 @@ export async function GET(req: Request) {
 
     if (!fromDate || !toDate) {
       return NextResponse.json({ error: 'Invalid from/to datetime.' }, { status: 400 });
-    }
-
-    const profileBypassAuth =
-      process.env.NODE_ENV !== 'production' &&
-      process.env.PROFILE_BYPASS_AUTH === '1';
-
-    if (!profileBypassAuth) {
-      const supabaseServer = await createSupabaseServerClient();
-      const {
-        data: { user },
-      } = await supabaseServer.auth.getUser();
-      if (!user) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-      }
     }
 
     const fromIso = fromDate.toISOString();

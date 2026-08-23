@@ -17,10 +17,11 @@ test.describe('Dashboard Base Functionality', () => {
     // Note: In a real CI environment, you'd use a saved auth state or mock the session
     // For local dev, we're just checking the page loads
     await page.goto('/login');
-    await expect(page).toHaveTitle(/Login/i);
+    await expect(page).toHaveTitle(/Neo Support/i);
     
     // Check for main branding
     await expect(page.locator('h1')).toBeVisible();
+    await expect(page.locator('input[type="password"]')).toBeVisible();
   });
 
   test('should show sidebar and navigation on mobile', async ({ page }) => {

@@ -2,7 +2,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @next/next/no-img-element */
 import React, { useState, useEffect, useMemo } from 'react';
-import { supabase } from '@/lib/supabase';
 import { 
   Users, 
   Search, 
@@ -13,7 +12,6 @@ import {
   ArrowRight,
   User as UserIcon,
   RefreshCcw,
-  Plus,
   AlertCircle,
   ArrowUpDown,
   ArrowUp,
@@ -22,7 +20,6 @@ import {
   Clock,
   ExternalLink,
   FileText,
-  MessageSquare,
   Copy,
   Calendar
 } from 'lucide-react';
@@ -30,37 +27,16 @@ import Link from 'next/link';
 import Skeleton from '@/components/ui/Skeleton';
 import { getHospitalColorStyles } from '@/lib/inbox/colors';
 import useSWR from 'swr';
+import { getCustomersAction, getCustomerTicketsAction } from '@/app/actions/customerActions';
 
 export default function CustomersPage() {
   const fetcher = async () => {
-    // Try fetching with organizations (full detail)
-    const { data, error: fetchErr } = await supabase
-      .from('customers')
-      .select(`
-        *,
-        organizations (name),
-        departments (name),
-        positions (name)
-      `)
-      .order('created_at', { ascending: false });
-
-    if (fetchErr) {
-       console.warn('Initial fetch failed, trying basic fetch:', fetchErr.message);
-       // Fallback: Fetch without organizations join (might be schema issue)
-       const { data: basicData, error: basicErr } = await supabase
-         .from('customers')
-         .select('*')
-         .order('created_at', { ascending: false });
-       
-       if (basicErr) throw basicErr;
-       return basicData || [];
-    }
-    return data || [];
+    return getCustomersAction();
   };
 
   const { data: customersData, error: swrError, isLoading: isSwrLoading, mutate } = useSWR('customers_list', fetcher);
   
-  const customers = customersData || [];
+  const customers: any[] = useMemo(() => customersData || [], [customersData]);
   const loading = isSwrLoading && !customersData;
   const error = swrError?.message || null;
 
@@ -82,14 +58,7 @@ export default function CustomersPage() {
     setLoadingHistory(true);
     setCustomerTickets([]);
     try {
-      const { data, error } = await supabase
-        .from('tickets')
-        .select('*')
-        .eq('customer_id', customer.id)
-        .order('created_at', { ascending: false });
-      
-      if (error) throw error;
-      setCustomerTickets(data || []);
+      setCustomerTickets(await getCustomerTicketsAction(customer.id));
     } catch (err: any) {
       console.error('Error fetching history:', err.message);
     } finally {

@@ -2,7 +2,7 @@
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState, useEffect } from 'react';
-import { supabase } from '@/lib/supabase';
+import { getPortalProfileOptionsAction, savePortalProfileAction } from '@/app/actions/portalActions';
 import {
   Loader2,
   ArrowRight,
@@ -14,12 +14,13 @@ import { LiffProfile } from '@/hooks/useLiff';
 interface ProfileRegistrationModalProps {
   isOpen: boolean;
   profile: LiffProfile | null;
+  idToken: string | null;
   existingCustomer?: any; // If null, user needs registration. If exists, user is editing.
   onComplete: () => void;
   onClose?: () => void; // Optional: Only for closing when editing
 }
 
-export default function ProfileRegistrationModal({ isOpen, profile, existingCustomer, onComplete, onClose }: ProfileRegistrationModalProps) {
+export default function ProfileRegistrationModal({ isOpen, profile, idToken, existingCustomer, onComplete, onClose }: ProfileRegistrationModalProps) {
   const [organizations, setOrganizations] = useState<any[]>([]);
   const [departments, setDepartments] = useState<any[]>([]);
   const [positions, setPositions] = useState<any[]>([]);
@@ -41,21 +42,13 @@ export default function ProfileRegistrationModal({ isOpen, profile, existingCust
       setLoadingOpts(true);
       setError('');
       try {
-        const [hRes, dRes, pRes] = await Promise.all([
-          supabase.from('organizations').select('*').order('name'),
-          supabase.from('departments').select('*').eq('dept_type', 'organization').eq('is_active', true).order('name'),
-          supabase.from('positions').select('*').order('name')
-        ]);
+        if (!idToken) throw new Error('LINE identity token not loaded');
+        const options = await getPortalProfileOptionsAction(idToken);
+        setOrganizations(options.organizations);
+        setDepartments(options.departments);
+        setPositions(options.positions);
 
-        if (hRes.error) console.error('H-Err:', hRes.error);
-        if (dRes.error) console.error('D-Err:', dRes.error);
-        if (pRes.error) console.error('P-Err:', pRes.error);
-
-        if (hRes.data) setOrganizations(hRes.data);
-        if (dRes.data) setDepartments(dRes.data);
-        if (pRes.data) setPositions(pRes.data);
-
-        if (hRes.data?.length === 0) {
+        if (options.organizations.length === 0) {
           console.warn('Organizations table is empty for public/anon user.');
         }
 
@@ -74,7 +67,7 @@ export default function ProfileRegistrationModal({ isOpen, profile, existingCust
       }
     }
     loadMasterData();
-  }, [isOpen, existingCustomer, profile]);
+  }, [isOpen, existingCustomer, profile, idToken]);
 
   if (!isOpen) return null;
 
@@ -82,7 +75,7 @@ export default function ProfileRegistrationModal({ isOpen, profile, existingCust
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!profile?.userId) {
+    if (!idToken) {
       setError('ไม่พบข้อมูลโปรไฟล์ LINE กรุณาเข้าสู่ระบบใหม่อีกครั้ง');
       return;
     }
@@ -96,29 +89,12 @@ export default function ProfileRegistrationModal({ isOpen, profile, existingCust
     setError('');
 
     try {
-      // USE UPSERT: This handles both Insert and Update transparently and 
-      // prevents "duplicate key on line_user_id" errors.
-      const payload: any = {
-        line_user_id: profile.userId,
-        display_name: displayName, // Keep as primary display name
-        full_name: displayName,    // Store as dedicated real name field
-        line_username: profile.displayName || null, // Store LINE nickname
-        organization_id: selectedHospital,
-        department_id: selectedDept,
-        position_id: selectedPosition,
-        updated_at: new Date().toISOString()
-      };
-
-      // Add ID if it's a known existing customer to be extra safe with PostgREST
-      if (existingCustomer?.id) {
-        payload.id = existingCustomer.id;
-      }
-
-      const { error: saveErr } = await supabase
-        .from('customers')
-        .upsert(payload, { onConflict: 'line_user_id' });
-
-      if (saveErr) throw saveErr;
+      await savePortalProfileAction(idToken, {
+        displayName,
+        organizationId: selectedHospital,
+        departmentId: selectedDept,
+        positionId: selectedPosition,
+      });
 
       onComplete();
     } catch (err: any) {

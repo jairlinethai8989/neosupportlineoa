@@ -1,4 +1,5 @@
-import { supabase } from '@/lib/supabase';
+import 'server-only';
+import { supabaseAdmin } from '@/lib/supabaseAdmin';
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { DateTime } from 'luxon';
 
@@ -11,16 +12,16 @@ export const analyticsService = {
     const now = DateTime.now().toFormat('yyyy-MM-dd\'T\'HH:mm:ssZZ');
 
     const [activeRes, resolvedRes, breachedRes] = await Promise.all([
-      supabase
+      supabaseAdmin
         .from('tickets')
         .select('*', { count: 'exact', head: true })
         .not('status', 'in', '("Closed","Resolved")'),
-      supabase
+      supabaseAdmin
         .from('tickets')
         .select('*', { count: 'exact', head: true })
         .eq('status', 'Resolved')
         .gte('resolved_at', today),
-      supabase
+      supabaseAdmin
         .from('tickets')
         .select('*', { count: 'exact', head: true })
         .lt('sla_due_at', now)
@@ -36,7 +37,7 @@ export const analyticsService = {
   },
 
   async getPerformanceData(startDate: string, endDate: string) {
-    const { data: tickets } = await supabase
+    const { data: tickets } = await supabaseAdmin
       .from('tickets')
       .select('*')
       .gte('created_at', startDate)
@@ -45,7 +46,7 @@ export const analyticsService = {
   },
 
   async getAgentPerformance() {
-    const { data: agents } = await supabase
+    const { data: agents } = await supabaseAdmin
       .from('profiles')
       .select('id, full_name, department, tickets(id, status, csat_surveys(score))');
     
@@ -68,30 +69,30 @@ export const analyticsService = {
    */
   async getSummaryStats(startDate: string, endDate: string) {
     const [newTicketsRes, resolvedRes, inProgressRes, escalatedRes, pendingRes, breachedRes] = await Promise.all([
-      supabase
+      supabaseAdmin
         .from('tickets')
         .select('*', { count: 'exact', head: true })
         .gte('created_at', startDate)
         .lte('created_at', endDate),
-      supabase
+      supabaseAdmin
         .from('tickets')
         .select('*', { count: 'exact', head: true })
         .eq('status', 'Resolved')
         .gte('resolved_at', startDate)
         .lte('resolved_at', endDate),
-      supabase
+      supabaseAdmin
         .from('tickets')
         .select('*', { count: 'exact', head: true })
         .eq('status', 'In Progress'),
-      supabase
+      supabaseAdmin
         .from('tickets')
         .select('*', { count: 'exact', head: true })
         .eq('status', 'Escalated'),
-      supabase
+      supabaseAdmin
         .from('tickets')
         .select('*', { count: 'exact', head: true })
         .not('status', 'in', '("Resolved","Closed")'),
-      supabase
+      supabaseAdmin
         .from('tickets')
         .select('*', { count: 'exact', head: true })
         .lt('sla_due_at', endDate)
@@ -116,7 +117,7 @@ export const analyticsService = {
     // Correct way to do OR with multiple conditions in Supabase:
     // Fetch all that was created OR resolved after startDate
     // Values with + or - must be quoted for .or() filter
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('tickets')
       .select(`
         id,

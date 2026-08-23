@@ -11,8 +11,11 @@ import dynamic from 'next/dynamic';
 import { useAppContext } from '@/contexts/AppContext';
 import { useStaffLocale } from '@/contexts/StaffLocaleContext';
 import { useNotificationContext } from '@/contexts/NotificationContext';
-import { analyticsQueries, type AgentAnalyticsData } from '@/lib/tickets/analyticsQueries';
-import { supabase } from '@/lib/supabase';
+import type { AgentAnalyticsData } from '@/lib/tickets/analyticsQueries';
+import {
+  getStaffAnalyticsAction,
+  getStaffAnalyticsOptionsAction,
+} from '@/app/actions/staffAnalyticsActions';
 import { DateTime } from 'luxon';
 import type { TeamMemberStats } from './StaffAnalyticsDashboard';
 
@@ -74,12 +77,7 @@ export default function StaffAnalyticsPage() {
   // Fetch all staff members to populate the selector
   const fetchStaffList = useCallback(async () => {
     try {
-      const { data: profiles, error } = await supabase
-        .from('profiles')
-        .select('id, full_name, role, status')
-        .order('full_name', { ascending: true });
-
-      if (error) throw error;
+      const profiles = await getStaffAnalyticsOptionsAction();
       setStaffList(profiles || []);
 
       if (profiles && profiles.length > 0) {
@@ -106,12 +104,13 @@ export default function StaffAnalyticsPage() {
     if (!agentId) return;
     setLoadingStats(true);
     try {
-      const [stats, tStats] = await Promise.all([
-        analyticsQueries.getAgentAnalytics(agentId, dateRange.start, dateRange.end),
-        analyticsQueries.getTeamAnalytics(dateRange.start, dateRange.end)
-      ]);
-      setData(stats);
-      setTeamStats(tStats);
+      const result = await getStaffAnalyticsAction({
+        agentId,
+        startDate: dateRange.start,
+        endDate: dateRange.end,
+      });
+      setData(result.analytics);
+      setTeamStats(result.teamStats);
     } catch (err) {
       console.error('Failed to fetch stats:', err);
     } finally {

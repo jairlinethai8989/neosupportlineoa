@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
-import { createSupabaseServerClient } from '@/lib/supabase-server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
+import { getStaffAuth } from '@/lib/auth/staffAuthorization';
 
 export const runtime = 'nodejs';
 
@@ -35,17 +35,12 @@ function asObject<T>(value: T | T[] | null | undefined): T | null {
 
 export async function GET(_req: Request, { params }: Params) {
   try {
+    const auth = await getStaffAuth({ permission: 'tickets', level: 'view' });
+    if (!auth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
     const { id } = await params;
     if (!id) {
       return NextResponse.json({ error: 'Missing ticket id' }, { status: 400 });
-    }
-
-    const supabaseServer = await createSupabaseServerClient();
-    const {
-      data: { user },
-    } = await supabaseServer.auth.getUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const [jsPdfModule, autoTableModule] = await Promise.all([import('jspdf'), import('jspdf-autotable')]);

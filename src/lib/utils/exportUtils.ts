@@ -1,4 +1,5 @@
-// XLSX is loaded dynamically only when needed to optimize bundle size
+import { downloadObjectsSpreadsheet } from '@/lib/exports/spreadsheet.browser';
+
 type PdfModules = {
   jsPDF: (typeof import('jspdf'))['jsPDF'];
   autoTable: typeof import('jspdf-autotable')['default'];
@@ -53,11 +54,11 @@ export const exportToExcel = async <T extends ExportRow>(data: T[], fileName: st
     return;
   }
   try {
-    const XLSX = await import('xlsx');
-    const worksheet = XLSX.utils.json_to_sheet(data);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Report');
-    XLSX.writeFile(workbook, `${fileName}_${new Date().getTime()}.xlsx`);
+    await downloadObjectsSpreadsheet(
+      data,
+      `${fileName}_${new Date().getTime()}.xlsx`,
+      'Report'
+    );
   } catch (err) {
     console.error('Excel Export Error:', err);
     alert('Excel Export failed. Please check browser permissions.');

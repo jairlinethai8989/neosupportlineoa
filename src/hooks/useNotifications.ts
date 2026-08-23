@@ -1,9 +1,16 @@
 'use client';
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
-import { supabase } from '@/lib/supabase';
+import {
+  getActiveInboxCountAction,
+  getNewTicketCountAction,
+  getNotificationActivityAction,
+  getSlaNotificationTicketsAction,
+  getTicketLogNotificationsAction,
+} from '@/app/actions/notificationActions';
 import { type StaffLocale, getStaffMessage } from '@/lib/i18n/staff';
 import { isSlaBreached, slaMinutesRemaining } from '@/lib/utils/slaUtils';
+import { updateOwnProfile } from '@/lib/profiles/updateOwnProfile';
 
 import type { 
   NotifType, 
@@ -92,6 +99,8 @@ export function useNotifications(
   const logsRefreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const slaRefreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const newTicketsCountTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const activityCursorRef = useRef<string | null>(null);
+  const activityPollingRef = useRef(false);
 
   // --- 1. Basic Audio Helpers ---
   const getAudioContext = useCallback((): AudioContext | null => {
@@ -272,7 +281,7 @@ export function useNotifications(
       const next = !prev;
       localStorage.setItem('neo_notif_muted', String(next));
       if (agentId) {
-        void supabase.from('profiles').update({ notif_sound_enabled: !next }).eq('id', agentId);
+        void updateOwnProfile({ notif_sound_enabled: !next });
       }
       if (!next) {
         void primeAudio().then(() => announceMuteState(false)).catch(() => {});
@@ -287,7 +296,7 @@ export function useNotifications(
       localStorage.setItem(SOUND_MODE_KEY, next);
     }
     if (agentId) {
-      void supabase.from('profiles').update({ notif_sound_mode: next }).eq('id', agentId);
+      void updateOwnProfile({ notif_sound_mode: next });
     }
   }, [agentId]);
 
@@ -297,7 +306,7 @@ export function useNotifications(
       localStorage.setItem(SOUND_VOICE_KEY, next);
     }
     if (agentId) {
-      void supabase.from('profiles').update({ notif_sound_voice: next }).eq('id', agentId);
+      void updateOwnProfile({ notif_sound_voice: next });
     }
   }, [agentId]);
 
@@ -307,8 +316,13 @@ export function useNotifications(
     if (key === 'new_message') setPrefNewMessage(value);
     if (key === 'transfer') setPrefTransfer(value);
     if (key === 'sla_warning') setPrefSlaWarning(value);
-    const dbKey = `notif_event_${key}`;
-    await supabase.from('profiles').update({ [dbKey]: value }).eq('id', agentId);
+    const updateByPreference = {
+      new_ticket: { notif_event_new_ticket: value },
+      new_message: { notif_event_new_message: value },
+      transfer: { notif_event_transfer: value },
+      sla_warning: { notif_event_sla_warning: value },
+    } as const;
+    await updateOwnProfile(updateByPreference[key as keyof typeof updateByPreference]);
   }, [agentId]);
 
   const testSound = useCallback(async (): Promise<SoundTestResult> => {
@@ -422,19 +436,7 @@ export function useNotifications(
     if (!agentId) return;
     const readIds = getReadIds();
     const clearBeforeMs = getClearBeforeMs();
-    const isAdmin = role === 'Administrator';
-    let query = supabase
-      .from('ticket_logs')
-      .select('*, tickets(ticket_no, subject)')
-      .order('created_at', { ascending: false })
-      .limit(30);
-
-    if (!isAdmin) {
-      query = query.or(`to_user_id.eq.${agentId},performer_id.eq.${agentId}`);
-    }
-
-    const { data } = await query;
-    if (!data) return;
+    const data = await getTicketLogNotificationsAction();
     const notifs: AppNotification[] = data
       .filter((row) => {
         if (!clearBeforeMs) return true;
@@ -455,38 +457,18 @@ export function useNotifications(
         return { id, type: 'ticket', title, body: row.tickets?.subject ?? row.note ?? '-', ticketNo: row.tickets?.ticket_no, ticketId: row.ticket_id, createdAt: row.created_at, isRead };
       });
     setLogNotifs(notifs);
-  }, [agentId, role, getClearBeforeMs, getReadIds, locale]);
+  }, [agentId, getClearBeforeMs, getReadIds, locale]);
 
   const fetchNewTicketsCount = useCallback(async () => {
-    const { count } = await supabase
-      .from('tickets')
-      .select('*', { count: 'exact', head: true })
-      .or('status.ilike.new,status.ilike.New');
-    if (count !== null) setNewTicketsCount(count);
+    setNewTicketsCount(await getNewTicketCountAction());
   }, []);
 
   const fetchInboxCount = useCallback(async () => {
-    const { count } = await supabase
-      .from('conversations')
-      .select('*', { count: 'exact', head: true })
-      .eq('status', 'active');
-    if (count !== null) setInboxCount(count);
+    setInboxCount(await getActiveInboxCountAction());
   }, []);
 
   const fetchSlaBreaches = useCallback(async () => {
-    const twoHoursFromNow = new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString();
-    
-    // Everyone sees all SLA breaches by default (as requested)
-    const query = supabase
-      .from('tickets')
-      .select('id, ticket_no, subject, sla_due_at, status, priority')
-      .lt('sla_due_at', twoHoursFromNow)
-      .not('status', 'in', '("Resolved","Closed")')
-      .order('sla_due_at', { ascending: true })
-      .limit(20);
-
-    const { data } = await query;
-    if (!data) return;
+    const data = await getSlaNotificationTicketsAction();
     const readIds = getReadIds();
     const warnedIds = getWarnedIds();
     const slaNotifs: AppNotification[] = [];
@@ -536,7 +518,6 @@ export function useNotifications(
   }, [fetchSlaBreaches]);
 
   // Create stable refs for callbacks and dynamic preferences to prevent realtime re-subscription loops
-  const prefTransferRef = useRef(prefTransfer);
   const prefNewMessageRef = useRef(prefNewMessage);
   const addToastRef = useRef(addToast);
   const playNewTicketSoundRef = useRef(playNewTicketSound);
@@ -549,7 +530,6 @@ export function useNotifications(
   const scheduleFetchSlaBreachesRef = useRef(scheduleFetchSlaBreaches);
 
   // Sync refs with the latest state values on render
-  useEffect(() => { prefTransferRef.current = prefTransfer; }, [prefTransfer]);
   useEffect(() => { prefNewMessageRef.current = prefNewMessage; }, [prefNewMessage]);
   useEffect(() => { addToastRef.current = addToast; }, [addToast]);
   useEffect(() => { playNewTicketSoundRef.current = playNewTicketSound; }, [playNewTicketSound]);
@@ -584,9 +564,11 @@ export function useNotifications(
     }
   }, [agentId, userProfile]);
 
-  // Effect 2: Setup real-time subscriptions and initialize log/SLA fetching
+  // Effect 2: Poll sanitized server DTOs and initialize log/SLA fetching.
+  // Database Realtime payloads intentionally stay off the browser security boundary.
   useEffect(() => {
     if (!agentId) return;
+    activityCursorRef.current = new Date().toISOString();
     
     setTimeout(() => { 
       void fetchLogsRef.current(); 
@@ -595,49 +577,57 @@ export function useNotifications(
       scheduleFetchSlaBreachesRef.current(1600); 
     }, 2000);
 
-    const consolidatedChannel = supabase.channel(`global-notifications-${agentId}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'ticket_logs' }, (p) => {
-        setLastDbEvent({ table: 'ticket_logs', action: p.eventType as any, payload: p, occurredAt: Date.now() });
-        if (p.eventType !== 'INSERT') return;
-        const row = p.new as any; if (row.to_user_id !== agentId && row.performer_id !== agentId) return;
-        scheduleFetchLogsRef.current(250); scheduleFetchSlaBreachesRef.current(900);
-        if (isFirstLoad.current || !prefTransferRef.current) return;
-        addToastRef.current({ id: `t-log-${Date.now()}`, type: 'ticket', title: 'ใบงานได้รับการอัปเดต', body: row.note || 'ดูรายละเอียดในกล่องข้อความ', ticketId: row.ticket_id });
-      })
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (p) => {
-        const row = p.new as any; if (row.sender_type !== 'customer' || row.message_type === 'system') return;
-        if (isFirstLoad.current || !prefNewMessageRef.current) return;
-        addToastRef.current({ id: `t-msg-${Date.now()}`, type: 'message', title: getStaffMessage(locale, 'notificationsHub.alerts.newMessageTitle'), body: (row.content as string)?.slice(0, 60), conversationId: row.conversation_id });
-      })
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'tickets' }, (p) => {
-        setLastDbEvent({ table: 'tickets', action: 'INSERT', payload: p, occurredAt: Date.now() });
-        const row = p.new as any; scheduleFetchNewTicketsCountRef.current(400);
-        if ((row.status || '').toLowerCase() !== 'new' || isFirstLoad.current) return;
-        addToastRef.current({ id: `t-tkt-${Date.now()}`, type: 'ticket', title: getStaffMessage(locale, 'notificationsHub.alerts.newTicketTitle'), body: row.subject, ticketId: row.id, ticketNo: row.ticket_no });
-        playNewTicketSoundRef.current();
-      })
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'tickets' }, (p) => {
-        setLastDbEvent({ table: 'tickets', action: 'UPDATE', payload: p, occurredAt: Date.now() });
-        const ns = String((p.new as any).status).toLowerCase();
-        const ps = String((p.old as any).status).toLowerCase();
-        if (ns === 'new' || ps === 'new') scheduleFetchNewTicketsCountRef.current(450);
-      })
-      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'tickets' }, (p) => { 
-        setLastDbEvent({ table: 'tickets', action: 'DELETE', payload: p, occurredAt: Date.now() });
-        scheduleFetchNewTicketsCountRef.current(450); 
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'conversations' }, (p) => {
-        setLastDbEvent({ table: 'conversations', action: p.eventType as any, payload: p, occurredAt: Date.now() });
-        scheduleFetchInboxCountRef.current(400);
-      })
-      .subscribe();
+    const pollActivity = async () => {
+      const cursor = activityCursorRef.current;
+      if (!cursor || activityPollingRef.current) return;
+      activityPollingRef.current = true;
+      try {
+        const activity = await getNotificationActivityAction(cursor);
+        activityCursorRef.current = activity.serverTime;
+        let nextDbEvent: RealtimeDbEvent | null = null;
+
+        if (activity.ticketLogs.length > 0) {
+          const latest = activity.ticketLogs[activity.ticketLogs.length - 1];
+          nextDbEvent = { table: 'ticket_logs', action: 'INSERT', payload: { id: latest.id }, occurredAt: Date.now() };
+          scheduleFetchLogsRef.current(0);
+          scheduleFetchSlaBreachesRef.current(500);
+        }
+        if (activity.tickets.length > 0) {
+          const latest = activity.tickets[activity.tickets.length - 1];
+          nextDbEvent = { table: 'tickets', action: 'UPDATE', payload: { new: latest }, occurredAt: Date.now() };
+          scheduleFetchNewTicketsCountRef.current(0);
+          const newTickets = activity.tickets.filter((row) =>
+            String(row.status).toLowerCase() === 'new' && Date.parse(row.created_at) > Date.parse(cursor)
+          );
+          for (const row of newTickets) {
+            addToastRef.current({ id: `t-tkt-${row.id}`, type: 'ticket', title: getStaffMessage(locale, 'notificationsHub.alerts.newTicketTitle'), body: row.subject || '', ticketId: row.id, ticketNo: row.ticket_no });
+            playNewTicketSoundRef.current();
+          }
+        }
+        for (const row of activity.messages) {
+          if (!prefNewMessageRef.current) break;
+          addToastRef.current({ id: `t-msg-${row.id}`, type: 'message', title: getStaffMessage(locale, 'notificationsHub.alerts.newMessageTitle'), body: (row.content || '').slice(0, 60), conversationId: row.conversation_id || undefined });
+        }
+        if (activity.conversations.length > 0) {
+          const latest = activity.conversations[activity.conversations.length - 1];
+          nextDbEvent ||= { table: 'conversations', action: 'UPDATE', payload: { new: latest }, occurredAt: Date.now() };
+          scheduleFetchInboxCountRef.current(0);
+        }
+        if (nextDbEvent) setLastDbEvent(nextDbEvent);
+      } catch {
+        // Keep the previous cursor so a transient failure can be retried within the bounded window.
+      } finally {
+        activityPollingRef.current = false;
+      }
+    };
 
     const slaInterval = setInterval(() => { scheduleFetchSlaBreachesRef.current(0); }, 120_000);
+    const activityInterval = setInterval(() => { void pollActivity(); }, 10_000);
     const firstLoadTimer = setTimeout(() => { isFirstLoad.current = false; }, 2500);
 
     return () => {
-      supabase.removeChannel(consolidatedChannel);
-      clearInterval(slaInterval); clearTimeout(firstLoadTimer);
+      clearInterval(activityInterval); clearInterval(slaInterval); clearTimeout(firstLoadTimer);
+      activityCursorRef.current = null;
       if (logsRefreshTimerRef.current) clearTimeout(logsRefreshTimerRef.current);
       if (slaRefreshTimerRef.current) clearTimeout(slaRefreshTimerRef.current);
       if (newTicketsCountTimerRef.current) clearTimeout(newTicketsCountTimerRef.current);

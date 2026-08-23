@@ -1,13 +1,13 @@
 import { NextResponse } from 'next/server';
 import * as line from '@line/bot-sdk';
-import { createSupabaseServerClient } from '@/lib/supabase-server';
+import { getStaffAuth } from '@/lib/auth/staffAuthorization';
 
 /**
  * Configure LINE SDK client
  */
 const config = {
-  channelAccessToken: process.env.LINE_CHANNEL_ACCESS_TOKEN || 'unset',
-  channelSecret: process.env.LINE_CHANNEL_SECRET || 'unset',
+  channelAccessToken: process.env.LINE_CHANNEL_ACCESS_TOKEN || '',
+  channelSecret: process.env.LINE_CHANNEL_SECRET || '',
 };
 
 const client = new line.Client(config);
@@ -19,18 +19,9 @@ const client = new line.Client(config);
  * Allows sending messages from the agent dashboard to specific LINE users
  */
 export async function POST(req: Request) {
-  // Defense-in-depth: Auth & Role check
-  const supabase = await createSupabaseServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
-
-  if (!user) {
+  const auth = await getStaffAuth({ permission: 'inbox', level: 'edit' });
+  if (!auth) {
     return NextResponse.json({ error: 'Unauthorized: Access denied.' }, { status: 401 });
-  }
-
-  // Check profile role
-  const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single();
-  if (!profile || (profile.role !== 'Agent' && profile.role !== 'Administrator')) {
-    return NextResponse.json({ error: 'Forbidden: Insufficient permissions.' }, { status: 403 });
   }
 
   try {

@@ -1,9 +1,8 @@
 'use client';
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unused-vars */
 import React, { useState } from 'react';
 import { supabase } from '@/lib/supabase';
-import { useRouter } from 'next/navigation';
+import { getPostLoginDestinationAction } from '@/app/actions/profileSettingsActions';
+import { sanitizeInternalRedirect } from '@/lib/auth/routeAccess';
 import { 
   Loader2,
   AlertCircle,
@@ -12,7 +11,6 @@ import {
 } from 'lucide-react';
 
 export default function LoginPage() {
-  const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -30,7 +28,7 @@ export default function LoginPage() {
         finalEmail = `${email}@neo.local`;
       }
 
-      const { data, error: signInError } = await supabase.auth.signInWithPassword({
+      const { error: signInError } = await supabase.auth.signInWithPassword({
         email: finalEmail,
         password,
       });
@@ -38,33 +36,15 @@ export default function LoginPage() {
       if (signInError) throw signInError;
       
       const params = new URLSearchParams(window.location.search);
-      let finalRedirectTo = params.get('redirectTo') || '/';
+      let finalRedirectTo = sanitizeInternalRedirect(params.get('redirectTo'));
       
       if (!params.get('redirectTo') || finalRedirectTo === '/') {
-        // ดึงข้อมูล role และ landing_page จาก profiles
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('role, landing_page')
-          .eq('id', data.user.id)
-          .single();
-          
-        if (profile?.landing_page === 'inbox') {
-          finalRedirectTo = '/inbox';
-        } else if (profile?.landing_page === 'dashboard') {
-          finalRedirectTo = '/';
-        } else {
-          // ค่าเริ่มต้นตาม Role
-          if (profile?.role === 'Agent') {
-            finalRedirectTo = '/inbox';
-          } else {
-            finalRedirectTo = '/'; // Dashboard
-          }
-        }
+        finalRedirectTo = await getPostLoginDestinationAction();
       }
 
       window.location.href = finalRedirectTo;
-    } catch (err: any) {
-      setError(err.message || 'รหัสผ่านหรือชื่อผู้ใช้ไม่ถูกต้อง');
+    } catch {
+      setError('รหัสผ่านหรือชื่อผู้ใช้ไม่ถูกต้อง');
     } finally {
       setLoading(false);
     }

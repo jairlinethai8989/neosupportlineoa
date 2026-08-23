@@ -12,13 +12,14 @@ import {
    Camera,
    CheckCircle
 } from 'lucide-react';
-import { calculateSlaDeadline } from '@/lib/utils/slaUtils';
 import { compressImage } from '@/lib/utils/imageCompression';
+import { createPortalMediaUploadAction, createPortalTicketAction, finalizePortalMediaAction, getPortalCreateOptionsAction } from '@/app/actions/portalActions';
+import { PRIVATE_CHAT_MEDIA_BUCKET } from '@/lib/media/chatMediaPath';
 const ChatAttachmentModal = React.lazy(() => import('@/components/chat/ChatAttachmentModal'));
 
 export default function CreateTicketPage() {
    const router = useRouter();
-   const { profile, isReady } = useLiff();
+   const { idToken, isReady } = useLiff();
 
    const [subject, setSubject] = useState('');
    const [description, setDescription] = useState('');
@@ -32,25 +33,23 @@ export default function CreateTicketPage() {
    const [checking, setChecking] = useState(true);
 
     useEffect(() => {
-      if (!profile?.userId) return;
+      if (!idToken) return;
 
       async function checkCustomer() {
-         const [{ data: customer }, { data: subjectsRes }] = await Promise.all([
-            supabase.from('customers').select('*, organizations(name, abbreviation)').eq('line_user_id', profile?.userId).maybeSingle(),
-            supabase.from('ticket_subject_types').select('name').eq('is_active', true).order('name', { ascending: true })
-         ]);
-
-         if (!customer || !customer.organization_id) {
+         const token = idToken;
+         if (!token) return;
+         const result = await getPortalCreateOptionsAction(token);
+         if (!result.registered) {
             router.push('/portal');
          } else {
-            setCustomerData(customer);
-            const subjects = subjectsRes?.map((s: any) => s.name) || [];
+            setCustomerData({ registered: true });
+            const subjects = result.subjects;
             setSubjectTypes(subjects.length > 0 ? subjects : ['ลบ', 'แก้ไขออเดอร์', 'แจ้ง error', 'เรื่องอื่นๆ']);
          }
          setChecking(false);
       }
       checkCustomer();
-   }, [profile?.userId, router]);
+    }, [idToken, router]);
 
    if (!isReady || checking) {
       return <div className="flex-center" style={{ height: '100vh', background: '#fbfcfd' }}><Loader2 className="animate-spin" color="var(--portal-primary)" size={32} /></div>;
@@ -77,105 +76,27 @@ export default function CreateTicketPage() {
       setError('');
 
       try {
-         // 1. Generate a highly unique Ticket ID
-         const hospitalAbbr = customerData.organizations?.abbreviation || 'NEO';
-         const now = new Date();
-         const dateStr = now.toISOString().slice(2, 10).replace(/-/g, '');
-         const randomSuffix = Math.random().toString(36).substring(2, 8).toUpperCase();
-         const ticketNo = `${hospitalAbbr}-${dateStr}-${randomSuffix}`;
+         if (!idToken) throw new Error('LINE identity token not loaded');
+         const createdTicket = await createPortalTicketAction(idToken, { subject, description });
 
-         // 2. Calculate SLA Deadline
-         let slaDueAt = null;
-         try {
-            const { data: slaRule } = await supabase
-               .from('sla_rules')
-               .select('response_time_minutes, resolution_time_minutes')
-               .eq('priority', 'Medium')
-               .maybeSingle();
-            
-            if (slaRule) {
-               const duration = slaRule.resolution_time_minutes || slaRule.response_time_minutes || 60;
-               slaDueAt = calculateSlaDeadline(new Date(), duration).toISOString();
-            }
-         } catch (e) {
-            console.warn('SLA Calculation skipped:', e);
-         }
-
-         // 3. Insert Ticket
-         const ticketPayload: any = {
-            ticket_no: ticketNo,
-            customer_id: customerData.id,
-            organization_id: customerData.organization_id,
-            current_department_id: customerData.department_id,
-            subject: subject.trim(),
-            description: description,
-            status: 'New',
-            priority: 'Medium',
-            created_at: new Date().toISOString(),
-            sla_due_at: slaDueAt
-         };
-
-         const { data: newTicket, error: ticketError } = await supabase.from('tickets').insert([ticketPayload]).select();
-
-         if (ticketError) throw new Error(`Ticket Creation Failed: ${ticketError.message}`);
-
-         const createdTicket = newTicket?.[0];
-         if (!createdTicket) throw new Error('Ticket was not created');
-
-         // 3. Create Fresh Conversation (Preserve existing active ones)
-
-         const { data: newConv } = await supabase.from('conversations').insert([{
-            customer_id: customerData.id,
-            status: 'active',
-            current_ticket_id: createdTicket.id,
-            last_message_at: new Date().toISOString()
-         }]).select().single();
-
-         const conversationId = newConv?.id;
-
-         // 4. Initial Messages
-          if (conversationId) {
-             if (file) {
+         if (file) {
                 let fileToUpload: File | Blob = file;
                 let contentType = file.type;
-                let ext = file.name.split('.').pop() || 'jpg';
 
                 if (contentType.startsWith('image/')) {
                    try {
                       const compressed = await compressImage(file, { quality: 0.8 });
                       fileToUpload = compressed;
                       contentType = 'image/webp';
-                      ext = 'webp';
                    } catch (err) {
                       console.error('Portal create compression failed:', err);
                    }
                 }
 
-                const fileName = `${createdTicket.id}_${Date.now()}.${ext}`;
-                const { error: uploadError } = await supabase.storage.from('chat_media').upload(fileName, fileToUpload, { contentType });
-                if (!uploadError) {
-                   const { data: { publicUrl } } = supabase.storage.from('chat_media').getPublicUrl(fileName);
-                   await supabase.from('messages').insert([{
-                      ticket_id: createdTicket.id,
-                      conversation_id: conversationId,
-                      sender_type: 'customer',
-                      customer_id: customerData.id,
-                      message_type: 'image',
-                      content: publicUrl
-                   }]);
-                }
-             }
-
-            if (description.trim()) {
-               await supabase.from('messages').insert([{
-                  ticket_id: createdTicket.id,
-                  conversation_id: conversationId,
-                  sender_type: 'customer',
-                  customer_id: customerData.id,
-                  message_type: 'text',
-                  content: description.trim()
-               }]);
-            }
+                const upload = await createPortalMediaUploadAction(createdTicket.id, idToken, { name: file.name, type: contentType, size: fileToUpload.size });
+                const { error: uploadError } = await supabase.storage.from(PRIVATE_CHAT_MEDIA_BUCKET).uploadToSignedUrl(upload.path, upload.token, fileToUpload, { contentType: upload.contentType });
+                if (uploadError) throw uploadError;
+                await finalizePortalMediaAction(createdTicket.id, idToken, upload.path, upload.messageType);
          }
 
          router.replace(`/portal/tickets/${createdTicket.id}`);

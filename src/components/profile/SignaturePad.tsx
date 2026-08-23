@@ -170,7 +170,7 @@ export function SignaturePad({ initialValue, onSave, onUpload }: SignaturePadPro
         }}>
           <Upload size={32} color="var(--text-muted)" style={{ marginBottom: '12px' }} />
           <span style={{ fontSize: '13px', color: 'var(--text-muted)', fontWeight: '700' }}>คลิกเพื่ออัปโหลดไฟล์ลายเซ็น (PNG/JPG)</span>
-          <input type="file" hidden accept="image/*" onChange={handleFileChange} />
+          <input type="file" hidden accept="image/jpeg,image/png,image/webp" onChange={handleFileChange} />
         </label>
       )}
 

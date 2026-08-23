@@ -14,9 +14,13 @@ import {
   getInboxDeleteFailedMessage,
   getInboxUploadFailedMessage,
 } from '@/lib/inbox/feedback';
-import { getInboxConversationById, getInboxConversationByTicketId } from '@/lib/inbox/queries';
+import {
+  getInboxConversationByIdAction,
+  getInboxConversationByTicketIdAction,
+} from '@/app/actions/inboxReadActions';
 import { deleteInboxMessage, uploadInboxChatMedia } from '@/lib/inbox/mutations';
 import type { InboxConversation, InboxViewMode } from '@/types/inbox';
+import { createPortalSurveyPath } from '@/lib/portal/surveyPath';
 
 const ImageEditorModal = dynamic(() => import('@/components/modals/ImageEditorModal'), { ssr: false });
 const ImageViewerModal = dynamic(() => import('@/components/modals/ImageViewerModal'), { ssr: false });
@@ -307,9 +311,9 @@ function InboxContent() {
     (async () => {
       try {
         const fetched = cid
-          ? await getInboxConversationById(cid)
+          ? await getInboxConversationByIdAction(cid)
           : tid
-            ? await getInboxConversationByTicketId(tid)
+            ? await getInboxConversationByTicketIdAction(tid)
             : null;
         if (!fetched || cancelled) return;
         setSelectedChat(fetched);
@@ -541,7 +545,7 @@ function InboxContent() {
               const surveyTicketId = currentTicket?.id || selectedChat.current_ticket_id;
               if (!surveyTicketId) return;
               navigator.clipboard.writeText(
-                `${window.location.origin}/survey/${surveyTicketId}`
+                `${window.location.origin}${createPortalSurveyPath(surveyTicketId)}`
               );
               showInfoToast('คัดลอกแล้ว', 'คัดลอกลิงก์ประเมินเรียบร้อย');
             }}
@@ -562,7 +566,6 @@ function InboxContent() {
         selectedModule={selectedModule}
         selectedIssueType={selectedIssueType}
         sending={sending}
-        isChatActive={selectedChat?.status === 'active'}
         onClose={() => setShowResolveModal(false)}
         onConfirm={handleExecuteResolve}
         onChangeSummary={setResSummary}
@@ -669,7 +672,7 @@ function InboxContent() {
         ref={fileInputRef} 
         onChange={handleFileSelect} 
         style={{ display: 'none' }} 
-        accept="image/*,video/*,.pdf,.doc,.docx,.xls,.xlsx"
+        accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,video/quicktime,.pdf,.doc,.docx,.xls,.xlsx"
       />
     </div>
   );

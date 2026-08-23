@@ -22,10 +22,15 @@ import {
   Plus
 } from 'lucide-react';
 import Link from 'next/link';
-import { auditService } from '@/lib/services/auditService';
 import { SignaturePad } from '@/components/profile/SignaturePad';
 import { ImageCropper } from '@/components/profile/ImageCropper';
 import { useStaffLocale } from '@/contexts/StaffLocaleContext';
+import { uploadStaffAsset } from '@/lib/profiles/uploadStaffAsset';
+import {
+  getProfileSettingsDataAction,
+  saveOwnProfileSettingsAction,
+  saveOwnProfileTemplatesAction,
+} from '@/app/actions/profileSettingsActions';
 
 const AVATAR_SEEDS = [
   'Ariel', 'Willow', 'Casper', 'Sasha', 'Jasper', 'Zoey', 'Felix', 'Luna',
@@ -93,14 +98,13 @@ export default function ProfileSettingsPage() {
 
   useEffect(() => {
     async function fetchData() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        const { data: p } = await supabase.from('profiles').select('*').eq('id', user.id).single();
-        const { data: depts } = await supabase.from('departments').select('name').eq('is_active', true).eq('dept_type', 'organization').order('name');
-        setProfile(p);
-        if (depts) setCompanyDepts(depts.map(d => d.name));
+      try {
+        const data = await getProfileSettingsDataAction();
+        setProfile(data.profile);
+        setCompanyDepts(data.departments);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     }
     fetchData();
   }, []);
@@ -122,17 +126,7 @@ export default function ProfileSettingsPage() {
      setCropImageSrc(null);
      setUploading(true);
      try {
-        const fileExt = croppedFile.name.split('.').pop();
-        const fileName = `${Math.random()}.${fileExt}`;
-        const filePath = `profile/${fileName}`;
-
-        const { error: uploadError } = await supabase.storage
-           .from('chat_media') 
-           .upload(filePath, croppedFile);
-
-        if (uploadError) throw uploadError;
-
-        const { data: { publicUrl } } = supabase.storage.from('chat_media').getPublicUrl(filePath);
+        const { publicUrl } = await uploadStaffAsset('avatar', croppedFile);
         setProfile({ ...profile, avatar_url: publicUrl });
         
         setToastMsg(t('common.messages.success'));
@@ -152,20 +146,7 @@ export default function ProfileSettingsPage() {
       const blob = await res.blob();
       const file = new File([blob], `signature_${profile.id}.png`, { type: 'image/png' });
       
-      const filePath = `signatures/${profile.id}_${Date.now()}.png`;
-      const { error: uploadError } = await supabase.storage
-        .from('chat_media')
-        .upload(filePath, file);
-
-      if (uploadError) throw uploadError;
-      const { data: { publicUrl } } = supabase.storage.from('chat_media').getPublicUrl(filePath);
-      
-      const { error } = await supabase.from('profiles').update({
-        signature_url: publicUrl,
-        updated_at: new Date().toISOString()
-      }).eq('id', profile.id);
-
-      if (error) throw error;
+      const { publicUrl } = await uploadStaffAsset('signature', file);
       setProfile({ ...profile, signature_url: publicUrl });
       setToastMsg(t('common.messages.saveSuccess'));
       setShowToast(true);
@@ -180,21 +161,7 @@ export default function ProfileSettingsPage() {
   const handleSignatureUpload = async (file: File) => {
     setSaving(true);
     try {
-      const fileExt = file.name.split('.').pop();
-      const filePath = `signatures/${profile.id}_${Date.now()}.${fileExt}`;
-      const { error: uploadError } = await supabase.storage
-        .from('chat_media')
-        .upload(filePath, file);
-
-      if (uploadError) throw uploadError;
-      const { data: { publicUrl } } = supabase.storage.from('chat_media').getPublicUrl(filePath);
-      
-      const { error } = await supabase.from('profiles').update({
-        signature_url: publicUrl,
-        updated_at: new Date().toISOString()
-      }).eq('id', profile.id);
-
-      if (error) throw error;
+      const { publicUrl } = await uploadStaffAsset('signature', file);
       setProfile({ ...profile, signature_url: publicUrl });
       setToastMsg(t('common.messages.saveSuccess'));
       setShowToast(true);
@@ -209,7 +176,7 @@ export default function ProfileSettingsPage() {
   const handleSaveProfile = async () => {
     setSaving(true);
     try {
-      const { error } = await supabase.from('profiles').update({
+      await saveOwnProfileSettingsAction({
         full_name: profile.full_name,
         avatar_url: profile.avatar_url,
         department: profile.department,
@@ -218,26 +185,7 @@ export default function ProfileSettingsPage() {
         signature_url: profile.signature_url,
         quick_replies: profile.quick_replies || [],
         resolution_templates: profile.resolution_templates || [],
-        auto_logout_minutes: profile.auto_logout_minutes ?? 0,
-        updated_at: new Date().toISOString()
-      }).eq('id', profile.id);
-      
-      if (error) throw error;
-      await auditService.log({
-        performer_id: profile.id,
-        action_type: 'PROFILE_UPDATE',
-        entity_type: 'PROFILE',
-        entity_id: profile.id,
-        new_data: { 
-          full_name: profile.full_name, 
-          department: profile.department,
-          landing_page: profile.landing_page || null,
-          avatar_url: profile.avatar_url,
-          theme_color: profile.theme_color,
-          signature_url: profile.signature_url,
-          auto_logout_minutes: profile.auto_logout_minutes ?? 0
-        },
-        note: `Updated own profile information`
+        auto_logout_minutes: profile.auto_logout_minutes ?? 0
       });
       setToastMsg(t('common.messages.saveSuccess'));
       setShowToast(true);
@@ -260,23 +208,10 @@ export default function ProfileSettingsPage() {
     setProfile(updatedProfile);
 
     try {
-      const { error } = await supabase.from('profiles').update({
-        [key]: updatedList,
-        updated_at: new Date().toISOString()
-      }).eq('id', profile.id);
-      
-      if (!error) {
-        await auditService.log({
-          performer_id: profile.id,
-          action_type: 'TEMPLATE_ADD',
-          entity_type: 'PROFILE_TEMPLATE',
-          new_data: { type, text },
-          note: `Added new ${type === 'quick' ? 'Quick Reply' : 'Resolution Template'}`
-        });
-        setToastMsg(t('common.messages.saveSuccess'));
-        setShowToast(true);
-        setTimeout(() => setShowToast(false), 2000);
-      }
+      await saveOwnProfileTemplatesAction(type, updatedList);
+      setToastMsg(t('common.messages.saveSuccess'));
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 2000);
     } catch (err) {
       console.error('Auto-save failed:', err);
     }
@@ -291,23 +226,10 @@ export default function ProfileSettingsPage() {
     setProfile(updatedProfile);
 
     try {
-      const { error } = await supabase.from('profiles').update({
-        [key]: next,
-        updated_at: new Date().toISOString()
-      }).eq('id', profile.id);
-
-      if (!error) {
-        await auditService.log({
-          performer_id: profile.id,
-          action_type: 'TEMPLATE_DELETE',
-          entity_type: 'PROFILE_TEMPLATE',
-          new_data: { type, index },
-          note: `Removed ${type === 'quick' ? 'Quick Reply' : 'Resolution Template'}`
-        });
-        setToastMsg(t('common.messages.deleteSuccess'));
-        setShowToast(true);
-        setTimeout(() => setShowToast(false), 2000);
-      }
+      await saveOwnProfileTemplatesAction(type, next);
+      setToastMsg(t('common.messages.deleteSuccess'));
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 2000);
     } catch (err) {
       console.error('Auto-delete failed:', err);
     }
@@ -404,7 +326,7 @@ export default function ProfileSettingsPage() {
                  />
                  <label style={{ position: 'absolute', bottom: '0', right: '0', background: 'var(--primary)', padding: '8px', borderRadius: '50%', cursor: 'pointer', boxShadow: '0 6px 20px rgba(0,242,254,0.4)', border: '3px solid var(--bg-card)' }}>
                     {uploading ? <Loader2 size={14} className="animate-spin" /> : <Camera size={14} color="#000" />}
-                    <input type="file" hidden accept="image/*" onChange={handleFileUpload} disabled={uploading} />
+                    <input type="file" hidden accept="image/jpeg,image/png,image/webp" onChange={handleFileUpload} disabled={uploading} />
                  </label>
               </div>
 

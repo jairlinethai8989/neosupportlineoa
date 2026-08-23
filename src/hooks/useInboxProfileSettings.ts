@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
-import { supabase } from '@/lib/supabase';
 import { useAppContext } from '@/contexts/AppContext';
 import type { InboxAgent } from '@/types/inbox';
+import { updateOwnProfile, type OwnProfileUpdates } from '@/lib/profiles/updateOwnProfile';
 
 const fallbackModules = [
   'ห้องทำงานแพทย์',
@@ -49,7 +49,7 @@ export function useInboxProfileSettings() {
   }) {
     if (!agent?.id) return;
 
-    const payload: Record<string, unknown> = {};
+    const payload: OwnProfileUpdates = {};
 
     if (updates.quickReplies) {
       payload.quick_replies = updates.quickReplies;
@@ -61,7 +61,7 @@ export function useInboxProfileSettings() {
       setPersonalResTemplates(updates.resolutionTemplates);
     }
 
-    await supabase.from('profiles').update(payload).eq('id', agent.id);
+    await updateOwnProfile(payload);
   }
 
   async function handleAddCanned() {

@@ -1,4 +1,5 @@
-import { supabase } from '@/lib/supabase';
+import 'server-only';
+import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { DateTime } from 'luxon';
 
 export interface AgentStats {
@@ -73,7 +74,7 @@ export const analyticsQueries = {
       receiveResult,
       timelineResult,
     ] = await Promise.all([
-      supabase
+      supabaseAdmin
         .from('tickets')
         .select(`
           id,
@@ -89,7 +90,7 @@ export const analyticsQueries = {
         `)
         .eq('assigned_agent_id', agentId)
         .in('status', ['Assigned', 'In Progress', 'Escalated', 'Pending']),
-      supabase
+      supabaseAdmin
         .from('tickets')
         .select(`
           id,
@@ -107,11 +108,11 @@ export const analyticsQueries = {
         .in('status', ['Resolved', 'Closed'])
         .gte('resolved_at', start.toISOString())
         .lte('resolved_at', end.toISOString()),
-      supabase
+      supabaseAdmin
         .from('tickets')
         .select('*', { count: 'exact', head: true })
         .eq('assigned_agent_id', agentId),
-      supabase
+      supabaseAdmin
         .from('ticket_logs')
         .select('id, ticket:tickets!inner(assigned_agent_id)')
         .eq('tickets.assigned_agent_id', agentId)
@@ -119,21 +120,21 @@ export const analyticsQueries = {
         .in('to_status', ['In Progress', 'Pending', 'Escalated', 'Assigned'])
         .gte('created_at', start.toISOString())
         .lte('created_at', end.toISOString()),
-      supabase
+      supabaseAdmin
         .from('csat_surveys')
         .select('score, tickets!inner(assigned_agent_id)')
         .eq('tickets.assigned_agent_id', agentId)
         .not('score', 'is', null)
         .gte('created_at', start.toISOString())
         .lte('created_at', end.toISOString()),
-      supabase
+      supabaseAdmin
         .from('ticket_logs')
         .select('created_at, action_type, to_user_id, performer_id')
         .or(`to_user_id.eq.${agentId},performer_id.eq.${agentId}`)
         .in('action_type', ['claim', 'assign', 'transfer'])
         .gte('created_at', start.toISOString())
         .lte('created_at', end.toISOString()),
-      supabase
+      supabaseAdmin
         .from('ticket_logs')
         .select(`
           id,
@@ -352,7 +353,7 @@ export const analyticsQueries = {
     const end = DateTime.fromISO(endDateStr).endOf('day').toJSDate();
 
     // Fetch all profiles
-    const { data: profiles, error: pError } = await supabase
+    const { data: profiles, error: pError } = await supabaseAdmin
       .from('profiles')
       .select('id, full_name');
     
@@ -360,12 +361,12 @@ export const analyticsQueries = {
 
     // Fetch only active tickets + resolved tickets in range in parallel
     const [activeRes, resolvedRes] = await Promise.all([
-      supabase
+      supabaseAdmin
         .from('tickets')
         .select('assigned_agent_id, status, created_at, resolved_at')
         .not('assigned_agent_id', 'is', null)
         .in('status', ['Assigned', 'In Progress', 'Escalated', 'Pending']),
-      supabase
+      supabaseAdmin
         .from('tickets')
         .select('assigned_agent_id, status, created_at, resolved_at')
         .not('assigned_agent_id', 'is', null)

@@ -10,6 +10,13 @@ import { test, expect } from '@playwright/test';
  */
 
 test.describe('E2E: LIFF to Ticket Workflow', () => {
+  const ADMIN_USERNAME = process.env.E2E_ADMIN_USERNAME;
+  const ADMIN_PASSWORD = process.env.E2E_ADMIN_PASSWORD;
+
+  test.skip(
+    !ADMIN_USERNAME || !ADMIN_PASSWORD,
+    'Set E2E_ADMIN_USERNAME and E2E_ADMIN_PASSWORD to run the authenticated workflow.'
+  );
   
   const TEST_USER_ID = 'U_E2E_TEST_999';
   const TICKET_SUBJECT = `E2E Test: ${new Date().toISOString()}`;
@@ -70,8 +77,8 @@ test.describe('E2E: LIFF to Ticket Workflow', () => {
     console.log('Step 2: Managing ticket as Agent');
     
     await page.goto('/login');
-    await page.fill('input[placeholder="admin"]', 'admin');
-    await page.fill('input[type="password"]', '123456');
+    await page.fill('input[placeholder="admin"]', ADMIN_USERNAME!);
+    await page.fill('input[type="password"]', ADMIN_PASSWORD!);
     await page.click('button[type="submit"]');
     
     // Should land on dashboard

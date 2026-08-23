@@ -16,13 +16,16 @@ import {
   Zap
 } from 'lucide-react';
 import { useNotificationContext } from '@/contexts/NotificationContext';
-import { supabase } from '@/lib/supabase';
 import Skeleton from '@/components/ui/Skeleton';
 import { useStaffLocale } from '@/contexts/StaffLocaleContext';
 import { useAppContext } from '@/contexts/AppContext';
 import { useRouter } from 'next/navigation';
 import { ExportPreviewModal, type ExportPreviewData } from '@/components/ui/ExportPreviewModal';
 import useSWR from 'swr';
+import {
+  getDashboardExportTicketsAction,
+  getDashboardFilterOptionsAction,
+} from '@/app/actions/dashboardActions';
 const DashboardChartsSection = React.lazy(() =>
   import('@/components/dashboard/DashboardChartsSection').then((module) => ({
     default: module.DashboardChartsSection,
@@ -177,9 +180,21 @@ export default function Home() {
   const [tempCustomStart, setTempCustomStart] = useState('');
   const [tempCustomEnd, setTempCustomEnd] = useState('');
 
-  const [organizationsList, setOrganizationsList] = useState<any[]>([]);
-  const [modulesList, setModulesList] = useState<any[]>([]);
-  const [issueTypesList, setIssueTypesList] = useState<any[]>([]);
+  const organizationsList = contextOrgs as any[];
+  const [fallbackFilterOptions, setFallbackFilterOptions] = useState({
+    modules: [] as string[],
+    issueTypes: [] as string[],
+  });
+  const modulesList = useMemo(
+    () => (companySettings?.modules?.length ? companySettings.modules : fallbackFilterOptions.modules)
+      .map((name: string) => ({ name })),
+    [companySettings, fallbackFilterOptions.modules]
+  );
+  const issueTypesList = useMemo(
+    () => (companySettings?.issue_types?.length ? companySettings.issue_types : fallbackFilterOptions.issueTypes)
+      .map((name: string) => ({ name })),
+    [companySettings, fallbackFilterOptions.issueTypes]
+  );
 
   const [selectedHospital, setSelectedHospital] = useState<string>('');
   const [selectedModule, setSelectedModule] = useState<string>('');
@@ -194,34 +209,14 @@ export default function Home() {
     void ensureOrganizations();
   }, [ensureOrganizations]);
 
-  useEffect(() => {
-    if (contextOrgs.length > 0) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setOrganizationsList(contextOrgs as any[]);
-    }
-  }, [contextOrgs]);
-
   // Modules and issue types: use companySettings if already loaded, else fetch in parallel
   useEffect(() => {
     if (companySettings?.modules?.length || companySettings?.issue_types?.length) {
-      if (companySettings.modules?.length) {
-        // eslint-disable-next-line react-hooks/set-state-in-effect
-        setModulesList(companySettings.modules.map((name: string) => ({ name })));
-      }
-      if (companySettings.issue_types?.length) {
-        // eslint-disable-next-line react-hooks/set-state-in-effect
-        setIssueTypesList(companySettings.issue_types.map((name: string) => ({ name })));
-      }
       return;
     }
-    // Fallback: fetch in parallel (not sequential) if companySettings not yet ready
-    void Promise.all([
-      supabase.from('ticket_modules').select('name').eq('is_active', true).order('name'),
-      supabase.from('ticket_issue_types').select('name').eq('is_active', true).order('name'),
-    ]).then(([modsRes, typesRes]) => {
-      if (modsRes.data) setModulesList(modsRes.data);
-      if (typesRes.data) setIssueTypesList(typesRes.data);
-    });
+    void getDashboardFilterOptionsAction().then((options) => {
+      setFallbackFilterOptions(options);
+    }).catch(() => {});
   }, [companySettings]);
 
   const dateWindow = useMemo(
@@ -243,11 +238,11 @@ export default function Home() {
   );
 
   const stats = payload?.stats || EMPTY_STATS;
-  const trendRows = payload?.trendByDay || [];
-  const statusRows = payload?.statusData || [];
-  const priorityRows = payload?.priorityData || [];
-  const organizationRows = payload?.organizationData || [];
-  const agentRows = payload?.agentData || [];
+  const trendRows = useMemo(() => payload?.trendByDay || [], [payload?.trendByDay]);
+  const statusRows = useMemo(() => payload?.statusData || [], [payload?.statusData]);
+  const priorityRows = useMemo(() => payload?.priorityData || [], [payload?.priorityData]);
+  const organizationRows = useMemo(() => payload?.organizationData || [], [payload?.organizationData]);
+  const agentRows = useMemo(() => payload?.agentData || [], [payload?.agentData]);
   const heatmap = payload?.heatmap || [];
   const recentLogs = payload?.recentLogs || [];
   const isLoading = isSwrLoading && !payload; // Use data to prevent layout thrashing on revalidation
@@ -275,48 +270,18 @@ export default function Home() {
     let rows = exportTicketsRows;
 
     if (exportTicketsKey !== currentWindowKey || rows.length === 0) {
-      const exportSelect = `
-        id,
-        ticket_no,
-        subject,
-        status,
-        priority,
-        created_at,
-        updated_at,
-        customers!tickets_customer_id_fkey (display_name),
-        assigned_agent:profiles!assigned_agent_id (full_name)
-      `;
-      let query = supabase
-        .from('tickets')
-        .select(exportSelect)
-        .gte('created_at', dateWindow.from.toISOString())
-        .lte('created_at', dateWindow.to.toISOString());
-        
-      if (selectedHospital) {
-        query = query.eq('organization_id', selectedHospital);
-      }
-      if (selectedModule) {
-        query = query.eq('module', selectedModule);
-      }
-      if (selectedIssueType) {
-        query = query.eq('issue_type', selectedIssueType);
-      }
-
-      const { data, error } = await query.order('created_at', { ascending: false });
-
-      if (error) {
-        console.error('Export fetch error:', error.message);
+      try {
+        rows = await getDashboardExportTicketsAction({
+          from: dateWindow.from.toISOString(),
+          to: dateWindow.to.toISOString(),
+          organizationId: selectedHospital,
+          module: selectedModule,
+          issueType: selectedIssueType,
+        });
+      } catch {
         alert(t('dashboard.exportError') || 'ไม่สามารถดึงข้อมูลได้ กรุณาลองใหม่อีกครั้ง');
         return;
       }
-
-      // Flatten joined fields for export
-      rows = (data || []).map((row: any) => ({
-        ...row,
-        customer_name: row.customers?.display_name || '-',
-        agent_name: row.assigned_agent?.full_name || '-',
-        resolved_at: row.updated_at,
-      }));
       setExportTicketsRows(rows);
       setExportTicketsKey(currentWindowKey);
     }

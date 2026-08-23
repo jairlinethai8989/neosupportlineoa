@@ -19,7 +19,10 @@ import {
 import Link from 'next/link';
 import { useAppContext } from '@/contexts/AppContext';
 import { useNotificationContext } from '@/contexts/NotificationContext';
-import { supabase } from '@/lib/supabase';
+import {
+  getEvaluation360WorkspaceAction,
+  getStaffAnalyticsOptionsAction,
+} from '@/app/actions/staffAnalyticsActions';
 import { DateTime } from 'luxon';
 
 interface StaffProfile {
@@ -52,7 +55,7 @@ const DEFAULT_SCORES: EvaluationScores = {
 };
 
 export default function Evaluation360Page() {
-  const { userProfile } = useAppContext();
+  const { userProfile, authUserId } = useAppContext();
   const { addToast } = useNotificationContext();
   const [mounted, setMounted] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -97,6 +100,14 @@ export default function Evaluation360Page() {
     if (userProfile.role === 'Administrator') return true;
     return userProfile.permissions?.analytics_staff === 'view' || userProfile.permissions?.analytics_staff === 'edit';
   }, [userProfile]);
+  const canEditOthers = useMemo(
+    () => userProfile?.role === 'Administrator' || userProfile?.permissions?.analytics_staff === 'edit',
+    [userProfile]
+  );
+  const canGenerateEvaluation = Boolean(selectedAgentId && (canEditOthers || selectedAgentId === authUserId));
+  const canSaveEvaluation = Boolean(
+    selectedAgentId && (canEditOthers || (selectedAgentId === authUserId && evaluatorRole === 'self'))
+  );
 
   useEffect(() => {
     setMounted(true);
@@ -105,12 +116,7 @@ export default function Evaluation360Page() {
   // Fetch all staff members
   const fetchStaffList = useCallback(async () => {
     try {
-      const { data: profiles, error } = await supabase
-        .from('profiles')
-        .select('id, full_name, role, status')
-        .order('full_name', { ascending: true });
-
-      if (error) throw error;
+      const profiles = await getStaffAnalyticsOptionsAction();
       setStaffList(profiles || []);
 
       if (profiles && profiles.length > 0) {
@@ -136,66 +142,14 @@ export default function Evaluation360Page() {
     if (!agentId) return;
     setLoadingStats(true);
     try {
-      const { data: tickets, error } = await supabase
-        .from('tickets')
-        .select('id, status, created_at, updated_at, priority, csat_score:csat_surveys(score)')
-        .eq('assigned_agent_id', agentId)
-        .gte('created_at', dateRange.start)
-        .lte('created_at', dateRange.end);
-
-      if (error) throw error;
-
-      const totalClaimed = tickets?.length || 0;
-      const resolvedCount = tickets?.filter(t => t.status === 'Resolved' || t.status === 'Closed').length || 0;
-      
-      let resolvedHoursSum = 0;
-      let resolvedWithTimeCount = 0;
-      let slaCompliantCount = 0;
-      let reworkCount = 0;
-
-      tickets?.forEach(t => {
-        if (t.created_at && t.updated_at && (t.status === 'Resolved' || t.status === 'Closed')) {
-          const hours = (new Date(t.updated_at).getTime() - new Date(t.created_at).getTime()) / (1000 * 60 * 60);
-          resolvedHoursSum += hours;
-          resolvedWithTimeCount++;
-          const isHighCritical = t.priority === 'Critical' || t.priority === 'High';
-          if (isHighCritical && hours <= 4) slaCompliantCount++;
-          else if (!isHighCritical && hours <= 24) slaCompliantCount++;
-        }
-        if (t.status === 'Rejected' || t.status === 'Escalated') {
-          reworkCount++;
-        }
+      const result = await getEvaluation360WorkspaceAction({
+        agentId,
+        startDate: dateRange.start,
+        endDate: dateRange.end,
+        period,
+        evaluatorRole,
       });
-
-      const avgResolutionTime = resolvedWithTimeCount > 0 ? parseFloat((resolvedHoursSum / resolvedWithTimeCount).toFixed(1)) : 0;
-      const slaComplianceRate = resolvedCount > 0 ? Math.round((slaCompliantCount / resolvedCount) * 100) : 100;
-      const reworkRate = totalClaimed > 0 ? Math.round((reworkCount / totalClaimed) * 100) : 0;
-
-      let csatSum = 0;
-      let csatCount = 0;
-
-      interface CsatScoreField {
-        csat_score?: { score: number }[] | { score: number } | null;
-      }
-
-      tickets?.forEach(t => {
-        const scoreData = (t as unknown as CsatScoreField).csat_score;
-        const score = Array.isArray(scoreData) ? scoreData[0]?.score : scoreData?.score;
-        if (score) {
-          csatSum += score;
-          csatCount++;
-        }
-      });
-      const avgCsat = csatCount > 0 ? parseFloat((csatSum / csatCount).toFixed(2)) : 0;
-
-      setKpiStats({
-        totalClaimed,
-        resolvedCount,
-        avgResolutionTime,
-        slaComplianceRate,
-        reworkRate,
-        avgCsat
-      });
+      setKpiStats(result.kpiStats);
 
       // Reset score defaults or fetch existing eval
       setScores({ ...DEFAULT_SCORES });
@@ -203,13 +157,7 @@ export default function Evaluation360Page() {
       setIsAiGenerated(false);
       
       // Attempt to load existing evaluation
-      const { data: existing } = await supabase
-        .from('staff_evaluations_360')
-        .select('*')
-        .eq('agent_id', agentId)
-        .eq('evaluation_period', period)
-        .eq('evaluator_role', evaluatorRole)
-        .maybeSingle();
+      const existing = result.evaluation;
 
       if (existing) {
         setScores({
@@ -268,7 +216,7 @@ export default function Evaluation360Page() {
 
   // Request AI Autofill recommendation
   const handleGenerateAI = async () => {
-    if (!selectedAgentId) return;
+    if (!canGenerateEvaluation) return;
     setGeneratingAI(true);
     try {
       const res = await fetch('/api/analytics/staff/evaluate-360', {
@@ -321,7 +269,7 @@ export default function Evaluation360Page() {
 
   // Save the evaluation record
   const handleSaveEvaluation = async () => {
-    if (!selectedAgentId) return;
+    if (!canSaveEvaluation) return;
     setSaving(true);
     try {
       const res = await fetch('/api/analytics/staff/evaluate-360', {
@@ -518,7 +466,7 @@ export default function Evaluation360Page() {
             </div>
             <button
               onClick={handleGenerateAI}
-              disabled={generatingAI || loadingStats}
+              disabled={generatingAI || loadingStats || !canGenerateEvaluation}
               className="glass-interactive flex-center"
               style={{
                 padding: '10px 18px',
@@ -529,7 +477,8 @@ export default function Evaluation360Page() {
                 fontSize: '12px',
                 border: 'none',
                 boxShadow: '0 4px 15px rgba(0, 242, 254, 0.15)',
-                cursor: (generatingAI || loadingStats) ? 'not-allowed' : 'pointer'
+                cursor: (generatingAI || loadingStats || !canGenerateEvaluation) ? 'not-allowed' : 'pointer',
+                opacity: canGenerateEvaluation ? 1 : 0.5
               }}
             >
               {generatingAI ? (
@@ -794,7 +743,7 @@ export default function Evaluation360Page() {
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '16px', marginTop: '24px', borderTop: '1px solid var(--border)', paddingTop: '20px' }}>
               <button
                 onClick={handleSaveEvaluation}
-                disabled={saving || loadingStats}
+                disabled={saving || loadingStats || !canSaveEvaluation}
                 className="glass-interactive flex-center"
                 style={{
                   padding: '12px 28px',
@@ -805,7 +754,8 @@ export default function Evaluation360Page() {
                   fontSize: '13px',
                   border: 'none',
                   boxShadow: '0 4px 15px rgba(0, 242, 254, 0.2)',
-                  cursor: (saving || loadingStats) ? 'not-allowed' : 'pointer'
+                  cursor: (saving || loadingStats || !canSaveEvaluation) ? 'not-allowed' : 'pointer',
+                  opacity: canSaveEvaluation ? 1 : 0.5
                 }}
               >
                 {saving ? (

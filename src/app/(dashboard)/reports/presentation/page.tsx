@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any, react/no-unescaped-entities, @typescript-eslint/no-unused-vars */
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */
 'use client';
 import React, { useState, useEffect, useRef } from 'react';
 import { 
@@ -18,7 +18,6 @@ import {
   Info
 } from 'lucide-react';
 import { useNotificationContext } from '@/contexts/NotificationContext';
-import { supabase } from '@/lib/supabase';
 import dynamic from 'next/dynamic';
 
 const PresentationViewer = dynamic(() => import('@/components/reports/PresentationViewer'), { 
@@ -74,7 +73,6 @@ type GeminiInsights = {
   actionItems: { action: string; owner: string; targetDate: string }[];
   hospitalInsights: Record<string, string>;
   isSimulated: boolean;
-  errorMsg?: string;
 };
 
 const PRESET_PROMPTS = [
@@ -198,7 +196,6 @@ export default function PresentationPage() {
   const [selectedTemplate, setSelectedTemplate] = useState<TemplateName>('dark-executive');
   const [customPrompt, setCustomPrompt] = useState('');
   const [selectedPresetId, setSelectedPresetId] = useState('executive');
-  const [userApiKey, setUserApiKey] = useState('');
   const [aiInsights, setAiInsights] = useState<GeminiInsights | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiInputMode, setAiInputMode] = useState<'preset' | 'custom'>('preset');
@@ -229,25 +226,10 @@ export default function PresentationPage() {
   });
 
   const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
-  const [hasGlobalApiKey, setHasGlobalApiKey] = useState(false);
   const presentationRef = useRef<HTMLDivElement>(null);
   const { addToast } = useNotificationContext();
 
   const activeTheme = getThemeStyles(selectedTemplate);
-
-  useEffect(() => {
-    async function checkGlobalApiKey() {
-      try {
-        const { data: c } = await supabase.from('company_settings').select('gemini_api_key').limit(1).maybeSingle();
-        if (c?.gemini_api_key) {
-          setHasGlobalApiKey(true);
-        }
-      } catch (err) {
-        console.error('Error checking global api key:', err);
-      }
-    }
-    checkGlobalApiKey();
-  }, []);
 
   const fetchPresentationData = async (start: string, end: string, shouldCloseDrawer = false) => {
     setLoading(true);
@@ -312,8 +294,7 @@ export default function PresentationPage() {
         },
         body: JSON.stringify({
           ticketData: freshData,
-          customPrompt: finalPrompt,
-          userApiKey: userApiKey.trim() || undefined
+          customPrompt: finalPrompt
         })
       });
 

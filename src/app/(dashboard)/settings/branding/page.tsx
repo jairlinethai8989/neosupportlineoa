@@ -4,7 +4,6 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable jsx-a11y/alt-text */
 import React, { useState, useEffect } from 'react';
-import { supabase } from '@/lib/supabase';
 import { 
   Save, 
   Loader2, 
@@ -18,9 +17,13 @@ import {
 import Link from 'next/link';
 import Skeleton from '@/components/ui/Skeleton';
 import { useNotificationContext } from '@/contexts/NotificationContext';
-import { auditService } from '@/lib/services/auditService';
 import { useAppContext } from '@/contexts/AppContext';
 import { useStaffLocale } from '@/contexts/StaffLocaleContext';
+import {
+  getClientCompanySettingsAction,
+  saveBrandingSettingsAction,
+} from '@/app/actions/companySettingsActions';
+import { uploadStaffAsset } from '@/lib/profiles/uploadStaffAsset';
 
 export default function BrandingSettingsPage() {
   const { t, locale } = useStaffLocale();
@@ -38,7 +41,7 @@ export default function BrandingSettingsPage() {
 
   useEffect(() => {
     async function fetchData() {
-      const { data: c } = await supabase.from('company_settings').select('*').limit(1).single();
+      const c = await getClientCompanySettingsAction();
       if (c && !c.modules) {
         c.modules = []; // Fallback to empty array, modules should come from Master Data
       }
@@ -54,17 +57,7 @@ export default function BrandingSettingsPage() {
 
      setUploading(true);
      try {
-        const fileExt = file.name.split('.').pop();
-        const fileName = `${Math.random()}.${fileExt}`;
-        const filePath = `company/${fileName}`;
-
-        const { error: uploadError } = await supabase.storage
-           .from('chat_media') 
-           .upload(filePath, file);
-
-        if (uploadError) throw uploadError;
-
-        const { data: { publicUrl } } = supabase.storage.from('chat_media').getPublicUrl(filePath);
+        const { publicUrl } = await uploadStaffAsset('company_logo', file);
         setCompany({ ...company, logo_url: publicUrl });
         addToast({
            id: 'logo-upload',
@@ -82,39 +75,12 @@ export default function BrandingSettingsPage() {
   const handleSaveCompany = async () => {
     setSaving(true);
     try {
-      if (company?.id) {
-         const { error } = await supabase.from('company_settings').update({
-            company_name: company.company_name,
-            logo_url: company.logo_url,
-            updated_at: new Date().toISOString()
-          }).eq('id', company.id);
-         if (error) throw error;
-      } else {
-         const { error } = await supabase.from('company_settings').insert([{
-            company_name: company.company_name,
-            logo_url: company.logo_url,
-          }]);
-         if (error) throw error;
-      }
-      // Log the update (Secondary operation, don't let it block success)
-      try {
-        const { auditService } = await import('@/lib/services/auditService');
-        const { data: { user } } = await supabase.auth.getUser();
-        await auditService.log({
-          performer_id: user?.id,
-          action_type: 'BRANDING_UPDATE',
-          entity_type: 'COMPANY',
-          entity_id: company?.id,
-          new_data: { 
-            company_name: company?.company_name, 
-            logo_url: company?.logo_url,
-            active_threshold_minutes: company?.active_threshold_minutes || 15
-          },
-          note: `Updated corporate branding and active threshold settings`
-        });
-      } catch (logErr) {
-        console.error('Logging failed:', logErr);
-      }
+      const savedCompany = await saveBrandingSettingsAction({
+        company_name: company?.company_name,
+        logo_url: company?.logo_url,
+        active_threshold_minutes: company?.active_threshold_minutes || 15,
+      });
+      setCompany(savedCompany);
 
       addToast({
         id: 'branding-save',
@@ -216,7 +182,7 @@ export default function BrandingSettingsPage() {
                    }}>
                      {uploading ? <Loader2 size={16} className="animate-spin" /> : <Camera size={18} />}
                      <span>{uploading ? t('settingsBranding.uploading') : t('settingsBranding.changeLogo')}</span>
-                     <input type="file" hidden accept="image/*" onChange={handleFileUpload} disabled={uploading || !canEdit} />
+                     <input type="file" hidden accept="image/jpeg,image/png,image/webp" onChange={handleFileUpload} disabled={uploading || !canEdit} />
                   </label>
                </div>
             </div>

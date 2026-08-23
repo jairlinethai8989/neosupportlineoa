@@ -1,46 +1,433 @@
 'use server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
-import { cookies } from 'next/headers';
-import { createServerClient } from '@supabase/ssr';
 import { invalidateAllLiveCaches } from '@/lib/cache/liveCache';
 import { invalidateAllPreviewCaches } from '@/lib/reports/previewCache';
 import crypto from 'crypto';
+import { generateSecurePin, hashHandoffCredential, requireHandoffAccessPepper } from '@/lib/handoff/handoffAccess';
+import { requireStaffAuth } from '@/lib/auth/staffAuthorization';
+import {
+  assertStaffAttachmentOwnership,
+  getInternalAttachmentMediaInfo,
+  parseInternalAttachmentUpload,
+  parseInternalTicketInput,
+} from '@/lib/tickets/internalTicketSecurity';
+import { PRIVATE_CHAT_MEDIA_BUCKET } from '@/lib/media/chatMediaPath';
+import { calculateSlaDeadline } from '@/lib/utils/slaUtils';
+import {
+  parseTicketDetailAttachmentReference,
+  parseTicketDetailFieldUpdate,
+  parseTicketDetailId,
+  parseTicketDetailMessage,
+} from '@/lib/tickets/ticketDetailSecurity';
+import { parseStaffId } from '@/lib/auth/staffManagement';
 
 type TicketUpdatePayload = Record<string, string | null>;
 
-// Helper to authenticate session dynamically on server
-async function getSessionUser() {
-  const cookieStore = await cookies();
-  const supabaseAuth = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() { return cookieStore.getAll(); },
-      },
-    }
-  );
-  
-  const { data: { user }, error } = await supabaseAuth.auth.getUser();
-  if (error || !user) throw new Error('Unauthorized Access. Invalid Session.');
-  return user;
+const TICKET_DETAIL_SELECT = `
+  id, ticket_no, customer_id, status, subject, description, priority, module,
+  issue_type, created_at, resolved_at, assigned_agent_id, current_department_id,
+  organization_id, resolution_summary, ai_analysis,
+  customers:customers!tickets_customer_id_fkey (
+    id, display_name, full_name, line_username,
+    organizations:organizations(id, name)
+  ),
+  assigned_agent:profiles!assigned_agent_id (id, display_name:full_name),
+  department_data:departments!current_department_id(id, name)
+`;
+
+async function resolveTicketConversation(ticketId: string, customerId: string | null) {
+  const { data: byTicket } = await supabaseAdmin.from('conversations')
+    .select('id, status').eq('current_ticket_id', ticketId).maybeSingle();
+  if (byTicket?.status === 'active') return byTicket.id as string;
+  if (!customerId) return null;
+  const { data: byCustomer } = await supabaseAdmin.from('conversations')
+    .select('id, status').eq('customer_id', customerId).eq('status', 'active').maybeSingle();
+  return byCustomer?.status === 'active' ? byCustomer.id as string : null;
 }
 
-async function verifyAgentRole(userId: string) {
-  const { data: profile } = await supabaseAdmin
-    .from('profiles')
-    .select('role')
-    .eq('id', userId)
-    .single();
+export async function getTicketDetailAction(value: unknown) {
+  await requireStaffAuth({ permission: 'tickets', level: 'view' });
+  const ticketId = parseTicketDetailId(value);
+  const { data: ticket, error: ticketError } = await supabaseAdmin.from('tickets')
+    .select(TICKET_DETAIL_SELECT).eq('id', ticketId).maybeSingle();
+  if (ticketError) throw new Error('Failed to load ticket');
+  if (!ticket) return null;
 
-  if (!profile || !['Agent', 'Administrator'].includes(profile.role)) {
-    throw new Error('Unauthorized: Agent role required');
+  const conversationId = await resolveTicketConversation(ticketId, ticket.customer_id);
+  let messageQuery = supabaseAdmin.from('messages').select(
+    'id, content, sender_type, staff_id, ticket_id, conversation_id, message_type, media_path, media_mime_type, created_at'
+  );
+  messageQuery = conversationId
+    ? messageQuery.or(`ticket_id.eq.${ticketId},conversation_id.eq.${conversationId}`)
+    : messageQuery.eq('ticket_id', ticketId);
+
+  const [{ data: logs, error: logError }, { data: messages, error: messageError }] = await Promise.all([
+    supabaseAdmin.from('ticket_logs')
+      .select('id, created_at, action_type, to_status, note, performer_id')
+      .eq('ticket_id', ticketId).order('created_at', { ascending: false }),
+    messageQuery.order('created_at', { ascending: true }),
+  ]);
+  if (logError || messageError) throw new Error('Failed to load ticket activity');
+
+  const resolverId = logs?.find((log) => log.action_type === 'resolve')?.performer_id;
+  const { data: resolver } = resolverId
+    ? await supabaseAdmin.from('profiles').select('full_name, signature_url').eq('id', resolverId).maybeSingle()
+    : { data: null };
+
+  return { ticket, logs: logs || [], messages: messages || [], conversationId, resolver: resolver || null };
+}
+
+export async function getTicketDetailStaticMetaAction() {
+  const { user } = await requireStaffAuth({ permission: 'tickets', level: 'view' });
+  const [departments, modules, issueTypes, company, profile] = await Promise.all([
+    supabaseAdmin.from('departments').select('id, name')
+      .eq('dept_type', 'organization').eq('is_active', true).order('name'),
+    supabaseAdmin.from('ticket_modules').select('name').eq('is_active', true).order('name'),
+    supabaseAdmin.from('ticket_issue_types').select('name').eq('is_active', true).order('name'),
+    supabaseAdmin.from('company_settings').select('resolution_templates').limit(1).maybeSingle(),
+    supabaseAdmin.from('profiles')
+      .select('id, full_name, role, quick_replies, resolution_templates')
+      .eq('id', user.id).maybeSingle(),
+  ]);
+  if (
+    departments.error || modules.error || issueTypes.error ||
+    company.error || profile.error || !profile.data
+  ) {
+    throw new Error('Failed to load ticket options');
   }
-  return profile.role;
+  const names = (rows: Array<{ name?: unknown }> | null) => (rows || [])
+    .map((row) => typeof row.name === 'string' ? row.name : '')
+    .filter(Boolean);
+  const templates = (value: unknown) => Array.isArray(value)
+    ? value.slice(0, 100).map((entry) =>
+      typeof entry === 'string'
+        ? entry
+        : String((entry as Record<string, unknown> | null)?.content ?? '')
+    ).filter(Boolean)
+    : [];
+  return {
+    departments: (departments.data || []).map((row) => ({
+      label: typeof row.name === 'string' ? row.name : '',
+      value: String(row.id),
+    })).filter((row) => row.label && row.value),
+    modules: names(modules.data),
+    issueTypes: names(issueTypes.data),
+    user: {
+      id: user.id,
+      display_name: typeof profile.data.full_name === 'string' ? profile.data.full_name : null,
+      role: typeof profile.data.role === 'string' ? profile.data.role : null,
+    },
+    quickReplies: templates(profile.data.quick_replies),
+    personalResolutionTemplates: templates(profile.data.resolution_templates),
+    companyResolutionTemplates: templates(company.data?.resolution_templates),
+  };
+}
+
+export async function getTicketTransferTargetsAction() {
+  const { user } = await requireStaffAuth({ permission: 'tickets', level: 'edit' });
+  const [teamsResult, agentsResult] = await Promise.all([
+    supabaseAdmin.from('teams').select('id, name').order('name'),
+    supabaseAdmin.from('profiles')
+      .select('id, full_name, username')
+      .in('role', ['Agent', 'Administrator'])
+      .neq('id', user.id)
+      .order('full_name'),
+  ]);
+  if (teamsResult.error || agentsResult.error) {
+    throw new Error('Failed to load transfer targets');
+  }
+  return {
+    teams: (teamsResult.data || []).map((row) => ({
+      id: String(row.id),
+      name: typeof row.name === 'string' ? row.name : null,
+    })),
+    agents: (agentsResult.data || []).map((row) => ({
+      id: String(row.id),
+      full_name: typeof row.full_name === 'string' ? row.full_name : null,
+      username: typeof row.username === 'string' ? row.username : null,
+    })),
+  };
+}
+
+export async function getInternalTicketFormOptionsAction() {
+  await requireStaffAuth({ permission: 'tickets', level: 'edit' });
+  const [organizationsResult, subjectTypesResult] = await Promise.all([
+    supabaseAdmin.from('organizations')
+      .select('id, name, abbreviation')
+      .eq('is_active', true)
+      .order('name'),
+    supabaseAdmin.from('ticket_subject_types')
+      .select('name')
+      .eq('is_active', true)
+      .order('name'),
+  ]);
+  if (organizationsResult.error || subjectTypesResult.error) {
+    throw new Error('Failed to load internal ticket options');
+  }
+  return {
+    organizations: (organizationsResult.data || []).map((row) => ({
+      id: String(row.id),
+      name: typeof row.name === 'string' ? row.name : '',
+      abbreviation: typeof row.abbreviation === 'string' ? row.abbreviation : null,
+    })).filter((row) => row.id && row.name),
+    subjectTypes: (subjectTypesResult.data || [])
+      .map((row) => typeof row.name === 'string' ? row.name : '')
+      .filter(Boolean),
+  };
+}
+
+export async function updateTicketDetailFieldAction(ticketValue: unknown, fieldValue: unknown, rawValue: unknown) {
+  await requireStaffAuth({ permission: 'tickets', level: 'edit' });
+  const ticketId = parseTicketDetailId(ticketValue);
+  const update = parseTicketDetailFieldUpdate(fieldValue, rawValue);
+  if (update.field === 'current_department_id') {
+    const { data } = await supabaseAdmin.from('departments').select('id')
+      .eq('id', update.value).eq('is_active', true).maybeSingle();
+    if (!data) throw new Error('Department not found');
+  }
+  const { data, error } = await supabaseAdmin.from('tickets')
+    .update({ [update.field]: update.value, updated_at: new Date().toISOString() })
+    .eq('id', ticketId).select('id, priority, current_department_id, module').single();
+  if (error || !data) throw new Error('Failed to update ticket');
+  invalidateAllLiveCaches();
+  invalidateAllPreviewCaches();
+  return data;
+}
+
+export async function sendTicketDetailMessageAction(ticketValue: unknown, value: unknown) {
+  const { user } = await requireStaffAuth({ permission: 'tickets', level: 'edit' });
+  const ticketId = parseTicketDetailId(ticketValue);
+  const input = parseTicketDetailMessage(value);
+  const { data: ticket } = await supabaseAdmin.from('tickets').select('id, customer_id').eq('id', ticketId).maybeSingle();
+  if (!ticket) throw new Error('Ticket not found');
+
+  if (input.conversationId) {
+    const { data: conversation } = await supabaseAdmin.from('conversations')
+      .select('id, customer_id, current_ticket_id').eq('id', input.conversationId).maybeSingle();
+    if (!conversation || (conversation.current_ticket_id !== ticketId && conversation.customer_id !== ticket.customer_id)) {
+      throw new Error('Conversation does not belong to ticket');
+    }
+  }
+
+  const { data: message, error } = await supabaseAdmin.from('messages').insert([{
+    conversation_id: input.conversationId,
+    ticket_id: ticketId,
+    sender_type: 'agent',
+    staff_id: user.id,
+    message_type: 'text',
+    content: input.content,
+  }]).select('id, content, sender_type, staff_id, ticket_id, conversation_id, message_type, created_at').single();
+  if (error || !message) throw new Error('Failed to send message');
+  if (input.conversationId) {
+    await supabaseAdmin.from('conversations').update({ last_message_at: new Date().toISOString() }).eq('id', input.conversationId);
+  }
+  invalidateAllLiveCaches();
+  invalidateAllPreviewCaches();
+  return message;
+}
+
+export async function createTicketDetailAttachmentUploadAction(ticketValue: unknown, value: unknown) {
+  const { user } = await requireStaffAuth({ permission: 'tickets', level: 'edit' });
+  const ticketId = parseTicketDetailId(ticketValue);
+  const input = parseInternalAttachmentUpload(value);
+  const { data: ticket } = await supabaseAdmin.from('tickets').select('id').eq('id', ticketId).maybeSingle();
+  if (!ticket) throw new Error('Ticket not found');
+
+  const path = `staff/${user.id}/tickets/${ticketId}/${crypto.randomUUID()}.${input.extension}`;
+  const { data, error } = await supabaseAdmin.storage.from(PRIVATE_CHAT_MEDIA_BUCKET).createSignedUploadUrl(path);
+  if (error || !data?.token) throw new Error('Failed to authorize attachment upload');
+  return { path, token: data.token };
+}
+
+export async function sendTicketDetailAttachmentAction(ticketValue: unknown, value: unknown) {
+  const { user } = await requireStaffAuth({ permission: 'tickets', level: 'edit' });
+  const ticketId = parseTicketDetailId(ticketValue);
+  const input = parseTicketDetailAttachmentReference(value, user.id, ticketId);
+  const media = getInternalAttachmentMediaInfo(input.path);
+  await assertUploadedAttachmentsExist([input.path]);
+
+  const { data: ticket } = await supabaseAdmin.from('tickets').select('id, customer_id').eq('id', ticketId).maybeSingle();
+  if (!ticket) {
+    await removeInternalTicketDrafts([input.path]);
+    throw new Error('Ticket not found');
+  }
+  if (input.conversationId) {
+    const { data: conversation } = await supabaseAdmin.from('conversations')
+      .select('id, customer_id, current_ticket_id').eq('id', input.conversationId).maybeSingle();
+    if (!conversation || (conversation.current_ticket_id !== ticketId && conversation.customer_id !== ticket.customer_id)) {
+      await removeInternalTicketDrafts([input.path]);
+      throw new Error('Conversation does not belong to ticket');
+    }
+  }
+
+  const { data: message, error } = await supabaseAdmin.from('messages').insert([{
+    conversation_id: input.conversationId,
+    ticket_id: ticketId,
+    sender_type: 'agent',
+    staff_id: user.id,
+    message_type: media.messageType,
+    content: media.content,
+    media_path: input.path,
+    media_mime_type: media.mimeType,
+  }]).select('id, content, sender_type, staff_id, ticket_id, conversation_id, message_type, media_path, media_mime_type, created_at').single();
+  if (error || !message) {
+    await removeInternalTicketDrafts([input.path]);
+    throw new Error('Failed to save attachment message');
+  }
+  if (input.conversationId) {
+    await supabaseAdmin.from('conversations').update({ last_message_at: new Date().toISOString() }).eq('id', input.conversationId);
+  }
+  invalidateAllLiveCaches();
+  invalidateAllPreviewCaches();
+  return message;
+}
+
+export async function createInternalTicketAttachmentUploadAction(value: unknown) {
+  const { user } = await requireStaffAuth({ permission: 'tickets', level: 'edit' });
+  const input = parseInternalAttachmentUpload(value);
+  const path = `staff/${user.id}/drafts/${crypto.randomUUID()}.${input.extension}`;
+  const { data, error } = await supabaseAdmin.storage
+    .from(PRIVATE_CHAT_MEDIA_BUCKET)
+    .createSignedUploadUrl(path);
+  if (error || !data?.token) throw new Error('Failed to authorize attachment upload');
+  return { path, token: data.token };
+}
+
+async function assertUploadedAttachmentsExist(paths: readonly string[]) {
+  await Promise.all(paths.map(async (path) => {
+    const slash = path.lastIndexOf('/');
+    const directory = path.slice(0, slash);
+    const filename = path.slice(slash + 1);
+    const { data, error } = await supabaseAdmin.storage
+      .from(PRIVATE_CHAT_MEDIA_BUCKET)
+      .list(directory, { search: filename, limit: 2 });
+    if (error || !data?.some((object) => object.name === filename)) {
+      throw new Error('Attachment upload is incomplete');
+    }
+  }));
+}
+
+async function removeInternalTicketDrafts(paths: readonly string[]) {
+  if (paths.length > 0) {
+    await supabaseAdmin.storage.from(PRIVATE_CHAT_MEDIA_BUCKET).remove([...paths]);
+  }
+}
+
+export async function createInternalTicketAction(value: unknown) {
+  const { user } = await requireStaffAuth({ permission: 'tickets', level: 'edit' });
+  const input = parseInternalTicketInput(value);
+  assertStaffAttachmentOwnership(input.attachmentPaths, user.id);
+  await assertUploadedAttachmentsExist(input.attachmentPaths);
+
+  const [{ data: profile, error: profileError }, { data: organization, error: organizationError }] = await Promise.all([
+    supabaseAdmin.from('profiles').select('id, full_name').eq('id', user.id).single(),
+    supabaseAdmin.from('organizations').select('id').eq('id', input.organizationId).eq('is_active', true).maybeSingle(),
+  ]);
+  if (profileError || !profile) {
+    await removeInternalTicketDrafts(input.attachmentPaths);
+    throw new Error('Staff profile not found');
+  }
+  if (organizationError || !organization) {
+    await removeInternalTicketDrafts(input.attachmentPaths);
+    throw new Error('Organization not found');
+  }
+
+  const staffCustomerKey = `staff_${user.id}`;
+  const customerResult = await supabaseAdmin
+    .from('customers').select('id').eq('line_user_id', staffCustomerKey).maybeSingle();
+  let customer = customerResult.data;
+  if (customerResult.error) {
+    await removeInternalTicketDrafts(input.attachmentPaths);
+    throw new Error('Failed to load internal customer');
+  }
+  if (!customer) {
+    const created = await supabaseAdmin.from('customers').insert([{
+      line_user_id: staffCustomerKey,
+      display_name: `${profile.full_name || 'Staff'} (Internal)`,
+      full_name: profile.full_name || 'Internal Staff',
+      organization_id: input.organizationId,
+    }]).select('id').single();
+    if (created.error || !created.data) {
+      const retry = await supabaseAdmin.from('customers').select('id').eq('line_user_id', staffCustomerKey).maybeSingle();
+      if (retry.error || !retry.data) {
+        await removeInternalTicketDrafts(input.attachmentPaths);
+        throw new Error('Failed to create internal customer');
+      }
+      customer = retry.data;
+    } else {
+      customer = created.data;
+    }
+  }
+
+  const { data: slaRule } = await supabaseAdmin
+    .from('sla_rules')
+    .select('response_time_minutes, resolution_time_minutes')
+    .eq('priority', input.priority)
+    .maybeSingle();
+  const durationMinutes = slaRule?.resolution_time_minutes || slaRule?.response_time_minutes || 60;
+  const slaDueAt = calculateSlaDeadline(new Date(), durationMinutes).toISOString();
+  const datePart = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+  const ticketNo = `TIC-${datePart}-${crypto.randomInt(100_000, 1_000_000)}`;
+
+  const { data: ticket, error: ticketError } = await supabaseAdmin.from('tickets').insert([{
+    ticket_no: ticketNo,
+    customer_id: customer.id,
+    organization_id: input.organizationId,
+    subject: `[Private] ${input.subject}`,
+    description: input.description || input.subject,
+    status: 'New',
+    priority: input.priority,
+    assigned_agent_id: user.id,
+    source: 'Internal',
+    sla_due_at: slaDueAt,
+  }]).select('id, ticket_no').single();
+  if (ticketError || !ticket) {
+    await removeInternalTicketDrafts(input.attachmentPaths);
+    throw new Error('Failed to create internal ticket');
+  }
+
+  try {
+    const note = input.attachmentPaths.length > 0
+      ? `Internal Ticket created with ${input.attachmentPaths.length} attachments.`
+      : `Internal Ticket created by ${profile.full_name || 'Staff'}`;
+    const { error: logError } = await supabaseAdmin.from('ticket_logs').insert([{
+      ticket_id: ticket.id,
+      action_type: 'create',
+      performer_id: user.id,
+      note,
+    }]);
+    if (logError) throw logError;
+
+    if (input.attachmentPaths.length > 0) {
+      const { error: messageError } = await supabaseAdmin.from('messages').insert(
+        input.attachmentPaths.map((path) => {
+          const media = getInternalAttachmentMediaInfo(path);
+          return {
+            ticket_id: ticket.id,
+            sender_type: 'system',
+            staff_id: user.id,
+            content: media.content,
+            media_path: path,
+            media_mime_type: media.mimeType,
+            message_type: media.messageType,
+          };
+        })
+      );
+      if (messageError) throw messageError;
+    }
+  } catch {
+    await supabaseAdmin.from('tickets').delete().eq('id', ticket.id);
+    await removeInternalTicketDrafts(input.attachmentPaths);
+    throw new Error('Failed to finalize internal ticket');
+  }
+
+  invalidateAllLiveCaches();
+  invalidateAllPreviewCaches();
+  return ticket;
 }
 
 export async function claimTicketServerAction(ticketId: string) {
-  const user = await getSessionUser();
+  const { user } = await requireStaffAuth({ permission: 'tickets', level: 'edit' });
   const agentId = user.id;
 
   const { data, error } = await supabaseAdmin.rpc('claim_ticket_secure', {
@@ -62,27 +449,33 @@ async function createHandoffRecord(
   ticketId: string,
   status: 'Escalated' | 'Pending',
   agentId: string,
-  escalationToken?: string,
   expiresInHours?: number
 ) {
-  const tokenToUse = escalationToken || crypto.randomUUID();
-  const securePin = Math.floor(1000 + Math.random() * 9000).toString();
-  const expiresAt = new Date(Date.now() + (expiresInHours || 72) * 60 * 60 * 1000).toISOString();
+  const validExpiresInHours = expiresInHours ?? 72;
+  if (!Number.isSafeInteger(validExpiresInHours) || validExpiresInHours < 1 || validExpiresInHours > 720) {
+    throw new Error('Handoff expiry must be between 1 and 720 hours');
+  }
+  const tokenToUse = crypto.randomUUID();
+  const securePin = generateSecurePin();
+  const pepper = requireHandoffAccessPepper();
+  const expiresAt = new Date(Date.now() + validExpiresInHours * 60 * 60 * 1000).toISOString();
 
   // Mark previous active handoffs for this ticket as Expired
   await supabaseAdmin
     .from('ticket_handoffs')
-    .update({ status: 'Expired', updated_at: new Date().toISOString() })
+    .update({ status: 'Expired', revoked_at: new Date().toISOString(), updated_at: new Date().toISOString() })
     .eq('ticket_id', ticketId)
-    .eq('status', 'Active');
+    .in('status', ['Active', 'Claimed']);
 
   const { error } = await supabaseAdmin
     .from('ticket_handoffs')
     .insert([{
       ticket_id: ticketId,
       handoff_type: status,
-      token: tokenToUse,
-      secure_pin: securePin,
+      token: null,
+      secure_pin: null,
+      token_hash: hashHandoffCredential('token', tokenToUse, pepper),
+      secure_pin_hash: hashHandoffCredential('pin', securePin, pepper),
       status: 'Active',
       created_by: agentId,
       expires_at: expiresAt,
@@ -90,6 +483,7 @@ async function createHandoffRecord(
 
   if (error) {
     console.error('Error inserting handoff record:', error);
+    throw new Error('Failed to create secure handoff');
   }
   return { token: tokenToUse, pin: securePin };
 }
@@ -98,11 +492,10 @@ export async function updateTicketStatusAction(
   ticketId: string,
   newStatus: string,
   note?: string,
-  escalationToken?: string,
+  _escalationToken?: string,
   expiresInHours?: number
 ) {
-  const user = await getSessionUser();
-  await verifyAgentRole(user.id);
+  const { user } = await requireStaffAuth({ permission: 'tickets', level: 'edit' });
   const agentId = user.id;
 
   const { data: currentTicket } = await supabaseAdmin
@@ -118,10 +511,8 @@ export async function updateTicketStatusAction(
 
   let handoffInfo: { token: string; pin: string } | null = null;
   if (['Escalated', 'Pending'].includes(newStatus)) {
-    handoffInfo = await createHandoffRecord(ticketId, newStatus as 'Escalated' | 'Pending', agentId, escalationToken, expiresInHours);
-    updateData.escalation_token = handoffInfo.token;
-  } else if (escalationToken) {
-    updateData.escalation_token = escalationToken;
+    handoffInfo = await createHandoffRecord(ticketId, newStatus as 'Escalated' | 'Pending', agentId, expiresInHours);
+    updateData.escalation_token = null;
   }
 
   const { data: ticket, error: updateError } = await supabaseAdmin
@@ -159,41 +550,58 @@ export async function updateTicketStatusAction(
 
   return {
     ...ticket,
-    escalation_token: handoffInfo?.token || ticket.escalation_token,
+    escalation_token: handoffInfo?.token,
     escalation_pin: handoffInfo?.pin
   };
 }
 
 export async function transferTicketAction(ticketId: string, toAgentId?: string, toTeamId?: string, reason?: string) {
-   const user = await getSessionUser();
-   await verifyAgentRole(user.id);
+   const { user } = await requireStaffAuth({ permission: 'tickets', level: 'edit' });
    const fromAgentId = user.id;
+   const validTicketId = parseTicketDetailId(ticketId);
+   const validAgentId = toAgentId ? parseStaffId({ id: toAgentId }) : undefined;
+   const validTeamId = toTeamId ? parseStaffId({ id: toTeamId }) : undefined;
+   if (!validAgentId && !validTeamId) throw new Error('A transfer target is required');
+
+   const [ticketResult, agentResult, teamResult] = await Promise.all([
+     supabaseAdmin.from('tickets').select('id').eq('id', validTicketId).maybeSingle(),
+     validAgentId
+       ? supabaseAdmin.from('profiles').select('id').eq('id', validAgentId)
+         .in('role', ['Agent', 'Administrator']).maybeSingle()
+       : Promise.resolve({ data: null, error: null }),
+     validTeamId
+       ? supabaseAdmin.from('teams').select('id').eq('id', validTeamId).maybeSingle()
+       : Promise.resolve({ data: null, error: null }),
+   ]);
+   if (ticketResult.error || !ticketResult.data) throw new Error('Ticket not found');
+   if (validAgentId && (agentResult.error || !agentResult.data)) throw new Error('Transfer agent not found');
+   if (validTeamId && (teamResult.error || !teamResult.data)) throw new Error('Transfer team not found');
 
    const updateData: TicketUpdatePayload = { 
      updated_at: new Date().toISOString(),
      status: 'Escalated' 
    };
-   if (toAgentId) updateData.assigned_agent_id = toAgentId;
-   if (toTeamId) updateData.assigned_team_id = toTeamId;
+   if (validAgentId) updateData.assigned_agent_id = validAgentId;
+   if (validTeamId) updateData.assigned_team_id = validTeamId;
 
    const { data: ticket, error: transferError } = await supabaseAdmin
      .from('tickets')
      .update(updateData)
-     .eq('id', ticketId)
+     .eq('id', validTicketId)
      .select()
      .single();
 
    if (transferError) throw new Error(transferError.message);
 
-   const handoff = await createHandoffRecord(ticketId, 'Escalated', fromAgentId);
+   const handoff = await createHandoffRecord(validTicketId, 'Escalated', fromAgentId);
 
    await supabaseAdmin.from('ticket_logs').insert([{
-     ticket_id: ticketId,
+     ticket_id: validTicketId,
      action_type: 'transfer',
      to_status: 'Escalated',
      performer_id: fromAgentId,
-     to_user_id: toAgentId,
-     to_team_id: toTeamId,
+     to_user_id: validAgentId,
+     to_team_id: validTeamId,
      note: reason || 'Ticket transferred securely'
    }]);
 
@@ -204,7 +612,7 @@ export async function transferTicketAction(ticketId: string, toAgentId?: string,
        status: 'closed',
        current_ticket_id: null 
      })
-     .eq('current_ticket_id', ticketId)
+     .eq('current_ticket_id', validTicketId)
      .eq('status', 'active');
 
    invalidateAllLiveCaches();
@@ -224,7 +632,7 @@ export async function resolveTicketAction(
    issueType?: string,
    conversationId?: string
 ) {
-   const user = await getSessionUser();
+   const { user } = await requireStaffAuth({ permission: 'tickets', level: 'edit' });
    const agentId = user.id;
 
    // Query current status of the ticket
@@ -330,10 +738,8 @@ export async function resolveTicketAction(
 
      // 3. Send system message if requested (Atomic)
      if (conversationId) {
-        const content =
-          `[SYSTEM] งานได้รับการแก้ไขแล้ว: ${resolutionSummary}\n` +
-          `โมดูล: ${module || 'N/A'}\n` +
-          `กรุณาประเมินความพึงพอใจจากหน้าพอร์ทัลลูกค้า`;
+        const surveyPath = `/portal?survey_ticket_id=${encodeURIComponent(ticketId)}`;
+        const content = `[SYSTEM] Resolution completed: ${resolutionSummary}\nModule: ${module || 'N/A'}\nSurvey: ${surveyPath}`;
         await supabaseAdmin.from('messages').insert([{
            conversation_id: conversationId,
            ticket_id: ticketId,
@@ -390,8 +796,7 @@ export async function reviewFixCompletedAction(
   decision: 'accept' | 'reject',
   note?: string
 ) {
-  const user = await getSessionUser();
-  await verifyAgentRole(user.id);
+  const { user } = await requireStaffAuth({ permission: 'tickets', level: 'edit' });
 
   const { data: currentTicket, error: currentError } = await supabaseAdmin
     .from('tickets')

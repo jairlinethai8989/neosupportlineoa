@@ -1,7 +1,11 @@
 import { NextResponse } from 'next/server';
-import { createSupabaseServerClient } from '@/lib/supabase-server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { getTicketSubjectOnly } from '@/lib/reports/subject';
+import { getStaffAuth } from '@/lib/auth/staffAuthorization';
+import {
+  parseGoogleAppsScriptTargetUrl,
+  resolveGoogleAppsScriptRedirect,
+} from '@/lib/reports/googleAppsScriptUrl';
 
 export const runtime = 'nodejs';
 
@@ -82,9 +86,13 @@ function normalizeExportRow(row: RawTicket) {
 }
 
 async function fetchWithPostRedirect(url: string, options: RequestInit): Promise<Response> {
-  let currentUrl = url;
-  let response = await fetch(currentUrl, {
+  let currentUrl = parseGoogleAppsScriptTargetUrl(url);
+  const requestOptions: RequestInit = {
     ...options,
+    signal: options.signal || AbortSignal.timeout(15_000),
+  };
+  let response = await fetch(currentUrl, {
+    ...requestOptions,
     redirect: 'manual',
   });
 
@@ -92,26 +100,24 @@ async function fetchWithPostRedirect(url: string, options: RequestInit): Promise
   const maxRedirects = 5;
 
   while (
-    (response.status === 301 || response.status === 302 || response.status === 307 || response.status === 308) &&
+    (response.status === 301 || response.status === 302 || response.status === 303 || response.status === 307 || response.status === 308) &&
     redirectCount < maxRedirects
   ) {
     const redirectUrl = response.headers.get('location');
     if (!redirectUrl) break;
 
-    currentUrl = new URL(redirectUrl, currentUrl).toString();
+    currentUrl = resolveGoogleAppsScriptRedirect(redirectUrl, currentUrl);
     redirectCount++;
-
-    console.log(`[Google Sheets API] Following manual redirect #${redirectCount} (Status ${response.status}) to: ${currentUrl}`);
 
     // Create a new set of options for the redirect request
     const redirectOptions: RequestInit = {
-      ...options,
+      ...requestOptions,
       redirect: 'manual',
     };
 
     // Standard HTTP client behavior for 301/302 redirects:
     // Change method from POST to GET and strip the body/Content-Type to prevent 405 Method Not Allowed
-    if (response.status === 301 || response.status === 302) {
+    if (response.status === 301 || response.status === 302 || response.status === 303) {
       redirectOptions.method = 'GET';
       delete redirectOptions.body;
 
@@ -131,24 +137,21 @@ async function fetchWithPostRedirect(url: string, options: RequestInit): Promise
 
 export async function POST(req: Request) {
   try {
+    const auth = await getStaffAuth({ permission: 'reports', level: 'edit' });
+    if (!auth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
     const body = await req.json();
     const start = parseDateParam(body.start);
     const end = parseDateParam(body.end);
-    const targetUrl = body.targetUrl;
+    let targetUrl: string;
 
     if (!start || !end) {
       return NextResponse.json({ error: 'Invalid date format. Expected yyyy-MM-dd.' }, { status: 400 });
     }
-    if (!targetUrl || !targetUrl.startsWith('http')) {
+    try {
+      targetUrl = parseGoogleAppsScriptTargetUrl(body.targetUrl);
+    } catch {
       return NextResponse.json({ error: 'Invalid Google Sheets Web App URL.' }, { status: 400 });
-    }
-
-    const supabaseServer = await createSupabaseServerClient();
-    const {
-      data: { user },
-    } = await supabaseServer.auth.getUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const startIso = `${start}T00:00:00.000Z`;
@@ -217,7 +220,7 @@ export async function POST(req: Request) {
       message: `Successfully exported ${rows.length} rows to Google Sheets.`,
     });
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : 'Internal server error';
-    return NextResponse.json({ error: message }, { status: 500 });
+    console.error('Google Sheets export failed:', error);
+    return NextResponse.json({ error: 'Unable to export report to Google Sheets' }, { status: 500 });
   }
 }

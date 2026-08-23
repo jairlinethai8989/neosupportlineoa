@@ -19,7 +19,7 @@ import {
   Download,
   FileDown
 } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
+import { getExistingStaffEvaluationAction } from '@/app/actions/staffAnalyticsActions';
 import { DateTime } from 'luxon';
 import {
   ResponsiveContainer,
@@ -31,6 +31,7 @@ import {
 } from 'recharts';
 import type { AgentAnalyticsData } from '@/lib/tickets/analyticsQueries';
 import type { ToastNotif } from '@/types/notifications';
+import { downloadSpreadsheet } from '@/lib/exports/spreadsheet.browser';
 
 export interface TeamMemberStats {
   id: string;
@@ -114,17 +115,13 @@ export function StaffAnalyticsDashboard({
   const fetchExistingEvaluation = useCallback(async (agentId: string, start: string, end: string) => {
     if (!agentId) return;
     try {
-      const { data: existing, error } = await supabase
-        .from('staff_evaluations')
-        .select('evaluation_data')
-        .eq('agent_id', agentId)
-        .eq('start_date', start)
-        .eq('end_date', end)
-        .maybeSingle();
-
-      if (error) throw error;
-      if (existing?.evaluation_data) {
-        setEvaluation(existing.evaluation_data);
+      const existing = await getExistingStaffEvaluationAction({
+        agentId,
+        startDate: start,
+        endDate: end,
+      });
+      if (existing) {
+        setEvaluation(existing);
       } else {
         setEvaluation(null);
       }
@@ -384,8 +381,6 @@ export function StaffAnalyticsDashboard({
   const handleExportExcel = async () => {
     if (!evaluation || !data) return;
     try {
-      const XLSX = await import('xlsx');
-      
       const excelData = [
         ['รายงานการประเมินผลงานพนักงานด้วย AI'],
         ['ชื่อพนักงาน', selectedAgentName],
@@ -413,10 +408,11 @@ export function StaffAnalyticsDashboard({
         ['สรุปภาพรวมผู้บริหาร', evaluation.overallSummary]
       ];
 
-      const ws = XLSX.utils.aoa_to_sheet(excelData);
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, "AI Evaluation");
-      XLSX.writeFile(wb, `AI_Evaluation_${selectedAgentName}_${dateRange.start}_to_${dateRange.end}.xlsx`);
+      await downloadSpreadsheet(
+        excelData,
+        `AI_Evaluation_${selectedAgentName}_${dateRange.start}_to_${dateRange.end}.xlsx`,
+        'AI Evaluation'
+      );
 
       addToast({
         id: `excel-ok-${Date.now()}`,

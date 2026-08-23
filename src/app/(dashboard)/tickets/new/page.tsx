@@ -19,8 +19,13 @@ import {
 import Link from 'next/link';
 import { useStaffLocale } from '@/contexts/StaffLocaleContext';
 import { getStaffMessage, translateTicketPriority } from '@/lib/i18n/staff';
-import { calculateSlaDeadline } from '@/lib/utils/slaUtils';
 import { compressImage } from '@/lib/utils/imageCompression';
+import { PRIVATE_CHAT_MEDIA_BUCKET } from '@/lib/media/chatMediaPath';
+import {
+  createInternalTicketAction,
+  createInternalTicketAttachmentUploadAction,
+  getInternalTicketFormOptionsAction,
+} from '@/app/actions/ticketActions';
 
 export default function CreateInternalTicketPage() {
   const router = useRouter();
@@ -39,28 +44,20 @@ export default function CreateInternalTicketPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [staffProfile, setStaffProfile] = useState<any>(null);
 
   useEffect(() => {
     async function init() {
-      // 1. Get Current Staff Profile
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        const { data: p } = await supabase.from('profiles').select('*').eq('id', user.id).single();
-        setStaffProfile(p);
+      try {
+        const options = await getInternalTicketFormOptionsAction();
+        setOrganizations(options.organizations);
+        setSubjectTypes(options.subjectTypes.length > 0
+          ? options.subjectTypes
+          : ['ลบ', 'แก้ไขออเดอร์', 'แจ้ง error', 'เรื่องอื่นๆ']);
+      } catch {
+        setError('โหลดตัวเลือกสำหรับสร้างใบงานไม่สำเร็จ');
       }
-
-      // 2. Fetch Organizations and Ticket Subject Types
-      const [{ data: hData }, { data: subjectsRes }] = await Promise.all([
-        supabase.from('organizations').select('*').eq('is_active', true).order('name', { ascending: true }),
-        supabase.from('ticket_subject_types').select('name').eq('is_active', true).order('name', { ascending: true })
-      ]);
-      
-      setOrganizations(hData || []);
-      const subjects = subjectsRes?.map((s: any) => s.name) || [];
-      setSubjectTypes(subjects.length > 0 ? subjects : ['ลบ', 'แก้ไขออเดอร์', 'แจ้ง error', 'เรื่องอื่นๆ']);
     }
-    init();
+    void init();
   }, []);
 
   const { locale } = useStaffLocale();
@@ -108,12 +105,11 @@ export default function CreateInternalTicketPage() {
     setError(null);
 
     try {
-      // 1. Upload Attachments if any
-      const uploadedUrls: string[] = [];
+      const uploadedPaths: string[] = [];
       for (const att of attachments) {
         let fileToUpload = att.file;
         let contentType = att.file.type;
-        let ext = att.file.name.split('.').pop();
+        let ext = att.file.name.split('.').pop() || '';
 
         // Compress if image
         if (contentType.startsWith('image/')) {
@@ -127,119 +123,25 @@ export default function CreateInternalTicketPage() {
           }
         }
 
-        const fileName = `${Date.now()}_${Math.random().toString(36).substr(2, 5)}.${ext}`;
+        const upload = await createInternalTicketAttachmentUploadAction({
+          mimeType: contentType,
+          extension: ext,
+          size: fileToUpload.size,
+        });
         const { error: uploadError } = await supabase.storage
-          .from('chat_media')
-          .upload(fileName, fileToUpload, { contentType });
-        
-        if (!uploadError) {
-          const { data: { publicUrl } } = supabase.storage.from('chat_media').getPublicUrl(fileName);
-          uploadedUrls.push(publicUrl);
-        }
+          .from(PRIVATE_CHAT_MEDIA_BUCKET)
+          .uploadToSignedUrl(upload.path, upload.token, fileToUpload, { contentType });
+        if (uploadError) throw new Error('อัปโหลดไฟล์แนบไม่สำเร็จ');
+        uploadedPaths.push(upload.path);
       }
 
-      // 2. Find or Create Customer record for this staff member
-      let staffCustomerId = null;
-      if (staffProfile?.id) {
-        const staffCustomerKey = `staff_${staffProfile.id}`;
-        const { data: existingCustomer } = await supabase
-          .from('customers')
-          .select('id')
-          .eq('line_user_id', staffCustomerKey)
-          .maybeSingle();
-
-        if (existingCustomer) {
-          staffCustomerId = existingCustomer.id;
-        } else {
-          const { data: newCustomer } = await supabase
-            .from('customers')
-            .insert([{
-              line_user_id: staffCustomerKey,
-              display_name: `${staffProfile.full_name || 'Staff'} (Internal)`,
-              full_name: staffProfile.full_name || 'Internal Staff',
-              organization_id: selectedHospitalId, // Assign to the selected organization
-            }])
-            .select('id')
-            .single();
-          
-          if (newCustomer) {
-            staffCustomerId = newCustomer.id;
-          }
-        }
-      }
-
-      // 3. Generate a temporary Ticket No (if DB trigger is not yet active)
-      // TIC-YYYYMMDD-RAND
-      const datePart = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-      const tempNo = `TIC-${datePart}-${Math.floor(1000 + Math.random() * 9000)}`;
-
-      // 4. Calculate SLA Deadline
-      let slaDueAt = null;
-      try {
-        const { data: slaRule } = await supabase
-          .from('sla_rules')
-          .select('response_time_minutes, resolution_time_minutes')
-          .eq('priority', priority)
-          .maybeSingle();
-        
-        if (slaRule) {
-          // Use resolution_time_minutes as the primary deadline for the dashboard
-          const duration = slaRule.resolution_time_minutes || slaRule.response_time_minutes || 60;
-          slaDueAt = calculateSlaDeadline(new Date(), duration).toISOString();
-        }
-      } catch (e) {
-        console.warn('SLA Calculation skipped:', e);
-      }
-
-      // 5. Create Internal Ticket
-      const ticketPayload = {
-        ticket_no: tempNo, 
-        customer_id: staffCustomerId, 
-        organization_id: selectedHospitalId, 
-        subject: `[Private] ${subject}`,
-        description: description || subject,
-        status: 'New',
-        priority: priority,
-        assigned_agent_id: staffProfile?.id,
-        source: 'Internal',
-        sla_due_at: slaDueAt
-      };
-
-      const { data: newTicket, error: ticketError } = await supabase
-        .from('tickets')
-        .insert([ticketPayload])
-        .select()
-        .single();
-
-      if (ticketError) throw new Error(`สร้างใบงานไม่สำเร็จ: ${ticketError.message}`);
-
-      // 4. Record attachments as a system message/log if needed
-      if (uploadedUrls.length > 0) {
-        // Option A: Add to first log
-        await supabase.from('ticket_logs').insert([{
-           ticket_id: newTicket.id,
-           action_type: 'create',
-           performer_id: staffProfile?.id,
-           note: `Internal Ticket created with ${uploadedUrls.length} attachments.\nURLs: ${uploadedUrls.join('\n')}`
-        }]);
-
-        // Option B: Add as system messages so they show in chat
-        for (const url of uploadedUrls) {
-          await supabase.from('messages').insert([{
-            ticket_id: newTicket.id,
-            sender_type: 'system',
-            content: url,
-            message_type: 'image'
-          }]);
-        }
-      } else {
-        await supabase.from('ticket_logs').insert([{
-          ticket_id: newTicket.id,
-          action_type: 'create',
-          performer_id: staffProfile?.id,
-          note: `Internal Ticket created by ${staffProfile?.full_name}`
-        }]);
-      }
+      const newTicket = await createInternalTicketAction({
+        organizationId: selectedHospitalId,
+        subject,
+        description,
+        priority,
+        attachmentPaths: uploadedPaths,
+      });
 
       router.push(`/tickets/${newTicket.id}`);
     } catch (err: any) {
@@ -522,7 +424,7 @@ export default function CreateInternalTicketPage() {
                  onChange={handleFileChange} 
                  multiple 
                  style={{ display: 'none' }} 
-                 accept="image/*, application/pdf, .doc, .docx, .xls, .xlsx"
+                 accept="image/jpeg,image/png,image/webp,image/gif,application/pdf,.doc,.docx,.xls,.xlsx"
                />
             </div>
           </div>

@@ -37,9 +37,7 @@ export function isAssignedToOtherAgent(
 
 export function canResolveTicket(
   status: string | null | undefined,
-  isOwnerOrAdmin: boolean,
-  isChatActive: boolean
+  isOwnerOrAdmin: boolean
 ) {
   return !isResolvedOrClosedStatus(status) && !isNewStatus(status) && isOwnerOrAdmin;
 }
-

@@ -11,9 +11,9 @@ import {
   ShieldCheck,
   Trash2,
 } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
 import { useAppContext } from '@/contexts/AppContext';
 import { useStaffLocale } from '@/contexts/StaffLocaleContext';
+import { getSlaRulesAction, saveSlaRulesAction } from '@/app/actions/slaSettingsActions';
 
 export default function SLASettingsPage() {
   const { userProfile } = useAppContext();
@@ -31,10 +31,13 @@ export default function SLASettingsPage() {
     let isMounted = true;
 
     async function fetchRules() {
-      const { data } = await supabase.from('sla_rules').select('*').order('priority', { ascending: true });
-      if (!isMounted) return;
-      setRules(data || []);
-      setLoading(false);
+      try {
+        const data = await getSlaRulesAction();
+        if (!isMounted) return;
+        setRules(data || []);
+      } finally {
+        if (isMounted) setLoading(false);
+      }
     }
 
     fetchRules();
@@ -54,40 +57,14 @@ export default function SLASettingsPage() {
   };
 
   const deleteRule = async (index: number) => {
-    const ruleToDelete = rules[index];
-    if (ruleToDelete.id) {
-      await supabase.from('sla_rules').delete().eq('id', ruleToDelete.id);
-    }
     setRules(rules.filter((_, currentIndex) => currentIndex !== index));
   };
 
   const handleSave = async () => {
     setSaving(true);
     try {
-      for (const rule of rules) {
-        if (rule.id) {
-          await supabase
-            .from('sla_rules')
-            .update({
-              priority: rule.priority,
-              response_time_minutes: rule.response_time_minutes,
-              resolution_time_minutes: rule.resolution_time_minutes,
-            })
-            .eq('id', rule.id);
-        } else {
-          await supabase.from('sla_rules').insert([rule]);
-        }
-      }
-
-      const { auditService } = await import('@/lib/services/auditService');
-      await auditService.log({
-        performer_id: (await supabase.auth.getUser()).data.user?.id,
-        action_type: 'SLA_UPDATE',
-        entity_type: 'SLA',
-        new_data: { rules },
-        note: `Updated system SLA priority matrix (${rules.length} rules)`,
-      });
-
+      const savedRules = await saveSlaRulesAction(rules);
+      setRules(savedRules);
       alert(t('settingsSla.saveSuccess'));
     } catch {
       alert(t('settingsSla.saveFailed'));

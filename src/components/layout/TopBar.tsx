@@ -1,8 +1,7 @@
 'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { supabase } from '@/lib/supabase';
 import { useAppContext } from '@/contexts/AppContext';
 import type { UserProfile } from '@/contexts/AppContext';
 import { useNotificationContext } from '@/contexts/NotificationContext';
@@ -27,6 +26,7 @@ import {
   MessageSquare
 } from 'lucide-react';
 import { TopBarClock } from '@/components/layout/TopBarClock';
+import { getStaffPresenceDirectoryAction } from '@/app/actions/profileSettingsActions';
 
 const ACTION_ICONS: Record<string, React.ComponentType<{ size?: number; color?: string }>> = {
   ticket: Ticket,
@@ -82,7 +82,6 @@ export function TopBar({ isSidebarOpen, setIsSidebarOpen, isSidebarCollapsed, se
   });
 
   const [profiles, setProfiles] = useState<UserProfile[]>([]);
-  const [onlineStaff, setOnlineStaff] = useState<UserProfile[]>([]);
 
   const notifRef = useRef<HTMLDivElement>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
@@ -90,72 +89,31 @@ export function TopBar({ isSidebarOpen, setIsSidebarOpen, isSidebarCollapsed, se
   useEffect(() => {
     const fetchAllProfiles = async () => {
       try {
-        const { data, error } = await supabase.from('profiles').select('*');
-        if (error) throw error;
-        if (data) setProfiles(data);
+        const data = await getStaffPresenceDirectoryAction();
+        setProfiles(data);
       } catch (err) {
         console.error('Failed to load profiles:', err);
       }
     };
 
     void fetchAllProfiles();
-
-    const channelId = `profiles-presence-${Date.now()}`;
-    const channel = supabase.channel(channelId)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, (payload) => {
-        if (payload.eventType === 'INSERT') {
-          setProfiles(prev => [...prev, payload.new]);
-        } else if (payload.eventType === 'UPDATE') {
-          setProfiles(prev => prev.map(p => p.id === payload.new.id ? { ...p, ...payload.new } : p));
-        } else if (payload.eventType === 'DELETE') {
-          setProfiles(prev => prev.filter(p => p.id !== payload.old.id));
-        }
-      })
-      .subscribe();
-
-    return () => {
-      void supabase.removeChannel(channel);
-    };
   }, []);
 
-  // Synchronize local agent's status/last_seen updates instantly into profiles state
-  useEffect(() => {
-    if (agent?.id) {
-      setProfiles(prev => {
-        const exists = prev.some(p => p.id === agent.id);
-        if (exists) {
-          return prev.map(p => p.id === agent.id ? { ...p, status: agent.status, last_seen: agent.last_seen } : p);
-        } else {
-          return [...prev, agent];
-        }
-      });
-    }
-  }, [agent]);
-
-  useEffect(() => {
-    const filterOnline = () => {
-      const filtered = profiles
-        .map(p => {
-          if (agent && p.id === agent.id) {
-            return { ...p, status: agent.status, last_seen: agent.last_seen };
-          }
-          return p;
-        })
-        .filter(p => {
-          if (agent && p.id === agent.id) return true;
-          return !!p.id && onlineUserIds.includes(p.id);
-        });
-
-      filtered.sort((a, b) => {
+  const onlineStaff = useMemo(() => {
+    const agentId = agent?.id;
+    const rows = agent && agentId && !profiles.some((profile) => profile.id === agentId)
+      ? [...profiles, agent]
+      : profiles;
+    return rows
+      .map((profile) => agent && agentId === profile.id
+        ? { ...profile, status: agent.status, last_seen: agent.last_seen }
+        : profile)
+      .filter((profile) => Boolean(profile.id) && (agentId === profile.id || onlineUserIds.includes(profile.id!)))
+      .sort((a, b) => {
         if (a.status === 'Active' && b.status !== 'Active') return -1;
         if (a.status !== 'Active' && b.status === 'Active') return 1;
         return (a.full_name || '').localeCompare(b.full_name || '');
       });
-
-      setOnlineStaff(filtered);
-    };
-
-    filterOnline();
   }, [profiles, agent, onlineUserIds]);
 
   useEffect(() => {

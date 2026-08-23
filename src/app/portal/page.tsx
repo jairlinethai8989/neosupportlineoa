@@ -2,7 +2,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useLiff } from '@/hooks/useLiff';
-import { supabase } from '@/lib/supabase';
+import { getPortalHomeAction, submitPortalCsatAction } from '@/app/actions/portalActions';
 import { 
   MessageSquare, 
   CheckCircle, 
@@ -23,13 +23,6 @@ import Skeleton from '@/components/ui/Skeleton';
 const ProfileRegistrationModal = React.lazy(() => import('@/components/portal/ProfileRegistrationModal'));
 
 const ITEMS_PER_PAGE = 5;
-const DONE_STATUSES = ['resolved', 'closed', 'canceled', 'fix completed'];
-
-function isSurveyEligibleStatus(status: unknown) {
-  const s = String(status || '').toLowerCase();
-  return s === 'resolved' || s === 'closed' || s === 'fix completed';
-}
-
 // 1. Memoized Survey Modal to prevent full page re-renders during star hover/typing
 interface PortalSurveyModalProps {
   showSurvey: boolean;
@@ -225,7 +218,7 @@ const PortalTicketCard = React.memo(function PortalTicketCard({ ticket, isPast =
 });
 
 export default function PortalPage() {
-  const { profile, isReady, error: liffError, setMockLogin } = useLiff();
+  const { profile, idToken, isReady, error: liffError, setMockLogin } = useLiff();
   const [activeTickets, setActiveTickets] = useState<any[]>([]);
   const [pastTickets, setPastTickets] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -263,148 +256,40 @@ export default function PortalPage() {
   const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const inFlightRef = useRef(false);
 
-  const refreshPendingSurvey = useCallback(
-    async (customerId: string, knownTickets?: any[]) => {
-      const resolvedTickets =
-        (knownTickets || [])
-          .filter((ticket) => isSurveyEligibleStatus(ticket.status))
-          .sort(
-            (left, right) =>
-              new Date(right.resolved_at || right.created_at).getTime() -
-              new Date(left.resolved_at || left.created_at).getTime()
-          );
-
-      const candidates =
-        resolvedTickets.length > 0
-          ? resolvedTickets
-          : (
-              await supabase
-                .from('tickets')
-                .select('id, ticket_no, subject, status, created_at, resolved_at')
-                .eq('customer_id', customerId)
-                .in('status', ['Resolved', 'Closed'])
-                .order('resolved_at', { ascending: false, nullsFirst: false })
-                .limit(10)
-            ).data || [];
-
-      if (candidates.length === 0) {
-        setPendingSurveyTicket(null);
-        setShowSurvey(false);
-        return;
-      }
-
-      const candidateIds = candidates.map((ticket) => ticket.id);
-      const { data: surveyRows } = await supabase
-        .from('csat_surveys')
-        .select('ticket_id, score, rating, responded_at')
-        .in('ticket_id', candidateIds);
-
-      const surveyByTicketId = new Map(
-        (surveyRows || []).map((row) => [row.ticket_id, row])
-      );
-
-      const pendingTicket =
-        candidates.find((ticket) => {
-          const survey = surveyByTicketId.get(ticket.id);
-          const hasScore = Boolean(survey?.score || survey?.rating);
-          return !survey || (!survey.responded_at && !hasScore);
-        }) || null;
-
-      setPendingSurveyTicket(pendingTicket);
-      setShowSurvey(Boolean(pendingTicket));
-      if (!pendingTicket) {
-        setSurveyValue(0);
-        setSurveyHover(0);
-        setSurveyComment('');
-      }
-    },
-    []
-  );
-
   // FIX #1: fetchTickets only re-queries customers on first load (cached in ref)
   // FIX #3: reads historyPageRef.current and debouncedSearchQueryRef.current instead of states to keep callback stable
   const fetchTickets = useCallback(async (silent = false) => {
-    if (!profile?.userId) return;
+    if (!idToken) return;
     if (inFlightRef.current && silent) return;
     inFlightRef.current = true;
 
     if (!silent) setFetching(true);
 
     try {
-      // Use cached customerId when available to avoid redundant query
-      let customerId = customerIdRef.current;
-      let customer: any = null;
-
-      if (!customerId) {
-        const { data } = await supabase
-          .from('customers')
-          .select('*, organizations(name, abbreviation)')
-          .eq('line_user_id', profile.userId)
-          .maybeSingle();
-        customer = data;
-        if (customer?.id) {
-          customerIdRef.current = customer.id;
-          customerId = customer.id;
-          setCustomerData(customer);
-        }
-      }
-
-      if (!customerId) {
-        setNeedsRegistration(true);
-        return;
-      }
-
-      setNeedsRegistration(false);
-
       const page = historyPageRef.current;
       const query = debouncedSearchQueryRef.current;
-      const from = (page - 1) * ITEMS_PER_PAGE;
-      const to = from + ITEMS_PER_PAGE - 1;
-
-      // Build paginated query for past tickets
-      let pastQuery = supabase
-        .from('tickets')
-        .select('id, ticket_no, subject, status, created_at, resolved_at', { count: 'exact' })
-        .eq('customer_id', customerId)
-        .in('status', ['Resolved', 'Closed', 'Canceled', 'Fix Completed', 'resolved', 'closed', 'canceled', 'fix completed']);
-
-      if (query.trim()) {
-        const cleanQuery = query.trim();
-        pastQuery = pastQuery.or(`ticket_no.ilike.%${cleanQuery}%,subject.ilike.%${cleanQuery}%`);
-      }
-
-      const [activeRes, pastRes] = await Promise.all([
-        supabase
-          .from('tickets')
-          .select('id, ticket_no, subject, status, created_at, resolved_at')
-          .eq('customer_id', customerId)
-          .not('status', 'in', '("Resolved","Closed","Canceled","Fix Completed","resolved","closed","canceled","fix completed")')
-          .order('created_at', { ascending: false }),
-        pastQuery
-          .order('created_at', { ascending: false })
-          .range(from, to)
-      ]);
-
-      if (activeRes.data) {
-        setActiveTickets(activeRes.data);
-      }
-      if (pastRes.data) {
-        setPastTickets(pastRes.data);
-        void refreshPendingSurvey(customerId, [...(activeRes.data || []), ...pastRes.data]);
-      }
-      if (pastRes.count !== null) setTotalHistory(pastRes.count);
+      const directSurveyTicketId = new URLSearchParams(window.location.search).get('survey_ticket_id');
+      const result = await getPortalHomeAction(idToken, { historyPage: page, search: query, directSurveyTicketId });
+      setCustomerData(result.customer);
+      customerIdRef.current = result.customer?.id || null;
+      setNeedsRegistration(!result.customer?.organization_id);
+      setActiveTickets(result.activeTickets);
+      setPastTickets(result.pastTickets);
+      setTotalHistory(result.totalHistory);
+      setPendingSurveyTicket(result.pendingSurvey);
+      setShowSurvey(Boolean(result.pendingSurvey));
     } catch (err) {
       console.error('Portal Fetch Error:', err);
     } finally {
       inFlightRef.current = false;
       setFetching(false);
     }
-  }, [profile?.userId, refreshPendingSurvey]);
+  }, [idToken]);
   // NOTE: historyPage/debouncedSearchQuery intentionally excluded — read via refs to keep callback stable
 
   // Trigger re-fetch when historyPage or debouncedSearchQuery changes (without recreating fetchTickets)
   useEffect(() => {
-    if (profile?.userId && customerIdRef.current) {
+    if (idToken && customerIdRef.current) {
       void fetchTickets(true);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -412,12 +297,12 @@ export default function PortalPage() {
 
   // Initial load + focus/popstate refresh (debounced)
   useEffect(() => {
-    if (profile?.userId) {
+    if (idToken) {
       void fetchTickets();
     }
 
     const scheduleRefresh = () => {
-      if (!profile?.userId) return;
+      if (!idToken) return;
       if (refreshTimerRef.current) {
         clearTimeout(refreshTimerRef.current);
       }
@@ -436,78 +321,7 @@ export default function PortalPage() {
         clearTimeout(refreshTimerRef.current);
       }
     };
-  }, [fetchTickets, profile?.userId]);
-
-  // Trigger CSAT survey directly if redirected with survey_ticket_id query parameter
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-
-    const params = new URLSearchParams(window.location.search);
-    const surveyTicketId = params.get('survey_ticket_id');
-    if (!surveyTicketId) return;
-
-    const checkDirectSurvey = async () => {
-      try {
-        const { data: ticketData } = await supabase
-          .from('tickets')
-          .select('id, ticket_no, subject, status, created_at, resolved_at')
-          .eq('id', surveyTicketId)
-          .maybeSingle();
-
-        if (ticketData && isSurveyEligibleStatus(ticketData.status)) {
-          const { data: surveyRow } = await supabase
-            .from('csat_surveys')
-            .select('score, rating, responded_at')
-            .eq('ticket_id', surveyTicketId)
-            .maybeSingle();
-
-          const hasScore = Boolean(surveyRow?.score || surveyRow?.rating);
-          if (!surveyRow || (!surveyRow.responded_at && !hasScore)) {
-            setPendingSurveyTicket(ticketData);
-            setShowSurvey(true);
-          }
-        }
-      } catch (err) {
-        console.error('Failed to check direct survey ticket:', err);
-      }
-    };
-
-    void checkDirectSurvey();
-  }, []);
-
-  // FIX #3: Realtime subscription depends only on customerId (stable), NOT historyPage
-  useEffect(() => {
-    if (!customerData?.id) return;
-    const customerId = customerData.id;
-
-    const channel = supabase
-      .channel(`portal_tickets_${customerId}`)
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'tickets',
-        filter: `customer_id=eq.${customerId}`
-      }, () => {
-        if (refreshTimerRef.current) {
-          clearTimeout(refreshTimerRef.current);
-        }
-        refreshTimerRef.current = setTimeout(() => {
-          void fetchTickets(true);
-          setTimeout(() => {
-            void refreshPendingSurvey(customerId);
-          }, 500);
-        }, 350);
-      })
-      .subscribe((status) => {
-        console.log(`[Portal Realtime] Subscription status for customer ${customerId}:`, status);
-      });
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [customerData?.id]);
-  // NOTE: fetchTickets/refreshPendingSurvey intentionally excluded to prevent re-subscribing
+  }, [fetchTickets, idToken]);
 
   // Fallback polling: 60s to avoid massive DB load
   useEffect(() => {
@@ -550,18 +364,8 @@ export default function PortalPage() {
     if (!pendingSurveyTicket?.id || surveyValue === 0) return;
     setSubmittingSurvey(true);
     try {
-      const { error } = await supabase.from('csat_surveys').upsert(
-        {
-          ticket_id: pendingSurveyTicket.id,
-          score: surveyValue,
-          rating: surveyValue,
-          comment: surveyComment,
-          responded_at: new Date().toISOString(),
-        },
-        { onConflict: 'ticket_id' }
-      );
-
-      if (error) throw error;
+      if (!idToken) throw new Error('LINE identity token not loaded');
+      await submitPortalCsatAction(pendingSurveyTicket.id, idToken, surveyValue, surveyComment);
 
       setShowSurvey(false);
       setPendingSurveyTicket(null);
@@ -574,7 +378,7 @@ export default function PortalPage() {
     } finally {
       setSubmittingSurvey(false);
     }
-  }, [pendingSurveyTicket, surveyValue, surveyComment, fetchTickets]);
+  }, [pendingSurveyTicket, surveyValue, surveyComment, fetchTickets, idToken]);
 
 
   if (!isReady || (profile && fetching && !needsRegistration)) {
@@ -804,8 +608,9 @@ export default function PortalPage() {
     {/* MODALS - Moved outside container to avoid transform-fixed ghosting */}
     <React.Suspense fallback={null}>
       <ProfileRegistrationModal 
-          isOpen={needsRegistration || isEditModalOpen} 
+          isOpen={needsRegistration || isEditModalOpen}
           profile={profile}
+          idToken={idToken}
           existingCustomer={customerData}
           onComplete={() => {
               setIsEditModalOpen(false);

@@ -1,8 +1,8 @@
 'use client';
 import React, { useEffect, useId, useRef, useState } from 'react';
-import { supabase } from '@/lib/supabase';
 import { X, Users, User, ArrowRight, Loader2 } from 'lucide-react';
 import { useNotificationContext } from '@/contexts/NotificationContext';
+import { getTicketTransferTargetsAction } from '@/app/actions/ticketActions';
 
 interface TransferModalProps {
   isOpen: boolean;
@@ -48,19 +48,14 @@ export default function TransferModal({ isOpen, onClose, ticketId, fromAgentId, 
     setReason('');
 
     async function fetchData() {
-      const [teamResult, agentResult] = await Promise.all([
-        supabase.from('teams').select('id, name').order('name'),
-        supabase
-          .from('profiles')
-          .select('id, full_name, username')
-          .neq('id', fromAgentId)
-          .order('full_name'),
-      ]);
-
-      if (cancelled) return;
-
-      if (teamResult.error || agentResult.error) {
-        const reasonText = teamResult.error?.message || agentResult.error?.message || 'Failed to load transfer targets';
+      try {
+        const targets = await getTicketTransferTargetsAction();
+        if (cancelled) return;
+        setTeams(targets.teams);
+        setAgents(targets.agents);
+      } catch {
+        if (cancelled) return;
+        const reasonText = 'Failed to load transfer targets';
         setErrorMessage(reasonText);
         addToast({
           id: `transfer-load-failed-${Date.now()}`,
@@ -68,11 +63,7 @@ export default function TransferModal({ isOpen, onClose, ticketId, fromAgentId, 
           title: 'Transfer loading failed',
           body: reasonText,
         });
-        return;
       }
-
-      setTeams(teamResult.data || []);
-      setAgents(agentResult.data || []);
     }
 
     void fetchData();

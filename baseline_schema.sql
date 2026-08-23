@@ -43,6 +43,7 @@ CREATE TABLE IF NOT EXISTS public.teams (
 CREATE TABLE IF NOT EXISTS public.profiles (
   id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   full_name TEXT,
+  email TEXT,
   avatar_url TEXT,
   department TEXT,
   role TEXT NOT NULL DEFAULT 'Agent',
@@ -156,10 +157,13 @@ CREATE TABLE IF NOT EXISTS public.tickets (
   resolution_summary TEXT,
   module TEXT,
   issue_type TEXT,
+  -- Legacy handoff URL credential retained only so historical migrations can
+  -- rotate and clear it. New application code stores credential hashes instead.
+  escalation_token TEXT,
   sla_due_at TIMESTAMP WITH TIME ZONE,
   created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT timezone('utc'::text, now()),
   updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT timezone('utc'::text, now()),
-  CONSTRAINT tickets_status_check CHECK (status IN ('New', 'Assigned', 'In Progress', 'Escalated', 'Pending', 'Resolved', 'Closed', 'Canceled')),
+  CONSTRAINT tickets_status_check CHECK (status IN ('New', 'Assigned', 'In Progress', 'Escalated', 'Pending', 'Fix Completed', 'Resolved', 'Closed', 'Canceled')),
   CONSTRAINT tickets_priority_check CHECK (priority IN ('Critical', 'High', 'Medium', 'Low'))
 );
 
@@ -362,7 +366,8 @@ CREATE INDEX IF NOT EXISTS idx_system_logs_entity_type ON public.system_logs(ent
 INSERT INTO storage.buckets (id, name, public)
 VALUES
   ('public', 'public', true),
-  ('chat_media', 'chat_media', false)
+  ('chat_media', 'chat_media', true),
+  ('chat_media_private', 'chat_media_private', false)
 ON CONFLICT (id) DO NOTHING;
 
 DROP POLICY IF EXISTS "Allow public access to public bucket" ON storage.objects;
@@ -378,12 +383,12 @@ WITH CHECK (bucket_id = 'public' AND auth.role() = 'authenticated');
 DROP POLICY IF EXISTS "Allow agent access to chat media" ON storage.objects;
 CREATE POLICY "Allow agent access to chat media"
 ON storage.objects FOR SELECT
-USING (bucket_id = 'chat_media' AND auth.role() = 'authenticated');
+USING (bucket_id IN ('chat_media', 'chat_media_private') AND auth.role() = 'authenticated');
 
 DROP POLICY IF EXISTS "Allow authenticated users to upload chat media" ON storage.objects;
 CREATE POLICY "Allow authenticated users to upload chat media"
 ON storage.objects FOR INSERT
-WITH CHECK (bucket_id = 'chat_media' AND auth.role() = 'authenticated');
+WITH CHECK (bucket_id IN ('chat_media', 'chat_media_private') AND auth.role() = 'authenticated');
 
 -- =============================================================
 -- RLS baseline

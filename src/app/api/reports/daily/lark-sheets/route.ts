@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
-import { createSupabaseServerClient } from '@/lib/supabase-server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { getTicketSubjectOnly } from '@/lib/reports/subject';
+import { getStaffAuth } from '@/lib/auth/staffAuthorization';
+import { parseLarkSheetTarget } from '@/lib/reports/larkSheetTarget';
 
 export const runtime = 'nodejs';
 
@@ -91,6 +92,7 @@ async function getLarkTenantToken(): Promise<string> {
 
   const response = await fetch('https://open.larksuite.com/open-apis/auth/v3/tenant_access_token/internal', {
     method: 'POST',
+    signal: AbortSignal.timeout(15_000),
     headers: {
       'Content-Type': 'application/json; charset=utf-8',
     },
@@ -131,6 +133,7 @@ async function appendRowsToLarkSheet(
 
   const response = await fetch(endpoint, {
     method: 'POST',
+    signal: AbortSignal.timeout(15_000),
     headers: {
       Authorization: `Bearer ${token}`,
       'Content-Type': 'application/json; charset=utf-8',
@@ -152,27 +155,22 @@ async function appendRowsToLarkSheet(
 
 export async function POST(req: Request) {
   try {
+    const auth = await getStaffAuth({ permission: 'reports', level: 'edit' });
+    if (!auth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
     const body = await req.json();
     const start = parseDateParam(body.start);
     const end = parseDateParam(body.end);
-    const spreadsheetToken = body.spreadsheetToken;
-    const sheetId = body.sheetId || '0bdfef'; // Defaults to first sheet grid ID if not provided
+    let target;
 
     // Validations
     if (!start || !end) {
       return NextResponse.json({ error: 'Invalid date format. Expected yyyy-MM-dd.' }, { status: 400 });
     }
-    if (!spreadsheetToken) {
-      return NextResponse.json({ error: 'Missing spreadsheetToken parameter.' }, { status: 400 });
-    }
-
-    // Auth verification
-    const supabaseServer = await createSupabaseServerClient();
-    const {
-      data: { user },
-    } = await supabaseServer.auth.getUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    try {
+      target = parseLarkSheetTarget(body.spreadsheetToken, body.sheetId);
+    } catch {
+      return NextResponse.json({ error: 'Invalid Lark Sheets destination.' }, { status: 400 });
     }
 
     // Query ticket data from Supabase
@@ -219,10 +217,10 @@ export async function POST(req: Request) {
     const larkToken = await getLarkTenantToken();
 
     // Export to Lark Sheets
-    const result = await appendRowsToLarkSheet(
+    await appendRowsToLarkSheet(
       larkToken,
-      spreadsheetToken,
-      sheetId,
+      target.spreadsheetToken,
+      target.sheetId,
       formattedRows
     );
 
@@ -230,11 +228,9 @@ export async function POST(req: Request) {
       success: true,
       count: formattedRows.length,
       message: `Successfully exported ${formattedRows.length} rows to Lark Sheets.`,
-      details: result,
     });
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : 'Internal server error';
     console.error('[Lark Sheets API Route Error]:', error);
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ error: 'Unable to export report to Lark Sheets' }, { status: 500 });
   }
 }

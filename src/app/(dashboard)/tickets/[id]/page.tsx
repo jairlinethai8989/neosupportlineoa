@@ -26,17 +26,17 @@ import {
   confirmTicketDetailDeleteMessage,
   confirmTicketDetailEndChat,
   getTicketDetailResolvedToast,
-  getTicketDetailSystemResolveMessage,
   getTicketDetailValidationToast,
 } from '@/lib/tickets/detailFeedback';
+import { createStaffChatMediaUrl, PRIVATE_CHAT_MEDIA_BUCKET } from '@/lib/media/chatMediaPath';
 import {
-  appendMessageIfMissing,
-  isMessageRelatedToThread,
-  removeMessageById,
-  replaceMessageById,
-  ticketDetailMessageSelect,
-} from '@/lib/tickets/detailRealtime';
-import { isActiveConversationStatus } from '@/lib/tickets/detailState';
+  getTicketDetailAction,
+  getTicketDetailStaticMetaAction,
+  createTicketDetailAttachmentUploadAction,
+  sendTicketDetailAttachmentAction,
+  sendTicketDetailMessageAction,
+  updateTicketDetailFieldAction,
+} from '@/app/actions/ticketActions';
 import type {
   TicketDetailLog,
   TicketDetailMessage,
@@ -55,6 +55,20 @@ const DEFAULT_MODULES = [
   'All',
 ];
 
+function withStaffMediaUrl(message: TicketDetailMessage): TicketDetailMessage {
+  if (message.message_type !== 'image' && message.message_type !== 'file') return message;
+
+  const rawMedia = message.media_path || message.content;
+  const mediaUrl = createStaffChatMediaUrl(rawMedia);
+  if (!mediaUrl) return message;
+
+  return {
+    ...message,
+    media_path: mediaUrl,
+    content: message.media_path ? message.content : mediaUrl,
+  };
+}
+
 const pageGridStyle: React.CSSProperties = {
   display: 'grid',
   gridTemplateColumns: '6.5fr 3.5fr',
@@ -64,39 +78,6 @@ const pageGridStyle: React.CSSProperties = {
 };
 
 const loadingContainerStyle: React.CSSProperties = { height: '70vh' };
-const ticketDetailSelect = `
-  id,
-  ticket_no,
-  customer_id,
-  status,
-  subject,
-  description,
-  priority,
-  module,
-  issue_type,
-  created_at,
-  resolved_at,
-  assigned_agent_id,
-  current_department_id,
-  organization_id,
-  escalation_token,
-  resolution_summary,
-  ai_analysis,
-  customers:customers!tickets_customer_id_fkey (
-    id,
-    display_name,
-    full_name,
-    line_username,
-    organizations:organizations(id, name)
-  ),
-  assigned_agent:profiles!assigned_agent_id (
-    id,
-    display_name:full_name
-  ),
-  department_data:departments!current_department_id(id, name)
-`;
-const ticketDetailLogSelect = 'id, created_at, action_type, to_status, note, performer_id';
-
 type PdfDeps = {
   html2canvas: (typeof import('html2canvas'))['default'];
   jsPDF: (typeof import('jspdf'))['jsPDF'];
@@ -186,6 +167,7 @@ export default function StaffTicketDetailPage() {
   const adminFileRef = useRef<HTMLInputElement>(null);
   const conversationIdRef = useRef<string | null>(null);
   const staticMetaLoadedRef = useRef(false);
+  const refreshInFlightRef = useRef(false);
   const reportRef = useRef<HTMLDivElement>(null);
 
   const [ticket, setTicket] = useState<TicketDetailTicket | null>(null);
@@ -422,276 +404,89 @@ export default function StaffTicketDetailPage() {
 
   const fetchStaticMeta = useCallback(async () => {
     if (staticMetaLoadedRef.current) return;
-
-    const [deptResult, modulesResult, issuesResult, authResult, companyResult] = await Promise.all([
-      supabase
-        .from('departments')
-        .select('id, name')
-        .eq('dept_type', 'organization')
-        .eq('is_active', true)
-        .order('name'),
-      supabase.from('ticket_modules').select('name').eq('is_active', true),
-      supabase.from('ticket_issue_types').select('name').eq('is_active', true),
-      supabase.auth.getUser(),
-      supabase.from('company_settings').select('resolution_templates').limit(1).maybeSingle(),
-    ]);
-
-    if (deptResult.data) {
-      setAvailableDepts(deptResult.data.map((department) => ({ label: department.name, value: department.id })));
-    }
-
-    setAvailableModules(
-      modulesResult.data && modulesResult.data.length > 0
-        ? modulesResult.data.map((d) => d.name)
-        : DEFAULT_MODULES
+    const meta = await getTicketDetailStaticMetaAction();
+    setAvailableDepts(meta.departments);
+    setAvailableModules(meta.modules.length > 0 ? meta.modules : DEFAULT_MODULES);
+    setAvailableIssueTypes(meta.issueTypes);
+    setUser(meta.user as TicketDetailUser);
+    setPersonalQuickReplies(meta.quickReplies);
+    setPersonalResTemplates(
+      meta.personalResolutionTemplates.length > 0
+        ? meta.personalResolutionTemplates
+        : meta.companyResolutionTemplates
     );
-    setAvailableIssueTypes(
-      issuesResult.data && issuesResult.data.length > 0
-        ? issuesResult.data.map((d) => d.name)
-        : []
-    );
-
-    const companyTemplates = (companyResult.data?.resolution_templates as unknown[]) || [];
-    const mappedCompanyTemplates = companyTemplates.map(t => 
-      typeof t === 'string' ? t : String((t as Record<string, unknown>)?.content || t)
-    );
-
-    const authUser = authResult.data.user;
-    if (authUser) {
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('id, display_name, role, quick_replies, resolution_templates')
-        .eq('id', authUser.id)
-        .single();
-
-      if (profile) {
-        const mergedUser: TicketDetailUser = {
-          id: authUser.id,
-          display_name: profile.display_name || null,
-          role: profile.role || null,
-        };
-        setUser(mergedUser);
-        setPersonalQuickReplies(profile.quick_replies || []);
-        
-        if (profile.resolution_templates && profile.resolution_templates.length > 0) {
-          setPersonalResTemplates(profile.resolution_templates);
-        } else if (mappedCompanyTemplates.length) {
-          setPersonalResTemplates(mappedCompanyTemplates);
-        } else {
-          setPersonalResTemplates([]);
-        }
-      } else {
-        setUser({ id: authUser.id });
-        if (mappedCompanyTemplates.length) {
-          setPersonalResTemplates(mappedCompanyTemplates);
-        }
-      }
-    } else if (mappedCompanyTemplates.length) {
-      setPersonalResTemplates(mappedCompanyTemplates);
-    }
 
     staticMetaLoadedRef.current = true;
   }, []);
 
-  const resolveConversationForTicket = useCallback(async (customerId: string | null) => {
-    if (!ticketId) return null;
-
-    const { data: convByTicket } = await supabase
-      .from('conversations')
-      .select('id, status')
-      .eq('current_ticket_id', ticketId)
-      .maybeSingle();
-
-    if (convByTicket && isActiveConversationStatus(convByTicket.status)) {
-      return convByTicket.id;
-    }
-
-    if (!customerId) return null;
-
-    const { data: convByCustomer } = await supabase
-      .from('conversations')
-      .select('id, status')
-      .eq('customer_id', customerId)
-      .eq('status', 'active')
-      .maybeSingle();
-
-    if (convByCustomer && isActiveConversationStatus(convByCustomer.status)) {
-      return convByCustomer.id;
-    }
-
-    return null;
-  }, [ticketId]);
-
-  const fetchData = useCallback(async () => {
-    if (!ticketId) return;
+  const fetchData = useCallback(async (syncFormState = true) => {
+    if (!ticketId || refreshInFlightRef.current) return;
+    refreshInFlightRef.current = true;
 
     try {
-      const { data: ticketData, error } = await supabase
-        .from('tickets')
-        .select(ticketDetailSelect)
-        .eq('id', ticketId)
-        .maybeSingle();
-
-      if (error) throw error;
-      if (ticketData) {
-        const normalizedTicket = ticketData as unknown as TicketDetailTicket;
+      const result = await getTicketDetailAction(ticketId);
+      if (result) {
+        const normalizedTicket = result.ticket as unknown as TicketDetailTicket;
         setTicket(normalizedTicket);
         setStatus(normalizedTicket.status || '');
-        setPriority(normalizedTicket.priority || '');
-        setSelectedDept(normalizedTicket.current_department_id || '');
-        setSelectedModule(normalizedTicket.module || '');
-
-        const [logResult, conversationIdResult] = await Promise.all([
-          supabase
-            .from('ticket_logs')
-            .select(ticketDetailLogSelect)
-            .eq('ticket_id', ticketId)
-            .order('created_at', { ascending: false }),
-          resolveConversationForTicket(normalizedTicket.customer_id),
-        ]);
-
-        if (logResult.data) {
-          setLogs(logResult.data as TicketDetailLog[]);
-
-          // Find resolver profile only when needed.
-          const resolveLog = logResult.data.find((log) => log.action_type === 'resolve');
-          if (resolveLog?.performer_id) {
-            const { data: resolver } = await supabase
-              .from('profiles')
-              .select('full_name, signature_url')
-              .eq('id', resolveLog.performer_id)
-              .single();
-            setResolverProfile(resolver || null);
-          } else {
-            setResolverProfile(null);
-          }
+        if (syncFormState) {
+          setPriority(normalizedTicket.priority || '');
+          setSelectedDept(normalizedTicket.current_department_id || '');
+          setSelectedModule(normalizedTicket.module || '');
         }
 
-        setConversationId(conversationIdResult);
-        conversationIdRef.current = conversationIdResult;
-        setIsChatActive(Boolean(conversationIdResult));
-
-        const messageQuery = conversationIdResult
-          ? supabase
-              .from('messages')
-              .select(ticketDetailMessageSelect)
-              .or(`ticket_id.eq.${ticketId},conversation_id.eq.${conversationIdResult}`)
-          : supabase
-              .from('messages')
-              .select(ticketDetailMessageSelect)
-              .eq('ticket_id', ticketId);
-
-        const { data: messageData } = await messageQuery.order('created_at', { ascending: true });
-        setMessages((messageData || []) as TicketDetailMessage[]);
+        setLogs(result.logs as TicketDetailLog[]);
+        setResolverProfile(result.resolver || null);
+        setConversationId(result.conversationId);
+        conversationIdRef.current = result.conversationId;
+        setIsChatActive(Boolean(result.conversationId));
+        const serverMessages = (result.messages as TicketDetailMessage[]).map(withStaffMediaUrl);
+        setMessages((previous) => {
+          if (syncFormState) return serverMessages;
+          const optimistic = previous.filter((message) => message.id.startsWith('temp-')).filter((message) =>
+            !serverMessages.some((saved) =>
+              saved.sender_type === message.sender_type &&
+              saved.staff_id === message.staff_id &&
+              (saved.content || '').trim() === (message.content || '').trim() &&
+              Math.abs(Date.parse(saved.created_at) - Date.parse(message.created_at)) <= 30_000
+            )
+          );
+          return [...serverMessages, ...optimistic]
+            .sort((left, right) => Date.parse(left.created_at) - Date.parse(right.created_at));
+        });
       }
 
       await fetchStaticMeta();
     } catch (error) {
       addToast(getTicketDetailActionFailedToast('update ticket', error));
     } finally {
+      refreshInFlightRef.current = false;
       setLoading(false);
     }
-  }, [addToast, fetchStaticMeta, resolveConversationForTicket, ticketId]);
+  }, [addToast, fetchStaticMeta, ticketId]);
 
   useEffect(() => {
-    void fetchData();
+    void fetchData(true);
     if (!ticketId) return;
-
-    const ticketMessageChannel = supabase
-      .channel(`staff-ticket-messages-${ticketId}`)
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'messages', filter: `ticket_id=eq.${ticketId}` },
-        (payload) => {
-          const message = payload.new as unknown as TicketDetailMessage;
-          setMessages((prev) => appendMessageIfMissing(prev, message));
-        }
-      )
-      .on(
-        'postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'messages', filter: `ticket_id=eq.${ticketId}` },
-        (payload) => {
-          const updatedMessage = payload.new as unknown as TicketDetailMessage;
-          setMessages((prev) => replaceMessageById(prev, updatedMessage));
-        }
-      )
-      .on(
-        'postgres_changes',
-        { event: 'DELETE', schema: 'public', table: 'messages', filter: `ticket_id=eq.${ticketId}` },
-        (payload) => {
-          setMessages((prev) => removeMessageById(prev, String(payload.old.id || '')));
-        }
-      )
-      .on(
-        'postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'tickets', filter: `id=eq.${ticketId}` },
-        (payload) => {
-          const updatedTicket = payload.new as unknown as Partial<TicketDetailTicket>;
-          setTicket((prev) => (prev ? { ...prev, ...updatedTicket } : prev));
-          if (typeof updatedTicket.status === 'string') {
-            setStatus(updatedTicket.status);
-          }
-        }
-      )
-      .subscribe();
+    let poller: ReturnType<typeof setInterval> | null = null;
+    const startPolling = () => {
+      if (poller) clearInterval(poller);
+      const intervalMs = document.visibilityState === 'visible' ? 5_000 : 30_000;
+      poller = setInterval(() => { void fetchData(false); }, intervalMs);
+    };
+    const handleVisibilityChange = () => {
+      startPolling();
+      if (document.visibilityState === 'visible') void fetchData(false);
+    };
+    startPolling();
+    document.addEventListener('visibilitychange', handleVisibilityChange);
 
     return () => {
-      supabase.removeChannel(ticketMessageChannel);
+      if (poller) clearInterval(poller);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
       conversationIdRef.current = null;
     };
   }, [fetchData, ticketId]);
-
-  useEffect(() => {
-    if (!ticketId || !conversationId) return;
-
-    const conversationMessageChannel = supabase
-      .channel(`staff-ticket-conversation-${conversationId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'messages',
-          filter: `conversation_id=eq.${conversationId}`,
-        },
-        (payload) => {
-          const message = payload.new as unknown as TicketDetailMessage;
-          if (!isMessageRelatedToThread(message, ticketId, conversationIdRef.current)) return;
-          setMessages((prev) => appendMessageIfMissing(prev, message));
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'messages',
-          filter: `conversation_id=eq.${conversationId}`,
-        },
-        (payload) => {
-          const message = payload.new as unknown as TicketDetailMessage;
-          if (!isMessageRelatedToThread(message, ticketId, conversationIdRef.current)) return;
-          setMessages((prev) => replaceMessageById(prev, message));
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: 'DELETE',
-          schema: 'public',
-          table: 'messages',
-          filter: `conversation_id=eq.${conversationId}`,
-        },
-        (payload) => {
-          setMessages((prev) => removeMessageById(prev, String(payload.old.id || '')));
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(conversationMessageChannel);
-    };
-  }, [conversationId, ticketId]);
   const openImageInEditor = useCallback((file: File) => {
     if (!file.type.startsWith('image/')) return;
 
@@ -731,13 +526,11 @@ export default function StaffTicketDetailPage() {
     async (field: 'status' | 'priority' | 'department' | 'module', value: string) => {
       if (!ticketId) return;
 
-      const dbField = field === 'department' ? 'current_department_id' : field;
-
       try {
         if (field === 'status') {
           await ticketService.updateStatus(ticketId, value);
         } else {
-          await supabase.from('tickets').update({ [dbField]: value }).eq('id', ticketId);
+          await updateTicketDetailFieldAction(ticketId, field, value);
         }
 
         addToast({
@@ -773,17 +566,7 @@ export default function StaffTicketDetailPage() {
     setSending(true);
 
     try {
-      const { error } = await supabase.from('messages').insert([
-        {
-          conversation_id: conversationId,
-          ticket_id: ticketId,
-          sender_type: 'agent',
-          staff_id: user?.id,
-          message_type: 'text',
-          content,
-        },
-      ]);
-      if (error) throw error;
+      await sendTicketDetailMessageAction(ticketId, { conversationId, content });
       setMessages((prev) => prev.filter((message) => message.id !== optimisticMessage.id));
     } catch (error) {
       setMessages((prev) => prev.filter((message) => message.id !== optimisticMessage.id));
@@ -817,31 +600,22 @@ export default function StaffTicketDetailPage() {
         }
       }
 
-      const fileName = `admin_${ticketId}_${Date.now()}.${ext}`;
-      const { error: uploadError } = await supabase.storage.from('chat_media').upload(fileName, fileToUpload, { contentType });
+      const upload = await createTicketDetailAttachmentUploadAction(ticketId, {
+        mimeType: contentType,
+        extension: ext,
+        size: fileToUpload.size,
+      });
+      const { error: uploadError } = await supabase.storage.from(PRIVATE_CHAT_MEDIA_BUCKET)
+        .uploadToSignedUrl(upload.path, upload.token, fileToUpload, { contentType });
       if (uploadError) throw uploadError;
-
-      const {
-        data: { publicUrl },
-      } = supabase.storage.from('chat_media').getPublicUrl(fileName);
-
-      await supabase.from('messages').insert([
-        {
-          conversation_id: conversationId,
-          ticket_id: ticketId,
-          sender_type: 'agent',
-          staff_id: user?.id,
-          message_type: contentType.startsWith('image/') ? 'image' : 'file',
-          content: publicUrl,
-        },
-      ]);
+      await sendTicketDetailAttachmentAction(ticketId, { conversationId, path: upload.path });
     } catch (error) {
       addToast(getTicketDetailActionFailedToast('upload file', error));
     } finally {
       setSending(false);
       if (adminFileRef.current) adminFileRef.current.value = '';
     }
-  }, [addToast, conversationId, ticketId, user?.id]);
+  }, [addToast, conversationId, ticketId]);
 
 
 
@@ -865,33 +639,15 @@ export default function StaffTicketDetailPage() {
         console.error('Staff detail editor compression failed:', err);
       }
       
-      const fileName = `edited_${Date.now()}_${Math.random().toString(36).substr(2, 5)}.${ext}`;
-      
-      // 3. Upload the new File object
-      const { error: uploadError } = await supabase.storage.from('chat_media').upload(fileName, fileToUpload, {
-        cacheControl: '3600',
-        upsert: false,
-        contentType
+      const upload = await createTicketDetailAttachmentUploadAction(ticketId, {
+        mimeType: contentType,
+        extension: ext,
+        size: fileToUpload.size,
       });
+      const { error: uploadError } = await supabase.storage.from(PRIVATE_CHAT_MEDIA_BUCKET)
+        .uploadToSignedUrl(upload.path, upload.token, fileToUpload, { contentType });
       if (uploadError) throw uploadError;
-
-      const {
-        data: { publicUrl },
-      } = supabase.storage.from('chat_media').getPublicUrl(fileName);
-
-      // 3. Insert message only after confirmed upload
-      const { error: messageError } = await supabase.from('messages').insert([
-        {
-          conversation_id: conversationId,
-          ticket_id: ticketId,
-          sender_type: 'agent',
-          staff_id: user?.id,
-          message_type: 'image',
-          content: publicUrl,
-        },
-      ]);
-      
-      if (messageError) throw messageError;
+      await sendTicketDetailAttachmentAction(ticketId, { conversationId, path: upload.path });
 
       // 4. Close modal only after success
       setShowEditor(false);
@@ -902,7 +658,7 @@ export default function StaffTicketDetailPage() {
     } finally {
       setSending(false);
     }
-  }, [addToast, conversationId, ticketId, user?.id]);
+  }, [addToast, conversationId, ticketId]);
 
   const handleDeleteMessage = useCallback(async (messageId: string) => {
     if (!confirmTicketDetailDeleteMessage()) return;
@@ -939,21 +695,9 @@ export default function StaffTicketDetailPage() {
 
     setUpdating(true);
     try {
-      const updatedTicket = await ticketService.resolve(ticketId, user.id, resSummary, selectedModule, selectedIssueType);
+      const updatedTicket = await ticketService.resolve(ticketId, user.id, resSummary, selectedModule, selectedIssueType, conversationId || undefined);
       const newStatus = updatedTicket?.status || 'Resolved';
 
-      if (conversationId) {
-        const surveyLink = `${window.location.origin}/survey/${ticketId}`;
-        await supabase.from('messages').insert([
-          {
-            conversation_id: conversationId,
-            ticket_id: ticketId,
-            sender_type: 'system',
-            staff_id: user.id,
-            content: getTicketDetailSystemResolveMessage(resSummary, selectedModule, surveyLink),
-          },
-        ]);
-      }
       addToast(getTicketDetailResolvedToast(ticket.ticket_no, newStatus === 'Fix Completed'));
       setShowResolveModal(false);
       setTicket((prev) => (prev ? { ...prev, ...updatedTicket } : prev));
@@ -968,7 +712,6 @@ export default function StaffTicketDetailPage() {
     addToast,
     conversationId,
     fetchData,
-    isChatActive,
     resSummary,
     selectedIssueType,
     selectedModule,
@@ -1134,7 +877,6 @@ export default function StaffTicketDetailPage() {
         status={status}
         user={user}
         updating={updating}
-        isChatActive={isChatActive}
         onUpdate={() => {
           void fetchData();
         }}
@@ -1295,7 +1037,6 @@ export default function StaffTicketDetailPage() {
         onChangeSummary={setResSummary}
         onChangeModule={setSelectedModule}
         onChangeIssueType={setSelectedIssueType}
-        isChatActive={isChatActive}
       />
 
       <input type="file" ref={adminFileRef} onChange={handleAdminFile} style={{ display: 'none' }} />

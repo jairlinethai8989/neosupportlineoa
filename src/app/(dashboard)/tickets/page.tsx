@@ -89,7 +89,6 @@ function TicketsContent() {
     sortConfig,
     timeRange,
     viewMode,
-    isChatActive,
     refresh,
   } = useTicketWorkspace(filterCustomerId);
 
@@ -190,7 +189,6 @@ function TicketsContent() {
         onChangeSummary={setResSummary}
         onChangeModule={setSelectedModule}
         onChangeIssueType={setSelectedIssueType}
-        isChatActive={isChatActive}
       />
     </div>
   );

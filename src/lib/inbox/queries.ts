@@ -1,4 +1,5 @@
-import { supabase } from '@/lib/supabase';
+import 'server-only';
+import { supabaseAdmin as supabase } from '@/lib/supabaseAdmin';
 import {
   normalizeInboxAgent,
   normalizeInboxConversation,
@@ -16,36 +17,6 @@ import type {
 } from '@/types/inbox';
 
 export const inboxConversationSelect = `
-  id,
-  status,
-  last_message_at,
-  customer_id,
-  current_ticket_id,
-  customers (
-    id,
-    display_name,
-    line_user_id,
-    metadata,
-    organization_id,
-    department_id,
-    position_id,
-    organizations:organization_id (id, name),
-    departments:department_id (id, name),
-    positions:position_id (id, name)
-  ),
-  ticket_data:current_ticket_id (
-    id,
-    ticket_no,
-    subject,
-    status,
-    organization_id,
-    current_department_id,
-    organizations:organization_id (id, name),
-    departments:current_department_id (id, name)
-  )
-`;
-
-const inboxConversationSelectLegacy = `
   id,
   status,
   last_message_at,
@@ -103,34 +74,6 @@ export const inboxConversationSelectForList = `
   )
 `;
 
-const inboxConversationSelectForListLegacy = `
-  id,
-  status,
-  last_message_at,
-  customer_id,
-  current_ticket_id,
-  customers (
-    id,
-    display_name,
-    line_user_id,
-    metadata,
-    organization_id,
-    department_id,
-    position_id,
-    organizations:organization_id (id, name),
-    departments:department_id (id, name),
-    positions:position_id (id, name)
-  ),
-  ticket_data:current_ticket_id (
-    id,
-    ticket_no,
-    subject,
-    status,
-    organization_id,
-    organizations:organization_id (id, name)
-  )
-`;
-
 const inboxConversationSelectMinimal = `
   id,
   status,
@@ -138,16 +81,6 @@ const inboxConversationSelectMinimal = `
   customer_id,
   current_ticket_id
 `;
-
-function isMissingAvatarColumnError(error: unknown): boolean {
-  if (!error || typeof error !== 'object') return false;
-  const maybe = error as { code?: string; message?: string };
-  const message = String(maybe.message || '').toLowerCase();
-  return (
-    (maybe.code === 'PGRST204' || maybe.code === '42703') &&
-    (message.includes('avatar_url') || message.includes('column'))
-  );
-}
 
 async function runConversationQueryWithAvatarFallback<T>(
   runQuery: (
@@ -188,8 +121,7 @@ export const inboxTicketSelect = `
   status,
   assigned_agent_id,
   module,
-  issue_type,
-  escalation_token
+  issue_type
 `;
 
 export const inboxProfileSelect = `
@@ -626,11 +558,14 @@ export async function listInboxMessagesPage(input: {
   const limit = input.limit || 50;
   const before = input.beforeCreatedAt || '9999-12-31T23:59:59.999Z';
 
-  const { data, error } = await supabase
+  let query = supabase
     .from('messages')
     .select(inboxMessageSelect)
-    .eq('conversation_id', input.conversationId)
-    .lt('created_at', before)
+    .lt('created_at', before);
+  query = input.ticketId
+    ? query.or(`conversation_id.eq.${input.conversationId},ticket_id.eq.${input.ticketId}`)
+    : query.eq('conversation_id', input.conversationId);
+  const { data, error } = await query
     .order('created_at', { ascending: false })
     .limit(limit);
 

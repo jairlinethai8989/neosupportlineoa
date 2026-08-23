@@ -2,7 +2,6 @@
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState, useEffect } from 'react';
-import { supabase } from '@/lib/supabase';
 import { 
   Building2, 
   Users, 
@@ -21,9 +20,19 @@ import {
 } from 'lucide-react';
 import { FileSpreadsheet } from 'lucide-react';
 import { useNotificationContext } from '@/contexts/NotificationContext';
-import { auditService } from '@/lib/services/auditService';
 import { useAppContext } from '@/contexts/AppContext';
 import { useStaffLocale } from '@/contexts/StaffLocaleContext';
+import {
+  getGeminiKeyStatusAction,
+  saveGeminiApiKeyAction,
+  saveGoogleSheetsUrlAction,
+} from '@/app/actions/companySettingsActions';
+import {
+  createMasterDataAction,
+  listMasterDataAction,
+  toggleMasterDataAction,
+  updateMasterDataAction,
+} from '@/app/actions/masterSettingsActions';
 
 type Tab = 'organizations' | 'departments' | 'hospital_depts' | 'positions' | 'modules' | 'issue_types' | 'subject_types' | 'line_groups' | 'google_sheets' | 'gemini_api';
 
@@ -104,13 +113,8 @@ export default function MasterSettingsPage() {
     }
 
     setLoading(true);
-    const table = getTableName(activeTab);
     try {
-      const { data, error } = await supabase
-        .from(table)
-        .select('*')
-        .order('name');
-      if (error) throw error;
+      const data = await listMasterDataAction(activeTab);
       setItems(data || []);
     } catch (e: any) {
       console.error('Fetch error:', e);
@@ -137,37 +141,22 @@ export default function MasterSettingsPage() {
     setSubmitting(true);
     const table = getTableName(activeTab);
 
-    const payload: any = { 
-      name: newItemName, 
-      is_active: true 
-    };
-
-    if (activeTab === 'organizations') {
-      payload.abbreviation = newItemAbbr.trim() || newItemName.slice(0, 10).toUpperCase();
-      payload.ticket_prefix = `SRS_${payload.abbreviation}_`;
-    }
-
     if (activeTab === 'line_groups') {
-      payload.group_id = newItemAbbr.trim();
-      if (!payload.group_id) {
+      if (!newItemAbbr.trim()) {
         alert('กรุณาระบุ LINE Group ID');
         setSubmitting(false);
         return;
       }
     }
 
-    if (activeTab === 'hospital_depts') {
-      payload.dept_type = 'organization';
-    } else if (activeTab === 'departments') {
-      payload.dept_type = 'organization';
-    }
-
-    const { error } = await supabase.from(table).insert([payload]);
-    
-    if (error) {
+    try {
+      await createMasterDataAction({ tab: activeTab, name: newItemName, abbreviation: newItemAbbr });
+    } catch (error: any) {
       console.error('Add Error:', error);
       alert(`${t('common.messages.saveFailed')}: ${error.message}`);
-    } else {
+      setSubmitting(false);
+      return;
+    }
       setNewItemName('');
       setNewItemAbbr('');
       setIsAdding(false);
@@ -176,22 +165,12 @@ export default function MasterSettingsPage() {
       else if (activeTab === 'departments' || activeTab === 'hospital_depts') await refreshData('departments');
       else fetchData();
 
-      const { data: { user } } = await supabase.auth.getUser();
-      await auditService.log({
-        performer_id: user?.id,
-        action_type: 'MASTER_CREATE',
-        entity_type: table.toUpperCase(),
-        new_data: payload,
-        note: `Created new ${table}: ${newItemName} (${activeTab})`
-      });
-
       addToast({
         id: `master-add-${table}-${newItemName}`,
         type: 'ticket',
         title: t('settingsMaster.addSuccessTitle'),
         body: t('settingsMaster.addSuccessBody').replace('{name}', newItemName),
       });
-    }
     setSubmitting(false);
   };
 
@@ -200,35 +179,19 @@ export default function MasterSettingsPage() {
     setSubmitting(true);
     const table = getTableName(activeTab);
 
-    const updateData: any = { name: editItemName };
-    if (activeTab === 'organizations') {
-      updateData.abbreviation = editItemAbbr.trim() || editItemName.slice(0, 10).toUpperCase();
-    }
-    if (activeTab === 'line_groups') {
-      updateData.group_id = editItemAbbr.trim();
-    }
-
-    const { error } = await supabase.from(table).update(updateData).eq('id', id);
-    
-    if (error) {
+    try {
+      await updateMasterDataAction({ tab: activeTab, id, name: editItemName, abbreviation: editItemAbbr });
+    } catch (error: any) {
       console.error('Update Error:', error);
       alert(`${t('common.messages.saveFailed')}: ${error.message}`);
-    } else {
+      setSubmitting(false);
+      return;
+    }
       setEditingId(null);
       
       if (activeTab === 'organizations') await refreshData('organizations');
       else if (activeTab === 'departments' || activeTab === 'hospital_depts') await refreshData('departments');
       else fetchData();
-
-      const { data: { user } } = await supabase.auth.getUser();
-      await auditService.log({
-        performer_id: user?.id,
-        action_type: 'MASTER_UPDATE',
-        entity_type: table.toUpperCase(),
-        entity_id: id,
-        new_data: updateData,
-        note: `Updated ${table} to: ${editItemName} ${activeTab === 'organizations' ? `(${editItemAbbr})` : ''}`
-      });
 
       addToast({
         id: `master-upd-${table}-${id}`,
@@ -236,32 +199,20 @@ export default function MasterSettingsPage() {
         title: t('settingsMaster.updateSuccessTitle'),
         body: t('settingsMaster.updateSuccessBody').replace('{name}', editItemName),
       });
-    }
     setSubmitting(false);
   };
 
   const toggleStatus = async (id: string, current: boolean) => {
-    const table = getTableName(activeTab);
-
-    const { error } = await supabase.from(table).update({ is_active: !current }).eq('id', id);
-    
-    if (error) {
+    try {
+      await toggleMasterDataAction({ tab: activeTab, id, isActive: !current });
+    } catch (error: any) {
       console.error('Toggle status Error:', error);
       alert(`${t('common.messages.saveFailed')}: ${error.message}`);
-    } else {
+      return;
+    }
       if (activeTab === 'organizations') await refreshData('organizations');
       else if (activeTab === 'departments' || activeTab === 'hospital_depts') await refreshData('departments');
       else fetchData();
-
-      const { data: { user } } = await supabase.auth.getUser();
-      await auditService.log({
-        performer_id: user?.id,
-        action_type: 'MASTER_TOGGLE',
-        entity_type: table.toUpperCase(),
-        entity_id: id,
-        new_data: { is_active: !current },
-        note: `Toggled ${table} status to: ${!current ? 'Active' : 'Inactive'}`
-      });
 
       addToast({
         id: `master-toggle-${id}`,
@@ -269,7 +220,6 @@ export default function MasterSettingsPage() {
         title: t('settingsMaster.toggleSuccessTitle'),
         body: t('settingsMaster.toggleSuccessBody'),
       });
-    }
   };
 
   const filteredItems = items.filter(i => i.name.toLowerCase().includes(search.toLowerCase()));
@@ -331,7 +281,7 @@ export default function MasterSettingsPage() {
       {activeTab === 'google_sheets' ? (
         <GoogleSheetsConfigForm globalSettings={globalSettings} onSaveSuccess={() => refreshData('settings')} />
       ) : activeTab === 'gemini_api' ? (
-        <GeminiConfigForm globalSettings={globalSettings} onSaveSuccess={() => refreshData('settings')} />
+        <GeminiConfigForm onSaveSuccess={() => refreshData('settings')} />
       ) : (
         <div className="glass" style={{ borderRadius: '24px', overflow: 'hidden' }}>
          {/* List Toolbar */}
@@ -547,25 +497,12 @@ function GoogleSheetsConfigForm({ globalSettings, onSaveSuccess }: { globalSetti
   }, [globalSettings]);
 
   const handleSave = async () => {
-    if (sheetsUrl && !sheetsUrl.startsWith('http')) {
-      alert('กรุณากรอก URL ที่ถูกต้อง');
-      return;
-    }
     setSaving(true);
     setDbError(null);
     try {
-      const { error } = await supabase
-        .from('company_settings')
-        .update({ google_sheets_url: sheetsUrl })
-        .eq('id', globalSettings.id);
-
-      if (error) {
-        console.error('Save error:', error);
-        if (error.code === '42703' || error.message?.includes('column "google_sheets_url" of relation')) {
-          setDbError('column_missing');
-        } else {
-          alert('ไม่สามารถบันทึกได้: ' + error.message);
-        }
+      const result = await saveGoogleSheetsUrlAction(sheetsUrl);
+      if (!result.success && result.error === 'column_missing') {
+        setDbError('column_missing');
       } else {
         onSaveSuccess();
         addToast({
@@ -575,9 +512,10 @@ function GoogleSheetsConfigForm({ globalSettings, onSaveSuccess }: { globalSetti
           body: 'บันทึก Google Sheets URL เรียบร้อยแล้ว ✨'
         });
       }
-    } catch (e: any) {
-      console.error(e);
-      alert('เกิดข้อผิดพลาดในการบันทึกข้อมูล');
+    } catch (error: any) {
+      alert(error?.message === 'Invalid Google Apps Script URL'
+        ? 'กรุณากรอก URL ของ Google Apps Script Web App ที่ถูกต้อง'
+        : 'ไม่สามารถบันทึกการตั้งค่าได้');
     } finally {
       setSaving(false);
     }
@@ -750,18 +688,27 @@ function doGet(e) {
   );
 }
 
-function GeminiConfigForm({ globalSettings, onSaveSuccess }: { globalSettings: any; onSaveSuccess: () => void }) {
+function GeminiConfigForm({ onSaveSuccess }: { onSaveSuccess: () => void }) {
   const { addToast } = useNotificationContext();
-  const [apiKey, setApiKey] = useState(globalSettings?.gemini_api_key || '');
+  const [apiKey, setApiKey] = useState('');
+  const [isConfigured, setIsConfigured] = useState(false);
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<{success: boolean, message: string} | null>(null);
 
   useEffect(() => {
-    if (globalSettings?.gemini_api_key) {
-      setApiKey(globalSettings.gemini_api_key);
-    }
-  }, [globalSettings]);
+    let cancelled = false;
+    void getGeminiKeyStatusAction()
+      .then((status) => {
+        if (!cancelled) setIsConfigured(status.configured);
+      })
+      .catch(() => {
+        if (!cancelled) setIsConfigured(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const handleTestApi = async () => {
     if (!apiKey.trim()) {
@@ -829,23 +776,16 @@ function GeminiConfigForm({ globalSettings, onSaveSuccess }: { globalSettings: a
   const handleSave = async () => {
     setSaving(true);
     try {
-      const { error } = await supabase
-        .from('company_settings')
-        .update({ gemini_api_key: apiKey.trim() })
-        .eq('id', globalSettings.id);
-
-      if (error) {
-        console.error('Save error:', error);
-        alert('ไม่สามารถบันทึกได้: ' + error.message);
-      } else {
-        onSaveSuccess();
-        addToast({
-          id: `gemini-save-success-${Date.now()}`,
-          type: 'ticket',
-          title: 'บันทึกสำเร็จ',
-          body: 'บันทึก Gemini API Key เรียบร้อยแล้ว ✨'
-        });
-      }
+      await saveGeminiApiKeyAction(apiKey);
+      setApiKey('');
+      setIsConfigured(true);
+      onSaveSuccess();
+      addToast({
+        id: `gemini-save-success-${Date.now()}`,
+        type: 'ticket',
+        title: 'บันทึกสำเร็จ',
+        body: 'บันทึก Gemini API Key เรียบร้อยแล้ว ✨'
+      });
     } catch (e: any) {
       console.error(e);
       alert('เกิดข้อผิดพลาดในการบันทึกข้อมูล');
@@ -873,13 +813,13 @@ function GeminiConfigForm({ globalSettings, onSaveSuccess }: { globalSettings: a
           </label>
           <input
             type="password"
-            placeholder="AI_..."
+            placeholder={isConfigured ? 'ตั้งค่าแล้ว — กรอกค่าใหม่เพื่อแทนที่' : 'AIza...'}
             value={apiKey}
             onChange={(e) => { setApiKey(e.target.value); setTestResult(null); }}
             style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', borderRadius: '12px', padding: '14px 20px', color: 'var(--text-main)', fontSize: '14px', outline: 'none' }}
           />
           <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '8px', lineHeight: '1.4' }}>
-            บันทึก API Key ของระบบเพื่อเปิดใช้งานการวิเคราะห์สรุปความพึงพอใจและแนวทางแก้ไขโดย Gemini อัตโนมัติในสไลด์พรีเซนต์
+            {isConfigured ? 'ระบบมี API Key อยู่แล้วและจะไม่ส่งค่าเดิมกลับมาที่เบราว์เซอร์ กรอกค่าใหม่เมื่อต้องการแทนที่' : 'บันทึก API Key ของระบบเพื่อเปิดใช้งานการวิเคราะห์สรุปความพึงพอใจและแนวทางแก้ไขโดย Gemini อัตโนมัติในสไลด์พรีเซนต์'}
           </p>
         </div>
 

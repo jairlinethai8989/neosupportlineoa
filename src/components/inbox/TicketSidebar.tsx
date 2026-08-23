@@ -18,7 +18,6 @@ import {
 import type { InboxAgent, InboxConversation, InboxTicket, InboxViewMode } from '@/types/inbox';
 import { ticketService } from '@/lib/services/ticketService';
 import { useStaffLocale } from '@/contexts/StaffLocaleContext';
-import { supabase } from '@/lib/supabase';
 
 interface TicketSidebarProps {
   selectedChat: InboxConversation;
@@ -70,36 +69,16 @@ export const TicketSidebar: React.FC<TicketSidebarProps> = ({
   const [activeHandoff, setActiveHandoff] = useState<{ secure_pin: string; token: string; expires_at: string } | null>(null);
 
   useEffect(() => {
-    if (!currentTicket?.id) {
-      setActiveHandoff(null);
-      return;
-    }
-    const fetchHandoff = async () => {
-      const { data } = await supabase
-        .from('ticket_handoffs')
-        .select('secure_pin, token, expires_at')
-        .eq('ticket_id', currentTicket.id)
-        .eq('status', 'Active')
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      if (data) {
-        setActiveHandoff(data);
-      } else {
-        setActiveHandoff(null);
-      }
-    };
-    fetchHandoff();
-  }, [currentTicket?.id, currentTicket?.status]);
+    setActiveHandoff(null);
+    setMagicLink(null);
+  }, [currentTicket?.id]);
 
   const customer = selectedChat.customers;
   const hasCustomerIdentity = Boolean(customer?.display_name || customer?.avatar_url || customer?.line_user_id);
   const hasCustomerProfileMeta = Boolean(customer?.organizations?.name || customer?.departments?.name || customer?.positions?.name);
   const shouldShowCustomerMetaSkeleton = !hasCustomerIdentity && !hasCustomerProfileMeta;
 
-  const activeMagicLink =
-    magicLink || (activeHandoff?.token ? `${window.location.origin}/escalate/${activeHandoff.token}` : null);
+  const activeMagicLink = magicLink;
 
   const handleCopyLink = (link: string) => {
     navigator.clipboard.writeText(link);
@@ -112,13 +91,12 @@ export const TicketSidebar: React.FC<TicketSidebarProps> = ({
     setShowPendingConfirm(false);
     setIsProcessing(true);
       try {
-        const randomToken = `P-${Math.random().toString(36).substring(2, 10).toUpperCase()}`;
         const result = await ticketService.updateStatus(
           currentTicket.id, 
           'Pending', 
           undefined, 
           undefined, 
-          randomToken, 
+          undefined,
           expiryHours
         );
         if (result && 'escalation_token' in result) {
@@ -131,7 +109,7 @@ export const TicketSidebar: React.FC<TicketSidebarProps> = ({
             expires_at: new Date(Date.now() + expiryHours * 60 * 60 * 1000).toISOString()
           });
         } else {
-          setMagicLink(`${window.location.origin}/escalate/${randomToken}`);
+          throw new Error('Secure handoff credentials were not returned');
         }
       } catch (err: unknown) {
         onWarn(t('common.messages.error'), err instanceof Error ? err.message : 'Unknown error');
@@ -299,7 +277,7 @@ export const TicketSidebar: React.FC<TicketSidebarProps> = ({
               </div>
               <p style={{ fontSize: '10px', color: 'var(--text-dim)', marginTop: '8px' }}>
                 <Info size={10} style={{ verticalAlign: 'middle', marginRight: '4px' }} />
-                {t('inbox.pinCode')}: {activeHandoff?.secure_pin || '1234'}
+                {t('inbox.pinCode')}: {activeHandoff?.secure_pin}
               </p>
             </div>
           )}
@@ -367,13 +345,12 @@ export const TicketSidebar: React.FC<TicketSidebarProps> = ({
                   if (!currentTicket?.id) return;
                   setIsProcessing(true);
                   try {
-                    const randomToken = `E-${Math.random().toString(36).substring(2, 10).toUpperCase()}`;
                     const result = await ticketService.updateStatus(
                       currentTicket.id, 
                       'Escalated', 
                       undefined, 
                       `[ESCALATION INSTRUCTIONS]: ${escalationNote}`, 
-                      randomToken,
+                      undefined,
                       expiryHours
                     );
                     if (result && 'escalation_token' in result) {
@@ -386,9 +363,7 @@ export const TicketSidebar: React.FC<TicketSidebarProps> = ({
                         expires_at: new Date(Date.now() + expiryHours * 60 * 60 * 1000).toISOString()
                       });
                     } else {
-                      const link = `${window.location.origin}/escalate/${randomToken}`;
-                      setMagicLink(link);
-                      handleCopyLink(link);
+                      throw new Error('Secure handoff credentials were not returned');
                     }
                     setShowEscalateModal(false);
                     setEscalationNote('');

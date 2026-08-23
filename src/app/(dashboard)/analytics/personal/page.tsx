@@ -17,7 +17,8 @@ import {
 import Link from 'next/link';
 import { useAppContext } from '@/contexts/AppContext';
 import { useStaffLocale } from '@/contexts/StaffLocaleContext';
-import { analyticsQueries, type AgentAnalyticsData } from '@/lib/tickets/analyticsQueries';
+import type { AgentAnalyticsData } from '@/lib/tickets/analyticsQueries';
+import { getPersonalAnalyticsAction } from '@/app/actions/staffAnalyticsActions';
 import { DateTime } from 'luxon';
 import {
   ResponsiveContainer,
@@ -25,13 +26,6 @@ import {
   PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip
 } from 'recharts';
-
-const PRIORITY_COLORS: Record<string, string> = {
-  Critical: '#ea5455',
-  High: '#ff9f43',
-  Medium: '#7367f0',
-  Low: '#28c76f'
-};
 
 const CHART_COLORS = ['#00f2fe', '#7367f0', '#28c76f', '#ff9f43', '#ea5455'];
 
@@ -67,11 +61,10 @@ export default function PersonalAnalyticsPage() {
     else setLoading(true);
 
     try {
-      const statsData = await analyticsQueries.getAgentAnalytics(
-        userProfile.id,
-        dateRange.start,
-        dateRange.end
-      );
+      const statsData = await getPersonalAnalyticsAction({
+        startDate: dateRange.start,
+        endDate: dateRange.end,
+      });
       setData(statsData);
     } catch (err) {
       console.error('Failed to fetch personal analytics:', err);

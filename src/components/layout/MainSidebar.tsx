@@ -1,6 +1,6 @@
 'use client';
 /* eslint-disable @next/next/no-img-element */
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
@@ -19,7 +19,6 @@ import {
   Flame,
   UserCog,
 } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
 import { useAppContext } from '@/contexts/AppContext';
 import { useNotificationContext } from '@/contexts/NotificationContext';
 import { useStaffLocale } from '@/contexts/StaffLocaleContext';

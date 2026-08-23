@@ -1,7 +1,16 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
+import { updateOwnProfile } from '@/lib/profiles/updateOwnProfile';
 import { supabase } from '@/lib/supabase';
+import { getClientCompanySettingsAction } from '@/app/actions/companySettingsActions';
+import { getOwnProfileAction } from '@/app/actions/profileSettingsActions';
+import {
+  getStaffDepartmentsAction,
+  getStaffOrganizationsAction,
+  getStaffTicketOptionsAction,
+} from '@/app/actions/masterSettingsActions';
 
 interface AppContextType {
   authUserId: string | null;
@@ -49,6 +58,7 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 type RefreshScope = 'all' | 'profile' | 'settings' | 'organizations' | 'departments';
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
+  const router = useRouter();
   const profileBypassAuth =
     process.env.NODE_ENV !== 'production' &&
     process.env.NEXT_PUBLIC_PROFILE_BYPASS_AUTH === '1';
@@ -62,41 +72,34 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const organizationsLoadedRef = React.useRef(false);
   const departmentsLoadedRef = React.useRef(false);
 
-  const fetchProfile = useCallback(async (userId: string) => {
-    const { data, error } = await supabase.from('profiles').select('*').eq('id', userId).maybeSingle();
-    if (error) throw error;
-    setUserProfile(data);
+  const fetchProfile = useCallback(async () => {
+    const data = await getOwnProfileAction();
+    setUserProfile(data as UserProfile | null);
   }, []);
 
   const fetchSettings = useCallback(async () => {
-    const [settingsRes, modulesRes, issuesRes, subjectsRes] = await Promise.all([
-      supabase.from('company_settings').select('*').limit(1).maybeSingle(),
-      supabase.from('ticket_modules').select('name').eq('is_active', true),
-      supabase.from('ticket_issue_types').select('name').eq('is_active', true),
-      supabase.from('ticket_subject_types').select('name').eq('is_active', true)
+    const [safeSettings, options] = await Promise.all([
+      getClientCompanySettingsAction(),
+      getStaffTicketOptionsAction(),
     ]);
-    
-    if (settingsRes.error) throw settingsRes.error;
-    
-    const data = settingsRes.data || {};
-    data.modules = modulesRes.data?.map(d => d.name) || [];
-    data.issue_types = issuesRes.data?.map(d => d.name) || [];
-    data.subject_types = subjectsRes.data?.map(d => d.name) || [];
+
+    const data = safeSettings as CompanySettings;
+    data.modules = options.modules;
+    data.issue_types = options.issueTypes;
+    data.subject_types = options.subjectTypes;
     
     setCompanySettings(data as CompanySettings);
   }, []);
 
   const fetchOrganizations = useCallback(async () => {
-    const { data, error } = await supabase.from('organizations').select('*').order('name');
-    if (error) throw error;
-    setOrganizations(data || []);
+    const data = await getStaffOrganizationsAction();
+    setOrganizations(data);
     organizationsLoadedRef.current = true;
   }, []);
 
   const fetchDepartments = useCallback(async () => {
-    const { data, error } = await supabase.from('departments').select('*').order('name');
-    if (error) throw error;
-    setDepartments(data || []);
+    const data = await getStaffDepartmentsAction();
+    setDepartments(data);
     departmentsLoadedRef.current = true;
   }, []);
 
@@ -126,7 +129,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       try {
         if (type === 'all') {
           await Promise.all([
-            fetchProfile(userId as string),
+            fetchProfile(),
             fetchSettings(),
             fetchOrganizations(),
             fetchDepartments(),
@@ -135,7 +138,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         }
 
         if (type === 'profile' && userId) {
-          await fetchProfile(userId);
+          await fetchProfile();
           return;
         }
 
@@ -173,11 +176,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
     if (currentUserId) {
       try {
-        const { error } = await supabase
-          .from('profiles')
-          .update({ status, last_seen: now })
-          .eq('id', currentUserId);
-        if (error) throw error;
+        await updateOwnProfile({ status, last_seen: true });
       } catch (err) {
         console.error('Failed to update presence status in database:', err);
       }
@@ -187,17 +186,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const logout = useCallback(async () => {
     if (currentUserId) {
       try {
-        await supabase
-          .from('profiles')
-          .update({ status: 'Offline' })
-          .eq('id', currentUserId);
+        await updateOwnProfile({ status: 'Offline' });
       } catch (err) {
         console.error('Failed to update status to Offline on logout:', err);
       }
     }
     await supabase.auth.signOut();
-    window.location.href = '/login';
-  }, [currentUserId]);
+    router.replace('/login');
+    router.refresh();
+  }, [currentUserId, router]);
 
   // Periodic heartbeat every 2 minutes when user is logged in
   useEffect(() => {
@@ -211,10 +208,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setUserProfile(prev => prev ? { ...prev, last_seen: now } : null);
 
       try {
-        await supabase
-          .from('profiles')
-          .update({ last_seen: now })
-          .eq('id', currentUserId);
+        await updateOwnProfile({ last_seen: true });
       } catch (err) {
         console.error('Failed to send heartbeat in background:', err);
       }
@@ -235,10 +229,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   // Supabase Realtime Presence for tracking online staff
   useEffect(() => {
-    if (!currentUserId) {
-      setOnlineUserIds([]);
-      return;
-    }
+    if (!currentUserId) return;
 
     const presenceChannel = supabase.channel('online-staff-presence', {
       config: {
@@ -308,14 +299,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     let cancelled = false;
-    let profileChannel: ReturnType<typeof supabase.channel> | null = null;
-    const settingsChannel = supabase
-      .channel('settings-updates')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'company_settings' }, () => {
-        void fetchSettings().catch((err) => console.error('AppProvider settings refresh error:', err));
-      })
-      .subscribe();
-
     async function bootstrap() {
       try {
         const {
@@ -359,21 +342,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
         // Background data: do not block first paint.
         // Only profile + settings are critical. Organizations/departments are lazy-loaded by pages that need them.
-        void fetchProfile(user.id).catch(err => console.error('AppProvider profile load error:', err));
+        void fetchProfile().catch(err => console.error('AppProvider profile load error:', err));
         void fetchSettings().catch((err) => {
           console.error('AppProvider settings load error:', err);
         });
 
-        profileChannel = supabase
-          .channel(`profile-updates-${user.id}`)
-          .on(
-            'postgres_changes',
-            { event: 'UPDATE', schema: 'public', table: 'profiles', filter: `id=eq.${user.id}` },
-            () => {
-              void fetchProfile(user.id).catch((err) => console.error('AppProvider profile refresh error:', err));
-            }
-          )
-          .subscribe();
       } catch (err) {
         console.error('AppProvider bootstrap error:', err);
         if (!cancelled) {
@@ -386,8 +359,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
     return () => {
       cancelled = true;
-      supabase.removeChannel(settingsChannel);
-      if (profileChannel) supabase.removeChannel(profileChannel);
     };
   }, [fetchDepartments, fetchOrganizations, fetchProfile, fetchSettings, profileBypassAuth]);
 
@@ -404,7 +375,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         ensureOrganizations,
         ensureDepartments,
         updateStatus,
-        onlineUserIds,
+        onlineUserIds: currentUserId ? onlineUserIds : [],
         logout,
       }}
     >

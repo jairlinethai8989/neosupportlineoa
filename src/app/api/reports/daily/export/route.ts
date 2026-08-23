@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
-import * as XLSX from 'xlsx';
-import { createSupabaseServerClient } from '@/lib/supabase-server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { getTicketSubjectOnly } from '@/lib/reports/subject';
+import { getStaffAuth } from '@/lib/auth/staffAuthorization';
+import { objectsToSpreadsheetRows } from '@/lib/exports/spreadsheet';
+import { writeSpreadsheetBuffer } from '@/lib/exports/spreadsheet.server';
 
 export const runtime = 'nodejs';
 
@@ -84,20 +85,15 @@ function normalizeExportRow(row: RawTicket) {
 
 export async function GET(req: Request) {
   try {
+    const auth = await getStaffAuth({ permission: 'reports', level: 'view' });
+    if (!auth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
     const { searchParams } = new URL(req.url);
     const start = parseDateParam(searchParams.get('start'));
     const end = parseDateParam(searchParams.get('end'));
 
     if (!start || !end) {
       return NextResponse.json({ error: 'Invalid date format. Expected yyyy-MM-dd.' }, { status: 400 });
-    }
-
-    const supabaseServer = await createSupabaseServerClient();
-    const {
-      data: { user },
-    } = await supabaseServer.auth.getUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const startIso = `${start}T00:00:00.000Z`;
@@ -132,10 +128,10 @@ export async function GET(req: Request) {
     if (error) throw new Error(error.message);
 
     const rows = ((data || []) as RawTicket[]).map(normalizeExportRow);
-    const worksheet = XLSX.utils.json_to_sheet(rows);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Daily Report');
-    const buffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
+    const buffer = await writeSpreadsheetBuffer(
+      objectsToSpreadsheetRows(rows),
+      'Daily Report'
+    );
     const fileName = `Daily_Issues_${start === end ? start : `${start}_to_${end}`}.xlsx`;
 
     return new NextResponse(buffer as unknown as BodyInit, {

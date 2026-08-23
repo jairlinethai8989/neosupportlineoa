@@ -4,6 +4,8 @@ import { createClient } from '@supabase/supabase-js';
 import * as line from '@line/bot-sdk';
 import { invalidateAllLiveCaches } from '@/lib/cache/liveCache';
 import { invalidateAllPreviewCaches } from '@/lib/reports/previewCache';
+import { assertImportableLineMediaProvider, readLineMediaWithLimit } from '@/lib/line/mediaSecurity';
+import { PRIVATE_CHAT_MEDIA_BUCKET } from '@/lib/media/chatMediaPath';
 
 import crypto from 'crypto';
 
@@ -299,22 +301,9 @@ export async function POST(req: Request) {
             try {
               console.log(`Webhook: Processing ${event.message.type} from ${event.message.contentProvider?.type || 'line'} provider`);
               
-              let buffer: Buffer;
-              
-              if (event.message.contentProvider?.type === 'external') {
-                const externalUrl = event.message.originalContentUrl;
-                const res = await fetch(externalUrl);
-                const arrayBuffer = await res.arrayBuffer();
-                buffer = Buffer.from(arrayBuffer);
-              } else {
-                const responseStream: any = await client.getMessageContent(event.message.id);
-                buffer = await new Promise<Buffer>((resolve, reject) => {
-                  const _chunks: Buffer[] = [];
-                  responseStream.on('data', (chunk: Buffer) => _chunks.push(chunk));
-                  responseStream.on('end', () => resolve(Buffer.concat(_chunks)));
-                  responseStream.on('error', (err: any) => reject(err));
-                });
-              }
+              assertImportableLineMediaProvider(event.message.contentProvider?.type);
+              const responseStream: any = await client.getMessageContent(event.message.id);
+              const buffer = await readLineMediaWithLimit(responseStream);
 
               let fileExt = 'bin';
               let contentType = 'application/octet-stream';
@@ -345,7 +334,7 @@ export async function POST(req: Request) {
               const fileName = `customer/${customer.id}/${event.message.id}_${Date.now()}.${fileExt}`;
               
               const { error: uploadError } = await supabaseAdmin.storage
-                .from('chat_media')
+                .from(PRIVATE_CHAT_MEDIA_BUCKET)
                 .upload(fileName, buffer, {
                   contentType: contentType,
                   cacheControl: '3600',
@@ -353,11 +342,7 @@ export async function POST(req: Request) {
                 });
 
               if (!uploadError) {
-                const {
-                  data: { publicUrl },
-                } = supabaseAdmin.storage.from('chat_media').getPublicUrl(fileName);
-                
-                finalContent = publicUrl;
+                finalContent = fileName;
                 
                 // Update the previously inserted message with the final URL in media_path
                 await supabaseAdmin.from('messages')
@@ -371,7 +356,7 @@ export async function POST(req: Request) {
                 console.error('Webhook: Upload Error:', uploadError);
               }
             } catch (err) {
-              console.error('Webhook: Media Fetch Error:', err);
+              console.warn('Webhook: Media import skipped:', err instanceof Error ? err.message : 'unknown error');
             }
           }
 

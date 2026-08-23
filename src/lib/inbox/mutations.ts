@@ -1,6 +1,11 @@
 import {
   closeConversationAction,
+  createInboxAttachmentUploadAction,
   deleteMessageAction,
+  linkConversationToTicketAction,
+  sendAgentMessageAction,
+  sendInboxAttachmentAction,
+  sendSystemMessageAction,
 } from '@/app/actions/messageActions';
 import { ticketService } from '@/lib/services/ticketService';
 import { supabase } from '@/lib/supabase';
@@ -8,6 +13,7 @@ import { normalizeInboxTicket } from '@/lib/inbox/normalizers';
 import { invalidateAllPreviewCaches } from '@/lib/reports/previewCache';
 import type { InboxTicket } from '@/types/inbox';
 import { compressImage } from '@/lib/utils/imageCompression';
+import { createStaffChatMediaUrl, PRIVATE_CHAT_MEDIA_BUCKET } from '@/lib/media/chatMediaPath';
 
 export interface InboxDeleteMessageResult {
   success: boolean;
@@ -39,97 +45,13 @@ export async function sendInboxAgentMessage(input: {
   mediaMimeType?: string;
 }) {
   const messageType = input.messageType || 'text';
-  const baseMessage = {
-    conversation_id: input.conversationId,
-    ticket_id: input.ticketId,
-    sender_type: 'agent',
-    staff_id: input.staffId,
-    content: messageType === 'text' ? input.content : `[${messageType.toUpperCase()} Attachment]`,
-    message_type: messageType,
-  };
-  const messageWithMedia =
-    messageType === 'text'
-      ? baseMessage
-      : {
-          ...baseMessage,
-          media_path: input.content,
-          media_mime_type: input.mediaMimeType || null,
-        };
-
-  let { error: insertError } = await supabase.from('messages').insert([messageWithMedia]);
-
-  if (
-    insertError?.code === 'PGRST204' &&
-    /media_mime_type/i.test(insertError.message || '') &&
-    messageType !== 'text'
-  ) {
-    const { error: retryError } = await supabase.from('messages').insert([
-      {
-        ...baseMessage,
-        media_path: input.content,
-      },
-    ]);
-    insertError = retryError;
-  }
-
-  if (
-    insertError?.code === 'PGRST204' &&
-    /media_path/i.test(insertError.message || '') &&
-    messageType !== 'text'
-  ) {
-    // Legacy schema fallback: keep media URL in content when media_path column is unavailable.
-    // This keeps image/file send working on environments where messages.media_path is not deployed yet.
-    const { error: retryError } = await supabase.from('messages').insert([
-      {
-        ...baseMessage,
-        content: input.content,
-      },
-    ]);
-    insertError = retryError;
-  }
-
-  if (insertError) {
-    const detailSuffix = [
-      insertError.code ? `code=${insertError.code}` : null,
-      insertError.details || null,
-      insertError.hint || null,
-    ]
-      .filter(Boolean)
-      .join(' | ');
-    throw new Error(
-      detailSuffix ? `${insertError.message} (${detailSuffix})` : insertError.message
-    );
-  }
-
-  const { error: updateError } = await supabase
-    .from('conversations')
-    .update({ last_message_at: new Date().toISOString() })
-    .eq('id', input.conversationId);
-
-  if (updateError) {
-    // Do not fail send flow when metadata timestamp update is blocked (e.g., RLS).
-    console.warn('Inbox: last_message_at update skipped:', updateError);
-  }
-  invalidateAllPreviewCaches();
+  if (messageType !== 'text') throw new Error('Attachment messages require uploadInboxChatMedia');
+  await sendAgentMessageAction(input.conversationId, input.ticketId, input.content, 'text');
   return { success: true as const };
 }
 
 export async function sendInboxSystemMessage(conversationId: string, content: string) {
-  const { error } = await supabase.from('messages').insert([
-    {
-      conversation_id: conversationId,
-      sender_type: 'system',
-      content,
-      message_type: 'text',
-    },
-  ]);
-  if (error) {
-    const detailSuffix = [error.code ? `code=${error.code}` : null, error.details || null, error.hint || null]
-      .filter(Boolean)
-      .join(' | ');
-    throw new Error(detailSuffix ? `${error.message} (${detailSuffix})` : error.message);
-  }
-  invalidateAllPreviewCaches();
+  await sendSystemMessageAction(conversationId, content);
   return { success: true as const };
 }
 
@@ -163,27 +85,7 @@ export async function resolveInboxTicket(input: ResolveInboxTicketInput & { conv
 }
 
 export async function linkConversationToTicket(conversationId: string, ticketId: string) {
-  const { data: duplicateActiveConversation, error: duplicateCheckError } = await supabase
-    .from('conversations')
-    .select('id')
-    .eq('current_ticket_id', ticketId)
-    .eq('status', 'active')
-    .neq('id', conversationId)
-    .limit(1)
-    .maybeSingle();
-
-  if (duplicateCheckError) throw duplicateCheckError;
-  if (duplicateActiveConversation) {
-    throw new Error('Ticket is already linked to another active conversation');
-  }
-
-  const { error } = await supabase
-    .from('conversations')
-    .update({ current_ticket_id: ticketId })
-    .eq('id', conversationId);
-
-  if (error) throw error;
-  invalidateAllPreviewCaches();
+  await linkConversationToTicketAction(conversationId, ticketId);
 }
 
 export async function uploadInboxChatMedia(input: {
@@ -208,31 +110,18 @@ export async function uploadInboxChatMedia(input: {
 
   const isImage = media.type.startsWith('image/') || media.type === 'image/webp';
   const fileExt = isImage ? 'webp' : (input.file ? input.file.name.split('.').pop() : 'bin');
-  const fileName = `${input.filePrefix || 'inbox'}_${input.conversationId}_${Date.now()}.${fileExt}`;
-  
+  const upload = await createInboxAttachmentUploadAction(input.conversationId, input.ticketId, {
+    mimeType: media.type,
+    extension: fileExt,
+    size: media.size,
+  });
   const { error: uploadError } = await supabase.storage
-    .from('chat_media')
-    .upload(fileName, media, { 
-      contentType: media.type,
-      upsert: true
-    });
+    .from(PRIVATE_CHAT_MEDIA_BUCKET)
+    .uploadToSignedUrl(upload.path, upload.token, media, { contentType: media.type });
 
   if (uploadError) throw uploadError;
 
-  const {
-    data: { publicUrl },
-  } = supabase.storage.from('chat_media').getPublicUrl(fileName);
+  await sendInboxAttachmentAction(input.conversationId, input.ticketId, upload.path);
 
-  const messageType = (input.file?.type.startsWith('image/') || input.blob) ? 'image' : 'file';
-
-  await sendInboxAgentMessage({
-    conversationId: input.conversationId,
-    ticketId: input.ticketId,
-    staffId: input.staffId,
-    content: publicUrl,
-    messageType,
-    mediaMimeType: input.file ? input.file.type : 'image/jpeg',
-  });
-
-  return publicUrl;
+  return createStaffChatMediaUrl(upload.path);
 }

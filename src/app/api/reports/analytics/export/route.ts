@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
-import * as XLSX from 'xlsx';
-import { createSupabaseServerClient } from '@/lib/supabase-server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
+import { getStaffAuth } from '@/lib/auth/staffAuthorization';
+import { objectsToSpreadsheetRows } from '@/lib/exports/spreadsheet';
+import { writeSpreadsheetBuffer } from '@/lib/exports/spreadsheet.server';
 
 export const runtime = 'nodejs';
 
@@ -13,20 +14,15 @@ function parseDateTimeParam(value: string | null): string | null {
 
 export async function GET(req: Request) {
   try {
+    const auth = await getStaffAuth({ permission: 'reports', level: 'view' });
+    if (!auth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
     const { searchParams } = new URL(req.url);
     const start = parseDateTimeParam(searchParams.get('start'));
     const end = parseDateTimeParam(searchParams.get('end'));
 
     if (!start || !end) {
       return NextResponse.json({ error: 'Invalid date range.' }, { status: 400 });
-    }
-
-    const supabaseServer = await createSupabaseServerClient();
-    const {
-      data: { user },
-    } = await supabaseServer.auth.getUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const { data, error } = await supabaseAdmin
@@ -46,10 +42,10 @@ export async function GET(req: Request) {
       Created: ticket.created_at ? new Date(ticket.created_at).toLocaleDateString('th-TH') : '',
     }));
 
-    const worksheet = XLSX.utils.json_to_sheet(rows);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Analytics Report');
-    const buffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
+    const buffer = await writeSpreadsheetBuffer(
+      objectsToSpreadsheetRows(rows),
+      'Analytics Report'
+    );
 
     return new NextResponse(buffer as unknown as BodyInit, {
       headers: {

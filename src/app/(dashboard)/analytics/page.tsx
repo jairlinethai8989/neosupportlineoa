@@ -1,6 +1,6 @@
 'use client';
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   BarChart as BarChartIcon, 
   PieChart as PieChartIcon, 
@@ -30,7 +30,6 @@ const SortableWidgetGrid = dynamic(
   }
 );
 import { DateTime } from 'luxon';
-import { supabase } from '@/lib/supabase';
 import { exportDashboardAsPDF, printDataTable } from '@/lib/utils/exportUtils';
 import Skeleton from '@/components/ui/Skeleton';
 import { ExportPreviewModal, type ExportPreviewData } from '@/components/ui/ExportPreviewModal';
@@ -41,6 +40,10 @@ const Evaluation360Page = dynamic(() => import('./staff/evaluation-360/page'));
 const InsightsPage = dynamic(() => import('./insights/page'));
 import { useAppContext } from '@/contexts/AppContext';
 import useSWR from 'swr';
+import {
+  getAnalyticsDashboardAction,
+  getDashboardExportTicketsAction,
+} from '@/app/actions/dashboardActions';
 
 /**
  * 1. Define Chart Types & Mock Logic for 16 variations
@@ -112,12 +115,10 @@ export default function AdvancedAnalyticsPage() {
   });
 
   const fetcher = async () => {
-    const { data, error } = await supabase.rpc('get_analytics_dashboard_v2', {
-      start_date: dateRange.start,
-      end_date: dateRange.end
+    return getAnalyticsDashboardAction({
+      from: `${dateRange.start}T00:00:00.000Z`,
+      to: `${dateRange.end}T23:59:59.999Z`,
     });
-    if (error) throw error;
-    return data;
   };
 
   const currentKey = `analytics_${dateRange.start}_${dateRange.end}`;
@@ -173,24 +174,10 @@ export default function AdvancedAnalyticsPage() {
     let currentTickets = tickets;
     if (!currentTickets.length) {
       try {
-        const { data, error } = await supabase
-          .from('tickets')
-          .select(`
-            id,
-            ticket_no,
-            subject,
-            status,
-            priority,
-            created_at,
-            resolved_at
-          `)
-          .gte('created_at', dateRange.start)
-          .lte('created_at', dateRange.end)
-          .order('created_at', { ascending: false })
-          .limit(5000);
-        
-        if (error) throw error;
-        currentTickets = data || [];
+        currentTickets = await getDashboardExportTicketsAction({
+          from: `${dateRange.start}T00:00:00.000Z`,
+          to: `${dateRange.end}T23:59:59.999Z`,
+        });
         setTickets(currentTickets);
       } catch (err) {
         console.error('Fetch raw tickets for export failed:', err);

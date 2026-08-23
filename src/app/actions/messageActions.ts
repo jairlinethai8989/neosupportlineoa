@@ -1,66 +1,67 @@
 'use server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
-import { cookies } from 'next/headers';
-import { createServerClient } from '@supabase/ssr';
 import { invalidateAllLiveCaches } from '@/lib/cache/liveCache';
 import { invalidateAllPreviewCaches } from '@/lib/reports/previewCache';
+import { requireStaffAuth } from '@/lib/auth/staffAuthorization';
+import { parseTicketDetailId, parseTicketDetailMessage } from '@/lib/tickets/ticketDetailSecurity';
+import { parseInboxAttachmentReference } from '@/lib/inbox/inboxMediaSecurity';
+import { getInternalAttachmentMediaInfo, parseInternalAttachmentUpload } from '@/lib/tickets/internalTicketSecurity';
+import { PRIVATE_CHAT_MEDIA_BUCKET } from '@/lib/media/chatMediaPath';
+import crypto from 'crypto';
 
-async function getSessionUser() {
-  const cookieStore = await cookies();
-  const supabaseAuth = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() { return cookieStore.getAll(); },
-      },
-    }
-  );
-  
-  const { data: { user }, error } = await supabaseAuth.auth.getUser();
-  if (error || !user) throw new Error('Unauthorized Access. Invalid Session.');
-  return user;
+function parseConversationId(value: unknown) {
+  try {
+    return parseTicketDetailId(value);
+  } catch {
+    throw new Error('Invalid conversation ID');
+  }
 }
 
-async function verifyAgentRole(userId: string) {
-  const { data: profile } = await supabaseAdmin
-    .from('profiles')
-    .select('role')
-    .eq('id', userId)
-    .single();
+function parseOptionalTicketId(value: unknown) {
+  if (value === null || value === undefined || value === '') return null;
+  return parseTicketDetailId(value);
+}
 
-  if (!profile || !['Agent', 'Administrator'].includes(profile.role)) {
-    throw new Error('Unauthorized: Agent role required');
+async function assertConversationTicketRelationship(conversationId: string, ticketId: string | null) {
+  const { data: conversation, error } = await supabaseAdmin.from('conversations')
+    .select('id, customer_id, current_ticket_id').eq('id', conversationId).maybeSingle();
+  if (error || !conversation) throw new Error('Conversation not found');
+  if (!ticketId) return;
+  const { data: ticket } = await supabaseAdmin.from('tickets').select('id, customer_id').eq('id', ticketId).maybeSingle();
+  if (!ticket || (conversation.current_ticket_id !== ticketId && conversation.customer_id !== ticket.customer_id)) {
+    throw new Error('Conversation does not belong to ticket');
   }
-  return profile.role;
 }
 
 export async function sendAgentMessageAction(
   conversationId: string, 
   ticketId: string | null, 
   content: string, 
-  messageType: string = 'text',
-  mediaMimeType?: string
+  messageType: string = 'text'
 ) {
-  const user = await getSessionUser();
-  await verifyAgentRole(user.id);
+  const { user } = await requireStaffAuth({ permission: 'inbox', level: 'edit' });
+  const validConversationId = parseConversationId(conversationId);
+  const validTicketId = parseOptionalTicketId(ticketId);
+  if (messageType !== 'text') throw new Error('Attachment messages require the signed upload workflow');
+  const validContent = parseTicketDetailMessage({ conversationId: validConversationId, content }).content;
+  await assertConversationTicketRelationship(validConversationId, validTicketId);
 
   const { error: dbError } = await supabaseAdmin.from('messages').insert([{
-    conversation_id: conversationId,
-    ticket_id: ticketId,
+    conversation_id: validConversationId,
+    ticket_id: validTicketId,
     sender_type: 'agent',
     staff_id: user.id,
-    content: messageType === 'text' ? content : `[${messageType.toUpperCase()} Attachment]`,
-    message_type: messageType,
-    media_path: messageType !== 'text' ? content : null,
-    media_mime_type: mediaMimeType || null
+    content: validContent,
+    message_type: 'text',
+    media_path: null,
+    media_mime_type: null
   }]);
   
   if (dbError) throw new Error(dbError.message);
 
   await supabaseAdmin.from('conversations').update({
     last_message_at: new Date().toISOString()
-  }).eq('id', conversationId);
+  }).eq('id', validConversationId);
   invalidateAllLiveCaches();
   invalidateAllPreviewCaches();
 }
@@ -69,13 +70,15 @@ export async function sendSystemMessageAction(
   conversationId: string, 
   content: string
 ) {
-  const user = await getSessionUser();
-  await verifyAgentRole(user.id);
+  await requireStaffAuth({ permission: 'inbox', level: 'edit' });
+  const validConversationId = parseConversationId(conversationId);
+  const validContent = parseTicketDetailMessage({ conversationId: validConversationId, content }).content;
+  await assertConversationTicketRelationship(validConversationId, null);
 
   const { error: dbError } = await supabaseAdmin.from('messages').insert([{
-    conversation_id: conversationId,
+    conversation_id: validConversationId,
     sender_type: 'system',
-    content: content,
+    content: validContent,
     message_type: 'text'
   }]);
   
@@ -85,15 +88,16 @@ export async function sendSystemMessageAction(
 }
 
 export async function closeConversationAction(conversationId: string) {
-  const user = await getSessionUser();
-  await verifyAgentRole(user.id);
+  await requireStaffAuth({ permission: 'inbox', level: 'edit' });
+  const validConversationId = parseConversationId(conversationId);
+  await assertConversationTicketRelationship(validConversationId, null);
 
   await supabaseAdmin.from('conversations')
     .update({ status: 'closed', current_ticket_id: null })
-    .eq('id', conversationId);
+    .eq('id', validConversationId);
   
   await supabaseAdmin.from('messages').insert([{
-    conversation_id: conversationId,
+    conversation_id: validConversationId,
     sender_type: 'system',
     content: '[SYSTEM] จบการสนทนาโดยเจ้าหน้าที่',
     message_type: 'text'
@@ -104,14 +108,14 @@ export async function closeConversationAction(conversationId: string) {
 
 export async function deleteMessageAction(messageId: string) {
   try {
-    const user = await getSessionUser();
-    await verifyAgentRole(user.id);
+    const { user, profile } = await requireStaffAuth({ permission: 'inbox', level: 'edit' });
+    const validMessageId = parseTicketDetailId(messageId);
 
     // Get message details
     const { data: message, error: fetchError } = await supabaseAdmin
       .from('messages')
       .select('staff_id, sender_type')
-      .eq('id', messageId)
+      .eq('id', validMessageId)
       .single();
 
     if (fetchError || !message) {
@@ -119,7 +123,6 @@ export async function deleteMessageAction(messageId: string) {
     }
     
     // Authorization check
-    const { data: profile } = await supabaseAdmin.from('profiles').select('role').eq('id', user.id).single();
     const isAdmin = profile?.role === 'Administrator';
     
     if (message.staff_id !== user.id && !isAdmin) {
@@ -133,7 +136,7 @@ export async function deleteMessageAction(messageId: string) {
         message_type: 'unsent',
         content: '[ข้อความถูกยกเลิก]'
       })
-      .eq('id', messageId);
+      .eq('id', validMessageId);
       
     if (dbError) {
       return { success: false, error: dbError.message };
@@ -147,4 +150,84 @@ export async function deleteMessageAction(messageId: string) {
     console.error('Delete Action Error:', err);
     return { success: false, error: message };
   }
+}
+
+export async function linkConversationToTicketAction(conversationValue: unknown, ticketValue: unknown) {
+  await requireStaffAuth({ permission: 'inbox', level: 'edit' });
+  const conversationId = parseConversationId(conversationValue);
+  const ticketId = parseTicketDetailId(ticketValue);
+  await assertConversationTicketRelationship(conversationId, ticketId);
+
+  const { data: duplicate, error: duplicateError } = await supabaseAdmin.from('conversations')
+    .select('id').eq('current_ticket_id', ticketId).eq('status', 'active')
+    .neq('id', conversationId).limit(1).maybeSingle();
+  if (duplicateError) throw new Error('Failed to validate conversation link');
+  if (duplicate) throw new Error('Ticket is already linked to another active conversation');
+
+  const { error } = await supabaseAdmin.from('conversations')
+    .update({ current_ticket_id: ticketId, updated_at: new Date().toISOString() })
+    .eq('id', conversationId);
+  if (error) throw new Error('Failed to link conversation');
+  invalidateAllLiveCaches();
+  invalidateAllPreviewCaches();
+  return { success: true } as const;
+}
+
+export async function createInboxAttachmentUploadAction(
+  conversationValue: unknown,
+  ticketValue: unknown,
+  value: unknown
+) {
+  const { user } = await requireStaffAuth({ permission: 'inbox', level: 'edit' });
+  const conversationId = parseConversationId(conversationValue);
+  const ticketId = parseOptionalTicketId(ticketValue);
+  const input = parseInternalAttachmentUpload(value);
+  await assertConversationTicketRelationship(conversationId, ticketId);
+
+  const path = `staff/${user.id}/conversations/${conversationId}/${crypto.randomUUID()}.${input.extension}`;
+  const { data, error } = await supabaseAdmin.storage.from(PRIVATE_CHAT_MEDIA_BUCKET).createSignedUploadUrl(path);
+  if (error || !data?.token) throw new Error('Failed to authorize inbox attachment upload');
+  return { path, token: data.token };
+}
+
+export async function sendInboxAttachmentAction(
+  conversationValue: unknown,
+  ticketValue: unknown,
+  pathValue: unknown
+) {
+  const { user } = await requireStaffAuth({ permission: 'inbox', level: 'edit' });
+  const conversationId = parseConversationId(conversationValue);
+  const ticketId = parseOptionalTicketId(ticketValue);
+  const path = parseInboxAttachmentReference(pathValue, user.id, conversationId);
+  const media = getInternalAttachmentMediaInfo(path);
+  await assertConversationTicketRelationship(conversationId, ticketId);
+
+  const slash = path.lastIndexOf('/');
+  const directory = path.slice(0, slash);
+  const filename = path.slice(slash + 1);
+  const { data: objects, error: listError } = await supabaseAdmin.storage
+    .from(PRIVATE_CHAT_MEDIA_BUCKET).list(directory, { search: filename, limit: 2 });
+  if (listError || !objects?.some((object) => object.name === filename)) {
+    throw new Error('Inbox attachment upload is incomplete');
+  }
+
+  const { data: message, error } = await supabaseAdmin.from('messages').insert([{
+    conversation_id: conversationId,
+    ticket_id: ticketId,
+    sender_type: 'agent',
+    staff_id: user.id,
+    content: media.content,
+    message_type: media.messageType,
+    media_path: path,
+    media_mime_type: media.mimeType,
+  }]).select('id, content, sender_type, staff_id, ticket_id, conversation_id, message_type, media_path, media_mime_type, created_at').single();
+  if (error || !message) {
+    await supabaseAdmin.storage.from(PRIVATE_CHAT_MEDIA_BUCKET).remove([path]);
+    throw new Error('Failed to save inbox attachment');
+  }
+
+  await supabaseAdmin.from('conversations').update({ last_message_at: new Date().toISOString() }).eq('id', conversationId);
+  invalidateAllLiveCaches();
+  invalidateAllPreviewCaches();
+  return message;
 }

@@ -6,6 +6,7 @@ import type {
   InboxMessage,
   InboxTicket,
 } from '@/types/inbox';
+import { createStaffChatMediaUrl } from '@/lib/media/chatMediaPath';
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -137,15 +138,20 @@ export function normalizeInboxConversations(values: unknown[]): InboxConversatio
 export function normalizeInboxMessage(value: unknown): InboxMessage | null {
   if (!isRecord(value)) return null;
 
+  const messageType = asString(value.message_type);
+  const rawContent = asString(value.content);
+  const rawMediaPath = asString(value.media_path);
+  const isMedia = messageType === 'image' || messageType === 'file';
+
   return {
     id: asString(value.id) || '',
-    content: asString(value.content),
+    content: isMedia && !rawMediaPath ? createStaffChatMediaUrl(rawContent) : rawContent,
     sender_type: asString(value.sender_type),
     staff_id: asString(value.staff_id),
     conversation_id: asString(value.conversation_id) || '',
     ticket_id: asString(value.ticket_id),
-    message_type: asString(value.message_type),
-    media_path: asString(value.media_path),
+    message_type: messageType,
+    media_path: isMedia ? createStaffChatMediaUrl(rawMediaPath) : rawMediaPath,
     media_mime_type: asString(value.media_mime_type),
     created_at: asString(value.created_at) || new Date(0).toISOString(),
   };
@@ -170,7 +176,6 @@ export function normalizeInboxTicket(value: unknown): InboxTicket | null {
     assigned_agent_id: asString(value.assigned_agent_id),
     module: asString(value.module),
     issue_type: asString(value.issue_type),
-    escalation_token: asString(value.escalation_token),
   };
 }
 

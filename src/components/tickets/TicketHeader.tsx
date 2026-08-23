@@ -6,7 +6,6 @@ import {
   canResolveTicket,
   isResolvedOrClosedStatus,
   isTicketOwnerOrAdmin,
-  isNewStatus,
 } from '@/lib/tickets/detailState';
 
 interface TicketHeaderProps {
@@ -14,7 +13,6 @@ interface TicketHeaderProps {
   status: string;
   user: TicketDetailUser | null;
   updating: boolean;
-  isChatActive: boolean;
   onUpdate: () => void;
   onResolveClick: () => void;
   onRejectFixCompleted: () => void;
@@ -28,7 +26,6 @@ export const TicketHeader: React.FC<TicketHeaderProps> = ({
   status,
   user,
   updating,
-  isChatActive,
   onUpdate,
   onResolveClick,
   onRejectFixCompleted,
@@ -42,7 +39,7 @@ export const TicketHeader: React.FC<TicketHeaderProps> = ({
 
   const isResolvedOrClosed = isResolvedOrClosedStatus(status);
   const isOwnerOrAdmin = isTicketOwnerOrAdmin(ticket, user);
-  const canResolve = canResolveTicket(status, isOwnerOrAdmin, isChatActive);
+  const canResolve = canResolveTicket(status, isOwnerOrAdmin);
   const canReviewFixCompleted = status === 'Fix Completed';
 
   return (

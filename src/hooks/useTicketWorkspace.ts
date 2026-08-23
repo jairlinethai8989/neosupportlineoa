@@ -4,10 +4,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useNotificationContext } from '@/contexts/NotificationContext';
 import { useAppContext } from '@/contexts/AppContext';
-import { supabase } from '@/lib/supabase';
 import { normalizeTicketWorkspaceTicket } from '@/lib/tickets/normalizers';
 import {
-  getTicketWorkspaceActiveConversationToast,
   getTicketWorkspaceClaimFailToast,
   getTicketWorkspaceClaimSuccessToast,
   getTicketWorkspaceClaimViewOnlyToast,
@@ -17,11 +15,10 @@ import {
 } from '@/lib/tickets/feedback';
 import { claimWorkspaceTicket, resolveWorkspaceTicket } from '@/lib/tickets/mutations';
 import {
-  getTicketWorkspaceTicketById,
-  getTicketWorkspaceUser,
-  listTicketWorkspaceConversationsByTicketIds,
-  listTicketWorkspaceTickets,
-} from '@/lib/tickets/queries';
+  getTicketWorkspaceIdentityAction,
+  getTicketWorkspacePageAction,
+  getTicketWorkspaceTicketByIdAction,
+} from '@/app/actions/ticketWorkspaceActions';
 import type {
   TicketWorkspaceConversation,
   TicketWorkspaceProfile,
@@ -318,7 +315,7 @@ export function useTicketWorkspace(filterCustomerId: string | null) {
     const errors: string[] = [];
 
     try {
-      const ticketResult = await listTicketWorkspaceTickets({
+      const workspacePage = await getTicketWorkspacePageAction({
         fromIso,
         toIso,
         limit: WORKSPACE_TICKETS_PAGE_SIZE + 1,
@@ -327,18 +324,13 @@ export function useTicketWorkspace(filterCustomerId: string | null) {
         sortKey: sortConfig.key,
         sortDirection: sortConfig.direction,
       });
-      const pageTickets = ticketResult.slice(0, WORKSPACE_TICKETS_PAGE_SIZE);
-      const hasNext = ticketResult.length > WORKSPACE_TICKETS_PAGE_SIZE;
+      const pageTickets = workspacePage.tickets.slice(0, WORKSPACE_TICKETS_PAGE_SIZE);
+      const hasNext = workspacePage.tickets.length > WORKSPACE_TICKETS_PAGE_SIZE;
       setHasNextTicketPage(hasNext);
       
       const cache = getOrInitializeCache();
       cache.hasNextPageByPage.set(ticketPage, hasNext);
 
-      const ticketIds = pageTickets.map((ticket) => ticket.id);
-      const customerIds = pageTickets
-        .map((ticket) => ticket.customer_id)
-        .filter((id): id is string => Boolean(id));
-      
       const now = Date.now();
       for (const [ticketId, expiresAt] of pendingRealtimeTicketIdsRef.current.entries()) {
         if (expiresAt <= now) {
@@ -347,8 +339,7 @@ export function useTicketWorkspace(filterCustomerId: string | null) {
       }
 
       if (isSilent) {
-        const pageConversations = await listTicketWorkspaceConversationsByTicketIds(ticketIds, customerIds);
-        setConversations(pageConversations);
+        setConversations(workspacePage.conversations);
 
         const pendingRealtimeTicketIds = new Set(pendingRealtimeTicketIdsRef.current.keys());
         setTickets((previousTickets) =>
@@ -366,15 +357,7 @@ export function useTicketWorkspace(filterCustomerId: string | null) {
         setTickets(pageTickets);
         setLoading(false);
 
-        // Fetch conversations asynchronously without blocking the UI
-        listTicketWorkspaceConversationsByTicketIds(ticketIds, customerIds)
-          .then((pageConversations) => {
-            setConversations(pageConversations);
-          })
-          .catch((err) => {
-            console.error('Fetch conversations error:', err);
-            setDebugError(err instanceof Error ? err.message : 'Failed to load conversations');
-          });
+        setConversations(workspacePage.conversations);
       }
     } catch (error) {
       console.error('Fetch tickets/conversations error:', error);
@@ -415,7 +398,7 @@ export function useTicketWorkspace(filterCustomerId: string | null) {
         let latestTicket = null;
         for (let i = 0; i < 2; i++) {
           try {
-            latestTicket = await getTicketWorkspaceTicketById(ticketId);
+            latestTicket = await getTicketWorkspaceTicketByIdAction(ticketId);
             if (latestTicket) break;
             if (i < 1) await new Promise((resume) => setTimeout(resume, 1500));
           } catch (err) {
@@ -540,7 +523,10 @@ export function useTicketWorkspace(filterCustomerId: string | null) {
     const { table, action, payload } = lastDbEvent;
 
     if (table === 'tickets') {
-      const p = payload as any;
+      const p = payload as {
+        new?: Record<string, unknown>;
+        old?: Record<string, unknown>;
+      };
       if (action === 'INSERT' || action === 'UPDATE') {
         const ticketId = String(p.new?.id || p.old?.id || '');
         if (ticketId) {
@@ -699,7 +685,7 @@ export function useTicketWorkspace(filterCustomerId: string | null) {
 
     try {
       setLoading(true);
-      const user = await getTicketWorkspaceUser();
+      const user = await getTicketWorkspaceIdentityAction();
       if (!user) {
         addToast(getTicketWorkspaceLoginRequiredToast());
         return;
@@ -730,7 +716,6 @@ export function useTicketWorkspace(filterCustomerId: string | null) {
     }
   }, [
     addToast,
-    conversations,
     resSummary,
     resolvingTicket,
     selectedIssueType,
@@ -746,7 +731,7 @@ export function useTicketWorkspace(filterCustomerId: string | null) {
 
       setClaimingId(ticketId);
       try {
-        const user = await getTicketWorkspaceUser();
+        const user = await getTicketWorkspaceIdentityAction();
         if (!user) {
           addToast(getTicketWorkspaceLoginRequiredToast());
           setClaimingId(null);
@@ -786,7 +771,7 @@ export function useTicketWorkspace(filterCustomerId: string | null) {
 
         // Process claim in background
         claimWorkspaceTicket(ticketId, user.id)
-          .then(({ ticket, conversationId }) => {
+          .then(({ ticket }) => {
             setTickets((prev) => upsertWorkspaceTicket(prev, ticket));
             void fetchData(true); // Refresh conversations to pick up the new linked conversation
             addToast(getTicketWorkspaceClaimSuccessToast(ticketId));

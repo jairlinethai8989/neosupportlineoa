@@ -1,42 +1,64 @@
 'use server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
-import { cookies } from 'next/headers';
-import { createServerClient } from '@supabase/ssr';
+import { requireStaffAuth } from '@/lib/auth/staffAuthorization';
+import { parseAuditLogFilters } from '@/lib/settings/auditLogSecurity';
 
-async function getSessionUser() {
-  const cookieStore = await cookies();
-  const supabaseAuth = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() { return cookieStore.getAll(); },
-      },
-    }
-  );
-  
-  const { data: { user }, error } = await supabaseAuth.auth.getUser();
-  if (error || !user) throw new Error('Unauthorized Access. Invalid Session.');
-  return user;
+export async function getSystemLogsAction(value: unknown = {}) {
+  await requireStaffAuth({ permission: 'settings_audit', level: 'view' });
+  const filters = parseAuditLogFilters(value);
+
+  let query = supabaseAdmin
+    .from('system_logs')
+    .select(`
+      id, performer_id, action_type, entity_type, entity_id,
+      old_data, new_data, note, created_at,
+      performer:profiles!performer_id(full_name, avatar_url, role)
+    `)
+    .order('created_at', { ascending: false })
+    .limit(filters.limit);
+
+  if (filters.agentId) query = query.eq('performer_id', filters.agentId);
+  if (filters.actionType) query = query.eq('action_type', filters.actionType);
+
+  const { data, error } = await query;
+  if (error) throw new Error('Failed to load system logs');
+  return data || [];
 }
 
-async function verifyAdminRole(userId: string) {
-  const { data: profile } = await supabaseAdmin
-    .from('profiles')
-    .select('role')
-    .eq('id', userId)
-    .single();
+export async function getTicketAuditLogsAction(value: unknown = {}) {
+  await requireStaffAuth({ permission: 'settings_audit', level: 'view' });
+  const filters = parseAuditLogFilters(value);
+  let query = supabaseAdmin
+    .from('ticket_logs')
+    .select(`
+      id, ticket_id, performer_id, to_user_id, action_type, from_status,
+      to_status, old_data, new_data, note, created_at,
+      performer:profiles!performer_id(full_name, avatar_url),
+      target_user:profiles!to_user_id(full_name),
+      tickets(ticket_no, subject)
+    `)
+    .order('created_at', { ascending: false })
+    .limit(filters.limit);
+  if (filters.agentId) query = query.eq('performer_id', filters.agentId);
+  if (filters.actionType) query = query.eq('action_type', filters.actionType);
+  const { data, error } = await query;
+  if (error) throw new Error('Failed to load ticket audit logs');
+  return data || [];
+}
 
-  if (!profile || profile.role !== 'Administrator') {
-    throw new Error('Unauthorized: Administrator role required to clear logs');
-  }
-  return true;
+export async function getAuditAgentsAction() {
+  await requireStaffAuth({ permission: 'settings_audit', level: 'view' });
+  const { data, error } = await supabaseAdmin
+    .from('profiles')
+    .select('id, full_name')
+    .order('full_name');
+  if (error) throw new Error('Failed to load audit agents');
+  return (data || []).map((row) => ({ id: row.id, full_name: row.full_name }));
 }
 
 export async function clearSystemLogsAction() {
   try {
-    const user = await getSessionUser();
-    await verifyAdminRole(user.id);
+    await requireStaffAuth({ roles: ['Administrator'] });
 
     const { error } = await supabaseAdmin
       .from('system_logs')
@@ -54,8 +76,7 @@ export async function clearSystemLogsAction() {
 
 export async function clearTicketLogsAction() {
   try {
-    const user = await getSessionUser();
-    await verifyAdminRole(user.id);
+    await requireStaffAuth({ roles: ['Administrator'] });
 
     const { error } = await supabaseAdmin
       .from('ticket_logs')

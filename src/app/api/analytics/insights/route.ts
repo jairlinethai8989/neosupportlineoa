@@ -1,26 +1,37 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextResponse } from 'next/server';
 import { createSupabaseServerClient } from '@/lib/supabase-server';
+import { getStaffAuth } from '@/lib/auth/staffAuthorization';
+import {
+  parseAnalyticsInsightsQuery,
+  parseGeneratedInsightsReport,
+} from '@/lib/analytics/insightsSecurity';
+import {
+  extractGeminiCandidateText,
+  readBoundedJsonResponse,
+  sanitizeExternalAiContextText,
+} from '@/lib/ai/externalAiSecurity';
 
 export const runtime = 'nodejs';
 
 export async function GET(req: Request) {
   try {
+    const auth = await getStaffAuth({ permission: 'analytics', level: 'view' });
+    if (!auth) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const { searchParams } = new URL(req.url);
-    const preset = searchParams.get('preset') || 'all'; // 7days, 30days, all
-    const organizationId = searchParams.get('organizationId');
-    let startDate = searchParams.get('startDate');
-    let endDate = searchParams.get('endDate');
+    let query;
+    try {
+      query = parseAnalyticsInsightsQuery(searchParams);
+    } catch {
+      return NextResponse.json({ error: 'Invalid analytics query' }, { status: 400 });
+    }
+    const { preset, organizationId, organizationsOnly, ai, customPrompt } = query;
+    let { startDate, endDate } = query;
 
     const supabase = await createSupabaseServerClient();
-    const profileBypassAuth = process.env.NODE_ENV !== 'production' && process.env.PROFILE_BYPASS_AUTH === '1';
-
-    if (!profileBypassAuth) {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-      }
-    }
 
     // Query 0: Active Organizations
     const { data: organizationsList, error: hospListErr } = await supabase
@@ -31,7 +42,6 @@ export async function GET(req: Request) {
     if (hospListErr) throw hospListErr;
 
     // Check if client only wants organizations list (light request)
-    const organizationsOnly = searchParams.get('organizationsOnly') === 'true';
     if (organizationsOnly) {
       return NextResponse.json({ organizations: organizationsList });
     }
@@ -66,7 +76,7 @@ export async function GET(req: Request) {
 
     if (startDate) combinedQuery = combinedQuery.gte('created_at', startDate);
     if (endDate) combinedQuery = combinedQuery.lte('created_at', endDate);
-    if (organizationId && organizationId !== 'all') combinedQuery = combinedQuery.eq('organization_id', organizationId);
+    if (organizationId) combinedQuery = combinedQuery.eq('organization_id', organizationId);
 
     const { data: rawTickets, error: queryErr } = await combinedQuery;
     if (queryErr) throw queryErr;
@@ -133,7 +143,6 @@ export async function GET(req: Request) {
     }
 
     let aiReport = null;
-    const ai = searchParams.get('ai') === 'true';
     if (ai) {
       // 1. Fetch API Key
       let dbApiKey = null;
@@ -146,20 +155,22 @@ export async function GET(req: Request) {
         if (companySettings?.gemini_api_key) {
           dbApiKey = companySettings.gemini_api_key;
         }
-      } catch (dbErr) {
-        console.error('Error loading API key from company settings:', dbErr);
+      } catch (error: unknown) {
+        console.error(
+          'Unable to load analytics AI configuration:',
+          error instanceof Error ? error.name : 'UnknownError'
+        );
       }
 
       const apiKey = dbApiKey || process.env.GEMINI_API_KEY;
 
       if (apiKey) {
         try {
-          const topOrganizationsText = topOrganizations.map((h, i) => `- อันดับ ${i + 1} ${h.name}: ${h.count} เคส`).join('\n');
-          const issueTypesText = issueTypes.map(it => `- ${it.name}: ${it.count} เคส`).join('\n');
-          const topSubjectsText = topSubjects.map((s, i) => `- อันดับ ${i + 1} ${s.name}: ${s.count} เคส`).join('\n');
-          const topStaffText = topStaff.map((st, i) => `- อันดับ ${i + 1} ${st.name} (${st.organization}): ${st.count} เคส`).join('\n');
+          const topOrganizationsText = topOrganizations.map((h, i) => `- อันดับ ${i + 1} ${sanitizeExternalAiContextText(h.name, 300)}: ${h.count} เคส`).join('\n');
+          const issueTypesText = issueTypes.map(it => `- ${sanitizeExternalAiContextText(it.name, 300)}: ${it.count} เคส`).join('\n');
+          const topSubjectsText = topSubjects.map((s, i) => `- อันดับ ${i + 1} ${sanitizeExternalAiContextText(s.name, 1000)}: ${s.count} เคส`).join('\n');
+          const topStaffText = topStaff.map((st, i) => `- อันดับ ${i + 1} ${sanitizeExternalAiContextText(st.name, 300)} (${sanitizeExternalAiContextText(st.organization, 300)}): ${st.count} เคส`).join('\n');
 
-          const customPrompt = searchParams.get('customPrompt');
           let systemInstructions = `คุณคือผู้เชี่ยวชาญด้าน Service Operations และผู้ช่วยวิเคราะห์ข้อมูลระดับสูงสำหรับทีม Neo Support
 หน้าที่ของคุณคือการอ่านสถิติการแจ้งเคสปัญหาประจำสัปดาห์หรือภาพรวมเหล่านี้ แล้วเขียนวิเคราะห์ข้อมูลเชิงลึกเป็นภาษาไทยให้ออกมาเป็นวิเคราะห์ข้อมูลระดับบริหาร สรุปปัญหา และแนวทางการแก้ไข (Actionable Insights) ที่สัมพันธ์กับตัวเลขข้อมูลสถิติจริงที่ส่งให้เท่านั้น ห้ามแต่งข้อมูลขึ้นมาเองนอกเหนือจากสถิตินี้!
 
@@ -189,7 +200,8 @@ ${topStaffText || 'ไม่มีข้อมูล'}
           ];
 
           let success = false;
-          let resData: any = null;
+          let resData: unknown = null;
+          const aiRequestDeadline = AbortSignal.timeout(20_000);
 
           for (const url of endpoints) {
             try {
@@ -198,6 +210,7 @@ ${topStaffText || 'ไม่มีข้อมูล'}
                 headers: {
                   'Content-Type': 'application/json',
                 },
+                signal: aiRequestDeadline,
                 body: JSON.stringify({
                   contents: [
                     {
@@ -250,26 +263,31 @@ ${topStaffText || 'ไม่มีข้อมูล'}
               });
 
               if (response.ok) {
-                resData = await response.json();
+                resData = await readBoundedJsonResponse(response);
                 success = true;
                 break;
               } else {
-                const errorText = await response.text();
-                console.error(`Gemini API error during insights at endpoint ${url.split('?')[0]}:`, response.status, errorText);
+                console.error(`Gemini API error during insights at endpoint ${url.split('?')[0]}:`, response.status);
               }
-            } catch (err: any) {
-              console.error(`Fetch error to endpoint ${url.split('?')[0]}:`, err);
+            } catch (err: unknown) {
+              console.error(
+                `Fetch error to endpoint ${url.split('?')[0]}:`,
+                err instanceof Error ? err.name : 'UnknownError'
+              );
             }
           }
 
           if (success && resData) {
-            const textResult = resData.candidates?.[0]?.content?.parts?.[0]?.text;
+            const textResult = extractGeminiCandidateText(resData);
             if (textResult) {
-              aiReport = JSON.parse(textResult);
+              aiReport = parseGeneratedInsightsReport(JSON.parse(textResult));
             }
           }
-        } catch (err) {
-          console.error('Error generating AI report via Gemini:', err);
+        } catch (error: unknown) {
+          console.error(
+            'Analytics insights generation failed:',
+            error instanceof Error ? error.name : 'UnknownError'
+          );
         }
       }
 
@@ -299,8 +317,11 @@ ${topStaffText || 'ไม่มีข้อมูล'}
       aiReport
     });
 
-  } catch (error: any) {
-    console.error('Error in insights analytics API:', error);
-    return NextResponse.json({ error: error.message || 'Internal Server Error' }, { status: 500 });
+  } catch (error: unknown) {
+    console.error(
+      'Analytics insights request failed:',
+      error instanceof Error ? error.name : 'UnknownError'
+    );
+    return NextResponse.json({ error: 'Unable to load analytics insights' }, { status: 500 });
   }
 }

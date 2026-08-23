@@ -1,5 +1,12 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { InboxConversation } from '@/types/inbox';
+
+vi.mock('@/app/actions/inboxReadActions', () => ({
+  listInboxConversationsAction: vi.fn(),
+  listInboxConversationsFallbackAction: vi.fn(),
+  listInboxConversationsV2Action: vi.fn(),
+}));
+
 import { isConversationActiveLike, sortConversations, upsertConversation } from './useRealtimeInbox';
 
 function makeConversation(

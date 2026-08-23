@@ -1,12 +1,70 @@
 import React from 'react';
 import { ChevronLeft, ChevronRight, Bot, Sparkles, CheckCircle2 } from 'lucide-react';
 
+type PresentationCategory = { name: string; count: number };
+
+type PresentationTicket = {
+  id: string;
+  subject: string;
+  status: string;
+  issue_type: string;
+  created_at: string;
+};
+
+type PresentationOrganization = {
+  name: string;
+  totalTickets: number;
+  resolvedTickets: number;
+  tickets: PresentationTicket[];
+};
+
+type PresentationData = {
+  dateRange: { start: string; end: string };
+  summary: {
+    totalTickets: number;
+    resolvedTickets: number;
+    resolvedRate: number;
+    topHospital: PresentationCategory;
+    topCategory: PresentationCategory;
+  };
+  categories: PresentationCategory[];
+  topOrganizations: PresentationOrganization[];
+};
+
+type GeminiInsights = {
+  executiveSummary: string;
+  keyChallenges: { title: string; description: string }[];
+  actionItems: { action: string; owner: string; targetDate: string }[];
+  hospitalInsights: Record<string, string>;
+};
+
+type PresentationTheme = Record<
+  | 'bg'
+  | 'cardBg'
+  | 'border'
+  | 'borderThin'
+  | 'textMain'
+  | 'textMuted'
+  | 'accent1'
+  | 'accent2'
+  | 'accent3'
+  | 'fontFamily'
+  | 'headerBorder'
+  | 'gradientBg'
+  | 'accent1Light'
+  | 'accent2Light'
+  | 'accent3Light'
+  | 'shadow'
+  | 'glowText',
+  string
+>;
+
 type PresentationViewerProps = {
-  data: any;
-  aiInsights: any;
+  data: PresentationData;
+  aiInsights: GeminiInsights | null;
   currentSlideIndex: number;
   setCurrentSlideIndex: React.Dispatch<React.SetStateAction<number>>;
-  activeTheme: any;
+  activeTheme: PresentationTheme;
   presentationRef: React.RefObject<HTMLDivElement | null>;
 };
 
@@ -147,8 +205,8 @@ export default function PresentationViewer({
             <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '40px', flex: 1, minHeight: 0 }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', overflowY: 'auto' }}>
                 <div style={{ fontSize: '12px', fontWeight: '700', color: activeTheme.textMuted, textTransform: 'uppercase', marginBottom: '4px' }}>หมวดหมู่ปัญหาแยกตามสถิติความถี่</div>
-                {data.categories.slice(0, 7).map((cat: any, idx: number) => {
-                  const maxCount = Math.max(...data.categories.map((c: any) => c.count));
+                {data.categories.slice(0, 7).map((cat: PresentationCategory, idx: number) => {
+                  const maxCount = Math.max(...data.categories.map((c: PresentationCategory) => c.count));
                   const widthPct = maxCount > 0 ? (cat.count / maxCount) * 100 : 0;
                   return (
                     <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -176,7 +234,7 @@ export default function PresentationViewer({
                       <Sparkles size={14} /> AI CRITICAL CHALLENGES (จุดวิกฤตคอขวด)
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                      {aiInsights.keyChallenges.map((item: any, keyIdx: number) => (
+                      {aiInsights.keyChallenges.map((item, keyIdx: number) => (
                         <div key={keyIdx} style={{ padding: '12px 16px', background: activeTheme.accent2Light, borderLeft: `3px solid ${activeTheme.accent2}`, border: activeTheme.borderThin }}>
                           <div style={{ fontSize: '14px', fontWeight: '800', color: activeTheme.accent2, marginBottom: '4px' }}>
                             {keyIdx + 1}. {item.title}
@@ -193,7 +251,7 @@ export default function PresentationViewer({
                     <Bot size={40} style={{ opacity: 0.3, marginBottom: '12px' }} />
                     <h4 style={{ fontSize: '14px', fontWeight: '800', color: activeTheme.textMain }}>ไม่มีข้อมูลการวิเคราะห์ความท้าทายด้วย AI</h4>
                     <p style={{ fontSize: '12px', marginTop: '6px', maxWidth: '300px' }}>
-                      เปิดลิ้นชักการตั้งค่าและกด "วิเคราะห์ข้อมูลด้วย Gemini" เพื่อแสดงข้อมูลสรุปคอขวดที่นี่
+                      เปิดลิ้นชักการตั้งค่าและกด &quot;วิเคราะห์ข้อมูลด้วย Gemini&quot; เพื่อแสดงข้อมูลสรุปคอขวดที่นี่
                     </p>
                   </div>
                 )}
@@ -222,7 +280,7 @@ export default function PresentationViewer({
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '20px', flex: 1 }}>
-                {aiInsights.actionItems.map((item: any, actionIdx: number) => (
+                {aiInsights.actionItems.map((item, actionIdx: number) => (
                   <div key={actionIdx} style={{ display: 'flex', flexDirection: 'column', background: activeTheme.cardBg, border: activeTheme.borderThin, padding: '20px', boxShadow: activeTheme.shadow, position: 'relative' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
                       <span style={{ fontSize: '11px', fontWeight: '800', color: activeTheme.accent1, background: activeTheme.accent1Light, padding: '3px 8px', borderRadius: '2px' }}>
@@ -245,7 +303,7 @@ export default function PresentationViewer({
           )}
 
           {/* Slides 4+: Top Organizations */}
-          {data.topOrganizations.map((organization: any, index: number) => {
+          {data.topOrganizations.map((organization: PresentationOrganization, index: number) => {
             const slideNum = index + 2 + (hasAI ? 1 : 0);
             const isActive = currentSlideIndex === slideNum;
             const customInsight = aiInsights?.hospitalInsights?.[organization.name];
@@ -292,7 +350,7 @@ export default function PresentationViewer({
                       Recent Case History
                     </div>
                     <div style={{ overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px', paddingRight: '8px' }}>
-                      {organization.tickets.map((t: any) => (
+                      {organization.tickets.map((t: PresentationTicket) => (
                         <div key={t.id} style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', padding: '12px', background: activeTheme.cardBg, border: activeTheme.borderThin, borderLeft: `3px solid ${t.status === 'Resolved' || t.status === 'Closed' ? activeTheme.accent1 : activeTheme.accent2}` }}>
                           <div>
                             <div style={{ fontSize: '13px', fontWeight: '700', color: activeTheme.textMain, marginBottom: '4px' }}>{t.subject}</div>

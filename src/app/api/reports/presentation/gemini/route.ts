@@ -1,7 +1,17 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextResponse } from 'next/server';
-import { createSupabaseServerClient } from '@/lib/supabase-server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
+import { getStaffAuth } from '@/lib/auth/staffAuthorization';
+import {
+  parseGeneratedPresentationInsights,
+  parsePresentationAiRequest,
+  type GeneratedPresentationInsights,
+} from '@/lib/reports/presentationAiSecurity';
+import {
+  extractGeminiCandidateText,
+  extractRagMessageText,
+  parseConfiguredAiEndpoint,
+  readBoundedJsonResponse,
+} from '@/lib/ai/externalAiSecurity';
 
 export const runtime = 'nodejs';
 
@@ -42,27 +52,16 @@ const fallbackInsights = {
 
 export async function POST(req: Request) {
   try {
-    const body = await req.json().catch(() => ({}));
-    const { ticketData, customPrompt, userApiKey } = body;
+    const auth = await getStaffAuth({ permission: 'reports', level: 'edit' });
+    if (!auth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    if (!ticketData) {
-      return NextResponse.json({ error: 'Missing ticketData payload.' }, { status: 400 });
+    let input;
+    try {
+      input = parsePresentationAiRequest(await req.json());
+    } catch {
+      return NextResponse.json({ error: 'Invalid presentation AI request' }, { status: 400 });
     }
-
-    // 1. Auth check
-    const profileBypassAuth =
-      process.env.NODE_ENV !== 'production' &&
-      process.env.PROFILE_BYPASS_AUTH === '1';
-
-    if (!profileBypassAuth) {
-      const supabaseServer = await createSupabaseServerClient();
-      const {
-        data: { user },
-      } = await supabaseServer.auth.getUser();
-      if (!user) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-      }
-    }
+    const { ticketData, customPrompt } = input;
 
     // 2. Determine API Key
     let dbApiKey = null;
@@ -79,7 +78,7 @@ export async function POST(req: Request) {
       console.error('Error loading API key from company settings:', dbErr);
     }
 
-    const apiKey = userApiKey || dbApiKey || process.env.GEMINI_API_KEY;
+    const apiKey = dbApiKey || process.env.GEMINI_API_KEY;
 
     if (!apiKey) {
       // Graceful fallback for local development or demo purposes if no API key is provided
@@ -100,8 +99,8 @@ export async function POST(req: Request) {
 
     let hospitalDetailsText = '';
     if (ticketData.topOrganizations && ticketData.topOrganizations.length > 0) {
-      hospitalDetailsText = ticketData.topOrganizations.map((h: any, idx: number) => {
-        const ticketSubjects = h.tickets.map((t: any) => `- ${t.subject} (${t.status})`).join('\n');
+      hospitalDetailsText = ticketData.topOrganizations.map((h, idx) => {
+        const ticketSubjects = h.tickets.map((t) => `- ${t.subject} (${t.status})`).join('\n');
         return `องค์กร/บริษัทอันดับที่ ${idx + 1}: ${h.name}
 - ตั๋วงานทั้งหมด: ${h.totalTickets} เคส (ปิดแล้ว: ${h.resolvedTickets} เคส)
 - รายการเรื่องที่แจ้ง:
@@ -126,17 +125,14 @@ ${hospitalDetailsText}
 สำคัญมาก: หากมีข้อความในช่อง "คำแนะนำ/โจทย์ที่ผู้ใช้อยากให้เน้นเพิ่มเติม" ด้านบน คุณต้องตอบสนองและปรับปรุงเนื้อหาการวิเคราะห์ (สรุปภาพรวม, ความท้าทาย, แผนงานแก้ไข, ข้อมูลราย รพ.) ให้เจาะลึกและสอดคล้องตามที่ผู้ใช้สั่งอย่างเคร่งครัดเป็นพิเศษ`;
 
     // 4. Hit AI Server (RAG fallback to Gemini)
-    let aiResult = null;
-    const ragUrl = process.env.RAG_SERVER_URL;
+    let aiResult: GeneratedPresentationInsights | null = null;
+    const ragUrl = getConfiguredRagEndpoint();
     const ragApiKey = process.env.RAG_API_KEY || '';
     const ragModel = process.env.RAG_MODEL_NAME || 'qwen';
 
     if (ragUrl) {
       try {
         console.log('Calling RAG Server...');
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 12000); // 12s timeout
-
         const ragResponse = await fetch(ragUrl, {
           method: 'POST',
           headers: {
@@ -159,26 +155,27 @@ ${hospitalDetailsText}
             stream: false,
             format: 'json'
           }),
-          signal: controller.signal
+          signal: AbortSignal.timeout(12_000)
         });
-        clearTimeout(timeoutId);
 
         if (ragResponse.ok) {
-          const ragData = await ragResponse.json();
-          let ragText = ragData.choices?.[0]?.message?.content || ragData.message?.content || '';
+          let ragText = extractRagMessageText(await readBoundedJsonResponse(ragResponse)) || '';
           
           if (ragText.startsWith('```json')) {
             ragText = ragText.replace(/^```json/i, '').replace(/```$/i, '').trim();
           }
 
           if (ragText) {
-            aiResult = JSON.parse(ragText);
+            aiResult = parseGeneratedPresentationInsights(JSON.parse(ragText));
           }
         } else {
           console.warn('RAG Server error, status:', ragResponse.status);
         }
-      } catch (err) {
-        console.warn('RAG Server connection failed, falling back to Gemini.', err);
+      } catch (error: unknown) {
+        console.warn(
+          'RAG presentation request failed; falling back to Gemini:',
+          error instanceof Error ? error.name : 'UnknownError'
+        );
       }
     }
 
@@ -190,9 +187,9 @@ ${hospitalDetailsText}
         `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`
       ];
 
-      let lastErrorMsg = '';
       let success = false;
-      let resData: any = null;
+      let resData: unknown = null;
+      const geminiDeadline = AbortSignal.timeout(20_000);
 
       for (const url of endpoints) {
         try {
@@ -255,33 +252,37 @@ ${hospitalDetailsText}
                 }
               }
             }),
+            signal: geminiDeadline,
           });
 
           if (response.ok) {
-            resData = await response.json();
+            resData = await readBoundedJsonResponse(response);
             success = true;
             break;
           } else {
-            const errorText = await response.text();
-            console.error(`Gemini API endpoint (${url.split('?')[0]}) returned error status:`, response.status, errorText);
-            lastErrorMsg = `Endpoint error: ${response.statusText} (${response.status}) - ${errorText}`;
+            console.error(
+              `Gemini presentation endpoint (${url.split('?')[0]}) failed:`,
+              response.status
+            );
           }
-        } catch (e: any) {
-          console.error(`Fetch error to ${url.split('?')[0]}:`, e);
-          lastErrorMsg = e.message;
+        } catch (error: unknown) {
+          console.error(
+            `Gemini presentation fetch (${url.split('?')[0]}) failed:`,
+            error instanceof Error ? error.name : 'UnknownError'
+          );
         }
       }
 
       if (!success || !resData) {
-        throw new Error(`Gemini API all endpoints failed. Last error: ${lastErrorMsg}`);
+        throw new Error('Gemini presentation endpoints failed');
       }
 
-      const parsedText = resData.candidates?.[0]?.content?.parts?.[0]?.text;
+      const parsedText = extractGeminiCandidateText(resData);
       if (!parsedText) {
         throw new Error('Invalid or empty response structure from Gemini API');
       }
 
-      aiResult = JSON.parse(parsedText);
+      aiResult = parseGeneratedPresentationInsights(JSON.parse(parsedText));
     }
     return NextResponse.json({
       ...aiResult,
@@ -289,14 +290,24 @@ ${hospitalDetailsText}
     });
 
   } catch (error: unknown) {
-    console.error('Error calling Gemini endpoint:', error);
-    const message = error instanceof Error ? error.message : 'Internal server error';
+    console.error(
+      'Presentation AI generation failed:',
+      error instanceof Error ? error.name : 'UnknownError'
+    );
     
     // Return gracefully a fallback mock response with error flag so the UI doesn't crash
     return NextResponse.json({
       ...fallbackInsights,
-      isSimulated: true,
-      errorMsg: message
+      isSimulated: true
     });
+  }
+}
+
+function getConfiguredRagEndpoint() {
+  try {
+    return parseConfiguredAiEndpoint(process.env.RAG_SERVER_URL);
+  } catch {
+    console.warn('Ignoring invalid RAG_SERVER_URL configuration');
+    return null;
   }
 }

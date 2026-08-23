@@ -375,7 +375,7 @@ export default function ReportsPage() {
     setSending(set);
     try {
       const res = await fetch(
-        `/api/cron/daily-summary?key=NEO_CRON_2026&set=${set}&date=${targetDate}`,
+        `/api/cron/daily-summary?set=${set}&date=${targetDate}`,
         { cache: 'no-store' }
       );
       const data = (await res.json().catch(() => ({}))) as { success?: boolean; error?: string };

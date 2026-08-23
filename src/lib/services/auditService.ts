@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/supabase';
+import 'server-only';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 export interface AuditLogEntry {
@@ -15,8 +15,7 @@ export const auditService = {
   /**
    * Log a system activity
    */
-  async log(entry: AuditLogEntry, customClient?: SupabaseClient) {
-    const client = customClient || supabase;
+  async log(entry: AuditLogEntry, client: SupabaseClient) {
     try {
       const { data, error } = await client
         .from('system_logs')
@@ -42,8 +41,7 @@ export const auditService = {
     agentId?: string, 
     actionType?: string, 
     limit?: number 
-  } = {}, customClient?: SupabaseClient) {
-    const client = customClient || supabase;
+  } = {}, client: SupabaseClient) {
     let query = client
       .from('system_logs')
       .select(`

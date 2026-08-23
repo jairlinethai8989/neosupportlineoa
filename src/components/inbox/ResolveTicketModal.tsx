@@ -23,7 +23,6 @@ interface ResolveTicketModalProps {
   onChangeSummary: (value: string) => void;
   onChangeModule: (value: string) => void;
   onChangeIssueType: (value: string) => void;
-  isChatActive?: boolean;
 }
 
 export function ResolveTicketModal({
@@ -41,7 +40,6 @@ export function ResolveTicketModal({
   onChangeSummary,
   onChangeModule,
   onChangeIssueType,
-  isChatActive = false,
 }: ResolveTicketModalProps) {
   const { t } = useStaffLocale();
 

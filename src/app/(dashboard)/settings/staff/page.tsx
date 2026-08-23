@@ -4,7 +4,6 @@
 /* eslint-disable @next/next/no-img-element */
 /* eslint-disable jsx-a11y/alt-text */
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { supabase } from '@/lib/supabase';
 import { 
   Users, 
   UserPlus, 
@@ -31,10 +30,10 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { useNotificationContext } from '@/contexts/NotificationContext';
-import { auditService } from '@/lib/services/auditService';
 import { useAppContext } from '@/contexts/AppContext';
 import { useStaffLocale } from '@/contexts/StaffLocaleContext';
 import { translateStaffRole, translateStaffStatus } from '@/lib/i18n/staff';
+import { getStaffManagementDataAction } from '@/app/actions/staffManagementActions';
 
 export default function StaffManagementPage() {
   const { t, locale } = useStaffLocale();
@@ -81,18 +80,20 @@ export default function StaffManagementPage() {
 
   const fetchStaff = useCallback(async () => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .order('full_name', { ascending: true });
-    
-    if (error) {
+    try {
+      const data = await getStaffManagementDataAction();
+      setStaff(data.staff);
+      setDepartments(data.departments);
+      setForm((previous) => ({
+        ...previous,
+        department: data.departments[0] || previous.department,
+      }));
+    } catch (error) {
       console.error('Fetch error:', error);
-      alert(t('common.messages.fetchError') + ': ' + error.message);
-    } else {
-      setStaff(data || []);
+      alert(t('common.messages.fetchError'));
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }, [t]);
 
   useEffect(() => {
@@ -100,14 +101,6 @@ export default function StaffManagementPage() {
     const fetchStaffAsync = async () => {
       if (!isMounted) return;
       await fetchStaff();
-      
-      // Fetch dynamic organization departments from normalized table
-      const { data: depts } = await supabase.from('departments').select('name').eq('is_active', true).eq('dept_type', 'organization').order('name');
-      if (depts) {
-        const deptNames = depts.map(d => d.name);
-        setDepartments(deptNames);
-        setForm(prev => ({ ...prev, department: deptNames[0] || '' }));
-      }
     };
     fetchStaffAsync();
     return () => { isMounted = false; };
@@ -115,28 +108,26 @@ export default function StaffManagementPage() {
 
   const handleDeleteStaff = async (id: string, name: string) => {
     if (!confirm(t('common.messages.deleteConfirm').replace('{name}', name))) return;
-    
-    const { error } = await supabase.from('profiles').delete().eq('id', id);
-    if (error) {
-      alert(t('common.messages.deleteFailed') + ': ' + error.message);
-    } else {
-      setStaff(prev => prev.filter(s => s.id !== id));
-      
-      const { data: { user } } = await supabase.auth.getUser();
-      await auditService.log({
-        performer_id: user?.id,
-        action_type: 'STAFF_DELETE',
-        entity_type: 'PROFILE',
-        entity_id: id,
-        note: `Deleted staff member: ${name}`
-      });
 
+    try {
+      const response = await fetch('/api/admin/staff', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'Unable to delete staff');
+
+      setStaff(prev => prev.filter(s => s.id !== id));
       addToast({
         id: `staff-del-${id}`,
         type: 'ticket',
         title: t('settingsStaff.messages.deleteSuccessTitle'),
         body: t('common.messages.deleteSuccess').replace('{name}', name)
       });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : t('common.messages.deleteFailed');
+      alert(t('common.messages.deleteFailed') + ': ' + message);
     }
   };
 
@@ -175,26 +166,17 @@ export default function StaffManagementPage() {
   const handleSavePermissions = async () => {
     setSubmitting(true);
     try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({ permissions })
-        .eq('id', selectedStaff.id);
-      
-      if (error) throw error;
+      const response = await fetch('/api/admin/staff', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: selectedStaff.id, permissions }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'Unable to update permissions');
       
       alert(t('common.messages.success'));
       setPermissionModalOpen(false);
       fetchStaff();
-
-      const { data: { user } } = await supabase.auth.getUser();
-      await auditService.log({
-        performer_id: user?.id,
-        action_type: 'STAFF_PERMISSION_UPDATE',
-        entity_type: 'PROFILE',
-        entity_id: selectedStaff.id,
-        new_data: { permissions },
-        note: `Updated permissions for ${selectedStaff.full_name}`
-      });
 
       addToast({
         id: `staff-perm-${selectedStaff.id}`,
@@ -476,6 +458,9 @@ export default function StaffManagementPage() {
                 <input 
                   type="text" 
                   required
+                  minLength={3}
+                  maxLength={32}
+                  pattern="[A-Za-z0-9][A-Za-z0-9._-]{2,31}"
                   placeholder={t('settingsStaff.placeholders.username')}
                   value={form.username}
                   onChange={e => setForm({...form, username: e.target.value})}
@@ -487,6 +472,7 @@ export default function StaffManagementPage() {
                 <input 
                   type="text" 
                   required
+                  maxLength={200}
                   placeholder={t('settingsStaff.placeholders.fullName')}
                   value={form.full_name}
                   onChange={e => setForm({...form, full_name: e.target.value})}
@@ -498,6 +484,8 @@ export default function StaffManagementPage() {
                 <input 
                   type="password" 
                   required
+                  minLength={12}
+                  maxLength={128}
                   placeholder={t('settingsStaff.placeholders.password')}
                   value={form.password}
                   onChange={e => setForm({...form, password: e.target.value})}

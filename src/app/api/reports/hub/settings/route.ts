@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
-import { createSupabaseServerClient } from '@/lib/supabase-server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
+import { getStaffAuth } from '@/lib/auth/staffAuthorization';
 import {
   getDefaultReportBroadcastSettings,
   getReportBroadcastSettings,
@@ -9,21 +9,9 @@ import {
   saveReportBroadcastSettings,
 } from '@/lib/reports/broadcastSettings';
 
-async function requireStaffAuth() {
-  const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return null;
-
-  const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).maybeSingle();
-  if (!profile || (profile.role !== 'Agent' && profile.role !== 'Administrator')) return null;
-  return { user, profile };
-}
-
 export async function GET() {
   try {
-    const auth = await requireStaffAuth();
+    const auth = await getStaffAuth({ permission: 'reports', level: 'view' });
     if (!auth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const { data: groups, error: groupsError } = await supabaseAdmin
@@ -55,7 +43,7 @@ export async function GET() {
 
 export async function PUT(req: Request) {
   try {
-    const auth = await requireStaffAuth();
+    const auth = await getStaffAuth({ permission: 'reports', level: 'edit' });
     if (!auth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const body = await req.json();
