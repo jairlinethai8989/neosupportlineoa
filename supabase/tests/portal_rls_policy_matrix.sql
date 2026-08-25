@@ -15,6 +15,8 @@ grant select, insert, update, delete on
   public.profiles
 to anon, authenticated, service_role;
 
+grant select, insert, update, delete on storage.objects to anon, authenticated, service_role;
+
 insert into auth.users (id, email, role, aud, created_at, updated_at)
 values ('10000000-0000-0000-0000-000000000001', 'rls-agent@example.invalid', 'authenticated', 'authenticated', now(), now());
 
@@ -36,6 +38,9 @@ values ('50000000-0000-0000-0000-000000000001', '40000000-0000-0000-0000-0000000
 insert into public.csat_surveys (ticket_id)
 values ('30000000-0000-0000-0000-000000000001');
 
+insert into storage.objects (id, bucket_id, name)
+values ('60000000-0000-0000-0000-000000000001', 'chat_media_private', 'rls/private-fixture.txt');
+
 set local role anon;
 do $$
 begin
@@ -44,13 +49,21 @@ begin
     or exists (select 1 from public.tickets where id = '30000000-0000-0000-0000-000000000001')
     or exists (select 1 from public.conversations where id = '40000000-0000-0000-0000-000000000001')
     or exists (select 1 from public.messages where id = '50000000-0000-0000-0000-000000000001')
-    or exists (select 1 from public.csat_surveys where ticket_id = '30000000-0000-0000-0000-000000000001') then
+    or exists (select 1 from public.csat_surveys where ticket_id = '30000000-0000-0000-0000-000000000001')
+    or exists (select 1 from storage.objects where id = '60000000-0000-0000-0000-000000000001') then
     raise exception 'RLS matrix failed: anon can read Portal-sensitive data';
   end if;
 
   begin
     insert into public.customers (line_user_id, display_name) values ('U_ANON_DENY', 'Anon must fail');
     raise exception 'RLS matrix failed: anon can insert customers';
+  exception when insufficient_privilege then
+    null;
+  end;
+
+  begin
+    insert into storage.objects (bucket_id, name) values ('chat_media_private', 'rls/anon-must-fail.txt');
+    raise exception 'RLS matrix failed: anon can upload private media';
   exception when insufficient_privilege then
     null;
   end;
@@ -63,13 +76,25 @@ set local role authenticated;
 do $$
 begin
   if exists (select 1 from public.profiles where id = '10000000-0000-0000-0000-000000000001')
-    or exists (select 1 from public.customers where id = '20000000-0000-0000-0000-000000000001') then
-    raise exception 'RLS matrix failed: authenticated user without a staff profile can read staff or customer data';
+    or exists (select 1 from public.customers where id = '20000000-0000-0000-0000-000000000001')
+    or exists (select 1 from public.tickets where id = '30000000-0000-0000-0000-000000000001')
+    or exists (select 1 from public.conversations where id = '40000000-0000-0000-0000-000000000001')
+    or exists (select 1 from public.messages where id = '50000000-0000-0000-0000-000000000001')
+    or exists (select 1 from public.csat_surveys where ticket_id = '30000000-0000-0000-0000-000000000001')
+    or exists (select 1 from storage.objects where id = '60000000-0000-0000-0000-000000000001') then
+    raise exception 'RLS matrix failed: authenticated non-staff can read Portal-sensitive data';
   end if;
 
   begin
     update public.tickets set subject = 'Non-staff must fail' where id = '30000000-0000-0000-0000-000000000001';
     if found then raise exception 'RLS matrix failed: authenticated non-staff can update tickets'; end if;
+  exception when insufficient_privilege then
+    null;
+  end;
+
+  begin
+    insert into storage.objects (bucket_id, name) values ('chat_media_private', 'rls/non-staff-must-fail.txt');
+    raise exception 'RLS matrix failed: authenticated non-staff can upload private media';
   exception when insufficient_privilege then
     null;
   end;
@@ -93,9 +118,12 @@ begin
     or not exists (select 1 from public.tickets where id = '30000000-0000-0000-0000-000000000001')
     or not exists (select 1 from public.conversations where id = '40000000-0000-0000-0000-000000000001')
     or not exists (select 1 from public.messages where id = '50000000-0000-0000-0000-000000000001')
-    or not exists (select 1 from public.csat_surveys where ticket_id = '30000000-0000-0000-0000-000000000001') then
+    or not exists (select 1 from public.csat_surveys where ticket_id = '30000000-0000-0000-0000-000000000001')
+    or not exists (select 1 from storage.objects where id = '60000000-0000-0000-0000-000000000001') then
     raise exception 'RLS matrix failed: active staff cannot read required Portal data';
   end if;
+
+  insert into storage.objects (bucket_id, name) values ('chat_media_private', 'rls/staff-upload.txt');
 
   update public.tickets set subject = 'Staff update allowed' where id = '30000000-0000-0000-0000-000000000001';
   if not found then raise exception 'RLS matrix failed: active staff cannot update tickets'; end if;

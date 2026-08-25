@@ -19,7 +19,7 @@ The legacy `/api/setup-admin` HTTP bootstrap route has been removed. Provision a
 
 1. Rotate `CRON_SECRET` in Vercel.
 2. Set `HANDOFF_ACCESS_PEPPER` in every application environment that creates or redeems handoffs.
-3. In a disposable Supabase environment, apply migrations `202608100000` through `202608100010` in filename order. Run all SQL files under `supabase/tests/`.
+3. In a disposable Supabase environment, apply migrations `202608100000` through `202608100011` in filename order. Run all SQL files under `supabase/tests/`, then repeat the disposable-database checks with the production rollout order described below.
 4. Apply only the additive migrations `202608100000_private_chat_media_bucket.sql`, `202608100002_handoff_access_hardening.sql`, and `202608100004_profile_update_hardening.sql` to production. These add the private media bucket and new server/RPC seams while keeping legacy Portal policies temporarily available.
 5. Deploy the application changes with the pepper configured. Confirm profile self-service writes now use `update_own_staff_profile` before continuing.
 6. Confirm scheduled cron requests receive HTTP 200 with Vercel's Bearer header.
@@ -38,6 +38,38 @@ The legacy `/api/setup-admin` HTTP bootstrap route has been removed. Provision a
 19. Apply `supabase/migrations/202608100003_handoff_rls_lockdown.sql`. This expires active legacy raw-credential links, clears raw token/PIN values, and removes browser handoff access.
 20. Run Portal and staff E2E checks against the locked-down environment, including list, detail/static metadata, internal create, profile edit/read DTO, staff directory/management DTO, Profile/Branding signed asset upload, text/media message, attachment, CSAT, settings DTO/Gemini key replacement, Google Apps Script URL update/clear, Master Data CRUD/reference reads, SLA edit authorization, system/ticket audit-log authorization, and the full external handoff workflow.
 21. Confirm Personal/Staff Analytics, cached AI evaluations, Evaluation 360 reads, and evaluation writes pass through authenticated server boundaries. Apply `supabase/migrations/202608100011_staff_evaluations_server_only.sql`; verify anon and authenticated browser roles have no privileges on either evaluation table while both evaluation workflows remain functional through the application.
+
+### Migration ledger protocol
+
+The phased production order is intentional and is the only exception to filename order. Do not rename versions that may already exist in an environment, and do not run a later `supabase db push` until every manually applied version has been recorded in Supabase migration history.
+
+Before the first production change, capture the ledger:
+
+```powershell
+supabase migration list --linked
+```
+
+For each migration in steps 4 and 12–21, use this sequence and stop on any mismatch:
+
+1. Confirm the version is absent from the remote side of `supabase migration list --linked`. If it is already present, do not reapply it; reconcile the deployed schema and migration source first.
+2. Apply exactly one reviewed SQL file through the authorized Supabase SQL channel.
+3. Only after that SQL transaction succeeds, record its 12-digit version, for example:
+
+```powershell
+supabase migration repair 202608100000 --status applied --linked
+supabase migration list --linked
+```
+
+4. Confirm that exact version now appears on both the local and remote sides before continuing.
+
+Use the versions in this exact order: `202608100000`, `202608100002`, `202608100004`, `202608100001`, `202608100005`, `202608100006`, `202608100007`, `202608100008`, `202608100009`, `202608100010`, `202608100003`, `202608100011`. If SQL succeeds but the repair command fails, do not rerun the SQL; repair and verify the ledger before continuing.
+
+After the final smoke check, require both commands to agree that no migration remains pending:
+
+```powershell
+supabase migration list --linked
+supabase db push --dry-run --linked
+```
 
 Master Data list/create/update/toggle and Google Sheets integration settings are now server-mediated and permission checked. Do not prepare or apply a Master Data RLS lockdown migration until a production/pre-production schema snapshot confirms the real table names, primary keys, foreign keys, existing policies, and grants. The repository currently contains conflicting historical names (including `organizations` and `hospitals`), so guessing that migration could lock out valid workflows or target the wrong table.
 
@@ -93,11 +125,12 @@ The affected parser is not reachable from a server request in this application. 
 npm run test:unit
 npx tsc --noEmit
 npm run test:security-db
+npm run test:security-db -- -MigrationOrder production-rollout
 npm run build
 npm audit --omit=dev
 ```
 
-`test:security-db` starts an isolated `postgres:17-alpine` container, applies the reconstructed baseline plus migrations `000` through `010`, runs the behavioral SQL checks, and removes the container. It does not read, reset, or mutate the developer's local Supabase database.
+`test:security-db` starts an isolated `postgres:17-alpine` container, applies the reconstructed baseline plus migrations `000` through `011`, runs the behavioral SQL checks, and removes the container. Its default `chronological` mode verifies filename order. The `production-rollout` mode verifies the phased order in this runbook, including representative historical production policy names and the security state immediately after the Portal lockdown. Neither mode reads, resets, or mutates the developer's local Supabase database.
 
 The application is pinned to Next.js `16.3.0`; keep `next`, `eslint-config-next`, and `@next/bundle-analyzer` on the same release line. The legacy `xlsx` dependency has been removed. Spreadsheet exports now use the pure converter in `src/lib/exports/spreadsheet.ts` plus separate `spreadsheet.browser.ts` and `spreadsheet.server.ts` adapters so browser bundles cannot reach Node-only modules.
 
@@ -124,4 +157,4 @@ The handoff matrix must additionally prove that `anon` and `authenticated` canno
 
 ## RLS rollback rule
 
-Do not restore an anon/public `USING (true)` policy. If the release must be rolled back after migrations `202608100001`, `202608100003`, `202608100005`, `202608100006`, `202608100007`, `202608100008`, `202608100009`, or `202608100010`, keep the hardened schema and roll the application back only to a release that uses the verified server Portal, profile RPC/actions, handoff seams, safe company-settings DTO, server-mediated SLA settings writes, server-only system-log writes, server-mediated system-log reads, and server-mediated internal ticket creation. Do not try to recover invalidated raw handoff credentials; issue new links from the hash-aware application. These migrations are prepared in source control but are not applied automatically by this branch.
+Do not restore an anon/public `USING (true)` policy. If the release must be rolled back after migrations `202608100001`, `202608100003`, `202608100005`, `202608100006`, `202608100007`, `202608100008`, `202608100009`, `202608100010`, or `202608100011`, keep the hardened schema and roll the application back only to a release that uses the verified server Portal, profile RPC/actions, handoff seams, safe company-settings DTO, server-mediated SLA settings writes, server-only system-log writes, server-mediated system-log reads, server-mediated internal ticket creation, and server-only staff evaluation access. Do not try to recover invalidated raw handoff credentials; issue new links from the hash-aware application. These migrations are prepared in source control but are not applied automatically by this branch.

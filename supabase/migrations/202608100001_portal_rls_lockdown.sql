@@ -28,38 +28,31 @@ $$;
 revoke all on function public.is_staff() from public;
 grant execute on function public.is_staff() to authenticated, service_role;
 
-drop policy if exists "Public profiles are viewable by everyone." on public.profiles;
-drop policy if exists "Users can update own profile." on public.profiles;
-drop policy if exists "Authenticated staff read profiles" on public.profiles;
+-- Historical environments accumulated several generations of permissive policies
+-- under different names. Converge the six Portal-sensitive tables to one explicit
+-- policy set instead of trying to enumerate every legacy name.
+do $$
+declare
+  legacy_policy record;
+begin
+  for legacy_policy in
+    select tablename, policyname
+    from pg_policies
+    where schemaname = 'public'
+      and tablename = any (array['profiles', 'customers', 'tickets', 'conversations', 'messages', 'csat_surveys'])
+  loop
+    execute format(
+      'drop policy %I on public.%I',
+      legacy_policy.policyname,
+      legacy_policy.tablename
+    );
+  end loop;
+end
+$$;
+
 create policy "Authenticated staff read profiles"
 on public.profiles for select to authenticated
 using (public.is_staff());
-create policy "Authenticated users update own profile"
-on public.profiles for update to authenticated
-using (auth.uid() = id)
-with check (auth.uid() = id);
-
-drop policy if exists "Allow select for customers" on public.customers;
-drop policy if exists "Allow public insert on customers" on public.customers;
-drop policy if exists "Allow public update on customers" on public.customers;
-
-drop policy if exists "Allow select for tickets" on public.tickets;
-drop policy if exists "Allow public insert on tickets" on public.tickets;
-drop policy if exists "Allow authenticated update on tickets" on public.tickets;
-
-drop policy if exists "Allow select for conversations" on public.conversations;
-drop policy if exists "Allow public insert on conversations" on public.conversations;
-drop policy if exists "Allow authenticated update on conversations" on public.conversations;
-
-drop policy if exists "Allow select for messages" on public.messages;
-drop policy if exists "Allow authenticated insert for messages" on public.messages;
-drop policy if exists "Allow authenticated update on messages" on public.messages;
-
-drop policy if exists "Allow select for csat_surveys" on public.csat_surveys;
-drop policy if exists "Allow public select on csat_surveys" on public.csat_surveys;
-drop policy if exists "Allow public insert on csat_surveys" on public.csat_surveys;
-drop policy if exists "Allow public update on csat_surveys" on public.csat_surveys;
-drop policy if exists "Allow authenticated insert on csat_surveys" on public.csat_surveys;
 
 create policy "Authenticated staff manage customers"
 on public.customers for all to authenticated
@@ -109,6 +102,27 @@ with check (
   and public.is_staff()
 );
 
+-- Unknown historical permissive policies may still apply to storage.objects.
+-- Restrictive policies are ANDed with every permissive policy for the matching
+-- API role, so broad or differently named policies cannot expose the private bucket.
+drop policy if exists "Authenticated private chat media guard" on storage.objects;
+create policy "Authenticated private chat media guard"
+on storage.objects as restrictive for all to authenticated
+using (
+  bucket_id <> 'chat_media_private'
+  or public.is_staff()
+)
+with check (
+  bucket_id <> 'chat_media_private'
+  or public.is_staff()
+);
+
+drop policy if exists "Anonymous private chat media guard" on storage.objects;
+create policy "Anonymous private chat media guard"
+on storage.objects as restrictive for all to anon
+using (bucket_id <> 'chat_media_private')
+with check (bucket_id <> 'chat_media_private');
+
 -- Fail closed if a future/historical policy name left anon or PUBLIC access behind.
 do $$
 declare
@@ -122,6 +136,26 @@ begin
 
   if unsafe_policy_count > 0 then
     raise exception 'Portal lockdown aborted: % anon/public policies remain', unsafe_policy_count;
+  end if;
+
+  if (
+    select count(*)
+    from pg_policies
+    where schemaname = 'public'
+      and tablename = any (array['profiles', 'customers', 'tickets', 'conversations', 'messages', 'csat_surveys'])
+  ) <> 6 then
+    raise exception 'Portal lockdown aborted: final policy inventory is not canonical';
+  end if;
+
+  if (
+    select count(*)
+    from pg_policies
+    where schemaname = 'storage'
+      and tablename = 'objects'
+      and permissive = 'RESTRICTIVE'
+      and policyname in ('Authenticated private chat media guard', 'Anonymous private chat media guard')
+  ) <> 2 then
+    raise exception 'Portal lockdown aborted: private media restrictive guards are missing';
   end if;
 end
 $$;

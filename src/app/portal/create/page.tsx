@@ -17,9 +17,35 @@ import { createPortalMediaUploadAction, createPortalTicketAction, finalizePortal
 import { PRIVATE_CHAT_MEDIA_BUCKET } from '@/lib/media/chatMediaPath';
 const ChatAttachmentModal = React.lazy(() => import('@/components/chat/ChatAttachmentModal'));
 
+type PortalCreateOptions = {
+   registered: boolean;
+   subjects: string[];
+};
+
+export type PortalCreateState =
+   | { kind: 'registered'; subjects: string[] }
+   | { kind: 'unregistered' }
+   | { kind: 'error'; message: string };
+
+export async function loadPortalCreateState(
+   idToken: string,
+   loader: (token: string) => Promise<PortalCreateOptions> = getPortalCreateOptionsAction,
+): Promise<PortalCreateState> {
+   try {
+      const result = await loader(idToken);
+      if (!result.registered) return { kind: 'unregistered' };
+      return { kind: 'registered', subjects: result.subjects };
+   } catch {
+      return {
+         kind: 'error',
+         message: 'ไม่สามารถตรวจสอบข้อมูลผู้แจ้งงานได้ กรุณาลองเปิดเมนูใหม่อีกครั้ง',
+      };
+   }
+}
+
 export default function CreateTicketPage() {
    const router = useRouter();
-   const { idToken, isReady } = useLiff();
+   const { idToken, isReady, error: liffError } = useLiff();
 
    const [subject, setSubject] = useState('');
    const [description, setDescription] = useState('');
@@ -33,30 +59,48 @@ export default function CreateTicketPage() {
    const [checking, setChecking] = useState(true);
 
     useEffect(() => {
-      if (!idToken) return;
+      if (!isReady) return;
+      if (!idToken) {
+         setChecking(false);
+         return;
+      }
 
       async function checkCustomer() {
          const token = idToken;
          if (!token) return;
-         const result = await getPortalCreateOptionsAction(token);
-         if (!result.registered) {
+         const result = await loadPortalCreateState(token);
+         if (result.kind === 'unregistered') {
             router.push('/portal');
-         } else {
+         } else if (result.kind === 'registered') {
             setCustomerData({ registered: true });
             const subjects = result.subjects;
             setSubjectTypes(subjects.length > 0 ? subjects : ['ลบ', 'แก้ไขออเดอร์', 'แจ้ง error', 'เรื่องอื่นๆ']);
+         } else {
+            setError(result.message);
          }
          setChecking(false);
       }
       checkCustomer();
-    }, [idToken, router]);
+    }, [idToken, isReady, router]);
+
+   const accessError = (
+         <div className="flex-center portal-glass" style={{ minHeight: '70vh', margin: '20px', padding: '32px', textAlign: 'center', flexDirection: 'column', gap: '16px', border: '1px solid #fee2e2', background: 'white' }}>
+            <AlertCircle size={48} color="#ef4444" />
+            <h2 style={{ fontSize: '18px', fontWeight: '800', color: '#1e293b' }}>ไม่สามารถเปิดหน้าแจ้งงานได้</h2>
+            <p style={{ color: '#64748b', fontSize: '14px' }}>{error || 'กรุณาเปิดเมนูนี้ผ่านแอปพลิเคชัน LINE อีกครั้ง'}</p>
+         </div>
+   );
+
+   if (liffError || (isReady && !idToken)) {
+      return accessError;
+   }
 
    if (!isReady || checking) {
       return <div className="flex-center" style={{ height: '100vh', background: '#fbfcfd' }}><Loader2 className="animate-spin" color="var(--portal-primary)" size={32} /></div>;
    }
 
    if (!customerData) {
-      return null;
+      return accessError;
    }
 
    const handleSubmit = async (e: React.FormEvent) => {
