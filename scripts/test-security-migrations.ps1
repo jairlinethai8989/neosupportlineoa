@@ -81,7 +81,8 @@ try {
     'supabase/migrations/202608100008_system_logs_permission_lockdown.sql',
     'supabase/migrations/202608100009_ticket_logs_staff_lockdown.sql',
     'supabase/migrations/202608100010_system_logs_server_write_only.sql',
-    'supabase/migrations/202608100011_staff_evaluations_server_only.sql'
+    'supabase/migrations/202608100011_staff_evaluations_server_only.sql',
+    'supabase/migrations/202608100012_messages_media_columns.sql'
   )
 
   $productionRolloutMigrations = @(
@@ -98,7 +99,9 @@ try {
     'supabase/migrations/202608100010_system_logs_server_write_only.sql',
     'supabase/migrations/202608100003_handoff_rls_lockdown.sql',
     'supabase/tests/staff_evaluations_production_compatibility.sql',
-    'supabase/migrations/202608100011_staff_evaluations_server_only.sql'
+    'supabase/migrations/202608100011_staff_evaluations_server_only.sql',
+    'supabase/tests/messages_production_compatibility.sql',
+    'supabase/migrations/202608100012_messages_media_columns.sql'
   )
 
   $verificationFiles = @(
@@ -109,7 +112,8 @@ try {
     'supabase/tests/sla_rules_permission_lockdown.sql',
     'supabase/tests/system_logs_permission_lockdown.sql',
     'supabase/tests/ticket_logs_staff_lockdown.sql',
-    'supabase/tests/staff_evaluations_server_only.sql'
+    'supabase/tests/staff_evaluations_server_only.sql',
+    'supabase/tests/messages_media_columns.sql'
   )
 
   $migrationFiles = if ($MigrationOrder -eq 'production-rollout') {
@@ -118,7 +122,7 @@ try {
     $chronologicalMigrations
   }
 
-  $expectedMigrationVersions = 0..11 | ForEach-Object { '20260810' + $_.ToString('0000') }
+  $expectedMigrationVersions = 0..12 | ForEach-Object { '20260810' + $_.ToString('0000') }
   $actualMigrationVersions = $migrationFiles |
     Where-Object { $_ -like 'supabase/migrations/*' } |
     ForEach-Object {
@@ -132,7 +136,7 @@ try {
     throw "Migration order '$MigrationOrder' contains duplicate versions."
   }
   if (Compare-Object ($expectedMigrationVersions | Sort-Object) ($actualMigrationVersions | Sort-Object)) {
-    throw "Migration order '$MigrationOrder' does not contain exactly versions 202608100000 through 202608100011."
+    throw "Migration order '$MigrationOrder' does not contain exactly versions 202608100000 through 202608100012."
   }
 
   $sqlFiles = @($bootstrapFiles) + @($migrationFiles) + @($verificationFiles)
