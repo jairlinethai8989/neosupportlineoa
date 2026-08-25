@@ -1,8 +1,6 @@
 -- Lock SLA rule mutations behind the staff settings_sla edit permission.
 -- Apply after the SLA settings page uses server-mediated writes.
 
-\set ON_ERROR_STOP on
-
 alter table public.company_settings
   add column if not exists active_threshold_minutes integer not null default 15;
 

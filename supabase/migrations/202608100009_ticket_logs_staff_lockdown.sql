@@ -1,7 +1,5 @@
 -- Ticket audit rows are readable by staff but writable only through trusted server/RPC paths.
 -- Apply after internal ticket creation and every ticket-log mutation use server mediation.
-\set ON_ERROR_STOP on
-
 alter table public.ticket_logs enable row level security;
 
 do $$

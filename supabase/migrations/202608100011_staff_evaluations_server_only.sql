@@ -1,7 +1,5 @@
 -- Analytics evaluation reads and writes now pass through authenticated server boundaries.
 -- Remove direct browser access to sensitive performance and peer-review data.
-\set ON_ERROR_STOP on
-
 begin;
 
 alter table public.staff_evaluations enable row level security;

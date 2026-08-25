@@ -1,7 +1,5 @@
 -- All application audit writers are now authenticated server actions or route handlers.
 -- Remove the final authenticated-browser INSERT seam while preserving permission-gated reads.
-\set ON_ERROR_STOP on
-
 begin;
 
 do $$

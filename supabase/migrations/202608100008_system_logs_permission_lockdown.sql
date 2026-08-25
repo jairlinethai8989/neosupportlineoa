@@ -1,7 +1,5 @@
 -- Restrict browser access to system audit logs while server/service writes remain available.
 -- Apply after the Audit Settings system-log read path uses getSystemLogsAction.
-\set ON_ERROR_STOP on
-
 alter table public.system_logs enable row level security;
 
 do $$
