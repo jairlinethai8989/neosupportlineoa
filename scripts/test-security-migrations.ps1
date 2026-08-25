@@ -97,6 +97,7 @@ try {
     'supabase/migrations/202608100009_ticket_logs_staff_lockdown.sql',
     'supabase/migrations/202608100010_system_logs_server_write_only.sql',
     'supabase/migrations/202608100003_handoff_rls_lockdown.sql',
+    'supabase/tests/staff_evaluations_production_compatibility.sql',
     'supabase/migrations/202608100011_staff_evaluations_server_only.sql'
   )
 

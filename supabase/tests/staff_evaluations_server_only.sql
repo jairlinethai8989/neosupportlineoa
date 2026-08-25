@@ -2,10 +2,17 @@
 \set ON_ERROR_STOP on
 
 do $$
-declare target_table text;
+declare
+  target_table text;
+  existing_table_count integer := 0;
 begin
   foreach target_table in array array['staff_evaluations', 'staff_evaluations_360']
   loop
+    if to_regclass(format('public.%I', target_table)) is null then
+      continue;
+    end if;
+    existing_table_count := existing_table_count + 1;
+
     if exists (
       select 1 from pg_policies
       where schemaname = 'public' and tablename = target_table
@@ -26,23 +33,30 @@ begin
       raise exception 'Evaluation lockdown failed: service role lacks access to %', target_table;
     end if;
   end loop;
+
+  if to_regclass('public.staff_evaluations_360') is null or existing_table_count < 1 then
+    raise exception 'Evaluation lockdown test requires staff_evaluations_360';
+  end if;
 end
 $$;
 
 begin;
 set local role authenticated;
 do $$
+declare target_table text;
 begin
-  begin
-    perform 1 from public.staff_evaluations limit 1;
-    raise exception 'Evaluation lockdown failed: browser read staff evaluations';
-  exception when insufficient_privilege then null;
-  end;
-  begin
-    perform 1 from public.staff_evaluations_360 limit 1;
-    raise exception 'Evaluation lockdown failed: browser read 360 evaluations';
-  exception when insufficient_privilege then null;
-  end;
+  foreach target_table in array array['staff_evaluations', 'staff_evaluations_360']
+  loop
+    if to_regclass(format('public.%I', target_table)) is null then
+      continue;
+    end if;
+    begin
+      execute format('select 1 from public.%I limit 1', target_table);
+      raise exception 'Evaluation lockdown failed: browser read %', target_table;
+    exception when insufficient_privilege then
+      null;
+    end;
+  end loop;
 end
 $$;
 reset role;
