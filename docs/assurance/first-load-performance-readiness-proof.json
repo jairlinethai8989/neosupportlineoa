@@ -1,0 +1,23 @@
+{
+  "exactCommand": "C:\\Users\\PC\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\python\\python.exe C:\\Users\\PC\\.agents\\skills\\solweaver\\scripts\\validate_final_strict_packet.py --readiness docs/assurance/first-load-performance-readiness.json --ledger docs/assurance/first-load-performance-rollout.md --attempts docs/assurance/first-load-performance-review-attempts.json --packet docs/assurance/first-load-performance-review-packet.md --candidate-manifest docs/assurance/first-load-performance-candidate.json",
+  "exitCode": 0,
+  "supersedes": "pre-reservation proof 11610bec1d5c0ae10cb9ab9232d4c354fd079195d3590636e2b2419b5c2eb93d",
+  "proof": {
+    "assurancePacketId": "sha256:6b9ccc5917c51014684e02c61854e0c47dd8d2a8a48080ffb63560be0fbce466",
+    "assuranceUnitId": "neo-line-oa/performance/first-load-rollout",
+    "boundEvidence": {
+      "attemptsSha256": "000f2d02df6784e24dbb5a9d5b4138b91f86fedb82bf3413289f2ede7a609201",
+      "candidateManifestSha256": "a4a3401582d75784a033ef1ab0c7fe28d59c124f35b6c971bed85c03ee80a6a4",
+      "ledgerSha256": "036202f028f564ab983a3b6df4a8cced649328ffdfc51549ffc38e79a7bafa52",
+      "packetSha256": "97665808c71af1a73b67930051cdce9e0243def5b456d82e0cc28a201f6bb54a"
+    },
+    "frozenCandidateId": "sha256:6daff436e55270af1ad3f2797d90ee3ae5e648a9599745b510769d3da0030f12",
+    "maxReviewCalls": 3,
+    "proofType": "solweaver-final-strict-readiness-v1",
+    "readinessGate": "pass",
+    "readinessRecordSha256": "ea9771105202c325f6e3321ac5d26305670e97d0b1fa5c680ae5746e0656bf93",
+    "reopenGeneration": 0,
+    "reviewCallsUsed": 1,
+    "validationPhase": "same-attempt-metadata-closure"
+  }
+}

@@ -1,11 +1,32 @@
 'use server';
 import { randomBytes } from 'node:crypto';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
-import { verifyLineIdToken } from '@/lib/portal/lineIdentity';
+import { verifyLineIdToken, type TrustedLineIdentity } from '@/lib/portal/lineIdentity';
 import { parsePortalTicketInput, type PortalTicketInput } from '@/lib/portal/portalTicketInput';
 import { createPortalMediaPath, isOwnedPortalMediaPath, parsePortalMediaInput, type PortalMediaInput } from '@/lib/portal/portalMedia';
 import { calculateSlaDeadline } from '@/lib/utils/slaUtils';
 import { normalizeChatMediaObjectPath, PRIVATE_CHAT_MEDIA_BUCKET } from '@/lib/media/chatMediaPath';
+
+type PortalHomeCustomer = {
+  id: string;
+  display_name: string | null;
+  full_name: string | null;
+  line_username: string | null;
+  organization_id: string | null;
+  department_id: string | null;
+  position_id: string | null;
+  organizations: { name?: string | null; abbreviation?: string | null } | null;
+};
+
+type PortalSyncCustomer = {
+  id: string;
+  line_user_id: string;
+  display_name: string | null;
+  avatar_url?: string | null;
+};
+
+const PORTAL_HOME_CUSTOMER_SELECT =
+  'id, display_name, full_name, line_username, organization_id, department_id, position_id, organizations(name, abbreviation)';
 
 async function requireTrustedLineIdentity(lineIdToken: string) {
   const lineLoginChannelId = process.env.LINE_LOGIN_CHANNEL_ID;
@@ -14,6 +35,64 @@ async function requireTrustedLineIdentity(lineIdToken: string) {
   }
 
   return verifyLineIdToken(lineIdToken, lineLoginChannelId);
+}
+
+async function syncVerifiedPortalCustomer<T extends Record<string, unknown>>(
+  identity: TrustedLineIdentity,
+  select: string,
+  fallbackSelect: string = select
+): Promise<T> {
+  const profile = {
+    line_user_id: identity.lineUserId,
+    display_name: identity.displayName || 'LINE Customer',
+    avatar_url: identity.pictureUrl,
+    metadata: {
+      line_profile: {
+        display_name: identity.displayName,
+        picture_url: identity.pictureUrl,
+        synced_at: new Date().toISOString(),
+      },
+    },
+    updated_at: new Date().toISOString(),
+  };
+
+  const { data, error } = await supabaseAdmin
+    .from('customers')
+    .upsert(profile, { onConflict: 'line_user_id' })
+    .select(select)
+    .single();
+
+  if (error?.code === 'PGRST204' && String(error.message || '').includes('avatar_url')) {
+    const fallbackProfile = {
+      line_user_id: profile.line_user_id,
+      display_name: profile.display_name,
+      metadata: profile.metadata,
+      updated_at: profile.updated_at,
+    };
+    const fallback = await supabaseAdmin
+      .from('customers')
+      .upsert(fallbackProfile, { onConflict: 'line_user_id' })
+      .select(fallbackSelect)
+      .single();
+    if (fallback.error) throw new Error('Failed to sync customer profile');
+    return fallback.data as unknown as T;
+  }
+
+  if (error || !data) throw new Error('Failed to sync customer profile');
+  return data as unknown as T;
+}
+
+async function findOrCreatePortalHomeCustomer(identity: TrustedLineIdentity): Promise<PortalHomeCustomer> {
+  const { data, error } = await supabaseAdmin
+    .from('customers')
+    .select(PORTAL_HOME_CUSTOMER_SELECT)
+    .eq('line_user_id', identity.lineUserId)
+    .maybeSingle();
+
+  if (error) throw new Error('Failed to load portal customer');
+  if (data) return data as unknown as PortalHomeCustomer;
+
+  return syncVerifiedPortalCustomer<PortalHomeCustomer>(identity, PORTAL_HOME_CUSTOMER_SELECT);
 }
 
 async function requirePortalCustomer(lineIdToken: string) {
@@ -72,15 +151,7 @@ export async function getPortalHomeAction(
   options: { historyPage?: number; search?: string; directSurveyTicketId?: string | null } = {}
 ) {
   const identity = await requireTrustedLineIdentity(lineIdToken);
-  const { data: customer, error: customerError } = await supabaseAdmin
-    .from('customers')
-    .select('id, display_name, full_name, line_username, organization_id, department_id, position_id, organizations(name, abbreviation)')
-    .eq('line_user_id', identity.lineUserId)
-    .maybeSingle();
-  if (customerError) throw new Error('Failed to load portal customer');
-  if (!customer) {
-    return { customer: null, activeTickets: [], pastTickets: [], totalHistory: 0, pendingSurvey: null };
-  }
+  const customer = await findOrCreatePortalHomeCustomer(identity);
   const page = Math.max(1, Math.min(10000, Math.trunc(options.historyPage || 1)));
   const from = (page - 1) * 5;
   const search = String(options.search || '').trim().slice(0, 100).replace(/[^\p{L}\p{N}\s_-]/gu, '');
@@ -267,49 +338,11 @@ export async function syncPortalCustomerAction(lineIdToken: string) {
   }
 
   const identity = await requireTrustedLineIdentity(lineIdToken);
-  const profile = {
-    line_user_id: identity.lineUserId,
-    display_name: identity.displayName || 'LINE Customer',
-    avatar_url: identity.pictureUrl,
-    metadata: {
-      line_profile: {
-        display_name: identity.displayName,
-        picture_url: identity.pictureUrl,
-        synced_at: new Date().toISOString(),
-      },
-    },
-    updated_at: new Date().toISOString(),
-  };
-
-  const { data, error } = await supabaseAdmin
-    .from('customers')
-    .upsert(profile, { onConflict: 'line_user_id' })
-    .select('id, line_user_id, display_name, avatar_url')
-    .single();
-
-  if (error?.code === 'PGRST204' && String(error.message || '').includes('avatar_url')) {
-    const fallbackProfile = {
-      line_user_id: profile.line_user_id,
-      display_name: profile.display_name,
-      metadata: profile.metadata,
-      updated_at: profile.updated_at,
-    };
-    const fallback = await supabaseAdmin
-      .from('customers')
-      .upsert(fallbackProfile, { onConflict: 'line_user_id' })
-      .select('id, line_user_id, display_name')
-      .single();
-    if (fallback.error) {
-      throw new Error('Failed to sync customer profile');
-    }
-    return fallback.data;
-  }
-
-  if (error) {
-    throw new Error('Failed to sync customer profile');
-  }
-
-  return data;
+  return syncVerifiedPortalCustomer<PortalSyncCustomer>(
+    identity,
+    'id, line_user_id, display_name, avatar_url',
+    'id, line_user_id, display_name'
+  );
 }
 
 export async function createPortalTicketAction(

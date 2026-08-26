@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { updateOwnProfile } from '@/lib/profiles/updateOwnProfile';
 import { supabase } from '@/lib/supabase';
 import { getClientCompanySettingsAction } from '@/app/actions/companySettingsActions';
-import { getOwnProfileAction } from '@/app/actions/profileSettingsActions';
+import { getOwnProfileAction, getStaffBootstrapAction } from '@/app/actions/profileSettingsActions';
 import {
   getStaffDepartmentsAction,
   getStaffOrganizationsAction,
@@ -340,11 +340,19 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         // Fast path: unblock app immediately before network requests
         setLoading(false);
 
-        // Background data: do not block first paint.
-        // Only profile + settings are critical. Organizations/departments are lazy-loaded by pages that need them.
-        void fetchProfile().catch(err => console.error('AppProvider profile load error:', err));
-        void fetchSettings().catch((err) => {
-          console.error('AppProvider settings load error:', err);
+        // Background bootstrap: one authorization boundary and one server request
+        // supplies the layout-critical profile/settings/options payload.
+        void getStaffBootstrapAction().then((bootstrapData) => {
+          if (cancelled) return;
+          setUserProfile(bootstrapData.profile as UserProfile);
+          setCompanySettings({
+            ...(bootstrapData.companySettings as CompanySettings),
+            modules: bootstrapData.ticketOptions.modules,
+            issue_types: bootstrapData.ticketOptions.issueTypes,
+            subject_types: bootstrapData.ticketOptions.subjectTypes,
+          });
+        }).catch((err) => {
+          console.error('AppProvider bootstrap data load error:', err);
         });
 
       } catch (err) {

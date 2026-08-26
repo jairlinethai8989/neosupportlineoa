@@ -7,6 +7,7 @@ import {
   parseOwnProfileTemplateUpdate,
 } from '@/lib/profiles/profileSettingsSecurity';
 import { toOwnProfileDto, toStaffDirectoryDto } from '@/lib/profiles/profileReadSecurity';
+import { toClientCompanySettings } from '@/lib/settings/companySettingsSecurity';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 
 const OWN_PROFILE_SELECT = `
@@ -30,6 +31,35 @@ async function readOwnProfile(staffId: string) {
 export async function getOwnProfileAction() {
   const staff = await requireStaffAuth();
   return readOwnProfile(staff.user.id);
+}
+
+export async function getStaffBootstrapAction() {
+  const staff = await requireStaffAuth();
+  const [profile, settingsResult, modules, issueTypes, subjectTypes] = await Promise.all([
+    readOwnProfile(staff.user.id),
+    supabaseAdmin.from('company_settings').select('*').limit(1).maybeSingle(),
+    supabaseAdmin.from('ticket_modules').select('name').eq('is_active', true).order('name'),
+    supabaseAdmin.from('ticket_issue_types').select('name').eq('is_active', true).order('name'),
+    supabaseAdmin.from('ticket_subject_types').select('name').eq('is_active', true).order('name'),
+  ]);
+
+  if (settingsResult.error || modules.error || issueTypes.error || subjectTypes.error) {
+    throw new Error('Failed to load staff bootstrap data');
+  }
+
+  const names = (rows: Array<{ name?: unknown }> | null) => (rows || [])
+    .map((row) => typeof row.name === 'string' ? row.name : '')
+    .filter(Boolean);
+
+  return {
+    profile,
+    companySettings: toClientCompanySettings(settingsResult.data as Record<string, unknown> | null),
+    ticketOptions: {
+      modules: names(modules.data),
+      issueTypes: names(issueTypes.data),
+      subjectTypes: names(subjectTypes.data),
+    },
+  };
 }
 
 export async function getPostLoginDestinationAction() {

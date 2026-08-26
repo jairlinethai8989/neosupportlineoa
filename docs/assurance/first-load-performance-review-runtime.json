@@ -1,0 +1,19 @@
+{
+  "agentPath": "/root/first_load_final_review",
+  "agentRole": "solweaver_reviewer",
+  "childThreadId": "01a03bbd-7c67-7ea3-aa0f-efbec1066a0c",
+  "cwd": "D:\\Project APP\\AntiGravity\\neo_line_oa",
+  "effort": "max",
+  "model": "gpt-5.6-sol",
+  "parentThreadId": "01a03824-d082-7af0-8434-3366ca03af0d",
+  "proofType": "solweaver-child-runtime-v1",
+  "recordIdentityMode": "ordinal",
+  "rollout": "C:\\Users\\PC\\.codex\\sessions\\2026\\08\\26\\rollout-2026-08-26T08-44-29-01a03bbd-7c67-7ea3-aa0f-efbec1066a0c.jsonl",
+  "rolloutSha256": "8851fc220e6e892e157de69010d51b2c97f2ba68562cfff8e6694bc3bf55241c",
+  "runtimeGate": "pass",
+  "schemaVersion": 1,
+  "sessionMetaOrdinal": 0,
+  "sessionMetaRecordIndex": 0,
+  "turnContextOrdinals": [7, 372],
+  "turnContextRecordIndices": [7, 372]
+}

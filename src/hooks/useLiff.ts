@@ -1,6 +1,7 @@
 'use client';
-import { useState, useEffect } from 'react';
-import liff from '@line/liff';
+import { useState, useEffect, useRef } from 'react';
+
+type LiffInstance = typeof import('@line/liff').default;
 
 export interface LiffProfile {
   userId: string;
@@ -16,32 +17,13 @@ export function useLiff() {
   const [profile, setProfile] = useState<LiffProfile | null>(null);
   const [idToken, setIdToken] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!profile?.userId || !idToken) return;
-    const currentIdToken = idToken;
-    let isCancelled = false;
-
-    async function syncCustomerProfile() {
-      try {
-        const { syncPortalCustomerAction } = await import('@/app/actions/portalActions');
-        await syncPortalCustomerAction(currentIdToken);
-      } catch (syncError) {
-        if (!isCancelled) {
-          console.error('LIFF profile sync error:', syncError);
-        }
-      }
-    }
-
-    void syncCustomerProfile();
-    return () => {
-      isCancelled = true;
-    };
-  }, [idToken, profile]);
+  const liffRef = useRef<LiffInstance | null>(null);
 
   useEffect(() => {
     const initLiff = async () => {
       try {
+        const { default: liff } = await import('@line/liff');
+        liffRef.current = liff;
         const liffId = process.env.NEXT_PUBLIC_LIFF_ID;
         if (!liffId) {
           setError('LIFF ID is missing in environment (NEXT_PUBLIC_LIFF_ID).');
@@ -81,12 +63,16 @@ export function useLiff() {
   }, []);
 
   const login = () => {
+    const liff = liffRef.current;
+    if (!liff) return;
     if (!liff.isLoggedIn()) {
       liff.login();
     }
   };
 
   const logout = () => {
+    const liff = liffRef.current;
+    if (!liff) return;
     if (liff.isLoggedIn()) {
       liff.logout();
       setIdToken(null);

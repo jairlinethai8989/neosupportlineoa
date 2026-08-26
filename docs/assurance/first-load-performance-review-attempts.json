@@ -1,0 +1,39 @@
+{
+  "assuranceUnitId": "neo-line-oa/performance/first-load-rollout",
+  "reopenGeneration": 0,
+  "reviewBudgetMode": "default",
+  "maxReviewCalls": 3,
+  "reviewCallsUsed": 1,
+  "activeReviewReservation": null,
+  "attempts": [
+    {
+      "reviewAttemptId": "first-load-performance-g0-call1",
+      "call": 1,
+      "state": "completed",
+      "reservedAt": "2026-08-26T08:44:11.5518865+07:00",
+      "startedAt": "2026-08-26T08:44:33.4070178+07:00",
+      "reviewerTask": "/root/first_load_final_review",
+      "frozenCandidateId": "sha256:6daff436e55270af1ad3f2797d90ee3ae5e648a9599745b510769d3da0030f12",
+      "assurancePacketId": "sha256:6b9ccc5917c51014684e02c61854e0c47dd8d2a8a48080ffb63560be0fbce466",
+      "reservationEvidence": "exclusive directory .codex/assurance/first-load-performance-review.lock acquired; passing readiness proof, zero-use journal, generation, budget, and candidate aggregate reread under lock",
+      "initialVerdict": "fix-first",
+      "auditCompleteness": "complete",
+      "findingClass": "assurance-metadata-only",
+      "behaviorBlockers": [],
+      "candidateChangeRequired": false,
+      "metadataClosureStartedAt": "2026-08-26T08:55:57.0874986+07:00",
+      "metadataClosure": [
+        "restore generated test-results/.last-run.json byte-for-byte to base and confirm it is absent from git status",
+        "persist exact candidate-bound authenticated smoke command/result receipt without credential values",
+        "regenerate packet identity and machine readiness proof in same-attempt-metadata-closure phase bound to this active attempt"
+      ],
+      "closureVerdict": "ship",
+      "completedAt": "2026-08-26T09:00:21.4038410+07:00",
+      "runtimeGate": "pass",
+      "runtimeProof": "docs/assurance/first-load-performance-review-runtime.json",
+      "observedModel": "gpt-5.6-sol",
+      "observedEffort": "max",
+      "outcome": "accepted"
+    }
+  ]
+}

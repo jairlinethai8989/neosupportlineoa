@@ -1,0 +1,16 @@
+{
+  "schemaVersion": "solweaver-candidate-manifest-v1",
+  "baseCommit": "1d9ec272d2c528eef9f6f94c63fa0741752092f9",
+  "scope": "complete behavior candidate; assurance metadata excluded",
+  "recipe": "Sort repository-relative UTF-8 paths ordinally; for each file append path + NUL + lowercase SHA-256 + LF; SHA-256 the UTF-8 concatenation.",
+  "files": [
+    { "path": "src/app/actions/portalActions.performance.test.ts", "sha256": "bb38555d0197d1edf7c718da00db27a6e7d2c9bb60f8e98e3cda5d7eac347128" },
+    { "path": "src/app/actions/portalActions.ts", "sha256": "69770836d75a641b1fcbdc5c1a870c0db53476d7b76f38303c69e5d49beac2f7" },
+    { "path": "src/app/actions/profileSettingsActions.ts", "sha256": "785b7068afe6efc1f13d3d75d1d960ac909ec7d1f0ccceb295f3ceab9baf9bc0" },
+    { "path": "src/app/actions/staffBootstrapActions.performance.test.ts", "sha256": "a29c4beea64e653d3b87a41c8bf92a7a9cae5cfc5ecfae82cbb14b4db7d3c731" },
+    { "path": "src/contexts/AppContext.tsx", "sha256": "294d53b0339fa47cb96a8d231c34ca4f7a21b96d9c958f98b1a523a2b830c2f1" },
+    { "path": "src/hooks/useLiff.ts", "sha256": "78d4fdb3ad37cacd213b36f2b040f1e16a76c7eaeb8308aa41672906117ea3e1" },
+    { "path": "vercel.json", "sha256": "52876d6478f6793e2a2f9812dc99dcddf9405b7b6b3f6951f69fc2a913d4f10f" }
+  ],
+  "aggregateSha256": "6daff436e55270af1ad3f2797d90ee3ae5e648a9599745b510769d3da0030f12"
+}
