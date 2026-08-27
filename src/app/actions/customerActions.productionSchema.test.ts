@@ -37,11 +37,17 @@ function customerQuery() {
   builder.then = (
     resolve: (value: { data: unknown[] | null; error: Record<string, string> | null }) => unknown,
     reject: (reason?: unknown) => unknown
-  ) => Promise.resolve(
-    select.includes('avatar_url')
-      ? { data: null, error: { code: '42703', message: 'column customers.avatar_url does not exist' } }
-      : { data: [productionCustomer], error: null }
-  ).then(resolve, reject);
+  ) => {
+    let result: { data: unknown[] | null; error: Record<string, string> | null };
+    if (select.includes('avatar_url')) {
+      result = { data: null, error: { code: '42703', message: 'column customers.avatar_url does not exist' } };
+    } else if (select.includes('status')) {
+      result = { data: null, error: { code: '42703', message: 'column customers.status does not exist' } };
+    } else {
+      result = { data: [productionCustomer], error: null };
+    }
+    return Promise.resolve(result).then(resolve, reject);
+  };
   return builder;
 }
 
@@ -61,13 +67,14 @@ describe('customer list production-schema compatibility', () => {
     selectedColumns.length = 0;
   });
 
-  it('falls back without avatar_url and preserves the LINE profile picture from metadata', async () => {
+  it('loads customers when production has neither avatar_url nor status and preserves the metadata picture', async () => {
     const result = await getCustomersAction();
 
     expect(auth.requireStaffAuth).toHaveBeenCalledTimes(1);
     expect(selectedColumns).toHaveLength(2);
     expect(selectedColumns[0]).toContain('avatar_url');
     expect(selectedColumns[1]).not.toContain('avatar_url');
+    expect(selectedColumns[1]).not.toContain('status');
     expect(selectedColumns[1]).toContain('metadata');
     expect(result).toEqual([
       expect.objectContaining({
