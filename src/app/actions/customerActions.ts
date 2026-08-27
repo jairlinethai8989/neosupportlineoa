@@ -22,7 +22,7 @@ export async function getCustomersAction() {
   if (error) {
     const fallback = await supabaseAdmin
       .from('customers')
-      .select('id, display_name, full_name, line_username, line_user_id, avatar_url, status, organization_id, department_id, position_id, created_at')
+      .select('id, display_name, full_name, line_username, line_user_id, status, organization_id, department_id, position_id, created_at, metadata')
       .order('created_at', { ascending: false });
     rows = fallback.data;
     error = fallback.error;

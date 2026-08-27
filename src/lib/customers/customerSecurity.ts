@@ -17,6 +17,13 @@ function relationName(value: unknown) {
   return typeof name === 'string' ? { name } : null;
 }
 
+function metadataPictureUrl(value: unknown) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const lineProfile = (value as Record<string, unknown>).line_profile;
+  if (!lineProfile || typeof lineProfile !== 'object' || Array.isArray(lineProfile)) return null;
+  return optionalString((lineProfile as Record<string, unknown>).picture_url);
+}
+
 export function toCustomerDto(row: Record<string, unknown>) {
   return {
     id: optionalString(row.id),
@@ -24,7 +31,7 @@ export function toCustomerDto(row: Record<string, unknown>) {
     full_name: optionalString(row.full_name),
     line_username: optionalString(row.line_username),
     line_user_id: optionalString(row.line_user_id),
-    avatar_url: optionalString(row.avatar_url),
+    avatar_url: optionalString(row.avatar_url) || metadataPictureUrl(row.metadata),
     status: optionalString(row.status),
     organization_id: optionalString(row.organization_id),
     department_id: optionalString(row.department_id),
