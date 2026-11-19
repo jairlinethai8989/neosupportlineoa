@@ -1,8 +1,5 @@
 'use client';
-/* eslint-disable @next/next/no-img-element */
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable jsx-a11y/alt-text */
+import Image from 'next/image';
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { 
@@ -16,6 +13,7 @@ import {
   Lock
 } from 'lucide-react';
 import Link from 'next/link';
+import type { Profile, CompanySettings } from '@/types';
 
 const AVATAR_OPTIONS = [
   // Office Men
@@ -41,8 +39,8 @@ const AVATAR_OPTIONS = [
 // Dynamic Departments are now handled from company_settings table
 
 export default function ProfileSettingsPage() {
-  const [profile, setProfile] = useState<any>(null);
-  const [company, setCompany] = useState<any>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [company, setCompany] = useState<CompanySettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -77,7 +75,7 @@ export default function ProfileSettingsPage() {
         const fileName = `${Math.random()}.${fileExt}`;
         const filePath = `${target}/${fileName}`;
 
-        const { error: uploadError, data } = await supabase.storage
+        const { error: uploadError } = await supabase.storage
            .from('chat_media') 
            .upload(filePath, file);
 
@@ -86,23 +84,24 @@ export default function ProfileSettingsPage() {
         const { data: { publicUrl } } = supabase.storage.from('chat_media').getPublicUrl(filePath);
 
         if (target === 'profile') {
-           setProfile({ ...profile, avatar_url: publicUrl });
+           setProfile((prev) => prev ? { ...prev, avatar_url: publicUrl } : prev);
         } else {
-           setCompany({ ...company, logo_url: publicUrl });
+           setCompany((prev) => prev ? { ...prev, logo_url: publicUrl } : prev);
         }
         
         setToastMsg('ไฟล์อัปโหลดสำเร็จ! 🎉');
         setShowToast(true);
         setTimeout(() => setShowToast(false), 3000);
-     } catch (err: any) {
+     } catch (err: unknown) {
         console.error('Upload error:', err);
-        alert('อัปโหลดล้มเหลว: ' + (err.message || 'Error uploading file'));
+        alert('อัปโหลดล้มเหลว: ' + (err instanceof Error ? err.message : 'Error uploading file'));
      } finally {
         setUploading(false);
      }
   };
 
   const handleSaveProfile = async () => {
+    if (!profile) return;
     setSaving(true);
     try {
       await supabase.from('profiles').update({
@@ -115,7 +114,7 @@ export default function ProfileSettingsPage() {
       setToastMsg('บันทึกข้อมูลส่วนตัวสำเร็จ! ✅');
       setShowToast(true);
       setTimeout(() => setShowToast(false), 3000);
-    } catch (err) {
+    } catch {
       alert('Update failed');
     } finally {
       setSaving(false);
@@ -123,9 +122,10 @@ export default function ProfileSettingsPage() {
   };
 
   const handleSaveCompany = async () => {
+    if (!company) return;
     setSaving(true);
     try {
-      if (company?.id) {
+      if (company.id) {
          await supabase.from('company_settings').update({
            company_name: company.company_name,
            logo_url: company.logo_url,
@@ -142,7 +142,7 @@ export default function ProfileSettingsPage() {
       setToastMsg('บันทึกข้อมูลองค์กรสำเร็จ! ✅');
       setShowToast(true);
       setTimeout(() => setShowToast(false), 3000);
-    } catch (err) {
+    } catch {
       alert('Update failed');
     } finally {
       setSaving(false);
@@ -150,7 +150,7 @@ export default function ProfileSettingsPage() {
   };
 
   const handleAddDepartment = async () => {
-    if (!newDeptName.trim()) return;
+    if (!newDeptName.trim() || !company) return;
     const updatedDepts = [...(company.departments || []), newDeptName.trim()];
     setCompany({ ...company, departments: updatedDepts });
     setNewDeptName('');
@@ -165,10 +165,11 @@ export default function ProfileSettingsPage() {
       setToastMsg('เพิ่มแผนกเรียบร้อย! ✨');
       setShowToast(true);
       setTimeout(() => setShowToast(false), 3000);
-    } catch (err) { alert('Failed to add department'); }
+    } catch { alert('Failed to add department'); }
   };
 
   const handleDeleteDepartment = async (name: string) => {
+    if (!company) return;
     if (!confirm(`ยืนยันการลบแผนก "${name}"?`)) return;
     const updatedDepts = (company.departments || []).filter((d: string) => d !== name);
     setCompany({ ...company, departments: updatedDepts });
@@ -182,7 +183,7 @@ export default function ProfileSettingsPage() {
       setToastMsg('ลบแผนกเรียบร้อย! 🗑️');
       setShowToast(true);
       setTimeout(() => setShowToast(false), 3000);
-    } catch (err) { alert('Failed to delete department'); }
+    } catch { alert('Failed to delete department'); }
   };
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -205,8 +206,8 @@ export default function ProfileSettingsPage() {
       setNewPassword('');
       setConfirmPassword('');
       setTimeout(() => setShowToast(false), 3000);
-    } catch (err: any) {
-      alert('เปลี่ยนรหัสผ่านไม่สำเร็จ: ' + err.message);
+    } catch (err: unknown) {
+      alert('เปลี่ยนรหัสผ่านไม่สำเร็จ: ' + (err instanceof Error ? err.message : 'Unknown error'));
     } finally {
       setUpdatingPassword(false);
     }
@@ -236,8 +237,11 @@ export default function ProfileSettingsPage() {
 
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: '32px' }}>
                <div style={{ position: 'relative' }}>
-                  <img 
+                  <Image 
                     src={profile?.avatar_url || 'https://ui-avatars.com/api/?name=' + profile?.full_name} 
+                    alt="Profile avatar"
+                    width={120}
+                    height={120}
                     style={{ width: '120px', height: '120px', borderRadius: '30px', objectFit: 'cover', border: '4px solid var(--border)' }} 
                   />
                   <label style={{ 
@@ -256,7 +260,7 @@ export default function ProfileSettingsPage() {
                  {AVATAR_OPTIONS.map((url, idx) => (
                     <button 
                      key={idx}
-                     onClick={() => setProfile({...profile, avatar_url: url})}
+                     onClick={() => setProfile(prev => prev ? {...prev, avatar_url: url} : prev)}
                      style={{ 
                        width: '40px', 
                        height: '40px', 
@@ -267,7 +271,7 @@ export default function ProfileSettingsPage() {
                        cursor: 'pointer',
                        background: 'none'
                      }}>
-                      <img src={url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      <Image src={url} alt="Avatar option" width={40} height={40} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                     </button>
                  ))}
                </div>
@@ -279,7 +283,7 @@ export default function ProfileSettingsPage() {
                   <input 
                     type="text" 
                     value={profile?.full_name || ''} 
-                    onChange={e => setProfile({...profile, full_name: e.target.value})}
+                    onChange={e => setProfile(prev => prev ? {...prev, full_name: e.target.value} : prev)}
                     style={{ width: '100%', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '10px', padding: '14px', color: 'var(--text)', outline: 'none' }}
                   />
                </div>
@@ -287,7 +291,7 @@ export default function ProfileSettingsPage() {
                   <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '8px' }}>แผนก (DEPARTMENT)</label>
                   <select 
                     value={profile?.department || ''} 
-                    onChange={e => setProfile({...profile, department: e.target.value})}
+                    onChange={e => setProfile(prev => prev ? {...prev, department: e.target.value} : prev)}
                     style={{ width: '100%', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '10px', padding: '14px', color: 'var(--text)', outline: 'none', appearance: 'none' }}
                   >
                     <option value="">เลือกแผนก...</option>
@@ -321,7 +325,7 @@ export default function ProfileSettingsPage() {
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: '32px' }}>
                <div className="glass" style={{ position: 'relative', width: '100%', height: '160px', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', padding: '24px', background: 'rgba(0,0,0,0.02)' }}>
                   {company?.logo_url ? (
-                    <img src={company.logo_url} style={{ maxHeight: '100%', maxWidth: '100%', objectFit: 'contain' }} />
+                    <Image src={company.logo_url} alt="Company logo" width={200} height={160} style={{ maxHeight: '100%', maxWidth: '100%', objectFit: 'contain' }} />
                   ) : (
                     <div style={{ textAlign: 'center' }}>
                        <Building size={48} color="var(--border)" />
@@ -347,7 +351,7 @@ export default function ProfileSettingsPage() {
                   <input 
                     type="text" 
                     value={company?.company_name || ''} 
-                    onChange={e => setCompany({...company, company_name: e.target.value})}
+                    onChange={e => setCompany(prev => prev ? {...prev, company_name: e.target.value} : prev)}
                     style={{ width: '100%', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '10px', padding: '14px', color: 'var(--text)', outline: 'none' }}
                   />
                </div>

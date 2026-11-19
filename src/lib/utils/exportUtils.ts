@@ -1,12 +1,12 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
+import type { Ticket } from '@/types';
 
 /**
  * Universal Excel Export
  */
-export const exportToExcel = (data: any[], fileName: string) => {
+export const exportToExcel = (data: Record<string, unknown>[], fileName: string) => {
   if (!data || data.length === 0) {
     alert('ไม่มีข้อมูลสำหรับส่งออก (No data to export)');
     return;
@@ -20,12 +20,12 @@ export const exportToExcel = (data: any[], fileName: string) => {
 /**
  * Universal PDF Export with Thai Font Support (Placeholder for now)
  */
-export const exportToPDF = (data: any[], fileName: string, title: string) => {
+export const exportToPDF = (data: Record<string, unknown>[], fileName: string, title: string) => {
   if (!data || data.length === 0) {
     alert('ไม่มีข้อมูลสำหรับส่งออก (No data to export)');
     return;
   }
-  const doc = new jsPDF() as any;
+  const doc = new jsPDF() as jsPDF & { autoTable: (options: unknown) => void };
   
   // Header
   doc.setFontSize(18);
@@ -54,11 +54,11 @@ export const exportToPDF = (data: any[], fileName: string, title: string) => {
 /**
  * Bulk Ticket Export (Helper)
  */
-export const exportTickets = (tickets: any[], format: 'xlsx' | 'pdf') => {
+export const exportTickets = (tickets: Ticket[], format: 'xlsx' | 'pdf') => {
   const formatted = tickets.map(t => ({
     'Ticket No': t.ticket_no,
     'Subject': t.subject,
-    'Customer': t.customers?.display_name || 'N/A',
+    'Customer': (t.customers as unknown as { display_name?: string | null })?.display_name || 'N/A',
     'Status': t.status,
     'Priority': t.priority,
     'Created At': new Date(t.created_at).toLocaleString('th-TH'),

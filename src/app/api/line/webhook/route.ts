@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+import crypto from 'crypto';
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 import * as line from '@line/bot-sdk';
@@ -8,18 +8,35 @@ const config = {
   channelSecret: process.env.LINE_CHANNEL_SECRET || 'unset',
 };
 
-const client = new line.Client(config);
+/**
+ * Validate LINE webhook signature using HMAC-SHA256
+ */
+function validateLineSignature(body: string, signature: string | null, secret: string): boolean {
+  if (!signature || !secret || secret === 'unset') return false;
+  const hash = crypto.createHmac('sha256', secret).update(body).digest('base64');
+  return hash === signature;
+}
 
 export async function POST(req: Request) {
-  let body: any;
-  try {
-     body = await req.json();
-  } catch {
-     console.error('Webhook: Non-JSON body received');
-     return NextResponse.json({ error: 'Body required' }, { status: 400 });
+  // 1. Validate LINE Signature (Security)
+  const rawBody = await req.text();
+  const signature = req.headers.get('x-line-signature');
+  
+  if (!validateLineSignature(rawBody, signature, config.channelSecret)) {
+    console.warn('Webhook: Invalid LINE signature rejected');
+    return NextResponse.json({ error: 'Unauthorized: Invalid signature' }, { status: 401 });
   }
 
-  const events: any[] = body.events || [];
+  // 2. Parse JSON body
+  let body: { events?: line.WebhookEvent[] };
+  try {
+    body = JSON.parse(rawBody) as { events?: line.WebhookEvent[] };
+  } catch {
+    console.error('Webhook: Invalid JSON body received');
+    return NextResponse.json({ error: 'Body required' }, { status: 400 });
+  }
+
+  const events: line.WebhookEvent[] = body.events || [];
   
   if (events.length === 0) {
     return NextResponse.json({ status: 'ok' });

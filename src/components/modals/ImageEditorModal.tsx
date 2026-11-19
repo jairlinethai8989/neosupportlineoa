@@ -1,6 +1,4 @@
 'use client';
-/* eslint-disable @next/next/no-img-element */
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useRef, useState, useEffect } from 'react';
 import { 
   X, 
@@ -105,6 +103,14 @@ export default function ImageEditorModal({ imageUrl, onClose, onSave }: ImageEdi
     }
   };
 
+  const getPointerCoords = (e: React.MouseEvent | React.TouchEvent, rect: DOMRect) => {
+    if ('touches' in e && e.touches.length > 0) {
+      return { x: e.touches[0].clientX - rect.left, y: e.touches[0].clientY - rect.top };
+    }
+    const mouseEvent = e as React.MouseEvent;
+    return { x: mouseEvent.clientX - rect.left, y: mouseEvent.clientY - rect.top };
+  };
+
   const startDrawing = (e: React.MouseEvent | React.TouchEvent) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -112,8 +118,7 @@ export default function ImageEditorModal({ imageUrl, onClose, onSave }: ImageEdi
     if (!ctx) return;
 
     const rect = canvas.getBoundingClientRect();
-    const x = (e as any).clientX ? (e as any).clientX - rect.left : (e as any).touches[0].clientX - rect.left;
-    const y = (e as any).clientY ? (e as any).clientY - rect.top : (e as any).touches[0].clientY - rect.top;
+    const { x, y } = getPointerCoords(e, rect);
 
     setIsDrawing(true);
     setStartX(x);
@@ -149,8 +154,7 @@ export default function ImageEditorModal({ imageUrl, onClose, onSave }: ImageEdi
     if (!ctx || !snapshot) return;
 
     const rect = canvas.getBoundingClientRect();
-    const x = (e as any).clientX ? (e as any).clientX - rect.left : (e as any).touches[0].clientX - rect.left;
-    const y = (e as any).clientY ? (e as any).clientY - rect.top : (e as any).touches[0].clientY - rect.top;
+    const { x, y } = getPointerCoords(e, rect);
 
     if (tool === 'pencil') {
       ctx.lineTo(x, y);

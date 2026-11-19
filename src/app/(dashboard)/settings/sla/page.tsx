@@ -1,7 +1,4 @@
 'use client';
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable react/no-unescaped-entities */
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { 
@@ -10,16 +7,15 @@ import {
   ShieldCheck, 
   Trash2, 
   Plus,
-  ArrowRight,
-  Clock,
   AlertCircle,
   Loader2
 } from 'lucide-react';
 import Link from 'next/link';
+import type { Priority, SlaRule } from '@/types';
 
 export default function SLASettingsPage() {
-  const [rules, setRules] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [rules, setRules] = useState<SlaRule[]>([]);
+  const [, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -43,9 +39,9 @@ export default function SLASettingsPage() {
     setRules([...rules, { priority: 'Medium', response_time_minutes: 60, resolution_time_minutes: 1440 }]);
   };
 
-  const updateRule = (index: number, field: string, value: any) => {
+  const updateRule = <K extends keyof SlaRule>(index: number, field: K, value: SlaRule[K]) => {
     const updated = [...rules];
-    updated[index][field] = value;
+    updated[index] = { ...updated[index], [field]: value };
     setRules(updated);
   };
 
@@ -72,7 +68,7 @@ export default function SLASettingsPage() {
          }
       }
       alert('SLA Rules saved successfully');
-    } catch (err) {
+    } catch {
       alert('Failed to save rules');
     } finally {
       setSaving(false);
@@ -102,7 +98,7 @@ export default function SLASettingsPage() {
                         <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)', marginBottom: '8px', textTransform: 'uppercase' }}>Priority Level</label>
                         <select 
                            value={rule.priority}
-                           onChange={(e) => updateRule(idx, 'priority', e.target.value)}
+                           onChange={(e) => updateRule(idx, 'priority', e.target.value as Priority)}
                            style={{ width: '100%', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '6px', padding: '10px', color: 'white', fontSize: '14px' }}>
                            <option value="Critical">Critical</option>
                            <option value="High">High</option>
@@ -160,7 +156,7 @@ export default function SLASettingsPage() {
                    <br /><br />
                    <strong>Response Time:</strong> Countdown begins the moment a customer sends their first message.
                    <br /><br />
-                   <strong>Resolution Time:</strong> The total time allowed to move a ticket to "Resolved" status.
+                   <strong>Resolution Time:</strong> The total time allowed to move a ticket to &quot;Resolved&quot; status.
                 </p>
              </div>
 
@@ -170,7 +166,7 @@ export default function SLASettingsPage() {
                    <h3 style={{ fontSize: '16px', fontWeight: '700' }}>Escalation Levels</h3>
                 </div>
                 <p style={{ fontSize: '13px', color: 'var(--text-muted)', lineHeight: '1.5' }}>
-                   Tickets that breach SLA will be highlighted in red on all dashboards and categorized as "Emergency" in your daily reports.
+                   Tickets that breach SLA will be highlighted in red on all dashboards and categorized as &quot;Emergency&quot; in your daily reports.
                 </p>
              </div>
          </div>

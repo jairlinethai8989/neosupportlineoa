@@ -1,7 +1,4 @@
 'use client';
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable react/no-unescaped-entities */
 import React, { useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
@@ -33,7 +30,7 @@ export default function LoginPage() {
         finalEmail = `${email}@neo.local`;
       }
 
-      const { data, error: signInError } = await supabase.auth.signInWithPassword({
+      const { error: signInError } = await supabase.auth.signInWithPassword({
         email: finalEmail,
         password,
       });
@@ -45,8 +42,8 @@ export default function LoginPage() {
       const redirectTo = params.get('redirectTo') || '/';
       router.push(redirectTo);
       router.refresh();
-    } catch (err: any) {
-      setError(err.message || 'Failed to sign in');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to sign in');
     } finally {
       setLoading(false);
     }
@@ -190,7 +187,7 @@ export default function LoginPage() {
         </form>
 
         <p style={{ textAlign: 'center', marginTop: '32px', fontSize: '14px', color: 'var(--text-muted)' }}>
-          Don't have an account? <a href="#" style={{ color: 'var(--primary)', fontWeight: '600' }}>Contact Admin</a>
+          Don&apos;t have an account? <a href="#" style={{ color: 'var(--primary)', fontWeight: '600' }}>Contact Admin</a>
         </p>
       </div>
 

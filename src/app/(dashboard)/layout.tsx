@@ -1,27 +1,25 @@
 'use client';
-/* eslint-disable @next/next/no-img-element */
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable jsx-a11y/alt-text */
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import Image from 'next/image';
+import { useRouter } from 'next/navigation';
 import { Noto_Sans_Thai } from "next/font/google";
 import Sidebar from "@/components/layout/Sidebar";
 import { 
   Menu, 
-  X, 
   Bell, 
-  User as UserIcon, 
+  Ticket, 
   Zap, 
   CheckCheck, 
-  Ticket, 
   ArrowRight, 
   MessageSquare,
   AlertTriangle 
 } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { NotificationProvider, useNotificationContext } from '@/contexts/NotificationContext';
 import ToastContainer from '@/components/notifications/ToastContainer';
 import type { AppNotification } from '@/hooks/useNotifications';
+import type { Profile } from '@/types';
 
 const notoThai = Noto_Sans_Thai({ 
   subsets: ["latin", "thai"], 
@@ -30,7 +28,9 @@ const notoThai = Noto_Sans_Thai({
 
 type NotifTab = 'all' | 'unread' | 'sla';
 
-const ACTION_ICONS: Record<string, any> = {
+type AgentUser = Profile | { id: string; email?: string; user_metadata?: Record<string, unknown> };
+
+const ACTION_ICONS: Record<string, LucideIcon> = {
   'Created': Ticket,
   'Claimed': Zap,
   'Transferred': ArrowRight,
@@ -67,9 +67,10 @@ function timeAgo(dateStr: string): string {
 
 // Inner layout that can consume NotificationContext
 function DashboardInner({ children }: { children: React.ReactNode }) {
+  const router = useRouter();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
-  const [agent, setAgent] = useState<any>(null);
+  const [agent, setAgent] = useState<AgentUser | null>(null);
   const [showNotifications, setShowNotifications] = useState(false);
   const [activeTab, setActiveTab] = useState<NotifTab>('all');
   const notifRef = useRef<HTMLDivElement>(null);
@@ -102,12 +103,29 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
     if (opening) markAllRead();
   };
 
+  const handleNotificationClick = (notif: AppNotification) => {
+    setShowNotifications(false);
+    if (notif.ticketId) {
+      router.push(`/tickets/${notif.ticketId}`);
+    } else if (notif.conversationId) {
+      router.push(`/inbox?cid=${notif.conversationId}`);
+    } else if (notif.type === 'message') {
+      router.push('/inbox');
+    } else {
+      router.push('/tickets');
+    }
+  };
+
   // Filtered notifications by tab
   const filteredNotifs: AppNotification[] = notifications.filter((n) => {
     if (activeTab === 'unread') return !n.isRead;
     if (activeTab === 'sla') return n.type === 'sla';
     return true;
   });
+
+  const agentName = (agent as Profile | null)?.full_name || ((agent as { email?: string } | null)?.email?.split('@')[0]) || 'Agent';
+  const agentAvatar = (agent as Profile | null)?.avatar_url;
+  const agentInitial = agentName.charAt(0).toUpperCase();
 
   return (
     <div className={`main-layout ${notoThai.className}`}>
@@ -248,6 +266,15 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
                          return (
                            <div
                              key={notif.id}
+                             role="button"
+                             tabIndex={0}
+                             onClick={() => handleNotificationClick(notif)}
+                             onKeyDown={(e) => {
+                               if (e.key === 'Enter' || e.key === ' ') {
+                                 e.preventDefault();
+                                 handleNotificationClick(notif);
+                               }
+                             }}
                              style={{
                                padding: '12px 16px',
                                borderBottom: '1px solid rgba(255,255,255,0.04)',
@@ -258,8 +285,6 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
                                cursor: 'pointer',
                                transition: 'background 0.15s ease',
                              }}
-                            //  onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.03)')}
-                            //  onMouseLeave={(e) => (e.currentTarget.style.background = !notif.isRead ? `${iconColor}08` : 'transparent')}
                            >
                              <div style={{ width: '32px', height: '32px', borderRadius: '10px', background: `${iconColor}18`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                                <IconComponent size={14} color={iconColor} />
@@ -290,8 +315,8 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
              </div>
              
              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginLeft: '8px', padding: '4px 12px 4px 4px', borderRadius: '30px', border: '1px solid var(--border)' }} className="glass-interactive">
-                {agent?.avatar_url ? (
-                  <img src={agent.avatar_url} style={{ width: '32px', height: '32px', borderRadius: '50%', objectFit: 'cover' }} />
+                {agentAvatar ? (
+                  <Image src={agentAvatar} alt={agentName} width={32} height={32} style={{ borderRadius: '50%', objectFit: 'cover' }} />
                 ) : (
                   <div style={{ 
                     width: '32px', 
@@ -304,10 +329,10 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
                     fontWeight: '800',
                     fontSize: '12px',
                     boxShadow: '0 0 10px rgba(115, 103, 240, 0.4)'
-                  }}>{agent?.full_name?.charAt(0) || 'A'}</div>
+                  }}>{agentInitial}</div>
                 )}
                 <div className="show-desktop">
-                   <p style={{ fontSize: '12px', fontWeight: '800' }}>{agent?.full_name || 'Agent'}</p>
+                   <p style={{ fontSize: '12px', fontWeight: '800' }}>{agentName}</p>
                 </div>
              </div>
           </div>

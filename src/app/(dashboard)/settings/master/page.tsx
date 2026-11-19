@@ -1,6 +1,5 @@
 'use client';
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { 
@@ -8,20 +7,18 @@ import {
   Users, 
   Briefcase, 
   Plus, 
-  Trash2, 
   Edit3, 
   Check, 
   X,
   Loader2,
-  Search,
-  ChevronRight
+  Search
 } from 'lucide-react';
 
 type Tab = 'hospitals' | 'departments' | 'positions';
 
 export default function MasterSettingsPage() {
   const [activeTab, setActiveTab] = useState<Tab>('hospitals');
-  const [items, setItems] = useState<any[]>([]);
+  const [items, setItems] = useState<{ id: string; name: string; is_active?: boolean }[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   
@@ -32,12 +29,9 @@ export default function MasterSettingsPage() {
   const [editItemName, setEditItemName] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
-  const fetchData = async () => {
+  const fetchData = React.useCallback(async () => {
     setLoading(true);
-    let table = '';
-    if (activeTab === 'hospitals') table = 'hospitals';
-    else if (activeTab === 'departments') table = 'departments';
-    else if (activeTab === 'positions') table = 'positions';
+    const table = activeTab;
 
     const { data } = await supabase
       .from(table)
@@ -46,18 +40,25 @@ export default function MasterSettingsPage() {
     
     setItems(data || []);
     setLoading(false);
-  };
+  }, [activeTab]);
 
   useEffect(() => {
-    fetchData();
-    setIsAdding(false);
-    setEditingId(null);
-  }, [activeTab]);
+    let active = true;
+    const load = async () => {
+      if (!active) return;
+      await fetchData();
+      if (!active) return;
+      setIsAdding(false);
+      setEditingId(null);
+    };
+    void load();
+    return () => { active = false; };
+  }, [fetchData]);
 
   const handleAdd = async () => {
     if (!newItemName.trim()) return;
     setSubmitting(true);
-    let table = activeTab;
+    const table = activeTab;
     const { error } = await supabase.from(table).insert([{ name: newItemName, is_active: true }]);
     if (!error) {
       setNewItemName('');
@@ -70,7 +71,7 @@ export default function MasterSettingsPage() {
   const handleUpdate = async (id: string) => {
     if (!editItemName.trim()) return;
     setSubmitting(true);
-    let table = activeTab;
+    const table = activeTab;
     const { error } = await supabase.from(table).update({ name: editItemName }).eq('id', id);
     if (!error) {
       setEditingId(null);
@@ -80,7 +81,7 @@ export default function MasterSettingsPage() {
   };
 
   const toggleStatus = async (id: string, current: boolean) => {
-    let table = activeTab;
+    const table = activeTab;
     await supabase.from(table).update({ is_active: !current }).eq('id', id);
     fetchData();
   };
@@ -220,7 +221,7 @@ export default function MasterSettingsPage() {
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                          {/* Status Badge */}
                          <button 
-                           onClick={() => toggleStatus(item.id, item.is_active)}
+                           onClick={() => toggleStatus(item.id, !!item.is_active)}
                            style={{ padding: '6px 12px', borderRadius: '20px', fontSize: '10px', fontWeight: '800', background: item.is_active ? 'rgba(40, 199, 111, 0.1)' : 'rgba(255,255,255,0.05)', color: item.is_active ? 'var(--success)' : 'var(--text-muted)', border: 'none', cursor: 'pointer', marginRight: '16px' }}
                          >
                             {item.is_active ? 'เปิดใช้งาน' : 'ปิดใช้งาน'}

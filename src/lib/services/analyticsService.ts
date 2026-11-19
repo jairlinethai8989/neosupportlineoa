@@ -1,5 +1,4 @@
 import { supabase } from '@/lib/supabase';
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { DateTime } from 'luxon';
 
 export const analyticsService = {
@@ -56,7 +55,7 @@ export const analyticsService = {
       name: agent.full_name,
       role: agent.department,
       tickets: agent.tickets?.length || 0,
-      csat: agent.tickets?.reduce((acc: number, t: any) => acc + (t.rating || 0), 0) / (agent.tickets?.length || 1) || 0
+      csat: agent.tickets?.reduce((acc: number, t: { rating?: number | null }) => acc + (t.rating || 0), 0) / (agent.tickets?.length || 1) || 0
     })) || [];
   }
 };

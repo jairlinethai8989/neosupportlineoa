@@ -1,6 +1,5 @@
 'use client';
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unused-vars */
+
 import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
@@ -12,11 +11,12 @@ import {
   MessageSquare,
   Loader2
 } from 'lucide-react';
+import type { Ticket } from '@/types';
 
 export default function SurveyPage() {
   const { id } = useParams();
   const router = useRouter();
-  const [ticket, setTicket] = useState<any>(null);
+  const [ticket, setTicket] = useState<Ticket | null>(null);
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState('');
   const [hover, setHover] = useState(0);
@@ -31,7 +31,7 @@ export default function SurveyPage() {
         .select('*, customers(display_name)')
         .eq('id', id)
         .single();
-      if (data) setTicket(data);
+      if (data) setTicket(data as Ticket);
       setLoading(false);
     }
     if (id) fetchTicket();
@@ -100,7 +100,7 @@ export default function SurveyPage() {
             </div>
             <h1 style={{ fontSize: '24px', fontWeight: '800', marginBottom: '8px' }}>Service Feedback</h1>
             <p style={{ color: 'var(--text-muted)', fontSize: '14px' }}>
-               Hi {ticket.customers?.display_name}, how was your experience with Ticket <strong>#{ticket.ticket_no}</strong>?
+               Hi {(ticket.customers as unknown as { display_name?: string })?.display_name}, how was your experience with Ticket <strong>#{ticket.ticket_no}</strong>?
             </p>
          </div>
 
@@ -160,7 +160,7 @@ export default function SurveyPage() {
          </p>
       </div>
 
-      <style jsx global>{`
+      <style dangerouslySetInnerHTML={{ __html: `
         @keyframes fadeIn {
           from { opacity: 0; transform: translateY(20px); }
           to { opacity: 1; transform: translateY(0); }
@@ -172,7 +172,7 @@ export default function SurveyPage() {
         .animate-spin {
           animation: animate-spin 1s linear infinite;
         }
-      `}</style>
+      ` }} />
     </div>
   );
 }

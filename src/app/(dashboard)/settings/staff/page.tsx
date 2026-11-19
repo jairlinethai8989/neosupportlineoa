@@ -1,9 +1,6 @@
 'use client';
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable @next/next/no-img-element */
-/* eslint-disable jsx-a11y/alt-text */
 import React, { useState, useEffect } from 'react';
+import Image from 'next/image';
 import { supabase } from '@/lib/supabase';
 import { 
   Users, 
@@ -11,7 +8,6 @@ import {
   Trash2, 
   Shield, 
   Mail,
-  MoreVertical,
   Loader2,
   ChevronLeft,
   CheckCircle,
@@ -19,9 +15,15 @@ import {
   Search
 } from 'lucide-react';
 import Link from 'next/link';
+import type { Profile, UserRole } from '@/types';
+
+interface StaffProfile extends Omit<Profile, 'role'> {
+  role: UserRole | 'Administrator';
+  email?: string | null;
+}
 
 export default function StaffManagementPage() {
-  const [staff, setStaff] = useState<any[]>([]);
+  const [staff, setStaff] = useState<StaffProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -95,16 +97,16 @@ export default function StaffManagementPage() {
       setIsModalOpen(false);
       setForm({ username: '', password: '', full_name: '', role: 'Agent', department: 'ฝ่ายสนับสนุนลูกค้า (Customer Support)' });
       fetchStaff();
-    } catch (err: any) {
-      alert('เกิดข้อผิดพลาด: ' + err.message);
+    } catch (err: unknown) {
+      alert('เกิดข้อผิดพลาด: ' + (err instanceof Error ? err.message : 'Unknown error'));
     } finally {
       setSubmitting(false);
     }
   };
 
   const filteredStaff = staff.filter(s => 
-    s.full_name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    s.email.toLowerCase().includes(searchTerm.toLowerCase())
+    (s.full_name ?? '').toLowerCase().includes(searchTerm.toLowerCase()) || 
+    (s.email ?? '').toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   if (loading) return <div className="flex-center" style={{ height: '70vh' }}><Loader2 className="animate-spin" color="var(--primary)" /></div>;
@@ -204,7 +206,7 @@ export default function StaffManagementPage() {
               <tr key={member.id} style={{ borderBottom: '1px solid var(--border)', transition: 'background 0.2s' }} className="hover-row">
                 <td style={{ padding: '16px 24px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    <img src={member.avatar_url} style={{ width: '40px', height: '40px', borderRadius: '12px', border: '1px solid var(--border)' }} />
+                  <Image src={member.avatar_url || 'https://ui-avatars.com/api/?name=' + member.full_name} alt={member.full_name} width={40} height={40} style={{ width: '40px', height: '40px', borderRadius: '12px', border: '1px solid var(--border)' }} />
                     <div>
                       <p style={{ fontSize: '14px', fontWeight: '700' }}>{member.full_name}</p>
                       <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{member.email}</p>
@@ -235,7 +237,7 @@ export default function StaffManagementPage() {
                   <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
                      <button style={{ padding: '8px', borderRadius: '8px', background: 'rgba(255,255,255,0.05)', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}><Mail size={16} /></button>
                      <button 
-                       onClick={() => handleDeleteStaff(member.id, member.full_name)}
+                       onClick={() => handleDeleteStaff(member.id, member.full_name ?? '')}
                        style={{ padding: '8px', borderRadius: '8px', background: 'rgba(234, 84, 85, 0.1)', border: 'none', color: 'var(--danger)', cursor: 'pointer' }}
                      >
                        <Trash2 size={16} />

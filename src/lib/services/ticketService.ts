@@ -1,5 +1,6 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { supabase } from '@/lib/supabase';
+import { sendLineGroupNotification } from '@/lib/utils/lineNotifications';
+import type { Ticket } from '@/types';
 
 export const ticketService = {
   /**
@@ -36,7 +37,6 @@ export const ticketService = {
 
     // Send Group Notification (Non-blocking)
     try {
-      const { sendLineGroupNotification } = await import('@/lib/utils/lineNotifications');
       const { data: agent } = await supabase.from('profiles').select('full_name').eq('id', agentId).single();
       await sendLineGroupNotification(`👷‍♂️ [รับงานแล้ว] แอดมิน ${agent?.full_name || 'Anonymous'} ได้รับตั๋วงาน #${ticket.ticket_no} เรียบร้อยแล้วครับ`);
     } catch (notifyError) {
@@ -85,7 +85,7 @@ export const ticketService = {
    * Transfer ticket to another agent or team
    */
   async transfer(ticketId: string, fromAgentId: string, toAgentId?: string, toTeamId?: string, reason?: string) {
-     const updateData: any = { 
+     const updateData: Record<string, string | null> = { 
        updated_at: new Date().toISOString(),
        status: 'Escalated' 
      };
@@ -114,7 +114,6 @@ export const ticketService = {
 
      // Send Group Notification (Non-blocking)
      try {
-       const { sendLineGroupNotification } = await import('@/lib/utils/lineNotifications');
        const { data: agent } = await supabase.from('profiles').select('full_name').eq('id', fromAgentId).single();
        let transferTarget = 'Team/Agent';
        if (toAgentId) {
@@ -130,7 +129,7 @@ export const ticketService = {
   },
 
   /**
-   * Resolve a ticket and send CSAT trigger (placeholder)
+   * Resolve a ticket and send CSAT trigger
    */
   async resolve(ticketId: string, agentId: string, resolutionSummary: string) {
      const { data: ticket, error: resolveError } = await supabase
@@ -157,9 +156,12 @@ export const ticketService = {
      }]);
 
      // Send Group Notification
-     const { sendLineGroupNotification } = await import('@/lib/utils/lineNotifications');
-     const { data: agent } = await supabase.from('profiles').select('full_name').eq('id', agentId).single();
-     await sendLineGroupNotification(`✅ [ปิดงาน] แอดมิน ${agent?.full_name || 'Anonymous'} ได้แก้ไขและปิดตั๋วงาน #${ticket.ticket_no} สำเร็จแล้วครับ\nสรุปงาน: ${resolutionSummary}`);
+     try {
+       const { data: agent } = await supabase.from('profiles').select('full_name').eq('id', agentId).single();
+       await sendLineGroupNotification(`✅ [ปิดงาน] แอดมิน ${agent?.full_name || 'Anonymous'} ได้แก้ไขและปิดตั๋วงาน #${ticket.ticket_no} สำเร็จแล้วครับ\nสรุปงาน: ${resolutionSummary}`);
+     } catch (notifyErr) {
+       console.warn('Resolve Notification Failed:', notifyErr);
+     }
 
      // Trigger CSAT survey record creation
      await supabase.from('csat_surveys').insert([{

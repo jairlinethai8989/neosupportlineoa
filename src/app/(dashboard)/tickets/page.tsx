@@ -1,6 +1,4 @@
 'use client';
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unused-vars */
 import React, { useState, useEffect } from 'react';
 import { 
   Search, 
@@ -17,6 +15,7 @@ import {
 import { supabase } from '@/lib/supabase';
 import { ticketService } from '@/lib/services/ticketService';
 import Link from 'next/link';
+import type { Ticket, Conversation } from '@/types';
 
 const WORKFLOW = [
   { id: 'New', thai: 'งานใหม่', eng: 'New Ticket' },
@@ -68,8 +67,8 @@ const PriorityIndicator = ({ priority }: { priority: string }) => {
 };
 
 export default function TicketsPage() {
-  const [tickets, setTickets] = useState<any[]>([]);
-  const [conversations, setConversations] = useState<any[]>([]);
+  const [tickets, setTickets] = useState<Ticket[]>([]);
+  const [conversations, setConversations] = useState<Pick<Conversation, 'id' | 'customer_id'>[]>([]);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<'board' | 'table'>('board');
   const [searchTerm, setSearchTerm] = useState('');
@@ -98,9 +97,9 @@ export default function TicketsPage() {
       const { data: cData } = await supabase.from('conversations').select('id, customer_id');
       
       setTickets(tData || []);
-      setConversations(cData || []);
-    } catch (err: any) {
-      setDebugError(err.message);
+      setConversations((cData as Pick<Conversation, 'id' | 'customer_id'>[]) || []);
+    } catch (err) {
+      setDebugError(err instanceof Error ? err.message : 'Unknown error');
     } finally {
       setLoading(false);
     }
@@ -132,9 +131,9 @@ export default function TicketsPage() {
       await ticketService.claimTicket(ticketId, user.id);
       await fetchData(); // Refresh
       alert('รับงานเรียบร้อยแล้ว!');
-    } catch (err: any) { 
+    } catch (err) { 
       console.error('Claim Error:', err);
-      alert('Failed to claim: ' + err.message);
+      alert('Failed to claim: ' + (err instanceof Error ? err.message : 'Unknown error'));
     } finally {
       setClaimingId(null);
     }
@@ -282,7 +281,7 @@ export default function TicketsPage() {
                         {columnTickets.map(ticket => {
                             const convId = getConvId(ticket.customer_id);
                             const isNew = String(ticket.status || '').toLowerCase() === 'new';
-                            const hospitalName = ticket.customers?.hospitals?.name || 'ไม่ระบุโรงพยาบาล';
+                            const hospitalName = (ticket.customers as unknown as { hospitals?: { name?: string } | null })?.hospitals?.name || 'ไม่ระบุโรงพยาบาล';
                             return (
                                 <div key={ticket.id} className="glass-interactive" style={{ padding: '24px', borderRadius: '24px', background: 'var(--bg-card)', border: '1px solid var(--border)', borderLeft: `6px solid ${config.color}`, display: 'flex', flexDirection: 'column', gap: '18px', boxShadow: '0 8px 24px rgba(0,0,0,0.08)' }}>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
@@ -299,7 +298,7 @@ export default function TicketsPage() {
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '16px', borderTop: '1px solid var(--border)' }}>
                                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                                           <div style={{ width: '32px', height: '32px', borderRadius: '10px', background: 'var(--bg-input)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><User size={16} color="var(--text-muted)" /></div>
-                                          <p style={{ fontSize: '13px', color: 'var(--text-main)', fontWeight: '700' }}>{ticket.customers?.display_name || 'Customer'}</p>
+                                          <p style={{ fontSize: '13px', color: 'var(--text-main)', fontWeight: '700' }}>{(ticket.customers as unknown as { display_name?: string | null })?.display_name || 'Customer'}</p>
                                        </div>
                                        <div style={{ display: 'flex', gap: '10px' }}>
                                           {convId && (
@@ -364,13 +363,13 @@ export default function TicketsPage() {
               <tbody>
                  {filteredTickets.map((ticket, idx) => {
                     const convId = getConvId(ticket.customer_id);
-                    const hospitalName = ticket.customers?.hospitals?.name || '-';
+                    const hospitalName = (ticket.customers as unknown as { hospitals?: { name?: string } | null })?.hospitals?.name || '-';
                     return (
                         <tr key={idx} style={{ borderBottom: '1px solid var(--border)' }}>
                            <td style={{ padding: '16px 20px' }}><Link href={`/tickets/${ticket.id}`} style={{ fontWeight: '800', color: 'var(--primary)', textDecoration: 'none' }}>#{ticket.ticket_no}</Link></td>
                            <td style={{ padding: '16px 20px', fontSize: '14px', fontWeight: '500' }}>{ticket.subject}</td>
                            <td style={{ padding: '16px 20px', fontSize: '13px', fontWeight: '700', color: 'var(--primary)' }}>{hospitalName}</td>
-                           <td style={{ padding: '16px 20px' }}>{ticket.customers?.display_name || '-'}</td>
+                           <td style={{ padding: '16px 20px' }}>{(ticket.customers as unknown as { display_name?: string | null })?.display_name || '-'}</td>
                            <td style={{ padding: '16px 20px' }}><StatusBadge status={ticket.status} /></td>
                            <td style={{ padding: '16px 20px' }}>
                               <div style={{ display: 'flex', gap: '8px' }}>

@@ -82,8 +82,8 @@ export async function POST(req: Request) {
     }
 
     return NextResponse.json({ success: true, user: newUser.user });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('Staff creation error:', err);
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    return NextResponse.json({ error: err instanceof Error ? err.message : 'Unknown error' }, { status: 500 });
   }
 }

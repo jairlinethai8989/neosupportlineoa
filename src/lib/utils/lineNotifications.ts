@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import * as line from '@line/bot-sdk';
 
 const getLineClient = () => {
@@ -13,6 +12,12 @@ const getLineClient = () => {
   });
 };
 
+function getErrorMessage(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  if (typeof error === 'string') return error;
+  return 'Unknown error';
+}
+
 /**
  * Send a notification message to the internal LINE group
  */
@@ -26,10 +31,11 @@ export async function sendLineGroupNotification(message: string) {
       type: 'text',
       text: message,
     });
-  } catch (error: any) {
-    console.error('Error sending LINE group notification:', error.message || error);
-    if (error.originalError && error.originalError.response) {
-       console.error('LINE API Detailed Error:', JSON.stringify(error.originalError.response.data));
+  } catch (error: unknown) {
+    console.error('Error sending LINE group notification:', getErrorMessage(error));
+    const err = error as { originalError?: { response?: { data?: unknown } } };
+    if (err?.originalError?.response?.data) {
+       console.error('LINE API Detailed Error:', JSON.stringify(err.originalError.response.data));
     }
   }
 }
@@ -37,7 +43,7 @@ export async function sendLineGroupNotification(message: string) {
 /**
  * Send a Flex Message notification to the internal LINE group
  */
-export async function sendLineGroupFlexNotification(altText: string, contents: any) {
+export async function sendLineGroupFlexNotification(altText: string, contents: Record<string, unknown>) {
   const groupId = process.env.LINE_GROUP_ID;
   const client = getLineClient();
   if (!groupId || !client) {
@@ -49,9 +55,9 @@ export async function sendLineGroupFlexNotification(altText: string, contents: a
     await client.pushMessage(groupId, {
       type: 'flex',
       altText,
-      contents,
+      contents: contents as unknown as line.FlexContainer,
     });
-  } catch (error) {
-    console.error('Error sending LINE group Flex notification:', error);
+  } catch (error: unknown) {
+    console.error('Error sending LINE group Flex notification:', getErrorMessage(error));
   }
 }

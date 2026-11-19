@@ -1,5 +1,5 @@
 import { createServerClient } from '@supabase/ssr';
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 
 // Routes ที่ไม่ต้อง login (Public routes)
 const PUBLIC_ROUTES = [
@@ -7,15 +7,13 @@ const PUBLIC_ROUTES = [
   '/portal',
   '/survey',
   '/api/line',
-  '/api/debug',
 ];
 
 function isPublicRoute(pathname: string): boolean {
   return PUBLIC_ROUTES.some(route => pathname.startsWith(route));
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function middleware(request: any) {
+export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // ข้าม static files และ Next.js internals

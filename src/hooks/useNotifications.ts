@@ -1,8 +1,8 @@
 'use client';
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { isSlaBreached } from '@/lib/utils/slaUtils';
+import type { TicketLog } from '@/types';
 
 export type NotifType = 'sla' | 'ticket' | 'message';
 
@@ -13,6 +13,7 @@ export interface AppNotification {
   body: string;
   ticketNo?: string | number;
   ticketId?: string;
+  conversationId?: string;
   createdAt: string;
   isRead: boolean;
 }
@@ -23,6 +24,8 @@ export interface ToastNotif {
   title: string;
   body: string;
   ticketNo?: string | number;
+  ticketId?: string;
+  conversationId?: string;
 }
 
 const STORAGE_KEY = 'neo_notif_seen_v2';
@@ -81,7 +84,7 @@ export function useNotifications(agentId: string | null) {
 
     if (!data) return;
 
-    const notifs: AppNotification[] = data.map((row) => {
+    const notifs: AppNotification[] = (data as TicketLog[]).map((row) => {
       const isRead = lastSeen ? new Date(row.created_at) <= lastSeen : false;
       let title = 'อัปเดตใบงาน';
       let type: NotifType = 'ticket';
@@ -156,8 +159,10 @@ export function useNotifications(agentId: string | null) {
   useEffect(() => {
     if (!agentId) return;
 
-    fetchLogs();
-    fetchSlaBreaches();
+    const initTimer = setTimeout(() => {
+      void fetchLogs();
+      void fetchSlaBreaches();
+    }, 0);
 
     // Subscribe: new ticket_logs targeting this agent
     const logChannel = supabase
@@ -166,7 +171,7 @@ export function useNotifications(agentId: string | null) {
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'ticket_logs' },
         async (payload) => {
-          const row = payload.new as any;
+          const row = payload.new as TicketLog;
           // Only care if this agent is the target or performer
           if (row.to_user_id !== agentId && row.performer_id !== agentId) return;
 
@@ -184,7 +189,8 @@ export function useNotifications(agentId: string | null) {
             id: `toast-${Date.now()}`,
             type: 'ticket',
             title,
-            body: `ดูรายละเอียดในกล่องข้อความ`,
+            body: `คลิกเพื่อดูรายละเอียดใบงาน`,
+            ticketId: row.ticket_id,
           });
         }
       )
@@ -197,7 +203,7 @@ export function useNotifications(agentId: string | null) {
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'messages' },
         async (payload) => {
-          const row = payload.new as any;
+          const row = payload.new as { sender_type: string; content: string | null; conversation_id?: string };
           // Only inbound messages (from customer)
           if (row.sender_type !== 'customer') return;
           if (isFirstLoad.current) return;
@@ -206,7 +212,8 @@ export function useNotifications(agentId: string | null) {
             id: `toast-msg-${Date.now()}`,
             type: 'message',
             title: 'ข้อความใหม่จากลูกค้า',
-            body: (row.content as string)?.slice(0, 60) ?? 'มีข้อความใหม่',
+            body: row.content?.slice(0, 60) ?? 'มีข้อความใหม่',
+            conversationId: row.conversation_id,
           });
         }
       )
@@ -221,6 +228,7 @@ export function useNotifications(agentId: string | null) {
     }, 2000);
 
     return () => {
+      clearTimeout(initTimer);
       supabase.removeChannel(logChannel);
       supabase.removeChannel(msgChannel);
       clearInterval(slaInterval);

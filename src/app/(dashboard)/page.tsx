@@ -1,17 +1,15 @@
 'use client';
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unused-vars */
 import React, { useState, useEffect, useMemo } from 'react';
+import type { LucideIcon } from 'lucide-react';
 import { 
-  Users, 
-  MessageSquare, 
+  MessageSquare,
   Clock, 
   CheckCircle,
   TrendingUp,
   TrendingDown,
   AlertTriangle,
   Download,
-  Ticket,
+  Ticket as TicketIcon,
   Activity,
   Zap
 } from 'lucide-react';
@@ -20,10 +18,11 @@ import {
   AreaChart, Area,
   PieChart, Pie, Cell,
   BarChart, Bar,
-  XAxis, YAxis, CartesianGrid, Tooltip, Legend,
+  XAxis, YAxis, CartesianGrid, Tooltip,
 } from 'recharts';
 import { supabase } from '@/lib/supabase';
 import { exportTickets } from '@/lib/utils/exportUtils';
+import type { Ticket, TicketLog } from '@/types';
 
 const CHART_COLORS = {
   primary: '#00f2fe',
@@ -49,7 +48,20 @@ const PRIORITY_COLORS: Record<string, string> = {
   'Low': '#28c76f',
 };
 
-const CustomTooltip = ({ active, payload, label }: any) => {
+interface TooltipEntry {
+  name?: string;
+  value?: number | string;
+  color?: string;
+  payload?: { fill?: string };
+}
+
+interface CustomTooltipProps {
+  active?: boolean;
+  payload?: TooltipEntry[];
+  label?: string;
+}
+
+const CustomTooltip = ({ active, payload, label }: CustomTooltipProps) => {
   if (!active || !payload?.length) return null;
   return (
     <div style={{
@@ -61,7 +73,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
       boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
     }}>
       <p style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)', marginBottom: '6px' }}>{label}</p>
-      {payload.map((p: any, i: number) => (
+      {payload.map((p, i) => (
         <p key={i} style={{ fontSize: '13px', fontWeight: '800', color: p.color || 'var(--primary)' }}>
           {p.name}: {p.value}
         </p>
@@ -70,7 +82,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   );
 };
 
-const PieTooltip = ({ active, payload }: any) => {
+const PieTooltip = ({ active, payload }: CustomTooltipProps) => {
   if (!active || !payload?.length) return null;
   const d = payload[0];
   return (
@@ -89,7 +101,16 @@ const PieTooltip = ({ active, payload }: any) => {
   );
 };
 
-const KPICard = ({ title, value, icon: Icon, color, trend, trendLabel }: any) => (
+interface KPICardProps {
+  title: { thai: string; eng: string };
+  value: number | string;
+  icon: LucideIcon;
+  color: string;
+  trend?: number | null;
+  trendLabel?: string;
+}
+
+const KPICard = ({ title, value, icon: Icon, color, trend, trendLabel }: KPICardProps) => (
   <div className="glass-interactive" style={{ padding: '24px', flex: 1, minWidth: '200px' }}>
     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px' }}>
       <div style={{ 
@@ -138,8 +159,8 @@ function getDayLabel(dateStr: string): string {
 }
 
 export default function Home() {
-  const [tickets, setTickets] = useState<any[]>([]);
-  const [recentLogs, setRecentLogs] = useState<any[]>([]);
+  const [tickets, setTickets] = useState<Ticket[]>([]);
+  const [recentLogs, setRecentLogs] = useState<TicketLog[]>([]);
   const [showExportMenu, setShowExportMenu] = useState(false);
   const exportRef = React.useRef<HTMLDivElement>(null);
 
@@ -251,8 +272,10 @@ export default function Home() {
   // Agent workload
   const agentData = useMemo(() => {
     const counts: Record<string, number> = {};
-    tickets.filter(t => t.assigned_to).forEach(t => {
-      counts[t.assigned_to] = (counts[t.assigned_to] || 0) + 1;
+    tickets.forEach(t => {
+      if (t.assigned_to) {
+        counts[t.assigned_to] = (counts[t.assigned_to] || 0) + 1;
+      }
     });
     return Object.entries(counts)
       .sort((a, b) => b[1] - a[1])
@@ -360,7 +383,7 @@ export default function Home() {
         <KPICard 
           title={{ thai: 'ใบงานวันนี้', eng: 'TODAY\'S TICKETS' }} 
           value={stats.totalToday} 
-          icon={Ticket} 
+          icon={TicketIcon} 
           color="#00cfe8" 
           trend={stats.trendPct}
           trendLabel="เทียบกับเมื่อวาน"

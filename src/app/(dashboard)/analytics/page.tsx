@@ -1,5 +1,4 @@
 'use client';
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
   BarChart as BarChartIcon, 
@@ -27,17 +26,35 @@ import {
   ScatterChart, Scatter,
   Treemap
 } from 'recharts';
-import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, rectSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { DateTime } from 'luxon';
 import { supabase } from '@/lib/supabase';
 import { exportToExcel, exportToPDF } from '@/lib/utils/exportUtils';
+import type { Ticket } from '@/types';
+
+interface ChartType {
+  id: string;
+  name: string;
+  icon: React.ComponentType<{ size?: number; color?: string }>;
+  type: string;
+}
+
+interface ChartDataPoint {
+  name: string;
+  value: number;
+}
+
+interface ScatterDataPoint {
+  x: number;
+  y: number;
+}
 
 /**
  * 1. Define Chart Types & Mock Logic for 16 variations
  */
-const CHART_TYPES = [
+const CHART_TYPES: ChartType[] = [
   { id: 'bar-status', name: 'งานแยกตามสถานะ (Status Bar)', icon: BarChartIcon, type: 'bar' },
   { id: 'pie-priority', name: 'สัดส่วนความสำคัญ (Priority Pie)', icon: PieChartIcon, type: 'pie' },
   { id: 'line-trend', name: 'แนวโน้มใบงาน (Ticket Trend)', icon: LineChartIcon, type: 'line' },
@@ -58,23 +75,30 @@ const CHART_TYPES = [
 
 const COLORS = ['#00f2fe', '#4facfe', '#7367f0', '#28c76f', '#ff9f43', '#ea5455', '#9f44d3', '#f1f5f9'];
 
+interface SortableWidgetProps {
+  id: string;
+  chart: ChartType;
+  data: ChartDataPoint[] | ScatterDataPoint[];
+  onRemove: (id: string) => void;
+}
+
 /**
  * 2. Sortable Widget Component
  */
-const SortableWidget = ({ id, chart, data, onRemove }: any) => {
+const SortableWidget = ({ id, chart, data, onRemove }: SortableWidgetProps) => {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
 
   useEffect(() => {
     if (data.length > 0 && selectedItems.length === 0) {
       setTimeout(() => {
-        setSelectedItems(data.map((d: any) => d.name));
+        setSelectedItems(data.map((d) => (d as ChartDataPoint).name));
       }, 0);
     }
   }, [data]);
 
   const filteredData = useMemo(() => {
-    return data.filter((d: any) => selectedItems.includes(d.name));
+    return (data as ChartDataPoint[]).filter((d) => selectedItems.includes(d.name));
   }, [data, selectedItems]);
 
   const toggleItem = (name: string) => {
@@ -91,7 +115,7 @@ const SortableWidget = ({ id, chart, data, onRemove }: any) => {
   };
 
   const renderChart = () => {
-    const common = { width: '100%', height: 240 };
+    const common = { width: '100%' as const, height: 240 };
     switch (chart.type) {
       case 'bar':
         return (
@@ -110,7 +134,7 @@ const SortableWidget = ({ id, chart, data, onRemove }: any) => {
           <ResponsiveContainer {...common}>
             <PieChart>
               <Pie data={filteredData} innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value">
-                {filteredData.map((entry: any, index: number) => (
+                {filteredData.map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                 ))}
               </Pie>
@@ -168,7 +192,7 @@ const SortableWidget = ({ id, chart, data, onRemove }: any) => {
               <XAxis type="number" dataKey="x" name="time" stroke="var(--text-muted)" fontSize={10} />
               <YAxis type="number" dataKey="y" name="value" stroke="var(--text-muted)" fontSize={10} />
               <Tooltip cursor={{ strokeDasharray: '3 3' }} />
-              <Scatter name="Points" data={filteredData} fill="var(--primary)" />
+              <Scatter name="Points" data={data as ScatterDataPoint[]} fill="var(--primary)" />
             </ScatterChart>
           </ResponsiveContainer>
         );
@@ -190,15 +214,15 @@ const SortableWidget = ({ id, chart, data, onRemove }: any) => {
         {renderChart()}
         
         <div style={{ marginTop: '16px', borderTop: '1px solid var(--border)', paddingTop: '12px', display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-           {data.map((d: any) => (
-             <label key={d.name} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', cursor: 'pointer', opacity: selectedItems.includes(d.name) ? 1 : 0.4 }}>
+           {data.map((d) => (
+             <label key={(d as ChartDataPoint).name} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', cursor: 'pointer', opacity: selectedItems.includes((d as ChartDataPoint).name) ? 1 : 0.4 }}>
                 <input 
                   type="checkbox" 
-                  checked={selectedItems.includes(d.name)} 
-                  onChange={() => toggleItem(d.name)}
+                  checked={selectedItems.includes((d as ChartDataPoint).name)} 
+                  onChange={() => toggleItem((d as ChartDataPoint).name)}
                   style={{ accentColor: 'var(--primary)' }}
                 />
-                {d.name}
+                {(d as ChartDataPoint).name}
              </label>
            ))}
         </div>
@@ -217,7 +241,7 @@ export default function AdvancedAnalyticsPage() {
     end: DateTime.now().toISODate()
   });
   const [loading, setLoading] = useState(false);
-  const [tickets, setTickets] = useState<any[]>([]);
+  const [tickets, setTickets] = useState<Ticket[]>([]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -231,7 +255,7 @@ export default function AdvancedAnalyticsPage() {
       .select('*')
       .gte('created_at', dateRange.start)
       .lte('created_at', dateRange.end);
-    setTickets(data || []);
+    setTickets((data || []) as Ticket[]);
     setLoading(false);
   };
 
@@ -246,8 +270,14 @@ export default function AdvancedAnalyticsPage() {
   const chartDataMap = useMemo(() => {
     if (!tickets.length) return {};
     
-    const statusCounts = tickets.reduce((acc: any, t) => { acc[t.status] = (acc[t.status] || 0) + 1; return acc; }, {});
-    const priorityCounts = tickets.reduce((acc: any, t) => { acc[t.priority] = (acc[t.priority] || 0) + 1; return acc; }, {});
+    const statusCounts = tickets.reduce<Record<string, number>>((acc, t) => { 
+      acc[t.status] = (acc[t.status] || 0) + 1; 
+      return acc; 
+    }, {});
+    const priorityCounts = tickets.reduce<Record<string, number>>((acc, t) => { 
+      acc[t.priority] = (acc[t.priority] || 0) + 1; 
+      return acc; 
+    }, {});
     
     return {
       'bar-status': Object.entries(statusCounts).map(([name, value]) => ({ name, value })),
@@ -262,12 +292,12 @@ export default function AdvancedAnalyticsPage() {
     };
   }, [tickets]);
 
-  const handleDragEnd = (event: any) => {
+  const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
-    if (active.id !== over.id) {
+    if (over && active.id !== over.id) {
       setActiveWidgets((items) => {
-        const oldIndex = items.indexOf(active.id);
-        const newIndex = items.indexOf(over.id);
+        const oldIndex = items.indexOf(active.id as string);
+        const newIndex = items.indexOf(over.id as string);
         return arrayMove(items, oldIndex, newIndex);
       });
     }

@@ -1,7 +1,6 @@
 'use client';
-/* eslint-disable @next/next/no-img-element */
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState, useEffect } from 'react';
+import Image from 'next/image';
 import { useLiff } from '@/hooks/useLiff';
 import { supabase } from '@/lib/supabase';
 import { 
@@ -13,15 +12,17 @@ import {
   ExternalLink,
   ShieldAlert,
   Inbox,
-  Settings
+  Settings,
+  ArrowRight
 } from 'lucide-react';
 import Link from 'next/link';
 import ProfileRegistrationModal from '@/components/portal/ProfileRegistrationModal';
+import type { Ticket, Customer } from '@/types';
 
 export default function PortalPage() {
   const { profile, isReady, error: liffError, setMockLogin } = useLiff();
-  const [tickets, setTickets] = useState<any[]>([]);
-  const [customerData, setCustomerData] = useState<any>(null);
+  const [tickets, setTickets] = useState<Ticket[]>([]);
+  const [customerData, setCustomerData] = useState<Customer | null>(null);
   const [fetching, setFetching] = useState(true);
   const [needsRegistration, setNeedsRegistration] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -37,7 +38,7 @@ export default function PortalPage() {
       .maybeSingle(); // Use maybeSingle to avoid 406 Error if none exists
 
     if (customer) {
-      setCustomerData(customer);
+      setCustomerData(customer as Customer);
       setNeedsRegistration(false);
       // Fetch all tickets for this customer
       const { data: ticketData } = await supabase
@@ -46,7 +47,7 @@ export default function PortalPage() {
         .eq('customer_id', customer.id)
         .order('created_at', { ascending: false });
 
-      if (ticketData) setTickets(ticketData);
+      if (ticketData) setTickets(ticketData as Ticket[]);
     } else {
       setNeedsRegistration(true);
     }
@@ -102,7 +103,7 @@ export default function PortalPage() {
             <h2 style={{ fontSize: '28px', fontWeight: '900', display: 'flex', alignItems: 'center', gap: '12px' }}>
                {profile?.displayName || 'Support Guest'}
                {profile?.pictureUrl ? (
-                  <img src={profile.pictureUrl} alt="profile" style={{ width: '36px', height: '36px', borderRadius: '50%', border: '2px solid var(--primary)' }} />
+                  <Image src={profile.pictureUrl} alt="profile" width={36} height={36} style={{ borderRadius: '50%', border: '2px solid var(--primary)' }} />
                ) : <User size={32} />}
             </h2>
          </div>
@@ -189,7 +190,7 @@ export default function PortalPage() {
                 <div key={ticket.id} style={{ padding: '12px 16px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                    <div>
                       <p style={{ fontSize: '13px', fontWeight: '700' }}>Ticket #{ticket.ticket_no}</p>
-                      <p style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{new Date(ticket.resolved_at).toLocaleDateString()}</p>
+                      <p style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{ticket.resolved_at ? new Date(ticket.resolved_at).toLocaleDateString() : '-'}</p>
                    </div>
                    <CheckCircle size={16} color="var(--success)" />
                 </div>

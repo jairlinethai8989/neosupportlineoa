@@ -1,5 +1,4 @@
 'use client';
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useEffect } from 'react';
 import liff from '@line/liff';
 
@@ -7,6 +6,12 @@ export interface LiffProfile {
   userId: string;
   displayName: string;
   pictureUrl?: string;
+}
+
+function getErrorMessage(err: unknown): string {
+  if (err instanceof Error) return err.message;
+  if (typeof err === 'string') return err;
+  return 'Unknown error';
 }
 
 export function useLiff() {
@@ -43,9 +48,9 @@ export function useLiff() {
              setIsReady(true); // set ready but profile is null
           }
         }
-      } catch (err: any) {
+      } catch (err) {
         console.error('LIFF init error:', err);
-        setError('Failed to initialize LIFF: ' + err.message);
+        setError('Failed to initialize LIFF: ' + getErrorMessage(err));
         setIsReady(true);
       }
     };

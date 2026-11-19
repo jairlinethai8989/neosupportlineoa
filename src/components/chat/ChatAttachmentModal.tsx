@@ -1,5 +1,4 @@
 'use client';
-/* eslint-disable react-hooks/exhaustive-deps */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import React, { useState, useRef, useEffect } from 'react';
 import { Camera, FileUp, X, Type, PenTool, Check, Image as ImageIcon, RotateCw } from 'lucide-react';
@@ -23,11 +22,21 @@ export default function ChatAttachmentModal({ isOpen, onClose, onConfirm }: Chat
   const [textInput, setTextInput] = useState('');
   const [textPos, setTextPos] = useState({ x: 50, y: 50 });
 
+  const stopCamera = () => {
+    if (videoRef.current && videoRef.current.srcObject) {
+      const tracks = (videoRef.current.srcObject as MediaStream).getTracks();
+      tracks.forEach(track => track.stop());
+    }
+  };
+
   useEffect(() => {
     if (isOpen) {
-       setMode('select');
-       setImageSrc('');
-       setTextInput('');
+       const t = setTimeout(() => {
+         setMode('select');
+         setImageSrc('');
+         setTextInput('');
+       }, 0);
+       return () => clearTimeout(t);
     } else {
        stopCamera();
     }
@@ -63,13 +72,6 @@ export default function ChatAttachmentModal({ isOpen, onClose, onConfirm }: Chat
       img.src = imageSrc;
     }
   }, [mode, imageSrc]);
-
-  const stopCamera = () => {
-    if (videoRef.current && videoRef.current.srcObject) {
-      const tracks = (videoRef.current.srcObject as MediaStream).getTracks();
-      tracks.forEach(track => track.stop());
-    }
-  };
 
   const startCamera = async () => {
     setMode('camera');

@@ -1,5 +1,6 @@
 'use client';
 import React, { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { X, AlertTriangle, Ticket, MessageSquare } from 'lucide-react';
 import { ToastNotif, NotifType } from '@/hooks/useNotifications';
 
@@ -31,6 +32,7 @@ const TYPE_CONFIG: Record<NotifType, { icon: React.ElementType; color: string; b
 };
 
 export default function ToastItem({ toast, onDismiss, duration = 5000 }: ToastItemProps) {
+  const router = useRouter();
   const [progress, setProgress] = useState(100);
   const [visible, setVisible] = useState(false);
 
@@ -65,6 +67,19 @@ export default function ToastItem({ toast, onDismiss, duration = 5000 }: ToastIt
     setTimeout(() => onDismiss(toast.id), 300);
   };
 
+  const handleClick = () => {
+    if (toast.ticketId) {
+      router.push(`/tickets/${toast.ticketId}`);
+    } else if (toast.conversationId) {
+      router.push(`/inbox?cid=${toast.conversationId}`);
+    } else if (toast.type === 'message') {
+      router.push('/inbox');
+    } else {
+      router.push('/tickets');
+    }
+    handleDismiss();
+  };
+
   return (
     <div
       style={{
@@ -82,7 +97,7 @@ export default function ToastItem({ toast, onDismiss, duration = 5000 }: ToastIt
         cursor: 'pointer',
         position: 'relative',
       }}
-      onClick={handleDismiss}
+      onClick={handleClick}
     >
       {/* Content */}
       <div style={{ padding: '14px 16px', display: 'flex', gap: '12px', alignItems: 'flex-start' }}>

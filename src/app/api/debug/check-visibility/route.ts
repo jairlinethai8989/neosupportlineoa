@@ -1,10 +1,21 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
+import { createSupabaseServerClient } from '@/lib/supabase-server';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
 export async function GET() {
+  if (process.env.NODE_ENV === 'production') {
+    return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  }
+
+  const authClient = await createSupabaseServerClient();
+  const { data: { user }, error: authError } = await authClient.auth.getUser();
+  if (!user || authError) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   const supabase = createClient(supabaseUrl, supabaseKey);
   
   try {
@@ -41,7 +52,7 @@ export async function GET() {
         customers: cCols?.[0] ? Object.keys(cCols[0]) : []
       }
     });
-  } catch (err: any) {
-    return NextResponse.json({ success: false, error: err.message });
+  } catch (err: unknown) {
+    return NextResponse.json({ success: false, error: err instanceof Error ? err.message : 'Unknown error' });
   }
 }

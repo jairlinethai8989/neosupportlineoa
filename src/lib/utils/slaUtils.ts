@@ -1,20 +1,23 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-
 export type SlaSeverity = 'critical' | 'warning' | 'ok';
+
+export type SlaCheckable = {
+  sla_due_at?: string | null;
+  status?: string;
+};
 
 /**
  * Returns whether a ticket has breached its SLA deadline.
  */
-export function isSlaBreached(ticket: any): boolean {
+export function isSlaBreached(ticket: SlaCheckable): boolean {
   if (!ticket.sla_due_at) return false;
-  if (['Resolved', 'Closed'].includes(ticket.status)) return false;
+  if (ticket.status && ['Resolved', 'Closed'].includes(ticket.status)) return false;
   return new Date(ticket.sla_due_at) < new Date();
 }
 
 /**
  * Returns minutes remaining until SLA breach (negative if already breached).
  */
-export function slaMinutesRemaining(ticket: any): number {
+export function slaMinutesRemaining(ticket: SlaCheckable): number {
   if (!ticket.sla_due_at) return Infinity;
   const due = new Date(ticket.sla_due_at).getTime();
   const now = Date.now();
@@ -24,7 +27,7 @@ export function slaMinutesRemaining(ticket: any): number {
 /**
  * Returns a severity level based on SLA time remaining.
  */
-export function getSlaSeverity(ticket: any): SlaSeverity {
+export function getSlaSeverity(ticket: SlaCheckable): SlaSeverity {
   const mins = slaMinutesRemaining(ticket);
   if (mins < 0) return 'critical';
   if (mins < 30) return 'warning';
@@ -34,7 +37,7 @@ export function getSlaSeverity(ticket: any): SlaSeverity {
 /**
  * Formats a human-readable SLA status label (Thai).
  */
-export function formatSlaStatus(ticket: any): string {
+export function formatSlaStatus(ticket: SlaCheckable): string {
   const mins = slaMinutesRemaining(ticket);
   if (mins === Infinity) return 'ไม่มี SLA';
   if (mins < 0) return `เกิน SLA ${Math.abs(mins)} นาที`;

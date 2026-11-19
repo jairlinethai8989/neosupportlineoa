@@ -1,8 +1,6 @@
 'use client';
-/* eslint-disable @next/next/no-img-element */
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unused-vars */
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import Image from 'next/image';
 import { useParams, useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { 
@@ -21,14 +19,15 @@ import {
   SendHorizontal,
   Paperclip
 } from 'lucide-react';
+import type { Message, Ticket, TicketLog, Profile } from '@/types';
 
 export default function StaffTicketDetailPage() {
   const { id } = useParams();
   const router = useRouter();
-  const [ticket, setTicket] = useState<any>(null);
+  const [ticket, setTicket] = useState<Record<string, unknown> | null>(null);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
-  const [logs, setLogs] = useState<any[]>([]);
+  const [logs, setLogs] = useState<TicketLog[]>([]);
 
   // State for editing
   const [status, setStatus] = useState('');
@@ -39,10 +38,10 @@ export default function StaffTicketDetailPage() {
   const [availableDepts, setAvailableDepts] = useState<string[]>([]);
 
   const [chatLoading, setChatLoading] = useState(true);
-  const [messages, setMessages] = useState<any[]>([]);
+  const [messages, setMessages] = useState<Record<string, unknown>[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [sending, setSending] = useState(false);
-  const adminFileRef = React.useRef<HTMLInputElement>(null);
+  const adminFileRef = useRef<HTMLInputElement>(null);
 
   const quickReplies = [
     "สวัสดีครับ แอดมินรับเรื่องแล้ว กำลังเร่งตรวจสอบให้นะครับ ⏳",
@@ -67,13 +66,13 @@ export default function StaffTicketDetailPage() {
 
        if (ticketData) {
         setTicket(ticketData);
-        setStatus(ticketData.status);
-        setPriority(ticketData.priority);
-        setSelectedDept(ticketData.department || '');
+        setStatus(ticketData.status as string);
+        setPriority(ticketData.priority as string);
+        setSelectedDept((ticketData.department as string) || '');
 
         // Fetch dynamic departments
         const { data: company } = await supabase.from('company_settings').select('departments').limit(1).single();
-        if (company?.departments) setAvailableDepts(company.departments);
+        if (company?.departments) setAvailableDepts(company.departments as string[]);
 
         // Fetch Logs
         const { data: logData } = await supabase
@@ -81,7 +80,7 @@ export default function StaffTicketDetailPage() {
           .select('*')
           .eq('ticket_id', id)
           .order('created_at', { ascending: false });
-        if (logData) setLogs(logData);
+        if (logData) setLogs(logData as TicketLog[]);
 
         // Fetch Internal Messages for this ticket
         const { data: messageData } = await supabase
@@ -142,8 +141,8 @@ export default function StaffTicketDetailPage() {
       }]);
 
       if (error) throw error;
-    } catch (err: any) {
-      alert('Error: ' + err.message);
+    } catch (err) {
+      alert('Error: ' + (err instanceof Error ? err.message : 'Unknown'));
       // Rollback on error if needed
       setMessages(prev => prev.filter(m => m !== optimisticMsg));
     } finally {
@@ -171,8 +170,8 @@ export default function StaffTicketDetailPage() {
               message_type: messageType,
               content: publicUrl,
            }]);
-        } catch(err: any) {
-           alert('Upload Failed: ' + err.message);
+        } catch(err) {
+           alert('Upload Failed: ' + (err instanceof Error ? err.message : 'Unknown'));
         } finally {
            setSending(false);
            if(adminFileRef.current) adminFileRef.current.value = '';
@@ -194,7 +193,7 @@ export default function StaffTicketDetailPage() {
       await supabase.from('ticket_logs').insert([{
         ticket_id: id,
         action_type: 'status_change',
-        from_status: ticket.status,
+        from_status: ticket?.status,
         to_status: 'Resolved',
         note: 'Agent formally resolved the ticket.'
       }]);
@@ -207,11 +206,11 @@ export default function StaffTicketDetailPage() {
       }]);
 
       setStatus('Resolved');
-      setTicket({ ...ticket, status: 'Resolved' });
+      setTicket(prev => prev ? { ...prev, status: 'Resolved' } : prev);
       
       // Refresh logs & messages
       const { data: newLogs } = await supabase.from('ticket_logs').select('*').eq('ticket_id', id).order('created_at', { ascending: false });
-      if (newLogs) setLogs(newLogs);
+      if (newLogs) setLogs(newLogs as TicketLog[]);
       
       const { data: newMsgs } = await supabase.from('messages').select('*').eq('ticket_id', id).order('created_at', { ascending: true });
       if (newMsgs) setMessages(newMsgs);
@@ -221,8 +220,8 @@ export default function StaffTicketDetailPage() {
       setShowToast(true);
       setTimeout(() => setShowToast(false), 3000);
 
-    } catch (err: any) {
-      alert('Failed to resolve: ' + err.message);
+    } catch (err) {
+      alert('Failed to resolve: ' + (err instanceof Error ? err.message : 'Unknown'));
     } finally {
       setUpdating(false);
     }
@@ -244,20 +243,20 @@ export default function StaffTicketDetailPage() {
       if (error) throw error;
 
       // Add a log entry for the change
-      if (status !== ticket.status) {
+      if (status !== ticket?.status) {
         await supabase.from('ticket_logs').insert([{
           ticket_id: id,
           action_type: 'status_change',
-          from_status: ticket.status,
+          from_status: ticket?.status,
           to_status: status,
           note: `Agent updated status to ${status}`
         }]);
       }
       
       // Notify if department changed
-      if (selectedDept && selectedDept !== ticket.department) {
+      if (selectedDept && selectedDept !== ticket?.department) {
          const { sendLineGroupNotification } = await import('@/lib/utils/lineNotifications');
-         await sendLineGroupNotification(`🔔 [ส่งต่อแผนก] ใบงาน #${ticket.ticket_no} ถูกส่งต่อไปยัง [${selectedDept}] เรียบร้อยแล้วครับ`);
+         await sendLineGroupNotification(`🔔 [ส่งต่อแผนก] ใบงาน #${ticket?.ticket_no} ถูกส่งต่อไปยัง [${selectedDept}] เรียบร้อยแล้วครับ`);
          
          await supabase.from('ticket_logs').insert([{
            ticket_id: id,
@@ -266,7 +265,7 @@ export default function StaffTicketDetailPage() {
          }]);
       }
 
-      setTicket({ ...ticket, status, priority, department: selectedDept });
+      setTicket(prev => prev ? { ...prev, status, priority, department: selectedDept } : prev);
       
       // Refresh logs
       const { data: newLogs } = await supabase
@@ -274,15 +273,15 @@ export default function StaffTicketDetailPage() {
         .select('*')
         .eq('ticket_id', id)
         .order('created_at', { ascending: false });
-      if (newLogs) setLogs(newLogs);
+      if (newLogs) setLogs(newLogs as TicketLog[]);
       
       // Trigger SUCCESS FEEDBACK
       setToastMsg('Changes saved successfully! ✅');
       setShowToast(true);
       setTimeout(() => setShowToast(false), 3000);
 
-    } catch (err: any) {
-      alert('Failed to update ticket: ' + err.message);
+    } catch (err) {
+      alert('Failed to update ticket: ' + (err instanceof Error ? err.message : 'Unknown'));
     } finally {
       setUpdating(false);
     }
@@ -304,6 +303,16 @@ export default function StaffTicketDetailPage() {
     </div>
   );
 
+  const t = ticket as Record<string, unknown>;
+  const customers = t.customers as Record<string, unknown> | undefined;
+  const avatarUrl = customers?.avatar_url as string | undefined;
+  const displayName = customers?.display_name as string | undefined;
+  const ticketNo = t.ticket_no as string | number;
+  const ticketStatus = t.status as string;
+  const ticketSubject = t.subject as string | undefined;
+  const ticketPriority = t.priority as string;
+  const ticketDepartment = t.department as string | undefined;
+
   return (
     <div style={{ animation: 'fadeIn 0.5s ease-out' }}>
       {/* Navbar Actions */}
@@ -314,16 +323,16 @@ export default function StaffTicketDetailPage() {
           </button>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <h1 style={{ fontSize: '24px', fontWeight: '800' }}>#{ticket.ticket_no}</h1>
+              <h1 style={{ fontSize: '24px', fontWeight: '800' }}>#{ticketNo}</h1>
               <span style={{ padding: '4px 10px', borderRadius: '6px', fontSize: '11px', fontWeight: '800', background: 'rgba(255, 171, 0, 0.1)', color: 'var(--warning)', letterSpacing: '1px' }}>
-                 {ticket.status.toUpperCase()}
+                 {ticketStatus.toUpperCase()}
               </span>
             </div>
             <p style={{ color: 'var(--text-muted)', fontSize: '14px' }}>Ticket Details & Management</p>
           </div>
         </div>
         <div style={{ display: 'flex', gap: '12px' }}>
-          {status !== 'Resolved' && status !== 'Closed' && (
+          {ticketStatus !== 'Resolved' && ticketStatus !== 'Closed' && (
             <button 
               onClick={handleResolve}
               disabled={updating}
@@ -356,40 +365,47 @@ export default function StaffTicketDetailPage() {
               
               {/* Message History */}
               <div style={{ flex: 1, overflowY: 'auto', marginBottom: '20px', display: 'flex', flexDirection: 'column', gap: '16px', paddingRight: '12px' }}>
-                 {messages.map((msg, idx) => (
+                 {messages.map((msg, idx) => {
+                    const senderType = msg.sender_type as string;
+                    const content = msg.content as string;
+                    const messageType = msg.message_type as string;
+                    const createdAt = msg.created_at as string;
+                    return (
                     <div key={idx} style={{ 
-                       alignSelf: msg.sender_type === 'agent' ? 'flex-end' : 'flex-start',
+                       alignSelf: senderType === 'agent' ? 'flex-end' : 'flex-start',
                        maxWidth: '75%',
                        display: 'flex',
                        flexDirection: 'column',
-                       alignItems: msg.sender_type === 'agent' ? 'flex-end' : 'flex-start'
+                       alignItems: senderType === 'agent' ? 'flex-end' : 'flex-start'
                     }}>
                        <div style={{ 
                           padding: '12px 18px',
                           borderRadius: '18px',
-                          borderTopRightRadius: msg.sender_type === 'agent' ? '4px' : '18px',
-                          borderTopLeftRadius: msg.sender_type === 'customer' ? '4px' : '18px',
-                          background: msg.sender_type === 'agent' ? 'var(--primary)' : 'var(--secondary)',
-                          color: msg.sender_type === 'agent' ? 'black' : 'var(--text)',
+                          borderTopRightRadius: senderType === 'agent' ? '4px' : '18px',
+                          borderTopLeftRadius: senderType === 'customer' ? '4px' : '18px',
+                          background: senderType === 'agent' ? 'var(--primary)' : 'var(--secondary)',
+                          color: senderType === 'agent' ? 'black' : 'var(--text)',
                           boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
                        }}>
-                          {msg.message_type === 'image' || msg.content.includes('supabase.co/storage') ? (
-                             <img 
-                                src={msg.content} 
+                          {messageType === 'image' || (typeof content === 'string' && content.includes('supabase.co/storage')) ? (
+                             <Image 
+                                src={content} 
                                 alt="attachment" 
-                                onClick={() => window.open(msg.content, '_blank')}
+                                width={280}
+                                height={200}
+                                onClick={() => window.open(content, '_blank')}
                                 style={{ maxWidth: '280px', borderRadius: '8px', cursor: 'zoom-in', objectFit: 'cover' }} 
                              />
                           ) : (
-                             <p style={{ fontSize: '14px', fontWeight: msg.sender_type === 'agent' ? '700' : '500', lineHeight: '1.5', whiteSpace: 'pre-wrap' }}>{msg.content}</p>
+                             <p style={{ fontSize: '14px', fontWeight: senderType === 'agent' ? '700' : '500', lineHeight: '1.5', whiteSpace: 'pre-wrap' }}>{content}</p>
                           )}
                        </div>
                        <p style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '6px', fontWeight: '600' }}>
-                          {new Date(msg.created_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', hour12: false })}
-                          {msg.sender_type === 'agent' && ' • Sent by you'}
+                          {new Date(createdAt).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', hour12: false })}
+                          {senderType === 'agent' && ' • Sent by you'}
                        </p>
                     </div>
-                 ))}
+                 );})}
                  {messages.length === 0 && (
                     <div style={{ textAlign: 'center', marginTop: '100px', opacity: 0.3 }}>
                        <MessageSquare size={48} style={{ marginBottom: '16px' }} />
@@ -449,12 +465,12 @@ export default function StaffTicketDetailPage() {
            <div className="glass" style={{ padding: '24px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '16px' }}>
                  <div style={{ width: '52px', height: '52px', borderRadius: '16px', background: 'var(--secondary)', overflow: 'hidden' }}>
-                    {ticket.customers?.avatar_url ? (
-                       <img src={ticket.customers.avatar_url} alt="avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    {avatarUrl ? (
+                       <Image src={avatarUrl} alt="avatar" width={52} height={52} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                     ) : <User size={24} />}
                  </div>
                  <div>
-                    <h4 style={{ fontSize: '16px', fontWeight: '800', color: 'var(--text)' }}>{ticket.customers?.display_name || 'Customer'}</h4>
+                    <h4 style={{ fontSize: '16px', fontWeight: '800', color: 'var(--text)' }}>{displayName || 'Customer'}</h4>
                     <span style={{ fontSize: '10px', padding: '2px 8px', background: 'rgba(0,242,254,0.1)', color: 'var(--primary)', borderRadius: '4px', fontWeight: '800' }}>CUSTOMER</span>
                  </div>
               </div>
@@ -464,7 +480,7 @@ export default function StaffTicketDetailPage() {
            {/* 2. Issue Overview (Smaller) */}
            <div className="glass" style={{ padding: '20px' }}>
               <label style={{ fontSize: '10px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '12px', display: 'block' }}>Issue Details</label>
-              <h5 style={{ fontSize: '14px', fontWeight: '800', marginBottom: '16px', lineHeight: '1.4' }}>{ticket.subject}</h5>
+              <h5 style={{ fontSize: '14px', fontWeight: '800', marginBottom: '16px', lineHeight: '1.4' }}>{ticketSubject}</h5>
               
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                  <div>

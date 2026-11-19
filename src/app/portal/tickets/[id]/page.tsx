@@ -1,7 +1,4 @@
 'use client';
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable @next/next/no-img-element */
 import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
@@ -17,15 +14,27 @@ import {
 } from 'lucide-react';
 import ChatAttachmentModal from '@/components/chat/ChatAttachmentModal';
 import { useLiff } from '@/hooks/useLiff';
+import type { Ticket, TicketLog, Message, Profile } from '@/types';
+
+interface PortalTicket extends Ticket {
+  description?: string | null;
+  assigned_agent?: Profile | null;
+}
+
+interface PortalMessage extends Partial<Message> {
+  content: string | null;
+  sender_type: Message['sender_type'];
+  created_at: string;
+}
 
 export default function TicketDetailPage() {
   const { id } = useParams();
   const router = useRouter();
   const { isReady, profile, error: liffError, setMockLogin } = useLiff();
-  const [ticket, setTicket] = useState<any>(null);
-  const [logs, setLogs] = useState<any[]>([]);
+  const [ticket, setTicket] = useState<PortalTicket | null>(null);
+  const [logs, setLogs] = useState<TicketLog[]>([]);
   const [loading, setLoading] = useState(true);
-  const [messages, setMessages] = useState<any[]>([]);
+  const [messages, setMessages] = useState<PortalMessage[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [sending, setSending] = useState(false);
   const [isAttachModalOpen, setIsAttachModalOpen] = useState(false);
@@ -74,7 +83,7 @@ export default function TicketDetailPage() {
             .single();
           if (convData) setConversationId(convData.id);
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error('Error fetching ticket:', err);
       } finally {
         setLoading(false);
@@ -112,11 +121,11 @@ export default function TicketDetailPage() {
     if (!newMessage.trim()) return;
     
     // Optimistic Update
-    const optimisticMsg = {
+    const optimisticMsg: PortalMessage = {
        content: newMessage,
        sender_type: 'customer',
        created_at: new Date().toISOString(),
-       ticket_id: id
+       ticket_id: Array.isArray(id) ? id[0] : (id ?? null)
     };
     setMessages(prev => [...prev, optimisticMsg]);
     const messageToSend = newMessage;
@@ -131,8 +140,8 @@ export default function TicketDetailPage() {
         content: messageToSend
       }]);
       if (error) throw error;
-    } catch (err: any) {
-      alert('Error sending message: ' + err.message);
+    } catch (err: unknown) {
+      alert('Error sending message: ' + (err instanceof Error ? err.message : 'Unknown error'));
       setMessages(prev => prev.filter(m => m !== optimisticMsg));
     } finally {
       setSending(false);
@@ -158,8 +167,8 @@ export default function TicketDetailPage() {
         message_type: dbType
       }]);
       if (dbError) throw dbError;
-    } catch (err: any) {
-      alert('Upload failed: ' + err.message);
+    } catch (err: unknown) {
+      alert('Upload failed: ' + (err instanceof Error ? err.message : 'Unknown error'));
     } finally {
       setSending(false);
     }
@@ -199,7 +208,7 @@ export default function TicketDetailPage() {
   );
 
   // Status mapping for visual tracker
-  const statusLevels: any = {
+  const statusLevels: Record<string, number> = {
     'Pending': 1,
     'Assigned': 2,
     'Escalated': 3,
@@ -237,9 +246,9 @@ export default function TicketDetailPage() {
                 }}>
                    <p style={{ fontSize: '14px', fontWeight: '500' }}>
                        {msg.message_type === 'image' || (msg.content?.startsWith('http') && msg.content?.match(/\.(jpeg|jpg|gif|png)$/i)) ? (
-                          <img src={msg.content} style={{ maxWidth: '100%', borderRadius: '8px' }} alt="Attachment" />
+                          <img src={msg.content ?? undefined} style={{ maxWidth: '100%', borderRadius: '8px' }} alt="Attachment" />
                        ) : msg.message_type === 'file' || (msg.content?.startsWith('http') && msg.message_type !== 'text') ? (
-                          <a href={msg.content} target="_blank" rel="noreferrer" style={{ textDecoration: 'underline', color: 'inherit', fontWeight: 'bold' }}>
+                          <a href={msg.content ?? undefined} target="_blank" rel="noreferrer" style={{ textDecoration: 'underline', color: 'inherit', fontWeight: 'bold' }}>
                              📎 Download Attachment
                           </a>
                        ) : (

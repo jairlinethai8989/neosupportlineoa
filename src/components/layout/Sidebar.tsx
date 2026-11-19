@@ -1,12 +1,11 @@
 'use client';
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable @next/next/no-img-element */
-/* eslint-disable jsx-a11y/alt-text */
+import Image from 'next/image';
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
+import { isAdminRole } from '@/lib/services/auditLogService';
+import type { CompanySettings } from '@/types';
 import { 
   BarChart2, 
   Inbox, 
@@ -28,7 +27,8 @@ interface SidebarProps {
 const Sidebar = ({ onClickLink, isCollapsed = false }: SidebarProps) => {
   const pathname = usePathname();
   const router = useRouter();
-  const [company, setCompany] = useState<any>(null);
+  const [company, setCompany] = useState<CompanySettings | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   const [theme, setTheme] = useState('dark');
 
@@ -36,8 +36,19 @@ const Sidebar = ({ onClickLink, isCollapsed = false }: SidebarProps) => {
     let isMounted = true;
     
     async function fetchBranding() {
-       const { data } = await supabase.from('company_settings').select('*').limit(1).single();
+       const [{ data }, { data: authData }] = await Promise.all([
+         supabase.from('company_settings').select('*').limit(1).single(),
+         supabase.auth.getUser(),
+       ]);
        if (data && isMounted) setCompany(data);
+       if (authData.user && isMounted) {
+         const { data: profile } = await supabase
+           .from('profiles')
+           .select('role')
+           .eq('id', authData.user.id)
+           .single();
+         if (isMounted) setIsAdmin(isAdminRole(profile?.role));
+       }
     }
     fetchBranding();
 
@@ -134,6 +145,7 @@ const Sidebar = ({ onClickLink, isCollapsed = false }: SidebarProps) => {
         { name: 'SLA Settings', thai: 'ตั้งค่า SLA', path: '/settings/sla' },
         { name: 'Identity & Branding', thai: 'ข้อมูลองค์กร', path: '/settings/profile' },
         { name: 'Master Data', thai: 'ตั้งค่าพื้นฐาน (รพ./แผนก)', path: '/settings/master' },
+        ...(isAdmin ? [{ name: 'Audit Logs', thai: 'ประวัติการใช้งานระบบ', path: '/settings/audit-logs' }] : []),
       ]
     },
   ];
@@ -142,7 +154,7 @@ const Sidebar = ({ onClickLink, isCollapsed = false }: SidebarProps) => {
     <aside style={{ display: 'flex', flexDirection: 'column', height: '100%', background: 'var(--bg-sidebar)' }}>
       <div style={{ padding: isCollapsed ? '24px 12px' : '24px', display: 'flex', alignItems: 'center', gap: '12px', justifyContent: isCollapsed ? 'center' : 'flex-start' }}>
         {company?.logo_url ? (
-          <img src={company.logo_url} style={{ width: '36px', height: '36px', borderRadius: '8px', objectFit: 'contain' }} />
+          <Image src={company.logo_url} alt="Company logo" width={36} height={36} style={{ borderRadius: '8px', objectFit: 'contain' }} />
         ) : (
           <div style={{ 
             background: 'var(--primary)', 

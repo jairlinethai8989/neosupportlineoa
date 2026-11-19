@@ -1,9 +1,9 @@
 'use client';
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useLiff } from '@/hooks/useLiff';
 import { supabase } from '@/lib/supabase';
+import type { Customer } from '@/types';
 import { 
   ArrowLeft, 
   Loader2, 
@@ -23,7 +23,7 @@ export default function CreateTicketPage() {
   
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
-  const [customerData, setCustomerData] = useState<any>(null);
+  const [customerData, setCustomerData] = useState<Customer | null>(null);
   const [checking, setChecking] = useState(true);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -73,11 +73,8 @@ export default function CreateTicketPage() {
       setError('');
 
       try {
-         // 1. Generate Ticket Number
-         const ticketNo = `TIC-${Math.floor(10000 + Math.random() * 90000)}`;
-
-         // 2. Insert Ticket (Simplified to respect DB triggers)
-         const ticketPayload: any = {
+         // 1. Insert Ticket (Simplified to respect DB triggers)
+         const ticketPayload = {
             customer_id: customerData.id,
             hospital_id: customerData.hospital_id,
             subject: subject,
@@ -165,8 +162,8 @@ export default function CreateTicketPage() {
 
          router.push('/portal');
 
-      } catch (err: any) {
-         setError(err.message);
+      } catch (err: unknown) {
+         setError(err instanceof Error ? err.message : 'Unknown error');
          setSubmitting(false);
       }
   };

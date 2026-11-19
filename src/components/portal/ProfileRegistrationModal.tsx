@@ -1,6 +1,5 @@
 'use client';
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { 
@@ -15,19 +14,25 @@ import {
   Info
 } from 'lucide-react';
 import { LiffProfile } from '@/hooks/useLiff';
+import type { Customer } from '@/types';
+
+interface MasterItem {
+  id: string;
+  name: string;
+}
 
 interface ProfileRegistrationModalProps {
   isOpen: boolean;
   profile: LiffProfile | null;
-  existingCustomer?: any; // If null, user needs registration. If exists, user is editing.
+  existingCustomer?: Customer | null;
   onComplete: () => void;
-  onClose?: () => void; // Optional: Only for closing when editing
+  onClose?: () => void;
 }
 
 export default function ProfileRegistrationModal({ isOpen, profile, existingCustomer, onComplete, onClose }: ProfileRegistrationModalProps) {
-  const [hospitals, setHospitals] = useState<any[]>([]);
-  const [departments, setDepartments] = useState<any[]>([]);
-  const [positions, setPositions] = useState<any[]>([]);
+  const [hospitals, setHospitals] = useState<MasterItem[]>([]);
+  const [departments, setDepartments] = useState<MasterItem[]>([]);
+  const [positions, setPositions] = useState<MasterItem[]>([]);
   const [loadingOpts, setLoadingOpts] = useState(true);
   
   const [displayName, setDisplayName] = useState('');
@@ -73,7 +78,7 @@ export default function ProfileRegistrationModal({ isOpen, profile, existingCust
         } else if (profile?.displayName) {
           setDisplayName(profile.displayName);
         }
-      } catch (err: any) {
+      } catch (err) {
         console.error('Failed to load master data:', err);
       } finally {
         setLoadingOpts(false);
@@ -102,7 +107,7 @@ export default function ProfileRegistrationModal({ isOpen, profile, existingCust
     setError('');
 
     try {
-      if (isEditing) {
+      if (isEditing && existingCustomer) {
          // Update existing profile
          const { error: updErr } = await supabase
            .from('customers')
@@ -133,14 +138,14 @@ export default function ProfileRegistrationModal({ isOpen, profile, existingCust
          if (insErr) throw insErr;
       }
       onComplete();
-    } catch (err: any) {
-       setError(err.message || 'ไม่สามารถบันทึกข้อมูลได้ กรุณาลองใหม่อีกครั้ง');
+    } catch (err) {
+       setError(err instanceof Error ? err.message : 'ไม่สามารถบันทึกข้อมูลได้ กรุณาลองใหม่อีกครั้ง');
     } finally {
        setSubmitting(false);
     }
   };
 
-  const labelStyle = { fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', marginBottom: '6px', textTransform: 'uppercase' as any, letterSpacing: '0.05em' };
+  const labelStyle = { fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', marginBottom: '6px', textTransform: 'uppercase' as const, letterSpacing: '0.05em' };
   const inputStyle = { 
     width: '100%', 
     padding: '14px 16px', 
@@ -151,7 +156,7 @@ export default function ProfileRegistrationModal({ isOpen, profile, existingCust
     fontSize: '14px',
     outline: 'none',
     transition: 'all 0.2s ease',
-    WebkitAppearance: 'none' as any
+    WebkitAppearance: 'none' as const
   };
 
   return (

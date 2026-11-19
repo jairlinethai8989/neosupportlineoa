@@ -1,22 +1,25 @@
 'use client';
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable react-hooks/exhaustive-deps */
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { X, Users, User, ArrowRight, Loader2 } from 'lucide-react';
+import type { Profile } from '@/types';
+
+interface Team {
+  id: string;
+  name: string;
+}
 
 interface TransferModalProps {
   isOpen: boolean;
   onClose: () => void;
-  ticketId: string;
-  fromAgentId: string;
+  ticketId: string | undefined;
+  fromAgentId: string | undefined;
   onSuccess: () => void;
 }
 
 export default function TransferModal({ isOpen, onClose, ticketId, fromAgentId, onSuccess }: TransferModalProps) {
-  const [teams, setTeams] = useState<any[]>([]);
-  const [agents, setAgents] = useState<any[]>([]);
+  const [teams, setTeams] = useState<Team[]>([]);
+  const [agents, setAgents] = useState<Profile[]>([]);
   const [selectedTeam, setSelectedTeam] = useState('');
   const [selectedAgent, setSelectedAgent] = useState('');
   const [reason, setReason] = useState('');
@@ -35,6 +38,10 @@ export default function TransferModal({ isOpen, onClose, ticketId, fromAgentId, 
   }, [isOpen]);
 
   const handleTransfer = async () => {
+    if (!ticketId || !fromAgentId) {
+      alert('Missing ticket or agent information');
+      return;
+    }
     if (!selectedTeam && !selectedAgent) {
        alert('Please select a team or an agent');
        return;

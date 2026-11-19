@@ -1,11 +1,10 @@
 'use client';
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unused-vars */
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
+import type { Conversation } from '@/types';
 
 export function useRealtimeInbox() {
-  const [conversations, setConversations] = useState<any[]>([]);
+  const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -18,6 +17,7 @@ export function useRealtimeInbox() {
           status,
           last_message_at,
           customer_id,
+          current_ticket_id,
           customers (id, display_name, line_user_id)
         `)
         .order('last_message_at', { ascending: false });
@@ -31,10 +31,10 @@ export function useRealtimeInbox() {
           .order('last_message_at', { ascending: false });
         
         if (fallbackData) {
-          setConversations(fallbackData);
+          setConversations(fallbackData as unknown as Conversation[]);
         }
       } else if (data) {
-        setConversations(data);
+        setConversations(data as unknown as Conversation[]);
       }
       setLoading(false);
     }
@@ -47,7 +47,7 @@ export function useRealtimeInbox() {
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'conversations' },
-        (payload) => {
+        () => {
           fetchInitial();
         }
       )

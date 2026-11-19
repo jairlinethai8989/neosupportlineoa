@@ -1,7 +1,6 @@
 'use client';
 import React, { useState, useEffect, useRef, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @next/next/no-img-element */
 import { 
@@ -30,20 +29,21 @@ import { useRealtimeInbox } from '@/hooks/useRealtimeInbox';
 import { ticketService } from '@/lib/services/ticketService';
 import TransferModal from '@/components/modals/TransferModal';
 import ChatAttachmentModal from '@/components/chat/ChatAttachmentModal';
+import type { Conversation, Message, Profile, Ticket } from '@/types';
 
 function InboxContent() {
   const { conversations, loading: inboxLoading } = useRealtimeInbox();
-  const [selectedChat, setSelectedChat] = useState<any>(null);
+  const [selectedChat, setSelectedChat] = useState<Conversation | null>(null);
   const [viewMode, setViewMode] = useState<'list' | 'chat' | 'details'>('list');
-  const [messages, setMessages] = useState<any[]>([]);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
-  const [agent, setAgent] = useState<any>(null);
+  const [agent, setAgent] = useState<Profile | null>(null);
   const [sending, setSending] = useState(false);
   const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
   const [isAttachModalOpen, setIsAttachModalOpen] = useState(false);
   const searchParams = useSearchParams();
   const cid = searchParams.get('cid');
-  const [currentTicket, setCurrentTicket] = useState<any>(null);
+  const [currentTicket, setCurrentTicket] = useState<Ticket | null>(null);
   const [cannedResponses, setCannedResponses] = useState<string[]>([]);
   const [showCanned, setShowCanned] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -59,7 +59,7 @@ function InboxContent() {
   // 0. Initial URL-based selection
   useEffect(() => {
     if (cid && conversations.length > 0) {
-      const target = conversations.find((c: any) => c.id === cid);
+      const target = conversations.find((c) => c.id === cid);
       if (target) {
         setSelectedChat(target);
         if (window.innerWidth <= 1024) setViewMode('chat');
@@ -101,18 +101,20 @@ function InboxContent() {
   // 2. Fetch messages for selected chat
   useEffect(() => {
     if (!selectedChat) return;
+    const chatId = selectedChat.id;
+    const ticketId = selectedChat.current_ticket_id;
 
     async function fetchMessages() {
       const { data } = await supabase
         .from('messages')
         .select('*')
-        .eq('conversation_id', selectedChat.id)
+        .eq('conversation_id', chatId)
         .order('created_at', { ascending: true });
       if (data) setMessages(data);
 
-      if (selectedChat.current_ticket_id) {
-        const { data: ticket } = await supabase.from('tickets').select('*').eq('id', selectedChat.current_ticket_id).single();
-        setCurrentTicket(ticket);
+      if (ticketId) {
+        const { data: ticket } = await supabase.from('tickets').select('*').eq('id', ticketId).single();
+        setCurrentTicket(ticket as Ticket);
       } else {
         setCurrentTicket(null);
       }
@@ -128,8 +130,8 @@ function InboxContent() {
         schema: 'public', 
         table: 'messages'
       }, (payload) => {
-        if (payload.new.conversation_id === selectedChat.id) {
-          setMessages(prev => [...prev, payload.new]);
+        if (payload.new.conversation_id === chatId) {
+          setMessages(prev => [...prev, payload.new as Message]);
         }
       })
       .subscribe();
@@ -163,9 +165,9 @@ function InboxContent() {
         last_message_at: new Date().toISOString()
       }).eq('id', selectedChat.id);
 
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Send Error:', err);
-      alert('Failed to send message: ' + (err.message || 'Check connection'));
+      alert('Failed to send message: ' + (err instanceof Error ? err.message : 'Check connection'));
       setNewMessage(currentMsg);
     } finally {
       setSending(false);
@@ -197,14 +199,14 @@ function InboxContent() {
         last_message_at: new Date().toISOString()
       }).eq('id', selectedChat.id);
 
-    } catch (err: any) {
-      alert('Upload failed: ' + err.message);
+    } catch (err: unknown) {
+      alert('Upload failed: ' + (err instanceof Error ? err.message : 'Unknown error'));
     } finally {
       setSending(false);
     }
   };
 
-  const selectChat = (chat: any) => {
+  const selectChat = (chat: Conversation) => {
     setSelectedChat(chat);
     setViewMode('chat');
   };
@@ -213,7 +215,7 @@ function InboxContent() {
     if (!selectedChat?.current_ticket_id || !agent) return;
     try {
       await ticketService.claimTicket(selectedChat.current_ticket_id, agent.id);
-    } catch (err) {
+    } catch {
       alert('Failed to claim ticket');
     }
   };
@@ -237,9 +239,9 @@ function InboxContent() {
       }]);
 
       alert('ปิดงานสำเร็จ! ส่งแบบประเมินไปยัง LIFF เรียบร้อย');
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Resolve Error:', err);
-      alert('Failed to resolve ticket: ' + (err.message || 'API Error'));
+      alert('Failed to resolve ticket: ' + (err instanceof Error ? err.message : 'API Error'));
     }
   };
 
@@ -271,7 +273,7 @@ function InboxContent() {
     }
   };
 
-  const useCanned = (text: string) => {
+  const applyCanned = (text: string) => {
     setNewMessage(text);
     setShowCanned(false);
   };
@@ -408,15 +410,22 @@ function InboxContent() {
                        boxShadow: msg.sender_type === 'agent' ? '0 4px 15px rgba(115, 103, 240, 0.2)' : 'none',
                        color: msg.sender_type === 'system' ? 'var(--primary)' : 'white'
                     }}>
-                       {msg.message_type === 'image' || (msg.content.startsWith('http') && msg.content.match(/\.(jpeg|jpg|gif|png)$/)) ? (
-                          <img src={msg.content} style={{ maxWidth: '100%', borderRadius: '10px', display: 'block' }} alt="Chat attachment" />
-                       ) : msg.message_type === 'file' || (msg.content.startsWith('http') && msg.message_type !== 'text' && !msg.content.includes('/portal/')) ? (
-                          <a href={msg.content} target="_blank" rel="noreferrer" style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--primary)', textDecoration: 'none', fontWeight: 'bold' }}>
-                             <Clock size={16} /> ดูไฟล์แนบ
-                          </a>
-                       ) : (
-                          msg.content
-                       )}
+                       {(() => {
+                          const content = msg.content ?? '';
+                          const isImageUrl = content.startsWith('http') && /\.(jpeg|jpg|gif|png)$/i.test(content);
+                          const isFileUrl = content.startsWith('http') && msg.message_type !== 'text' && !content.includes('/portal/');
+                          if (msg.message_type === 'image' || isImageUrl) {
+                            return <img src={content} alt="Chat attachment" style={{ maxWidth: '100%', height: 'auto', borderRadius: '10px', display: 'block' }} />;
+                          }
+                          if (msg.message_type === 'file' || isFileUrl) {
+                            return (
+                              <a href={content} target="_blank" rel="noreferrer" style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--primary)', textDecoration: 'none', fontWeight: 'bold' }}>
+                                <Clock size={16} /> ดูไฟล์แนบ
+                              </a>
+                            );
+                          }
+                          return content;
+                        })()}
                     </div>
                     <p style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '6px', textAlign: msg.sender_type === 'agent' ? 'right' : 'left', opacity: 0.7 }}>
                        {new Date(msg.created_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', hour12: false })}
@@ -442,7 +451,7 @@ function InboxContent() {
                     <div key={i} style={{ display: 'flex', gap: '4px' }}>
                       <button 
                         type="button" 
-                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); useCanned(res); }} 
+                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); applyCanned(res); }} 
                         className="glass-interactive" 
                         style={{ flex: 1, padding: '10px 14px', borderRadius: '8px', background: 'var(--bg-input)', border: '1px solid transparent', color: 'var(--text-main)', fontSize: '13px', textAlign: 'left', transition: 'all 0.2s', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
                       >
@@ -597,7 +606,7 @@ function InboxContent() {
       <TransferModal 
         isOpen={isTransferModalOpen}
         onClose={() => setIsTransferModalOpen(false)}
-        ticketId={selectedChat?.current_ticket_id}
+        ticketId={selectedChat?.current_ticket_id ?? undefined}
         fromAgentId={agent?.id}
         onSuccess={() => { alert('โอนสายเรียบร้อยแล้ว'); setViewMode('list'); }}
       />

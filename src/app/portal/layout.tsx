@@ -47,7 +47,7 @@ export default function PortalLayout({
         <p style={{ color: 'var(--text-muted)', fontSize: '12px' }}>© 2026 NEO Support. Powered by Omni AI.</p>
       </footer>
 
-      <style jsx global>{`
+      <style dangerouslySetInnerHTML={{ __html: `
         .portal-container {
           background: #0a0e14;
           color: white;
@@ -57,7 +57,7 @@ export default function PortalLayout({
           from { opacity: 0; transform: translateY(10px); }
           to { opacity: 1; transform: translateY(0); }
         }
-      `}</style>
+      ` }} />
     </div>
   );
 }
