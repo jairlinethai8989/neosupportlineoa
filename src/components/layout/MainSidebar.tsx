@@ -118,6 +118,8 @@ function MainSidebarComponent({ onClickLink, isCollapsed = false }: SidebarProps
       }
 
       if (
+        key.includes('overview') ||
+        normalizedPath === '/' ||
         key.includes('analytics') ||
         key.includes('performance') ||
         key.includes('dashboard') ||

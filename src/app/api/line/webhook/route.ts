@@ -21,7 +21,10 @@ const IMAGEMAP_BASE_URL =
 const PORTAL_URL = `${APP_BASE_URL.replace(/\/$/, '')}/portal`;
 const CREATE_URL = `${PORTAL_URL}/create`;
 const HISTORY_URL = PORTAL_URL;
-const CONTACT_URL = `${APP_BASE_URL.replace(/\/$/, '')}/inbox`;
+const LINE_BOT_ID = process.env.NEXT_PUBLIC_LINE_BOT_ID?.trim();
+const CONTACT_URL = LINE_BOT_ID
+  ? `https://line.me/R/ti/p/${encodeURIComponent(LINE_BOT_ID)}`
+  : PORTAL_URL;
 
 function normalizeIncomingText(text: string) {
   return text.trim().toLowerCase();

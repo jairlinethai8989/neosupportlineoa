@@ -378,7 +378,7 @@ export default function Evaluation360Page() {
           <p style={{ fontSize: '14px', color: 'var(--text-muted)', lineHeight: '1.5' }}>
             สิทธิ์การเข้าถึงแบบฟอร์มประเมินพนักงาน 360 องศานี้ สำหรับผู้บริหารหรือผู้ดูแลระบบเท่านั้น
           </p>
-          <Link href="/analytics/staff" className="glass-interactive" style={{ padding: '12px 24px', background: 'var(--primary)', color: '#0a0e14', fontWeight: '800', borderRadius: '12px', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+          <Link href="/analytics" className="glass-interactive" style={{ padding: '12px 24px', background: 'var(--primary)', color: '#0a0e14', fontWeight: '800', borderRadius: '12px', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
             <ArrowLeft size={16} /> กลับแดชบอร์ดหลัก
           </Link>
         </div>
@@ -391,7 +391,7 @@ export default function Evaluation360Page() {
       
       {/* Header section */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '24px' }}>
-        <Link href="/analytics/staff" className="glass-interactive" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '40px', height: '40px', borderRadius: '12px', color: 'var(--text-muted)' }}>
+        <Link href="/analytics" className="glass-interactive" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '40px', height: '40px', borderRadius: '12px', color: 'var(--text-muted)' }}>
           <ArrowLeft size={20} />
         </Link>
         <div>

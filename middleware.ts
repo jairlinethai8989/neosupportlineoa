@@ -32,6 +32,7 @@ export async function middleware(request: MiddlewareRequest) {
     '/login',
     '/portal',
     '/survey',
+    '/escalate',
     '/line/imagemap-portal-menu',
     '/api/line/webhook', 
     '/api/cron',        // Allow daily summaries and other crons
@@ -79,9 +80,8 @@ export async function middleware(request: MiddlewareRequest) {
     }
   );
 
-  // 4. Authenticate User
-  const { data: { session }, error } = await supabase.auth.getSession();
-  const user = session?.user;
+  // 4. Authenticate User (validate JWT with Supabase Auth server)
+  const { data: { user }, error } = await supabase.auth.getUser();
 
   // 5. Logic
   if (isPublicRoute) {

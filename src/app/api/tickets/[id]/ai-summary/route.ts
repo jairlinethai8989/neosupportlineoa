@@ -4,13 +4,13 @@ import { supabaseAdmin } from '@/lib/supabaseAdmin';
 
 export const runtime = 'nodejs';
 
-// Fallback response for simulated analysis or if API key is missing
+// Honest fallback response when AI service is unavailable or API key is not configured
 const fallbackAnalysis = {
-  rootCause: "การตรวจสอบพบว่าเกิดจากปัญหาการตั้งค่าสิทธิ์ผู้ใช้งานในระบบฐานข้อมูลผิดพลาด ทำให้ผู้ใช้งานระดับปฏิบัติการไม่สามารถเข้าถึงเมนูรายงานสถิติได้ (Permission Configuration Error)",
-  resolution: "ทีมเทคนิคได้ทำการอัปเดต Role-Based Access Control (RBAC) ใหม่ และเคลียร์แคชระบบเรียบร้อยแล้ว",
+  rootCause: "ไม่สามารถวิเคราะห์ด้วย AI ได้ในขณะนี้ (ยังไม่ได้ตั้งค่า API Key หรือไม่สามารถเชื่อมต่อบริการ AI)",
+  resolution: "กรุณาตรวจสอบรายละเอียดการแก้ไขจากประวัติการสนทนาและบันทึกปิดงานของเจ้าหน้าที่โดยตรง",
   preventiveRecommendations: [
-    "ควรมีการทำ Automated Test ทุกครั้งที่มีการอัปเดตโมดูลสิทธิ์ผู้ใช้งาน",
-    "จัดทำ SOP ขั้นตอนการกำหนดสิทธิ์ผู้ใช้งานใหม่ให้ครอบคลุมและอัปเดตเป็นเวอร์ชันล่าสุด"
+    "ตรวจสอบการตั้งค่า GEMINI_API_KEY หรือ RAG_SERVER_URL ในระบบ",
+    "ลองกดวิเคราะห์ใหม่อีกครั้งเมื่อบริการ AI พร้อมใช้งาน"
   ]
 };
 
@@ -73,14 +73,7 @@ export async function POST(
     const apiKey = dbApiKey || process.env.GEMINI_API_KEY;
 
     if (!apiKey) {
-      console.log('Gemini API Key not found. Returning simulated analysis.');
-      
-      // Save simulated to DB anyway
-      await supabaseAdmin
-        .from('tickets')
-        .update({ ai_analysis: fallbackAnalysis })
-        .eq('id', ticketId);
-
+      console.warn('Gemini API Key not found. Returning unavailable fallback without persisting to DB.');
       return NextResponse.json({ ...fallbackAnalysis, isSimulated: true });
     }
 

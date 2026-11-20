@@ -1,8 +1,0 @@
-
-> neo_line_oa@1.1.2 start
-> next start -p 3200
-
-▲ Next.js 16.2.1
-- Local:         http://localhost:3200
-- Network:       http://100.107.208.120:3200
-✓ Ready in 634ms
