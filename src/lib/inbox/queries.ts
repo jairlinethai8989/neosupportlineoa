@@ -25,7 +25,7 @@ export const inboxConversationSelect = `
     id,
     display_name,
     line_user_id,
-    metadata,
+    avatar_url,
     organization_id,
     department_id,
     position_id,
@@ -55,7 +55,6 @@ const inboxConversationSelectLegacy = `
     id,
     display_name,
     line_user_id,
-    metadata,
     organization_id,
     department_id,
     position_id,
@@ -85,7 +84,7 @@ export const inboxConversationSelectForList = `
     id,
     display_name,
     line_user_id,
-    metadata,
+    avatar_url,
     organization_id,
     department_id,
     position_id,
@@ -113,7 +112,6 @@ const inboxConversationSelectForListLegacy = `
     id,
     display_name,
     line_user_id,
-    metadata,
     organization_id,
     department_id,
     position_id,
@@ -158,6 +156,12 @@ async function runConversationQueryWithAvatarFallback<T>(
   const selectPrimary = options?.isList ? inboxConversationSelectForList : inboxConversationSelect;
   const primary = await runQuery(selectPrimary);
   if (!primary.error) return primary;
+
+  if (isMissingAvatarColumnError(primary.error)) {
+    const selectLegacy = options?.isList ? inboxConversationSelectForListLegacy : inboxConversationSelectLegacy;
+    const legacy = await runQuery(selectLegacy);
+    if (!legacy.error) return legacy;
+  }
 
   // Minimal select fallback if primary query fails
   console.warn('Primary inbox query failed, trying minimal select:', primary.error);
@@ -260,7 +264,7 @@ async function enrichConversationsIfNeeded(
             id,
             display_name,
             line_user_id,
-            metadata,
+            avatar_url,
             organization_id,
             department_id,
             position_id,
@@ -465,7 +469,7 @@ export async function listInboxConversationsV2(input: {
         .limit(pageSize + 1);
 
       if (input.status === 'active') {
-        query = query.not('status', 'in', '("closed","resolved","done","archived")');
+        query = query.eq('status', 'active');
       } else if (input.status === 'closed') {
         query = query.in('status', ['closed', 'resolved', 'done', 'archived']);
       }

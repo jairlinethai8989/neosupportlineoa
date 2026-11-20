@@ -133,7 +133,7 @@
   box-sizing: border-box;
   margin: 0;
   padding: 0;
-  font-family: var(--font-inter, 'Inter'), var(--font-prompt, 'Prompt'), sans-serif !important;
+  font-family: var(--font-prompt, 'Prompt'), sans-serif !important;
   letter-spacing: -0.01em;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -141,7 +141,7 @@
 }
 
 html, body, div, span, h1, h2, h3, h4, h5, h6, p, a, button, input, select, textarea, li, label {
-  font-family: var(--font-inter, 'Inter'), var(--font-prompt, 'Prompt'), sans-serif !important;
+  font-family: var(--font-prompt, 'Prompt'), sans-serif !important;
 }
 
 body {

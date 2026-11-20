@@ -111,7 +111,6 @@ export async function sendInboxAgentMessage(input: {
     // Do not fail send flow when metadata timestamp update is blocked (e.g., RLS).
     console.warn('Inbox: last_message_at update skipped:', updateError);
   }
-  invalidateAllPreviewCaches();
   void pushAgentReplyToLineAction(
     input.conversationId,
     input.ticketId,

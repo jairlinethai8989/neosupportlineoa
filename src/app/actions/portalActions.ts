@@ -224,9 +224,6 @@ export async function sendPortalMessageAction(
       .eq('id', conversation.id);
   }
 
-  invalidateAllLiveCaches();
-  invalidateAllPreviewCaches();
-
   // 6. Push notification to internal LINE staff group (non-blocking)
   const preview =
     messageType === 'text'

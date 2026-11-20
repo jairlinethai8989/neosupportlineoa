@@ -5,7 +5,6 @@ import { supabase } from '@/lib/supabase';
 import {
   getInboxConversationById,
   listInboxConversations,
-  listInboxConversationsFallback,
   listInboxConversationsV2,
 } from '@/lib/inbox/queries';
 import type { InboxConversation } from '@/types/inbox';
@@ -184,18 +183,6 @@ export function useRealtimeInbox(options: {
       });
 
       if (controller.signal.aborted) return;
-
-      if (data.length === 0) {
-        // Last-resort fallback to avoid disappearing inbox when strict query shape/status mismatches.
-        const fallback = await listInboxConversationsFallback(pageSize);
-        if (controller.signal.aborted) return;
-        const activeFallback = fallback.filter(isConversationActiveLike);
-        if (activeFallback.length > 0) {
-          setConversations(sortConversations(activeFallback));
-          setHasNextPage(false);
-          return;
-        }
-      }
 
       const visibleData = data.filter(isConversationActiveLike);
       setConversations(visibleData);

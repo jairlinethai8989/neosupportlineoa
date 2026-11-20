@@ -1,12 +1,12 @@
 import React from 'react';
-import { Inter, Prompt } from 'next/font/google';
+import { Prompt } from 'next/font/google';
 import '@/app/globals.css';
 
-const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 const prompt = Prompt({
   weight: ['300', '400', '500', '600', '700'],
   subsets: ['thai', 'latin'],
   variable: '--font-prompt',
+  display: 'swap',
 });
 
 export const metadata = {
@@ -20,7 +20,7 @@ export default function EscalateLayout({ children }: { children: React.ReactNode
   return (
     <html lang="th" data-theme="light">
       <body
-        className={`${inter.variable} ${prompt.variable}`}
+        className={prompt.variable}
         style={{
           background: '#f1f5f9', // Light slate
           minHeight: '100vh',

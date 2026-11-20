@@ -20,6 +20,7 @@ import { User, Clock, ChevronRight, ClipboardCheck, FileText, Paperclip, Externa
 import { deleteMessageAction, closeConversationAction } from '@/app/actions/messageActions';
 import { compressImage } from '@/lib/utils/imageCompression';
 import { useNotificationContext } from '@/contexts/NotificationContext';
+import { useAppContext } from '@/contexts/AppContext';
 import {
   getTicketDetailActionFailedToast,
   getTicketDetailChatMustEndToast,
@@ -183,6 +184,13 @@ export default function StaffTicketDetailPage() {
   const params = useParams();
   const ticketId = normalizeRouteId(params.id);
   const { addToast } = useNotificationContext();
+  const {
+    authUserId,
+    userProfile: appProfile,
+    companySettings: appSettings,
+    departments: appDepartments,
+    ensureDepartments,
+  } = useAppContext();
   const adminFileRef = useRef<HTMLInputElement>(null);
   const conversationIdRef = useRef<string | null>(null);
   const staticMetaLoadedRef = useRef(false);
@@ -420,78 +428,70 @@ export default function StaffTicketDetailPage() {
     );
   };
 
-  const fetchStaticMeta = useCallback(async () => {
-    if (staticMetaLoadedRef.current) return;
+  // Sync static metadata (user, modules, issue types, templates, departments) from AppContext — avoids 6 redundant DB queries per ticket visit
+  useEffect(() => {
+    void ensureDepartments();
+  }, [ensureDepartments]);
 
-    const [deptResult, modulesResult, issuesResult, authResult, companyResult] = await Promise.all([
-      supabase
-        .from('departments')
-        .select('id, name')
-        .eq('dept_type', 'organization')
-        .eq('is_active', true)
-        .order('name'),
-      supabase.from('ticket_modules').select('name').eq('is_active', true),
-      supabase.from('ticket_issue_types').select('name').eq('is_active', true),
-      supabase.auth.getUser(),
-      supabase.from('company_settings').select('resolution_templates').limit(1).maybeSingle(),
-    ]);
+  useEffect(() => {
+    if (appDepartments.length > 0) {
+      const orgDepts = appDepartments.filter(
+        (d) =>
+          (d.dept_type === undefined || d.dept_type === 'organization') &&
+          d.is_active !== false
+      );
+      setAvailableDepts(
+        orgDepts.map((department) => ({
+          label: String(department.name || ''),
+          value: String(department.id || ''),
+        }))
+      );
+    }
+  }, [appDepartments]);
 
-    if (deptResult.data) {
-      setAvailableDepts(deptResult.data.map((department) => ({ label: department.name, value: department.id })));
+  useEffect(() => {
+    if (appSettings) {
+      setAvailableModules(
+        appSettings.modules && appSettings.modules.length > 0
+          ? appSettings.modules
+          : DEFAULT_MODULES
+      );
+      setAvailableIssueTypes(
+        appSettings.issue_types && appSettings.issue_types.length > 0
+          ? appSettings.issue_types
+          : []
+      );
     }
 
-    setAvailableModules(
-      modulesResult.data && modulesResult.data.length > 0
-        ? modulesResult.data.map((d) => d.name)
-        : DEFAULT_MODULES
-    );
-    setAvailableIssueTypes(
-      issuesResult.data && issuesResult.data.length > 0
-        ? issuesResult.data.map((d) => d.name)
-        : []
-    );
-
-    const companyTemplates = (companyResult.data?.resolution_templates as unknown[]) || [];
-    const mappedCompanyTemplates = companyTemplates.map(t => 
+    const companyTemplates = ((appSettings?.resolution_templates as unknown[]) || []).map((t) =>
       typeof t === 'string' ? t : String((t as Record<string, unknown>)?.content || t)
     );
 
-    const authUser = authResult.data.user;
-    if (authUser) {
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('id, display_name, role, quick_replies, resolution_templates')
-        .eq('id', authUser.id)
-        .single();
-
-      if (profile) {
-        const mergedUser: TicketDetailUser = {
-          id: authUser.id,
-          display_name: profile.display_name || null,
-          role: profile.role || null,
-        };
-        setUser(mergedUser);
-        setPersonalQuickReplies(profile.quick_replies || []);
-        
-        if (profile.resolution_templates && profile.resolution_templates.length > 0) {
-          setPersonalResTemplates(profile.resolution_templates);
-        } else if (mappedCompanyTemplates.length) {
-          setPersonalResTemplates(mappedCompanyTemplates);
-        } else {
-          setPersonalResTemplates([]);
-        }
-      } else {
-        setUser({ id: authUser.id });
-        if (mappedCompanyTemplates.length) {
-          setPersonalResTemplates(mappedCompanyTemplates);
-        }
+    if (appProfile) {
+      setUser({
+        id: String(appProfile.id || authUserId || ''),
+        display_name: (appProfile.display_name as string | null) || appProfile.full_name || null,
+        role: appProfile.role || null,
+      });
+      setPersonalQuickReplies(appProfile.quick_replies || []);
+      if (appProfile.resolution_templates && appProfile.resolution_templates.length > 0) {
+        setPersonalResTemplates(appProfile.resolution_templates);
+      } else if (companyTemplates.length > 0) {
+        setPersonalResTemplates(companyTemplates);
       }
-    } else if (mappedCompanyTemplates.length) {
-      setPersonalResTemplates(mappedCompanyTemplates);
+      staticMetaLoadedRef.current = true;
+    } else if (authUserId) {
+      setUser({ id: authUserId });
+      if (companyTemplates.length > 0) {
+        setPersonalResTemplates(companyTemplates);
+      }
     }
+  }, [appProfile, appSettings, authUserId]);
 
-    staticMetaLoadedRef.current = true;
-  }, []);
+  const fetchStaticMeta = useCallback(async () => {
+    if (staticMetaLoadedRef.current || appProfile || appSettings) return;
+    await ensureDepartments();
+  }, [appProfile, appSettings, ensureDepartments]);
 
   const resolveConversationForTicket = useCallback(async (customerId: string | null) => {
     if (!ticketId) return null;

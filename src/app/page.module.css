@@ -14,7 +14,7 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  font-family: 'IBM Plex Sans Thai', var(--font-ibm-plex), sans-serif !important;
+  font-family: var(--font-prompt, 'Prompt'), sans-serif !important;
   background-color: var(--background);
 }
 

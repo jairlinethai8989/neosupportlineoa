@@ -2,9 +2,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import * as line from '@line/bot-sdk';
-import { invalidateAllLiveCaches } from '@/lib/cache/liveCache';
-import { invalidateAllPreviewCaches } from '@/lib/reports/previewCache';
-
 import crypto from 'crypto';
 
 const config = {
@@ -208,8 +205,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ status: 'ok' });
   }
 
-  let hasDataMutation = false;
-
   for (const event of events) {
     if (event.type === 'follow') {
       if (event.replyToken) {
@@ -266,10 +261,6 @@ export async function POST(req: Request) {
         continue;
       }
       if (customer) {
-        hasDataMutation = true;
-      }
-
-      if (customer) {
         // 3. Accept only app-linked conversations.
         // Do not create tickets/conversations from direct OA chat messages.
         const { data: conversation } = await supabaseAdmin
@@ -319,7 +310,6 @@ export async function POST(req: Request) {
              console.error(`Webhook: Message insert error:`, messageError);
              continue;
           }
-          hasDataMutation = true;
 
           let finalContent = messageText;
 
@@ -395,7 +385,6 @@ export async function POST(req: Request) {
                     media_mime_type: contentType
                   })
                   .eq('line_message_id', event.message.id);
-                hasDataMutation = true;
               } else {
                 console.error('Webhook: Upload Error:', uploadError);
               }
@@ -408,15 +397,9 @@ export async function POST(req: Request) {
           await supabaseAdmin.from('conversations')
             .update({ last_message_at: new Date().toISOString() })
             .eq('id', conversation.id);
-          hasDataMutation = true;
         }
       }
     }
-  }
-
-  if (hasDataMutation) {
-    invalidateAllLiveCaches();
-    invalidateAllPreviewCaches();
   }
 
   return NextResponse.json({ status: 'ok' });

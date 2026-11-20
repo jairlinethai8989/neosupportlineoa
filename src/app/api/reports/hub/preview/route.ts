@@ -93,11 +93,14 @@ export async function GET(req: Request) {
         `and(resolved_at.gte.${startIso},resolved_at.lte.${endIso})`,
       ].join(',');
 
-      const { data, error } = await supabaseAdmin
-        .from('tickets')
-        .select(ticketPreviewSelect)
-        .or(orFilter)
-        .order('created_at', { ascending: false });
+      const [{ data, error }, broadcast] = await Promise.all([
+        supabaseAdmin
+          .from('tickets')
+          .select(ticketPreviewSelect)
+          .or(orFilter)
+          .order('created_at', { ascending: false }),
+        getReportBroadcastSettings(),
+      ]);
 
       if (error) {
         throw new Error(error.message);
@@ -109,7 +112,6 @@ export async function GET(req: Request) {
       }));
       
       let targetGroupName = '';
-      const broadcast = await getReportBroadcastSettings();
       if (broadcast.groupId) {
         const { data: selectedGroup } = await supabaseAdmin
           .from('line_groups')

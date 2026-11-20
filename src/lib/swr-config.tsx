@@ -13,10 +13,10 @@ export function SWRProvider({ children }: { children: React.ReactNode }) {
     <SWRConfig 
       value={{
         fetcher: globalFetcher,
-        revalidateOnFocus: true,
+        revalidateOnFocus: false,
         revalidateOnReconnect: true,
         refreshInterval: 0, // no automatic polling by default unless specified per hook
-        dedupingInterval: 2000,
+        dedupingInterval: 10000,
         keepPreviousData: true, // IMPORTANT: Prevents flashing/white screens when swapping keys
       }}
     >

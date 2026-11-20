@@ -32,25 +32,38 @@ import { getHospitalColorStyles } from '@/lib/inbox/colors';
 import useSWR from 'swr';
 
 export default function CustomersPage() {
-  const fetcher = async () => {
-    // Try fetching with organizations (full detail)
+  const fetcher = async (): Promise<any[]> => {
+    const customerListSelect = `
+      id,
+      display_name,
+      full_name,
+      line_username,
+      line_user_id,
+      avatar_url,
+      organization_id,
+      department_id,
+      position_id,
+      status,
+      created_at,
+      organizations (name),
+      departments (name),
+      positions (name)
+    `;
+
+    // Fetch explicit columns (excluding heavy metadata JSON) with safety limit
     const { data, error: fetchErr } = await supabase
       .from('customers')
-      .select(`
-        *,
-        organizations (name),
-        departments (name),
-        positions (name)
-      `)
-      .order('created_at', { ascending: false });
+      .select(customerListSelect)
+      .order('created_at', { ascending: false })
+      .limit(300);
 
     if (fetchErr) {
-       console.warn('Initial fetch failed, trying basic fetch:', fetchErr.message);
-       // Fallback: Fetch without organizations join (might be schema issue)
+       console.warn('Initial fetch failed, trying compact fallback:', fetchErr.message);
        const { data: basicData, error: basicErr } = await supabase
          .from('customers')
-         .select('*')
-         .order('created_at', { ascending: false });
+         .select('id, display_name, full_name, line_username, line_user_id, organization_id, department_id, position_id, created_at')
+         .order('created_at', { ascending: false })
+         .limit(300);
        
        if (basicErr) throw basicErr;
        return basicData || [];
@@ -84,9 +97,10 @@ export default function CustomersPage() {
     try {
       const { data, error } = await supabase
         .from('tickets')
-        .select('*')
+        .select('id, ticket_no, subject, status, priority, module, created_at, resolved_at')
         .eq('customer_id', customer.id)
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .limit(50);
       
       if (error) throw error;
       setCustomerTickets(data || []);

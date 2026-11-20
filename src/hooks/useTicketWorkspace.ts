@@ -544,8 +544,11 @@ export function useTicketWorkspace(filterCustomerId: string | null) {
       if (action === 'INSERT' || action === 'UPDATE') {
         const ticketId = String(p.new?.id || p.old?.id || '');
         if (ticketId) {
-          void syncRef.current(ticketId, p.new);
-          scheduleDataRefresh();
+          if (ticketPage === 1) {
+            void syncRef.current(ticketId, p.new);
+          } else {
+            scheduleDataRefresh();
+          }
         }
       } else if (action === 'DELETE') {
         const ticketId = String(p.old?.id || '');

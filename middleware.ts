@@ -18,10 +18,13 @@ export async function middleware(request: MiddlewareRequest) {
     process.env.NODE_ENV !== 'production' &&
     process.env.PROFILE_BYPASS_AUTH === '1';
 
-  // 1. Skip static assets and internal paths
+  // 1. Skip static assets, internal paths, and API routes
+  // Every /api/* route enforces its own server-side auth/signature/secret guard,
+  // so bypassing middleware avoids a duplicate Supabase Auth network round-trip per API call.
   if (
     pathname.startsWith('/_next') ||
     pathname.startsWith('/favicon.ico') ||
+    pathname.startsWith('/api/') ||
     pathname.includes('.')
   ) {
     return NextResponse.next();

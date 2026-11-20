@@ -58,18 +58,41 @@ export async function GET(req: Request) {
       : CACHE_POLICY.live.dashboardSummaryTtlMs;
 
     const payload = await getOrSetLiveCache(cacheKey, ttlMs, async () => {
-      // 1. Fetch Aggregated Data via RPC
-      const { data: rpcData, error: rpcError } = await supabaseAdmin
-        .rpc('get_dashboard_summary', {
+      // 1. Fetch Aggregated Data via RPC and Recent Logs in parallel
+      const ticketLogSelect = `
+        id,
+        ticket_id,
+        action_type,
+        note,
+        created_at,
+        tickets(ticket_no)
+      `;
+
+      const [rpcRes, logsRes] = await Promise.all([
+        supabaseAdmin.rpc('get_dashboard_summary', {
           p_start_date: fromIso,
           p_end_date: toIso,
           p_organization_id: organizationId || null,
           p_module: moduleFilter || null,
-          p_issue_type: issueType || null
-        });
+          p_issue_type: issueType || null,
+        }),
+        includeLogs
+          ? supabaseAdmin
+              .from('ticket_logs')
+              .select(ticketLogSelect)
+              .gte('created_at', fromIso)
+              .lte('created_at', toIso)
+              .order('created_at', { ascending: false })
+              .limit(10)
+          : Promise.resolve({ data: null, error: null }),
+      ]);
 
+      const { data: rpcData, error: rpcError } = rpcRes;
       if (rpcError) {
         throw new Error(`RPC Error: ${rpcError.message}`);
+      }
+      if (logsRes.error) {
+        throw new Error(logsRes.error.message);
       }
 
       // If the RPC returns a string (PostgREST behavior), parse it first
@@ -97,34 +120,14 @@ export async function GET(req: Request) {
           resolved: resolvedCountsByDay[dateKey] || 0,
         }));
 
-      // 2. Fetch Recent Logs (only if requested)
-      let recentLogs: any[] = [];
-      if (includeLogs) {
-        const ticketLogSelect = `
-          id,
-          ticket_id,
-          action_type,
-          note,
-          created_at,
-          tickets(ticket_no)
-        `;
-        const { data: logsData, error: logsError } = await supabaseAdmin
-          .from('ticket_logs')
-          .select(ticketLogSelect)
-          .gte('created_at', fromIso)
-          .lte('created_at', toIso)
-          .order('created_at', { ascending: false })
-          .limit(10);
-
-        if (logsError) throw new Error(logsError.message);
-        
-        recentLogs = (logsData || []).map((log: any) => ({
-          action_type: log.action_type || '',
-          note: log.note || '',
-          created_at: log.created_at,
-          tickets: { ticket_no: toObject(log.tickets)?.ticket_no || '' },
-        }));
-      }
+      const recentLogs: any[] = includeLogs
+        ? (logsRes.data || []).map((log: any) => ({
+            action_type: log.action_type || '',
+            note: log.note || '',
+            created_at: log.created_at,
+            tickets: { ticket_no: toObject(log.tickets)?.ticket_no || '' },
+          }))
+        : [];
 
       // 3. Build Heatmap matrix from RPC-aggregated rows (max 168 rows, not 10,000)
       const heatmap = Array.from({ length: 7 }, () => Array(24).fill(0));

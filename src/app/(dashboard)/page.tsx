@@ -201,27 +201,17 @@ export default function Home() {
     }
   }, [contextOrgs]);
 
-  // Modules and issue types: use companySettings if already loaded, else fetch in parallel
+  // Sync modules and issue types from AppContext (loaded once at layout level — zero duplicate queries)
   useEffect(() => {
-    if (companySettings?.modules?.length || companySettings?.issue_types?.length) {
-      if (companySettings.modules?.length) {
-        // eslint-disable-next-line react-hooks/set-state-in-effect
-        setModulesList(companySettings.modules.map((name: string) => ({ name })));
-      }
-      if (companySettings.issue_types?.length) {
-        // eslint-disable-next-line react-hooks/set-state-in-effect
-        setIssueTypesList(companySettings.issue_types.map((name: string) => ({ name })));
-      }
-      return;
+    if (!companySettings) return;
+    if (companySettings.modules?.length) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setModulesList(companySettings.modules.map((name: string) => ({ name })));
     }
-    // Fallback: fetch in parallel (not sequential) if companySettings not yet ready
-    void Promise.all([
-      supabase.from('ticket_modules').select('name').eq('is_active', true).order('name'),
-      supabase.from('ticket_issue_types').select('name').eq('is_active', true).order('name'),
-    ]).then(([modsRes, typesRes]) => {
-      if (modsRes.data) setModulesList(modsRes.data);
-      if (typesRes.data) setIssueTypesList(typesRes.data);
-    });
+    if (companySettings.issue_types?.length) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setIssueTypesList(companySettings.issue_types.map((name: string) => ({ name })));
+    }
   }, [companySettings]);
 
   const dateWindow = useMemo(

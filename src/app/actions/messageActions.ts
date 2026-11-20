@@ -139,8 +139,6 @@ export async function sendAgentMessageAction(
   await supabaseAdmin.from('conversations').update({
     last_message_at: new Date().toISOString()
   }).eq('id', conversationId);
-  invalidateAllLiveCaches();
-  invalidateAllPreviewCaches();
 
   void pushAgentReplyToLineInternal(conversationId, ticketId, content, messageType);
 }
@@ -160,8 +158,6 @@ export async function sendSystemMessageAction(
   }]);
   
   if (dbError) throw new Error(dbError.message);
-  invalidateAllLiveCaches();
-  invalidateAllPreviewCaches();
 }
 
 export async function closeConversationAction(conversationId: string) {

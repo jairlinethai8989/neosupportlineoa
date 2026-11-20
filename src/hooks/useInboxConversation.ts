@@ -101,11 +101,27 @@ export function useInboxConversation({
         selectedChat!.ticket_data?.id ||
         null;
 
-      const initialPage = await listInboxMessagesPage({
-        conversationId: selectedChat!.id,
-        ticketId: threadTicketId,
-        limit: MESSAGE_PAGE_SIZE,
-      });
+      const optimisticClaim = urlParams.get('oc') === '1';
+      const shouldUseUrlTicket =
+        Boolean(urlTicketId) &&
+        (!urlConversationId || urlConversationId === selectedChat!.id);
+      const prefetchedTicketId =
+        (shouldUseUrlTicket ? urlTicketId : null) ||
+        selectedChat!.current_ticket_id ||
+        selectedChat!.ticket_data?.id ||
+        null;
+
+      // Fetch initial messages and known ticket in parallel to eliminate sequential waterfall
+      const [initialPage, prefetchedTicket] = await Promise.all([
+        listInboxMessagesPage({
+          conversationId: selectedChat!.id,
+          ticketId: threadTicketId,
+          limit: MESSAGE_PAGE_SIZE,
+        }),
+        prefetchedTicketId
+          ? getInboxTicketById(prefetchedTicketId).catch(() => null)
+          : Promise.resolve(null),
+      ]);
 
       setMessages(initialPage);
       oldestMessageCursorRef.current =
@@ -118,14 +134,8 @@ export function useInboxConversation({
           .find((message) => Boolean(message.ticket_id))
           ?.ticket_id || null;
 
-      const optimisticClaim = urlParams.get('oc') === '1';
-
       let targetTicketId: string | null = null;
       let targetTicketData: InboxConversation['ticket_data'] = null;
-
-      const shouldUseUrlTicket =
-        Boolean(urlTicketId) &&
-        (!urlConversationId || urlConversationId === selectedChat!.id);
 
       if (shouldUseUrlTicket && urlTicketId) {
         targetTicketId = urlTicketId;
@@ -138,7 +148,10 @@ export function useInboxConversation({
       }
 
       if (targetTicketId) {
-        const ticket = await getInboxTicketById(targetTicketId);
+        const ticket =
+          targetTicketId === prefetchedTicketId && prefetchedTicket
+            ? prefetchedTicket
+            : await getInboxTicketById(targetTicketId);
         if (ticket) {
           if (optimisticClaim && agent && (targetTicketId === urlTicketId || targetTicketId === latestMessageTicketId)) {
             ticket.assigned_agent_id = agent.id;
