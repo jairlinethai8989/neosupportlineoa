@@ -2,7 +2,75 @@ import { NextResponse } from 'next/server';
 import { DateTime } from 'luxon';
 import { analyticsService } from '@/lib/services/analyticsService';
 import { sendLineGroupFlexNotification } from '@/lib/utils/lineNotifications';
-import { getReportBroadcastSettings, type ReportSet } from '@/lib/reports/broadcastSettings';
+import { getReportBroadcastSettings, type ReportScheduleRow, type ReportSet } from '@/lib/reports/broadcastSettings';
+import { supabaseAdmin } from '@/lib/supabaseAdmin';
+
+const DEFAULT_CRON_WINDOW_MINUTES = 10;
+const recentCronSentKeys = new Set<string>();
+
+function getCronWindowMinutes(): number {
+  const parsed = Number(process.env.CRON_MATCH_WINDOW_MINUTES);
+  if (Number.isFinite(parsed) && parsed >= 1 && parsed <= 60) {
+    return Math.floor(parsed);
+  }
+  return DEFAULT_CRON_WINDOW_MINUTES;
+}
+
+function parseMinutesOfDay(hhmm: string): number | null {
+  const match = /^([01]\d|2[0-3]):([0-5]\d)$/.exec(hhmm);
+  if (!match) return null;
+  return Number(match[1]) * 60 + Number(match[2]);
+}
+
+function isScheduleWithinWindow(row: ReportScheduleRow, now: DateTime, windowMinutes: number): boolean {
+  if (!row.enabled) return false;
+  const schedMinutes = parseMinutesOfDay(row.time);
+  const nowMinutes = parseMinutesOfDay(now.toFormat('HH:mm'));
+  if (schedMinutes === null || nowMinutes === null) return false;
+  const diff = nowMinutes - schedMinutes;
+  return diff >= 0 && diff < windowMinutes;
+}
+
+async function hasCronKeyBeenSent(cronKey: string): Promise<boolean> {
+  if (recentCronSentKeys.has(cronKey)) return true;
+  try {
+    const { data, error } = await supabaseAdmin
+      .from('system_logs')
+      .select('id')
+      .eq('action_type', 'cron_daily_summary')
+      .eq('entity_id', cronKey)
+      .limit(1)
+      .maybeSingle();
+    if (!error && data) {
+      recentCronSentKeys.add(cronKey);
+      return true;
+    }
+  } catch (err) {
+    console.warn('Cron idempotency DB check skipped:', err);
+  }
+  return false;
+}
+
+async function recordCronKeySent(cronKey: string, set: ReportSet, groupId: string): Promise<void> {
+  recentCronSentKeys.add(cronKey);
+  if (recentCronSentKeys.size > 200) {
+    const oldest = recentCronSentKeys.values().next().value;
+    if (oldest) recentCronSentKeys.delete(oldest);
+  }
+  try {
+    await supabaseAdmin.from('system_logs').insert([
+      {
+        action_type: 'cron_daily_summary',
+        entity_type: 'report_broadcast',
+        entity_id: cronKey,
+        note: `Daily summary set ${set} sent to LINE group ${groupId}`,
+        created_at: new Date().toISOString(),
+      },
+    ]);
+  } catch (err) {
+    console.warn('Cron idempotency DB log skipped:', err);
+  }
+}
 
 type DetailTicket = {
   subject: string;
@@ -101,7 +169,13 @@ export async function GET(req: Request) {
       return NextResponse.json({ success: false, skipped: true, reason: 'No target LINE group configured.' });
     }
 
+    const targetDate = requestedDate || now;
+    const targetDateIso = targetDate.toISODate() || targetDate.toFormat('yyyy-MM-dd');
+    const { startDateStr, endDateStr, dateLabel } = getRangeByDate(targetDate);
+
     let setsToSend: ReportSet[] = [];
+    const matchedAutoRows: Array<{ cronKey: string; set: ReportSet }> = [];
+
     if (requestedSet === '1' || requestedSet === '2') {
       setsToSend = [requestedSet];
     } else {
@@ -109,24 +183,50 @@ export async function GET(req: Request) {
         return NextResponse.json({ success: true, skipped: true, reason: 'Manual mode is enabled.' });
       }
       const hhmm = now.toFormat('HH:mm');
-      const activeRows = settings.schedules.filter((row) => row.enabled && row.time === hhmm);
+      const windowMinutes = getCronWindowMinutes();
+      const activeRows = settings.schedules.filter((row) =>
+        isScheduleWithinWindow(row, now, windowMinutes)
+      );
       if (!activeRows.length) {
-        return NextResponse.json({ success: true, skipped: true, reason: `No schedule matched at ${hhmm}.` });
+        return NextResponse.json({
+          success: true,
+          skipped: true,
+          reason: `No schedule matched within ${windowMinutes}m window at ${hhmm}.`,
+        });
       }
-      setsToSend = [...new Set(activeRows.map((row) => row.set))];
-    }
 
-    const targetDate = requestedDate || now;
-    const { startDateStr, endDateStr, dateLabel } = getRangeByDate(targetDate);
+      for (const row of activeRows) {
+        const cronKey = `${targetDateIso}:${row.time}:set-${row.set}`;
+        const alreadySent = await hasCronKeyBeenSent(cronKey);
+        if (!alreadySent) {
+          matchedAutoRows.push({ cronKey, set: row.set });
+        }
+      }
+
+      if (!matchedAutoRows.length) {
+        return NextResponse.json({
+          success: true,
+          skipped: true,
+          reason: `Matched schedule(s) at ${hhmm} were already sent for ${targetDateIso}.`,
+        });
+      }
+      setsToSend = [...new Set(matchedAutoRows.map((row) => row.set))];
+    }
 
     let stats: unknown = null;
     let detailCount = 0;
     if (setsToSend.includes('1')) {
       stats = await sendSetOne(settings.groupId, dateLabel, startDateStr, endDateStr);
+      for (const row of matchedAutoRows.filter((r) => r.set === '1')) {
+        await recordCronKeySent(row.cronKey, '1', settings.groupId);
+      }
     }
     if (setsToSend.includes('2')) {
       const details = await sendSetTwo(settings.groupId, dateLabel, startDateStr, endDateStr);
       detailCount = (details.details || []).length;
+      for (const row of matchedAutoRows.filter((r) => r.set === '2')) {
+        await recordCronKeySent(row.cronKey, '2', settings.groupId);
+      }
     }
 
     return NextResponse.json({

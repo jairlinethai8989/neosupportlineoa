@@ -3,6 +3,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useLiff } from '@/hooks/useLiff';
 import { supabase } from '@/lib/supabase';
+import { submitSurveyAction } from '@/app/actions/portalActions';
 import { 
   MessageSquare, 
   CheckCircle, 
@@ -550,18 +551,10 @@ export default function PortalPage() {
     if (!pendingSurveyTicket?.id || surveyValue === 0) return;
     setSubmittingSurvey(true);
     try {
-      const { error } = await supabase.from('csat_surveys').upsert(
-        {
-          ticket_id: pendingSurveyTicket.id,
-          score: surveyValue,
-          rating: surveyValue,
-          comment: surveyComment,
-          responded_at: new Date().toISOString(),
-        },
-        { onConflict: 'ticket_id' }
-      );
-
-      if (error) throw error;
+      const result = await submitSurveyAction(pendingSurveyTicket.id, surveyValue, surveyComment);
+      if (!result.success && !result.alreadySubmitted) {
+        throw new Error(result.error || 'ไม่สามารถบันทึกการประเมินได้');
+      }
 
       setShowSurvey(false);
       setPendingSurveyTicket(null);

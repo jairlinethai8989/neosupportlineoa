@@ -79,7 +79,7 @@ export const TicketSidebar: React.FC<TicketSidebarProps> = ({
         .from('ticket_handoffs')
         .select('secure_pin, token, expires_at')
         .eq('ticket_id', currentTicket.id)
-        .eq('status', 'Active')
+        .in('status', ['Active', 'Claimed'])
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle();

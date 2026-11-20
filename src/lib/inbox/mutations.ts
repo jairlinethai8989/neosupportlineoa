@@ -1,6 +1,7 @@
 import {
   closeConversationAction,
   deleteMessageAction,
+  pushAgentReplyToLineAction,
 } from '@/app/actions/messageActions';
 import { ticketService } from '@/lib/services/ticketService';
 import { supabase } from '@/lib/supabase';
@@ -111,6 +112,14 @@ export async function sendInboxAgentMessage(input: {
     console.warn('Inbox: last_message_at update skipped:', updateError);
   }
   invalidateAllPreviewCaches();
+  void pushAgentReplyToLineAction(
+    input.conversationId,
+    input.ticketId,
+    input.content,
+    messageType
+  ).catch((err) => {
+    console.warn('Inbox: outbound LINE push skipped:', err);
+  });
   return { success: true as const };
 }
 

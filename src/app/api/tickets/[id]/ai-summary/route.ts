@@ -81,7 +81,12 @@ export async function POST(
     let chatLog = '';
     if (chats && chats.length > 0) {
       chatLog = chats.map(c => {
-        const sender = c.sender_type === 'staff' ? 'Staff' : 'Customer';
+        const sender =
+          c.sender_type === 'agent' || c.sender_type === 'staff'
+            ? 'Staff'
+            : c.sender_type === 'system'
+              ? 'System'
+              : 'Customer';
         return `[${sender}]: ${c.content}`;
       }).join('\n');
     } else {

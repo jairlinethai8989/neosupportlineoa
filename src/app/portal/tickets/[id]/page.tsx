@@ -237,7 +237,7 @@ export default function TicketDetailPage() {
   const { id } = useParams();
   const ticketId = Array.isArray(id) ? id[0] : id;
   const router = useRouter();
-  const { isReady, profile, error: liffError, setMockLogin } = useLiff();
+  const { isReady, profile, getIdToken, error: liffError, setMockLogin } = useLiff();
   const [ticket, setTicket] = useState<any | null>(null);
   const [logs, setLogs] = useState<any[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -659,7 +659,8 @@ export default function TicketDetailPage() {
          ticketId as string,
          profile.userId,
          messageToSend,
-         'text'
+         'text',
+         getIdToken()
       );
       setMessages((prev: any[]) =>
         prev.map((m: any) => (m.id === tempId ? sentMsg : m))
@@ -702,7 +703,8 @@ export default function TicketDetailPage() {
          ticketId as string,
          profile.userId,
          publicUrl,
-         dbType
+         dbType,
+         getIdToken()
       );
     } catch (err: any) {
       alert('Upload failed: ' + err.message);

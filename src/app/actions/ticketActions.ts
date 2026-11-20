@@ -4,7 +4,10 @@ import { cookies } from 'next/headers';
 import { createServerClient } from '@supabase/ssr';
 import { invalidateAllLiveCaches } from '@/lib/cache/liveCache';
 import { invalidateAllPreviewCaches } from '@/lib/reports/previewCache';
+import { sendLineUserNotification } from '@/lib/utils/lineNotifications';
 import crypto from 'crypto';
+
+const APP_BASE_URL = (process.env.NEXT_PUBLIC_APP_URL || 'https://neoworkspace.vercel.app').replace(/\/$/, '');
 
 type TicketUpdatePayload = Record<string, string | null>;
 
@@ -69,12 +72,12 @@ async function createHandoffRecord(
   const securePin = Math.floor(1000 + Math.random() * 9000).toString();
   const expiresAt = new Date(Date.now() + (expiresInHours || 72) * 60 * 60 * 1000).toISOString();
 
-  // Mark previous active handoffs for this ticket as Expired
+  // Mark previous active/claimed handoffs for this ticket as Expired
   await supabaseAdmin
     .from('ticket_handoffs')
     .update({ status: 'Expired', updated_at: new Date().toISOString() })
     .eq('ticket_id', ticketId)
-    .eq('status', 'Active');
+    .in('status', ['Active', 'Claimed']);
 
   const { error } = await supabaseAdmin
     .from('ticket_handoffs')
@@ -291,17 +294,45 @@ export async function resolveTicketAction(
         note: resolutionSummary
       }]);
 
-     // Only handle CSAT and Conversations if there is a customer linked
-     if (ticket?.customer_id) {
-        // 1. Send CSAT Survey (Silent fail - don't block resolution)
-        try {
-          await supabaseAdmin.from('csat_surveys').upsert({
-             ticket_id: ticketId,
-             sent_at: new Date().toISOString()
-          }, { onConflict: 'ticket_id' });
-        } catch (csatErr) {
-          console.error('[ResolveAction] Silent CSAT Error:', csatErr);
-        }
+      // Only handle CSAT and Conversations if there is a customer linked
+      if (ticket?.customer_id) {
+         // 1. Send CSAT Survey (Silent fail - don't block resolution)
+         try {
+           await supabaseAdmin.from('csat_surveys').upsert({
+              ticket_id: ticketId,
+              sent_at: new Date().toISOString()
+           }, { onConflict: 'ticket_id' });
+         } catch (csatErr) {
+           console.error('[ResolveAction] Silent CSAT Error:', csatErr);
+         }
+
+         // 1b. Push LINE resolution notification + survey link when ticket is fully Resolved
+         if (targetStatus === 'Resolved') {
+           try {
+             const { data: customer } = await supabaseAdmin
+               .from('customers')
+               .select('line_user_id')
+               .eq('id', ticket.customer_id)
+               .maybeSingle();
+
+             if (customer?.line_user_id) {
+               const surveyUrl = `${APP_BASE_URL}/survey/${ticketId}`;
+               const portalUrl = `${APP_BASE_URL}/portal/tickets/${ticketId}`;
+               const ticketNoLabel = ticket.ticket_no ? `#${ticket.ticket_no}` : ticketId;
+               await sendLineUserNotification(customer.line_user_id, {
+                 type: 'text',
+                 text:
+                   `✅ งานหมายเลข ${ticketNoLabel} ได้รับการแก้ไขเรียบร้อยแล้ว\n` +
+                   `สรุปการแก้ไข: ${resolutionSummary || '-'}\n` +
+                   (module ? `ระบบที่เกี่ยวข้อง: ${module}\n` : '') +
+                   `\n⭐ กรุณาประเมินความพึงพอใจได้ที่:\n${surveyUrl}\n\n` +
+                   `ดูประวัติใบงาน: ${portalUrl}`,
+               });
+             }
+           } catch (lineErr) {
+             console.error('[ResolveAction] Silent LINE Push Error:', lineErr);
+           }
+         }
 
          // 2. Close only the conversation that belongs to this ticket resolution if NOT going to Fix Completed.
          // Never close every active conversation of the same customer.
@@ -352,11 +383,11 @@ export async function resolveTicketAction(
     // Record QA Approval verification if transitioning from Fix Completed
     if (currentStatus === 'Fix Completed') {
       try {
-        const { data: activeHandoff } = await supabaseAdmin
+        const { data: latestHandoff } = await supabaseAdmin
           .from('ticket_handoffs')
-          .select('id')
+          .select('id, status')
           .eq('ticket_id', ticketId)
-          .eq('status', 'Active')
+          .in('status', ['Active', 'Claimed', 'Completed'])
           .order('created_at', { ascending: false })
           .limit(1)
           .maybeSingle();
@@ -366,14 +397,14 @@ export async function resolveTicketAction(
           reviewer_id: agentId,
           decision: 'Approved',
           feedback_notes: resolutionSummary || null,
-          handoff_id: activeHandoff?.id || null
+          handoff_id: latestHandoff?.id || null
         }]);
 
-        if (activeHandoff) {
+        if (latestHandoff && latestHandoff.status !== 'Completed') {
           await supabaseAdmin
             .from('ticket_handoffs')
             .update({ status: 'Completed', updated_at: new Date().toISOString() })
-            .eq('id', activeHandoff.id);
+            .eq('id', latestHandoff.id);
         }
       } catch (verError) {
         console.error('[ResolveAction] Failed to record QA approval verification:', verError);
@@ -412,12 +443,12 @@ export async function reviewFixCompletedAction(
     return currentTicket;
   }
 
-  // 1. Find the active handoff and previous status before it transitioned to 'Fix Completed'
-  const { data: activeHandoff } = await supabaseAdmin
+  // 1. Find the latest handoff (Active, Claimed, or Completed by external team) and previous status
+  const { data: latestHandoff } = await supabaseAdmin
     .from('ticket_handoffs')
     .select('id, handoff_type')
     .eq('ticket_id', ticketId)
-    .eq('status', 'Active')
+    .in('status', ['Active', 'Claimed', 'Completed'])
     .order('created_at', { ascending: false })
     .limit(1)
     .maybeSingle();
@@ -431,7 +462,7 @@ export async function reviewFixCompletedAction(
     .limit(1)
     .maybeSingle();
 
-  const targetStatus = activeHandoff?.handoff_type || lastFixLog?.from_status || 'In Progress';
+  const targetStatus = latestHandoff?.handoff_type || lastFixLog?.from_status || 'In Progress';
 
   // 2. Record QA Rejection verification
   await supabaseAdmin.from('ticket_verifications').insert([{
@@ -439,15 +470,15 @@ export async function reviewFixCompletedAction(
     reviewer_id: user.id,
     decision: 'Rejected',
     feedback_notes: note || null,
-    handoff_id: activeHandoff?.id || null
+    handoff_id: latestHandoff?.id || null
   }]);
 
-  // 3. Mark active handoff as Rejected
-  if (activeHandoff) {
+  // 3. Mark handoff as Rejected
+  if (latestHandoff) {
     await supabaseAdmin
       .from('ticket_handoffs')
       .update({ status: 'Rejected', updated_at: new Date().toISOString() })
-      .eq('id', activeHandoff.id);
+      .eq('id', latestHandoff.id);
   }
 
   const { data: updated, error: updateError } = await supabaseAdmin

@@ -12,13 +12,13 @@ import {
    Camera,
    CheckCircle
 } from 'lucide-react';
-import { calculateSlaDeadline } from '@/lib/utils/slaUtils';
 import { compressImage } from '@/lib/utils/imageCompression';
+import { createPortalTicketAction } from '@/app/actions/portalActions';
 const ChatAttachmentModal = React.lazy(() => import('@/components/chat/ChatAttachmentModal'));
 
 export default function CreateTicketPage() {
    const router = useRouter();
-   const { profile, isReady } = useLiff();
+   const { profile, getIdToken, isReady } = useLiff();
 
    const [subject, setSubject] = useState('');
    const [description, setDescription] = useState('');
@@ -77,106 +77,38 @@ export default function CreateTicketPage() {
       setError('');
 
       try {
-         // 1. Generate a highly unique Ticket ID
-         const hospitalAbbr = customerData.organizations?.abbreviation || 'NEO';
-         const now = new Date();
-         const dateStr = now.toISOString().slice(2, 10).replace(/-/g, '');
-         const randomSuffix = Math.random().toString(36).substring(2, 8).toUpperCase();
-         const ticketNo = `${hospitalAbbr}-${dateStr}-${randomSuffix}`;
+         let attachmentUrl: string | null = null;
+         if (file) {
+            let fileToUpload: File | Blob = file;
+            let contentType = file.type;
+            let ext = file.name.split('.').pop() || 'jpg';
 
-         // 2. Calculate SLA Deadline
-         let slaDueAt = null;
-         try {
-            const { data: slaRule } = await supabase
-               .from('sla_rules')
-               .select('response_time_minutes, resolution_time_minutes')
-               .eq('priority', 'Medium')
-               .maybeSingle();
-            
-            if (slaRule) {
-               const duration = slaRule.resolution_time_minutes || slaRule.response_time_minutes || 60;
-               slaDueAt = calculateSlaDeadline(new Date(), duration).toISOString();
+            if (contentType.startsWith('image/')) {
+               try {
+                  const compressed = await compressImage(file, { quality: 0.8 });
+                  fileToUpload = compressed;
+                  contentType = 'image/webp';
+                  ext = 'webp';
+               } catch (err) {
+                  console.error('Portal create compression failed:', err);
+               }
             }
-         } catch (e) {
-            console.warn('SLA Calculation skipped:', e);
+
+            const fileName = `portal_${Date.now()}_${Math.random().toString(36).substring(2, 8)}.${ext}`;
+            const { error: uploadError } = await supabase.storage.from('chat_media').upload(fileName, fileToUpload, { contentType });
+            if (!uploadError) {
+               const { data: { publicUrl } } = supabase.storage.from('chat_media').getPublicUrl(fileName);
+               attachmentUrl = publicUrl;
+            }
          }
 
-         // 3. Insert Ticket
-         const ticketPayload: any = {
-            ticket_no: ticketNo,
-            customer_id: customerData.id,
-            organization_id: customerData.organization_id,
-            current_department_id: customerData.department_id,
+         const { ticket: createdTicket } = await createPortalTicketAction({
+            lineUserId: profile?.userId || null,
+            idToken: getIdToken(),
             subject: subject.trim(),
-            description: description,
-            status: 'New',
-            priority: 'Medium',
-            created_at: new Date().toISOString(),
-            sla_due_at: slaDueAt
-         };
-
-         const { data: newTicket, error: ticketError } = await supabase.from('tickets').insert([ticketPayload]).select();
-
-         if (ticketError) throw new Error(`Ticket Creation Failed: ${ticketError.message}`);
-
-         const createdTicket = newTicket?.[0];
-         if (!createdTicket) throw new Error('Ticket was not created');
-
-         // 3. Create Fresh Conversation (Preserve existing active ones)
-
-         const { data: newConv } = await supabase.from('conversations').insert([{
-            customer_id: customerData.id,
-            status: 'active',
-            current_ticket_id: createdTicket.id,
-            last_message_at: new Date().toISOString()
-         }]).select().single();
-
-         const conversationId = newConv?.id;
-
-         // 4. Initial Messages
-          if (conversationId) {
-             if (file) {
-                let fileToUpload: File | Blob = file;
-                let contentType = file.type;
-                let ext = file.name.split('.').pop() || 'jpg';
-
-                if (contentType.startsWith('image/')) {
-                   try {
-                      const compressed = await compressImage(file, { quality: 0.8 });
-                      fileToUpload = compressed;
-                      contentType = 'image/webp';
-                      ext = 'webp';
-                   } catch (err) {
-                      console.error('Portal create compression failed:', err);
-                   }
-                }
-
-                const fileName = `${createdTicket.id}_${Date.now()}.${ext}`;
-                const { error: uploadError } = await supabase.storage.from('chat_media').upload(fileName, fileToUpload, { contentType });
-                if (!uploadError) {
-                   const { data: { publicUrl } } = supabase.storage.from('chat_media').getPublicUrl(fileName);
-                   await supabase.from('messages').insert([{
-                      ticket_id: createdTicket.id,
-                      conversation_id: conversationId,
-                      sender_type: 'customer',
-                      customer_id: customerData.id,
-                      message_type: 'image',
-                      content: publicUrl
-                   }]);
-                }
-             }
-
-            if (description.trim()) {
-               await supabase.from('messages').insert([{
-                  ticket_id: createdTicket.id,
-                  conversation_id: conversationId,
-                  sender_type: 'customer',
-                  customer_id: customerData.id,
-                  message_type: 'text',
-                  content: description.trim()
-               }]);
-            }
-         }
+            description: description.trim(),
+            attachmentUrl,
+         });
 
          router.replace(`/portal/tickets/${createdTicket.id}`);
 

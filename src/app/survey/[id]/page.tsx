@@ -3,7 +3,7 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { supabase } from '@/lib/supabase';
+import { getSurveyTicketAction, submitSurveyAction } from '@/app/actions/portalActions';
 import { 
   Star, 
   Send, 
@@ -23,18 +23,21 @@ export default function SurveyPage() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [completed, setCompleted] = useState(false);
+  const [alreadySubmitted, setAlreadySubmitted] = useState(false);
+  const [existingScore, setExistingScore] = useState<number | null>(null);
 
   useEffect(() => {
     async function fetchTicket() {
-      const { data } = await supabase
-        .from('tickets')
-        .select('*, customers(display_name)')
-        .eq('id', id)
-        .single();
-      if (data) setTicket(data);
+      const result = await getSurveyTicketAction(String(id || ''));
+      if (result.ticket) setTicket(result.ticket);
+      if (result.alreadySubmitted) {
+        setAlreadySubmitted(true);
+        setExistingScore(result.existingScore);
+        setCompleted(true);
+      }
       setLoading(false);
     }
-    if (id) fetchTicket();
+    if (id) void fetchTicket();
   }, [id]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -45,17 +48,14 @@ export default function SurveyPage() {
     }
     setSubmitting(true);
     try {
-      // Use upsert to handle cases where the survey record doesn't exist yet
-      const { error } = await supabase.from('csat_surveys').upsert({
-        ticket_id: id,
-        score: score,
-        comment: comment,
-        responded_at: new Date().toISOString()
-      }, { onConflict: 'ticket_id' });
-
-      if (error) {
-        console.error('Supabase Error:', error);
-        alert(`เกิดข้อผิดพลาดจากฐานข้อมูล: ${error.message} (${error.code})`);
+      const result = await submitSurveyAction(String(id || ''), score, comment);
+      if (result.alreadySubmitted) {
+        setAlreadySubmitted(true);
+        setCompleted(true);
+        return;
+      }
+      if (!result.success) {
+        alert(result.error || 'ไม่สามารถบันทึกการประเมินได้');
         return;
       }
       setCompleted(true);
@@ -84,9 +84,13 @@ export default function SurveyPage() {
      <div className="flex-center" style={{ height: '100vh', background: '#0a0e14', color: 'white', padding: '24px', textAlign: 'center' }}>
         <div className="glass" style={{ padding: '48px 32px', width: '100%', maxWidth: '400px', animation: 'fadeIn 0.5s ease-out' }}>
            <CheckCircle size={64} color="var(--success)" style={{ marginBottom: '24px' }} />
-           <h1 style={{ fontSize: '28px', fontWeight: '800', marginBottom: '16px' }}>ขอบคุณครับ!</h1>
+           <h1 style={{ fontSize: '28px', fontWeight: '800', marginBottom: '16px' }}>
+              {alreadySubmitted ? 'ประเมินเรียบร้อยแล้ว' : 'ขอบคุณครับ!'}
+           </h1>
            <p style={{ color: 'var(--text-muted)', lineHeight: '1.6' }}>
-              ความคิดเห็นของคุณมีค่าสำหรับเรามาก เพื่อนำไปปรับปรุงการบริการให้ดียิ่งขึ้นครับ
+              {alreadySubmitted
+                ? `ใบงานหมายเลข #${ticket?.ticket_no || ''} ได้รับการบันทึกผลประเมินแล้ว${existingScore ? ` (${existingScore}/5 ดาว)` : ''} ขอบคุณสำหรับความคิดเห็นครับ`
+                : 'ความคิดเห็นของคุณมีค่าสำหรับเรามาก เพื่อนำไปปรับปรุงการบริการให้ดียิ่งขึ้นครับ'}
            </p>
            <button 
             onClick={() => window.close()}

@@ -25,6 +25,25 @@ const LINE_BOT_ID = process.env.NEXT_PUBLIC_LINE_BOT_ID?.trim();
 const CONTACT_URL = LINE_BOT_ID
   ? `https://line.me/R/ti/p/${encodeURIComponent(LINE_BOT_ID)}`
   : PORTAL_URL;
+const PORTAL_PROMPT_COOLDOWN_MS = 5 * 60 * 1000;
+const portalPromptCooldown = new Map<string, number>();
+
+function shouldSendPortalPrompt(lineUserId: string): boolean {
+  const now = Date.now();
+  const lastSentAt = portalPromptCooldown.get(lineUserId) || 0;
+  if (now - lastSentAt < PORTAL_PROMPT_COOLDOWN_MS) {
+    return false;
+  }
+  portalPromptCooldown.set(lineUserId, now);
+  if (portalPromptCooldown.size > 500) {
+    for (const [uid, ts] of portalPromptCooldown.entries()) {
+      if (now - ts >= PORTAL_PROMPT_COOLDOWN_MS) {
+        portalPromptCooldown.delete(uid);
+      }
+    }
+  }
+  return true;
+}
 
 function normalizeIncomingText(text: string) {
   return text.trim().toLowerCase();
@@ -211,7 +230,7 @@ export async function POST(req: Request) {
         try {
           await client.replyMessage(event.replyToken, {
             type: 'text',
-            text: `ID à¸‚à¸­à¸‡à¸à¸¥à¸¸à¹ˆà¸¡/à¹à¸Šà¸—à¸™à¸µà¹‰à¸„à¸·à¸­:\n${sourceId}`
+            text: `ID ของกลุ่ม/แชทนี้คือ:\n${sourceId}`
           });
         } catch (e) { console.error('Reply ID failed:', e); }
         continue; // Stop processing this event further
@@ -265,8 +284,15 @@ export async function POST(req: Request) {
 
         if (!conversation) {
           console.log(
-            `Webhook: Ignored direct LINE OA message for customer ${customer.id} (no active ticket-linked conversation)`
+            `Webhook: No active ticket-linked conversation for customer ${customer.id}; prompting portal menu`
           );
+          if (event.replyToken && shouldSendPortalPrompt(lineUserId)) {
+            try {
+              await replyPortalEntry(event.replyToken);
+            } catch (replyErr) {
+              console.error('Webhook: Failed to send portal entry prompt:', replyErr);
+            }
+          }
           continue;
         }
 

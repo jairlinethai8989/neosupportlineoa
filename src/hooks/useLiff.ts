@@ -15,6 +15,7 @@ export const canUseMockLogin =
 export function useLiff() {
   const [isReady, setIsReady] = useState(false);
   const [profile, setProfile] = useState<LiffProfile | null>(null);
+  const [idToken, setIdToken] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -83,6 +84,11 @@ export function useLiff() {
             displayName: p.displayName,
             pictureUrl: p.pictureUrl,
           });
+          try {
+            setIdToken(liff.getIDToken() || null);
+          } catch {
+            setIdToken(null);
+          }
           setIsReady(true);
           return;
         }
@@ -131,5 +137,17 @@ export function useLiff() {
     });
   };
 
-  return { isReady, profile, error, login, logout, setMockLogin, canUseMockLogin };
+  const getIdToken = (): string | null => {
+    try {
+      if (liff.isLoggedIn()) {
+        const freshToken = liff.getIDToken();
+        if (freshToken) return freshToken;
+      }
+    } catch {
+      // Ignore LIFF SDK errors in mock/non-LIFF environments
+    }
+    return idToken;
+  };
+
+  return { isReady, profile, idToken, getIdToken, error, login, logout, setMockLogin, canUseMockLogin };
 }

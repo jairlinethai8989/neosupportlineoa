@@ -4,6 +4,84 @@ import { cookies } from 'next/headers';
 import { createServerClient } from '@supabase/ssr';
 import { invalidateAllLiveCaches } from '@/lib/cache/liveCache';
 import { invalidateAllPreviewCaches } from '@/lib/reports/previewCache';
+import { sendLineUserNotification } from '@/lib/utils/lineNotifications';
+
+const APP_BASE_URL = (process.env.NEXT_PUBLIC_APP_URL || 'https://neoworkspace.vercel.app').replace(/\/$/, '');
+
+async function pushAgentReplyToLineInternal(
+  conversationId: string,
+  ticketId: string | null,
+  content: string,
+  messageType: string
+) {
+  try {
+    const { data: conversation } = await supabaseAdmin
+      .from('conversations')
+      .select('customer_id, current_ticket_id, customers(line_user_id)')
+      .eq('id', conversationId)
+      .maybeSingle();
+
+    const customerRel = Array.isArray(conversation?.customers)
+      ? conversation?.customers[0]
+      : conversation?.customers;
+    const lineUserId = (customerRel as { line_user_id?: string | null } | null)?.line_user_id;
+    if (!lineUserId) return false;
+
+    const resolvedTicketId = ticketId || conversation?.current_ticket_id || null;
+    let ticketNo: string | null = null;
+    if (resolvedTicketId) {
+      const { data: ticket } = await supabaseAdmin
+        .from('tickets')
+        .select('ticket_no')
+        .eq('id', resolvedTicketId)
+        .maybeSingle();
+      ticketNo = ticket?.ticket_no || null;
+    }
+
+    const portalLink = resolvedTicketId
+      ? `${APP_BASE_URL}/portal/tickets/${resolvedTicketId}`
+      : `${APP_BASE_URL}/portal`;
+    const ticketPrefix = ticketNo ? `[#${ticketNo}] ` : '';
+
+    if (messageType === 'image' && content.startsWith('https://')) {
+      return await sendLineUserNotification(lineUserId, [
+        {
+          type: 'image',
+          originalContentUrl: content,
+          previewImageUrl: content,
+        },
+        {
+          type: 'text',
+          text: `${ticketPrefix}เจ้าหน้าที่ส่งรูปภาพให้คุณ\nเปิดดูแชท: ${portalLink}`,
+        },
+      ]);
+    }
+
+    const bodyText =
+      messageType === 'text'
+        ? content
+        : `ส่งไฟล์แนบ (${messageType}): ${content}`;
+
+    return await sendLineUserNotification(lineUserId, {
+      type: 'text',
+      text: `${ticketPrefix}เจ้าหน้าที่ตอบกลับ:\n${bodyText}\n\nดูรายละเอียดเพิ่มเติม: ${portalLink}`,
+    });
+  } catch (err) {
+    console.error('[LinePush] Failed to push agent reply to LINE:', err);
+    return false;
+  }
+}
+
+export async function pushAgentReplyToLineAction(
+  conversationId: string,
+  ticketId: string | null,
+  content: string,
+  messageType: string = 'text'
+) {
+  const user = await getSessionUser();
+  await verifyAgentRole(user.id);
+  return pushAgentReplyToLineInternal(conversationId, ticketId, content, messageType);
+}
 
 async function getSessionUser() {
   const cookieStore = await cookies();
@@ -63,6 +141,8 @@ export async function sendAgentMessageAction(
   }).eq('id', conversationId);
   invalidateAllLiveCaches();
   invalidateAllPreviewCaches();
+
+  void pushAgentReplyToLineInternal(conversationId, ticketId, content, messageType);
 }
 
 export async function sendSystemMessageAction(
