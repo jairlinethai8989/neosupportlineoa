@@ -262,7 +262,7 @@ const PortalTicketCard = React.memo(function PortalTicketCard({
 });
 
 export default function PortalPage() {
-  const { profile, isReady, error: liffError, projectConfig, projectOrganizations, setMockLogin } = useLiff();
+  const { profile, idToken, isReady, error: liffError, projectConfig, projectOrganizations, setMockLogin } = useLiff();
   const projectQuery =
     projectConfig && !projectConfig.is_default && projectConfig.slug
       ? `?project=${encodeURIComponent(projectConfig.slug)}`
@@ -847,6 +847,7 @@ export default function PortalPage() {
         <ProfileRegistrationModal
           isOpen={needsRegistration || isEditModalOpen}
           profile={profile}
+          idToken={idToken}
           projectConfig={projectConfig}
           projectOrganizations={projectOrganizations}
           existingCustomer={customerData}

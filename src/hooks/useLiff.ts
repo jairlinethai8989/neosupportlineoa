@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import liff from '@line/liff';
-import { supabase } from '@/lib/supabase';
+import { syncLiffCustomerProfileAction } from '@/app/actions/portalActions';
 import type { ProjectPublicConfig } from '@/types/project';
 
 export interface LiffProfile {
@@ -50,55 +50,17 @@ export function useLiff(explicitProjectSlug?: string | null) {
     let isCancelled = false;
 
     async function syncCustomerProfile() {
-      let existingQuery = supabase
-        .from('customers')
-        .select('id')
-        .eq('line_user_id', currentProfile.userId);
+      const result = await syncLiffCustomerProfileAction({
+        lineUserId: currentProfile.userId,
+        idToken,
+        projectId: currentProjectId,
+        projectSlug: projectConfig?.slug || null,
+        displayName: currentProfile.displayName,
+        pictureUrl: currentProfile.pictureUrl || null,
+      });
 
-      if (currentProjectId) {
-        existingQuery = existingQuery.eq('project_id', currentProjectId);
-      }
-
-      const { data: existing } = await existingQuery.limit(1).maybeSingle();
-      if (isCancelled) return;
-
-      const metadata = {
-        line_profile: {
-          display_name: currentProfile.displayName,
-          picture_url: currentProfile.pictureUrl || null,
-          synced_at: new Date().toISOString(),
-        },
-      };
-
-      const payload: Record<string, unknown> = {
-        line_user_id: currentProfile.userId,
-        display_name: currentProfile.displayName,
-        avatar_url: currentProfile.pictureUrl || null,
-        metadata,
-        updated_at: new Date().toISOString(),
-      };
-      if (currentProjectId) {
-        payload.project_id = currentProjectId;
-      }
-
-      const writeRow = async (row: Record<string, unknown>) => {
-        if (existing?.id) {
-          return supabase.from('customers').update(row).eq('id', existing.id);
-        }
-        return supabase.from('customers').insert([row]);
-      };
-
-      let { error: syncError } = await writeRow(payload);
-
-      if (syncError?.code === 'PGRST204' && String(syncError.message || '').includes('avatar_url')) {
-        const fallbackPayload = { ...payload };
-        delete fallbackPayload.avatar_url;
-        const fallback = await writeRow(fallbackPayload);
-        syncError = fallback.error;
-      }
-
-      if (!isCancelled && syncError) {
-        console.error('LIFF profile sync error:', syncError);
+      if (!isCancelled && !result.success) {
+        console.warn('LIFF profile sync skipped or failed');
       }
     }
 
@@ -106,7 +68,7 @@ export function useLiff(explicitProjectSlug?: string | null) {
     return () => {
       isCancelled = true;
     };
-  }, [profile, projectConfig]);
+  }, [profile, idToken, projectConfig]);
 
   useEffect(() => {
     let cancelled = false;
@@ -229,6 +191,7 @@ export function useLiff(explicitProjectSlug?: string | null) {
 
   return {
     profile,
+    idToken,
     isReady,
     error,
     projectConfig,

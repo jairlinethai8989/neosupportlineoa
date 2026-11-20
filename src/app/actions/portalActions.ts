@@ -388,3 +388,195 @@ export async function submitSurveyAction(
   invalidateAllPreviewCaches();
   return { success: true };
 }
+
+/**
+ * Registers or updates a customer profile from the Customer Portal / LINE LIFF.
+ * Uses supabaseAdmin after verifying LINE LIFF identity to safely bypass anon RLS restrictions.
+ */
+export async function registerPortalCustomerAction(input: {
+  lineUserId?: string | null;
+  idToken?: string | null;
+  projectId?: string | null;
+  projectSlug?: string | null;
+  displayName: string;
+  lineUsername?: string | null;
+  pictureUrl?: string | null;
+  organizationId: string;
+  departmentId: string;
+  positionId: string;
+}): Promise<{ success: boolean; customerId?: string; error?: string }> {
+  try {
+    const displayName = input.displayName?.trim();
+    if (!displayName) {
+      return { success: false, error: 'กรุณาระบุชื่อ-นามสกุลผู้ใช้งาน' };
+    }
+    if (!input.organizationId || !input.departmentId || !input.positionId) {
+      return { success: false, error: 'กรุณาระบุข้อมูลหน่วยงาน แผนก และตำแหน่งให้ครบถ้วน' };
+    }
+
+    const project = input.projectId
+      ? await resolveProjectById(input.projectId)
+      : await resolveProjectBySlug(input.projectSlug);
+    const realProjectId = project && project.id !== 'default-env-fallback' ? project.id : null;
+
+    const identity = await verifyLiffIdentity({
+      lineUserId: input.lineUserId,
+      idToken: input.idToken,
+      channelId: project?.line_channel_id,
+      liffId: project?.line_liff_id,
+    });
+
+    let existingQuery = supabaseAdmin
+      .from('customers')
+      .select('id')
+      .eq('line_user_id', identity.lineUserId);
+
+    if (realProjectId) {
+      existingQuery = existingQuery.eq('project_id', realProjectId);
+    }
+
+    const { data: existing } = await existingQuery.limit(1).maybeSingle();
+
+    const payload: Record<string, unknown> = {
+      line_user_id: identity.lineUserId,
+      display_name: displayName,
+      full_name: displayName,
+      line_username: input.lineUsername || null,
+      organization_id: input.organizationId,
+      department_id: input.departmentId,
+      position_id: input.positionId,
+      updated_at: new Date().toISOString(),
+    };
+
+    if (input.pictureUrl) {
+      payload.avatar_url = input.pictureUrl;
+    }
+    if (realProjectId) {
+      payload.project_id = realProjectId;
+    }
+
+    const writeCustomer = async (row: Record<string, unknown>) => {
+      if (existing?.id) {
+        return supabaseAdmin
+          .from('customers')
+          .update(row)
+          .eq('id', existing.id)
+          .select('id')
+          .single();
+      }
+      return supabaseAdmin
+        .from('customers')
+        .insert([row])
+        .select('id')
+        .single();
+    };
+
+    let { data: saved, error: saveError } = await writeCustomer(payload);
+
+    if (saveError?.code === 'PGRST204' && String(saveError.message || '').includes('avatar_url')) {
+      const fallbackPayload = { ...payload };
+      delete fallbackPayload.avatar_url;
+      const fallback = await writeCustomer(fallbackPayload);
+      saved = fallback.data;
+      saveError = fallback.error;
+    }
+
+    if (saveError) {
+      return { success: false, error: saveError.message || 'ไม่สามารถบันทึกข้อมูลผู้ใช้งานได้' };
+    }
+
+    invalidateAllLiveCaches();
+    invalidateAllPreviewCaches();
+    return { success: true, customerId: saved?.id };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'ไม่สามารถบันทึกข้อมูลผู้ใช้งานได้';
+    return { success: false, error: message };
+  }
+}
+
+/**
+ * Syncs basic LINE profile metadata (avatar, LINE display name) upon LIFF initialization.
+ * Preserves existing registered display_name if customer is already registered.
+ */
+export async function syncLiffCustomerProfileAction(input: {
+  lineUserId?: string | null;
+  idToken?: string | null;
+  projectId?: string | null;
+  projectSlug?: string | null;
+  displayName: string;
+  pictureUrl?: string | null;
+}): Promise<{ success: boolean }> {
+  try {
+    const project = input.projectId
+      ? await resolveProjectById(input.projectId)
+      : await resolveProjectBySlug(input.projectSlug);
+    const realProjectId = project && project.id !== 'default-env-fallback' ? project.id : null;
+
+    const identity = await verifyLiffIdentity({
+      lineUserId: input.lineUserId,
+      idToken: input.idToken,
+      channelId: project?.line_channel_id,
+      liffId: project?.line_liff_id,
+    });
+
+    let existingQuery = supabaseAdmin
+      .from('customers')
+      .select('id, display_name, organization_id')
+      .eq('line_user_id', identity.lineUserId);
+
+    if (realProjectId) {
+      existingQuery = existingQuery.eq('project_id', realProjectId);
+    }
+
+    const { data: existing } = await existingQuery.limit(1).maybeSingle();
+
+    const metadata = {
+      line_profile: {
+        display_name: input.displayName,
+        picture_url: input.pictureUrl || null,
+        synced_at: new Date().toISOString(),
+      },
+    };
+
+    const payload: Record<string, unknown> = {
+      line_user_id: identity.lineUserId,
+      avatar_url: input.pictureUrl || null,
+      line_username: input.displayName,
+      metadata,
+      updated_at: new Date().toISOString(),
+    };
+
+    if (!existing?.organization_id || !existing?.display_name) {
+      payload.display_name = input.displayName;
+    }
+    if (realProjectId) {
+      payload.project_id = realProjectId;
+    }
+
+    const writeRow = async (row: Record<string, unknown>) => {
+      if (existing?.id) {
+        return supabaseAdmin.from('customers').update(row).eq('id', existing.id);
+      }
+      return supabaseAdmin.from('customers').insert([row]);
+    };
+
+    let { error: syncError } = await writeRow(payload);
+
+    if (syncError?.code === 'PGRST204' && String(syncError.message || '').includes('avatar_url')) {
+      const fallbackPayload = { ...payload };
+      delete fallbackPayload.avatar_url;
+      const fallback = await writeRow(fallbackPayload);
+      syncError = fallback.error;
+    }
+
+    if (syncError) {
+      console.warn('syncLiffCustomerProfileAction warning:', syncError.message);
+      return { success: false };
+    }
+
+    return { success: true };
+  } catch (err) {
+    console.warn('syncLiffCustomerProfileAction skipped:', err);
+    return { success: false };
+  }
+}

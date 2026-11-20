@@ -11,12 +11,14 @@ import {
   Info,
 } from 'lucide-react';
 import { LiffProfile, PortalOrgOption } from '@/hooks/useLiff';
+import { registerPortalCustomerAction } from '@/app/actions/portalActions';
 import type { ProjectPublicConfig } from '@/types/project';
 import styles from '@/app/portal/portal.module.css';
 
 interface ProfileRegistrationModalProps {
   isOpen: boolean;
   profile: LiffProfile | null;
+  idToken?: string | null;
   projectConfig?: ProjectPublicConfig | null;
   projectOrganizations?: PortalOrgOption[];
   existingCustomer?: any; // If null, user needs registration. If exists, user is editing.
@@ -27,6 +29,7 @@ interface ProfileRegistrationModalProps {
 export default function ProfileRegistrationModal({
   isOpen,
   profile,
+  idToken,
   projectConfig,
   projectOrganizations,
   existingCustomer,
@@ -146,44 +149,22 @@ export default function ProfileRegistrationModal({
           ? projectConfig.id
           : null;
 
-      const payload: any = {
-        line_user_id: profile.userId,
-        display_name: displayName, // Keep as primary display name
-        full_name: displayName,    // Store as dedicated real name field
-        line_username: profile.displayName || null, // Store LINE nickname
-        organization_id: selectedHospital,
-        department_id: selectedDept,
-        position_id: selectedPosition,
-        updated_at: new Date().toISOString(),
-      };
-      if (realProjectId) {
-        payload.project_id = realProjectId;
-      }
+      const result = await registerPortalCustomerAction({
+        lineUserId: profile.userId,
+        idToken,
+        projectId: realProjectId,
+        projectSlug: projectConfig?.slug || null,
+        displayName: displayName.trim(),
+        lineUsername: profile.displayName || null,
+        pictureUrl: profile.pictureUrl || null,
+        organizationId: selectedHospital,
+        departmentId: selectedDept,
+        positionId: selectedPosition,
+      });
 
-      // Check existing customer scoped by project_id to handle composite unique index cleanly
-      let targetCustomerId = existingCustomer?.id || null;
-      if (!targetCustomerId) {
-        let lookup = supabase
-          .from('customers')
-          .select('id')
-          .eq('line_user_id', profile.userId);
-        if (realProjectId) {
-          lookup = lookup.eq('project_id', realProjectId);
-        }
-        const { data: found } = await lookup.limit(1).maybeSingle();
-        targetCustomerId = found?.id || null;
+      if (!result.success) {
+        throw new Error(result.error || 'ไม่สามารถบันทึกข้อมูลได้ กรุณาลองใหม่อีกครั้ง');
       }
-
-      let saveErr = null;
-      if (targetCustomerId) {
-        const res = await supabase.from('customers').update(payload).eq('id', targetCustomerId);
-        saveErr = res.error;
-      } else {
-        const res = await supabase.from('customers').insert([payload]);
-        saveErr = res.error;
-      }
-
-      if (saveErr) throw saveErr;
 
       onComplete();
     } catch (err: any) {
