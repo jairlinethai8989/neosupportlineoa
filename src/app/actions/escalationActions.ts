@@ -1,7 +1,12 @@
 'use server';
 
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
+import { notifyStaffGroupIfConfigured } from '@/lib/utils/lineNotifications';
+import { invalidateAllLiveCaches } from '@/lib/cache/liveCache';
+import { invalidateAllPreviewCaches } from '@/lib/reports/previewCache';
 import crypto from 'crypto';
+
+const APP_BASE_URL = (process.env.NEXT_PUBLIC_APP_URL || 'https://neoworkspace.vercel.app').replace(/\/$/, '');
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -149,7 +154,7 @@ export async function verifyEscalationPin(ticketId: string, pin: string) {
 
     const { data: messages } = await supabaseAdmin
       .from('messages')
-      .select('content, sender_type, created_at, message_type')
+      .select('content, media_path, sender_type, created_at, message_type')
       .eq('ticket_id', ticketRow.id)
       .order('created_at', { ascending: true });
 
@@ -334,6 +339,23 @@ export async function updateEscalatedTicketStatus(
     ]);
 
     await reopenConversationForTicket(ticketRow.id);
+    invalidateAllLiveCaches();
+    invalidateAllPreviewCaches();
+
+    const reporter = receiverName || handoff.assigned_to_external || 'ทีมภายนอก';
+    const notesPreview = notes?.trim()
+      ? notes.trim().length > 140
+        ? `${notes.trim().slice(0, 140)}...`
+        : notes.trim()
+      : '-';
+    const statusEmoji = nextStatus === 'Fix Completed' ? '✅' : nextStatus === 'Pending' ? '⏸️' : '🔧';
+    void notifyStaffGroupIfConfigured(
+      `${statusEmoji} อัปเดตจากทีมภายนอก (#${ticketRow.ticket_no || ticketRow.id})\n` +
+      `สถานะใหม่: ${nextStatus}\n` +
+      `ผู้รายงาน: ${reporter}\n` +
+      `รายละเอียด: ${notesPreview}\n` +
+      `ตรวจสอบ/ปิดงาน: ${APP_BASE_URL}/tickets/${ticketRow.id}`
+    );
 
     if (ticketRow.assigned_agent_id) {
       try {

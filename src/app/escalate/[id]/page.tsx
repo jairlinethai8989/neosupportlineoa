@@ -807,13 +807,25 @@ export default function EscalationPortalPage() {
                     fontWeight: 600,
                     lineHeight: 1.5,
                   }}>
-                    {msg.message_type === 'image' ? (
-                      <div style={{ cursor: 'pointer' }} onClick={() => window.open(msg.content, '_blank')}>
-                        <img src={msg.content} style={{ maxWidth: '100%', maxHeight: '300px', borderRadius: '12px' }} alt="attachment" />
-                      </div>
-                    ) : (
-                      msg.content
-                    )}
+                    {(() => {
+                      const mediaUrl = typeof msg.media_path === 'string' && msg.media_path ? msg.media_path : msg.content;
+                      const hasHttpMedia = typeof mediaUrl === 'string' && mediaUrl.startsWith('http');
+                      if (hasHttpMedia && msg.message_type === 'image') {
+                        return (
+                          <div style={{ cursor: 'pointer' }} onClick={() => window.open(mediaUrl, '_blank')}>
+                            <img src={mediaUrl} style={{ maxWidth: '100%', maxHeight: '300px', borderRadius: '12px' }} alt="attachment" />
+                          </div>
+                        );
+                      }
+                      if (hasHttpMedia && ['file', 'video', 'audio'].includes(msg.message_type)) {
+                        return (
+                          <a href={mediaUrl} target="_blank" rel="noreferrer" style={{ color: 'inherit', textDecoration: 'underline', fontWeight: 700 }}>
+                            เปิดไฟล์แนบ ({msg.message_type})
+                          </a>
+                        );
+                      }
+                      return msg.content;
+                    })()}
                   </div>
                   <span style={{ fontSize: '10px', color: '#94a3b8', marginTop: '6px', fontWeight: 700, textTransform: 'uppercase' }}>
                     {isStaff ? 'SUPPORT TEAM' : (ticketData.customers?.display_name || 'CUSTOMER')} • {new Date(msg.created_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}

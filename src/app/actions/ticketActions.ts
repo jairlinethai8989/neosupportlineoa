@@ -296,18 +296,17 @@ export async function resolveTicketAction(
 
       // Only handle CSAT and Conversations if there is a customer linked
       if (ticket?.customer_id) {
-         // 1. Send CSAT Survey (Silent fail - don't block resolution)
-         try {
-           await supabaseAdmin.from('csat_surveys').upsert({
-              ticket_id: ticketId,
-              sent_at: new Date().toISOString()
-           }, { onConflict: 'ticket_id' });
-         } catch (csatErr) {
-           console.error('[ResolveAction] Silent CSAT Error:', csatErr);
-         }
-
-         // 1b. Push LINE resolution notification + survey link when ticket is fully Resolved
+         // 1. Send CSAT Survey + LINE Push only when ticket is fully Resolved (not on Fix Completed awaiting QA)
          if (targetStatus === 'Resolved') {
+           try {
+             await supabaseAdmin.from('csat_surveys').upsert({
+                ticket_id: ticketId,
+                sent_at: new Date().toISOString()
+             }, { onConflict: 'ticket_id' });
+           } catch (csatErr) {
+             console.error('[ResolveAction] Silent CSAT Error:', csatErr);
+           }
+
            try {
              const { data: customer } = await supabaseAdmin
                .from('customers')
@@ -362,9 +361,11 @@ export async function resolveTicketAction(
      // 3. Send system message if requested (Atomic)
      if (conversationId) {
         const content =
-          `[SYSTEM] งานได้รับการแก้ไขแล้ว: ${resolutionSummary}\n` +
-          `โมดูล: ${module || 'N/A'}\n` +
-          `กรุณาประเมินความพึงพอใจจากหน้าพอร์ทัลลูกค้า`;
+          targetStatus === 'Fix Completed'
+            ? `[SYSTEM] ส่งมอบงานแก้ไขแล้ว (รอตรวจสอบคุณภาพ): ${resolutionSummary}\nโมดูล: ${module || 'N/A'}`
+            : `[SYSTEM] งานได้รับการแก้ไขแล้ว: ${resolutionSummary}\n` +
+              `โมดูล: ${module || 'N/A'}\n` +
+              `กรุณาประเมินความพึงพอใจจากหน้าพอร์ทัลลูกค้า`;
         await supabaseAdmin.from('messages').insert([{
            conversation_id: conversationId,
            ticket_id: ticketId,

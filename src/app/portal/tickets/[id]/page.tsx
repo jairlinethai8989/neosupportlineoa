@@ -16,7 +16,7 @@ import {
   Paperclip
 } from 'lucide-react';
 import { useLiff } from '@/hooks/useLiff';
-import { sendPortalMessageAction } from '@/app/actions/portalActions';
+import { sendPortalMessageAction, submitSurveyAction } from '@/app/actions/portalActions';
 import { compressImage } from '@/lib/utils/imageCompression';
 
 const ChatAttachmentModal = React.lazy(() => import('@/components/chat/ChatAttachmentModal'));
@@ -29,14 +29,14 @@ const STATUS_LEVELS: Record<string, number> = {
   'assigned': 2,
   'in progress': 2,
   'escalated': 3,
-  'fix completed': 4,
+  'fix completed': 3,
   'resolved': 4,
   'closed': 4
 };
 
 function isSurveyEligibleStatus(status: unknown) {
   const s = String(status || '').toLowerCase();
-  return s === 'resolved' || s === 'closed' || s === 'fix completed';
+  return s === 'resolved' || s === 'closed';
 }
 
 // 1. Memoized Message Bubble to prevent massive DOM re-renders during chat scrolling
@@ -47,8 +47,10 @@ interface MessageBubbleProps {
 
 const MessageBubble = React.memo(function MessageBubble({ msg, onImageClick }: MessageBubbleProps) {
   const isCustomer = msg.sender_type === 'customer';
-  const isImg = msg.message_type === 'image' || (msg.content?.startsWith('http') && msg.content?.match(/\.(jpeg|jpg|gif|png|webp|JPG|PNG)$/i));
-  const isDoc = msg.message_type === 'file' || (msg.content?.startsWith('http') && msg.message_type !== 'text');
+  const mediaUrl = typeof msg.media_path === 'string' && msg.media_path ? msg.media_path : msg.content;
+  const hasHttpMedia = typeof mediaUrl === 'string' && mediaUrl.startsWith('http');
+  const isImg = hasHttpMedia && (msg.message_type === 'image' || Boolean(mediaUrl.match(/\.(jpeg|jpg|gif|png|webp)$/i)));
+  const isDoc = hasHttpMedia && (msg.message_type === 'file' || msg.message_type === 'video' || msg.message_type === 'audio' || msg.message_type !== 'text');
 
   return (
     <div style={{
@@ -63,14 +65,14 @@ const MessageBubble = React.memo(function MessageBubble({ msg, onImageClick }: M
       <div style={{ fontSize: '14px', fontWeight: '500', lineHeight: '1.5' }}>
         {isImg ? (
           <img
-            src={msg.content}
+            src={mediaUrl}
             style={{ maxWidth: '100%', borderRadius: '12px', cursor: 'pointer' }}
             alt="Attachment"
-            onClick={() => onImageClick(msg.content)}
+            onClick={() => onImageClick(mediaUrl)}
             title="คลิกเพื่อทำการขยายภาพ"
           />
         ) : isDoc ? (
-          <a href={msg.content} target="_blank" rel="noreferrer" style={{ textDecoration: 'none', color: 'inherit', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <a href={mediaUrl} target="_blank" rel="noreferrer" style={{ textDecoration: 'none', color: 'inherit', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '8px' }}>
             <Paperclip size={14} /> ดูไฟล์แนบ
           </a>
         ) : (
@@ -380,7 +382,7 @@ export default function TicketDetailPage() {
         }
 
         const loadMessages = async (cidToUse: string | null) => {
-          let messagesQuery = supabase.from('messages').select('id, content, sender_type, message_type, created_at, ticket_id, conversation_id');
+          let messagesQuery = supabase.from('messages').select('id, content, media_path, media_mime_type, sender_type, message_type, created_at, ticket_id, conversation_id');
           if (cidToUse) {
             messagesQuery = messagesQuery.or(`ticket_id.eq.${ticketId},conversation_id.eq.${cidToUse}`);
           } else {
@@ -434,7 +436,7 @@ export default function TicketDetailPage() {
       const cid = conversationIdRef.current;
       let q = supabase
         .from('messages')
-        .select('id, content, sender_type, message_type, created_at, ticket_id, conversation_id');
+        .select('id, content, media_path, media_mime_type, sender_type, message_type, created_at, ticket_id, conversation_id');
       q = cid
         ? q.or(`ticket_id.eq.${ticketId},conversation_id.eq.${cid}`)
         : q.eq('ticket_id', ticketId);
@@ -756,7 +758,7 @@ export default function TicketDetailPage() {
     const hasAgent = !!ticket.assigned_agent_id;
     if (s === 'resolved') return 'แก้ไขเสร็จสิ้น (Resolved)';
     if (s === 'closed') return 'ปิดใบงานแล้ว (Closed)';
-    if (s === 'fix completed') return 'แก้ไขเสร็จสิ้น (Fix Completed)';
+    if (s === 'fix completed') return 'แก้ไขแล้ว รอตรวจสอบ (Fix Completed)';
     if (s === 'escalated') return 'ส่งต่อผู้เชี่ยวชาญ (Escalated)';
     if (s === 'assigned') return 'รับงานแล้ว (Assigned)';
     if (s === 'in progress') return 'กำลังดำเนินการ (In Progress)';
@@ -766,18 +768,18 @@ export default function TicketDetailPage() {
   };
 
   const handleSubmitSurvey = async () => {
-    if (surveyValue === 0) return;
+    if (surveyValue === 0 || !ticketId) return;
     setSubmittingSurvey(true);
     try {
-      const { error } = await supabase.from('csat_surveys').upsert({
-        ticket_id: ticketId,
-        score: surveyValue,
-        rating: surveyValue,
-        comment: surveyComment,
-        responded_at: new Date().toISOString()
-      }, { onConflict: 'ticket_id' });
-
-      if (error) throw error;
+      const result = await submitSurveyAction(ticketId, surveyValue, surveyComment);
+      if (!result.success) {
+        if (result.alreadySubmitted) {
+          setHasResponded(true);
+          setShowSurvey(false);
+          return;
+        }
+        throw new Error(result.error || 'ไม่สามารถบันทึกการประเมินได้');
+      }
       setHasResponded(true);
       setSurveyScore(surveyValue);
       setTimeout(() => setShowSurvey(false), 2000);

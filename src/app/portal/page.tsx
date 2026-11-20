@@ -24,11 +24,10 @@ import Skeleton from '@/components/ui/Skeleton';
 const ProfileRegistrationModal = React.lazy(() => import('@/components/portal/ProfileRegistrationModal'));
 
 const ITEMS_PER_PAGE = 5;
-const DONE_STATUSES = ['resolved', 'closed', 'canceled', 'fix completed'];
 
 function isSurveyEligibleStatus(status: unknown) {
   const s = String(status || '').toLowerCase();
-  return s === 'resolved' || s === 'closed' || s === 'fix completed';
+  return s === 'resolved' || s === 'closed';
 }
 
 // 1. Memoized Survey Modal to prevent full page re-renders during star hover/typing
@@ -196,8 +195,27 @@ const PortalTicketCard = React.memo(function PortalTicketCard({ ticket, isPast =
   }
 
   const statusLower = String(ticket.status || '').toLowerCase();
-  const badgeBg = statusLower === 'in progress' ? '#dbeafe' : statusLower === 'pending' ? '#fef3c7' : statusLower === 'escalated' ? '#fee2e2' : '#f1f5f9';
-  const badgeColor = statusLower === 'in progress' ? '#1e40af' : statusLower === 'pending' ? '#92400e' : statusLower === 'escalated' ? '#991b1b' : '#475569';
+  const badgeBg =
+    statusLower === 'in progress'
+      ? '#dbeafe'
+      : statusLower === 'pending'
+        ? '#fef3c7'
+        : statusLower === 'escalated'
+          ? '#fee2e2'
+          : statusLower === 'fix completed'
+            ? '#e0f2fe'
+            : '#f1f5f9';
+  const badgeColor =
+    statusLower === 'in progress'
+      ? '#1e40af'
+      : statusLower === 'pending'
+        ? '#92400e'
+        : statusLower === 'escalated'
+          ? '#991b1b'
+          : statusLower === 'fix completed'
+            ? '#0369a1'
+            : '#475569';
+  const statusLabel = statusLower === 'fix completed' ? 'รอตรวจสอบ (Fix Completed)' : ticket.status;
 
   return (
     <Link href={`/portal/tickets/${ticket.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
@@ -216,7 +234,7 @@ const PortalTicketCard = React.memo(function PortalTicketCard({ ticket, isPast =
               fontWeight: '800',
               borderRadius: '8px',
               border: '1px solid rgba(0,0,0,0.05)'
-            }}>{ticket.status}</span>
+            }}>{statusLabel}</span>
             <ArrowRight size={14} color="#94a3b8" />
           </div>
         </div>
@@ -259,8 +277,9 @@ export default function PortalPage() {
   const debouncedSearchQueryRef = useRef(debouncedSearchQuery);
   useEffect(() => { debouncedSearchQueryRef.current = debouncedSearchQuery; }, [debouncedSearchQuery]);
 
-  // FIX #1: Cache customerId in ref → avoid re-querying customers table on every fetch
+  // FIX #1: Cache customerId & customer record in refs -> avoid re-querying customers table on every fetch
   const customerIdRef = useRef<string | null>(null);
+  const customerDataRef = useRef<any>(null);
   const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const inFlightRef = useRef(false);
 
@@ -332,11 +351,11 @@ export default function PortalPage() {
     if (!silent) setFetching(true);
 
     try {
-      // Use cached customerId when available to avoid redundant query
+      // Use cached customerId when available and organization_id is already registered
       let customerId = customerIdRef.current;
-      let customer: any = null;
+      let customer: any = customerDataRef.current;
 
-      if (!customerId) {
+      if (!customerId || !customer?.organization_id) {
         const { data } = await supabase
           .from('customers')
           .select('*, organizations(name, abbreviation)')
@@ -346,11 +365,12 @@ export default function PortalPage() {
         if (customer?.id) {
           customerIdRef.current = customer.id;
           customerId = customer.id;
+          customerDataRef.current = customer;
           setCustomerData(customer);
         }
       }
 
-      if (!customerId) {
+      if (!customerId || !customer?.organization_id) {
         setNeedsRegistration(true);
         return;
       }
@@ -367,7 +387,7 @@ export default function PortalPage() {
         .from('tickets')
         .select('id, ticket_no, subject, status, created_at, resolved_at', { count: 'exact' })
         .eq('customer_id', customerId)
-        .in('status', ['Resolved', 'Closed', 'Canceled', 'Fix Completed', 'resolved', 'closed', 'canceled', 'fix completed']);
+        .in('status', ['Resolved', 'Closed', 'Canceled', 'resolved', 'closed', 'canceled']);
 
       if (query.trim()) {
         const cleanQuery = query.trim();
@@ -379,7 +399,7 @@ export default function PortalPage() {
           .from('tickets')
           .select('id, ticket_no, subject, status, created_at, resolved_at')
           .eq('customer_id', customerId)
-          .not('status', 'in', '("Resolved","Closed","Canceled","Fix Completed","resolved","closed","canceled","fix completed")')
+          .not('status', 'in', '("Resolved","Closed","Canceled","resolved","closed","canceled")')
           .order('created_at', { ascending: false }),
         pastQuery
           .order('created_at', { ascending: false })
@@ -801,8 +821,10 @@ export default function PortalPage() {
           profile={profile}
           existingCustomer={customerData}
           onComplete={() => {
+              setNeedsRegistration(false);
               setIsEditModalOpen(false);
               customerIdRef.current = null; // reset cache so customer data re-fetched
+              customerDataRef.current = null;
               fetchTickets();
           }}
           onClose={() => setIsEditModalOpen(false)}

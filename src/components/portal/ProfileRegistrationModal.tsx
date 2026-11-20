@@ -78,7 +78,7 @@ export default function ProfileRegistrationModal({ isOpen, profile, existingCust
 
   if (!isOpen) return null;
 
-  const isEditing = !!existingCustomer;
+  const isEditing = Boolean(existingCustomer?.organization_id);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
