@@ -4,10 +4,12 @@ import React, { Suspense, useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { useSearchParams } from 'next/navigation';
 import { Loader2, MessageSquare } from 'lucide-react';
-import { useStaffLocale } from '@/contexts/StaffLocaleContext';
-import { useRealtimeInbox } from '@/hooks/useRealtimeInbox';
-import { useNotificationContext } from '@/contexts/NotificationContext';
+import { clsx } from 'clsx';
+import { Button, EmptyState, Modal } from '@/components/ui';
 import { InboxSidebar } from '@/components/inbox/InboxSidebar';
+import { useStaffLocale } from '@/contexts/StaffLocaleContext';
+import { useNotificationContext } from '@/contexts/NotificationContext';
+import { useRealtimeInbox } from '@/hooks/useRealtimeInbox';
 import { useInboxProfileSettings } from '@/hooks/useInboxProfileSettings';
 import { useInboxConversation } from '@/hooks/useInboxConversation';
 import {
@@ -17,117 +19,22 @@ import {
 import { getInboxConversationById, getInboxConversationByTicketId } from '@/lib/inbox/queries';
 import { deleteInboxMessage, uploadInboxChatMedia } from '@/lib/inbox/mutations';
 import type { InboxConversation, InboxViewMode } from '@/types/inbox';
+import styles from '@/components/inbox/inbox.module.css';
 
 const ImageEditorModal = dynamic(() => import('@/components/modals/ImageEditorModal'), { ssr: false });
 const ImageViewerModal = dynamic(() => import('@/components/modals/ImageViewerModal'), { ssr: false });
-const ChatWindow = dynamic(() =>
-  import('@/components/inbox/ChatWindow').then((module) => module.ChatWindow),
+const ChatWindow = dynamic(
+  () => import('@/components/inbox/ChatWindow').then((module) => module.ChatWindow),
   { ssr: false }
 );
-const TicketSidebar = dynamic(() =>
-  import('@/components/inbox/TicketSidebar').then((module) => module.TicketSidebar),
+const TicketSidebar = dynamic(
+  () => import('@/components/inbox/TicketSidebar').then((module) => module.TicketSidebar),
   { ssr: false }
 );
-const ResolveTicketModal = dynamic(() =>
-  import('@/components/inbox/ResolveTicketModal').then((module) => module.ResolveTicketModal),
+const ResolveTicketModal = dynamic(
+  () => import('@/components/inbox/ResolveTicketModal').then((module) => module.ResolveTicketModal),
   { ssr: false }
 );
-
-function InlineConfirmModal({
-  title,
-  body,
-  cancelLabel,
-  confirmLabel,
-  onCancel,
-  onConfirm,
-  confirmClassName,
-  confirmStyle,
-  zIndex = 2200,
-}: {
-  title: string;
-  body: string;
-  cancelLabel: string;
-  confirmLabel: string;
-  onCancel: () => void;
-  onConfirm: () => void | Promise<void>;
-  confirmClassName?: string;
-  confirmStyle?: React.CSSProperties;
-  zIndex?: number;
-}) {
-  return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      style={{
-        position: 'fixed',
-        inset: 0,
-        zIndex,
-        background: 'rgba(5, 15, 30, 0.55)',
-        backdropFilter: 'blur(10px)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '16px',
-      }}
-    >
-      <div
-        className="glass animate-page-in"
-        style={{
-          width: '100%',
-          maxWidth: '460px',
-          background: 'var(--bg-card)',
-          border: '1px solid var(--border)',
-          borderRadius: '24px',
-          boxShadow: '0 40px 100px rgba(0,0,0,0.5)',
-          padding: '32px',
-        }}
-      >
-        <h3 style={{ margin: 0, fontSize: '22px', fontWeight: 900, color: 'var(--text-main)', letterSpacing: '-0.5px' }}>{title}</h3>
-        <p style={{ marginTop: '16px', marginBottom: '32px', color: 'var(--text-muted)', lineHeight: 1.6, fontSize: '15px' }}>{body}</p>
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
-          <button 
-            type="button" 
-            className="glass-interactive flex-center" 
-            onClick={onCancel}
-            style={{
-              padding: '0 24px',
-              height: '46px',
-              borderRadius: '14px',
-              border: '1px solid var(--border)',
-              background: 'rgba(255,255,255,0.03)',
-              color: 'var(--text-main)',
-              fontSize: '14px',
-              fontWeight: 700,
-              cursor: 'pointer'
-            }}
-          >
-            {cancelLabel}
-          </button>
-          <button
-            type="button"
-            className={`glass-interactive flex-center ${confirmClassName || ''}`}
-            onClick={() => void onConfirm()}
-            style={{
-              padding: '0 28px',
-              height: '46px',
-              borderRadius: '14px',
-              border: 'none',
-              background: confirmClassName === 'btn-danger' ? 'var(--danger)' : 'var(--primary)',
-              color: confirmClassName === 'btn-danger' ? 'white' : 'black',
-              fontSize: '14px',
-              fontWeight: 900,
-              cursor: 'pointer',
-              boxShadow: confirmClassName === 'btn-danger' ? '0 10px 20px rgba(239, 68, 68, 0.15)' : '0 10px 20px rgba(54, 153, 255, 0.15)',
-              ...confirmStyle
-            }}
-          >
-            {confirmLabel}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 function hasSelectedConversationChanged(
   prev: InboxConversation | null,
@@ -135,8 +42,6 @@ function hasSelectedConversationChanged(
 ) {
   if (!prev) return true;
 
-  // Potential stale data: If we locally closed it, don't revert to active 
-  // until we are sure the server has a real reason (like a new ticket).
   const isStaleSessionRevert =
     prev.status === 'closed' &&
     next.status === 'active' &&
@@ -154,7 +59,7 @@ function hasSelectedConversationChanged(
 }
 
 function InboxContent() {
-  const { t } = useStaffLocale();
+  const { locale, t } = useStaffLocale();
   const { addToast } = useNotificationContext();
   const [selectedChat, setSelectedChat] = useState<InboxConversation | null>(null);
   const [viewMode, setViewMode] = useState<InboxViewMode>('list');
@@ -167,6 +72,7 @@ function InboxContent() {
   const [showCloseSessionConfirm, setShowCloseSessionConfirm] = useState(false);
   const [pendingDeleteMessageId, setPendingDeleteMessageId] = useState<string | null>(null);
   const lastHydratedCidRef = React.useRef<string | null>(null);
+
   const showInfoToast = (title: string, body: string) => {
     addToast({
       id: `inbox-info-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`,
@@ -178,7 +84,7 @@ function InboxContent() {
 
   const { conversations, hasNextPage, loading: inboxLoading, refresh } = useRealtimeInbox({
     page,
-    pageSize: 10
+    pageSize: 10,
   });
   const [showRetry, setShowRetry] = useState(false);
 
@@ -192,6 +98,7 @@ function InboxContent() {
       setShowRetry(false);
     };
   }, [inboxLoading]);
+
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const searchParams = useSearchParams();
   const cid = searchParams.get('cid');
@@ -243,8 +150,6 @@ function InboxContent() {
     addToast,
   });
 
-
-
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !selectedChat) return;
@@ -264,8 +169,8 @@ function InboxContent() {
       addToast({
         id: `upload-fail-${Date.now()}`,
         type: 'ticket',
-        title: 'อัปโหลดไฟล์ไม่สำเร็จ',
-        body: getInboxUploadFailedMessage(error)
+        title: t('inbox.uploadFailedTitle'),
+        body: getInboxUploadFailedMessage(error),
       });
     } finally {
       setSending(false);
@@ -295,7 +200,7 @@ function InboxContent() {
       : conversations.find((conversation) => conversation.current_ticket_id === tid);
     if (target) {
       setSelectedChat(target);
-      if (window.innerWidth <= 1000) {
+      if (window.innerWidth <= 1024) {
         setViewMode('chat');
       }
       lastHydratedCidRef.current = cid || `ticket:${tid}`;
@@ -315,7 +220,7 @@ function InboxContent() {
             : null;
         if (!fetched || cancelled) return;
         setSelectedChat(fetched);
-        if (window.innerWidth <= 1000) {
+        if (window.innerWidth <= 1024) {
           setViewMode('chat');
         }
         lastHydratedCidRef.current = hydrationKey;
@@ -386,38 +291,20 @@ function InboxContent() {
 
   if (inboxLoading && page === 1) {
     return (
-      <div className="flex-center animate-page-in" style={{ height: '400px', flexDirection: 'column', gap: '16px' }}>
-        <Loader2 className="animate-spin" size={32} style={{ color: 'var(--primary)' }} />
-        <p style={{ color: 'var(--text-muted)', fontSize: '15px' }}>{t('common.messages.loading') || 'กำลังโหลดข้อความ...'}</p>
+      <div className={styles.loadingState} role="status" aria-live="polite">
+        <Loader2 className="animate-spin" size={28} color="var(--color-primary)" aria-hidden="true" />
+        <p>{t('common.messages.loading')}</p>
         {showRetry && (
-          <button
-            onClick={() => refresh()}
-            className="glass-interactive flex-center animate-page-in"
-            style={{
-              padding: '10px 20px',
-              borderRadius: '12px',
-              border: '1px solid var(--border)',
-              background: 'rgba(54, 153, 255, 0.1)',
-              color: 'var(--primary)',
-              fontSize: '14px',
-              fontWeight: 700,
-              cursor: 'pointer',
-              boxShadow: '0 8px 24px rgba(54, 153, 255, 0.05)',
-              transition: 'all 0.2s ease',
-            }}
-          >
-            {t('common.retry') || 'โหลดใหม่อีกครั้ง'}
-          </button>
+          <Button variant="secondary" size="sm" onClick={() => refresh()}>
+            {locale === 'th' ? 'โหลดใหม่อีกครั้ง' : 'Retry'}
+          </Button>
         )}
       </div>
     );
   }
 
   return (
-    <div
-      className="animate-page-in inbox-layout"
-      style={{ display: 'flex', height: 'calc(100vh - 120px)', gap: isSidebarCollapsed ? '0px' : '24px', transition: 'gap 0.3s' }}
-    >
+    <div className={clsx(styles.workspace, isSidebarCollapsed && styles.workspaceCollapsed)}>
       <InboxSidebar
         conversations={conversations}
         selectedChat={selectedChat}
@@ -433,7 +320,6 @@ function InboxContent() {
             '',
             query ? `${window.location.pathname}?${query}` : window.location.pathname
           );
-
         }}
         viewMode={viewMode}
         currentPage={page}
@@ -441,138 +327,139 @@ function InboxContent() {
         onPageChange={setPage}
       />
 
-      <div
-        className={`inbox-main-view ${viewMode}`}
-        style={{
-          flex: 1,
-          display: 'flex',
-          flexDirection: 'column',
-          background: 'var(--bg-card)',
-          borderRadius: '24px',
-          border: '1px solid var(--border)',
-          overflow: 'hidden',
-        }}
-      >
-        {selectedChat ? (
-          <Suspense fallback={<div className="flex-center" style={{ flex: 1 }}><Loader2 className="animate-spin" /></div>}>
-            <ChatWindow
-              selectedChat={selectedChat}
-              messages={messages}
-              newMessage={newMessage}
-              setNewMessage={setNewMessage}
-              isInternalMode={isInternalMode}
-              setIsInternalMode={setIsInternalMode}
-              onSendMessage={handleSendMessage}
-              sending={sending}
-              agent={agent}
-              currentTicket={currentTicket}
-              onClaim={handleClaim}
-              onAttachClick={() => fileInputRef.current?.click()}
-              onEditImage={(source: string) => {
-                setViewingImage(source);
-                setEditingImage(source);
-                setIsViewerOpen(true);
-              }}
-              hasMoreMessages={hasMoreMessages}
-              loadingMoreMessages={loadingMoreMessages}
-              onLoadOlderMessages={handleLoadOlderMessages}
-              cannedResponses={personalQuickReplies}
-              showCanned={showCanned}
-              setShowCanned={setShowCanned}
-              onUseCanned={(text: string) => {
-                setNewMessage(text);
-                setShowCanned(false);
-              }}
-              onAddCanned={handleAddCanned}
-              onEditCanned={handleEditCanned}
-              onDeleteCanned={handleDeleteCanned}
-              viewMode={viewMode}
-              setViewMode={setViewMode}
-              onDeleteMessage={async (messageId: string) => {
-                setPendingDeleteMessageId(messageId);
-              }}
-              messagesEndRef={messagesEndRef}
-              isSidebarCollapsed={isSidebarCollapsed}
-              onToggleSidebar={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-            />
-          </Suspense>
-        ) : (
-          <div
-            className="flex-center"
-            style={{
-              flex: 1,
-              flexDirection: 'column',
-              gap: '16px',
-              color: 'var(--text-muted)',
-            }}
-          >
-            <MessageSquare size={64} style={{ opacity: 0.1 }} />
-            <h3 style={{ fontSize: '18px', fontWeight: '800' }}>{t('inbox.selectChatTitle')}</h3>
-            <p style={{ fontSize: '14px' }}>{t('inbox.selectChatSubtitle')}</p>
-          </div>
-        )}
-      </div>
-
-      <div
-        className={`inbox-details-sidebar ${viewMode === 'details' ? 'showing' : ''}`}
-        style={{ 
-          width: isSidebarCollapsed ? '0px' : '460px', 
-          display: 'flex', 
-          flexDirection: 'column', 
-          gap: '24px',
-          transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-          overflow: 'hidden',
-          opacity: isSidebarCollapsed ? 0 : 1,
-          pointerEvents: isSidebarCollapsed ? 'none' : 'auto',
-          marginLeft: isSidebarCollapsed ? '0px' : '0px'
-        }}
-      >
-        {selectedChat && (
-          <Suspense fallback={<div className="flex-center" style={{ minHeight: 220 }}><Loader2 className="animate-spin" /></div>}>
-          <TicketSidebar
+      {selectedChat ? (
+        <Suspense
+          fallback={
+            <div className={styles.threadPane}>
+              <div className={styles.loadingState}>
+                <Loader2 className="animate-spin" size={24} aria-hidden="true" />
+              </div>
+            </div>
+          }
+        >
+          <ChatWindow
             selectedChat={selectedChat}
-            currentTicket={currentTicket}
+            messages={messages}
+            newMessage={newMessage}
+            setNewMessage={setNewMessage}
+            isInternalMode={isInternalMode}
+            setIsInternalMode={setIsInternalMode}
+            onSendMessage={handleSendMessage}
+            sending={sending}
             agent={agent}
+            currentTicket={currentTicket}
+            onClaim={handleClaim}
+            onAttachClick={() => fileInputRef.current?.click()}
+            onEditImage={(source: string) => {
+              setViewingImage(source);
+              setEditingImage(source);
+              setIsViewerOpen(true);
+            }}
+            hasMoreMessages={hasMoreMessages}
+            loadingMoreMessages={loadingMoreMessages}
+            onLoadOlderMessages={handleLoadOlderMessages}
+            cannedResponses={personalQuickReplies}
+            showCanned={showCanned}
+            setShowCanned={setShowCanned}
+            onUseCanned={(text: string) => {
+              setNewMessage(text);
+              setShowCanned(false);
+            }}
+            onAddCanned={handleAddCanned}
+            onEditCanned={handleEditCanned}
+            onDeleteCanned={handleDeleteCanned}
             viewMode={viewMode}
             setViewMode={setViewMode}
-            onFetchGlobalHistory={() =>
-              showInfoToast('ฟีเจอร์ยังไม่พร้อม', 'ฟีเจอร์ประวัติการสนทนากลางยังอยู่ระหว่างการพัฒนา')
-            }
-            onResolve={handleResolve}
-            onTransfer={() => showInfoToast('ฟีเจอร์ยังไม่พร้อม', 'ฟีเจอร์โอนงานกำลังอยู่ระหว่างการพัฒนา')}
-            onCloseSession={() => setShowCloseSessionConfirm(true)}
-            onCopySurvey={() => {
-              const surveyTicketId = currentTicket?.id || selectedChat.current_ticket_id;
-              if (!surveyTicketId) return;
-              navigator.clipboard.writeText(
-                `${window.location.origin}/survey/${surveyTicketId}`
-              );
-              showInfoToast('คัดลอกแล้ว', 'คัดลอกลิงก์ประเมินเรียบร้อย');
+            onDeleteMessage={async (messageId: string) => {
+              setPendingDeleteMessageId(messageId);
             }}
-            onWarn={showInfoToast}
+            messagesEndRef={messagesEndRef}
+            isSidebarCollapsed={isSidebarCollapsed}
+            onToggleSidebar={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
           />
+        </Suspense>
+      ) : (
+        <div className={clsx(styles.threadPane, viewMode !== 'chat' && styles.hiddenMobile)}>
+          <EmptyState
+            icon={<MessageSquare size={22} aria-hidden="true" />}
+            title={t('inbox.selectChatTitle')}
+            description={t('inbox.selectChatSubtitle')}
+          />
+        </div>
+      )}
+
+      {selectedChat && (
+        <div
+          className={clsx(
+            styles.inspectorWrap,
+            isSidebarCollapsed && styles.inspectorWrapCollapsed,
+            viewMode !== 'details' && styles.hiddenMobile
+          )}
+        >
+          <Suspense
+            fallback={
+              <div className={styles.inspectorPane}>
+                <div className={styles.loadingState} style={{ height: 220 }}>
+                  <Loader2 className="animate-spin" size={20} aria-hidden="true" />
+                </div>
+              </div>
+            }
+          >
+            <TicketSidebar
+              selectedChat={selectedChat}
+              currentTicket={currentTicket}
+              agent={agent}
+              viewMode={viewMode}
+              setViewMode={setViewMode}
+              onFetchGlobalHistory={() =>
+                showInfoToast(
+                  locale === 'th' ? 'ฟีเจอร์ยังไม่พร้อม' : 'Coming soon',
+                  t('inbox.globalHistoryComingSoon')
+                )
+              }
+              onResolve={handleResolve}
+              onTransfer={() =>
+                showInfoToast(
+                  locale === 'th' ? 'ฟีเจอร์ยังไม่พร้อม' : 'Coming soon',
+                  t('inbox.transferComingSoon')
+                )
+              }
+              onCloseSession={() => setShowCloseSessionConfirm(true)}
+              onCopySurvey={() => {
+                const surveyTicketId = currentTicket?.id || selectedChat.current_ticket_id;
+                if (!surveyTicketId) return;
+                navigator.clipboard.writeText(
+                  `${window.location.origin}/survey/${surveyTicketId}`
+                );
+                showInfoToast(
+                  locale === 'th' ? 'คัดลอกแล้ว' : 'Copied',
+                  t('inbox.surveyLinkCopied')
+                );
+              }}
+              onWarn={showInfoToast}
+            />
           </Suspense>
-        )}
-      </div>
+        </div>
+      )}
 
       <Suspense fallback={null}>
-      <ResolveTicketModal
-        open={showResolveModal}
-        currentTicket={currentTicket}
-        availableModules={availableModules}
-        availableIssueTypes={availableIssueTypes}
-        personalResTemplates={personalResTemplates}
-        resSummary={resSummary}
-        selectedModule={selectedModule}
-        selectedIssueType={selectedIssueType}
-        sending={sending}
-        isChatActive={selectedChat?.status === 'active'}
-        onClose={() => setShowResolveModal(false)}
-        onConfirm={handleExecuteResolve}
-        onChangeSummary={setResSummary}
-        onChangeModule={setSelectedModule}
-        onChangeIssueType={setSelectedIssueType}
-      />
+        <ResolveTicketModal
+          open={showResolveModal}
+          currentTicket={currentTicket}
+          availableModules={availableModules}
+          availableIssueTypes={availableIssueTypes}
+          personalResTemplates={personalResTemplates}
+          resSummary={resSummary}
+          selectedModule={selectedModule}
+          selectedIssueType={selectedIssueType}
+          sending={sending}
+          isChatActive={selectedChat?.status === 'active'}
+          onClose={() => setShowResolveModal(false)}
+          onConfirm={handleExecuteResolve}
+          onChangeSummary={setResSummary}
+          onChangeModule={setSelectedModule}
+          onChangeIssueType={setSelectedIssueType}
+        />
       </Suspense>
 
       {isViewerOpen && viewingImage && (
@@ -601,24 +488,23 @@ function InboxContent() {
 
               setSending(true);
               try {
-                // 1. Convert Blob to File as per Codex protocol
-                const file = new File([blob], `edited_inbox_${Date.now()}.jpg`, { type: 'image/jpeg' });
-                
-                // 2. Upload and wait for completion
+                const file = new File([blob], `edited_inbox_${Date.now()}.jpg`, {
+                  type: 'image/jpeg',
+                });
+
                 await uploadInboxChatMedia({
-                  file, // Pass the new File object
+                  file,
                   conversationId: selectedChat.id,
                   ticketId: currentTicket?.id || selectedChat.current_ticket_id || null,
                   staffId: agent.id,
-                  filePrefix: 'edited'
+                  filePrefix: 'edited',
                 });
 
-                // 3. Success! Close modal and cleanup
                 setIsEditorOpen(false);
                 setEditingImage('');
               } catch (error: unknown) {
                 console.error('Inbox editor save failed:', error);
-                showInfoToast('อัปโหลดรูปไม่สำเร็จ', getInboxUploadFailedMessage(error));
+                showInfoToast(t('inbox.uploadFailedTitle'), getInboxUploadFailedMessage(error));
               } finally {
                 setSending(false);
               }
@@ -627,52 +513,75 @@ function InboxContent() {
         </Suspense>
       )}
 
-      {pendingDeleteMessageId && (
-        <InlineConfirmModal
-          zIndex={2300}
-          title={t('inbox.confirmDeleteMessageTitle') || 'ยืนยันการลบข้อความ'}
-          body={t('common.messages.deleteConfirm')}
-          cancelLabel={t('common.cancel')}
-          confirmLabel={t('inbox.confirmDeleteMessageButton') || 'ยืนยันลบข้อความ'}
-          confirmClassName="btn-danger"
-          onCancel={() => setPendingDeleteMessageId(null)}
-          onConfirm={async () => {
-            const messageId = pendingDeleteMessageId;
-            setPendingDeleteMessageId(null);
-            if (!messageId) return;
-            const result = await deleteInboxMessage(messageId);
-            if (!result.success) {
-              showInfoToast('ลบข้อความไม่สำเร็จ', getInboxDeleteFailedMessage(result.error));
-            }
-          }}
-        />
-      )}
+      <Modal
+        isOpen={Boolean(pendingDeleteMessageId)}
+        onClose={() => setPendingDeleteMessageId(null)}
+        size="sm"
+        title={t('inbox.confirmDeleteMessageTitle')}
+        description={t('common.messages.deleteConfirm')}
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setPendingDeleteMessageId(null)}>
+              {t('common.cancel')}
+            </Button>
+            <Button
+              variant="danger"
+              onClick={async () => {
+                const messageId = pendingDeleteMessageId;
+                setPendingDeleteMessageId(null);
+                if (!messageId) return;
+                const result = await deleteInboxMessage(messageId);
+                if (!result.success) {
+                  showInfoToast(
+                    t('common.messages.deleteFailed'),
+                    getInboxDeleteFailedMessage(result.error)
+                  );
+                }
+              }}
+            >
+              {t('inbox.confirmDeleteMessageButton')}
+            </Button>
+          </>
+        }
+      >
+        <p style={{ margin: 0, fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)' }}>
+          {t('common.messages.deleteConfirm')}
+        </p>
+      </Modal>
 
-      {showCloseSessionConfirm && (
-        <InlineConfirmModal
-          title={t('inbox.confirmEndChatTitle')}
-          body={t('inbox.confirmEndChatBody')}
-          cancelLabel={t('common.cancel')}
-          confirmLabel={t('inbox.confirmEndChatButton')}
-          onCancel={() => setShowCloseSessionConfirm(false)}
-          onConfirm={async () => {
-            setShowCloseSessionConfirm(false);
-            await handleCloseSession();
-          }}
-        />
-      )}
+      <Modal
+        isOpen={showCloseSessionConfirm}
+        onClose={() => setShowCloseSessionConfirm(false)}
+        size="sm"
+        title={t('inbox.confirmEndChatTitle')}
+        description={t('inbox.confirmEndChatBody')}
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setShowCloseSessionConfirm(false)}>
+              {t('common.cancel')}
+            </Button>
+            <Button
+              variant="primary"
+              onClick={async () => {
+                setShowCloseSessionConfirm(false);
+                await handleCloseSession();
+              }}
+            >
+              {t('inbox.confirmEndChatButton')}
+            </Button>
+          </>
+        }
+      >
+        <p style={{ margin: 0, fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)' }}>
+          {t('inbox.confirmEndChatBody')}
+        </p>
+      </Modal>
 
-      <style
-        dangerouslySetInnerHTML={{
-          __html:
-            '@keyframes scaleIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }',
-        }}
-      />
-      <input 
-        type="file" 
-        ref={fileInputRef} 
-        onChange={handleFileSelect} 
-        style={{ display: 'none' }} 
+      <input
+        type="file"
+        ref={fileInputRef}
+        onChange={handleFileSelect}
+        style={{ display: 'none' }}
         accept="image/*,video/*,.pdf,.doc,.docx,.xls,.xlsx"
       />
     </div>
@@ -683,17 +592,9 @@ export default function InboxPage() {
   return (
     <Suspense
       fallback={
-        <div
-          className="flex-center"
-          style={{ height: '70vh', flexDirection: 'column', gap: '16px' }}
-        >
-          <Loader2
-            className="animate-spin"
-            size={32}
-            color="var(--primary)"
-            aria-hidden="true"
-          />
-          <p style={{ color: 'var(--text-muted)' }}>Loading Inbox...</p>
+        <div className={styles.loadingState} role="status">
+          <Loader2 className="animate-spin" size={28} color="var(--color-primary)" aria-hidden="true" />
+          <p>Loading Inbox...</p>
         </div>
       }
     >
@@ -701,5 +602,3 @@ export default function InboxPage() {
     </Suspense>
   );
 }
-
-

@@ -13,8 +13,11 @@ import {
 } from 'recharts';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { GripVertical, X } from 'lucide-react';
+import { Badge, Button, Card, CardBody, CardHeader } from '@/components/ui';
+import styles from './analytics.module.css';
 
-const COLORS = ['#00f2fe', '#4facfe', '#7367f0', '#28c76f', '#ff9f43', '#ea5455', '#9f44d3', '#f1f5f9'];
+const COLORS = ['#1D4ED8', '#0D9488', '#0284C7', '#059669', '#D97706', '#DC2626', '#475569', '#2563EB'];
 
 export const SortableWidget = ({ id, chart, data, onRemove }: any) => {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
@@ -33,16 +36,23 @@ export const SortableWidget = ({ id, chart, data, onRemove }: any) => {
   }, [data, selectedItems]);
 
   const toggleItem = (name: string) => {
-    setSelectedItems(prev =>
-      prev.includes(name) ? prev.filter(i => i !== name) : [...prev, name]
+    setSelectedItems((prev) =>
+      prev.includes(name) ? prev.filter((i) => i !== name) : [...prev, name]
     );
   };
 
-  const style = {
+  const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
     transition,
     zIndex: isDragging ? 10 : 1,
-    opacity: isDragging ? 0.5 : 1,
+    opacity: isDragging ? 0.55 : 1,
+  };
+
+  const tooltipStyle = {
+    background: 'var(--color-surface)',
+    border: '1px solid var(--color-border-strong)',
+    borderRadius: 'var(--radius-md)',
+    boxShadow: 'var(--shadow-md)',
   };
 
   const renderChart = () => {
@@ -52,14 +62,14 @@ export const SortableWidget = ({ id, chart, data, onRemove }: any) => {
         return (
           <ResponsiveContainer {...common}>
             <BarChart data={filteredData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
-              <XAxis dataKey="name" stroke="var(--text-dim)" fontSize={12} tick={{ fill: 'var(--text-dim)' }} axisLine={false} tickLine={false} />
-              <YAxis stroke="var(--text-dim)" fontSize={12} tick={{ fill: 'var(--text-dim)' }} axisLine={false} tickLine={false} />
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
+              <XAxis dataKey="name" stroke="var(--color-text-subtle)" fontSize={12} tick={{ fill: 'var(--color-text-muted)' }} axisLine={false} tickLine={false} />
+              <YAxis stroke="var(--color-text-subtle)" fontSize={12} tick={{ fill: 'var(--color-text-muted)' }} axisLine={false} tickLine={false} allowDecimals={false} />
               <Tooltip
-                contentStyle={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px', boxShadow: '0 10px 30px rgba(0,0,0,0.1)' }}
-                itemStyle={{ color: 'var(--text-main)', fontSize: '12px', fontWeight: '700' }}
+                contentStyle={tooltipStyle}
+                itemStyle={{ color: 'var(--color-text)', fontSize: '12px', fontWeight: '600' }}
               />
-              <Bar dataKey="value" fill="var(--primary)" radius={[4, 4, 0, 0]} barSize={30} />
+              <Bar dataKey="value" fill="#1D4ED8" radius={[4, 4, 0, 0]} barSize={28} />
             </BarChart>
           </ResponsiveContainer>
         );
@@ -67,13 +77,13 @@ export const SortableWidget = ({ id, chart, data, onRemove }: any) => {
         return (
           <ResponsiveContainer {...common}>
             <PieChart>
-              <Pie data={filteredData} innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value">
-                {filteredData.map((entry: any, index: number) => (
+              <Pie data={filteredData} innerRadius={56} outerRadius={80} paddingAngle={4} dataKey="value" strokeWidth={0}>
+                {filteredData.map((_entry: any, index: number) => (
                   <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                 ))}
               </Pie>
-              <Tooltip />
-              <Legend wrapperStyle={{ fontSize: '10px' }} />
+              <Tooltip contentStyle={tooltipStyle} />
+              <Legend wrapperStyle={{ fontSize: '12px' }} />
             </PieChart>
           </ResponsiveContainer>
         );
@@ -81,11 +91,18 @@ export const SortableWidget = ({ id, chart, data, onRemove }: any) => {
         return (
           <ResponsiveContainer {...common}>
             <LineChart data={filteredData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
-              <XAxis dataKey="name" stroke="var(--text-dim)" fontSize={12} tick={{ fill: 'var(--text-dim)' }} axisLine={false} tickLine={false} />
-              <YAxis stroke="var(--text-dim)" fontSize={12} tick={{ fill: 'var(--text-dim)' }} axisLine={false} tickLine={false} />
-              <Tooltip contentStyle={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px' }} />
-              <Line type="monotone" dataKey="value" stroke="var(--primary)" strokeWidth={3} dot={{ r: 4, fill: 'var(--primary)', strokeWidth: 2, stroke: 'var(--bg-card)' }} activeDot={{ r: 6 }} />
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
+              <XAxis dataKey="name" stroke="var(--color-text-subtle)" fontSize={12} tick={{ fill: 'var(--color-text-muted)' }} axisLine={false} tickLine={false} />
+              <YAxis stroke="var(--color-text-subtle)" fontSize={12} tick={{ fill: 'var(--color-text-muted)' }} axisLine={false} tickLine={false} allowDecimals={false} />
+              <Tooltip contentStyle={tooltipStyle} />
+              <Line
+                type="monotone"
+                dataKey="value"
+                stroke="#1D4ED8"
+                strokeWidth={2.5}
+                dot={{ r: 3.5, fill: '#1D4ED8', strokeWidth: 2, stroke: 'var(--color-surface)' }}
+                activeDot={{ r: 5 }}
+              />
             </LineChart>
           </ResponsiveContainer>
         );
@@ -95,26 +112,26 @@ export const SortableWidget = ({ id, chart, data, onRemove }: any) => {
             <AreaChart data={filteredData}>
               <defs>
                 <linearGradient id={`colorValue-${id}`} x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="var(--primary)" stopOpacity={0.3} />
-                  <stop offset="95%" stopColor="var(--primary)" stopOpacity={0} />
+                  <stop offset="5%" stopColor="#1D4ED8" stopOpacity={0.22} />
+                  <stop offset="95%" stopColor="#1D4ED8" stopOpacity={0} />
                 </linearGradient>
               </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
-              <XAxis dataKey="name" stroke="var(--text-dim)" fontSize={12} tick={{ fill: 'var(--text-dim)' }} axisLine={false} tickLine={false} />
-              <YAxis stroke="var(--text-dim)" fontSize={12} tick={{ fill: 'var(--text-dim)' }} axisLine={false} tickLine={false} />
-              <Tooltip contentStyle={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px' }} />
-              <Area type="monotone" dataKey="value" stroke="var(--primary)" strokeWidth={3} fillOpacity={1} fill={`url(#colorValue-${id})`} />
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
+              <XAxis dataKey="name" stroke="var(--color-text-subtle)" fontSize={12} tick={{ fill: 'var(--color-text-muted)' }} axisLine={false} tickLine={false} />
+              <YAxis stroke="var(--color-text-subtle)" fontSize={12} tick={{ fill: 'var(--color-text-muted)' }} axisLine={false} tickLine={false} allowDecimals={false} />
+              <Tooltip contentStyle={tooltipStyle} />
+              <Area type="monotone" dataKey="value" stroke="#1D4ED8" strokeWidth={2.5} fillOpacity={1} fill={`url(#colorValue-${id})`} />
             </AreaChart>
           </ResponsiveContainer>
         );
       case 'radar':
         return (
           <ResponsiveContainer {...common}>
-            <RadarChart cx="50%" cy="50%" outerRadius="80%" data={filteredData}>
-              <PolarGrid stroke="var(--border)" />
-              <PolarAngleAxis dataKey="name" stroke="var(--text-dim)" fontSize={11} tick={{ fill: 'var(--text-dim)', fontWeight: '700' }} />
-              <Radar name="Performance" dataKey="value" stroke="var(--primary)" fill="var(--primary)" fillOpacity={0.4} />
-              <Tooltip />
+            <RadarChart cx="50%" cy="50%" outerRadius="78%" data={filteredData}>
+              <PolarGrid stroke="var(--color-border)" />
+              <PolarAngleAxis dataKey="name" stroke="var(--color-text-muted)" fontSize={11} tick={{ fill: 'var(--color-text-muted)', fontWeight: '600' }} />
+              <Radar name="Performance" dataKey="value" stroke="#1D4ED8" fill="#1D4ED8" fillOpacity={0.28} />
+              <Tooltip contentStyle={tooltipStyle} />
             </RadarChart>
           </ResponsiveContainer>
         );
@@ -122,49 +139,84 @@ export const SortableWidget = ({ id, chart, data, onRemove }: any) => {
         return (
           <ResponsiveContainer {...common}>
             <ScatterChart>
-              <CartesianGrid stroke="var(--border)" strokeDasharray="3 3" vertical={false} />
-              <XAxis type="number" dataKey="x" name="time" stroke="var(--text-dim)" fontSize={12} tick={{ fill: 'var(--text-dim)' }} axisLine={false} tickLine={false} />
-              <YAxis type="number" dataKey="y" name="value" stroke="var(--text-dim)" fontSize={12} tick={{ fill: 'var(--text-dim)' }} axisLine={false} tickLine={false} />
-              <Tooltip cursor={{ strokeDasharray: '3 3' }} contentStyle={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px' }} />
-              <Scatter name="Points" data={filteredData} fill="var(--primary)" />
+              <CartesianGrid stroke="var(--color-border)" strokeDasharray="3 3" vertical={false} />
+              <XAxis type="number" dataKey="x" name="time" stroke="var(--color-text-subtle)" fontSize={12} tick={{ fill: 'var(--color-text-muted)' }} axisLine={false} tickLine={false} />
+              <YAxis type="number" dataKey="y" name="value" stroke="var(--color-text-subtle)" fontSize={12} tick={{ fill: 'var(--color-text-muted)' }} axisLine={false} tickLine={false} />
+              <Tooltip cursor={{ strokeDasharray: '3 3' }} contentStyle={tooltipStyle} />
+              <Scatter name="Points" data={filteredData} fill="#0D9488" />
             </ScatterChart>
           </ResponsiveContainer>
         );
       default:
-        return <div className="flex-center" style={{ height: '240px', color: 'var(--text-muted)' }}>Chart Type: {chart.type}</div>;
+        return (
+          <div className="flex-center" style={{ height: 240, color: 'var(--color-text-muted)', fontSize: 'var(--text-sm)' }}>
+            Chart Type: {chart.type}
+          </div>
+        );
     }
   };
 
   return (
-    <div id={`widget-${id}`} ref={setNodeRef} style={style} className="glass">
-      <div style={{ padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-        <div {...attributes} {...listeners} style={{ cursor: 'grab', display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <div style={{ background: 'linear-gradient(135deg, rgba(0,242,254,0.1), rgba(0,98,255,0.1))', padding: '8px', borderRadius: '10px', color: 'var(--primary)', border: '1px solid var(--border-active)' }}>
-            <chart.icon size={16} />
+    <div id={`widget-${id}`} ref={setNodeRef} style={style}>
+      <Card>
+        <CardHeader
+          actions={
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => onRemove(id)}
+              aria-label={`ลบวิดเจ็ต ${chart.name}`}
+              leftIcon={<X size={14} aria-hidden="true" />}
+            >
+              ลบออก
+            </Button>
+          }
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            <button
+              type="button"
+              {...attributes}
+              {...listeners}
+              className={styles.dragHandleBtn}
+              aria-label={`ลากเพื่อจัดเรียง ${chart.name}`}
+            >
+              <GripVertical size={14} color="var(--color-text-subtle)" aria-hidden="true" />
+              <span className={styles.dragIconBox} aria-hidden="true">
+                <chart.icon size={15} />
+              </span>
+              <span className={styles.widgetTitle}>{chart.name}</span>
+            </button>
+            {['radar-skill', 'composed-mix', 'tree-tags'].includes(id) ? (
+              <Badge variant="warning" size="sm">
+                ตัวอย่างข้อมูล
+              </Badge>
+            ) : null}
           </div>
-          <h3 style={{ fontSize: '15px', fontWeight: '800', color: 'var(--text-main)', letterSpacing: '-0.3px' }}>{chart.name}</h3>
-          {(['radar-skill', 'composed-mix', 'tree-tags'].includes(id)) && (
-            <span style={{ fontSize: '9px', padding: '2px 6px', background: 'rgba(255, 171, 0, 0.1)', color: 'var(--warning)', borderRadius: '4px', fontWeight: '800' }}>MOCK DATA</span>
-          )}
-        </div>
-        <button onClick={() => onRemove(id)} style={{ background: 'rgba(234, 84, 85, 0.1)', border: '1px solid var(--danger)', borderRadius: '8px', padding: '4px 10px', color: 'var(--danger)', cursor: 'pointer', fontSize: '12px', fontWeight: '800' }}>ลบออก</button>
-      </div>
-      <div style={{ padding: '20px' }}>
-        {renderChart()}
-        <div style={{ marginTop: '16px', borderTop: '1px solid var(--border)', paddingTop: '12px', display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-          {data.map((d: any) => (
-            <label key={d.name} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '14px', cursor: 'pointer', opacity: selectedItems.includes(d.name) ? 1 : 0.7 }}>
-              <input
-                type="checkbox"
-                checked={selectedItems.includes(d.name)}
-                onChange={() => toggleItem(d.name)}
-                style={{ accentColor: 'var(--primary)' }}
-              />
-              <span style={{ color: selectedItems.includes(d.name) ? 'var(--text-main)' : 'var(--text-dim)' }}>{d.name}</span>
-            </label>
-          ))}
-        </div>
-      </div>
+        </CardHeader>
+        <CardBody>
+          {renderChart()}
+          {data.length > 0 ? (
+            <div className={styles.widgetSeriesFilter}>
+              {data.map((d: any, idx: number) => {
+                const checkId = `widget-series-${id}-${idx}`;
+                return (
+                  <label key={d.name} htmlFor={checkId} className={styles.seriesCheckLabel}>
+                    <input
+                      id={checkId}
+                      type="checkbox"
+                      checked={selectedItems.includes(d.name)}
+                      onChange={() => toggleItem(d.name)}
+                      aria-label={`แสดงข้อมูล ${d.name}`}
+                      style={{ accentColor: 'var(--color-primary)' }}
+                    />
+                    <span>{d.name}</span>
+                  </label>
+                );
+              })}
+            </div>
+          ) : null}
+        </CardBody>
+      </Card>
     </div>
   );
 };

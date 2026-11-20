@@ -6,6 +6,8 @@ import { Bell, ChevronLeft, Globe2, Play, Volume2, VolumeX } from 'lucide-react'
 import { useNotificationContext } from '@/contexts/NotificationContext';
 import { useStaffLocale } from '@/contexts/StaffLocaleContext';
 import { NotificationSoundMode } from '@/hooks/useNotifications';
+import { Badge, Button, Card, CardBody, CardDescription, CardHeader, CardTitle, PageHeader } from '@/components/ui';
+import styles from '../settings.module.css';
 
 type NotifPermission = 'unsupported' | NotificationPermission;
 
@@ -79,11 +81,7 @@ export default function NotificationSettingsPage() {
       return;
     }
 
-    pushToast(
-      t('settingsNotifications.testSound'),
-      `${result.detail} • ${result.hint}`,
-      12000
-    );
+    pushToast(t('settingsNotifications.testSound'), `${result.detail} • ${result.hint}`, 12000);
   };
 
   const requestNotificationPermission = async () => {
@@ -107,432 +105,328 @@ export default function NotificationSettingsPage() {
 
   const permissionLabel = permission === 'unsupported' ? t('settingsNotifications.unsupported') : permission;
 
-  return (
-    <div style={{ animation: 'fadeIn 0.5s ease-out' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px' }}>
-        <Link href="/settings/profile" style={{ color: 'var(--text-muted)' }}>
-          <ChevronLeft size={24} />
-        </Link>
-        <h1 style={{ fontSize: '24px', fontWeight: '800' }}>{t('settingsNotifications.title')}</h1>
-      </div>
+  const beepOptions: { id: NotificationSoundMode; label: string }[] = [
+    { id: 'beep', label: locale === 'th' ? '🔊 Classic Beep (มาตรฐาน)' : '🔊 Classic Beep (Standard)' },
+    { id: 'beep-retro', label: locale === 'th' ? '👾 Retro 8-bit (เกมย้อนยุค)' : '👾 Retro 8-bit (Retro Game)' },
+    { id: 'beep-cosmic', label: locale === 'th' ? '🌌 Cosmic Echo (เสียงก้องอวกาศ)' : '🌌 Cosmic Echo (Space Echo)' },
+    { id: 'beep-digital', label: locale === 'th' ? '🤖 Digital Double (เสียงเตือนคู่ดิจิทัล)' : '🤖 Digital Double (Double Pulse)' },
+    { id: 'beep-alert', label: locale === 'th' ? '🚨 Urgent Alert (แจ้งเตือนเร่งด่วน)' : '🚨 Urgent Alert (Urgent Siren)' },
+  ];
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))', gap: '32px' }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-          <div className="glass" style={{ padding: '32px' }}>
-            <div
-              style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <div
-                  className="flex-center"
-                  style={{
-                    width: '44px',
-                    height: '44px',
-                    borderRadius: '14px',
-                    background: 'var(--primary-transparent)',
-                    color: 'var(--primary)',
-                    border: '1px solid var(--border)',
-                  }}
+  const eventRows = [
+    { id: 'new_ticket', label: t('settingsNotifications.eventNewTicket'), value: prefNewTicket },
+    { id: 'new_message', label: t('settingsNotifications.eventNewMessage'), value: prefNewMessage },
+    { id: 'transfer', label: t('settingsNotifications.eventTransfer'), value: prefTransfer },
+    { id: 'sla_warning', label: t('settingsNotifications.eventSlaWarning'), value: prefSlaWarning },
+  ];
+
+  return (
+    <div className={styles.page}>
+      <PageHeader
+        title={
+          <span className={styles.headerTitleRow}>
+            <Link href="/settings/profile" className={styles.backLink} aria-label="กลับหน้าโปรไฟล์">
+              <ChevronLeft size={18} aria-hidden="true" />
+            </Link>
+            <span>{t('settingsNotifications.title')}</span>
+          </span>
+        }
+      />
+
+      <div className={styles.twoColEqual}>
+        {/* Left Column: Audio & Language */}
+        <div className={styles.stackLg}>
+          <Card>
+            <CardHeader
+              actions={
+                <Button
+                  size="md"
+                  variant={isSoundEnabled ? 'primary' : 'secondary'}
+                  iconOnly
+                  aria-pressed={isSoundEnabled}
+                  aria-label={
+                    isSoundEnabled
+                      ? t('settingsNotifications.soundDisabled')
+                      : t('settingsNotifications.soundEnabled')
+                  }
+                  onClick={() => setSoundEnabled(!isSoundEnabled)}
                 >
-                  <Bell size={20} />
+                  {isSoundEnabled ? <Volume2 size={18} aria-hidden="true" /> : <VolumeX size={18} aria-hidden="true" />}
+                </Button>
+              }
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
+                <div className={`${styles.statIcon} ${styles.statIconPrimary}`}>
+                  <Bell size={18} aria-hidden="true" />
                 </div>
                 <div>
-                  <h2 style={{ fontSize: '18px', fontWeight: '850', margin: 0 }}>
-                    {t('settingsNotifications.audioTitle')}
-                  </h2>
-                  <p style={{ color: 'var(--text-muted)', fontSize: '13px', margin: '4px 0 0 0' }}>
-                    {t('settingsNotifications.audioDescription')}
-                  </p>
+                  <CardTitle>{t('settingsNotifications.audioTitle')}</CardTitle>
+                  <CardDescription>{t('settingsNotifications.audioDescription')}</CardDescription>
                 </div>
               </div>
+            </CardHeader>
 
-              <button
-                onClick={() => setSoundEnabled(!isSoundEnabled)}
-                className="glass-interactive flex-center"
-                title={
-                  isSoundEnabled
-                    ? t('settingsNotifications.soundDisabled')
-                    : t('settingsNotifications.soundEnabled')
-                }
-                style={{
-                  width: '44px',
-                  height: '44px',
-                  borderRadius: '14px',
-                  border: '1px solid var(--border)',
-                  background: isSoundEnabled ? 'var(--primary-transparent)' : 'transparent',
-                  color: isSoundEnabled ? 'var(--primary)' : 'var(--text-muted)',
-                  cursor: 'pointer',
-                }}
-              >
-                {isSoundEnabled ? <Volume2 size={20} /> : <VolumeX size={20} />}
-              </button>
-            </div>
+            <CardBody className={styles.stackMd}>
+              <div className={styles.formGrid2}>
+                <button
+                  type="button"
+                  onClick={() => setSoundMode('beep')}
+                  disabled={!isSoundEnabled}
+                  aria-pressed={soundMode.startsWith('beep')}
+                  className={`${styles.optionCard} ${soundMode.startsWith('beep') ? styles.optionCardActive : ''}`}
+                >
+                  <span className={styles.optionCardTitle}>{t('settingsNotifications.soundBeep')}</span>
+                  <span className={styles.optionCardDesc}>{t('settingsNotifications.soundBeepDescription')}</span>
+                </button>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-              <button
-                onClick={() => setSoundMode('beep')}
-                disabled={!isSoundEnabled}
-                className="glass-interactive"
-                style={{
-                  padding: '16px',
-                  borderRadius: '16px',
-                  border: `1px solid ${soundMode.startsWith('beep') ? 'var(--primary)' : 'var(--border)'}`,
-                  background: soundMode.startsWith('beep') ? 'rgba(0,242,254,0.06)' : 'transparent',
-                  cursor: isSoundEnabled ? 'pointer' : 'not-allowed',
-                  opacity: isSoundEnabled ? 1 : 0.5,
-                  textAlign: 'left',
-                }}
-              >
-                <div style={{ fontSize: '13px', fontWeight: '900', marginBottom: '6px' }}>
-                  {t('settingsNotifications.soundBeep')}
-                </div>
-                <div style={{ color: 'var(--text-muted)', fontSize: '12px', lineHeight: '1.5' }}>
-                  {t('settingsNotifications.soundBeepDescription')}
-                </div>
-              </button>
+                <button
+                  type="button"
+                  onClick={() => setSoundMode('voice')}
+                  disabled={!isSoundEnabled}
+                  aria-pressed={soundMode === 'voice'}
+                  className={`${styles.optionCard} ${soundMode === 'voice' ? styles.optionCardActive : ''}`}
+                >
+                  <span className={styles.optionCardTitle}>{t('settingsNotifications.soundVoice')}</span>
+                  <span className={styles.optionCardDesc}>{t('settingsNotifications.soundVoiceDescription')}</span>
+                </button>
+              </div>
 
-              <button
-                onClick={() => setSoundMode('voice')}
-                disabled={!isSoundEnabled}
-                className="glass-interactive"
-                style={{
-                  padding: '16px',
-                  borderRadius: '16px',
-                  border: `1px solid ${soundMode === 'voice' ? 'var(--primary)' : 'var(--border)'}`,
-                  background: soundMode === 'voice' ? 'rgba(0,242,254,0.06)' : 'transparent',
-                  cursor: isSoundEnabled ? 'pointer' : 'not-allowed',
-                  opacity: isSoundEnabled ? 1 : 0.5,
-                  textAlign: 'left',
-                }}
-              >
-                <div style={{ fontSize: '13px', fontWeight: '900', marginBottom: '6px' }}>
-                  {t('settingsNotifications.soundVoice')}
-                </div>
-                <div style={{ color: 'var(--text-muted)', fontSize: '12px', lineHeight: '1.5' }}>
-                  {t('settingsNotifications.soundVoiceDescription')}
-                </div>
-              </button>
-            </div>
-
-            {soundMode.startsWith('beep') && (
-              <div style={{ marginTop: '16px', display: 'flex', flexDirection: 'column', gap: '8px', padding: '12px', background: 'rgba(255,255,255,0.02)', borderRadius: '12px', border: '1px solid var(--border)' }}>
-                <div style={{ fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '4px' }}>
-                  {locale === 'th' ? 'เลือกรูปแบบเสียง Beep' : 'Choose Beep Style'}
-                </div>
-                
-                {(() => {
-                  const beepOptions: { id: NotificationSoundMode; label: string }[] = [
-                    { id: 'beep', label: locale === 'th' ? '🔊 Classic Beep (มาตรฐาน)' : '🔊 Classic Beep (Standard)' },
-                    { id: 'beep-retro', label: locale === 'th' ? '👾 Retro 8-bit (เกมย้อนยุค)' : '👾 Retro 8-bit (Retro Game)' },
-                    { id: 'beep-cosmic', label: locale === 'th' ? '🌌 Cosmic Echo (เสียงก้องอวกาศ)' : '🌌 Cosmic Echo (Space Echo)' },
-                    { id: 'beep-digital', label: locale === 'th' ? '🤖 Digital Double (เสียงเตือนคู่ดิจิทัล)' : '🤖 Digital Double (Double Pulse)' },
-                    { id: 'beep-alert', label: locale === 'th' ? '🚨 Urgent Alert (แจ้งเตือนเร่งด่วน)' : '🚨 Urgent Alert (Urgent Siren)' },
-                  ];
-                  return beepOptions.map((option) => {
+              {soundMode.startsWith('beep') && (
+                <div
+                  className={styles.stackSm}
+                  style={{
+                    padding: 'var(--space-3)',
+                    borderRadius: 'var(--radius-md)',
+                    background: 'var(--color-surface-subtle)',
+                    border: '1px solid var(--color-border)',
+                  }}
+                >
+                  <p
+                    style={{
+                      fontSize: '11px',
+                      fontWeight: 'var(--weight-semibold)',
+                      color: 'var(--color-text-muted)',
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.04em',
+                    }}
+                  >
+                    {locale === 'th' ? 'เลือกรูปแบบเสียง Beep' : 'Choose Beep Style'}
+                  </p>
+                  {beepOptions.map((option) => {
                     const isSelected = soundMode === option.id;
                     return (
                       <button
                         key={option.id}
+                        type="button"
                         onClick={() => setSoundMode(option.id)}
                         disabled={!isSoundEnabled}
-                        className="glass-interactive"
-                      style={{
-                        padding: '10px 14px',
-                        borderRadius: '8px',
-                        border: `1px solid ${isSelected ? 'var(--primary)' : 'transparent'}`,
-                        background: isSelected ? 'rgba(0,242,254,0.08)' : 'transparent',
-                        color: isSelected ? 'var(--text-main)' : 'var(--text-muted)',
-                        cursor: isSoundEnabled ? 'pointer' : 'not-allowed',
-                        textAlign: 'left',
-                        fontSize: '12px',
-                        fontWeight: isSelected ? '800' : '500',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        width: '100%',
-                        transition: 'all 0.15s ease'
-                      }}
-                    >
-                      <span>{option.label}</span>
-                      {isSelected && <span style={{ color: 'var(--primary)', fontSize: '10px' }}>● ACTIVE</span>}
-                    </button>
-                  );
-                });
-              })()}
-              </div>
-            )}
+                        aria-pressed={isSelected}
+                        className={`${styles.optionCard} ${isSelected ? styles.optionCardActive : ''}`}
+                        style={{
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          padding: 'var(--space-2) var(--space-3)',
+                        }}
+                      >
+                        <span style={{ fontSize: 'var(--text-xs)', fontWeight: isSelected ? 600 : 500 }}>
+                          {option.label}
+                        </span>
+                        {isSelected && (
+                          <Badge variant="primary" size="sm" dot>
+                            ACTIVE
+                          </Badge>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
 
-            {soundMode === 'voice' && (
-              <div style={{ marginTop: '16px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                <button
-                  onClick={() => setSoundVoice('female')}
-                  disabled={!isSoundEnabled}
-                  className="glass-interactive"
-                  style={{
-                    padding: '14px 16px',
-                    borderRadius: '14px',
-                    border: `1px solid ${soundVoice === 'female' ? 'var(--primary)' : 'var(--border)'}`,
-                    background: soundVoice === 'female' ? 'rgba(0,242,254,0.06)' : 'transparent',
-                    cursor: isSoundEnabled ? 'pointer' : 'not-allowed',
-                    opacity: isSoundEnabled ? 1 : 0.5,
-                    textAlign: 'left',
-                  }}
-                >
-                  <div style={{ fontSize: '13px', fontWeight: '900', marginBottom: '6px' }}>
-                    {t('settingsNotifications.femaleVoice')}
-                  </div>
-                  <div style={{ color: 'var(--text-muted)', fontSize: '12px', lineHeight: '1.5' }}>
-                    {t('settingsNotifications.femaleVoiceDescription')}
-                  </div>
-                </button>
+              {soundMode === 'voice' && (
+                <div className={styles.formGrid2}>
+                  <button
+                    type="button"
+                    onClick={() => setSoundVoice('female')}
+                    disabled={!isSoundEnabled}
+                    aria-pressed={soundVoice === 'female'}
+                    className={`${styles.optionCard} ${soundVoice === 'female' ? styles.optionCardActive : ''}`}
+                  >
+                    <span className={styles.optionCardTitle}>{t('settingsNotifications.femaleVoice')}</span>
+                    <span className={styles.optionCardDesc}>{t('settingsNotifications.femaleVoiceDescription')}</span>
+                  </button>
 
-                <button
-                  onClick={() => setSoundVoice('male')}
-                  disabled={!isSoundEnabled}
-                  className="glass-interactive"
-                  style={{
-                    padding: '14px 16px',
-                    borderRadius: '14px',
-                    border: `1px solid ${soundVoice === 'male' ? 'var(--primary)' : 'var(--border)'}`,
-                    background: soundVoice === 'male' ? 'rgba(0,242,254,0.06)' : 'transparent',
-                    cursor: isSoundEnabled ? 'pointer' : 'not-allowed',
-                    opacity: isSoundEnabled ? 1 : 0.5,
-                    textAlign: 'left',
-                  }}
-                >
-                  <div style={{ fontSize: '13px', fontWeight: '900', marginBottom: '6px' }}>
-                    {t('settingsNotifications.maleVoice')}
-                  </div>
-                  <div style={{ color: 'var(--text-muted)', fontSize: '12px', lineHeight: '1.5' }}>
-                    {t('settingsNotifications.maleVoiceDescription')}
-                  </div>
-                </button>
-              </div>
-            )}
+                  <button
+                    type="button"
+                    onClick={() => setSoundVoice('male')}
+                    disabled={!isSoundEnabled}
+                    aria-pressed={soundVoice === 'male'}
+                    className={`${styles.optionCard} ${soundVoice === 'male' ? styles.optionCardActive : ''}`}
+                  >
+                    <span className={styles.optionCardTitle}>{t('settingsNotifications.maleVoice')}</span>
+                    <span className={styles.optionCardDesc}>{t('settingsNotifications.maleVoiceDescription')}</span>
+                  </button>
+                </div>
+              )}
 
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '20px' }}>
-              <div>
-                <div style={{ fontSize: '12px', fontWeight: '900' }}>{t('settingsNotifications.currentMode')}</div>
-                <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>{soundModeLabel}</div>
-              </div>
-              <button
-                onClick={onTestSound}
-                disabled={!isSoundEnabled}
-                className="glass-interactive flex-center"
-                style={{
-                  padding: '10px 14px',
-                  borderRadius: '12px',
-                  border: '1px solid var(--border)',
-                  background: 'var(--bg-input)',
-                  color: 'var(--text-main)',
-                  cursor: isSoundEnabled ? 'pointer' : 'not-allowed',
-                  opacity: isSoundEnabled ? 1 : 0.5,
-                  gap: '8px',
-                }}
-                title={t('settingsNotifications.testSound')}
-              >
-                <Play size={16} />
-                {t('settingsNotifications.testSound')}
-              </button>
-            </div>
-          </div>
-
-          <div className="glass" style={{ padding: '32px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
               <div
-                className="flex-center"
-                style={{
-                  width: '44px',
-                  height: '44px',
-                  borderRadius: '14px',
-                  background: 'rgba(0,242,254,0.08)',
-                  color: 'var(--primary)',
-                  border: '1px solid var(--border)',
-                }}
+                className={styles.rowBetween}
+                style={{ paddingTop: 'var(--space-3)', borderTop: '1px solid var(--color-border)' }}
               >
-                <Globe2 size={20} />
-              </div>
-              <div>
-                <h2 style={{ fontSize: '18px', fontWeight: '850', margin: 0 }}>
-                  {t('settingsNotifications.languageTitle')}
-                </h2>
-                <p style={{ color: 'var(--text-muted)', fontSize: '13px', margin: '4px 0 0 0' }}>
-                  {t('settingsNotifications.languageDescription')}
-                </p>
-              </div>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-              <button
-                onClick={() => setLocale('th')}
-                className="glass-interactive"
-                style={{
-                  padding: '16px',
-                  borderRadius: '16px',
-                  border: `1px solid ${locale === 'th' ? 'var(--primary)' : 'var(--border)'}`,
-                  background: locale === 'th' ? 'rgba(0,242,254,0.06)' : 'transparent',
-                  textAlign: 'left',
-                  cursor: 'pointer',
-                }}
-              >
-                <div style={{ fontSize: '13px', fontWeight: '900', marginBottom: '6px' }}>{t('common.thai')}</div>
-                <div style={{ color: 'var(--text-muted)', fontSize: '12px', lineHeight: '1.5' }}>
-                  {t('common.staffLanguageHint')}
+                <div>
+                  <div style={{ fontSize: 'var(--text-xs)', fontWeight: 'var(--weight-semibold)' }}>
+                    {t('settingsNotifications.currentMode')}
+                  </div>
+                  <div style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)', marginTop: '2px' }}>
+                    {soundModeLabel}
+                  </div>
                 </div>
-              </button>
-
-              <button
-                onClick={() => setLocale('en')}
-                className="glass-interactive"
-                style={{
-                  padding: '16px',
-                  borderRadius: '16px',
-                  border: `1px solid ${locale === 'en' ? 'var(--primary)' : 'var(--border)'}`,
-                  background: locale === 'en' ? 'rgba(0,242,254,0.06)' : 'transparent',
-                  textAlign: 'left',
-                  cursor: 'pointer',
-                }}
-              >
-                <div style={{ fontSize: '13px', fontWeight: '900', marginBottom: '6px' }}>
-                  {t('common.english')}
-                </div>
-                <div style={{ color: 'var(--text-muted)', fontSize: '12px', lineHeight: '1.5' }}>
-                  {t('common.staffLanguageHint')}
-                </div>
-              </button>
-            </div>
-
-            <div style={{ marginTop: '20px', fontSize: '12px' }}>
-              <div style={{ fontWeight: '900' }}>{t('settingsNotifications.currentLanguage')}</div>
-              <div style={{ color: 'var(--text-muted)', marginTop: '4px' }}>
-                {locale === 'th' ? t('common.thai') : t('common.english')}
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={onTestSound}
+                  disabled={!isSoundEnabled}
+                  leftIcon={<Play size={14} aria-hidden="true" />}
+                >
+                  {t('settingsNotifications.testSound')}
+                </Button>
               </div>
-            </div>
-          </div>
+            </CardBody>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
+                <div className={`${styles.statIcon} ${styles.statIconInfo}`}>
+                  <Globe2 size={18} aria-hidden="true" />
+                </div>
+                <div>
+                  <CardTitle>{t('settingsNotifications.languageTitle')}</CardTitle>
+                  <CardDescription>{t('settingsNotifications.languageDescription')}</CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+
+            <CardBody className={styles.stackMd}>
+              <div className={styles.formGrid2}>
+                <button
+                  type="button"
+                  onClick={() => setLocale('th')}
+                  aria-pressed={locale === 'th'}
+                  className={`${styles.optionCard} ${locale === 'th' ? styles.optionCardActive : ''}`}
+                >
+                  <span className={styles.optionCardTitle}>{t('common.thai')}</span>
+                  <span className={styles.optionCardDesc}>{t('common.staffLanguageHint')}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setLocale('en')}
+                  aria-pressed={locale === 'en'}
+                  className={`${styles.optionCard} ${locale === 'en' ? styles.optionCardActive : ''}`}
+                >
+                  <span className={styles.optionCardTitle}>{t('common.english')}</span>
+                  <span className={styles.optionCardDesc}>{t('common.staffLanguageHint')}</span>
+                </button>
+              </div>
+
+              <div style={{ fontSize: 'var(--text-xs)' }}>
+                <span style={{ fontWeight: 'var(--weight-semibold)' }}>
+                  {t('settingsNotifications.currentLanguage')}:{' '}
+                </span>
+                <span style={{ color: 'var(--color-text-muted)' }}>
+                  {locale === 'th' ? t('common.thai') : t('common.english')}
+                </span>
+              </div>
+            </CardBody>
+          </Card>
         </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-          <div className="glass" style={{ padding: '32px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
-              <div
-                className="flex-center"
-                style={{
-                  width: '44px',
-                  height: '44px',
-                  borderRadius: '14px',
-                  background: 'rgba(255,171,0,0.08)',
-                  color: 'var(--warning)',
-                  border: '1px solid var(--border)',
-                }}
-              >
-                <Bell size={20} />
+        {/* Right Column: Events & Browser Permission */}
+        <div className={styles.stackLg}>
+          <Card>
+            <CardHeader>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
+                <div className={`${styles.statIcon} ${styles.statIconWarning}`}>
+                  <Bell size={18} aria-hidden="true" />
+                </div>
+                <div>
+                  <CardTitle>{t('settingsNotifications.eventsTitle')}</CardTitle>
+                  <CardDescription>{t('settingsNotifications.eventsDescription')}</CardDescription>
+                </div>
               </div>
-              <div>
-                <h2 style={{ fontSize: '18px', fontWeight: '850', margin: 0 }}>
-                  {t('settingsNotifications.eventsTitle')}
-                </h2>
-                <p style={{ color: 'var(--text-muted)', fontSize: '13px', margin: '4px 0 0 0' }}>
-                  {t('settingsNotifications.eventsDescription')}
-                </p>
-              </div>
-            </div>
+            </CardHeader>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              {[
-                { id: 'new_ticket', label: t('settingsNotifications.eventNewTicket'), value: prefNewTicket },
-                { id: 'new_message', label: t('settingsNotifications.eventNewMessage'), value: prefNewMessage },
-                { id: 'transfer', label: t('settingsNotifications.eventTransfer'), value: prefTransfer },
-                { id: 'sla_warning', label: t('settingsNotifications.eventSlaWarning'), value: prefSlaWarning },
-              ].map((event) => (
-                <div 
-                  key={event.id}
-                  className="glass-interactive"
-                  onClick={() => updatePreference(event.id, !event.value)}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    padding: '16px 20px',
-                    borderRadius: '16px',
-                    border: '1px solid var(--border)',
-                    cursor: 'pointer'
-                  }}
-                >
-                  <span style={{ fontSize: '14px', fontWeight: '600' }}>{event.label}</span>
-                  <div 
-                    style={{
-                      width: '44px',
-                      height: '24px',
-                      borderRadius: '12px',
-                      background: event.value ? 'var(--primary)' : 'var(--bg-input)',
-                      position: 'relative',
-                      transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                      border: '1px solid var(--border)'
-                    }}
-                  >
-                    <div 
-                      style={{
-                        width: '18px',
-                        height: '18px',
-                        borderRadius: '50%',
-                        background: 'white',
-                        position: 'absolute',
-                        top: '2px',
-                        left: event.value ? '22px' : '2px',
-                        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                        boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-                      }}
-                    />
+            <CardBody className={styles.stackSm}>
+              {eventRows.map((event) => {
+                const labelId = `notif-event-${event.id}`;
+                return (
+                  <div key={event.id} className={styles.switchRow}>
+                    <span id={labelId} className={styles.switchLabel}>
+                      {event.label}
+                    </span>
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={event.value}
+                      aria-labelledby={labelId}
+                      onClick={() => updatePreference(event.id, !event.value)}
+                      className={`${styles.switchTrack} ${event.value ? styles.switchTrackOn : ''}`}
+                    >
+                      <span className={styles.switchThumb} />
+                    </button>
+                  </div>
+                );
+              })}
+            </CardBody>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>{t('settingsNotifications.systemNotificationTitle')}</CardTitle>
+              <CardDescription>{t('settingsNotifications.systemNotificationDescription')}</CardDescription>
+            </CardHeader>
+
+            <CardBody className={styles.stackMd}>
+              <div className={styles.rowBetween}>
+                <div style={{ fontSize: 'var(--text-xs)' }}>
+                  <div style={{ fontWeight: 'var(--weight-semibold)' }}>
+                    {t('settingsNotifications.permissionStatus')}
+                  </div>
+                  <div style={{ marginTop: '4px' }}>
+                    <Badge
+                      variant={
+                        permission === 'granted' ? 'success' : permission === 'denied' ? 'danger' : 'neutral'
+                      }
+                      size="sm"
+                      dot
+                    >
+                      {permissionLabel}
+                    </Badge>
                   </div>
                 </div>
-              ))}
-            </div>
-          </div>
+                <Button size="sm" variant="secondary" onClick={requestNotificationPermission}>
+                  {t('settingsNotifications.requestPermission')}
+                </Button>
+              </div>
 
-          <div className="glass" style={{ padding: '32px', height: 'fit-content', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          <div>
-            <h3 style={{ fontSize: '14px', fontWeight: '900', marginTop: 0, marginBottom: '6px' }}>
-              {t('settingsNotifications.systemNotificationTitle')}
-            </h3>
-            <p style={{ color: 'var(--text-muted)', fontSize: '12px', lineHeight: '1.7', margin: 0 }}>
-              {t('settingsNotifications.systemNotificationDescription')}
-            </p>
-          </div>
-
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
-            <div style={{ fontSize: '12px' }}>
-              <div style={{ fontWeight: '900' }}>{t('settingsNotifications.permissionStatus')}</div>
-              <div style={{ color: 'var(--text-muted)', marginTop: '4px' }}>{permissionLabel}</div>
-            </div>
-            <button
-              onClick={requestNotificationPermission}
-              className="glass-interactive"
-              style={{
-                padding: '10px 14px',
-                borderRadius: '12px',
-                border: '1px solid var(--border)',
-                background: 'var(--bg-input)',
-                color: 'var(--text-main)',
-                cursor: 'pointer',
-                fontWeight: '800',
-              }}
-              title={t('settingsNotifications.requestPermission')}
-            >
-              {t('settingsNotifications.requestPermission')}
-            </button>
-          </div>
-
-          <div style={{ borderTop: '1px solid var(--border)', paddingTop: '14px' }}>
-            <h3 style={{ fontSize: '14px', fontWeight: '900', marginTop: 0 }}>
-              {t('settingsNotifications.noteTitle')}
-            </h3>
-            <p style={{ color: 'var(--text-muted)', fontSize: '12px', lineHeight: '1.7', marginBottom: 0 }}>
-              {t('settingsNotifications.noteBody')}
-            </p>
-          </div>
+              <div
+                style={{
+                  paddingTop: 'var(--space-3)',
+                  borderTop: '1px solid var(--color-border)',
+                }}
+              >
+                <h3 style={{ fontSize: 'var(--text-sm)', fontWeight: 'var(--weight-semibold)', marginBottom: '4px' }}>
+                  {t('settingsNotifications.noteTitle')}
+                </h3>
+                <p style={{ color: 'var(--color-text-muted)', fontSize: 'var(--text-xs)', lineHeight: 'var(--leading-normal)' }}>
+                  {t('settingsNotifications.noteBody')}
+                </p>
+              </div>
+            </CardBody>
+          </Card>
         </div>
       </div>
     </div>
-  </div>
   );
 }

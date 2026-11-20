@@ -1,6 +1,8 @@
 'use client';
+
 import React, { useState } from 'react';
-import { X, FileText, Download, Loader2, CheckCircle2, Info, Printer } from 'lucide-react';
+import { CheckCircle2, Download, FileText, Info, Printer } from 'lucide-react';
+import { Button, Modal } from '@/components/ui';
 
 interface SummaryExportModalProps {
   isOpen: boolean;
@@ -18,10 +20,6 @@ export default function SummaryExportModal({
   ticketNo,
 }: SummaryExportModalProps) {
   const [loading, setLoading] = useState(false);
-  const modalTitleColor = 'var(--text-main)';
-  const modalTextColor = 'var(--text-main)';
-  const modalMutedColor = 'var(--text-muted)';
-  const modalDimColor = 'var(--text-dim)';
 
   const handleDownload = async () => {
     setLoading(true);
@@ -48,200 +46,99 @@ export default function SummaryExportModal({
     }
   };
 
-  if (!isOpen) return null;
-
   return (
-    <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        background: 'rgba(10, 14, 20, 0.85)',
-        backdropFilter: 'blur(16px)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 2000,
-        animation: 'fadeIn 0.3s ease-out',
-      }}
-    >
-      <div
-        className="glass"
-        style={{
-          width: '100%',
-          maxWidth: '460px',
-          padding: '32px',
-          boxShadow: '0 40px 100px rgba(0,0,0,0.4)',
-          position: 'relative',
-          border: '1px solid var(--border)',
-          borderRadius: '28px',
-          background: 'linear-gradient(180deg, var(--bg-sidebar) 0%, var(--bg-deep) 100%)',
-        }}
-      >
-        <button
-          onClick={onClose}
-          className="glass-interactive"
-          style={{
-            position: 'absolute',
-            top: '24px',
-            right: '24px',
-            background: 'none',
-            border: 'none',
-            cursor: 'pointer',
-            color: modalMutedColor,
-            width: '36px',
-            height: '36px',
-            borderRadius: '50%',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          <X size={20} />
-        </button>
-
-        <div style={{ textAlign: 'center', marginBottom: '32px' }}>
-          <div
-            style={{
-              width: '80px',
-              height: '80px',
-              background: 'var(--primary-transparent)',
-              color: 'var(--primary)',
-              borderRadius: '24px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              margin: '0 auto 24px',
-              boxShadow: '0 15px 35px var(--primary-glow)',
-            }}
-          >
-            <FileText size={36} />
-          </div>
-          <h2 style={{ fontSize: '24px', fontWeight: '900', marginBottom: '8px', letterSpacing: '-0.5px', color: modalTitleColor }}>
-            ตัวอย่าง Ticket Summary
-          </h2>
-          <p style={{ fontSize: '14px', color: modalMutedColor, fontWeight: '500' }}>
-            ตรวจสอบสรุปรายงานของใบงาน <strong style={{ color: 'var(--primary)' }}>#{ticketNo}</strong> ก่อนเลือกการดำเนินการ
-          </p>
-        </div>
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '32px' }}>
-          <div
-            style={{
-              background: 'var(--bg-input)',
-              borderRadius: '20px',
-              padding: '20px',
-              border: '1px solid var(--border)',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '12px',
-            }}
-          >
-            <span style={{ fontSize: '11px', color: modalDimColor, fontWeight: '800', textTransform: 'uppercase', letterSpacing: '1px' }}>
-              ข้อมูลที่จะแสดง
-            </span>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              {[
-                'ข้อมูลลูกค้าและหน่วยงาน',
-                'รายละเอียดปัญหา (หัวข้อ/รายละเอียดเพิ่มเติม)',
-                'ประวัติการสนทนาและเวลาการดำเนินงาน',
-                'สรุปการแก้ไขและสถานะสุดท้าย',
-              ].map((item, i) => (
-                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <CheckCircle2 size={14} color="#10b981" />
-                  <span style={{ fontSize: '13px', color: modalTextColor, fontWeight: '500' }}>{item}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '0 8px' }}>
-            <Info size={14} color="var(--primary)" />
-            <p style={{ fontSize: '11px', color: modalMutedColor, fontWeight: '500' }}>
-              เลือกได้ทั้งดาวน์โหลดเป็นไฟล์ PDF หรือสั่งพิมพ์ทันที
-            </p>
-          </div>
-        </div>
-
-        <div style={{ display: 'flex', gap: '12px' }}>
-          <button
-            onClick={onClose}
-            disabled={loading}
-            className="glass-interactive"
-            style={{
-              flex: 1,
-              padding: '16px',
-              borderRadius: '16px',
-              background: 'var(--bg-card)',
-              color: modalTextColor,
-              border: '1px solid var(--border)',
-              fontWeight: '700',
-              fontSize: '15px',
-              cursor: 'pointer',
-            }}
-          >
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      size="sm"
+      title={
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+          <FileText size={18} color="var(--color-primary)" aria-hidden="true" />
+          ตัวอย่าง Ticket Summary
+        </span>
+      }
+      description={
+        <>
+          ตรวจสอบสรุปรายงานของใบงาน{' '}
+          <strong className="tabular-nums" style={{ color: 'var(--color-primary)' }}>
+            #{ticketNo}
+          </strong>{' '}
+          ก่อนเลือกการดำเนินการ
+        </>
+      }
+      footer={
+        <>
+          <Button variant="secondary" onClick={onClose} disabled={loading}>
             ยกเลิก
-          </button>
-
+          </Button>
           {onPrint && (
-            <button
+            <Button
+              variant="secondary"
               onClick={handlePrint}
               disabled={loading}
-              className="glass-interactive"
-              style={{
-                flex: 1,
-                padding: '16px',
-                borderRadius: '16px',
-                background: 'var(--primary-transparent)',
-                color: 'var(--primary)',
-                border: '1px solid var(--primary)',
-                fontWeight: '900',
-                fontSize: '15px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '8px',
-                cursor: 'pointer',
-              }}
+              leftIcon={<Printer size={16} aria-hidden="true" />}
             >
-              <Printer size={18} />
               พิมพ์
-            </button>
+            </Button>
           )}
-
-          <button
+          <Button
+            variant="primary"
             onClick={handleDownload}
-            disabled={loading}
-            className="glass-interactive"
+            loading={loading}
+            leftIcon={<Download size={16} aria-hidden="true" />}
+          >
+            ดาวน์โหลด
+          </Button>
+        </>
+      }
+    >
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+        <div
+          style={{
+            background: 'var(--color-surface-subtle)',
+            borderRadius: 'var(--radius-md)',
+            padding: '16px',
+            border: '1px solid var(--color-border)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '10px',
+          }}
+        >
+          <span
             style={{
-              flex: 2,
-              padding: '16px',
-              borderRadius: '16px',
-              background: 'var(--primary)',
-              color: 'var(--bg-deep)',
-              border: 'none',
-              fontWeight: '900',
-              fontSize: '15px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '10px',
-              boxShadow: '0 10px 25px var(--primary-glow)',
-              opacity: loading ? 0.7 : 1,
-              cursor: 'pointer',
+              fontSize: 'var(--text-xs)',
+              color: 'var(--color-text-muted)',
+              fontWeight: 700,
+              textTransform: 'uppercase',
             }}
           >
-            {loading ? (
-              <Loader2 size={20} className="animate-spin" />
-            ) : (
-              <>
-                <Download size={20} />
-                ดาวน์โหลด
-              </>
-            )}
-          </button>
+            ข้อมูลที่จะแสดง
+          </span>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            {[
+              'ข้อมูลลูกค้าและหน่วยงาน',
+              'รายละเอียดปัญหา (หัวข้อ/รายละเอียดเพิ่มเติม)',
+              'ประวัติการสนทนาและเวลาการดำเนินงาน',
+              'สรุปการแก้ไขและสถานะสุดท้าย',
+            ].map((item, i) => (
+              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <CheckCircle2 size={14} color="var(--color-success)" aria-hidden="true" />
+                <span style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text)' }}>
+                  {item}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <Info size={14} color="var(--color-primary)" aria-hidden="true" />
+          <p style={{ margin: 0, fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)' }}>
+            เลือกได้ทั้งดาวน์โหลดเป็นไฟล์ PDF หรือสั่งพิมพ์ทันที
+          </p>
         </div>
       </div>
-    </div>
+    </Modal>
   );
 }

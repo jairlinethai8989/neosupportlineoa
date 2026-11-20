@@ -1,11 +1,6 @@
 'use client';
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { 
-  ArrowLeft,
-  Loader2,
-  RefreshCw,
-  ShieldAlert
-} from 'lucide-react';
+import { ArrowLeft, Loader2, RefreshCw, ShieldAlert } from 'lucide-react';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import { useAppContext } from '@/contexts/AppContext';
@@ -15,18 +10,21 @@ import { analyticsQueries, type AgentAnalyticsData } from '@/lib/tickets/analyti
 import { supabase } from '@/lib/supabase';
 import { DateTime } from 'luxon';
 import type { TeamMemberStats } from './StaffAnalyticsDashboard';
+import { Button, Card, CardBody, EmptyState, PageHeader } from '@/components/ui';
+import styles from '@/components/analytics/analytics.module.css';
 
-// Dynamically import StaffAnalyticsDashboard with a loader skeleton
 const StaffAnalyticsDashboard = dynamic(
-  () => import('./StaffAnalyticsDashboard').then(m => m.StaffAnalyticsDashboard),
+  () => import('./StaffAnalyticsDashboard').then((m) => m.StaffAnalyticsDashboard),
   {
     ssr: false,
     loading: () => (
-      <div className="flex-center" style={{ height: '50vh', flexDirection: 'column', gap: '16px' }}>
-        <Loader2 className="animate-spin" size={40} color="var(--primary)" />
-        <p style={{ color: 'var(--text-muted)', fontSize: '14px', fontWeight: '600' }}>กำลังโหลดสรุปผลงานและข้อมูลกราฟ...</p>
+      <div className="flex-center" style={{ height: '45vh', flexDirection: 'column', gap: 16 }}>
+        <Loader2 className="animate-spin" size={36} color="var(--color-primary)" />
+        <p style={{ color: 'var(--color-text-muted)', fontSize: 'var(--text-sm)', fontWeight: 600 }}>
+          กำลังโหลดสรุปผลงานและข้อมูลกราฟ...
+        </p>
       </div>
-    )
+    ),
   }
 );
 
@@ -44,23 +42,21 @@ export default function StaffAnalyticsPage() {
   const [mounted, setMounted] = useState(false);
   const [loading, setLoading] = useState(true);
   const [loadingStats, setLoadingStats] = useState(false);
-  
-  // Staff Profiles List
+
   const [staffList, setStaffList] = useState<StaffProfile[]>([]);
   const [selectedAgentId, setSelectedAgentId] = useState<string>('');
   const [selectedAgentName, setSelectedAgentName] = useState<string>('');
-  
+
   const [data, setData] = useState<AgentAnalyticsData | null>(null);
   const [teamStats, setTeamStats] = useState<TeamMemberStats[]>([]);
-  
+
   const [dateRange, setDateRange] = useState({
     start: DateTime.now().minus({ days: 30 }).toISODate()!,
-    end: DateTime.now().toISODate()!
+    end: DateTime.now().toISODate()!,
   });
 
   const [activeRange, setActiveRange] = useState<'30days' | '7days'>('30days');
 
-  // Security authorization check
   const hasAccess = useMemo(() => {
     if (!userProfile) return false;
     if (userProfile.role === 'Administrator') return true;
@@ -71,7 +67,6 @@ export default function StaffAnalyticsPage() {
     setMounted(true);
   }, []);
 
-  // Fetch all staff members to populate the selector
   const fetchStaffList = useCallback(async () => {
     try {
       const { data: profiles, error } = await supabase
@@ -101,23 +96,25 @@ export default function StaffAnalyticsPage() {
     }
   }, [fetchStaffList, hasAccess, mounted]);
 
-  // Fetch performance data for the selected agent
-  const fetchAgentPerformance = useCallback(async (agentId: string) => {
-    if (!agentId) return;
-    setLoadingStats(true);
-    try {
-      const [stats, tStats] = await Promise.all([
-        analyticsQueries.getAgentAnalytics(agentId, dateRange.start, dateRange.end),
-        analyticsQueries.getTeamAnalytics(dateRange.start, dateRange.end)
-      ]);
-      setData(stats);
-      setTeamStats(tStats);
-    } catch (err) {
-      console.error('Failed to fetch stats:', err);
-    } finally {
-      setLoadingStats(false);
-    }
-  }, [dateRange.start, dateRange.end]);
+  const fetchAgentPerformance = useCallback(
+    async (agentId: string) => {
+      if (!agentId) return;
+      setLoadingStats(true);
+      try {
+        const [stats, tStats] = await Promise.all([
+          analyticsQueries.getAgentAnalytics(agentId, dateRange.start, dateRange.end),
+          analyticsQueries.getTeamAnalytics(dateRange.start, dateRange.end),
+        ]);
+        setData(stats);
+        setTeamStats(tStats);
+      } catch (err) {
+        console.error('Failed to fetch stats:', err);
+      } finally {
+        setLoadingStats(false);
+      }
+    },
+    [dateRange.start, dateRange.end]
+  );
 
   useEffect(() => {
     if (selectedAgentId) {
@@ -128,7 +125,7 @@ export default function StaffAnalyticsPage() {
   const handleAgentChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const id = e.target.value;
     setSelectedAgentId(id);
-    const agent = staffList.find(s => s.id === id);
+    const agent = staffList.find((s) => s.id === id);
     if (agent) {
       setSelectedAgentName(agent.full_name);
     }
@@ -139,12 +136,12 @@ export default function StaffAnalyticsPage() {
     if (range === '30days') {
       setDateRange({
         start: DateTime.now().minus({ days: 30 }).toISODate()!,
-        end: DateTime.now().toISODate()!
+        end: DateTime.now().toISODate()!,
       });
     } else {
       setDateRange({
         start: DateTime.now().minus({ days: 7 }).toISODate()!,
-        end: DateTime.now().toISODate()!
+        end: DateTime.now().toISODate()!,
       });
     }
   };
@@ -155,95 +152,76 @@ export default function StaffAnalyticsPage() {
 
   if (!mounted) return null;
 
-  // Unauthorised fallback view
   if (!loading && !hasAccess) {
     return (
-      <div className="flex-center" style={{ height: '70vh', animation: 'fadeIn 0.5s ease-out' }}>
-        <div className="glass" style={{ maxWidth: '480px', padding: '40px', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '20px' }}>
-          <div style={{ background: 'rgba(234, 84, 85, 0.1)', padding: '16px', borderRadius: '50%', color: 'var(--danger)' }}>
-            <ShieldAlert size={48} />
-          </div>
-          <h2 style={{ fontSize: '22px', fontWeight: '800', color: 'var(--text-main)' }}>คุณไม่มีสิทธิ์ในการเข้าถึงหน้านี้</h2>
-          <p style={{ fontSize: '14px', color: 'var(--text-muted)', lineHeight: '1.5' }}>
-            สิทธิ์การเข้าถึงข้อมูลแดชบอร์ดสถิติพนักงานระดับบริหารนี้ ถูกกำหนดไว้เฉพาะผู้ดูแลระบบหลักหรือผู้ได้รับมอบหมายพิเศษเท่านั้น
-          </p>
-          <Link href="/" className="glass-interactive" style={{ padding: '12px 24px', background: 'var(--primary)', color: '#0a0e14', fontWeight: '800', borderRadius: '12px', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
-            <ArrowLeft size={16} /> กลับหน้าหลัก
-          </Link>
-        </div>
+      <div className="flex-center" style={{ height: '65vh' }}>
+        <Card style={{ maxWidth: 460 }}>
+          <CardBody>
+            <EmptyState
+              icon={<ShieldAlert size={36} color="var(--color-danger)" aria-hidden="true" />}
+              title="คุณไม่มีสิทธิ์ในการเข้าถึงหน้านี้"
+              description="สิทธิ์การเข้าถึงข้อมูลแดชบอร์ดสถิติพนักงานระดับบริหารนี้ ถูกกำหนดไว้เฉพาะผู้ดูแลระบบหลักหรือผู้ได้รับมอบหมายพิเศษเท่านั้น"
+              action={
+                <Link href="/" style={{ textDecoration: 'none' }}>
+                  <Button variant="primary" leftIcon={<ArrowLeft size={16} aria-hidden="true" />}>
+                    กลับหน้าหลัก
+                  </Button>
+                </Link>
+              }
+            />
+          </CardBody>
+        </Card>
       </div>
     );
   }
 
   return (
-    <div style={{ animation: 'fadeIn 0.5s ease-out' }}>
-      {/* Top Header Selector Area */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px', flexWrap: 'wrap', gap: '16px' }}>
-        <div>
-          <h1 style={{ fontSize: '28px', fontWeight: '800', lineHeight: '1.1', color: 'var(--text-main)' }}>
-            {locale === 'th' ? 'สถิติผลงานพนักงาน' : 'Staff Performance Analytics'}
-          </h1>
-          <p style={{ fontSize: '13px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px', marginTop: '4px' }}>
-            Executive Dashboards & Performance Insights
-          </p>
-        </div>
+    <div className={styles.pageStack}>
+      <PageHeader
+        title={locale === 'th' ? 'สถิติผลงานพนักงาน' : 'Staff Performance Analytics'}
+        subtitle="ติดตามภาระงาน ประสิทธิภาพ และผลประเมินพนักงานรายบุคคล"
+        actions={
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            <div className={styles.segmentedGroup} role="group" aria-label="ช่วงเวลาย้อนหลัง">
+              <button
+                type="button"
+                onClick={() => handleRangeChange('30days')}
+                className={`${styles.segmentedBtn} ${activeRange === '30days' ? styles.segmentedBtnActive : ''}`}
+              >
+                30 วันล่าสุด
+              </button>
+              <button
+                type="button"
+                onClick={() => handleRangeChange('7days')}
+                className={`${styles.segmentedBtn} ${activeRange === '7days' ? styles.segmentedBtnActive : ''}`}
+              >
+                7 วันล่าสุด
+              </button>
+            </div>
 
-        {/* Date Selector */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-          {/* Range Selection */}
-          <div style={{ display: 'flex', background: 'rgba(0,0,0,0.2)', padding: '4px', borderRadius: '12px', border: '1px solid var(--border)' }}>
-            <button 
-              onClick={() => handleRangeChange('30days')}
-              style={{
-                padding: '8px 16px',
-                borderRadius: '10px',
-                border: 'none',
-                fontSize: '13px',
-                fontWeight: '700',
-                cursor: 'pointer',
-                background: activeRange === '30days' ? 'rgba(255,255,255,0.08)' : 'transparent',
-                color: activeRange === '30days' ? 'var(--primary)' : 'var(--text-dim)',
-                transition: 'all 0.2s'
-              }}
+            <Button
+              variant="secondary"
+              size="md"
+              iconOnly
+              onClick={() => selectedAgentId && fetchAgentPerformance(selectedAgentId)}
+              aria-label="รีเฟรชข้อมูลพนักงาน"
             >
-              30 วันล่าสุด
-            </button>
-            <button 
-              onClick={() => handleRangeChange('7days')}
-              style={{
-                padding: '8px 16px',
-                borderRadius: '10px',
-                border: 'none',
-                fontSize: '13px',
-                fontWeight: '700',
-                cursor: 'pointer',
-                background: activeRange === '7days' ? 'rgba(255,255,255,0.08)' : 'transparent',
-                color: activeRange === '7days' ? 'var(--primary)' : 'var(--text-dim)',
-                transition: 'all 0.2s'
-              }}
-            >
-              7 วันล่าสุด
-            </button>
+              {loadingStats ? <Loader2 size={16} className="animate-spin" aria-hidden="true" /> : <RefreshCw size={16} aria-hidden="true" />}
+            </Button>
           </div>
-
-          <button 
-            onClick={() => selectedAgentId && fetchAgentPerformance(selectedAgentId)}
-            className="glass-interactive"
-            style={{ padding: '10px', borderRadius: '12px', color: 'var(--text-muted)' }}
-          >
-            {loadingStats ? <Loader2 size={18} className="animate-spin" /> : <RefreshCw size={18} />}
-          </button>
-        </div>
-      </div>
+        }
+      />
 
       {showFullPageLoader ? (
-        <div className="flex-center" style={{ height: '50vh' }}>
-          <Loader2 className="animate-spin" size={40} color="var(--primary)" />
+        <div className="flex-center" style={{ height: '45vh' }}>
+          <Loader2 className="animate-spin" size={36} color="var(--color-primary)" />
         </div>
       ) : !data ? (
-        <div className="glass flex-center" style={{ padding: '64px', textAlign: 'center' }}>
-          <p style={{ color: 'var(--text-muted)' }}>ไม่มีข้อมูลสรุปสำหรับพนักงานคนนี้</p>
-        </div>
+        <Card>
+          <CardBody>
+            <EmptyState title="ไม่มีข้อมูลสรุปสำหรับพนักงานคนนี้" />
+          </CardBody>
+        </Card>
       ) : (
         <StaffAnalyticsDashboard
           data={data}

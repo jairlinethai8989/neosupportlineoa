@@ -1,9 +1,11 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
-import React, { useState, useCallback } from 'react';
+
+import React, { useState, useCallback, useId } from 'react';
 import Cropper from 'react-easy-crop';
-import getCroppedImg from '@/lib/utils/cropImage';
 import { Check, X } from 'lucide-react';
+import getCroppedImg from '@/lib/utils/cropImage';
+import { Button, Modal } from '@/components/ui';
 
 interface ImageCropperProps {
   imageSrc: string;
@@ -15,12 +17,15 @@ export function ImageCropper({ imageSrc, onCropComplete, onCancel }: ImageCroppe
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<any>(null);
+  const [saving, setSaving] = useState(false);
+  const zoomId = useId();
 
-  const onCropCompleteHandler = useCallback((croppedArea: any, croppedAreaPixels: any) => {
-    setCroppedAreaPixels(croppedAreaPixels);
+  const onCropCompleteHandler = useCallback((_croppedArea: any, nextCroppedAreaPixels: any) => {
+    setCroppedAreaPixels(nextCroppedAreaPixels);
   }, []);
 
   const handleSave = async () => {
+    setSaving(true);
     try {
       const croppedImage = await getCroppedImg(imageSrc, croppedAreaPixels, 0);
       if (croppedImage) {
@@ -29,51 +34,104 @@ export function ImageCropper({ imageSrc, onCropComplete, onCancel }: ImageCroppe
     } catch (e) {
       console.error(e);
       alert('Error cropping image');
+    } finally {
+      setSaving(false);
     }
   };
 
   return (
-    <div style={{
-      position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-      backgroundColor: 'rgba(0,0,0,0.8)', zIndex: 99999,
-      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center'
-    }}>
-      <div style={{ position: 'relative', width: '90%', maxWidth: '500px', height: '60vh', background: '#333', borderRadius: '16px', overflow: 'hidden' }}>
-        <Cropper
-          image={imageSrc}
-          crop={crop}
-          zoom={zoom}
-          aspect={1}
-          cropShape="round"
-          showGrid={false}
-          onCropChange={setCrop}
-          onCropComplete={onCropCompleteHandler}
-          onZoomChange={setZoom}
-        />
-      </div>
-      
-      <div style={{ display: 'flex', gap: '16px', marginTop: '24px', background: 'var(--bg-card)', padding: '16px 24px', borderRadius: '16px', border: '1px solid var(--border)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginRight: '32px' }}>
-          <label style={{ fontSize: '12px', color: 'var(--text-muted)' }}>ซูม (Zoom)</label>
+    <Modal
+      isOpen
+      onClose={onCancel}
+      title="ปรับขนาดรูปโปรไฟล์"
+      description="ลากเพื่อจัดตำแหน่งและปรับซูมให้พอดีกับกรอบวงกลม"
+      size="md"
+      footer={
+        <>
+          <Button variant="secondary" onClick={onCancel} leftIcon={<X size={16} aria-hidden="true" />}>
+            ยกเลิก
+          </Button>
+          <Button
+            variant="primary"
+            onClick={handleSave}
+            loading={saving}
+            leftIcon={<Check size={16} aria-hidden="true" />}
+          >
+            ยืนยันการตัดรูป
+          </Button>
+        </>
+      }
+    >
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+        <div
+          style={{
+            position: 'relative',
+            width: '100%',
+            height: '340px',
+            background: '#0b1017',
+            borderRadius: 'var(--radius-lg)',
+            overflow: 'hidden',
+            border: '1px solid var(--color-border)',
+          }}
+        >
+          <Cropper
+            image={imageSrc}
+            crop={crop}
+            zoom={zoom}
+            aspect={1}
+            cropShape="round"
+            showGrid={false}
+            onCropChange={setCrop}
+            onCropComplete={onCropCompleteHandler}
+            onZoomChange={setZoom}
+          />
+        </div>
+
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 'var(--space-3)',
+            padding: 'var(--space-3) var(--space-4)',
+            background: 'var(--color-surface-subtle)',
+            border: '1px solid var(--color-border)',
+            borderRadius: 'var(--radius-md)',
+          }}
+        >
+          <label
+            htmlFor={zoomId}
+            style={{
+              fontSize: 'var(--text-xs)',
+              fontWeight: 'var(--weight-semibold)',
+              color: 'var(--color-text-muted)',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            ซูม (Zoom)
+          </label>
           <input
+            id={zoomId}
             type="range"
             value={zoom}
             min={1}
             max={3}
             step={0.1}
-            aria-labelledby="Zoom"
             onChange={(e) => setZoom(Number(e.target.value))}
-            style={{ width: '150px' }}
+            style={{ flex: 1, accentColor: 'var(--color-primary-solid)' }}
           />
+          <span
+            className="mono"
+            style={{
+              fontSize: 'var(--text-xs)',
+              color: 'var(--color-text-muted)',
+              minWidth: '38px',
+              textAlign: 'right',
+            }}
+          >
+            {zoom.toFixed(1)}x
+          </span>
         </div>
-        
-        <button onClick={onCancel} style={{ padding: '10px 20px', borderRadius: '10px', background: 'transparent', border: '1px solid var(--border)', color: 'var(--text-main)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 'bold' }}>
-          <X size={18} /> ยกเลิก
-        </button>
-        <button onClick={handleSave} style={{ padding: '10px 20px', borderRadius: '10px', background: 'var(--primary)', border: 'none', color: '#000', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 'bold' }}>
-          <Check size={18} /> ยืนยันการตัดรูป
-        </button>
       </div>
-    </div>
+    </Modal>
   );
 }

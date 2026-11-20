@@ -2,6 +2,7 @@ import React from 'react';
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, rectSortingStrategy } from '@dnd-kit/sortable';
 import { SortableWidget } from './SortableWidget';
+import styles from './analytics.module.css';
 
 interface SortableWidgetGridProps {
   activeWidgets: string[];
@@ -31,17 +32,17 @@ export function SortableWidgetGrid({ activeWidgets, setActiveWidgets, CHART_TYPE
   return (
     <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
       <SortableContext items={activeWidgets} strategy={rectSortingStrategy}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(400px, 1fr))', gap: '24px' }}>
-          {activeWidgets.map(id => {
-            const chart = CHART_TYPES.find(c => c.id === id);
+        <div className={styles.widgetGrid}>
+          {activeWidgets.map((id) => {
+            const chart = CHART_TYPES.find((c) => c.id === id);
             if (!chart) return null;
             return (
-              <SortableWidget 
-                key={id} 
-                id={id} 
-                chart={chart} 
+              <SortableWidget
+                key={id}
+                id={id}
+                chart={chart}
                 data={chartDataMap[id as keyof typeof chartDataMap] || []}
-                onRemove={(rid: string) => setActiveWidgets(prev => prev.filter(w => w !== rid))}
+                onRemove={(rid: string) => setActiveWidgets((prev) => prev.filter((w) => w !== rid))}
               />
             );
           })}

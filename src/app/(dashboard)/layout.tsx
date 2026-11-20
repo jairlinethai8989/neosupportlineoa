@@ -1,95 +1,75 @@
 'use client';
+
 import React, { useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import MainSidebar from '@/components/layout/MainSidebar';
 import { TopBar } from '@/components/layout/TopBar';
 import ToastContainer from '@/components/notifications/ToastContainer';
+import { CommandPalette } from '@/components/ui/CommandPalette';
 import { AppProvider, useAppContext } from '@/contexts/AppContext';
 import { NotificationProvider } from '@/contexts/NotificationContext';
 import { StaffLocaleProvider } from '@/contexts/StaffLocaleContext';
+import { SWRProvider } from '@/lib/swr-config';
 
 function DashboardInner({ children }: { children: React.ReactNode }) {
   const { loading: appLoading } = useAppContext();
 
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
 
   if (appLoading) {
     return (
-      <div className="flex-center" style={{ height: '100vh', background: 'var(--bg-main)' }}>
-        <Loader2 className="animate-spin" color="var(--primary)" size={40} />
+      <div
+        className="flex-center"
+        style={{ height: '100vh', background: 'var(--color-canvas)' }}
+        role="status"
+        aria-label="Loading workspace"
+      >
+        <Loader2 className="animate-spin" color="var(--color-primary)" size={36} aria-hidden="true" />
       </div>
     );
   }
 
   return (
     <NotificationProvider>
-      <div className="main-layout">
+      <div className="shell-layout">
         <ToastContainer />
+        <CommandPalette isOpen={isCommandPaletteOpen} onOpenChange={setIsCommandPaletteOpen} />
 
-        {isSidebarOpen && <div className="sidebar-overlay" onClick={() => setIsSidebarOpen(false)} />}
-
-      <div
-        className={`sidebar ${isSidebarOpen ? 'open' : ''} ${isSidebarCollapsed ? 'collapsed' : ''}`}
-        style={{
-          width:
-            typeof window !== 'undefined' && window.innerWidth > 1024
-              ? isSidebarCollapsed
-                ? '80px'
-                : '280px'
-              : '280px',
-          transition: 'width 0.3s cubic-bezier(0.4, 0, 0.2, 1), transform 0.3s ease, left 0.3s ease',
-        }}
-      >
-        <MainSidebar isCollapsed={isSidebarCollapsed} onClickLink={() => setIsSidebarOpen(false)} />
-      </div>
-
-      <main className="content-area">
-        <TopBar isSidebarOpen={isSidebarOpen} setIsSidebarOpen={setIsSidebarOpen} isSidebarCollapsed={isSidebarCollapsed} setIsSidebarCollapsed={setIsSidebarCollapsed} />
+        {isSidebarOpen && (
+          <button
+            type="button"
+            aria-label="Close navigation menu"
+            className="shell-sidebar-backdrop"
+            style={{ border: 'none' }}
+            onClick={() => setIsSidebarOpen(false)}
+          />
+        )}
 
         <div
-          style={{
-            flex: 1,
-            padding: '24px',
-            overflowX: 'hidden',
-            overflowY: 'auto',
-            position: 'relative',
-            display: 'flex',
-            flexDirection: 'column',
-          }}
+          className={`shell-sidebar ${isSidebarOpen ? 'open' : ''} ${isSidebarCollapsed ? 'collapsed' : ''}`}
         >
-          {children}
+          <MainSidebar isCollapsed={isSidebarCollapsed} onClickLink={() => setIsSidebarOpen(false)} />
         </div>
-      </main>
 
-      <style
-        dangerouslySetInnerHTML={{
-          __html: `
-            :root {
-              --primary-rgb: 59, 130, 246;
-            }
-            .hover-item:hover {
-              background: rgba(255,255,255,0.05) !important;
-            }
-            @keyframes pulse {
-              0%, 100% { opacity: 1; }
-              50% { opacity: 0.4; }
-            }
-            .sidebar.collapsed {
-              width: 80px !important;
-            }
-            @media (max-width: 1024px) {
-              .show-desktop { display: none !important; }
-            }
-          `,
-        }}
-      />
+        <div className="shell-main-column">
+          <TopBar
+            isSidebarOpen={isSidebarOpen}
+            setIsSidebarOpen={setIsSidebarOpen}
+            isSidebarCollapsed={isSidebarCollapsed}
+            setIsSidebarCollapsed={setIsSidebarCollapsed}
+            onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
+          />
+
+          <main id="main-content" tabIndex={-1} className="shell-content">
+            {children}
+          </main>
+        </div>
       </div>
     </NotificationProvider>
   );
 }
-
-import { SWRProvider } from '@/lib/swr-config';
 
 export default function DashboardLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
@@ -102,4 +82,3 @@ export default function DashboardLayout({ children }: Readonly<{ children: React
     </AppProvider>
   );
 }
-

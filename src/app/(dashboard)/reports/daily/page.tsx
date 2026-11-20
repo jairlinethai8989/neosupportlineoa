@@ -2,14 +2,30 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
-  Download, Loader2, Table as TableIcon, AlignLeft, Filter,
-  ArrowUpDown, Search, X, Calendar, ChevronRight, Share2
+  Download,
+  Loader2,
+  AlignLeft,
+  Filter,
+  ArrowUpDown,
+  Search,
+  X,
+  Share2,
 } from 'lucide-react';
 import Skeleton from '@/components/ui/Skeleton';
 import { useStaffLocale } from '@/contexts/StaffLocaleContext';
 import { useAppContext } from '@/contexts/AppContext';
-import { ExportPreviewModal, type ExportPreviewData } from '@/components/ui/ExportPreviewModal';
+import {
+  Badge,
+  Button,
+  Card,
+  CardBody,
+  ExportPreviewModal,
+  Input,
+  PageHeader,
+  type ExportPreviewData,
+} from '@/components/ui';
 import { useNotificationContext } from '@/contexts/NotificationContext';
+import styles from '@/components/reports/reports.module.css';
 
 type ExportUtilsModule = typeof import('@/lib/utils/exportUtils');
 
@@ -35,7 +51,7 @@ type ReportColumn = {
 
 const INITIAL_COLUMN_WIDTHS: Record<string, number> = {
   sequence: 72,
-  status: 84,
+  status: 96,
   date: 120,
   organization: 170,
   customer: 130,
@@ -85,14 +101,14 @@ export default function DailyReportPage() {
   const [filterText, setFilterText] = useState('');
   const [showFilter, setShowFilter] = useState(false);
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>(INITIAL_COLUMN_WIDTHS);
-  
+
   useEffect(() => {
     if (userProfile?.id) {
       try {
         const saved = localStorage.getItem(`neo_report_columnWidths_${userProfile.id}`);
         if (saved) {
           const parsed = JSON.parse(saved);
-          setColumnWidths(prev => ({ ...prev, ...parsed }));
+          setColumnWidths((prev) => ({ ...prev, ...parsed }));
         }
       } catch {}
     }
@@ -112,7 +128,6 @@ export default function DailyReportPage() {
   const [showPreview, setShowPreview] = useState(false);
   const [previewData, setPreviewData] = useState<ExportPreviewData | null>(null);
 
-  // Google Sheets Export States
   const [isExportingGSheets, setIsExportingGSheets] = useState(false);
   const [isExportingLark, setIsExportingLark] = useState(false);
 
@@ -166,7 +181,7 @@ export default function DailyReportPage() {
   };
 
   useEffect(() => {
-    fetchTickets(dateRange.start, dateRange.end);
+    void fetchTickets(dateRange.start, dateRange.end);
   }, [dateRange]);
 
   const applyPreset = (type: string) => {
@@ -189,7 +204,7 @@ export default function DailyReportPage() {
 
     setDateRange({
       start: start.toISOString().split('T')[0],
-      end: end.toISOString().split('T')[0]
+      end: end.toISOString().split('T')[0],
     });
     setPreset(type);
   };
@@ -214,14 +229,15 @@ export default function DailyReportPage() {
 
     if (filterText) {
       const lower = filterText.toLowerCase();
-      result = result.filter(ticket =>
-        ticket.subject_only.toLowerCase().includes(lower) ||
-        ticket.description.toLowerCase().includes(lower) ||
-        ticket.customer_name.toLowerCase().includes(lower) ||
-        ticket.hospital_name.toLowerCase().includes(lower) ||
-        ticket.assignee_name.toLowerCase().includes(lower) ||
-        ticket.status.toLowerCase().includes(lower) ||
-        ticket.module.toLowerCase().includes(lower)
+      result = result.filter(
+        (ticket) =>
+          ticket.subject_only.toLowerCase().includes(lower) ||
+          ticket.description.toLowerCase().includes(lower) ||
+          ticket.customer_name.toLowerCase().includes(lower) ||
+          ticket.hospital_name.toLowerCase().includes(lower) ||
+          ticket.assignee_name.toLowerCase().includes(lower) ||
+          ticket.status.toLowerCase().includes(lower) ||
+          ticket.module.toLowerCase().includes(lower)
       );
     }
 
@@ -231,20 +247,61 @@ export default function DailyReportPage() {
         let valB: any = '';
 
         switch (sortConfig.key) {
-          case 'status': valA = a.status; valB = b.status; break;
-          case 'date': valA = a.created_at; valB = b.created_at; break;
-          case 'organization': valA = a.hospital_name; valB = b.hospital_name; break;
-          case 'customer': valA = a.customer_name || a.assignee_name; valB = b.customer_name || b.assignee_name; break;
-          case 'subject': valA = a.subject_only; valB = b.subject_only; break;
-          case 'description': valA = a.description; valB = b.description; break;
-          case 'resolution': valA = a.resolution_summary; valB = b.resolution_summary; break;
-          case 'agent': valA = a.assignee_name; valB = b.assignee_name; break;
-          case 'source': valA = a.source; valB = b.source; break;
-          case 'module': valA = a.module; valB = b.module; break;
-          case 'type': valA = a.issue_type; valB = b.issue_type; break;
-          case 'resolved_at': valA = a.resolved_at || ''; valB = b.resolved_at || ''; break;
-          case 'duration': valA = a.duration_ms; valB = b.duration_ms; break;
-          default: valA = a.created_at; valB = b.created_at;
+          case 'status':
+            valA = a.status;
+            valB = b.status;
+            break;
+          case 'date':
+            valA = a.created_at;
+            valB = b.created_at;
+            break;
+          case 'organization':
+            valA = a.hospital_name;
+            valB = b.hospital_name;
+            break;
+          case 'customer':
+            valA = a.customer_name || a.assignee_name;
+            valB = b.customer_name || b.assignee_name;
+            break;
+          case 'subject':
+            valA = a.subject_only;
+            valB = b.subject_only;
+            break;
+          case 'description':
+            valA = a.description;
+            valB = b.description;
+            break;
+          case 'resolution':
+            valA = a.resolution_summary;
+            valB = b.resolution_summary;
+            break;
+          case 'agent':
+            valA = a.assignee_name;
+            valB = b.assignee_name;
+            break;
+          case 'source':
+            valA = a.source;
+            valB = b.source;
+            break;
+          case 'module':
+            valA = a.module;
+            valB = b.module;
+            break;
+          case 'type':
+            valA = a.issue_type;
+            valB = b.issue_type;
+            break;
+          case 'resolved_at':
+            valA = a.resolved_at || '';
+            valB = b.resolved_at || '';
+            break;
+          case 'duration':
+            valA = a.duration_ms;
+            valB = b.duration_ms;
+            break;
+          default:
+            valA = a.created_at;
+            valB = b.created_at;
         }
 
         if (valA < valB) return sortConfig.direction === 'asc' ? -1 : 1;
@@ -257,32 +314,35 @@ export default function DailyReportPage() {
   }, [tickets, filterText, sortConfig]);
 
   const handleSort = (key: string) => {
-    setSortConfig(prev => {
+    setSortConfig((prev) => {
       if (prev?.key === key) return { key, direction: prev.direction === 'asc' ? 'desc' : 'asc' };
       return { key, direction: 'asc' };
     });
   };
 
-  const handleResizeStart = useCallback((columnId: string, event: React.MouseEvent<HTMLDivElement>) => {
-    event.preventDefault();
-    event.stopPropagation();
+  const handleResizeStart = useCallback(
+    (columnId: string, event: React.MouseEvent<HTMLDivElement>) => {
+      event.preventDefault();
+      event.stopPropagation();
 
-    const startX = event.clientX;
-    const startWidth = columnWidths[columnId] ?? 120;
+      const startX = event.clientX;
+      const startWidth = columnWidths[columnId] ?? 120;
 
-    const onMouseMove = (moveEvent: MouseEvent) => {
-      const nextWidth = Math.max(90, startWidth + (moveEvent.clientX - startX));
-      setColumnWidths(prev => ({ ...prev, [columnId]: nextWidth }));
-    };
+      const onMouseMove = (moveEvent: MouseEvent) => {
+        const nextWidth = Math.max(90, startWidth + (moveEvent.clientX - startX));
+        setColumnWidths((prev) => ({ ...prev, [columnId]: nextWidth }));
+      };
 
-    const onMouseUp = () => {
-      window.removeEventListener('mousemove', onMouseMove);
-      window.removeEventListener('mouseup', onMouseUp);
-    };
+      const onMouseUp = () => {
+        window.removeEventListener('mousemove', onMouseMove);
+        window.removeEventListener('mouseup', onMouseUp);
+      };
 
-    window.addEventListener('mousemove', onMouseMove);
-    window.addEventListener('mouseup', onMouseUp);
-  }, [columnWidths]);
+      window.addEventListener('mousemove', onMouseMove);
+      window.addEventListener('mouseup', onMouseUp);
+    },
+    [columnWidths]
+  );
 
   const handleExportExcel = () => {
     const preview: ExportPreviewData = {
@@ -291,7 +351,7 @@ export default function DailyReportPage() {
       subtitle: t('reports.dailySubtitle'),
       totalRecords: processedTickets.length,
       dateRange: `${dateRange.start} - ${dateRange.end}`,
-      columns: columns.map(c => c.label)
+      columns: columns.map((c) => c.label),
     };
     setPreviewData(preview);
     setShowPreview(true);
@@ -300,13 +360,13 @@ export default function DailyReportPage() {
   const executeExport = async () => {
     setIsExporting(true);
     setShowPreview(false);
-    
+
     const toastId = `excel-export-${Date.now()}`;
     addToast({
       id: toastId,
       type: 'ticket',
       title: 'กำลังส่งออกข้อมูล Excel',
-      body: 'ระบบกำลังจัดเตรียมไฟล์ข้อมูลการรายงาน กรุณารอสักครู่... ⏳'
+      body: 'ระบบกำลังจัดเตรียมไฟล์ข้อมูลการรายงาน กรุณารอสักครู่...',
     });
 
     try {
@@ -335,12 +395,11 @@ export default function DailyReportPage() {
       anchor.remove();
       window.URL.revokeObjectURL(blobUrl);
 
-      // Show success toast
       addToast({
         id: `excel-success-${Date.now()}`,
         type: 'ticket',
         title: 'ส่งออก Excel สำเร็จ',
-        body: `ดาวน์โหลดไฟล์ ${fileName} เรียบร้อยแล้ว 🎉`
+        body: `ดาวน์โหลดไฟล์ ${fileName} เรียบร้อยแล้ว`,
       });
     } catch (error: any) {
       console.error('Daily export failed:', error);
@@ -348,7 +407,7 @@ export default function DailyReportPage() {
         id: `excel-fail-${Date.now()}`,
         type: 'sla_warning',
         title: 'ส่งออก Excel ล้มเหลว',
-        body: error.message || 'เกิดข้อผิดพลาดในการสร้างไฟล์ Excel กรุณาลองใหม่อีกครั้ง'
+        body: error.message || 'เกิดข้อผิดพลาดในการสร้างไฟล์ Excel กรุณาลองใหม่อีกครั้ง',
       });
     } finally {
       setIsExporting(false);
@@ -364,12 +423,12 @@ export default function DailyReportPage() {
         id: `lark-missing-token-${Date.now()}`,
         type: 'sla_warning',
         title: 'ยังไม่ได้ตั้งค่า Lark Sheet Token',
-        body: 'กรุณากรอกและบันทึก Lark Spreadsheet Token ในเมนู การตั้งค่า > ข้อมูลพื้นฐาน ก่อนใช้งาน 🛠️'
+        body: 'กรุณากรอกและบันทึก Lark Spreadsheet Token ในเมนู การตั้งค่า > ข้อมูลพื้นฐาน ก่อนใช้งาน',
       });
       return;
     }
 
-    executeLarkExportDirect(larkToken, larkSheetId);
+    void executeLarkExportDirect(larkToken, larkSheetId);
   };
 
   const executeLarkExportDirect = async (token: string, sheetId: string) => {
@@ -379,21 +438,21 @@ export default function DailyReportPage() {
       id: toastId,
       type: 'ticket',
       title: 'กำลังส่งออก Lark Sheets',
-      body: 'ระบบกำลังนำส่งข้อมูลไปยัง Lark Sheets... ⏳'
+      body: 'ระบบกำลังนำส่งข้อมูลไปยัง Lark Sheets...',
     });
 
     try {
       const res = await fetch('/api/reports/daily/lark-sheets', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
         },
         body: JSON.stringify({
           start: dateRange.start,
           end: dateRange.end,
           spreadsheetToken: token,
-          sheetId: sheetId
-        })
+          sheetId: sheetId,
+        }),
       });
 
       const data = await res.json();
@@ -405,7 +464,7 @@ export default function DailyReportPage() {
         id: `lark-success-${Date.now()}`,
         type: 'ticket',
         title: 'ส่งออก Lark Sheets สำเร็จ',
-        body: `ส่งออกข้อมูลจำนวน ${data.count} แถวไปยัง Lark Sheets เรียบร้อยแล้ว 📊`
+        body: `ส่งออกข้อมูลจำนวน ${data.count} แถวไปยัง Lark Sheets เรียบร้อยแล้ว`,
       });
     } catch (error: any) {
       console.error('Lark Sheets Export failed:', error);
@@ -413,7 +472,7 @@ export default function DailyReportPage() {
         id: `lark-fail-${Date.now()}`,
         type: 'sla_warning',
         title: 'ส่งออก Lark Sheets ล้มเหลว',
-        body: error.message || 'เกิดข้อผิดพลาดในการส่งข้อมูลไปยัง Lark Sheets'
+        body: error.message || 'เกิดข้อผิดพลาดในการส่งข้อมูลไปยัง Lark Sheets',
       });
     } finally {
       setIsExportingLark(false);
@@ -427,11 +486,11 @@ export default function DailyReportPage() {
         id: `gsheets-missing-url-${Date.now()}`,
         type: 'sla_warning',
         title: 'ยังไม่ได้ตั้งค่า Google Sheets URL',
-        body: 'กรุณากรอกและบันทึกลิงก์ Web App URL ในเมนู การตั้งค่า > ข้อมูลพื้นฐาน ก่อนใช้งาน'
+        body: 'กรุณากรอกและบันทึกลิงก์ Web App URL ในเมนู การตั้งค่า > ข้อมูลพื้นฐาน ก่อนใช้งาน',
       });
       return;
     }
-    executeGSheetsExportDirect(sheetsUrl);
+    void executeGSheetsExportDirect(sheetsUrl);
   };
 
   const executeGSheetsExportDirect = async (sheetsUrl: string) => {
@@ -441,20 +500,20 @@ export default function DailyReportPage() {
       id: toastId,
       type: 'ticket',
       title: 'กำลังส่งออก Google Sheets',
-      body: 'ระบบกำลังนำส่งข้อมูลไปยัง Google Sheets... ⏳'
+      body: 'ระบบกำลังนำส่งข้อมูลไปยัง Google Sheets...',
     });
 
     try {
       const res = await fetch('/api/reports/daily/google-sheets', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
         },
         body: JSON.stringify({
           start: dateRange.start,
           end: dateRange.end,
-          targetUrl: sheetsUrl
-        })
+          targetUrl: sheetsUrl,
+        }),
       });
 
       const data = await res.json();
@@ -466,7 +525,7 @@ export default function DailyReportPage() {
         id: `gsheets-success-${Date.now()}`,
         type: 'ticket',
         title: 'ส่งออก Google Sheets สำเร็จ',
-        body: `ส่งออกข้อมูลจำนวน ${data.count} แถวไปยัง Google Sheets เรียบร้อยแล้ว 📊`
+        body: `ส่งออกข้อมูลจำนวน ${data.count} แถวไปยัง Google Sheets เรียบร้อยแล้ว`,
       });
     } catch (error: any) {
       console.error('Google Sheets Export failed:', error);
@@ -474,16 +533,16 @@ export default function DailyReportPage() {
         id: `gsheets-fail-${Date.now()}`,
         type: 'sla_warning',
         title: 'ส่งออก Google Sheets ล้มเหลว',
-        body: error.message || 'เกิดข้อผิดพลาดในการส่งข้อมูลไปยัง Google Sheets'
+        body: error.message || 'เกิดข้อผิดพลาดในการส่งข้อมูลไปยัง Google Sheets',
       });
     } finally {
       setIsExportingGSheets(false);
     }
   };
-  
+
   const executePrint = async () => {
     const { printDataTable } = await loadExportUtils();
-    const formatData = processedTickets.map(ticket => {
+    const formatData = processedTickets.map((ticket) => {
       const createdAt = new Date(ticket.created_at);
       const resolvedAt = ticket.resolved_at ? new Date(ticket.resolved_at) : null;
 
@@ -491,7 +550,7 @@ export default function DailyReportPage() {
         [t('reports.columns.status')]: ticket.status,
         [t('reports.columns.date')]: createdAt.toLocaleDateString('th-TH'),
         [t('reports.columns.organization')]: ticket.hospital_name || '-',
-        [t('reports.columns.customer')]: ticket.customer_name || (ticket.assignee_name || '-'),
+        [t('reports.columns.customer')]: ticket.customer_name || ticket.assignee_name || '-',
         [t('reports.columns.subject')]: ticket.subject_only || '-',
         [t('reports.columns.additionalDetails')]: ticket.description || '-',
         [t('reports.columns.resolution')]: ticket.resolution_summary || '-',
@@ -501,310 +560,266 @@ export default function DailyReportPage() {
         [t('reports.columns.type')]: ticket.issue_type || ticket.priority || 'PB',
         [t('reports.columns.createdTime')]: createdAt.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }),
         [t('reports.columns.resolvedTime')]: resolvedAt ? resolvedAt.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }) : '-',
-        [t('reports.columns.timeUsed')]: getDurationStr(ticket.created_at, ticket.resolved_at)
+        [t('reports.columns.timeUsed')]: getDurationStr(ticket.created_at, ticket.resolved_at),
       };
     });
 
     setShowPreview(false);
-    printDataTable(
-      t('reports.dailyTitle'),
-      formatData,
-      `${dateRange.start} - ${dateRange.end}`
-    );
+    printDataTable(t('reports.dailyTitle'), formatData, `${dateRange.start} - ${dateRange.end}`);
   };
 
   if (loading && tickets.length === 0) {
     return (
-      <div className="animate-page-in">
-        <Skeleton width={300} height={40} marginBottom={24} />
-        <Skeleton width="100%" height={400} borderRadius={16} />
+      <div className={`animate-page-in ${styles.pageStack}`}>
+        <Skeleton width={280} height={36} marginBottom={8} />
+        <Card>
+          <CardBody>
+            <Skeleton width="100%" height={360} borderRadius={8} />
+          </CardBody>
+        </Card>
       </div>
     );
   }
 
   return (
     <>
-    <div className="animate-page-in" style={{ height: 'calc(100vh - 40px)', display: 'flex', flexDirection: 'column' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexShrink: 0 }}>
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <div style={{ background: 'var(--primary-transparent)', padding: '10px', borderRadius: '12px' }}>
-              <TableIcon size={24} color="var(--primary)" />
-            </div>
-            <div>
-              <h1 style={{ fontSize: '22px', fontWeight: '800', letterSpacing: '-0.5px', color: 'var(--text-main)' }}>{t('reports.dailyTitle')}</h1>
-              <p style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: '500' }}>{t('reports.dailySubtitle')}</p>
-            </div>
-          </div>
-        </div>
-
-        <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-          <div style={{ display: 'flex', background: 'var(--bg-card)', padding: '4px', borderRadius: '12px', border: '1px solid var(--border)' }}>
-            {[
-              { label: t('dashboard.daily'), value: 'today' },
-              { label: t('dashboard.weekly'), value: 'week' },
-              { label: t('dashboard.monthly'), value: 'month' }
-            ].map(p => (
-              <button
-                key={p.value}
-                onClick={() => applyPreset(p.value)}
-                style={{
-                  padding: '6px 16px',
-                  borderRadius: '8px',
-                  border: 'none',
-                  background: preset === p.value ? 'var(--primary)' : 'transparent',
-                  color: preset === p.value ? 'black' : 'var(--text-muted)',
-                  fontSize: '13px',
-                  fontWeight: '700',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s'
-                }}
-              >
-                {p.label}
-              </button>
-            ))}
-          </div>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '0 12px', height: '44px', background: 'var(--bg-input)', borderRadius: '12px', border: '1px solid var(--border)' }}>
-            <Calendar size={16} color="var(--primary)" />
-            <input
-              type="date"
-              value={dateRange.start}
-              onChange={(e) => {
-                setDateRange(prev => ({ ...prev, start: e.target.value }));
-                setPreset('custom');
-              }}
-              style={{ background: 'none', border: 'none', color: 'var(--text-main)', fontWeight: '600', fontSize: '13px', outline: 'none' }}
-            />
-            <ChevronRight size={14} color="var(--text-muted)" />
-            <input
-              type="date"
-              value={dateRange.end}
-              onChange={(e) => {
-                setDateRange(prev => ({ ...prev, end: e.target.value }));
-                setPreset('custom');
-              }}
-              style={{ background: 'none', border: 'none', color: 'var(--text-main)', fontWeight: '600', fontSize: '13px', outline: 'none' }}
-            />
-          </div>
-
-          {showFilter && (
-            <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-              <Search size={16} style={{ position: 'absolute', left: '12px', color: 'var(--text-muted)' }} />
-              <input
-                type="text"
-                placeholder={t('common.messages.noResults').replace('พบ', 'ค้นหา')}
-                value={filterText}
-                onChange={(e) => setFilterText(e.target.value)}
-                className="glass-interactive"
-                autoFocus
-                style={{ padding: '0 36px', width: '200px', height: '44px', borderRadius: '12px', border: '1px solid var(--primary)', background: 'var(--bg-input)', color: 'var(--text-main)' }}
-              />
-              {filterText && (
-                <button onClick={() => setFilterText('')} style={{ position: 'absolute', right: '12px', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
-                  <X size={14} />
-                </button>
-              )}
-            </div>
-          )}
-
-          <button
-            onClick={() => setShowFilter(!showFilter)}
-            className={`glass-interactive ${showFilter ? 'active' : ''}`}
-            style={{ width: '44px', height: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '12px', border: showFilter ? '1px solid var(--primary)' : '1px solid var(--border)', background: showFilter ? 'var(--primary-transparent)' : 'var(--bg-card)', color: showFilter ? 'var(--primary)' : 'var(--text-main)' }}
-          >
-            <Filter size={18} />
-          </button>
-
-          <button
-            onClick={handleExportExcel}
-            disabled={isExporting || processedTickets.length === 0}
-            className="glass-interactive"
-            style={{
-              height: '44px',
-              padding: '0 20px',
-              borderRadius: '12px',
-              border: 'none',
-              background: 'var(--success)',
-              color: 'white',
-              fontWeight: '700',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              boxShadow: '0 8px 20px rgba(16, 185, 129, 0.25)',
-              cursor: (isExporting || processedTickets.length === 0) ? 'not-allowed' : 'pointer'
-            }}
-          >
-            {isExporting ? <Loader2 size={18} className="animate-spin" /> : <Download size={18} />}
-            {t('reports.exportExcel')}
-          </button>
-
-          <button
-            onClick={handleGSheetsExportClick}
-            disabled={isExportingGSheets || processedTickets.length === 0}
-            className="glass-interactive"
-            style={{
-              height: '44px',
-              padding: '0 20px',
-              borderRadius: '12px',
-              border: 'none',
-              background: 'linear-gradient(135deg, #107c41 0%, #1f9a55 100%)',
-              color: 'white',
-              fontWeight: '700',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              boxShadow: '0 8px 20px rgba(16, 124, 65, 0.25)',
-              transition: 'all 0.2s ease',
-              cursor: (isExportingGSheets || processedTickets.length === 0) ? 'not-allowed' : 'pointer'
-            }}
-          >
-            {isExportingGSheets ? <Loader2 size={18} className="animate-spin" /> : <Share2 size={18} />}
-            GOOGLE SHEETS
-          </button>
-
-          <button
-            onClick={handleLarkExportClick}
-            disabled={isExportingLark || processedTickets.length === 0}
-            className="glass-interactive"
-            style={{
-              height: '44px',
-              padding: '0 20px',
-              borderRadius: '12px',
-              border: 'none',
-              background: 'linear-gradient(135deg, #0984e3 0%, #00b894 100%)',
-              color: 'white',
-              fontWeight: '700',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              boxShadow: '0 8px 20px rgba(9, 180, 120, 0.25)',
-              transition: 'all 0.2s ease',
-              cursor: (isExportingLark || processedTickets.length === 0) ? 'not-allowed' : 'pointer'
-            }}
-          >
-            {isExportingLark ? <Loader2 size={18} className="animate-spin" /> : <Share2 size={18} />}
-            LARK SHEETS
-          </button>
-        </div>
-      </div>
-
-      <div className="glass" style={{ flex: 1, borderRadius: '16px', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-        <div style={{ overflowX: 'auto', overflowY: 'auto', height: '100%', background: 'var(--bg-card)' }}>
-          <table style={{ width: '100%', minWidth: `${tableMinWidth}px`, tableLayout: 'fixed', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
-            <thead style={{ position: 'sticky', top: 0, zIndex: 10, background: 'var(--primary)', color: 'white', fontWeight: '700' }}>
-              <tr>
-                {columns.map((column) => (
-                  <th
-                    key={column.id}
-                    onClick={() => handleSort(column.sortKey)}
-                    style={{
-                      position: 'relative',
-                      padding: '12px 16px',
-                      ...getColWidth(column.id),
-                      borderRight: '1px solid rgba(255,255,255,0.15)',
-                      whiteSpace: 'nowrap',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      textTransform: 'uppercase',
-                      fontSize: '11px',
-                      letterSpacing: '0.8px',
-                      cursor: 'pointer',
-                      userSelect: 'none'
-                    }}
+      <div className={`animate-page-in ${styles.dailyContainer}`}>
+        <PageHeader
+          title={t('reports.dailyTitle')}
+          subtitle={t('reports.dailySubtitle')}
+          actions={
+            <div className={styles.toolbarGroup}>
+              <div className={styles.segmentedGroup} role="group" aria-label="เลือกช่วงเวลา">
+                {[
+                  { label: t('dashboard.daily'), value: 'today' },
+                  { label: t('dashboard.weekly'), value: 'week' },
+                  { label: t('dashboard.monthly'), value: 'month' },
+                ].map((p) => (
+                  <button
+                    key={p.value}
+                    type="button"
+                    onClick={() => applyPreset(p.value)}
+                    className={`${styles.segmentedBtn} ${preset === p.value ? styles.segmentedBtnActive : ''}`}
                   >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
-                      {column.label}
-                      <div style={{ display: 'flex', flexDirection: 'column', opacity: sortConfig?.key === column.sortKey ? 1 : 0.4 }}>
-                        <ArrowUpDown size={12} />
-                      </div>
-                    </div>
-                    <div
-                      onMouseDown={(event) => handleResizeStart(column.id, event)}
-                      style={{
-                        position: 'absolute',
-                        top: 0,
-                        right: 0,
-                        width: '10px',
-                        height: '100%',
-                        cursor: 'col-resize',
-                        zIndex: 2,
-                      }}
-                      aria-label={`Resize ${column.label}`}
-                    />
-                  </th>
+                    {p.label}
+                  </button>
                 ))}
-              </tr>
-            </thead>
-            <tbody style={{ fontWeight: '500' }}>
-              {loading && tickets.length === 0 ? (
-                <tr><td colSpan={columns.length} style={{ textAlign: 'center', padding: '40px' }}><Loader2 className="animate-spin text-primary" style={{ margin: '0 auto' }} /></td></tr>
-              ) : processedTickets.length === 0 ? (
-                <tr><td colSpan={columns.length} style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
-                  {filterText ? t('common.messages.noResults') : t('reports.noDataRange')}
-                </td></tr>
-              ) : (
-                processedTickets.map((ticket, idx) => (
-                  <tr key={ticket.id || idx} style={{ borderBottom: '1px solid var(--border)', background: idx % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.02)' }}>
-                    <td style={{ padding: '12px 16px', textAlign: 'center', fontWeight: '700', ...getColWidth('sequence') }}>
-                      {idx + 1}
-                    </td>
-                    <td style={{ padding: '12px 16px', textAlign: 'center', ...getColWidth('status') }}>
-                      {ticket.status === 'Resolved' || ticket.status === 'Closed' ? '✅' : (ticket.status === 'New' ? '⚪' : '🔄')}
-                    </td>
-                    <td style={{ padding: '12px 16px', ...getColWidth('date') }}>{new Date(ticket.created_at).toLocaleDateString('th-TH')}</td>
-                    <td style={{ padding: '12px 16px', fontWeight: '700', color: 'var(--text-main)', ...getColWidth('organization') }}>{ticket.hospital_name || '-'}</td>
-                    <td style={{ padding: '12px 16px', ...getColWidth('customer') }}>{ticket.customer_name || (ticket.assignee_name ? `👷‍♂️ ${ticket.assignee_name}` : '-')}</td>
-                    <td style={{ padding: '12px 16px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', ...getColWidth('subject') }}>
-                      <AlignLeft size={12} style={{ display: 'inline', marginRight: '6px', opacity: 0.5 }} />
-                      {ticket.subject_only || '-'}
-                    </td>
-                    <td style={{ padding: '12px 16px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--text-muted)', ...getColWidth('additionalDetails') }}>
-                      {ticket.description || '-'}
-                    </td>
-                    <td style={{ padding: '12px 16px', color: 'var(--primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: '600', ...getColWidth('resolution') }}>{ticket.resolution_summary || '-'}</td>
-                    <td style={{ padding: '12px 16px', ...getColWidth('assignee') }}>
-                      {ticket.assignee_name ? (
-                        <span style={{ 
-                          color: '#ffffff', 
-                          background: ticket.assignee_color || 'var(--primary)', 
-                          padding: '4px 10px',
-                          borderRadius: '8px',
-                          fontSize: '11px',
-                          fontWeight: '800',
-                          textTransform: 'uppercase',
-                          textShadow: '0 1px 2px rgba(0,0,0,0.2)'
-                        }}>
-                          {ticket.assignee_name}
-                        </span>
-                      ) : '-'}
-                    </td>
-                    <td style={{ padding: '12px 16px', color: 'var(--success)', background: 'var(--primary-transparent)', ...getColWidth('source') }}>{ticket.source || 'Line กลุ่ม'}</td>
-                    <td style={{ padding: '12px 16px', fontWeight: '400', ...getColWidth('module') }}>{ticket.module || '-'}</td>
-                    <td style={{ padding: '12px 16px', ...getColWidth('type') }}>
-                      <span style={{ padding: '4px 8px', background: 'var(--primary-transparent)', color: 'var(--accent)', borderRadius: '4px', fontSize: '10px', fontWeight: '800' }}>
-                        {ticket.issue_type || ticket.priority || 'PB'}
-                      </span>
-                    </td>
-                    <td style={{ padding: '12px 16px', ...getColWidth('createdTime') }}>{new Date(ticket.created_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })} น.</td>
-                    <td style={{ padding: '12px 16px', ...getColWidth('resolvedTime') }}>{ticket.resolved_at ? new Date(ticket.resolved_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }) + ' น.' : '-'}</td>
-                    <td style={{ padding: '12px 16px', fontWeight: '700', color: ticket.resolved_at ? 'var(--success)' : 'inherit', ...getColWidth('timeUsed') }}>{getDurationStr(ticket.created_at, ticket.resolved_at)}</td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+              </div>
 
-        <div style={{ padding: '14px 20px', background: 'var(--bg-card)', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11px', fontWeight: '500', color: 'var(--text-muted)', letterSpacing: '0.3px' }}>
-          <span>{t('tickets.list')} {processedTickets.length} {t('tickets.workspaceDescription').split(' ')[0]} {filterText && `(${t('dashboard.tabs.all')} ${tickets.length})`}</span>
-          <span>{t('reports.dailySubtitle')} ({dateRange.start} {t('tickets.to')} {dateRange.end})</span>
+              <Input
+                id="daily-report-start"
+                type="date"
+                aria-label="วันเริ่มต้นรายงาน"
+                value={dateRange.start}
+                onChange={(e) => {
+                  setDateRange((prev) => ({ ...prev, start: e.target.value }));
+                  setPreset('custom');
+                }}
+              />
+              <Input
+                id="daily-report-end"
+                type="date"
+                aria-label="วันสิ้นสุดรายงาน"
+                value={dateRange.end}
+                onChange={(e) => {
+                  setDateRange((prev) => ({ ...prev, end: e.target.value }));
+                  setPreset('custom');
+                }}
+              />
+
+              {showFilter ? (
+                <Input
+                  id="daily-report-filter-search"
+                  type="text"
+                  aria-label="ค้นหาในรายงานประจำวัน"
+                  placeholder="ค้นหารายการ..."
+                  value={filterText}
+                  onChange={(e) => setFilterText(e.target.value)}
+                  leftIcon={<Search size={15} aria-hidden="true" />}
+                  rightAdornment={
+                    filterText ? (
+                      <button
+                        type="button"
+                        onClick={() => setFilterText('')}
+                        aria-label="ล้างคำค้นหา"
+                        style={{ background: 'none', border: 'none', color: 'var(--color-text-muted)', display: 'inline-flex' }}
+                      >
+                        <X size={14} aria-hidden="true" />
+                      </button>
+                    ) : null
+                  }
+                />
+              ) : null}
+
+              <Button
+                variant={showFilter ? 'primary' : 'secondary'}
+                size="md"
+                iconOnly
+                onClick={() => setShowFilter((prev) => !prev)}
+                aria-label="เปิด/ปิดช่องค้นหา"
+                aria-expanded={showFilter}
+              >
+                <Filter size={16} aria-hidden="true" />
+              </Button>
+
+              <Button
+                variant="primary"
+                size="md"
+                onClick={handleExportExcel}
+                disabled={isExporting || processedTickets.length === 0}
+                loading={isExporting}
+                leftIcon={<Download size={16} aria-hidden="true" />}
+              >
+                {t('reports.exportExcel')}
+              </Button>
+
+              <Button
+                variant="secondary"
+                size="md"
+                onClick={handleGSheetsExportClick}
+                disabled={isExportingGSheets || processedTickets.length === 0}
+                loading={isExportingGSheets}
+                leftIcon={<Share2 size={15} color="var(--color-success)" aria-hidden="true" />}
+              >
+                Google Sheets
+              </Button>
+
+              <Button
+                variant="secondary"
+                size="md"
+                onClick={handleLarkExportClick}
+                disabled={isExportingLark || processedTickets.length === 0}
+                loading={isExportingLark}
+                leftIcon={<Share2 size={15} color="var(--color-info)" aria-hidden="true" />}
+              >
+                Lark Sheets
+              </Button>
+            </div>
+          }
+        />
+
+        <div className={styles.tableCard}>
+          <div className={styles.tableScroll}>
+            <table className={styles.dataTable} style={{ minWidth: `${tableMinWidth}px` }}>
+              <thead>
+                <tr>
+                  {columns.map((column) => (
+                    <th key={column.id} style={getColWidth(column.id)}>
+                      <button
+                        type="button"
+                        onClick={() => handleSort(column.sortKey)}
+                        className={styles.thSortBtn}
+                      >
+                        <span className="truncate">{column.label}</span>
+                        <ArrowUpDown
+                          size={12}
+                          style={{ opacity: sortConfig?.key === column.sortKey ? 1 : 0.5, flexShrink: 0 }}
+                          aria-hidden="true"
+                        />
+                      </button>
+                      <div
+                        onMouseDown={(event) => handleResizeStart(column.id, event)}
+                        className={styles.resizeHandle}
+                        aria-hidden="true"
+                      />
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {loading && tickets.length === 0 ? (
+                  <tr>
+                    <td colSpan={columns.length} style={{ textAlign: 'center', padding: 40 }}>
+                      <Loader2 className="animate-spin" style={{ margin: '0 auto' }} />
+                    </td>
+                  </tr>
+                ) : processedTickets.length === 0 ? (
+                  <tr>
+                    <td colSpan={columns.length} style={{ textAlign: 'center', padding: 40, color: 'var(--color-text-muted)' }}>
+                      {filterText ? t('common.messages.noResults') : t('reports.noDataRange')}
+                    </td>
+                  </tr>
+                ) : (
+                  processedTickets.map((ticket, idx) => {
+                    const isDone = ticket.status === 'Resolved' || ticket.status === 'Closed';
+                    return (
+                      <tr key={ticket.id || idx}>
+                        <td style={{ textAlign: 'center', fontWeight: 700, ...getColWidth('sequence') }}>
+                          {idx + 1}
+                        </td>
+                        <td style={{ textAlign: 'center', ...getColWidth('status') }}>
+                          <Badge variant={isDone ? 'success' : ticket.status === 'New' ? 'info' : 'warning'} size="sm">
+                            {ticket.status}
+                          </Badge>
+                        </td>
+                        <td style={getColWidth('date')}>{new Date(ticket.created_at).toLocaleDateString('th-TH')}</td>
+                        <td style={{ fontWeight: 600, color: 'var(--color-text)', ...getColWidth('organization') }}>
+                          {ticket.hospital_name || '-'}
+                        </td>
+                        <td style={getColWidth('customer')}>
+                          {ticket.customer_name || ticket.assignee_name || '-'}
+                        </td>
+                        <td style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', ...getColWidth('subject') }}>
+                          <AlignLeft size={12} style={{ display: 'inline', marginRight: 6, opacity: 0.5 }} aria-hidden="true" />
+                          {ticket.subject_only || '-'}
+                        </td>
+                        <td style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--color-text-muted)', ...getColWidth('additionalDetails') }}>
+                          {ticket.description || '-'}
+                        </td>
+                        <td style={{ color: 'var(--color-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 600, ...getColWidth('resolution') }}>
+                          {ticket.resolution_summary || '-'}
+                        </td>
+                        <td style={getColWidth('assignee')}>
+                          {ticket.assignee_name ? (
+                            <Badge variant="neutral" size="sm" dot={ticket.assignee_color || '#1D4ED8'}>
+                              {ticket.assignee_name}
+                            </Badge>
+                          ) : (
+                            '-'
+                          )}
+                        </td>
+                        <td style={{ color: 'var(--color-success-text)', ...getColWidth('source') }}>
+                          {ticket.source || 'Line กลุ่ม'}
+                        </td>
+                        <td style={getColWidth('module')}>{ticket.module || '-'}</td>
+                        <td style={getColWidth('type')}>
+                          <Badge variant="primary" size="sm">
+                            {ticket.issue_type || ticket.priority || 'PB'}
+                          </Badge>
+                        </td>
+                        <td style={getColWidth('createdTime')}>
+                          {new Date(ticket.created_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })} น.
+                        </td>
+                        <td style={getColWidth('resolvedTime')}>
+                          {ticket.resolved_at
+                            ? `${new Date(ticket.resolved_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })} น.`
+                            : '-'}
+                        </td>
+                        <td style={{ fontWeight: 600, color: ticket.resolved_at ? 'var(--color-success-text)' : 'inherit', ...getColWidth('timeUsed') }}>
+                          {getDurationStr(ticket.created_at, ticket.resolved_at)}
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          <div className={styles.tableFooter}>
+            <span className="tabular-nums">
+              {t('tickets.list')} {processedTickets.length} {t('tickets.workspaceDescription').split(' ')[0]}{' '}
+              {filterText && `(${t('dashboard.tabs.all')} ${tickets.length})`}
+            </span>
+            <span className="tabular-nums">
+              {t('reports.dailySubtitle')} ({dateRange.start} {t('tickets.to')} {dateRange.end})
+            </span>
+          </div>
         </div>
       </div>
-    </div>
 
-      {previewData && (
-        <ExportPreviewModal 
+      {previewData ? (
+        <ExportPreviewModal
           isOpen={showPreview}
           onClose={() => setShowPreview(false)}
           onDownload={executeExport}
@@ -812,7 +827,7 @@ export default function DailyReportPage() {
           data={previewData}
           loading={isExporting}
         />
-      )}
+      ) : null}
     </>
   );
 }

@@ -1,23 +1,27 @@
 'use client';
 /* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @next/next/no-img-element */
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
-import { 
-  ArrowLeft, 
-  Clock, 
-  MessageCircle, 
+import {
+  ArrowLeft,
+  ArrowDown,
+  Clock,
+  MessageCircle,
   Loader2,
   AlertCircle,
+  AlertTriangle,
+  CheckCircle2,
   FileText,
   SendHorizontal,
-  Paperclip
+  Paperclip,
+  Star
 } from 'lucide-react';
 import { useLiff } from '@/hooks/useLiff';
 import { sendPortalMessageAction, submitSurveyAction } from '@/app/actions/portalActions';
 import { compressImage } from '@/lib/utils/imageCompression';
+import styles from './ticket.module.css';
 
 const ChatAttachmentModal = React.lazy(() => import('@/components/chat/ChatAttachmentModal'));
 const ImageEditorModal = React.lazy(() => import('@/components/modals/ImageEditorModal'));
@@ -34,9 +38,19 @@ const STATUS_LEVELS: Record<string, number> = {
   'closed': 4
 };
 
+const DEFAULT_ACCENT = '#1D4ED8';
+const HEX_COLOR_PATTERN = /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/;
+
 function isSurveyEligibleStatus(status: unknown) {
   const s = String(status || '').toLowerCase();
   return s === 'resolved' || s === 'closed';
+}
+
+function getToneType(status: unknown): 'success' | 'warning' | 'accent' {
+  const s = String(status || '').toLowerCase();
+  if (s === 'resolved' || s === 'closed') return 'success';
+  if (s === 'pending') return 'warning';
+  return 'accent';
 }
 
 // 1. Memoized Message Bubble to prevent massive DOM re-renders during chat scrolling
@@ -53,35 +67,35 @@ const MessageBubble = React.memo(function MessageBubble({ msg, onImageClick }: M
   const isDoc = hasHttpMedia && (msg.message_type === 'file' || msg.message_type === 'video' || msg.message_type === 'audio' || msg.message_type !== 'text');
 
   return (
-    <div style={{
-      alignSelf: isCustomer ? 'flex-end' : 'flex-start',
-      maxWidth: '80%',
-      padding: '12px 16px',
-      borderRadius: isCustomer ? '20px 20px 4px 20px' : '20px 20px 20px 4px',
-      background: isCustomer ? '#1e293b' : '#f1f5f9',
-      color: isCustomer ? 'white' : '#334155',
-      boxShadow: '0 2px 8px rgba(0,0,0,0.02)'
-    }}>
-      <div style={{ fontSize: '14px', fontWeight: '500', lineHeight: '1.5' }}>
+    <div className={`${styles.bubbleRow} ${isCustomer ? styles.bubbleRowOut : styles.bubbleRowIn}`}>
+      <div className={`${styles.bubble} ${isCustomer ? styles.bubbleOut : styles.bubbleIn}`}>
         {isImg ? (
-          <img
-            src={mediaUrl}
-            style={{ maxWidth: '100%', borderRadius: '12px', cursor: 'pointer' }}
-            alt="Attachment"
+          <button
+            type="button"
+            className={styles.imageButton}
             onClick={() => onImageClick(mediaUrl)}
+            aria-label="เปิดดูรูปภาพที่แนบขนาดใหญ่"
             title="คลิกเพื่อทำการขยายภาพ"
-          />
+          >
+            <img
+              src={mediaUrl}
+              className={styles.imageThumb}
+              alt={isCustomer ? 'รูปภาพที่คุณส่ง' : 'รูปภาพจากเจ้าหน้าที่'}
+              loading="lazy"
+            />
+          </button>
         ) : isDoc ? (
-          <a href={mediaUrl} target="_blank" rel="noreferrer" style={{ textDecoration: 'none', color: 'inherit', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Paperclip size={14} /> ดูไฟล์แนบ
+          <a href={mediaUrl} target="_blank" rel="noreferrer" className={styles.fileLink}>
+            <Paperclip size={16} aria-hidden="true" />
+            <span>ดูไฟล์แนบ</span>
           </a>
         ) : (
-          msg.content
+          <p className={styles.bubbleText}>{msg.content}</p>
         )}
+        <time className={styles.bubbleTime} dateTime={msg.created_at}>
+          {new Date(msg.created_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', hour12: false })}
+        </time>
       </div>
-      <p style={{ fontSize: '10px', color: isCustomer ? 'rgba(255,255,255,0.6)' : '#94a3b8', marginTop: '6px', fontWeight: '600', textAlign: 'right' }}>
-        {new Date(msg.created_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', hour12: false })}
-      </p>
     </div>
   );
 });
@@ -92,145 +106,63 @@ interface TicketStatusStepperProps {
   status: string;
 }
 
+const STEPPER_STEPS = [
+  { level: 1, label: 'รอดำเนินการ' },
+  { level: 2, label: 'รับงานแล้ว' },
+  { level: 3, label: 'ส่งต่อแก้ปัญหา' },
+  { level: 4, label: 'ปิดงานแล้ว' }
+];
+
+const FILL_CLASSES = [
+  styles.stepperFill0,
+  styles.stepperFill1,
+  styles.stepperFill2,
+  styles.stepperFill3
+];
+
 const TicketStatusStepper = React.memo(function TicketStatusStepper({ currentLevel, status }: TicketStatusStepperProps) {
   const isPending = status.toLowerCase() === 'pending';
-  const isResolved = ['resolved', 'closed'].includes(status.toLowerCase());
-  const themeColor = isResolved 
-    ? '#22c55e' 
-    : isPending 
-      ? '#f97316' 
-      : 'var(--portal-primary)';
-  
-  const steps = [
-    { level: 1, label: 'รอดำเนินการ' },
-    { level: 2, label: 'รับงานแล้ว' },
-    { level: 3, label: 'ส่งต่อแก้ปัญหา' },
-    { level: 4, label: 'ปิดงานแล้ว' }
-  ];
+  const tone = getToneType(status);
+  const toneClass =
+    tone === 'success'
+      ? styles.toneSuccess
+      : tone === 'warning'
+        ? styles.toneWarning
+        : styles.toneAccent;
+  const fillIdx = Math.max(0, Math.min(3, currentLevel - 1));
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', margin: '12px 0 8px 0' }}>
-      {/* Connector lines and nodes */}
-      <div style={{ position: 'relative', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 12px' }}>
-        {/* Background Track Line */}
-        <div style={{
-          position: 'absolute',
-          left: '28px',
-          right: '28px',
-          height: '4px',
-          background: '#e2e8f0',
-          zIndex: 1,
-          borderRadius: '2px'
-        }} />
-        
-        {/* Active Progress Line */}
-        <div style={{
-          position: 'absolute',
-          left: '28px',
-          width: `${Math.max(0, Math.min(3, currentLevel - 1)) * 33.33}%`,
-          height: '4px',
-          background: themeColor,
-          zIndex: 2,
-          borderRadius: '2px',
-          transition: 'width 0.4s ease'
-        }} />
-
-        {/* Circular Nodes */}
-        {steps.map((step) => {
+    <div className={`${styles.stepperTrack} ${toneClass}`}>
+      <div className={styles.stepperTrackBg} aria-hidden="true" />
+      <div className={`${styles.stepperTrackFill} ${FILL_CLASSES[fillIdx]}`} aria-hidden="true" />
+      <ol className={styles.stepper} aria-label="ความคืบหน้าของใบงาน">
+        {STEPPER_STEPS.map((step) => {
           const isActive = step.level === currentLevel;
           const isCompleted = step.level < currentLevel;
-          const nodeColor = isResolved && (isCompleted || isActive) 
-            ? '#22c55e' 
-            : isPending && isActive
-              ? '#f97316'
-              : (isCompleted || isActive) 
-                ? 'var(--portal-primary)' 
-                : '#e2e8f0';
+          const stateClass = isCompleted ? styles.stepDone : isActive ? styles.stepActive : '';
 
           return (
-            <div
+            <li
               key={step.level}
-              style={{
-                width: '32px',
-                height: '32px',
-                borderRadius: '50%',
-                background: isActive ? 'white' : nodeColor,
-                border: `3px solid ${nodeColor}`,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                zIndex: 3,
-                boxShadow: isActive 
-                  ? `0 0 10px ${isPending ? 'rgba(249, 115, 22, 0.4)' : 'rgba(0, 242, 254, 0.4)'}` 
-                  : '0 2px 4px rgba(0,0,0,0.02)',
-                transition: 'all 0.4s ease',
-                position: 'relative'
-              }}
+              className={`${styles.step} ${stateClass}`}
+              aria-current={isActive ? 'step' : undefined}
             >
-              {isCompleted ? (
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="20 6 9 17 4 12" />
-                </svg>
-              ) : isActive ? (
-                isPending ? (
-                  <span style={{ fontSize: '13px', fontWeight: '900', color: '#f97316', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    ⚠️
-                  </span>
+              <span className={styles.stepNode} aria-hidden="true">
+                {isCompleted ? (
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                ) : isActive && isPending ? (
+                  <AlertTriangle size={14} />
                 ) : (
-                  <span style={{
-                    width: '10px',
-                    height: '10px',
-                    borderRadius: '50%',
-                    background: isResolved ? '#22c55e' : 'var(--portal-primary)',
-                    boxShadow: `0 0 6px ${isResolved ? '#22c55e' : 'var(--portal-primary)'}`,
-                    display: 'inline-block'
-                  }} />
-                )
-              ) : (
-                <span style={{ fontSize: '11px', fontWeight: '800', color: '#94a3b8' }}>
-                  {step.level}
-                </span>
-              )}
-            </div>
+                  step.level
+                )}
+              </span>
+              <span className={styles.stepLabel}>{step.label}</span>
+            </li>
           );
         })}
-      </div>
-
-      {/* Step Labels */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0 4px' }}>
-        {steps.map((step) => {
-          const isActive = step.level === currentLevel;
-          const isCompleted = step.level < currentLevel;
-          let labelColor = '#64748b'; // Muted slate
-          if (isActive) {
-            labelColor = isResolved 
-              ? '#166534' 
-              : isPending 
-                ? '#c2410c' 
-                : 'var(--portal-primary)';
-          } else if (isCompleted) {
-            labelColor = '#334155'; // Darker text for completed
-          }
-
-          return (
-            <div
-              key={step.level}
-              style={{
-                flex: 1,
-                textAlign: 'center',
-                fontSize: '11px',
-                fontWeight: isActive ? '900' : '800',
-                color: labelColor,
-                transition: 'color 0.4s ease',
-                lineHeight: '1.2',
-                maxWidth: '80px'
-              }}
-            >
-              {step.label}
-            </div>
-          );
-        })}
-      </div>
+      </ol>
     </div>
   );
 });
@@ -249,6 +181,13 @@ export default function TicketDetailPage() {
     projectSlugParam
       ? `/portal?${projectSlugParam}&survey_ticket_id=${tid}`
       : `/portal?survey_ticket_id=${tid}`;
+
+  const accentColor =
+    projectConfig?.primary_color && HEX_COLOR_PATTERN.test(projectConfig.primary_color.trim())
+      ? projectConfig.primary_color.trim()
+      : DEFAULT_ACCENT;
+  const rootStyle = { '--portal-accent': accentColor } as React.CSSProperties;
+
   const [ticket, setTicket] = useState<any | null>(null);
   const [logs, setLogs] = useState<any[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -260,7 +199,7 @@ export default function TicketDetailPage() {
   const [isViewerOpen, setIsViewerOpen] = useState<boolean>(false);
   const [editingImage, setEditingImage] = useState<string>('');
   const [viewingImage, setViewingImage] = useState<string>('');
-  const [conversationId, setConversationId] = useState<string | null>(null);
+  const [, setConversationId] = useState<string | null>(null);
   const [showJumpToLatest, setShowJumpToLatest] = useState(false);
   const [showSurvey, setShowSurvey] = useState<boolean>(false);
   const [hasResponded, setHasResponded] = useState<boolean>(false);
@@ -340,8 +279,8 @@ export default function TicketDetailPage() {
 
         if (e1) throw e1;
         if (!ticketData) {
-           setLoading(false);
-           return;
+          setLoading(false);
+          return;
         }
 
         // SECURITY: Verify owner customer ID mapping with profile.userId (scoped by project_id)
@@ -373,7 +312,7 @@ export default function TicketDetailPage() {
           .order('last_message_at', { ascending: false, nullsFirst: false })
           .limit(1)
           .maybeSingle();
-        
+
         let cid = convData?.id || null;
 
         if (!cid && ticketData.customer_id) {
@@ -408,9 +347,9 @@ export default function TicketDetailPage() {
         };
 
         const [lRes, surveyState] = await Promise.all([
-           supabase.from('ticket_logs').select('id, created_at, action_type, to_status').eq('ticket_id', ticketId).order('created_at', { ascending: false }),
-           loadSurveyState(),
-           loadMessages(cid)
+          supabase.from('ticket_logs').select('id, created_at, action_type, to_status').eq('ticket_id', ticketId).order('created_at', { ascending: false }),
+          loadSurveyState(),
+          loadMessages(cid)
         ]);
 
         if (lRes.data) setLogs(lRes.data);
@@ -530,7 +469,7 @@ export default function TicketDetailPage() {
       }, (payload: any) => {
         const nextTicket = payload.new;
         console.log('[Realtime] Ticket UPDATE', nextTicket?.status);
-        
+
         // Safety: Filter out null/undefined fields from Postgres UPDATE payload to avoid nulling out local state
         const cleanUpdate: any = {};
         Object.keys(nextTicket).forEach(key => {
@@ -660,14 +599,14 @@ export default function TicketDetailPage() {
 
   const handleSendMessage = async () => {
     if (!newMessage.trim()) return;
-    
+
     const tempId = `temp_${Date.now()}`;
     const optimisticMsg = {
-       id: tempId,
-       content: newMessage,
-       sender_type: 'customer',
-       created_at: new Date().toISOString(),
-       ticket_id: ticketId
+      id: tempId,
+      content: newMessage,
+      sender_type: 'customer',
+      created_at: new Date().toISOString(),
+      ticket_id: ticketId
     };
     setMessages((prev: any[]) => [...prev, optimisticMsg]);
     const messageToSend = newMessage;
@@ -676,13 +615,13 @@ export default function TicketDetailPage() {
 
     try {
       if (!profile?.userId) throw new Error('LINE profile not loaded');
-      
+
       const sentMsg = await sendPortalMessageAction(
-         ticketId as string,
-         profile.userId,
-         messageToSend,
-         'text',
-         getIdToken()
+        ticketId as string,
+        profile.userId,
+        messageToSend,
+        'text',
+        getIdToken()
       );
       setMessages((prev: any[]) =>
         prev.map((m: any) => (m.id === tempId ? sentMsg : m))
@@ -719,14 +658,14 @@ export default function TicketDetailPage() {
 
       if (!profile?.userId) throw new Error('LINE profile not loaded');
       const dbType = type === 'image' ? 'image' : 'file';
-      
+
       const { data: { publicUrl } } = supabase.storage.from('chat_media').getPublicUrl(fileName);
       await sendPortalMessageAction(
-         ticketId as string,
-         profile.userId,
-         publicUrl,
-         dbType,
-         getIdToken()
+        ticketId as string,
+        profile.userId,
+        publicUrl,
+        dbType,
+        getIdToken()
       );
     } catch (err: any) {
       alert('Upload failed: ' + err.message);
@@ -735,38 +674,53 @@ export default function TicketDetailPage() {
     }
   };
 
-  if (!isReady || loading) return (
-     <div className="flex-center" style={{ height: '100vh', background: '#fbfcfd' }}>
-        <Loader2 className="animate-spin" size={32} color="var(--portal-primary)" />
-     </div>
-  );
-
-  if (liffError || !profile) {
+  if (!isReady || loading) {
     return (
-      <div className="flex-center portal-glass" style={{ height: '70vh', margin: '20px', padding: '32px', textAlign: 'center', flexDirection: 'column', gap: '20px', border: '1px solid #fee2e2', background: 'white' }}>
-        <AlertCircle size={48} color="#ef4444" />
-        <h2 style={{ fontSize: '18px', fontWeight: '800', color: '#1e293b' }}>ไม่สามารถเข้าถึงได้</h2>
-        <p style={{ color: '#64748b', fontSize: '14px' }}>กรุณาเข้าใช้งานผ่านแอปพลิเคชัน LINE</p>
-        <button 
-           type="button"
-           onClick={() => setMockLogin('U_MOCK_ADMIN', 'Guest Admin')}
-           style={{ padding: '12px 24px', borderRadius: '12px', border: '1px solid #e2e8f0', background: 'white', color: '#1e293b', fontWeight: '700', marginTop: '16px', cursor: 'pointer' }}
-        >
-           ทดสอบระบบ (Mock Login)
-        </button>
+      <div className={styles.stateScreen} style={rootStyle}>
+        <div className={styles.stateCard} role="status" aria-live="polite">
+          <Loader2 className={`${styles.spinner} ${styles.stateIconAccent}`} size={32} aria-hidden="true" />
+          <p className={styles.stateDesc}>กำลังโหลดข้อมูลใบงาน...</p>
+        </div>
       </div>
     );
   }
 
-  if (!ticket) return (
-     <div className="flex-center" style={{ height: '100vh', background: '#fbfcfd', color: '#1e293b', flexDirection: 'column', gap: '16px' }}>
-        <AlertCircle size={48} color="#ef4444" />
-        <h2 style={{ fontSize: '18px', fontWeight: '800' }}>ไม่พบข้อมูลใบงาน</h2>
-        <button type="button" onClick={() => router.push(portalHomeUrl)} style={{ padding: '10px 20px', borderRadius: '8px', border: '1px solid #e2e8f0', background: 'white', color: '#1e293b', cursor: 'pointer' }}>
-           กลับสู่หน้าหลัก
-        </button>
-     </div>
-  );
+  if (liffError || !profile) {
+    return (
+      <div className={styles.stateScreen} style={rootStyle}>
+        <div className={`${styles.stateCard} ${styles.stateCardDanger}`}>
+          <AlertCircle size={44} className={styles.stateIconDanger} aria-hidden="true" />
+          <h2 className={styles.stateTitle}>ไม่สามารถเข้าถึงได้</h2>
+          <p className={styles.stateDesc}>กรุณาเข้าใช้งานผ่านแอปพลิเคชัน LINE</p>
+          <button
+            type="button"
+            className={styles.stateActionBtn}
+            onClick={() => setMockLogin('U_MOCK_ADMIN', 'Guest Admin')}
+          >
+            ทดสอบระบบ (Mock Login)
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!ticket) {
+    return (
+      <div className={styles.stateScreen} style={rootStyle}>
+        <div className={styles.stateCard}>
+          <AlertCircle size={44} className={styles.stateIconDanger} aria-hidden="true" />
+          <h2 className={styles.stateTitle}>ไม่พบข้อมูลใบงาน</h2>
+          <button
+            type="button"
+            className={styles.stateActionBtn}
+            onClick={() => router.push(portalHomeUrl)}
+          >
+            กลับสู่หน้าหลัก
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   let currentLevel = STATUS_LEVELS[String(ticket.status).toLowerCase()] || 1;
   if (currentLevel === 1 && ticket.assigned_agent_id) {
@@ -785,6 +739,20 @@ export default function TicketDetailPage() {
     if (s === 'pending') return 'ติดปัญหา (Pending)';
     if (hasAgent) return 'รับงานแล้ว (Assigned)';
     return 'รอดำเนินการ (New)';
+  };
+
+  const getCompactStatus = () => {
+    const s = String(ticket.status).toLowerCase();
+    const hasAgent = !!ticket.assigned_agent_id;
+    if (s === 'resolved') return 'แก้ไขเสร็จสิ้น';
+    if (s === 'closed') return 'ปิดใบงานแล้ว';
+    if (s === 'fix completed') return 'รอตรวจสอบ';
+    if (s === 'escalated') return 'ส่งต่อผู้เชี่ยวชาญ';
+    if (s === 'assigned') return 'รับงานแล้ว';
+    if (s === 'in progress') return 'กำลังดำเนินการ';
+    if (s === 'pending') return 'ติดปัญหา';
+    if (hasAgent) return 'รับงานแล้ว';
+    return 'รอดำเนินการ';
   };
 
   const handleSubmitSurvey = async () => {
@@ -811,367 +779,386 @@ export default function TicketDetailPage() {
   };
 
   const filteredMessages = messages.filter((m: any) => m.message_type !== 'unsent' && !m.is_internal);
+  const statusTone = getToneType(ticket.status);
+  const statusPillClass =
+    statusTone === 'success'
+      ? styles.statusPillSuccess
+      : statusTone === 'warning'
+        ? styles.statusPillWarning
+        : styles.statusPillAccent;
+  const statusTextClass =
+    statusTone === 'success'
+      ? styles.statusTextSuccess
+      : statusTone === 'warning'
+        ? styles.statusTextWarning
+        : styles.statusTextAccent;
+
+  const surveyRatingLabel =
+    surveyValue === 5
+      ? 'ยอดเยี่ยมที่สุด'
+      : surveyValue === 4
+        ? 'ดีมาก'
+        : surveyValue === 3
+          ? 'ดี'
+          : surveyValue === 2
+            ? 'พอใช้'
+            : surveyValue === 1
+              ? 'ควรปรับปรุง'
+              : '';
 
   return (
-    <div className="portal-container" style={{ animation: 'fadeIn 0.5s ease-out', position: 'relative' }}>
-       {/* Survey Modal Popup */}
-       {showSurvey && (
-         <div className="portal-survey-overlay">
-           <div className="portal-survey-modal" style={{
-             animation: 'fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1)'
-           }}>
-             {/* Thank you screen shown after submit */}
-             {hasResponded ? (
-               <div style={{ textAlign: 'center', padding: '16px 0' }}>
-                 <div style={{ fontSize: '48px', marginBottom: '16px' }}>🎉</div>
-                 <h3 style={{ fontSize: '22px', fontWeight: '900', color: '#1e293b', marginBottom: '8px' }}>ขอบคุณมากครับ!</h3>
-                 <p style={{ fontSize: '14px', color: '#64748b', marginBottom: '20px' }}>คะแนนของคุณถูกบันทึกเรียบร้อยแล้ว</p>
-                 <div style={{ display: 'flex', justifyContent: 'center', gap: '4px', marginBottom: '24px' }}>
-                   {[1, 2, 3, 4, 5].map((s) => (
-                     <svg key={s} width="32" height="32" viewBox="0 0 24 24"
-                       fill={s <= (surveyScore || surveyValue) ? '#f59e0b' : '#e2e8f0'}
-                       stroke={s <= (surveyScore || surveyValue) ? '#f59e0b' : '#e2e8f0'}
-                       strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-                     >
-                       <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
-                     </svg>
-                   ))}
-                 </div>
-               </div>
-             ) : (
-               <>
-                 <div style={{ textAlign: 'center', marginBottom: '24px' }}>
-                   <div style={{ 
-                     display: 'inline-flex', padding: '12px', background: '#f0f9ff', 
-                     borderRadius: '50%', marginBottom: '16px', color: 'var(--portal-primary)' 
-                   }}>
-                     <Clock size={24} />
-                   </div>
-                   <h3 style={{ fontSize: '20px', fontWeight: '900', color: '#1e293b', marginBottom: '8px' }}>ประเมินความพึงพอใจ</h3>
-                   <p style={{ fontSize: '14px', color: '#64748b' }}>งานหมายเลข #{ticket.ticket_no} ได้รับการแก้ไขแล้ว ช่วยให้คะแนนเราหน่อยนะครับ</p>
-                 </div>
-
-                 <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', marginBottom: '12px' }}>
-                   {[1, 2, 3, 4, 5].map((star) => (
-                     <button
-                       key={star}
-                       type="button"
-                       onClick={() => setSurveyValue(star)}
-                       onMouseEnter={() => setSurveyHover(star)}
-                       onMouseLeave={() => setSurveyHover(0)}
-                       style={{ 
-                         background: 'none', border: 'none', cursor: 'pointer', outline: 'none',
-                         transition: 'transform 0.2s', padding: '4px'
-                       }}
-                     >
-                       <svg 
-                         width="36" height="36" viewBox="0 0 24 24" 
-                         fill={(surveyHover || surveyValue) >= star ? '#f59e0b' : 'none'} 
-                         stroke={(surveyHover || surveyValue) >= star ? '#f59e0b' : '#cbd5e1'} 
-                         strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-                       >
-                         <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
-                       </svg>
-                     </button>
-                   ))}
-                 </div>
-                 <div style={{ textAlign: 'center', height: '20px', fontSize: '12px', color: '#f59e0b', fontWeight: '700', marginBottom: '24px' }}>
-                   {surveyValue === 5 ? 'ยอดเยี่ยมที่สุด' : surveyValue === 4 ? 'ดีมาก' : surveyValue === 3 ? 'ดี' : surveyValue === 2 ? 'พอใช้' : surveyValue === 1 ? 'ควรปรับปรุง' : ''}
-                 </div>
-
-                 <textarea 
-                   placeholder="ข้อเสนอแนะเพิ่มเติม (ถ้ามี)..."
-                   value={surveyComment}
-                   onChange={(e) => setSurveyComment(e.target.value)}
-                   className="portal-survey-comment"
-                 />
-
-                 <div style={{ display: 'flex', gap: '12px' }}>
-                   <button 
-                     type="button"
-                     onClick={() => setShowSurvey(false)}
-                     style={{ 
-                       flex: 1, padding: '14px', borderRadius: '12px', border: '1px solid #e2e8f0',
-                       background: 'white', color: '#64748b', fontWeight: '700', cursor: 'pointer'
-                     }}
-                   >
-                     ข้ามก่อน
-                   </button>
-                   <button 
-                     type="button"
-                     onClick={handleSubmitSurvey}
-                     disabled={submittingSurvey || surveyValue === 0}
-                     style={{ 
-                       flex: 2, padding: '14px', borderRadius: '12px', border: 'none',
-                       background: 'var(--portal-primary)', color: 'white', fontWeight: '800',
-                       cursor: 'pointer', opacity: (surveyValue === 0 || submittingSurvey) ? 0.5 : 1
-                     }}
-                   >
-                     {submittingSurvey ? 'กำลังส่ง...' : 'ส่งผลประเมิน'}
-                   </button>
-                 </div>
-               </>
-             )}
-           </div>
-         </div>
-       )}
-
-       <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px', padding: '0 4px' }}>
-          <button type="button" onClick={() => router.push(portalHomeUrl)} style={{ padding: '8px', borderRadius: '12px', border: '1px solid var(--portal-border)', background: 'white', color: '#1e293b', cursor: 'pointer' }}>
-             <ArrowLeft size={18} />
-          </button>
-          <h2 style={{ fontSize: '18px', fontWeight: '900', color: '#1e293b' }}>ตั๋วเลขที่ #{ticket.ticket_no}</h2>
-       </div>
-
-       <section className="portal-glass" style={{ padding: '20px', marginBottom: '24px', display: 'flex', flexDirection: 'column', height: '450px', background: 'white', position: 'relative' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px', borderBottom: '1px solid var(--portal-border)', paddingBottom: '12px' }}>
-             <MessageCircle size={16} color="var(--portal-primary)" />
-             <h3 style={{ fontSize: '13px', fontWeight: '800', color: '#1e293b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>สนทนากับเจ้าหน้าที่</h3>
-          </div>
-
-          <div
-            ref={messagesContainerRef}
-            onScroll={handleMessagesScroll}
-            style={{ flex: 1, overflowY: 'auto', marginBottom: '20px', display: 'flex', flexDirection: 'column', gap: '14px', padding: '0 4px' }}
-            className="no-scrollbar"
-          >
-             {filteredMessages.map((msg, idx) => (
-                <MessageBubble key={msg.id || idx} msg={msg} onImageClick={handleEditExistingImage} />
-             ))}
-             {messages.length === 0 && <p style={{ textAlign: 'center', color: 'var(--portal-text-muted)', fontSize: '13px', marginTop: '40px' }}>ยังไม่มีข้อความ เริ่มคุยกับเราได้เลยครับ</p>}
-             <div ref={messagesEndRef} />
-          </div>
-
-          {showJumpToLatest && (
-            <button
-              type="button"
-              onClick={() => scrollToLatest('smooth')}
-              style={{
-                position: 'absolute',
-                right: '22px',
-                bottom: '84px',
-                border: '1px solid rgba(15, 23, 42, 0.08)',
-                background: '#ffffff',
-                color: '#0f172a',
-                borderRadius: '999px',
-                padding: '8px 12px',
-                fontSize: '12px',
-                fontWeight: '800',
-                boxShadow: '0 10px 20px rgba(15, 23, 42, 0.12)',
-                cursor: 'pointer',
-                zIndex: 5,
-              }}
-            >
-              Latest ↓
-            </button>
-          )}
-
-          {ticket.status !== 'Resolved' && ticket.status !== 'Closed' ? (
-            <div style={{ display: 'flex', gap: '10px', alignItems: 'center', background: '#f8fafc', padding: '8px', borderRadius: '16px' }}>
-               <button 
-                 type="button"
-                 onClick={() => setIsAttachModalOpen(true)} 
-                 title="แนบไฟล์หรือรูปภาพ"
-                 style={{ width: '40px', height: '40px', borderRadius: '12px', border: 'none', background: 'white', color: '#64748b', cursor: 'pointer', boxShadow: '0 2px 5px rgba(0,0,0,0.05)' }} 
-                 className="flex-center"
-               >
-                  <Paperclip size={18} />
-               </button>
-               <input 
-                 type="text" 
-                 placeholder="เขียนข้อความถึงเจ้าหน้าที่..." 
-                 value={newMessage}
-                 onChange={(e) => setNewMessage(e.target.value)}
-                 onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
-                 style={{ flex: 1, background: 'transparent', border: 'none', borderRadius: '10px', padding: '10px', color: '#1e293b', outline: 'none', fontSize: '14px' }}
-               />
-               <button 
-                 type="button"
-                 onClick={handleSendMessage}
-                 disabled={sending}
-                 style={{ width: '40px', height: '40px', borderRadius: '12px', border: 'none', background: '#1e293b', color: 'white', cursor: 'pointer' }}
-                 className="flex-center"
-               >
-                    {sending ? <Loader2 size={18} className="animate-spin" /> : <SendHorizontal size={18} />}
-               </button>
-            </div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-               <div style={{ padding: '16px', borderRadius: '16px', background: '#f0fdf4', border: '1px solid #dcfce7', textAlign: 'center' }}>
-                  <p style={{ fontSize: '13px', color: '#166534', fontWeight: '700' }}>
-                     ใบงานนี้เสร็จสมบูรณ์แล้ว ระบบปิดการสนทนาขอบคุณที่ใช้บริการครับ
+    <div className={styles.root} style={rootStyle}>
+      {/* Survey Modal Popup */}
+      {showSurvey && (
+        <div
+          className={styles.surveyOverlay}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="survey-modal-title"
+        >
+          <div className={styles.surveyModal}>
+            {hasResponded ? (
+              <div className={styles.surveyThankYou}>
+                <div className={styles.surveyThankIcon} aria-hidden="true">
+                  <CheckCircle2 size={28} />
+                </div>
+                <h3 id="survey-modal-title" className={styles.surveyTitle}>ขอบคุณมากครับ!</h3>
+                <p className={styles.surveySubtitle}>คะแนนของคุณถูกบันทึกเรียบร้อยแล้ว</p>
+                <div className={styles.starRow} aria-label={`คะแนน ${surveyScore || surveyValue} จาก 5 ดาว`}>
+                  {[1, 2, 3, 4, 5].map((s) => (
+                    <Star
+                      key={s}
+                      size={28}
+                      fill={s <= (surveyScore || surveyValue) ? '#d97706' : '#e2e8f0'}
+                      color={s <= (surveyScore || surveyValue) ? '#d97706' : '#e2e8f0'}
+                      aria-hidden="true"
+                    />
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <>
+                <div className={styles.surveyHeader}>
+                  <div className={styles.surveyIconBadge} aria-hidden="true">
+                    <Clock size={22} />
+                  </div>
+                  <h3 id="survey-modal-title" className={styles.surveyTitle}>ประเมินความพึงพอใจ</h3>
+                  <p className={styles.surveySubtitle}>
+                    งานหมายเลข <span className={styles.tabular}>#{ticket.ticket_no}</span> ได้รับการแก้ไขแล้ว ช่วยให้คะแนนเราหน่อยนะครับ
                   </p>
-               </div>
-               {/* Show CSAT score immediately after survey submission */}
-               {(surveyScore > 0 || (hasResponded && surveyValue > 0)) && (
-                 <div style={{ padding: '12px 16px', borderRadius: '12px', background: '#fffbeb', border: '1px solid #fde68a', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
-                   <span style={{ fontSize: '12px', fontWeight: '700', color: '#92400e' }}>คะแนนที่คุณให้:</span>
-                   <div style={{ display: 'flex', gap: '2px' }}>
-                     {[1, 2, 3, 4, 5].map((s) => (
-                       <svg key={s} width="16" height="16" viewBox="0 0 24 24"
-                         fill={s <= (surveyScore || surveyValue) ? '#f59e0b' : '#e2e8f0'}
-                         stroke={s <= (surveyScore || surveyValue) ? '#f59e0b' : '#e2e8f0'}
-                         strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-                       >
-                         <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
-                       </svg>
-                     ))}
-                   </div>
-                   <span style={{ fontSize: '12px', fontWeight: '800', color: '#f59e0b' }}>{surveyScore || surveyValue}/5</span>
-                 </div>
-               )}
-               {/* Button to re-open survey if not responded yet */}
-               {!hasResponded && (
-                 <button
-                   type="button"
-                   onClick={() => setShowSurvey(true)}
-                   style={{ padding: '12px', borderRadius: '12px', border: '1px solid #fde68a', background: '#fffbeb', color: '#92400e', fontWeight: '700', fontSize: '13px', cursor: 'pointer' }}
-                 >
-                   ⭐ ให้คะแนนการบริการ
-                 </button>
-               )}
-            </div>
-          )}
-       </section>
+                </div>
 
-       <section className="portal-glass" style={{ padding: '24px', marginBottom: '24px', background: 'white', border: '1px solid var(--portal-border)' }}>
-           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px', alignItems: 'center' }}>
-              <h3 style={{ fontSize: '12px', fontWeight: '800', color: 'var(--portal-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>สถานะปัจจุบัน</h3>
-              <span style={{ 
-                fontSize: '13px', 
-                fontWeight: '900', 
-                color: ['resolved', 'closed'].includes(String(ticket.status).toLowerCase()) 
-                  ? '#22c55e' 
-                  : String(ticket.status).toLowerCase() === 'pending'
-                    ? '#f97316'
-                    : 'var(--portal-primary)' 
-              }}>
-                 {getFriendlyStatus()}
-              </span>
-           </div>
+                <div className={styles.starRow} role="radiogroup" aria-label="ให้คะแนนความพึงพอใจ">
+                  {[1, 2, 3, 4, 5].map((star) => {
+                    const active = (surveyHover || surveyValue) >= star;
+                    return (
+                      <button
+                        key={star}
+                        type="button"
+                        className={styles.starBtn}
+                        onClick={() => setSurveyValue(star)}
+                        onMouseEnter={() => setSurveyHover(star)}
+                        onMouseLeave={() => setSurveyHover(0)}
+                        aria-label={`ให้คะแนน ${star} ดาว`}
+                        aria-pressed={surveyValue === star}
+                      >
+                        <Star
+                          size={30}
+                          fill={active ? '#d97706' : 'none'}
+                          color={active ? '#d97706' : '#cbd5e1'}
+                          aria-hidden="true"
+                        />
+                      </button>
+                    );
+                  })}
+                </div>
+                <div className={styles.starLabel} aria-live="polite">
+                  {surveyRatingLabel}
+                </div>
 
-           {String(ticket.status).toLowerCase() === 'pending' && (
-             <div style={{
-               padding: '12px 16px',
-               borderRadius: '12px',
-               background: '#fff7ed',
-               border: '1px solid #ffedd5',
-               color: '#c2410c',
-               fontSize: '13px',
-               fontWeight: '700',
-               marginBottom: '16px',
-               display: 'flex',
-               alignItems: 'center',
-               gap: '8px'
-             }}>
-               <span style={{ fontSize: '16px' }}>⚠️</span>
-               <span>ใบงานนี้ติดปัญหาชั่วคราว (Pending) - เจ้าหน้าที่อยู่ระหว่างการรอข้อมูลเพิ่มเติมหรือกำลังแก้ไขอย่างเร่งด่วน</span>
-             </div>
-           )}
+                <label htmlFor="survey-comment-input" className={styles.srOnly}>
+                  ข้อเสนอแนะเพิ่มเติม
+                </label>
+                <textarea
+                  id="survey-comment-input"
+                  placeholder="ข้อเสนอแนะเพิ่มเติม (ถ้ามี)..."
+                  value={surveyComment}
+                  onChange={(e) => setSurveyComment(e.target.value)}
+                  className={styles.surveyTextarea}
+                />
 
-          <TicketStatusStepper currentLevel={currentLevel} status={ticket.status} />
-       </section>
+                <div className={styles.surveyActions}>
+                  <button
+                    type="button"
+                    className={styles.surveySkipBtn}
+                    onClick={() => setShowSurvey(false)}
+                  >
+                    ข้ามก่อน
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.surveySubmitBtn}
+                    onClick={handleSubmitSurvey}
+                    disabled={submittingSurvey || surveyValue === 0}
+                  >
+                    {submittingSurvey ? 'กำลังส่ง...' : 'ส่งผลประเมิน'}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
 
-        <div className="portal-glass" style={{ padding: '20px', marginBottom: '24px', background: 'white' }}>
-           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
-              <FileText size={16} color="var(--portal-primary)" />
-              <p style={{ fontSize: '12px', fontWeight: '800', color: 'var(--portal-text-muted)', textTransform: 'uppercase' }}>ข้อมูลใบงาน</p>
-           </div>
-           
-           <div style={{ marginBottom: '16px' }}>
-              <p style={{ fontSize: '10px', color: '#64748b', fontWeight: '800', textTransform: 'uppercase', marginBottom: '4px' }}>หัวข้อที่แจ้ง</p>
-              <p style={{ fontSize: '17px', fontWeight: '800', color: '#1e293b' }}>{ticket.subject || 'แจ้งปัญหาทั่วไป'}</p>
-           </div>
+      {/* Top Navigation & Ticket Status Header */}
+      <header className={styles.topBar}>
+        <div className={styles.topBarLeft}>
+          <button
+            type="button"
+            className={styles.backBtn}
+            onClick={() => router.push(portalHomeUrl)}
+            aria-label="กลับหน้ารายการใบงาน"
+          >
+            <ArrowLeft size={20} aria-hidden="true" />
+          </button>
+          <div className={styles.topBarMeta}>
+            <h2 className={styles.ticketNumber}>ตั๋วเลขที่ #{ticket.ticket_no}</h2>
+            <p className={styles.ticketSubjectSub}>{ticket.subject || 'แจ้งปัญหาทั่วไป'}</p>
+          </div>
+        </div>
+        <span className={`${styles.statusPill} ${statusPillClass}`}>
+          {getCompactStatus()}
+        </span>
+      </header>
 
-           {ticket.module && (
-              <div style={{ marginBottom: '16px' }}>
-                 <p style={{ fontSize: '10px', color: '#64748b', fontWeight: '800', textTransform: 'uppercase', marginBottom: '4px' }}>โมดูลที่เกี่ยวข้อง (Module)</p>
-                 <div style={{ display: 'inline-flex', padding: '6px 12px', background: '#7c3aed', color: 'white', borderRadius: '10px', fontSize: '13px', fontWeight: '800' }}>
-                    {ticket.module}
-                 </div>
-              </div>
-           )}
-
-           {ticket.description && (
-              <div>
-                 <p style={{ fontSize: '10px', color: '#64748b', fontWeight: '800', textTransform: 'uppercase', marginBottom: '4px' }}>รายละเอียด</p>
-                 <p style={{ fontSize: '14px', color: '#64748b', lineHeight: '1.6' }}>{ticket.description}</p>
-              </div>
-           )}
+      {/* LINE-Native Chat Card */}
+      <section className={styles.chatCard} aria-label="ห้องสนทนากับเจ้าหน้าที่">
+        <div className={styles.chatHeader}>
+          <h3 className={styles.chatHeaderTitle}>
+            <MessageCircle size={17} className={styles.cardIcon} aria-hidden="true" />
+            <span>สนทนากับเจ้าหน้าที่</span>
+          </h3>
         </div>
 
-       <section className="portal-glass" style={{ padding: '24px', background: 'white' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px' }}>
-             <Clock size={16} color="var(--portal-primary)" />
-             <h3 style={{ fontSize: '13px', fontWeight: '800', color: '#1e293b', textTransform: 'uppercase' }}>ประวัติการดำเนินการ</h3>
+        <div
+          ref={messagesContainerRef}
+          onScroll={handleMessagesScroll}
+          className={styles.chatThread}
+        >
+          {filteredMessages.map((msg, idx) => (
+            <MessageBubble key={msg.id || idx} msg={msg} onImageClick={handleEditExistingImage} />
+          ))}
+          {filteredMessages.length === 0 && (
+            <p className={styles.emptyThread}>ยังไม่มีข้อความ เริ่มคุยกับเราได้เลยครับ</p>
+          )}
+          <div ref={messagesEndRef} />
+        </div>
+
+        {showJumpToLatest && (
+          <button
+            type="button"
+            className={styles.jumpLatestBtn}
+            onClick={() => scrollToLatest('smooth')}
+            aria-label="เลื่อนลงไปข้อความล่าสุด"
+          >
+            <span>ล่าสุด</span>
+            <ArrowDown size={14} aria-hidden="true" />
+          </button>
+        )}
+
+        {ticket.status !== 'Resolved' && ticket.status !== 'Closed' ? (
+          <div className={styles.composer}>
+            <button
+              type="button"
+              className={styles.attachBtn}
+              onClick={() => setIsAttachModalOpen(true)}
+              title="แนบไฟล์หรือรูปภาพ"
+              aria-label="แนบไฟล์หรือรูปภาพ"
+            >
+              <Paperclip size={18} aria-hidden="true" />
+            </button>
+            <label htmlFor="ticket-chat-input" className={styles.srOnly}>
+              เขียนข้อความถึงเจ้าหน้าที่
+            </label>
+            <input
+              id="ticket-chat-input"
+              type="text"
+              className={styles.composerInput}
+              placeholder="เขียนข้อความถึงเจ้าหน้าที่..."
+              aria-label="เขียนข้อความถึงเจ้าหน้าที่"
+              value={newMessage}
+              onChange={(e) => setNewMessage(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
+            />
+            <button
+              type="button"
+              className={styles.sendBtn}
+              onClick={handleSendMessage}
+              disabled={sending}
+              aria-label="ส่งข้อความ"
+            >
+              {sending ? (
+                <Loader2 size={18} className={styles.spinner} aria-hidden="true" />
+              ) : (
+                <SendHorizontal size={18} aria-hidden="true" />
+              )}
+            </button>
           </div>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0', borderLeft: '1px solid #e2e8f0', marginLeft: '8px', paddingLeft: '20px' }}>
-             {logs.map((log, index) => (
-                <div key={log.id} style={{ position: 'relative', marginBottom: '20px' }}>
-                   <div style={{ 
-                      position: 'absolute', 
-                      left: '-24.5px', 
-                      top: '4px', 
-                      width: '8px', 
-                      height: '8px', 
-                      borderRadius: '50%', 
-                      background: index === 0 ? 'var(--portal-primary)' : '#cbd5e1',
-                      border: '2px solid white'
-                   }} />
-                   <p style={{ fontSize: '10px', color: 'var(--portal-text-muted)', marginBottom: '4px', fontWeight: '600' }}>
-                      {new Date(log.created_at).toLocaleString('th-TH', { dateStyle: 'medium', timeStyle: 'short' })}
-                   </p>
-                   <p style={{ fontSize: '13px', fontWeight: '700', color: '#334155' }}>
-                      {log.action_type === 'status_change' ? `เปลี่ยนสถานะเป็น ${log.to_status}` : 'เริ่มดำเนินการ'}
-                   </p>
+        ) : (
+          <div className={styles.closedFooter}>
+            <div className={styles.closedNotice}>
+              <CheckCircle2 size={16} aria-hidden="true" />
+              <p>ใบงานนี้เสร็จสมบูรณ์แล้ว ระบบปิดการสนทนาขอบคุณที่ใช้บริการครับ</p>
+            </div>
+            {(surveyScore > 0 || (hasResponded && surveyValue > 0)) && (
+              <div className={styles.csatDisplay}>
+                <span className={styles.csatLabel}>คะแนนที่คุณให้:</span>
+                <div className={styles.csatStars} aria-hidden="true">
+                  {[1, 2, 3, 4, 5].map((s) => (
+                    <Star
+                      key={s}
+                      size={16}
+                      fill={s <= (surveyScore || surveyValue) ? '#d97706' : '#e2e8f0'}
+                      color={s <= (surveyScore || surveyValue) ? '#d97706' : '#e2e8f0'}
+                    />
+                  ))}
                 </div>
-              ))}
-              {logs.length === 0 && <p style={{ fontSize: '12px', color: 'var(--portal-text-muted)' }}>กำลังรอเจ้าหน้าที่รับเรื่อง...</p>}
-           </div>
-        </section>
+                <span className={styles.csatScoreText}>{surveyScore || surveyValue}/5</span>
+              </div>
+            )}
+            {!hasResponded && (
+              <button
+                type="button"
+                className={styles.rateBtn}
+                onClick={() => setShowSurvey(true)}
+              >
+                <Star size={16} aria-hidden="true" />
+                <span>ให้คะแนนการบริการ</span>
+              </button>
+            )}
+          </div>
+        )}
+      </section>
 
+      {/* Current Status & Progress Stepper */}
+      <section className={styles.card} aria-label="สถานะปัจจุบัน">
+        <div className={styles.cardHeader}>
+          <h3 className={styles.cardTitle}>สถานะปัจจุบัน</h3>
+          <span className={`${styles.statusValue} ${statusTextClass}`}>
+            {getFriendlyStatus()}
+          </span>
+        </div>
+
+        {String(ticket.status).toLowerCase() === 'pending' && (
+          <div className={styles.pendingAlert} role="alert">
+            <AlertTriangle size={18} className={styles.pendingAlertIcon} aria-hidden="true" />
+            <span>ใบงานนี้ติดปัญหาชั่วคราว (Pending) - เจ้าหน้าที่อยู่ระหว่างการรอข้อมูลเพิ่มเติมหรือกำลังแก้ไขอย่างเร่งด่วน</span>
+          </div>
+        )}
+
+        <TicketStatusStepper currentLevel={currentLevel} status={ticket.status} />
+      </section>
+
+      {/* Ticket Details Card */}
+      <section className={styles.card} aria-label="ข้อมูลใบงาน">
+        <div className={styles.cardHeader}>
+          <div className={styles.cardTitleGroup}>
+            <FileText size={16} className={styles.cardIcon} aria-hidden="true" />
+            <h3 className={styles.cardTitle}>ข้อมูลใบงาน</h3>
+          </div>
+        </div>
+
+        <div className={styles.detailGroup}>
+          <p className={styles.detailLabel}>หัวข้อที่แจ้ง</p>
+          <p className={styles.detailSubject}>{ticket.subject || 'แจ้งปัญหาทั่วไป'}</p>
+        </div>
+
+        {ticket.module && (
+          <div className={styles.detailGroup}>
+            <p className={styles.detailLabel}>โมดูลที่เกี่ยวข้อง (Module)</p>
+            <span className={styles.moduleBadge}>{ticket.module}</span>
+          </div>
+        )}
+
+        {ticket.description && (
+          <div className={styles.detailGroup}>
+            <p className={styles.detailLabel}>รายละเอียด</p>
+            <p className={styles.detailDescription}>{ticket.description}</p>
+          </div>
+        )}
+      </section>
+
+      {/* Activity Logs Timeline */}
+      <section className={styles.card} aria-label="ประวัติการดำเนินการ">
+        <div className={styles.cardHeader}>
+          <div className={styles.cardTitleGroup}>
+            <Clock size={16} className={styles.cardIcon} aria-hidden="true" />
+            <h3 className={styles.cardTitle}>ประวัติการดำเนินการ</h3>
+          </div>
+        </div>
+
+        {logs.length > 0 ? (
+          <ol className={styles.timeline}>
+            {logs.map((log, index) => (
+              <li
+                key={log.id}
+                className={`${styles.timelineItem} ${index === 0 ? styles.timelineItemFirst : ''}`}
+              >
+                <span className={styles.timelineDot} aria-hidden="true" />
+                <time className={styles.timelineTime} dateTime={log.created_at}>
+                  {new Date(log.created_at).toLocaleString('th-TH', { dateStyle: 'medium', timeStyle: 'short' })}
+                </time>
+                <p className={styles.timelineAction}>
+                  {log.action_type === 'status_change' ? `เปลี่ยนสถานะเป็น ${log.to_status}` : 'เริ่มดำเนินการ'}
+                </p>
+              </li>
+            ))}
+          </ol>
+        ) : (
+          <p className={styles.timelineEmpty}>กำลังรอเจ้าหน้าที่รับเรื่อง...</p>
+        )}
+      </section>
+
+      <React.Suspense fallback={null}>
+        <ChatAttachmentModal
+          isOpen={isAttachModalOpen}
+          onClose={() => setIsAttachModalOpen(false)}
+          onConfirm={handleConfirmAttachment}
+          onImageSelect={(dataUrl) => {
+            setEditingImage(dataUrl);
+            setIsEditorOpen(true);
+            setIsAttachModalOpen(false);
+          }}
+        />
+      </React.Suspense>
+
+      {isEditorOpen && editingImage && (
         <React.Suspense fallback={null}>
-          <ChatAttachmentModal 
-             isOpen={isAttachModalOpen} 
-             onClose={() => setIsAttachModalOpen(false)}
-             onConfirm={handleConfirmAttachment}
-             onImageSelect={(dataUrl) => {
-                setEditingImage(dataUrl);
-                setIsEditorOpen(true);
-                setIsAttachModalOpen(false);
-             }}
+          <ImageEditorModal
+            imageUrl={editingImage}
+            onClose={() => setIsEditorOpen(false)}
+            onSave={async (blob) => {
+              const file = new File([blob], `edit_${Date.now()}.jpg`, { type: 'image/jpeg' });
+              await handleConfirmAttachment(file, 'image');
+              setIsEditorOpen(false);
+            }}
           />
         </React.Suspense>
+      )}
 
-        {isEditorOpen && editingImage && (
-           <React.Suspense fallback={null}>
-             <ImageEditorModal 
-                imageUrl={editingImage}
-                onClose={() => setIsEditorOpen(false)}
-                onSave={async (blob) => {
-                   const file = new File([blob], `edit_${Date.now()}.jpg`, { type: 'image/jpeg' });
-                   await handleConfirmAttachment(file, 'image');
-                   setIsEditorOpen(false);
-                }}
-             />
-           </React.Suspense>
-        )}
-
-        {isViewerOpen && viewingImage && (
-           <React.Suspense fallback={null}>
-             <ImageViewerModal 
-                imageUrl={viewingImage} 
-                onClose={() => setIsViewerOpen(false)} 
-                onEdit={(src: string) => {
-                   setIsViewerOpen(false);
-                   setEditingImage(src);
-                   setIsEditorOpen(true);
-                }}
-             />
-           </React.Suspense>
-        )}
-
+      {isViewerOpen && viewingImage && (
+        <React.Suspense fallback={null}>
+          <ImageViewerModal
+            imageUrl={viewingImage}
+            onClose={() => setIsViewerOpen(false)}
+            onEdit={(src: string) => {
+              setIsViewerOpen(false);
+              setEditingImage(src);
+              setIsEditorOpen(true);
+            }}
+          />
+        </React.Suspense>
+      )}
     </div>
   );
 }

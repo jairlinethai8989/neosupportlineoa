@@ -1,14 +1,19 @@
 'use client';
+
 import React, { useState } from 'react';
-import { User, Link as LinkIcon, Copy, CheckCircle2, Info } from 'lucide-react';
+import { CheckCircle2, Copy, Info, Link as LinkIcon, User } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { clsx } from 'clsx';
+import { Badge, Button, Card, CardBody, CardHeader, CardTitle, Select } from '@/components/ui';
+import { useStaffLocale } from '@/contexts/StaffLocaleContext';
+import { isResolvedOrClosedStatus } from '@/lib/tickets/detailState';
 import type {
   TicketDetailLog,
   TicketDetailTicket,
   TicketDetailUser,
 } from '@/types/tickets';
-import { isResolvedOrClosedStatus } from '@/lib/tickets/detailState';
+import styles from '@/app/(dashboard)/tickets/tickets-workspace.module.css';
 
 interface TicketSidebarProps {
   ticket: TicketDetailTicket | null;
@@ -25,7 +30,7 @@ interface TicketSidebarProps {
   availableModules: string[];
   logs: TicketDetailLog[];
   showActivity?: boolean;
-  showProfile?: boolean; // New prop for profile visibility
+  showProfile?: boolean;
 }
 
 export function getTicketDuration(createdAt: string, resolvedAt?: string | null) {
@@ -56,8 +61,9 @@ export const TicketSidebar: React.FC<TicketSidebarProps> = ({
   availableModules,
   logs,
   showActivity = true,
-  showProfile = true, // Default to true
+  showProfile = true,
 }) => {
+  const { locale } = useStaffLocale();
   const [copied, setCopied] = useState(false);
 
   if (!ticket) return null;
@@ -68,8 +74,8 @@ export const TicketSidebar: React.FC<TicketSidebarProps> = ({
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const magicLink = ticket.escalation_token 
-    ? `${typeof window !== 'undefined' ? window.location.origin : ''}/escalate/${ticket.escalation_token}` 
+  const magicLink = ticket.escalation_token
+    ? `${typeof window !== 'undefined' ? window.location.origin : ''}/escalate/${ticket.escalation_token}`
     : null;
 
   const ticketStatus = ticket.status || '';
@@ -77,319 +83,177 @@ export const TicketSidebar: React.FC<TicketSidebarProps> = ({
   const isAdmin = user?.role === 'Administrator';
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
       {showProfile && (
-        <div className="glass" style={{ padding: '24px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '16px' }}>
-            <div
-              style={{
-                width: '52px',
-                height: '52px',
-                borderRadius: '16px',
-                background: 'var(--secondary)',
-                overflow: 'hidden',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
+        <Card>
+          <CardBody style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div className={styles.summaryAvatar} aria-hidden="true">
+                {ticket.customers?.avatar_url ? (
+                  <Image
+                    src={ticket.customers.avatar_url}
+                    alt="avatar"
+                    width={40}
+                    height={40}
+                    unoptimized
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                  />
+                ) : (
+                  <User size={18} />
+                )}
+              </div>
+              <div>
+                <h4 style={{ margin: 0, fontSize: 'var(--text-base)', fontWeight: 700 }}>
+                  {ticket.customers?.display_name || 'Customer'}
+                </h4>
+                <Badge size="sm" variant="primary">
+                  CUSTOMER
+                </Badge>
+              </div>
+            </div>
+            <Link
+              href={`/tickets?customerId=${ticket.customer_id}`}
+              className={styles.iconLinkBtn}
+              style={{ width: '100%', fontSize: 'var(--text-xs)', fontWeight: 600 }}
             >
-              {ticket.customers?.avatar_url ? (
-                <Image
-                  src={ticket.customers.avatar_url}
-                  alt="avatar"
-                  width={52}
-                  height={52}
-                  unoptimized
-                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                />
-              ) : (
-                <User size={24} />
-              )}
-            </div>
-            <div>
-              <h4 style={{ fontSize: '16px', fontWeight: '800', color: 'var(--text)' }}>
-                {ticket.customers?.display_name || 'Customer'}
-              </h4>
-              <span
-                style={{
-                  fontSize: '10px',
-                  padding: '2px 8px',
-                  background: 'rgba(0,242,254,0.1)',
-                  color: 'var(--primary)',
-                  borderRadius: '4px',
-                  fontWeight: '800',
-                }}
-              >
-                CUSTOMER
-              </span>
-            </div>
-          </div>
-          <Link
-            href={`/tickets?customerId=${ticket.customer_id}`}
-            className="glass-interactive flex-center"
-            style={{
-              width: '100%',
-              padding: '10px',
-              borderRadius: '10px',
-              fontSize: '12px',
-              fontWeight: '800',
-              border: '1px solid var(--border)',
-              textDecoration: 'none',
-              color: 'var(--text-main)',
-            }}
-          >
-            View customer ticket history
-          </Link>
-        </div>
+              View customer ticket history
+            </Link>
+          </CardBody>
+        </Card>
       )}
 
+      <Card>
+        <CardHeader>
+          <CardTitle>{locale === 'th' ? 'รายละเอียดใบงาน' : 'Issue Details'}</CardTitle>
+        </CardHeader>
+        <CardBody style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          <p style={{ margin: 0, fontSize: 'var(--text-sm)', fontWeight: 600, lineHeight: 1.45 }}>
+            {ticket.subject}
+          </p>
 
-      <div className="glass" style={{ padding: '20px' }}>
-        <label
-          style={{
-            fontSize: '10px',
-            fontWeight: '800',
-            color: 'var(--text-muted)',
-            textTransform: 'uppercase',
-            marginBottom: '12px',
-            display: 'block',
-          }}
-        >
-          Issue Details
-        </label>
-        <h5 style={{ fontSize: '14px', fontWeight: '800', marginBottom: '16px', lineHeight: '1.4' }}>
-          {ticket.subject}
-        </h5>
+          <Select
+            label="Status"
+            value={status}
+            onChange={(event) => setStatus(event.target.value)}
+            disabled={isResolvedOrClosed && !isAdmin}
+          >
+            <option value="New">New</option>
+            <option value="Assigned">Assigned</option>
+            <option value="In Progress">In Progress</option>
+            <option value="Escalated">Escalated</option>
+            <option value="Pending">Pending</option>
+            <option value="Fix Completed">Fix Completed</option>
+            <option value="Resolved">Resolved</option>
+          </Select>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          <div>
-            <label
-              style={{
-                fontSize: '9px',
-                fontWeight: '800',
-                color: 'var(--text-muted)',
-                display: 'block',
-                marginBottom: '4px',
-              }}
-            >
-              Status
-            </label>
-            <select
-              value={status}
-              onChange={(event) => setStatus(event.target.value)}
-              disabled={isResolvedOrClosed && !isAdmin}
-              style={{
-                width: '100%',
-                padding: '8px',
-                borderRadius: '8px',
-                fontSize: '12px',
-                background: 'rgba(0,242,254,0.05)',
-                border: '1px solid rgba(0,242,254,0.2)',
-                color: 'var(--primary)',
-                fontWeight: '800',
-                opacity: isResolvedOrClosed && !isAdmin ? 0.5 : 1,
-              }}
-            >
-              <option value="New">New</option>
-              <option value="Assigned">Assigned</option>
-              <option value="In Progress">In Progress</option>
-              <option value="Escalated">Escalated</option>
-              <option value="Pending">Pending</option>
-              <option value="Fix Completed">Fix Completed</option>
-              <option value="Resolved">Resolved</option>
-            </select>
-          </div>
-          <div>
-            <label
-              style={{
-                fontSize: '9px',
-                fontWeight: '800',
-                color: 'var(--text-muted)',
-                display: 'block',
-                marginBottom: '4px',
-              }}
-            >
-              Priority
-            </label>
-            <select
-              value={priority}
-              onChange={(event) => setPriority(event.target.value)}
-              style={{
-                width: '100%',
-                padding: '8px',
-                borderRadius: '8px',
-                fontSize: '12px',
-                background: 'rgba(0,242,254,0.05)',
-                border: '1px solid rgba(0,242,254,0.2)',
-                color: 'var(--primary)',
-                fontWeight: '800',
-              }}
-            >
-              <option value="Low">Low</option>
-              <option value="Medium">Medium</option>
-              <option value="High">High</option>
-            </select>
-          </div>
-          <div>
-            <label
-              style={{
-                fontSize: '9px',
-                fontWeight: '800',
-                color: 'var(--text-muted)',
-                display: 'block',
-                marginBottom: '4px',
-              }}
-            >
-              Assign to Department
-            </label>
-            <select
-              value={selectedDept}
-              onChange={(event) => setSelectedDept(event.target.value)}
-              disabled={isResolvedOrClosed && !isAdmin}
-              style={{
-                width: '100%',
-                padding: '8px',
-                borderRadius: '8px',
-                fontSize: '12px',
-                background: 'rgba(0,242,254,0.05)',
-                border: '1px solid rgba(0,242,254,0.2)',
-                color: 'var(--primary)',
-                fontWeight: '800',
-                opacity: isResolvedOrClosed && !isAdmin ? 0.5 : 1,
-              }}
-            >
-              {availableDepts.map((dept) => (
-                <option key={dept.value} value={dept.value}>
-                  {dept.label}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label
-              style={{
-                fontSize: '9px',
-                fontWeight: '800',
-                color: 'var(--text-muted)',
-                display: 'block',
-                marginBottom: '4px',
-              }}
-            >
-              Module
-            </label>
-            <select
-              value={selectedModule}
-              onChange={(event) => setSelectedModule(event.target.value)}
-              disabled={isResolvedOrClosed && !isAdmin}
-              style={{
-                width: '100%',
-                padding: '8px',
-                borderRadius: '8px',
-                fontSize: '12px',
-                background: 'rgba(0,242,254,0.05)',
-                border: '1px solid rgba(0,242,254,0.2)',
-                color: 'var(--primary)',
-                fontWeight: '800',
-                opacity: isResolvedOrClosed && !isAdmin ? 0.5 : 1,
-              }}
-            >
-              <option value="">-- Not specified --</option>
-              {availableModules.map((moduleName) => (
-                <option key={moduleName} value={moduleName}>
-                  {moduleName}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-      </div>
+          <Select
+            label="Priority"
+            value={priority}
+            onChange={(event) => setPriority(event.target.value)}
+          >
+            <option value="Low">Low</option>
+            <option value="Medium">Medium</option>
+            <option value="High">High</option>
+          </Select>
+
+          <Select
+            label={locale === 'th' ? 'มอบหมายแผนก' : 'Assign to Department'}
+            value={selectedDept}
+            onChange={(event) => setSelectedDept(event.target.value)}
+            disabled={isResolvedOrClosed && !isAdmin}
+          >
+            {availableDepts.map((dept) => (
+              <option key={dept.value} value={dept.value}>
+                {dept.label}
+              </option>
+            ))}
+          </Select>
+
+          <Select
+            label="Module"
+            value={selectedModule}
+            onChange={(event) => setSelectedModule(event.target.value)}
+            disabled={isResolvedOrClosed && !isAdmin}
+          >
+            <option value="">-- Not specified --</option>
+            {availableModules.map((moduleName) => (
+              <option key={moduleName} value={moduleName}>
+                {moduleName}
+              </option>
+            ))}
+          </Select>
+        </CardBody>
+      </Card>
 
       {magicLink && !isResolvedOrClosed && (
-        <div className="glass animate-fade-in" style={{ padding: '20px', border: '1px dashed var(--primary)', background: 'rgba(0,242,254,0.05)' }}>
-           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
-              <LinkIcon size={16} color="var(--primary)" />
-              <span style={{ fontSize: '11px', fontWeight: '800', color: 'var(--primary)', textTransform: 'uppercase' }}>Magic Link (Handoff)</span>
-           </div>
-           
-           <div style={{ display: 'flex', gap: '8px', alignItems: 'center', background: 'rgba(0,0,0,0.2)', padding: '10px', borderRadius: '10px', marginBottom: '12px' }}>
-              <input 
-                 readOnly 
-                 value={magicLink} 
-                 style={{ flex: 1, background: 'transparent', border: 'none', color: 'var(--text-muted)', fontSize: '11px', outline: 'none', textOverflow: 'ellipsis' }} 
+        <Card style={{ borderStyle: 'dashed', borderColor: 'var(--color-primary)' }}>
+          <CardBody style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--color-primary)', fontSize: 'var(--text-xs)', fontWeight: 700 }}>
+              <LinkIcon size={14} aria-hidden="true" />
+              <span>MAGIC LINK (HANDOFF)</span>
+            </div>
+
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+              <input
+                readOnly
+                value={magicLink}
+                aria-label="Handoff magic link"
+                className={clsx(styles.searchInput, 'tabular-nums')}
+                style={{ paddingLeft: '10px', height: '32px', fontSize: 'var(--text-xs)' }}
               />
-              <button 
-                 onClick={() => handleCopyLink(magicLink)} 
-                 style={{ background: 'var(--primary)', border: 'none', borderRadius: '8px', padding: '6px 10px', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
-               >
-                  {copied ? <CheckCircle2 size={14} color="#000" /> : <Copy size={14} color="#000" />}
-               </button>
+              <Button
+                size="sm"
+                variant="primary"
+                iconOnly
+                onClick={() => handleCopyLink(magicLink)}
+                aria-label={locale === 'th' ? 'คัดลอกลิงก์' : 'Copy link'}
+              >
+                {copied ? <CheckCircle2 size={14} aria-hidden="true" /> : <Copy size={14} aria-hidden="true" />}
+              </Button>
             </div>
-            
-            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
-               <Info size={14} color="var(--text-dim)" style={{ marginTop: '2px' }} />
-               <p style={{ fontSize: '11px', color: 'var(--text-dim)', lineHeight: '1.4' }}>
-                  แชร์ลิงก์นี้ให้ผู้รับช่วงงาน (External) เพื่อให้สามารถดูใบสรุปงานและบันทึกผลได้โดยไม่ต้องใช้รหัสผ่านพนักงาน
-               </p>
-            </div>
-         </div>
-       )}
 
-       {showActivity && (
-        <>
-          {/* Time Tracking section removed to avoid redundancy with header stats */}
-
-          <div className="glass" style={{ padding: '20px' }}>
-            <label
-              style={{
-                fontSize: '10px',
-                fontWeight: '800',
-                color: 'var(--text-muted)',
-                textTransform: 'uppercase',
-                marginBottom: '16px',
-                display: 'block',
-              }}
-            >
-              Recent Activity
-            </label>
-            <div
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '12px',
-                borderLeft: '1px solid var(--border)',
-                marginLeft: '6px',
-                paddingLeft: '16px',
-              }}
-            >
-              {logs.slice(0, 3).map((log, idx) => (
-                <div key={log.id || idx} style={{ position: 'relative' }}>
-                  <div
-                    style={{
-                      position: 'absolute',
-                      left: '-19.5px',
-                      top: '4px',
-                      width: '6px',
-                      height: '6px',
-                      borderRadius: '50%',
-                      background: 'var(--primary)',
-                    }}
-                  />
-                  <p style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
-                    {new Date(log.created_at).toLocaleDateString()}
-                  </p>
-                  <p style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text)' }}>
-                    {log.action_type === 'status_change'
-                      ? `Modified to ${log.to_status}`
-                      : log.note || log.action_type}
-                  </p>
-                </div>
-              ))}
-              {logs.length === 0 && (
-                <p style={{ fontSize: '11px', color: 'var(--text-muted)' }}>No logs recorded</p>
-              )}
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '6px', fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)' }}>
+              <Info size={13} style={{ marginTop: 2, flexShrink: 0 }} aria-hidden="true" />
+              <span>
+                แชร์ลิงก์นี้ให้ผู้รับช่วงงาน (External) เพื่อให้สามารถดูใบสรุปงานและบันทึกผลได้โดยไม่ต้องใช้รหัสผ่านพนักงาน
+              </span>
             </div>
-          </div>
-        </>
+          </CardBody>
+        </Card>
+      )}
+
+      {showActivity && (
+        <Card>
+          <CardHeader>
+            <CardTitle>{locale === 'th' ? 'กิจกรรมล่าสุด' : 'Recent Activity'}</CardTitle>
+          </CardHeader>
+          <CardBody>
+            {logs.length > 0 ? (
+              <div className={styles.timelineList}>
+                {logs.slice(0, 3).map((log, idx) => (
+                  <div key={log.id || idx} className={styles.timelineItem}>
+                    <div className={styles.timelineDot} aria-hidden="true" />
+                    <p
+                      className="tabular-nums"
+                      style={{ margin: 0, fontSize: '11px', color: 'var(--color-text-subtle)' }}
+                    >
+                      {new Date(log.created_at).toLocaleDateString()}
+                    </p>
+                    <p style={{ margin: '2px 0 0', fontSize: 'var(--text-xs)', fontWeight: 600 }}>
+                      {log.action_type === 'status_change'
+                        ? `Modified to ${log.to_status}`
+                        : log.note || log.action_type}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p style={{ margin: 0, fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)' }}>
+                No logs recorded
+              </p>
+            )}
+          </CardBody>
+        </Card>
       )}
     </div>
   );

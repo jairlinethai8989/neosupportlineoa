@@ -14,6 +14,19 @@ import {
 import { supabase } from '@/lib/supabase';
 import { useAppContext } from '@/contexts/AppContext';
 import { useStaffLocale } from '@/contexts/StaffLocaleContext';
+import {
+  Badge,
+  Button,
+  Card,
+  CardBody,
+  CardHeader,
+  CardTitle,
+  EmptyState,
+  Input,
+  PageHeader,
+  Select,
+} from '@/components/ui';
+import styles from '../settings.module.css';
 
 export default function SLASettingsPage() {
   const { userProfile } = useAppContext();
@@ -31,7 +44,10 @@ export default function SLASettingsPage() {
     let isMounted = true;
 
     async function fetchRules() {
-      const { data } = await supabase.from('sla_rules').select('*').order('priority', { ascending: true });
+      const { data } = await supabase
+        .from('sla_rules')
+        .select('*')
+        .order('priority', { ascending: true });
       if (!isMounted) return;
       setRules(data || []);
       setLoading(false);
@@ -103,221 +119,182 @@ export default function SLASettingsPage() {
     { value: 'Low', label: t('settingsSla.priorities.low') },
   ];
 
+  const getPriorityBadgeVariant = (priority: string) => {
+    if (priority === 'Critical') return 'danger' as const;
+    if (priority === 'High') return 'warning' as const;
+    if (priority === 'Medium') return 'info' as const;
+    return 'neutral' as const;
+  };
+
   return (
-    <div style={{ animation: 'fadeIn 0.5s ease-out' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px' }}>
-        <Link href="/analytics" style={{ color: 'var(--text-muted)' }}>
-          <ChevronLeft size={24} />
-        </Link>
-        <h1 style={{ fontSize: '24px', fontWeight: '800' }}>{t('settingsSla.title')}</h1>
-      </div>
+    <div className={styles.page}>
+      <PageHeader
+        title={
+          <span className={styles.headerTitleRow}>
+            <Link href="/analytics" className={styles.backLink} aria-label="กลับหน้าวิเคราะห์">
+              <ChevronLeft size={18} aria-hidden="true" />
+            </Link>
+            <span>{t('settingsSla.title')}</span>
+          </span>
+        }
+        badge={
+          <Badge variant="primary" size="md">
+            <span className="tabular-nums">{rules.length}</span> กฎ
+          </Badge>
+        }
+        actions={
+          <Button
+            variant="primary"
+            onClick={handleSave}
+            loading={saving}
+            disabled={!canEdit}
+            leftIcon={<Save size={16} aria-hidden="true" />}
+          >
+            {t('settingsSla.saveConfiguration')}
+          </Button>
+        }
+      />
 
-      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '32px' }}>
-        <div className="glass" style={{ padding: '32px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '32px' }}>
-            <h2 style={{ fontSize: '18px', fontWeight: '700' }}>{t('settingsSla.matrixRules')}</h2>
-            <button
-              onClick={addRule}
-              disabled={!canEdit}
-              className="glass-interactive flex-center"
-              style={{
-                padding: '8px 16px',
-                borderRadius: '8px',
-                background: 'rgba(255,255,255,0.05)',
-                color: 'var(--text-main)',
-                border: '1px solid var(--border)',
-                gap: '8px',
-                opacity: !canEdit ? 0.5 : 1,
-                cursor: !canEdit ? 'not-allowed' : 'pointer',
-              }}
-            >
-              <Plus size={16} />
-              {t('settingsSla.addRule')}
-            </button>
-          </div>
+      <div className={styles.twoColMainAside}>
+        <Card>
+          <CardHeader
+            actions={
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={addRule}
+                disabled={!canEdit}
+                leftIcon={<Plus size={15} aria-hidden="true" />}
+              >
+                {t('settingsSla.addRule')}
+              </Button>
+            }
+          >
+            <CardTitle>{t('settingsSla.matrixRules')}</CardTitle>
+          </CardHeader>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <CardBody className={styles.stackMd}>
             {loading ? (
-              <div style={{ textAlign: 'center', padding: '40px' }}>
-                <Loader2 className="animate-spin" size={24} color="var(--primary)" />
+              <div className="flex-center" style={{ padding: 'var(--space-10)' }} role="status">
+                <Loader2 className="animate-spin" size={24} color="var(--color-primary)" aria-hidden="true" />
               </div>
+            ) : rules.length === 0 ? (
+              <EmptyState compact title={t('settingsSla.noRules')} />
             ) : (
-              rules.map((rule, idx) => (
-                <div
-                  key={idx}
-                  className="glass"
-                  style={{
-                    padding: '20px',
-                    display: 'flex',
-                    gap: '16px',
-                    alignItems: 'end',
-                    background: 'rgba(255,255,255,0.02)',
-                  }}
-                >
-                  <div style={{ flex: 1 }}>
-                    <label
-                      style={{
-                        display: 'block',
-                        fontSize: '11px',
-                        fontWeight: '700',
-                        color: 'var(--text-muted)',
-                        marginBottom: '8px',
-                        textTransform: 'uppercase',
-                      }}
-                    >
-                      {t('settingsSla.priorityLevel')}
-                    </label>
-                    <select
+              <div className={styles.stackSm}>
+                {rules.map((rule, idx) => (
+                  <div key={rule.id || idx} className={styles.slaRuleRow}>
+                    <Select
+                      label={t('settingsSla.priorityLevel')}
+                      labelRight={
+                        <Badge variant={getPriorityBadgeVariant(rule.priority)} size="sm" dot>
+                          {rule.priority}
+                        </Badge>
+                      }
                       value={rule.priority}
+                      disabled={!canEdit}
                       onChange={(event) => updateRule(idx, 'priority', event.target.value)}
-                      style={{
-                        width: '100%',
-                        background: 'var(--bg-input)',
-                        border: '1px solid var(--border)',
-                        borderRadius: '6px',
-                        padding: '10px',
-                        color: 'var(--text-main)',
-                        fontSize: '14px',
-                      }}
                     >
                       {priorityOptions.map((option) => (
                         <option key={option.value} value={option.value}>
                           {option.label}
                         </option>
                       ))}
-                    </select>
-                  </div>
+                    </Select>
 
-                  <div style={{ flex: 1 }}>
-                    <label
-                      style={{
-                        display: 'block',
-                        fontSize: '11px',
-                        fontWeight: '700',
-                        color: 'var(--text-muted)',
-                        marginBottom: '8px',
-                        textTransform: 'uppercase',
-                      }}
-                    >
-                      {t('settingsSla.firstResponseMinutes')}
-                    </label>
-                    <input
+                    <Input
                       type="number"
+                      min={1}
+                      label={t('settingsSla.firstResponseMinutes')}
                       value={rule.response_time_minutes}
-                      onChange={(event) => updateRule(idx, 'response_time_minutes', parseInt(event.target.value, 10))}
-                      style={{
-                        width: '100%',
-                        background: 'var(--bg-input)',
-                        border: '1px solid var(--border)',
-                        borderRadius: '6px',
-                        padding: '10px',
-                        color: 'var(--text-main)',
-                        fontSize: '14px',
-                      }}
-                    />
-                  </div>
-
-                  <div style={{ flex: 1 }}>
-                    <label
-                      style={{
-                        display: 'block',
-                        fontSize: '11px',
-                        fontWeight: '700',
-                        color: 'var(--text-muted)',
-                        marginBottom: '8px',
-                        textTransform: 'uppercase',
-                      }}
-                    >
-                      {t('settingsSla.resolutionMinutes')}
-                    </label>
-                    <input
-                      type="number"
-                      value={rule.resolution_time_minutes}
+                      disabled={!canEdit}
+                      className="tabular-nums"
                       onChange={(event) =>
-                        updateRule(idx, 'resolution_time_minutes', parseInt(event.target.value, 10))
+                        updateRule(idx, 'response_time_minutes', parseInt(event.target.value, 10) || 0)
                       }
-                      style={{
-                        width: '100%',
-                        background: 'var(--bg-input)',
-                        border: '1px solid var(--border)',
-                        borderRadius: '6px',
-                        padding: '10px',
-                        color: 'var(--text-main)',
-                        fontSize: '14px',
-                      }}
                     />
+
+                    <Input
+                      type="number"
+                      min={1}
+                      label={t('settingsSla.resolutionMinutes')}
+                      value={rule.resolution_time_minutes}
+                      disabled={!canEdit}
+                      className="tabular-nums"
+                      onChange={(event) =>
+                        updateRule(idx, 'resolution_time_minutes', parseInt(event.target.value, 10) || 0)
+                      }
+                    />
+
+                    <Button
+                      variant="ghost"
+                      iconOnly
+                      onClick={() => deleteRule(idx)}
+                      disabled={!canEdit}
+                      aria-label={`ลบกฎ ${rule.priority}`}
+                    >
+                      <Trash2 size={17} color="var(--color-danger)" aria-hidden="true" />
+                    </Button>
                   </div>
-
-                  <button
-                    onClick={() => deleteRule(idx)}
-                    disabled={!canEdit}
-                    className="glass-interactive flex-center"
-                    style={{
-                      padding: '10px',
-                      borderRadius: '6px',
-                      border: 'none',
-                      background: 'rgba(234, 84, 85, 0.1)',
-                      color: 'var(--danger)',
-                      opacity: !canEdit ? 0.3 : 1,
-                      cursor: !canEdit ? 'not-allowed' : 'pointer',
-                    }}
-                  >
-                    <Trash2 size={18} />
-                  </button>
-                </div>
-              ))
+                ))}
+              </div>
             )}
 
-            {!loading && rules.length === 0 && (
-              <p style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '40px' }}>
-                {t('settingsSla.noRules')}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', paddingTop: 'var(--space-2)' }}>
+              <Button
+                variant="primary"
+                onClick={handleSave}
+                loading={saving}
+                disabled={!canEdit}
+                leftIcon={<Save size={16} aria-hidden="true" />}
+              >
+                {t('settingsSla.saveConfiguration')}
+              </Button>
+            </div>
+          </CardBody>
+        </Card>
+
+        <div className={styles.stackMd}>
+          <Card>
+            <CardHeader>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+                <ShieldCheck color="var(--color-primary)" size={18} aria-hidden="true" />
+                <CardTitle>{t('settingsSla.policyGuide')}</CardTitle>
+              </div>
+            </CardHeader>
+            <CardBody>
+              <div
+                style={{
+                  fontSize: 'var(--text-sm)',
+                  color: 'var(--color-text-muted)',
+                  lineHeight: 'var(--leading-normal)',
+                  whiteSpace: 'pre-line',
+                }}
+              >
+                {t('settingsSla.policyBody')}
+              </div>
+            </CardBody>
+          </Card>
+
+          <Card style={{ borderColor: 'var(--color-warning-border)' }}>
+            <CardHeader>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+                <AlertCircle color="var(--color-warning)" size={18} aria-hidden="true" />
+                <CardTitle>{t('settingsSla.escalationLevels')}</CardTitle>
+              </div>
+            </CardHeader>
+            <CardBody>
+              <p
+                style={{
+                  fontSize: 'var(--text-sm)',
+                  color: 'var(--color-text-muted)',
+                  lineHeight: 'var(--leading-normal)',
+                }}
+              >
+                {t('settingsSla.escalationBody')}
               </p>
-            )}
-          </div>
-
-          <div style={{ marginTop: '40px', display: 'flex', justifyContent: 'flex-end' }}>
-            <button
-              onClick={handleSave}
-              disabled={saving || !canEdit}
-              className="glass-interactive flex-center"
-              style={{
-                padding: '14px 40px',
-                background: 'var(--primary)',
-                color: '#0a0e14',
-                border: 'none',
-                borderRadius: '10px',
-                fontWeight: '800',
-                gap: '10px',
-                opacity: saving || !canEdit ? 0.5 : 1,
-                cursor: !canEdit || saving ? 'not-allowed' : 'pointer',
-              }}
-            >
-              {saving ? <Loader2 className="animate-spin" size={20} /> : <Save size={20} />}
-              {t('settingsSla.saveConfiguration')}
-            </button>
-          </div>
-        </div>
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-          <div className="glass" style={{ padding: '24px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
-              <ShieldCheck color="var(--primary)" size={18} />
-              <h3 style={{ fontSize: '16px', fontWeight: '700' }}>{t('settingsSla.policyGuide')}</h3>
-            </div>
-            <div style={{ fontSize: '14px', color: 'var(--text-muted)', lineHeight: '1.6', whiteSpace: 'pre-line' }}>
-              {t('settingsSla.policyBody')}
-            </div>
-          </div>
-
-          <div className="glass" style={{ padding: '24px', border: '1px solid rgba(255, 159, 67, 0.2)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
-              <AlertCircle color="var(--warning)" size={18} />
-              <h3 style={{ fontSize: '16px', fontWeight: '700' }}>{t('settingsSla.escalationLevels')}</h3>
-            </div>
-            <p style={{ fontSize: '13px', color: 'var(--text-muted)', lineHeight: '1.5' }}>
-              {t('settingsSla.escalationBody')}
-            </p>
-          </div>
+            </CardBody>
+          </Card>
         </div>
       </div>
     </div>

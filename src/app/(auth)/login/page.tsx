@@ -1,18 +1,11 @@
 'use client';
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unused-vars */
+
 import React, { useState } from 'react';
+import { AlertCircle, Eye, EyeOff, Lock, ShieldCheck, User } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
-import { useRouter } from 'next/navigation';
-import { 
-  Loader2,
-  AlertCircle,
-  Eye,
-  EyeOff
-} from 'lucide-react';
+import { Button, Card, CardBody, Input } from '@/components/ui';
 
 export default function LoginPage() {
-  const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -25,9 +18,9 @@ export default function LoginPage() {
     setError(null);
 
     try {
-      let finalEmail = email;
-      if (!email.includes('@')) {
-        finalEmail = `${email}@neo.local`;
+      let finalEmail = email.trim();
+      if (!finalEmail.includes('@')) {
+        finalEmail = `${finalEmail}@neo.local`;
       }
 
       const { data, error: signInError } = await supabase.auth.signInWithPassword({
@@ -36,256 +29,198 @@ export default function LoginPage() {
       });
 
       if (signInError) throw signInError;
-      
+
       const params = new URLSearchParams(window.location.search);
       let finalRedirectTo = params.get('redirectTo') || '/';
-      
+
       if (!params.get('redirectTo') || finalRedirectTo === '/') {
-        // ดึงข้อมูล role และ landing_page จาก profiles
         const { data: profile } = await supabase
           .from('profiles')
           .select('role, landing_page')
           .eq('id', data.user.id)
           .single();
-          
+
         if (profile?.landing_page === 'inbox') {
           finalRedirectTo = '/inbox';
         } else if (profile?.landing_page === 'dashboard') {
           finalRedirectTo = '/';
+        } else if (profile?.role === 'Agent') {
+          finalRedirectTo = '/inbox';
         } else {
-          // ค่าเริ่มต้นตาม Role
-          if (profile?.role === 'Agent') {
-            finalRedirectTo = '/inbox';
-          } else {
-            finalRedirectTo = '/'; // Dashboard
-          }
+          finalRedirectTo = '/';
         }
       }
 
       window.location.href = finalRedirectTo;
-    } catch (err: any) {
-      setError(err.message || 'รหัสผ่านหรือชื่อผู้ใช้ไม่ถูกต้อง');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : null;
+      setError(message || 'รหัสผ่านหรือชื่อผู้ใช้ไม่ถูกต้อง');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div style={{ 
-      minHeight: '100vh', 
-      display: 'flex', 
-      alignItems: 'center', 
-      justifyContent: 'center',
-      background: '#f6f9fc',
-      padding: '20px'
-    }}>
-      <div style={{ 
-        width: '100%', 
-        maxWidth: '430px', 
-        padding: '50px 40px', 
-        background: '#ffffff',
-        borderRadius: '32px',
-        boxShadow: '0 20px 60px rgba(0, 0, 0, 0.05)',
-        textAlign: 'center',
-        animation: 'slideUp 0.6s ease-out'
-      }}>
-        {/* Logo/Title */}
-        <div style={{ marginBottom: '40px' }}>
-          <h1 style={{ 
-            fontSize: '32px', 
-            fontWeight: '900', 
-            margin: '0 0 10px', 
-            color: '#0066ff',
-            letterSpacing: '-1.5px',
-            lineHeight: '1.1'
-          }}>
-            Neo Support Intelligence
-          </h1>
-          <p style={{ 
-            color: '#707070', 
-            fontSize: '16px', 
-            fontWeight: '600',
-            letterSpacing: '0.5px'
-          }}>
-            ระบบ support NeoHos
-          </p>
-        </div>
-
-        {error && (
-          <div style={{ 
-            background: '#fff5f5', 
-            border: '1px solid #fee2e2',
-            padding: '12px',
-            borderRadius: '12px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '8px',
-            marginBottom: '24px',
-            color: '#e53e3e',
-            fontSize: '13px',
-            fontWeight: '600'
-          }}>
-            <AlertCircle size={16} />
-            {error}
-          </div>
-        )}
-
-        <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', textAlign: 'left' }}>
-          <div style={{ marginBottom: '22px' }}>
-            <label style={{ 
-              display: 'block', 
-              fontSize: '14px', 
-              fontWeight: '700', 
-              color: '#333333',
-              marginBottom: '10px' 
-            }}>
-              ชื่อผู้ใช้งาน (Username)
-            </label>
-            <input 
-              type="text" 
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="admin"
-              style={{
-                width: '100%',
-                background: '#eff6ff',
-                border: 'none',
-                borderRadius: '14px',
-                padding: '16px 20px',
-                color: '#333333',
-                fontSize: '15px',
-                fontWeight: '500',
-                outlineColor: '#0066ff'
-              }}
-            />
-          </div>
-
-          <div style={{ marginBottom: '28px' }}>
-            <label style={{ 
-              display: 'block', 
-              fontSize: '14px', 
-              fontWeight: '700', 
-              color: '#333333',
-              marginBottom: '10px' 
-            }}>
-              รหัสผ่าน (Password)
-            </label>
-            <div style={{ position: 'relative' }}>
-              <input 
-                type={showPassword ? 'text' : 'password'} 
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••"
+    <main
+      id="main-content"
+      tabIndex={-1}
+      style={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: 'var(--color-canvas)',
+        padding: 'var(--space-5)',
+      }}
+    >
+      <div style={{ width: '100%', maxWidth: '420px' }}>
+        <Card style={{ boxShadow: 'var(--shadow-lg)' }}>
+          <CardBody style={{ padding: 'var(--space-8)' }}>
+            {/* Brand Header */}
+            <div style={{ textAlign: 'center', marginBottom: 'var(--space-6)' }}>
+              <div
                 style={{
-                  width: '100%',
-                  background: '#eff6ff',
-                  border: 'none',
-                  borderRadius: '14px',
-                  padding: '16px 50px 16px 20px',
-                  color: '#333333',
-                  fontSize: '15px',
-                  fontWeight: '500',
-                  outlineColor: '#0066ff'
-                }}
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="password-toggle"
-                style={{
-                  position: 'absolute',
-                  right: '16px',
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  background: 'none',
-                  border: 'none',
-                  cursor: 'pointer',
-                  color: '#707070',
+                  width: 48,
+                  height: 48,
+                  margin: '0 auto var(--space-4)',
+                  borderRadius: 'var(--radius-lg)',
+                  background: 'var(--color-primary-solid)',
+                  color: 'var(--color-on-primary)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  padding: '6px',
-                  borderRadius: '50%',
-                  transition: 'all 0.2s ease',
-                  outline: 'none'
                 }}
-                aria-label={showPassword ? 'ซ่อนรหัสผ่าน' : 'แสดงรหัสผ่าน'}
               >
-                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-              </button>
+                <ShieldCheck size={24} aria-hidden="true" />
+              </div>
+
+              <h1
+                style={{
+                  fontSize: 'var(--text-xl)',
+                  fontWeight: 700,
+                  color: 'var(--color-text)',
+                  letterSpacing: '-0.02em',
+                  lineHeight: 1.2,
+                  marginBottom: '6px',
+                }}
+              >
+                Neo Support Intelligence
+              </h1>
+              <p
+                style={{
+                  color: 'var(--color-text-muted)',
+                  fontSize: 'var(--text-sm)',
+                  fontWeight: 500,
+                }}
+              >
+                ระบบบริการช่วยเหลือลูกค้า Omni-Channel
+              </p>
             </div>
-          </div>
 
-          <button 
-            type="submit" 
-            disabled={loading}
-            style={{
-              width: '100%',
-              background: '#0066ff',
-              color: '#ffffff',
-              padding: '16px',
-              borderRadius: '14px',
-              border: 'none',
-              fontWeight: '800',
-              fontSize: '16px',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '10px',
-              boxShadow: '0 10px 20px rgba(0, 102, 255, 0.2)',
-              transition: 'all 0.2s ease',
-              opacity: loading ? 0.7 : 1,
-              marginBottom: '10px'
-            }}
-          >
-            {loading ? <Loader2 className="animate-spin" size={20} /> : 'เข้าสู่ระบบ'}
-          </button>
-        </form>
+            {error && (
+              <div
+                role="alert"
+                style={{
+                  background: 'var(--color-danger-soft)',
+                  border: '1px solid var(--color-danger-border)',
+                  padding: '10px 12px',
+                  borderRadius: 'var(--radius-md)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  marginBottom: 'var(--space-5)',
+                  color: 'var(--color-danger-text)',
+                  fontSize: 'var(--text-xs)',
+                  fontWeight: 600,
+                }}
+              >
+                <AlertCircle size={16} style={{ flexShrink: 0 }} aria-hidden="true" />
+                <span>{error}</span>
+              </div>
+            )}
 
-        <p style={{ fontSize: '13px', color: '#999999', marginTop: '20px', marginBottom: '30px' }}>
-          สำหรับเจ้าหน้าที่เท่านั้น หากลืมรหัสผ่านกรุณาติดต่อผู้ดูแลระบบ
-        </p>
+            <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+              <Input
+                label="ชื่อผู้ใช้งาน (Username)"
+                type="text"
+                autoComplete="username"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="admin หรือ user@neo.local"
+                leftIcon={<User size={16} aria-hidden="true" />}
+              />
 
-        <div style={{ 
-          marginTop: '20px', 
-          paddingTop: '20px', 
-          borderTop: '1px solid #f0f0f0',
-          fontSize: '12px',
-          color: '#bbbbbb',
-          fontWeight: '500'
-        }}>
-          Powered by NeoNetwork <span style={{ marginLeft: '8px', color: '#dddddd' }}>v2.1.2</span>
-        </div>
+              <Input
+                label="รหัสผ่าน (Password)"
+                type={showPassword ? 'text' : 'password'}
+                autoComplete="current-password"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                leftIcon={<Lock size={16} aria-hidden="true" />}
+                rightAdornment={
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((prev) => !prev)}
+                    aria-label={showPassword ? 'ซ่อนรหัสผ่าน' : 'แสดงรหัสผ่าน'}
+                    aria-pressed={showPassword}
+                    style={{
+                      width: 28,
+                      height: 28,
+                      borderRadius: 'var(--radius-sm)',
+                      border: 'none',
+                      background: 'transparent',
+                      color: 'var(--color-text-muted)',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    {showPassword ? <EyeOff size={16} aria-hidden="true" /> : <Eye size={16} aria-hidden="true" />}
+                  </button>
+                }
+              />
 
-        <style dangerouslySetInnerHTML={{ __html: `
-          @keyframes slideUp {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
-          }
-          @keyframes animate-spin {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(360deg); }
-          }
-          .animate-spin {
-            animation: animate-spin 1s linear infinite;
-          }
-          button[type="submit"]:hover {
-            transform: translateY(-2px);
-            filter: brightness(1.1);
-          }
-          .password-toggle:hover {
-            color: #0066ff !important;
-            background: rgba(0, 102, 255, 0.08) !important;
-          }
-          input:focus {
-             box-shadow: 0 0 0 4px rgba(0, 102, 255, 0.1);
-          }
-        `}} />
+              <Button
+                type="submit"
+                variant="primary"
+                size="lg"
+                fullWidth
+                loading={loading}
+                style={{ marginTop: 'var(--space-2)' }}
+              >
+                เข้าสู่ระบบ
+              </Button>
+            </form>
+
+            <p
+              style={{
+                fontSize: 'var(--text-xs)',
+                color: 'var(--color-text-muted)',
+                textAlign: 'center',
+                marginTop: 'var(--space-5)',
+              }}
+            >
+              สำหรับเจ้าหน้าที่เท่านั้น หากลืมรหัสผ่านกรุณาติดต่อผู้ดูแลระบบ
+            </p>
+
+            <div
+              style={{
+                marginTop: 'var(--space-5)',
+                paddingTop: 'var(--space-4)',
+                borderTop: '1px solid var(--color-border)',
+                textAlign: 'center',
+                fontSize: 'var(--text-xs)',
+                color: 'var(--color-text-subtle)',
+              }}
+            >
+              Powered by NeoNetwork <span className="mono" style={{ marginLeft: '6px' }}>v2.0.0</span>
+            </div>
+          </CardBody>
+        </Card>
       </div>
-    </div>
+    </main>
   );
 }

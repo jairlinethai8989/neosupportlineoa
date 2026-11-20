@@ -1,16 +1,18 @@
 'use client';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import clsx from 'clsx';
 import { supabase } from '@/lib/supabase';
 import {
   Loader2,
   ArrowRight,
   ChevronDown,
-  Info
+  Info,
 } from 'lucide-react';
 import { LiffProfile, PortalOrgOption } from '@/hooks/useLiff';
 import type { ProjectPublicConfig } from '@/types/project';
+import styles from '@/app/portal/portal.module.css';
 
 interface ProfileRegistrationModalProps {
   isOpen: boolean;
@@ -43,6 +45,7 @@ export default function ProfileRegistrationModal({
 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const dialogRef = useRef<HTMLDivElement>(null);
 
   // Fetch Master Data (scoped to project when available)
   useEffect(() => {
@@ -66,8 +69,13 @@ export default function ProfileRegistrationModal({
           projectOrganizations && projectOrganizations.length > 0
             ? Promise.resolve({ data: projectOrganizations, error: null })
             : orgQuery,
-          supabase.from('departments').select('*').eq('dept_type', 'organization').eq('is_active', true).order('name'),
-          supabase.from('positions').select('*').order('name')
+          supabase
+            .from('departments')
+            .select('*')
+            .eq('dept_type', 'organization')
+            .eq('is_active', true)
+            .order('name'),
+          supabase.from('positions').select('*').order('name'),
         ]);
 
         if (hRes.error) console.error('H-Err:', hRes.error);
@@ -99,9 +107,23 @@ export default function ProfileRegistrationModal({
     loadMasterData();
   }, [isOpen, existingCustomer, profile, projectConfig?.id, projectOrganizations]);
 
-  if (!isOpen) return null;
-
   const isEditing = Boolean(existingCustomer?.organization_id);
+  const canDismiss = isEditing && Boolean(existingCustomer?.organization_id) && Boolean(onClose);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    dialogRef.current?.focus();
+    if (!canDismiss || !onClose) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && !submitting) {
+        onClose();
+      }
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [isOpen, canDismiss, onClose, submitting]);
+
+  if (!isOpen) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -132,7 +154,7 @@ export default function ProfileRegistrationModal({
         organization_id: selectedHospital,
         department_id: selectedDept,
         position_id: selectedPosition,
-        updated_at: new Date().toISOString()
+        updated_at: new Date().toISOString(),
       };
       if (realProjectId) {
         payload.project_id = realProjectId;
@@ -171,168 +193,160 @@ export default function ProfileRegistrationModal({
     }
   };
 
-  const labelStyle = { fontSize: '11px', fontWeight: '700', color: '#64748b', marginBottom: '6px', textTransform: 'uppercase' as any };
-  const inputStyle = {
-    width: '100%',
-    padding: '12px 14px',
-    background: '#f8fafc',
-    border: '1px solid #e2e8f0',
-    borderRadius: '10px',
-    color: '#0f172a',
-    fontSize: '14px',
-    outline: 'none',
-    transition: 'all 0.2s ease',
-    WebkitAppearance: 'none' as any
-  };
+  const accentStyle = projectConfig?.primary_color
+    ? ({ '--portal-accent': projectConfig.primary_color } as React.CSSProperties)
+    : undefined;
+  const orgLabel = projectConfig?.organization_label || 'หน่วยงาน / โรงพยาบาล';
 
   return (
-    <div style={{
-      position: 'fixed',
-      inset: 0,
-      background: 'rgba(15, 23, 42, 0.5)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      zIndex: 10000,
-      padding: '20px'
-    }}>
-      <div style={{
-        width: '100%',
-        maxWidth: '400px',
-        padding: '24px',
-        borderRadius: '16px',
-        background: 'white',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '20px',
-        maxHeight: '90vh',
-        overflowY: 'auto',
-        boxShadow: '0 20px 50px rgba(0,0,0,0.1)',
-        position: 'relative',
-        border: '1px solid #e2e8f0'
-      }}>
-        <style>{`
-          @keyframes modalFadeIn { from { opacity: 0; } to { opacity: 1; } }
-          @keyframes modalContentIn { from { opacity: 0; transform: translateY(20px) scale(0.95); } to { opacity: 1; transform: translateY(0) scale(1); } }
-        `}</style>
-
-        <div style={{ textAlign: 'center' }}>
-          <h2 style={{ fontSize: '20px', fontWeight: '800', color: '#0f172a', marginBottom: '4px' }}>
+    <div className={styles.overlay} style={accentStyle}>
+      <div
+        ref={dialogRef}
+        className={styles.dialog}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="profile-reg-title"
+        tabIndex={-1}
+      >
+        <div className={styles.dialogHead}>
+          <h2 id="profile-reg-title" className={styles.dialogTitle}>
             {isEditing ? 'แก้ไขข้อมูลส่วนตัว' : 'ลงทะเบียนผู้ใช้งานใหม่'}
           </h2>
-          <p style={{ fontSize: '13px', color: '#64748b' }}>
+          <p className={styles.dialogText}>
             กรุณาระบุข้อมูลของคุณเพื่อเริ่มต้นแจ้งปัญหาการใช้งาน
           </p>
         </div>
 
         {error && (
-          <div style={{ padding: '12px', borderRadius: '12px', background: 'rgba(234, 84, 85, 0.1)', border: '1px solid var(--danger)', color: 'var(--danger)', fontSize: '12px', textAlign: 'center', display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}>
-            <Info size={14} /> {error}
+          <div className={clsx(styles.notice, styles.noticeError)} role="alert">
+            <Info size={16} style={{ flexShrink: 0, marginTop: 2 }} aria-hidden="true" />
+            <span>{error}</span>
           </div>
         )}
 
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
-
+        <form onSubmit={handleSubmit} className={styles.form}>
           {/* Full Name */}
-          <div>
-            <label style={labelStyle}>ชื่อ-นามสกุล</label>
+          <div className={styles.field}>
+            <label htmlFor="reg-display-name" className={styles.label}>
+              ชื่อ-นามสกุล<span className={styles.required}>*</span>
+            </label>
             <input
+              id="reg-display-name"
               type="text"
               placeholder="ระบุชื่อจริง-นามสกุล..."
               value={displayName}
-              onChange={e => setDisplayName(e.target.value)}
-              style={inputStyle}
+              onChange={(e) => setDisplayName(e.target.value)}
+              className={styles.input}
               required
             />
           </div>
 
           {/* Organization Select */}
-          <div style={{ position: 'relative' }}>
-            <label style={labelStyle}>{projectConfig?.organization_label || 'หน่วยงาน / โรงพยาบาล'}</label>
-            <select
-              value={selectedHospital}
-              onChange={(e) => setSelectedHospital(e.target.value)}
-              disabled={loadingOpts || submitting}
-              style={inputStyle}
-              required
-            >
-              <option value="" disabled style={{ background: '#1a1d23' }}>
-                โปรดเลือก{projectConfig?.organization_label || 'หน่วยงาน'}...
-              </option>
-              {organizations.map(h => (
-                <option key={h.id} value={h.id} style={{ background: '#1a1d23' }}>{h.name}</option>
-              ))}
-            </select>
-            <ChevronDown size={16} style={{ position: 'absolute', right: '16px', top: '38px', opacity: 0.5, pointerEvents: 'none' }} />
+          <div className={styles.field}>
+            <label htmlFor="reg-organization" className={styles.label}>
+              {orgLabel}
+              <span className={styles.required}>*</span>
+            </label>
+            <div className={styles.selectWrap}>
+              <select
+                id="reg-organization"
+                value={selectedHospital}
+                onChange={(e) => setSelectedHospital(e.target.value)}
+                disabled={loadingOpts || submitting}
+                className={styles.select}
+                required
+              >
+                <option value="" disabled>
+                  โปรดเลือก{projectConfig?.organization_label || 'หน่วยงาน'}...
+                </option>
+                {organizations.map((h) => (
+                  <option key={h.id} value={h.id}>
+                    {h.name}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown size={18} className={styles.selectChevron} aria-hidden="true" />
+            </div>
           </div>
 
           {/* Department Select */}
-          <div style={{ position: 'relative' }}>
-            <label style={labelStyle}>แผนก / ฝ่าย</label>
-            <select
-              value={selectedDept}
-              onChange={e => setSelectedDept(e.target.value)}
-              disabled={loadingOpts || submitting}
-              style={inputStyle}
-              required
-            >
-              <option value="" disabled style={{ background: '#1a1d23' }}>เลือกแผนก...</option>
-              {departments.map(d => (
-                <option key={d.id} value={d.id} style={{ background: '#1a1d23' }}>{d.name}</option>
-              ))}
-            </select>
-            <ChevronDown size={16} style={{ position: 'absolute', right: '16px', top: '38px', opacity: 0.5, pointerEvents: 'none' }} />
+          <div className={styles.field}>
+            <label htmlFor="reg-department" className={styles.label}>
+              แผนก / ฝ่าย<span className={styles.required}>*</span>
+            </label>
+            <div className={styles.selectWrap}>
+              <select
+                id="reg-department"
+                value={selectedDept}
+                onChange={(e) => setSelectedDept(e.target.value)}
+                disabled={loadingOpts || submitting}
+                className={styles.select}
+                required
+              >
+                <option value="" disabled>
+                  เลือกแผนก...
+                </option>
+                {departments.map((d) => (
+                  <option key={d.id} value={d.id}>
+                    {d.name}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown size={18} className={styles.selectChevron} aria-hidden="true" />
+            </div>
           </div>
 
           {/* Position Select */}
-          <div style={{ position: 'relative' }}>
-            <label style={labelStyle}>ตำแหน่งงาน</label>
-            <select
-              value={selectedPosition}
-              onChange={e => setSelectedPosition(e.target.value)}
-              disabled={loadingOpts || submitting}
-              style={inputStyle}
-              required
-            >
-              <option value="" disabled style={{ background: '#1a1d23' }}>เลือกตำแหน่ง...</option>
-              {positions.map(p => (
-                <option key={p.id} value={p.id} style={{ background: '#1a1d23' }}>{p.name}</option>
-              ))}
-            </select>
-            <ChevronDown size={16} style={{ position: 'absolute', right: '16px', top: '38px', opacity: 0.5, pointerEvents: 'none' }} />
+          <div className={styles.field}>
+            <label htmlFor="reg-position" className={styles.label}>
+              ตำแหน่งงาน<span className={styles.required}>*</span>
+            </label>
+            <div className={styles.selectWrap}>
+              <select
+                id="reg-position"
+                value={selectedPosition}
+                onChange={(e) => setSelectedPosition(e.target.value)}
+                disabled={loadingOpts || submitting}
+                className={styles.select}
+                required
+              >
+                <option value="" disabled>
+                  เลือกตำแหน่ง...
+                </option>
+                {positions.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown size={18} className={styles.selectChevron} aria-hidden="true" />
+            </div>
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '10px' }}>
+          <div className={styles.dialogActionsStack}>
             <button
               type="submit"
               disabled={submitting || loadingOpts}
-              className="portal-btn-primary"
-              style={{
-                width: '100%',
-                padding: '16px',
-                borderRadius: '12px',
-                fontSize: '15px',
-                fontWeight: '700',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '8px',
-                cursor: (submitting || loadingOpts) ? 'not-allowed' : 'pointer'
-              }}
+              className={clsx(styles.btn, styles.btnPrimary, styles.btnBlock)}
             >
               {submitting ? (
-                <Loader2 size={24} className="animate-spin" />
+                <Loader2 size={22} className={styles.spin} aria-hidden="true" />
+              ) : isEditing ? (
+                'บันทึกข้อมูล (Save changes)'
               ) : (
-                isEditing ? <>บันทึกข้อมูล (Save changes)</> : <>ลงทะเบียนเพื่อเริ่มต้นใช้งาน <ArrowRight size={20} /></>
+                <>
+                  ลงทะเบียนเพื่อเริ่มต้นใช้งาน
+                  <ArrowRight size={20} aria-hidden="true" />
+                </>
               )}
             </button>
 
-            {isEditing && existingCustomer?.organization_id && onClose && (
+            {canDismiss && (
               <button
                 type="button"
                 onClick={onClose}
                 disabled={submitting}
-                style={{ background: 'none', border: 'none', color: 'var(--text-dim)', fontSize: '12px', fontWeight: '700', cursor: 'pointer', padding: '10px' }}
+                className={clsx(styles.btn, styles.btnSecondary, styles.btnBlock)}
               >
                 ยกเลิก
               </button>

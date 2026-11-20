@@ -16,7 +16,10 @@ import { TicketChat } from '@/components/tickets/TicketChat';
 import { TicketSidebar, getTicketDuration } from '@/components/tickets/TicketSidebar';
 import Link from 'next/link';
 import Image from 'next/image';
-import { User, Clock, ChevronRight, ClipboardCheck, FileText, Paperclip, ExternalLink, AlertTriangle } from 'lucide-react';
+import { AlertTriangle, ChevronRight, ClipboardCheck, Clock, ExternalLink, FileText, Paperclip, User } from 'lucide-react';
+import { clsx } from 'clsx';
+import { Badge, Button, Card, CardBody, Modal, Textarea } from '@/components/ui';
+import styles from '../tickets-workspace.module.css';
 import { deleteMessageAction, closeConversationAction } from '@/app/actions/messageActions';
 import { compressImage } from '@/lib/utils/imageCompression';
 import { useNotificationContext } from '@/contexts/NotificationContext';
@@ -55,14 +58,6 @@ const DEFAULT_MODULES = [
   'Consultation',
   'All',
 ];
-
-const pageGridStyle: React.CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: '6.5fr 3.5fr',
-  gap: '24px',
-  alignItems: 'start',
-  marginBottom: '24px',
-};
 
 const loadingContainerStyle: React.CSSProperties = { height: '70vh' };
 const ticketDetailSelect = `
@@ -258,40 +253,63 @@ export default function StaffTicketDetailPage() {
     if (!aiData) return null;
 
     return (
-      <div className="glass" style={{ padding: '20px 24px', borderRadius: '16px', background: 'rgba(16, 185, 129, 0.05)', border: '1px solid rgba(16, 185, 129, 0.2)', marginBottom: '24px', transition: 'all 0.3s' }}>
-        {/* Card Header (Clickable to Toggle) */}
-        <div 
-          onClick={() => setAiCardExpanded(!aiCardExpanded)}
-          style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', userSelect: 'none' }}
-        >
-          <h3 style={{ margin: 0, fontSize: '15px', fontWeight: '800', color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span>✨ AI Post-Mortem Analysis</span>
-          </h3>
-          <span style={{ fontSize: '11px', fontWeight: '800', color: 'var(--primary)', background: 'rgba(16, 185, 129, 0.1)', padding: '2px 8px', borderRadius: '4px' }}>
-            {aiCardExpanded ? 'ย่อข้อมูล ▲' : 'ขยายข้อมูล ▼'}
-          </span>
-        </div>
+      <Card style={{ borderColor: 'var(--color-success-border)', background: 'var(--color-success-soft)' }}>
+        <CardBody>
+          <button
+            type="button"
+            aria-expanded={aiCardExpanded}
+            onClick={() => setAiCardExpanded(!aiCardExpanded)}
+            className={styles.aiToggleBtn}
+          >
+            <span style={{ fontSize: 'var(--text-base)', fontWeight: 700, color: 'var(--color-primary)' }}>
+              ✨ AI Post-Mortem Analysis
+            </span>
+            <Badge size="sm" variant="success">
+              {aiCardExpanded ? 'ย่อข้อมูล ▲' : 'ขยายข้อมูล ▼'}
+            </Badge>
+          </button>
 
-        {/* Card Content (Collapsible) */}
-        {aiCardExpanded && (
-          <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '16px', borderTop: '1px solid rgba(16, 185, 129, 0.1)', paddingTop: '16px' }}>
-            <div>
-              <strong style={{ color: '#10b981', fontSize: '12px' }}>ปัญหาที่แท้จริง (Root Cause):</strong>
-              <p style={{ margin: '4px 0 0', fontSize: '13px', lineHeight: '1.5' }}>{aiData.rootCause}</p>
+          {aiCardExpanded && (
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '12px',
+                marginTop: '14px',
+                borderTop: '1px solid var(--color-success-border)',
+                paddingTop: '14px',
+              }}
+            >
+              <div>
+                <strong style={{ color: 'var(--color-success-text)', fontSize: 'var(--text-xs)' }}>
+                  ปัญหาที่แท้จริง (Root Cause):
+                </strong>
+                <p style={{ margin: '4px 0 0', fontSize: 'var(--text-sm)', lineHeight: 1.5 }}>
+                  {aiData.rootCause}
+                </p>
+              </div>
+              <div>
+                <strong style={{ color: 'var(--color-info-text)', fontSize: 'var(--text-xs)' }}>
+                  วิธีแก้ไขที่ใช้ (Resolution):
+                </strong>
+                <p style={{ margin: '4px 0 0', fontSize: 'var(--text-sm)', lineHeight: 1.5 }}>
+                  {aiData.resolution}
+                </p>
+              </div>
+              <div>
+                <strong style={{ color: 'var(--color-warning-text)', fontSize: 'var(--text-xs)' }}>
+                  ข้อเสนอแนะเพื่อป้องกัน (Preventive Recommendations):
+                </strong>
+                <ul style={{ margin: '4px 0 0', paddingLeft: '20px', fontSize: 'var(--text-sm)', lineHeight: 1.6 }}>
+                  {aiData.preventiveRecommendations?.map((r: string, i: number) => (
+                    <li key={i}>{r}</li>
+                  ))}
+                </ul>
+              </div>
             </div>
-            <div>
-              <strong style={{ color: '#0ea5e9', fontSize: '12px' }}>วิธีแก้ไขที่ใช้ (Resolution):</strong>
-              <p style={{ margin: '4px 0 0', fontSize: '13px', lineHeight: '1.5' }}>{aiData.resolution}</p>
-            </div>
-            <div>
-              <strong style={{ color: '#f59e0b', fontSize: '12px' }}>ข้อเสนอแนะเพื่อป้องกัน (Preventive Recommendations):</strong>
-              <ul style={{ margin: '4px 0 0', paddingLeft: '20px', fontSize: '13px', lineHeight: '1.6' }}>
-                {aiData.preventiveRecommendations?.map((r: string, i: number) => <li key={i}>{r}</li>)}
-              </ul>
-            </div>
-          </div>
-        )}
-      </div>
+          )}
+        </CardBody>
+      </Card>
     );
   };
 
@@ -303,128 +321,127 @@ export default function StaffTicketDetailPage() {
     const currentStatus = (status || '').trim().toLowerCase();
     const isFixCompleted = currentStatus === 'fix completed';
     const isResolved = currentStatus === 'resolved';
-    
-    // Choose theme colors based on state
-    const borderColor = isFixCompleted ? '#10b981' : isResolved ? 'var(--primary)' : '#f59e0b';
-    const statusBg = isFixCompleted ? 'rgba(16, 185, 129, 0.1)' : isResolved ? 'var(--primary-transparent)' : 'rgba(245, 158, 11, 0.1)';
-    const statusColor = isFixCompleted ? '#10b981' : isResolved ? 'var(--primary)' : '#f59e0b';
+
+    const borderColor = isFixCompleted
+      ? 'var(--color-success)'
+      : isResolved
+        ? 'var(--color-primary)'
+        : 'var(--color-warning)';
+    const statusBadgeVariant = isFixCompleted ? 'success' : isResolved ? 'primary' : 'warning';
 
     return (
-      <div 
-        className="glass" 
-        style={{ 
-          padding: '24px', 
-          borderRadius: '16px', 
-          borderLeft: `4px solid ${borderColor}`,
-          background: 'rgba(255, 255, 255, 0.03)',
-          boxShadow: isFixCompleted ? '0 8px 32px rgba(16, 185, 129, 0.08)' : '0 8px 32px rgba(0, 0, 0, 0.2)',
-          transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-          position: 'relative',
-          overflow: 'hidden',
-          marginBottom: '24px'
-        }}
-      >
-        {/* Card Header */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', borderBottom: '1px solid var(--border)', paddingBottom: '12px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <ClipboardCheck size={20} color={borderColor} />
-            <h3 style={{ fontSize: '16px', fontWeight: '800', color: 'var(--text)', margin: 0 }}>
-              รายงานผลการดำเนินงาน
-            </h3>
-          </div>
-          <span 
-            style={{ 
-              padding: '4px 10px', 
-              borderRadius: '6px', 
-              fontSize: '11px', 
-              fontWeight: '800', 
-              background: statusBg,
-              color: statusColor,
-              letterSpacing: '0.5px'
+      <Card style={{ borderLeft: `3px solid ${borderColor}` }}>
+        <CardBody style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              borderBottom: '1px solid var(--color-border)',
+              paddingBottom: '10px',
             }}
           >
-            {externalReport.status.toUpperCase()}
-          </span>
-        </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <ClipboardCheck size={18} color={borderColor} aria-hidden="true" />
+              <h3 style={{ fontSize: 'var(--text-base)', fontWeight: 700, margin: 0 }}>
+                รายงานผลการดำเนินงาน
+              </h3>
+            </div>
+            <Badge size="sm" variant={statusBadgeVariant}>
+              {externalReport.status.toUpperCase()}
+            </Badge>
+          </div>
 
-        {/* Card Body */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', background: 'rgba(255,255,255,0.02)', padding: '12px 16px', borderRadius: '12px', border: '1px solid var(--border)' }}>
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: '1fr 1fr',
+              gap: '12px',
+              background: 'var(--color-surface-subtle)',
+              padding: '10px 12px',
+              borderRadius: 'var(--radius-md)',
+              border: '1px solid var(--color-border)',
+            }}
+          >
             <div>
-              <span style={{ display: 'block', fontSize: '9px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '2px' }}>ผู้บันทึกผลงาน</span>
-              <span style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text)' }}>
+              <span className={styles.timerLabel} style={{ display: 'block', marginBottom: '2px' }}>
+                ผู้บันทึกผลงาน
+              </span>
+              <span style={{ fontSize: 'var(--text-sm)', fontWeight: 600 }}>
                 {externalReport.receiverName}
               </span>
             </div>
             <div>
-              <span style={{ display: 'block', fontSize: '9px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '2px' }}>เวลาส่งรายงาน</span>
-              <span style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text-muted)' }}>
+              <span className={styles.timerLabel} style={{ display: 'block', marginBottom: '2px' }}>
+                เวลาส่งรายงาน
+              </span>
+              <span className="tabular-nums" style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)' }}>
                 {externalReport.timestamp ? `${externalReport.timestamp} UTC` : '-'}
               </span>
             </div>
           </div>
 
           <div>
-            <span style={{ display: 'block', fontSize: '9px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '6px' }}>รายละเอียดการปฏิบัติงาน</span>
-            <div 
-              style={{ 
-                fontSize: '14px', 
-                lineHeight: '1.6', 
-                color: 'var(--text)', 
-                background: 'rgba(255,255,255,0.01)', 
-                padding: '16px', 
-                borderRadius: '12px', 
-                border: '1px solid var(--border)',
-                whiteSpace: 'pre-wrap'
+            <span className={styles.timerLabel} style={{ display: 'block', marginBottom: '6px' }}>
+              รายละเอียดการปฏิบัติงาน
+            </span>
+            <div
+              style={{
+                fontSize: 'var(--text-sm)',
+                lineHeight: 1.6,
+                background: 'var(--color-surface-subtle)',
+                padding: '12px',
+                borderRadius: 'var(--radius-md)',
+                border: '1px solid var(--color-border)',
+                whiteSpace: 'pre-wrap',
               }}
             >
               {externalReport.details || 'ไม่มีรายละเอียดการปฏิบัติงาน'}
             </div>
           </div>
 
-          {/* Attachments Section */}
           {externalReport.attachments.length > 0 && (
             <div>
-              <span style={{ display: 'block', fontSize: '9px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '8px' }}>เอกสารแนบปฏิบัติงาน ({externalReport.attachments.length})</span>
+              <span className={styles.timerLabel} style={{ display: 'block', marginBottom: '6px' }}>
+                เอกสารแนบปฏิบัติงาน ({externalReport.attachments.length})
+              </span>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
                 {externalReport.attachments.map((url, idx) => {
                   const fileName = url.substring(url.lastIndexOf('/') + 1) || `attachment-${idx + 1}`;
                   const isImage = /\.(jpg|jpeg|png|gif|webp|bmp)$/i.test(url);
                   return (
-                    <a 
+                    <a
                       key={idx}
                       href={url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="glass-interactive"
+                      className={styles.iconLinkBtn}
                       style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '8px',
-                        padding: '8px 12px',
-                        borderRadius: '10px',
-                        border: '1px solid var(--border)',
-                        textDecoration: 'none',
-                        color: 'var(--text)',
-                        fontSize: '12px',
-                        fontWeight: '700',
-                        transition: 'all 0.2s',
-                        maxWidth: '260px'
+                        width: 'auto',
+                        padding: '0 10px',
+                        gap: '6px',
+                        maxWidth: '240px',
+                        fontSize: 'var(--text-xs)',
+                        fontWeight: 600,
                       }}
                     >
-                      {isImage ? <FileText size={14} color="var(--primary)" /> : <Paperclip size={14} color="var(--primary)" />}
-                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+                      {isImage ? (
+                        <FileText size={14} color="var(--color-primary)" aria-hidden="true" />
+                      ) : (
+                        <Paperclip size={14} color="var(--color-primary)" aria-hidden="true" />
+                      )}
+                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {fileName}
                       </span>
-                      <ExternalLink size={12} color="var(--text-muted)" />
+                      <ExternalLink size={12} color="var(--color-text-muted)" aria-hidden="true" />
                     </a>
                   );
                 })}
               </div>
             </div>
           )}
-        </div>
-      </div>
+        </CardBody>
+      </Card>
     );
   };
 
@@ -1128,157 +1145,188 @@ export default function StaffTicketDetailPage() {
 
   return (
     <>
-    <div className="animate-page-in">
-      <TicketHeader
-        ticket={ticket}
-        status={status}
-        user={user}
-        updating={updating}
-        isChatActive={isChatActive}
-        onUpdate={() => {
-          void fetchData();
-        }}
-        onResolveClick={() => {
-          setShowResolveModal(true);
-          setResSummary('');
-        }}
-        onRejectFixCompleted={() => {
-          setShowRejectModal(true);
-        }}
-        onExportClick={() => setShowExportModal(true)}
-        onAiSummaryClick={handleGenerateAISummary}
-        aiLoading={aiLoading}
-      />
+      <div className={styles.detailPage}>
+        <TicketHeader
+          ticket={ticket}
+          status={status}
+          user={user}
+          updating={updating}
+          isChatActive={isChatActive}
+          onUpdate={() => {
+            void fetchData();
+          }}
+          onResolveClick={() => {
+            setShowResolveModal(true);
+            setResSummary('');
+          }}
+          onRejectFixCompleted={() => {
+            setShowRejectModal(true);
+          }}
+          onExportClick={() => setShowExportModal(true)}
+          onAiSummaryClick={handleGenerateAISummary}
+          aiLoading={aiLoading}
+        />
 
-      <div className="glass" style={{ padding: '20px', marginBottom: '24px' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(300px, 340px) 1fr', gap: '40px', alignItems: 'center' }}>
-          
-          {/* Left: Customer Info Mini Card (Moved to Left) */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '16px', paddingRight: '40px', borderRight: '2px solid var(--border)' }}>
-             <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: 'var(--primary)', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                {ticket.customers?.avatar_url ? (
-                   <Image 
-                      src={ticket.customers.avatar_url} 
-                      alt="avatar" 
-                      width={44} 
-                      height={44} 
-                      style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
-                   />
-                ) : (
-                   <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>
-                      <User size={20} />
-                   </div>
-                )}
-             </div>
-             <div style={{ flex: 1, minWidth: 0 }}>
-                <h4 style={{ fontSize: '14px', fontWeight: '800', color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                   {ticket.customers?.display_name || 'Customer'}
-                </h4>
-                <Link 
-                   href={`/tickets?customerId=${ticket.customer_id}`} 
-                   style={{ fontSize: '11px', color: 'var(--primary)', fontWeight: '700', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '2px' }}
-                >
-                   View History <ChevronRight size={12} />
-                </Link>
-             </div>
-          </div>
+        <Card>
+          <CardBody compact>
+            <div className={styles.summaryStrip}>
+              <div className={styles.summaryCustomer}>
+                <div className={styles.summaryAvatar} aria-hidden="true">
+                  {ticket.customers?.avatar_url ? (
+                    <Image
+                      src={ticket.customers.avatar_url}
+                      alt="avatar"
+                      width={40}
+                      height={40}
+                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                    />
+                  ) : (
+                    <User size={18} />
+                  )}
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <h4
+                    style={{
+                      margin: 0,
+                      fontSize: 'var(--text-sm)',
+                      fontWeight: 700,
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                    }}
+                  >
+                    {ticket.customers?.display_name || 'Customer'}
+                  </h4>
+                  <Link
+                    href={`/tickets?customerId=${ticket.customer_id}`}
+                    style={{
+                      fontSize: 'var(--text-xs)',
+                      color: 'var(--color-primary)',
+                      fontWeight: 600,
+                      textDecoration: 'none',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '2px',
+                    }}
+                  >
+                    View History <ChevronRight size={12} aria-hidden="true" />
+                  </Link>
+                </div>
+              </div>
 
-          {/* Right: Time Tracking (Moved to Right and Pushed to Edge) */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '40px', justifyContent: 'flex-end' }}>
-             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <Clock size={20} color="var(--primary)" />
-                <span style={{ fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Time Tracking</span>
-             </div>
+              <div className={styles.summaryTimers}>
+                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+                  <Clock size={18} color="var(--color-primary)" aria-hidden="true" />
+                  <span className={styles.timerLabel}>Time Tracking</span>
+                </div>
 
-             <div style={{ display: 'flex', gap: '40px' }}>
-                <div>
-                  <label style={{ fontSize: '9px', fontWeight: '800', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>REPORTED</label>
-                  <p style={{ fontSize: '13px', fontWeight: '700' }}>
-                    {ticket.created_at ? new Date(ticket.created_at).toLocaleString('th-TH', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '-'}
+                <div className={styles.timerBlock}>
+                  <span className={styles.timerLabel}>REPORTED</span>
+                  <p className={clsx(styles.timerValue, 'tabular-nums')}>
+                    {ticket.created_at
+                      ? new Date(ticket.created_at).toLocaleString('th-TH', {
+                          year: 'numeric',
+                          month: 'short',
+                          day: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })
+                      : '-'}
                   </p>
                 </div>
 
                 {ticket.resolved_at ? (
                   <>
-                    <div>
-                      <label style={{ fontSize: '9px', fontWeight: '800', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>RESOLVED</label>
-                      <p style={{ fontSize: '13px', fontWeight: '700', color: 'var(--primary)' }}>
-                        {new Date(ticket.resolved_at).toLocaleString('th-TH', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                    <div className={styles.timerBlock}>
+                      <span className={styles.timerLabel}>RESOLVED</span>
+                      <p className={clsx(styles.timerValue, 'tabular-nums')} style={{ color: 'var(--color-primary)' }}>
+                        {new Date(ticket.resolved_at).toLocaleString('th-TH', {
+                          year: 'numeric',
+                          month: 'short',
+                          day: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
                       </p>
                     </div>
-                    <div style={{ paddingLeft: '24px', borderLeft: '1px solid var(--border)' }}>
-                      <label style={{ fontSize: '9px', fontWeight: '800', color: 'var(--primary)', display: 'block', marginBottom: '4px' }}>DURATION</label>
-                      <p style={{ fontSize: '18px', fontWeight: '900' }}>{getTicketDuration(ticket.created_at || '', ticket.resolved_at)}</p>
+                    <div className={styles.timerBlock} style={{ paddingLeft: '16px', borderLeft: '1px solid var(--color-border)' }}>
+                      <span className={styles.timerLabel} style={{ color: 'var(--color-primary)' }}>DURATION</span>
+                      <p className={clsx(styles.timerHighlight, 'tabular-nums')}>
+                        {getTicketDuration(ticket.created_at || '', ticket.resolved_at)}
+                      </p>
                     </div>
                   </>
                 ) : (
-                  <div style={{ paddingLeft: '24px', borderLeft: '1px solid var(--border)' }}>
-                    <label style={{ fontSize: '9px', fontWeight: '800', color: 'orange', display: 'block', marginBottom: '4px' }}>PENDING</label>
-                    <p style={{ fontSize: '18px', fontWeight: '900' }}>{getTicketDuration(ticket.created_at || '')}</p>
+                  <div className={styles.timerBlock} style={{ paddingLeft: '16px', borderLeft: '1px solid var(--color-border)' }}>
+                    <span className={styles.timerLabel} style={{ color: 'var(--color-warning-text)' }}>PENDING</span>
+                    <p className={clsx(styles.timerHighlight, 'tabular-nums')}>
+                      {getTicketDuration(ticket.created_at || '')}
+                    </p>
                   </div>
                 )}
-             </div>
+              </div>
+            </div>
+          </CardBody>
+        </Card>
+
+        <div className={styles.detailGrid}>
+          <div className={styles.detailMainCol}>
+            <TicketChat
+              messages={messages}
+              ticket={ticket}
+              user={user}
+              newMessage={newMessage}
+              setNewMessage={setNewMessage}
+              sending={sending}
+              onSendMessage={handleSendMessage}
+              onAttachFile={() => adminFileRef.current?.click()}
+              onEditImage={(url) => {
+                setViewingImage(url);
+                setShowViewer(true);
+              }}
+              onDeleteMessage={handleDeleteMessage}
+              onEndChat={handleEndChat}
+              isChatActive={isChatActive}
+              quickReplies={personalQuickReplies}
+              isReadOnly={true}
+            />
+          </div>
+
+          <div className={styles.detailSideCol}>
+            {renderAICard()}
+            {renderWorkReportCard()}
+            <TicketSidebar
+              ticket={ticket}
+              user={user}
+              status={status}
+              setStatus={(value) => {
+                setStatus(value);
+                void updateTicketField('status', value);
+              }}
+              priority={priority}
+              setPriority={(value) => {
+                setPriority(value);
+                void updateTicketField('priority', value);
+              }}
+              selectedDept={selectedDept}
+              setSelectedDept={(value) => {
+                setSelectedDept(value);
+                void updateTicketField('department', value);
+              }}
+              selectedModule={selectedModule}
+              setSelectedModule={(value) => {
+                setSelectedModule(value);
+                void updateTicketField('module', value);
+              }}
+              availableDepts={availableDepts}
+              availableModules={availableModules}
+              logs={logs}
+              showActivity={true}
+              showProfile={false}
+            />
           </div>
         </div>
       </div>
-
-      <div style={pageGridStyle}>
-        <TicketChat
-          messages={messages}
-          ticket={ticket}
-          user={user}
-          newMessage={newMessage}
-          setNewMessage={setNewMessage}
-          sending={sending}
-          onSendMessage={handleSendMessage}
-          onAttachFile={() => adminFileRef.current?.click()}
-          onEditImage={(url) => {
-            setViewingImage(url);
-            setShowViewer(true);
-          }}
-
-          onDeleteMessage={handleDeleteMessage}
-          onEndChat={handleEndChat}
-          isChatActive={isChatActive}
-          quickReplies={personalQuickReplies}
-          isReadOnly={true}
-        />
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-          {renderAICard()}
-          {renderWorkReportCard()}
-          <TicketSidebar
-            ticket={ticket}
-            user={user}
-            status={status}
-            setStatus={(value) => {
-              setStatus(value);
-              void updateTicketField('status', value);
-            }}
-            priority={priority}
-            setPriority={(value) => {
-              setPriority(value);
-              void updateTicketField('priority', value);
-            }}
-            selectedDept={selectedDept}
-            setSelectedDept={(value) => {
-              setSelectedDept(value);
-              void updateTicketField('department', value);
-            }}
-            selectedModule={selectedModule}
-            setSelectedModule={(value) => {
-              setSelectedModule(value);
-              void updateTicketField('module', value);
-            }}
-            availableDepts={availableDepts}
-            availableModules={availableModules}
-            logs={logs}
-            showActivity={true}
-            showProfile={false}
-          />
-        </div>
-      </div>
-    </div>
 
       <ResolveTicketModal
         open={showResolveModal}
@@ -1347,42 +1395,51 @@ export default function StaffTicketDetailPage() {
         ticketNo={ticket?.ticket_no || ''}
       />
 
-      {showRejectModal && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
-          <div className="glass animate-in zoom-in" style={{ width: '100%', maxWidth: '400px', background: 'var(--bg-card)', borderRadius: '24px', padding: '24px', boxShadow: '0 20px 50px rgba(0,0,0,0.2)' }}>
-            <h3 style={{ fontSize: '18px', fontWeight: '900', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-main)' }}>
-              <AlertTriangle color="var(--warning)" size={18} /> ส่งกลับเพื่อแก้ไขต่อ
-            </h3>
-            <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '20px' }}>
-              กรุณาระบุรายละเอียดและคำวิจารณ์เพื่อแจ้งแก่ผู้ปฏิบัติงานภายนอก
-            </p>
-            <textarea 
-              value={rejectNote} 
-              onChange={(e) => setRejectNote(e.target.value)} 
-              placeholder="ระบุเหตุผลที่ส่งกลับแก้ไข..." 
-              style={{ width: '100%', height: '120px', padding: '12px', borderRadius: '12px', border: '1px solid var(--border)', background: 'var(--bg-input)', color: 'var(--text-main)', fontSize: '14px', marginBottom: '20px', outline: 'none', resize: 'none' }} 
-            />
-            <div style={{ display: 'flex', gap: '12px' }}>
-              <button 
-                onClick={() => {
-                  setShowRejectModal(false);
-                  setRejectNote('');
-                }} 
-                style={{ flex: 1, padding: '12px', borderRadius: '12px', border: '1px solid var(--border)', background: 'none', color: 'var(--text-main)', fontWeight: '700', cursor: 'pointer' }}
-              >
-                ยกเลิก
-              </button>
-              <button
-                disabled={!rejectNote.trim() || updating}
-                onClick={() => void handleRejectFixCompleted(rejectNote.trim())}
-                style={{ flex: 2, padding: '12px', borderRadius: '12px', border: 'none', background: '#f59e0b', color: 'white', fontWeight: '800', cursor: 'pointer', opacity: (!rejectNote.trim() || updating) ? 0.7 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
-              >
-                {updating ? <Loader2 size={16} className="animate-spin" /> : 'ยืนยันการส่งกลับ'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <Modal
+        isOpen={showRejectModal}
+        onClose={() => {
+          setShowRejectModal(false);
+          setRejectNote('');
+        }}
+        size="sm"
+        title={
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+            <AlertTriangle color="var(--color-warning)" size={18} aria-hidden="true" />
+            ส่งกลับเพื่อแก้ไขต่อ
+          </span>
+        }
+        description="กรุณาระบุรายละเอียดและคำวิจารณ์เพื่อแจ้งแก่ผู้ปฏิบัติงานภายนอก"
+        footer={
+          <>
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setShowRejectModal(false);
+                setRejectNote('');
+              }}
+            >
+              ยกเลิก
+            </Button>
+            <Button
+              variant="warning"
+              loading={updating}
+              disabled={!rejectNote.trim() || updating}
+              onClick={() => void handleRejectFixCompleted(rejectNote.trim())}
+            >
+              ยืนยันการส่งกลับ
+            </Button>
+          </>
+        }
+      >
+        <Textarea
+          label="เหตุผลที่ส่งกลับแก้ไข"
+          required
+          rows={4}
+          value={rejectNote}
+          onChange={(e) => setRejectNote(e.target.value)}
+          placeholder="ระบุเหตุผลที่ส่งกลับแก้ไข..."
+        />
+      </Modal>
 
       {/* Hidden Report Template (for PDF Export) */}
       <div style={{ position: 'absolute', left: '-9999px', top: '-9999px' }}>
@@ -1391,7 +1448,7 @@ export default function StaffTicketDetailPage() {
           padding: '60px', 
           background: 'white', 
           color: 'black', 
-          fontFamily: "'Inter', 'Sarabun', sans-serif",
+          fontFamily: 'var(--font-sans)',
           display: 'flex',
           flexDirection: 'column'
         }}>

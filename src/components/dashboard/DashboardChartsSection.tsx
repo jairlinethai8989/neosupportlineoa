@@ -1,25 +1,23 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 'use client';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React from 'react';
+import Link from 'next/link';
 import {
   ResponsiveContainer,
-  AreaChart,
-  Area,
   PieChart,
   Pie,
   Cell,
   BarChart,
   Bar,
-  LineChart,
-  Line,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
 } from 'recharts';
-import { Zap } from 'lucide-react';
+import { AlertTriangle, Clock, Star, Zap } from 'lucide-react';
+import { Badge, Card, CardBody, CardHeader, EmptyState } from '@/components/ui';
+import styles from './dashboard.module.css';
 
 type TrendPoint = Record<string, string | number>;
 type ChartDatum = { name: string; value: number; fill?: string };
@@ -32,27 +30,21 @@ type RecentLog = {
 };
 
 const CHART_COLORS = {
-  primary: '#00f2fe',
-  success: '#28c76f',
-  info: '#4facfe',
+  primary: '#1D4ED8',
+  success: '#059669',
+  info: '#0284C7',
+  teal: '#0D9488',
+  warning: '#D97706',
+  danger: '#DC2626',
 };
 
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (!active || !payload?.length) return null;
   return (
-    <div
-      style={{
-        background: 'var(--bg-sidebar)',
-        border: '1px solid var(--border)',
-        borderRadius: '12px',
-        padding: '12px 16px',
-        backdropFilter: 'blur(12px)',
-        boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
-      }}
-    >
-      <p style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)', marginBottom: '6px' }}>{label}</p>
+    <div className={styles.chartTooltip}>
+      <p className={styles.chartTooltipLabel}>{label}</p>
       {payload.map((p: any, i: number) => (
-        <p key={i} style={{ fontSize: '13px', fontWeight: '800', color: p.color || 'var(--primary)' }}>
+        <p key={i} className={styles.chartTooltipValue} style={{ color: p.color || CHART_COLORS.primary }}>
           {p.name}: {p.value}
         </p>
       ))}
@@ -64,18 +56,9 @@ const PieTooltip = ({ active, payload }: any) => {
   if (!active || !payload?.length) return null;
   const d = payload[0];
   return (
-    <div
-      style={{
-        background: 'var(--bg-sidebar)',
-        border: '1px solid var(--border)',
-        borderRadius: '12px',
-        padding: '12px 16px',
-        backdropFilter: 'blur(12px)',
-        boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
-      }}
-    >
-      <p style={{ fontSize: '13px', fontWeight: '800', color: d.payload?.fill || 'white' }}>
-        {d.name}: {d.value} ใบงาน
+    <div className={styles.chartTooltip}>
+      <p className={styles.chartTooltipValue} style={{ color: d.payload?.fill || 'var(--color-text)' }}>
+        {d.name}: {d.value}
       </p>
     </div>
   );
@@ -89,6 +72,8 @@ type DashboardChartsSectionProps = {
   recentLogs: RecentLog[];
   totalAll: number;
   avgCsat: number;
+  escalatedCount?: number;
+  pendingCount?: number;
   labels: {
     ticketTrend: string;
     newTickets: string;
@@ -101,6 +86,9 @@ type DashboardChartsSectionProps = {
     recentActivity: string;
     noResults: string;
     heatmapVolume?: string;
+    urgentQueue?: string;
+    escalated?: string;
+    pending?: string;
   };
   heatmapData?: number[][];
 };
@@ -113,412 +101,362 @@ export function DashboardChartsSection({
   recentLogs,
   totalAll,
   avgCsat,
+  escalatedCount = 0,
+  pendingCount = 0,
   labels,
   heatmapData = [],
 }: DashboardChartsSectionProps) {
-  
-  // Helpers for Heatmap
   const DAYS_TH = ['อา.', 'จ.', 'อ.', 'พ.', 'พฤ.', 'ศ.', 'ส.'];
-  
+
   const maxHeatmapValue = React.useMemo(() => {
     let max = 0;
     if (heatmapData && heatmapData.length === 7) {
-      heatmapData.forEach(day => day.forEach(val => { if(val > max) max = val; }));
+      heatmapData.forEach((day) =>
+        day.forEach((val) => {
+          if (val > max) max = val;
+        })
+      );
     }
     return max || 1;
   }, [heatmapData]);
 
-  const getHeatmapColor = (value: number) => {
-    if (value === 0) return 'rgba(255, 255, 255, 0.03)';
-    const intensity = value / maxHeatmapValue;
-    if (intensity <= 0.33) {
-      return 'rgba(0, 242, 254, 0.3)'; // Electric Cyan for low density
-    } else if (intensity <= 0.7) {
-      return 'rgba(40, 199, 111, 0.6)'; // Neon Green for medium density
-    } else {
-      return 'rgba(255, 159, 67, 0.95)'; // Acid Orange/Gold for peak density
+  const getHeatmapStyle = (value: number, isWorkingHours: boolean): React.CSSProperties => {
+    if (value === 0) {
+      return {
+        background: isWorkingHours ? 'var(--color-surface-subtle)' : 'var(--color-canvas)',
+        color: 'var(--color-text-muted)',
+      };
     }
-  };
 
-  const getHeatmapBorder = (value: number) => {
-    if (value === 0) return '1px solid rgba(255, 255, 255, 0.05)';
     const intensity = value / maxHeatmapValue;
-    if (intensity <= 0.33) return '1px solid rgba(0, 242, 254, 0.4)';
-    if (intensity <= 0.7) return '1px solid rgba(40, 199, 111, 0.6)';
-    return '1px solid rgba(255, 159, 67, 0.8)';
+    if (!isWorkingHours) {
+      if (intensity <= 0.33) {
+        return { background: 'rgba(71, 85, 105, 0.16)', color: 'var(--color-text)' };
+      }
+      if (intensity <= 0.7) {
+        return { background: 'rgba(71, 85, 105, 0.32)', color: 'var(--color-text)' };
+      }
+      return { background: 'rgba(71, 85, 105, 0.55)', color: '#ffffff' };
+    }
+
+    if (intensity <= 0.33) {
+      return { background: 'rgba(29, 78, 216, 0.16)', color: 'var(--color-primary)' };
+    }
+    if (intensity <= 0.7) {
+      return { background: 'rgba(13, 148, 136, 0.35)', color: 'var(--color-text)' };
+    }
+    return { background: '#D97706', color: '#ffffff' };
   };
 
   return (
-    <>
-      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '24px', marginBottom: '24px' }}>
-        <div className="glass" style={{ padding: '24px', display: 'flex', flexDirection: 'column' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-            <div>
-              <h2 style={{ fontSize: '16px', fontWeight: '800', marginBottom: '2px' }}>{labels.ticketTrend}</h2>
-              <p style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>TICKET TREND</p>
-            </div>
-            <div style={{ display: 'flex', gap: '16px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: CHART_COLORS.primary }} />
-                <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{labels.newTickets}</span>
+    <div className={styles.asymmetricGrid}>
+      {/* Left 65% (8fr): Primary Analytics */}
+      <div className={styles.columnStack}>
+        {/* Ticket Trend */}
+        <Card>
+          <CardHeader
+            actions={
+              <div className={styles.legendRow}>
+                <span className={styles.legendItem}>
+                  <span className={styles.legendDot} style={{ background: CHART_COLORS.primary }} />
+                  {labels.newTickets}
+                </span>
+                <span className={styles.legendItem}>
+                  <span className={styles.legendDot} style={{ background: CHART_COLORS.success }} />
+                  {labels.resolved}
+                </span>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: CHART_COLORS.success }} />
-                <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{labels.resolved}</span>
-              </div>
-            </div>
-          </div>
-          <div style={{ flex: 1, minHeight: '280px' }}>
-            <ResponsiveContainer width="100%" height={280}>
-              <BarChart data={trendData} margin={{ top: 10, right: 20, bottom: 5, left: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(128,128,128,0.1)" />
-                <XAxis dataKey="label" stroke="var(--text-muted)" fontSize={11} tickLine={false} axisLine={false} />
-                <YAxis stroke="var(--text-muted)" fontSize={11} tickLine={false} axisLine={false} allowDecimals={false} />
-                <Tooltip content={<CustomTooltip />} />
-                <Bar
-                  dataKey={labels.newTickets}
-                  fill={CHART_COLORS.primary}
-                  radius={[4, 4, 0, 0]}
-                  barSize={14}
-                />
-                <Bar
-                  dataKey={labels.resolved}
-                  fill={CHART_COLORS.success}
-                  radius={[4, 4, 0, 0]}
-                  barSize={14}
-                />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        <div className="glass" style={{ padding: '24px', display: 'flex', flexDirection: 'column' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
-            <div>
-              <h2 style={{ fontSize: '16px', fontWeight: '800', marginBottom: '2px' }}>{labels.statusDistribution}</h2>
-              <p style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>STATUS DISTRIBUTION</p>
-            </div>
-            {avgCsat > 0 && (
-              <div style={{
-                background: 'rgba(255, 159, 67, 0.15)',
-                border: '1px solid rgba(255, 159, 67, 0.3)',
-                color: '#ff9f43',
-                padding: '4px 10px',
-                borderRadius: '8px',
-                fontSize: '11px',
-                fontWeight: '800',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px'
-              }}>
-                <span>⭐ CSAT {avgCsat.toFixed(1)}</span>
-              </div>
-            )}
-          </div>
-          <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
-            {statusData.length > 0 ? (
-              <>
-                <ResponsiveContainer width="100%" height={220}>
-                  <PieChart>
-                    <Pie data={statusData} innerRadius={60} outerRadius={85} paddingAngle={4} dataKey="value" strokeWidth={0}>
-                      {statusData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.fill} />
-                      ))}
-                    </Pie>
-                    <Tooltip content={<PieTooltip />} />
-                  </PieChart>
-                </ResponsiveContainer>
-                <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', textAlign: 'center' }}>
-                  <p style={{ fontSize: '28px', fontWeight: '900', lineHeight: 1 }}>{totalAll}</p>
-                  <p style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: '700', marginTop: '2px', textTransform: 'uppercase' }}>{labels.allTab}</p>
-                  {avgCsat > 0 && (
-                    <div style={{
-                      marginTop: '6px',
-                      fontSize: '11px',
-                      fontWeight: '800',
-                      color: '#ff9f43',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '2px'
-                    }}>
-                      <span>⭐ {avgCsat.toFixed(1)}</span>
-                    </div>
-                  )}
-                </div>
-              </>
-            ) : (
-              <p style={{ color: 'var(--text-muted)', fontSize: '13px' }}>{labels.noResults}</p>
-            )}
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '8px' }}>
-            {statusData.map((item, i) => (
-              <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: item.fill }} />
-                  <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{item.name}</span>
-                </div>
-                <span style={{ fontSize: '13px', fontWeight: '800' }}>{item.value}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Heatmap Section */}
-      <div className="glass" style={{ padding: '24px', display: 'flex', flexDirection: 'column', marginBottom: '24px' }}>
-        <div style={{ marginBottom: '16px' }}>
-          <h2 style={{ fontSize: '16px', fontWeight: '800', marginBottom: '2px' }}>{labels.heatmapVolume || 'ปริมาณใบงานรายชั่วโมง (Heatmap)'}</h2>
-          <p style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>TICKET VOLUME BY DAY/HOUR</p>
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', overflowX: 'auto', paddingBottom: '12px' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '40px ' + Array.from({length: 24}).map((_, i) => (i >= 8 && i <= 18) ? '1.2fr' : '0.6fr').join(' '), gap: '4px', marginBottom: '4px' }}>
-             <div />
-             {Array.from({length: 24}).map((_, i) => {
-                const isWorkHourLabel = i >= 8 && i <= 18;
-                const isKeyLabel = isWorkHourLabel || i === 0 || i === 6 || i === 12 || i === 18;
-                const cellBorderLeft = i === 8 ? '2px solid rgba(255, 255, 255, 0.6)' : undefined;
-                const cellBorderRight = i === 18 ? '2px solid rgba(255, 255, 255, 0.6)' : undefined;
-                
-                const labelText = isWorkHourLabel 
-                  ? `${i.toString().padStart(2, '0')}:00` 
-                  : (i === 0 ? '00:00' : (i === 6 ? '06:00' : '•'));
-
-                return (
-                  <div 
-                    key={`h-${i}`} 
-                    style={{ 
-                      fontSize: isWorkHourLabel ? '8px' : (isKeyLabel ? '9px' : '10px'), 
-                      color: isKeyLabel ? 'var(--text-main)' : 'var(--text-muted)', 
-                      fontWeight: isKeyLabel ? '800' : '400',
-                      textAlign: 'center',
-                      minWidth: '10px',
-                      borderLeft: cellBorderLeft,
-                      borderRight: cellBorderRight
-                    }}
-                  >
-                    {labelText}
-                  </div>
-                );
-             })}
-          </div>
-          {heatmapData && heatmapData.length === 7 ? DAYS_TH.map((dayName, dayIdx) => (
-            <div key={`d-${dayIdx}`} style={{ display: 'grid', gridTemplateColumns: '40px ' + Array.from({length: 24}).map((_, i) => (i >= 8 && i <= 18) ? '1.2fr' : '0.6fr').join(' '), gap: '4px', alignItems: 'center' }}>
-              <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: '700' }}>{dayName}</div>
-              {heatmapData[dayIdx]?.map((val, hourIdx) => {
-                const isWorkingHours = hourIdx >= 8 && hourIdx <= 18;
-                const isPeak = val > 0 && (val / maxHeatmapValue) > 0.7;
-                
-                // Time-Zone Grouping: add left border at 08:00 and right border at 18:00 to group working hours
-                const cellBorderLeft = hourIdx === 8 ? '2px solid rgba(255, 255, 255, 0.6)' : undefined;
-                const cellBorderRight = hourIdx === 18 ? '2px solid rgba(255, 255, 255, 0.6)' : undefined;
-
-                // Color configuration for working vs non-working hours
-                let cellBg = getHeatmapColor(val);
-                let cellBorder = getHeatmapBorder(val);
-                if (!isWorkingHours) {
-                  if (val === 0) {
-                    cellBg = 'rgba(128, 128, 128, 0.08)'; // Muted gray background for non-working hours
-                    cellBorder = '1px solid rgba(255, 255, 255, 0.02)';
-                  } else {
-                    const intensity = val / maxHeatmapValue;
-                    if (intensity <= 0.33) {
-                      cellBg = 'rgba(110, 115, 125, 0.25)'; // Slate gray for low volume
-                    } else if (intensity <= 0.7) {
-                      cellBg = 'rgba(130, 135, 145, 0.45)'; // Medium gray
-                    } else {
-                      cellBg = 'rgba(165, 170, 180, 0.75)'; // High gray
-                    }
-                    cellBorder = '1px solid rgba(255, 255, 255, 0.15)';
-                  }
-                }
-
-                return (
-                  <div
-                    key={`cell-${dayIdx}-${hourIdx}`}
-                    title={`${dayName} เวลา ${hourIdx.toString().padStart(2, '0')}:00 น. มี ${val} งาน${isWorkingHours ? ' (เวลาทำการ)' : ' (นอกเวลาทำการ)'}`}
-                    style={{
-                      height: '24px',
-                      borderRadius: '6px',
-                      background: cellBg,
-                      border: cellBorder,
-                      borderLeft: cellBorderLeft || cellBorder,
-                      borderRight: cellBorderRight || cellBorder,
-                      boxShadow: (isPeak && isWorkingHours) ? '0 0 10px rgba(255, 159, 67, 0.6)' : 'none',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      cursor: 'pointer',
-                      transition: 'all 0.2s',
-                      position: 'relative'
-                    }}
-                    onMouseEnter={(e) => { 
-                      e.currentTarget.style.transform = 'scale(1.15)'; 
-                      e.currentTarget.style.zIndex = '10'; 
-                      if (isPeak && isWorkingHours) e.currentTarget.style.boxShadow = '0 0 16px rgba(255, 159, 67, 0.9)';
-                    }}
-                    onMouseLeave={(e) => { 
-                      e.currentTarget.style.transform = 'scale(1)'; 
-                      e.currentTarget.style.zIndex = '1'; 
-                      if (isPeak && isWorkingHours) e.currentTarget.style.boxShadow = '0 0 10px rgba(255, 159, 67, 0.6)';
-                    }}
-                  >
-                     {val > 0 && (
-                       <span style={{
-                         fontSize: '9px', 
-                         fontWeight: '800', 
-                         color: isWorkingHours && (val / maxHeatmapValue) > 0.7 ? '#000' : 'var(--text-main)',
-                         textShadow: (!isWorkingHours || (val / maxHeatmapValue) <= 0.7) ? '0 1px 2px rgba(0,0,0,0.8)' : 'none'
-                       }}>
-                         {val}
-                       </span>
-                     )}
-                  </div>
-                );
-              })}
-            </div>
-          )) : (
-            <div className="flex-center" style={{ height: '180px', color: 'var(--text-muted)', fontSize: '13px' }}>
-              {labels.noResults}
-            </div>
-          )}
-        </div>
-        {/* Heatmap Legend */}
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', alignItems: 'center', marginTop: '12px', fontSize: '11px', color: 'var(--text-muted)', borderTop: '1px solid rgba(128,128,128,0.1)', paddingTop: '12px' }}>
-          <span>น้อย (Less)</span>
-          <div style={{ display: 'flex', gap: '4px' }}>
-            <div title="ไม่มีงาน" style={{ width: '14px', height: '14px', borderRadius: '3px', background: 'rgba(255, 255, 255, 0.03)', border: '1px solid rgba(255, 255, 255, 0.05)' }} />
-            <div title="หนาแน่นต่ำ (Electric Cyan)" style={{ width: '14px', height: '14px', borderRadius: '3px', background: 'rgba(0, 242, 254, 0.3)', border: '1px solid rgba(0, 242, 254, 0.4)' }} />
-            <div title="หนาแน่นปานกลาง (Neon Green)" style={{ width: '14px', height: '14px', borderRadius: '3px', background: 'rgba(40, 199, 111, 0.6)', border: '1px solid rgba(40, 199, 111, 0.6)' }} />
-            <div title="หนาแน่นสูง (Peak - Neon Orange)" style={{ width: '14px', height: '14px', borderRadius: '3px', background: 'rgba(255, 159, 67, 0.95)', border: '1px solid rgba(255, 159, 67, 0.8)', boxShadow: '0 0 6px rgba(255, 159, 67, 0.6)' }} />
-          </div>
-          <span>มาก (Peak)</span>
-        </div>
-      </div>
-
-      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '24px' }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-          {/* Organization Workload */}
-          <div className="glass" style={{ padding: '24px', display: 'flex', flexDirection: 'column', flex: 1 }}>
-            <div style={{ marginBottom: '16px' }}>
-              <h2 style={{ fontSize: '16px', fontWeight: '800', marginBottom: '2px' }}>{labels.organizationWorkload}</h2>
-              <p style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>ORGANIZATION WORKLOAD</p>
-            </div>
-            <div style={{ flex: 1, minHeight: '320px' }}>
-              {organizationData.length > 0 ? (
-                <ResponsiveContainer width="100%" height={320}>
-                  <BarChart layout="vertical" data={organizationData} margin={{ top: 5, right: 20, bottom: 5, left: -10 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(128,128,128,0.1)" horizontal={false} />
-                    <XAxis type="number" stroke="var(--text-muted)" fontSize={11} tickLine={false} axisLine={false} allowDecimals={false} />
-                    <YAxis dataKey="name" type="category" stroke="var(--text-muted)" fontSize={11} tickLine={false} axisLine={false} width={120} />
+            }
+          >
+            <h2 style={{ fontSize: 'var(--text-md)', fontWeight: 600, color: 'var(--color-text)', lineHeight: 1.3 }}>
+              {labels.ticketTrend}
+            </h2>
+          </CardHeader>
+          <CardBody>
+            {trendData.length > 0 ? (
+              <div style={{ width: '100%', height: 280 }}>
+                <ResponsiveContainer width="100%" height={280}>
+                  <BarChart data={trendData} margin={{ top: 8, right: 12, bottom: 4, left: -12 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
+                    <XAxis dataKey="label" stroke="var(--color-text-subtle)" fontSize={12} tickLine={false} axisLine={false} />
+                    <YAxis stroke="var(--color-text-subtle)" fontSize={12} tickLine={false} axisLine={false} allowDecimals={false} />
                     <Tooltip content={<CustomTooltip />} />
-                    <Bar dataKey="value" radius={[0, 6, 6, 0]} barSize={24}>
+                    <Bar dataKey={labels.newTickets} fill={CHART_COLORS.primary} radius={[4, 4, 0, 0]} barSize={14} />
+                    <Bar dataKey={labels.resolved} fill={CHART_COLORS.success} radius={[4, 4, 0, 0]} barSize={14} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            ) : (
+              <EmptyState compact title={labels.noResults} />
+            )}
+          </CardBody>
+        </Card>
+
+        {/* Organization Workload */}
+        <Card>
+          <CardHeader>
+            <h2 style={{ fontSize: 'var(--text-md)', fontWeight: 600, color: 'var(--color-text)', lineHeight: 1.3 }}>
+              {labels.organizationWorkload}
+            </h2>
+          </CardHeader>
+          <CardBody>
+            {organizationData.length > 0 ? (
+              <div style={{ width: '100%', height: 300 }}>
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart layout="vertical" data={organizationData} margin={{ top: 4, right: 20, bottom: 4, left: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" horizontal={false} />
+                    <XAxis type="number" stroke="var(--color-text-subtle)" fontSize={12} tickLine={false} axisLine={false} allowDecimals={false} />
+                    <YAxis dataKey="name" type="category" stroke="var(--color-text-muted)" fontSize={12} tickLine={false} axisLine={false} width={130} />
+                    <Tooltip content={<CustomTooltip />} />
+                    <Bar dataKey="value" radius={[0, 4, 4, 0]} barSize={20}>
                       {organizationData.map((entry, index) => (
                         <Cell key={`cell-${index}`} fill={entry.fill || CHART_COLORS.primary} />
                       ))}
                     </Bar>
                   </BarChart>
                 </ResponsiveContainer>
-              ) : (
-                <div className="flex-center" style={{ height: '320px', color: 'var(--text-muted)', fontSize: '13px' }}>
-                  {labels.noResults}
-                </div>
-              )}
-            </div>
-          </div>
+              </div>
+            ) : (
+              <EmptyState compact title={labels.noResults} />
+            )}
+          </CardBody>
+        </Card>
 
-          {/* Agent Workload */}
-          <div className="glass" style={{ padding: '24px', display: 'flex', flexDirection: 'column', flex: 1 }}>
-            <div style={{ marginBottom: '16px' }}>
-              <h2 style={{ fontSize: '16px', fontWeight: '800', marginBottom: '2px' }}>{labels.agentWorkload}</h2>
-              <p style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>AGENT WORKLOAD • TOP 5</p>
+        {/* Hourly Heatmap */}
+        <Card>
+          <CardHeader>
+            <h2 style={{ fontSize: 'var(--text-md)', fontWeight: 600, color: 'var(--color-text)', lineHeight: 1.3 }}>
+              {labels.heatmapVolume || 'ปริมาณใบงานรายชั่วโมง'}
+            </h2>
+          </CardHeader>
+          <CardBody>
+            {heatmapData && heatmapData.length === 7 ? (
+              <div className={styles.heatmapWrap}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <div className={styles.heatmapGridRow}>
+                    <div />
+                    {Array.from({ length: 24 }).map((_, i) => {
+                      const isWorkHour = i >= 8 && i <= 18;
+                      const labelText = i % 3 === 0 || i === 8 || i === 18 ? String(i).padStart(2, '0') : '';
+                      return (
+                        <div
+                          key={`h-${i}`}
+                          className={`${styles.heatmapHourHeader} ${isWorkHour ? styles.heatmapHourWork : ''}`}
+                        >
+                          {labelText}
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {DAYS_TH.map((dayName, dayIdx) => (
+                    <div key={`d-${dayIdx}`} className={styles.heatmapGridRow}>
+                      <div className={styles.heatmapDayLabel}>{dayName}</div>
+                      {heatmapData[dayIdx]?.map((val, hourIdx) => {
+                        const isWorkingHours = hourIdx >= 8 && hourIdx <= 18;
+                        const cellStyle = getHeatmapStyle(val, isWorkingHours);
+                        const edgeClass =
+                          hourIdx === 8
+                            ? styles.heatmapWorkStart
+                            : hourIdx === 18
+                              ? styles.heatmapWorkEnd
+                              : '';
+
+                        return (
+                          <div
+                            key={`cell-${dayIdx}-${hourIdx}`}
+                            title={`${dayName} ${hourIdx.toString().padStart(2, '0')}:00 — ${val} งาน${isWorkingHours ? ' (เวลาทำการ)' : ' (นอกเวลาทำการ)'}`}
+                            className={`${styles.heatmapCell} ${edgeClass}`}
+                            style={cellStyle}
+                          >
+                            {val > 0 ? val : ''}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ))}
+                </div>
+
+                <div className={styles.heatmapLegend}>
+                  <span>น้อย</span>
+                  <span className={styles.heatmapSwatch} style={{ background: 'var(--color-surface-subtle)' }} title="0" />
+                  <span className={styles.heatmapSwatch} style={{ background: 'rgba(29, 78, 216, 0.16)' }} title="ต่ำ" />
+                  <span className={styles.heatmapSwatch} style={{ background: 'rgba(13, 148, 136, 0.35)' }} title="ปานกลาง" />
+                  <span className={styles.heatmapSwatch} style={{ background: '#D97706' }} title="สูง" />
+                  <span>มาก</span>
+                </div>
+              </div>
+            ) : (
+              <EmptyState compact title={labels.noResults} />
+            )}
+          </CardBody>
+        </Card>
+      </div>
+
+      {/* Right 35% (4fr): Urgent Queue, Status Distribution, Agent Workload & Recent Activity */}
+      <div className={styles.columnStack}>
+        {/* Urgent Queue */}
+        <Card>
+          <CardHeader>
+            <h2 style={{ fontSize: 'var(--text-md)', fontWeight: 600, color: 'var(--color-text)', lineHeight: 1.3 }}>
+              {labels.urgentQueue || 'คิวงานเร่งด่วน'}
+            </h2>
+          </CardHeader>
+          <CardBody compact>
+            <div className={styles.urgentGrid}>
+              <Link href="/tickets?status=Escalated" className={styles.urgentTile}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span className={styles.urgentTileLabel}>{labels.escalated || 'ส่งต่อ (Escalated)'}</span>
+                  <AlertTriangle size={16} color="var(--color-danger)" aria-hidden="true" />
+                </div>
+                <span className={styles.urgentTileValue} style={{ color: 'var(--color-danger)' }}>
+                  {escalatedCount}
+                </span>
+              </Link>
+              <Link href="/tickets?status=Pending" className={styles.urgentTile}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span className={styles.urgentTileLabel}>{labels.pending || 'รอดำเนินการ'}</span>
+                  <Clock size={16} color="var(--color-warning)" aria-hidden="true" />
+                </div>
+                <span className={styles.urgentTileValue} style={{ color: 'var(--color-warning)' }}>
+                  {pendingCount}
+                </span>
+              </Link>
             </div>
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '16px', justifyContent: 'center' }}>
-              {agentData.length > 0 ? (
-                agentData.map((agent, idx) => {
-                  const maxVal = Math.max(...agentData.map((a) => a.value));
-                  const pct = maxVal > 0 ? (agent.value / maxVal) * 100 : 0;
+          </CardBody>
+        </Card>
+
+        {/* Status Distribution */}
+        <Card>
+          <CardHeader
+            actions={
+              avgCsat > 0 ? (
+                <Badge variant="warning" size="sm">
+                  <Star size={12} aria-hidden="true" />
+                  CSAT {avgCsat.toFixed(1)}
+                </Badge>
+              ) : null
+            }
+          >
+            <h2 style={{ fontSize: 'var(--text-md)', fontWeight: 600, color: 'var(--color-text)', lineHeight: 1.3 }}>
+              {labels.statusDistribution}
+            </h2>
+          </CardHeader>
+          <CardBody>
+            {statusData.length > 0 ? (
+              <>
+                <div className={styles.donutContainer}>
+                  <ResponsiveContainer width="100%" height={210}>
+                    <PieChart>
+                      <Pie
+                        data={statusData}
+                        innerRadius={58}
+                        outerRadius={82}
+                        paddingAngle={3}
+                        dataKey="value"
+                        strokeWidth={0}
+                      >
+                        {statusData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.fill || CHART_COLORS.primary} />
+                        ))}
+                      </Pie>
+                      <Tooltip content={<PieTooltip />} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                  <div className={styles.donutCenter}>
+                    <p className={styles.donutTotal}>{totalAll}</p>
+                    <p className={styles.donutSub}>{labels.allTab}</p>
+                  </div>
+                </div>
+                <div className={styles.statusList}>
+                  {statusData.map((item, i) => (
+                    <div key={i} className={styles.statusRow}>
+                      <span className={styles.legendItem}>
+                        <span className={styles.legendDot} style={{ background: item.fill }} />
+                        {item.name}
+                      </span>
+                      <span className={styles.statusCount}>{item.value}</span>
+                    </div>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <EmptyState compact title={labels.noResults} />
+            )}
+          </CardBody>
+        </Card>
+
+        {/* Agent Workload Top 5 */}
+        <Card>
+          <CardHeader>
+            <h2 style={{ fontSize: 'var(--text-md)', fontWeight: 600, color: 'var(--color-text)', lineHeight: 1.3 }}>
+              {labels.agentWorkload}
+            </h2>
+          </CardHeader>
+          <CardBody>
+            {agentData.length > 0 ? (
+              <div className={styles.agentList}>
+                {agentData.map((agent, idx) => {
+                  const maxVal = Math.max(...agentData.map((a) => a.value), 1);
+                  const pct = (agent.value / maxVal) * 100;
                   return (
                     <div key={idx}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
-                        <span style={{ fontSize: '13px', fontWeight: '600' }}>{agent.name}</span>
-                        <span style={{ fontSize: '13px', fontWeight: '800', color: 'var(--primary)' }}>{agent.value}</span>
+                      <div className={styles.agentHeader}>
+                        <span className={styles.agentName}>{agent.name}</span>
+                        <span className={styles.agentCount}>{agent.value}</span>
                       </div>
-                      <div style={{ height: '8px', background: 'rgba(255,255,255,0.05)', borderRadius: '4px', overflow: 'hidden' }}>
-                        <div
-                          style={{
-                            height: '100%',
-                            width: `${pct}%`,
-                            background: `linear-gradient(90deg, ${CHART_COLORS.primary}, ${CHART_COLORS.info})`,
-                            borderRadius: '4px',
-                            transition: 'width 0.8s cubic-bezier(0.4, 0, 0.2, 1)',
-                          }}
-                        />
+                      <div className={styles.progressTrack}>
+                        <div className={styles.progressFill} style={{ width: `${pct}%` }} />
                       </div>
                     </div>
                   );
-                })
-              ) : (
-                <p style={{ color: 'var(--text-muted)', fontSize: '13px', textAlign: 'center' }}>{labels.noResults}</p>
-              )}
-            </div>
-          </div>
-        </div>
+                })}
+              </div>
+            ) : (
+              <EmptyState compact title={labels.noResults} />
+            )}
+          </CardBody>
+        </Card>
 
         {/* Recent Activity */}
-        <div className="glass" style={{ padding: '24px', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-          <div style={{ marginBottom: '16px' }}>
-            <h2 style={{ fontSize: '16px', fontWeight: '800', marginBottom: '2px' }}>{labels.recentActivity}</h2>
-            <p style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>RECENT ACTIVITY</p>
-          </div>
-          <div style={{ flex: 1, overflowY: 'auto' }}>
+        <Card>
+          <CardHeader>
+            <h2 style={{ fontSize: 'var(--text-md)', fontWeight: 600, color: 'var(--color-text)', lineHeight: 1.3 }}>
+              {labels.recentActivity}
+            </h2>
+          </CardHeader>
+          <CardBody>
             {recentLogs.length === 0 ? (
-              <p style={{ color: 'var(--text-muted)', textAlign: 'center', marginTop: '40px', fontSize: '13px' }}>{labels.noResults}</p>
+              <EmptyState compact title={labels.noResults} />
             ) : (
-              recentLogs.map((log, idx) => (
-                <div
-                  key={idx}
-                  style={{
-                    padding: '12px 0',
-                    borderBottom: idx === recentLogs.length - 1 ? 'none' : '1px solid var(--border)',
-                    display: 'flex',
-                    gap: '12px',
-                    alignItems: 'start',
-                  }}
-                >
-                  <div
-                    style={{
-                      width: '32px',
-                      height: '32px',
-                      borderRadius: '8px',
-                      background: 'rgba(0, 242, 254, 0.1)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      flexShrink: 0,
-                    }}
-                  >
-                    <Zap size={14} color="var(--primary)" />
+              <div className={styles.activityList}>
+                {recentLogs.map((log, idx) => (
+                  <div key={idx} className={styles.activityItem}>
+                    <div className={styles.activityIcon} aria-hidden="true">
+                      <Zap size={14} />
+                    </div>
+                    <div className={styles.activityBody}>
+                      <p className={styles.activityTitle}>
+                        <span className="mono">#{log.tickets?.ticket_no || '-'}</span> — {log.action_type}
+                      </p>
+                      <p className={styles.activityNote}>{log.note || 'อัปเดตสถานะอัตโนมัติ'}</p>
+                      <p className={styles.activityTime}>
+                        {log.created_at
+                          ? new Date(log.created_at).toLocaleTimeString('th-TH', {
+                              hour: '2-digit',
+                              minute: '2-digit',
+                              hour12: false,
+                            })
+                          : '-'}
+                      </p>
+                    </div>
                   </div>
-                  <div style={{ minWidth: 0 }}>
-                    <p style={{ fontSize: '14px', fontWeight: '700', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      #{log.tickets?.ticket_no} — {log.action_type}
-                    </p>
-                    <p style={{ fontSize: '12px', color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', marginTop: '2px' }}>
-                      {log.note || 'อัปเดตสถานะอัตโนมัติ'}
-                    </p>
-                    <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px' }}>
-                      {log.created_at
-                        ? new Date(log.created_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', hour12: false })
-                        : '-'}
-                    </p>
-                  </div>
-                </div>
-              ))
+                ))}
+              </div>
             )}
-          </div>
-        </div>
+          </CardBody>
+        </Card>
       </div>
-    </>
+    </div>
   );
 }

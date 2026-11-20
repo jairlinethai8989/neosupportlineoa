@@ -1,36 +1,35 @@
 'use client';
-
-import React, { useState, useRef, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { supabase } from '@/lib/supabase';
-import { useAppContext } from '@/contexts/AppContext';
-import type { UserProfile } from '@/contexts/AppContext';
-import { useNotificationContext } from '@/contexts/NotificationContext';
-import type { AppNotification } from '@/hooks/useNotifications';
-import { useStaffLocale } from '@/contexts/StaffLocaleContext';
+/* eslint-disable @next/next/no-img-element */
+import React, { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import Link from 'next/link';
+import { usePathname, useRouter } from 'next/navigation';
 import {
-  Menu,
-  Languages,
+  AlertCircle,
   Bell,
-  Volume2,
-  VolumeX,
   CheckCheck,
   CheckCircle2,
-  LogOut,
   ChevronDown,
-  Monitor,
-  Moon,
-  Sun,
-  Palette,
-  Ticket,
-  AlertCircle,
+  ChevronRight,
+  Languages,
+  LogOut,
+  Menu,
   MessageSquare,
-  Layers,
-  Check
+  Moon,
+  Search,
+  Sun,
+  Ticket,
+  UserCog,
+  Volume2,
+  VolumeX,
 } from 'lucide-react';
-import { TopBarClock } from '@/components/layout/TopBarClock';
+import { useAppContext } from '@/contexts/AppContext';
+import { useNotificationContext } from '@/contexts/NotificationContext';
+import { useStaffLocale } from '@/contexts/StaffLocaleContext';
+import type { AppNotification } from '@/hooks/useNotifications';
 
-const ACTION_ICONS: Record<string, React.ComponentType<{ size?: number; color?: string }>> = {
+type ThemeMode = 'light' | 'dark';
+
+const ACTION_ICONS: Record<string, React.ComponentType<{ size?: number; color?: string; 'aria-hidden'?: boolean }>> = {
   ticket: Ticket,
   sla: AlertCircle,
   sla_warning: AlertCircle,
@@ -39,12 +38,22 @@ const ACTION_ICONS: Record<string, React.ComponentType<{ size?: number; color?: 
 };
 
 const ACTION_COLORS: Record<string, string> = {
-  ticket: 'var(--primary)',
-  sla: 'var(--danger)',
-  sla_warning: 'var(--warning)',
-  message: 'var(--success)',
-  system: 'var(--text-muted)',
+  ticket: 'var(--color-primary)',
+  sla: 'var(--color-danger)',
+  sla_warning: 'var(--color-warning)',
+  message: 'var(--color-success)',
+  system: 'var(--color-text-muted)',
 };
+
+function migrateLegacyTheme(raw: string | null): ThemeMode {
+  if (raw === 'dark' || raw === 'blue' || raw === 'cyan' || raw === 'gray') {
+    return 'dark';
+  }
+  if (raw === 'system' && typeof window !== 'undefined') {
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  }
+  return 'light';
+}
 
 function timeAgo(dateString: string, t: (key: string) => string): string {
   if (!dateString) return '';
@@ -52,175 +61,211 @@ function timeAgo(dateString: string, t: (key: string) => string): string {
   const date = new Date(dateString);
   const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
 
-  if (diffInSeconds < 60) return t('common.timeAgo.justNow');
+  if (diffInSeconds < 60) return t('dashboard.justNow');
   const diffInMinutes = Math.floor(diffInSeconds / 60);
-  if (diffInMinutes < 60) return `${diffInMinutes} ${t('common.timeAgo.minutesAgo')}`;
+  if (diffInMinutes < 60) return `${diffInMinutes} ${t('dashboard.minutesAgo')}`;
   const diffInHours = Math.floor(diffInMinutes / 60);
-  if (diffInHours < 24) return `${diffInHours} ${t('common.timeAgo.hoursAgo')}`;
+  if (diffInHours < 24) return `${diffInHours} ${t('dashboard.hoursAgo')}`;
   const diffInDays = Math.floor(diffInHours / 24);
-  return `${diffInDays} ${t('common.timeAgo.daysAgo')}`;
+  return `${diffInDays} ${t('dashboard.daysAgo')}`;
 }
 
-interface TopBarProps {
+export interface TopBarProps {
   isSidebarOpen: boolean;
   setIsSidebarOpen: (v: boolean) => void;
   isSidebarCollapsed: boolean;
   setIsSidebarCollapsed: (v: boolean) => void;
+  onOpenCommandPalette?: () => void;
 }
 
-export function TopBar({ isSidebarOpen, setIsSidebarOpen, isSidebarCollapsed, setIsSidebarCollapsed }: TopBarProps) {
+function subscribeTheme(callback: () => void) {
+  window.addEventListener('storage', callback);
+  window.addEventListener('neo-theme-change', callback);
+  return () => {
+    window.removeEventListener('storage', callback);
+    window.removeEventListener('neo-theme-change', callback);
+  };
+}
+
+function getThemeSnapshot(): ThemeMode {
+  const raw = window.localStorage.getItem('theme');
+  return migrateLegacyTheme(raw);
+}
+
+function getServerThemeSnapshot(): ThemeMode {
+  return 'light';
+}
+
+export function TopBar({
+  isSidebarOpen,
+  setIsSidebarOpen,
+  isSidebarCollapsed,
+  setIsSidebarCollapsed,
+  onOpenCommandPalette,
+}: TopBarProps) {
+  const pathname = usePathname();
   const router = useRouter();
-  const {
-    userProfile: agent,
-    updateStatus,
-    onlineUserIds,
-    logout,
-    projects,
-    selectedProjectId,
-    setSelectedProjectId,
-    activeProject,
-  } = useAppContext();
+  const { userProfile: agent, activeProject, updateStatus, logout } = useAppContext();
   const { notifications, unreadCount, markAllRead, markAsRead, isMuted, toggleMute } = useNotificationContext();
   const { locale, toggleLocale, t } = useStaffLocale();
 
   const [showNotifications, setShowNotifications] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
-  const [showProjectMenu, setShowProjectMenu] = useState(false);
-  const [showThemes, setShowThemes] = useState(false);
   const [activeTab, setActiveTab] = useState<'all' | 'unread' | 'sla'>('all');
-  const [theme, setTheme] = useState(() => {
-    if (typeof window === 'undefined') return 'dark';
-    return localStorage.getItem('theme') || 'light';
-  });
-
-  const [profiles, setProfiles] = useState<UserProfile[]>([]);
-  const [onlineStaff, setOnlineStaff] = useState<UserProfile[]>([]);
+  const theme = useSyncExternalStore(subscribeTheme, getThemeSnapshot, getServerThemeSnapshot);
 
   const notifRef = useRef<HTMLDivElement>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
-  const projectMenuRef = useRef<HTMLDivElement>(null);
 
+  // Migrate legacy theme values (blue / cyan / gray -> dark) and sync DOM attribute
   useEffect(() => {
-    const fetchAllProfiles = async () => {
-      try {
-        const { data, error } = await supabase.from('profiles').select('*');
-        if (error) throw error;
-        if (data) setProfiles(data);
-      } catch (err) {
-        console.error('Failed to load profiles:', err);
-      }
-    };
-
-    void fetchAllProfiles();
-
-    const channelId = `profiles-presence-${Date.now()}`;
-    const channel = supabase.channel(channelId)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, (payload) => {
-        if (payload.eventType === 'INSERT') {
-          setProfiles(prev => [...prev, payload.new]);
-        } else if (payload.eventType === 'UPDATE') {
-          setProfiles(prev => prev.map(p => p.id === payload.new.id ? { ...p, ...payload.new } : p));
-        } else if (payload.eventType === 'DELETE') {
-          setProfiles(prev => prev.filter(p => p.id !== payload.old.id));
-        }
-      })
-      .subscribe();
-
-    return () => {
-      void supabase.removeChannel(channel);
-    };
+    const raw = window.localStorage.getItem('theme');
+    const migrated = migrateLegacyTheme(raw);
+    if (raw !== migrated) {
+      window.localStorage.setItem('theme', migrated);
+      window.dispatchEvent(new Event('neo-theme-change'));
+    }
+    document.documentElement.setAttribute('data-theme', migrated);
   }, []);
 
-  // Synchronize local agent's status/last_seen updates instantly into profiles state
   useEffect(() => {
-    if (agent?.id) {
-      setProfiles(prev => {
-        const exists = prev.some(p => p.id === agent.id);
-        if (exists) {
-          return prev.map(p => p.id === agent.id ? { ...p, status: agent.status, last_seen: agent.last_seen } : p);
-        } else {
-          return [...prev, agent];
-        }
-      });
-    }
-  }, [agent]);
-
-  useEffect(() => {
-    const filterOnline = () => {
-      const filtered = profiles
-        .map(p => {
-          if (agent && p.id === agent.id) {
-            return { ...p, status: agent.status, last_seen: agent.last_seen };
-          }
-          return p;
-        })
-        .filter(p => {
-          if (agent && p.id === agent.id) return true;
-          return !!p.id && onlineUserIds.includes(p.id);
-        });
-
-      filtered.sort((a, b) => {
-        if (a.status === 'Active' && b.status !== 'Active') return -1;
-        if (a.status !== 'Active' && b.status === 'Active') return 1;
-        return (a.full_name || '').localeCompare(b.full_name || '');
-      });
-
-      setOnlineStaff(filtered);
-    };
-
-    filterOnline();
-  }, [profiles, agent, onlineUserIds]);
-
-  useEffect(() => {
-    function handleClick(event: MouseEvent) {
+    const handleClickOutside = (event: MouseEvent) => {
       if (notifRef.current && !notifRef.current.contains(event.target as Node)) {
         setShowNotifications(false);
       }
       if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
         setShowUserMenu(false);
       }
-      if (projectMenuRef.current && !projectMenuRef.current.contains(event.target as Node)) {
-        setShowProjectMenu(false);
+    };
+    const handleEsc = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setShowNotifications(false);
+        setShowUserMenu(false);
       }
-    }
-    document.addEventListener('mousedown', handleClick);
-    return () => document.removeEventListener('mousedown', handleClick);
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleEsc);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleEsc);
+    };
   }, []);
 
-  const changeTheme = (newTheme: string) => {
-    setTheme(newTheme);
-    localStorage.setItem('theme', newTheme);
-    document.documentElement.setAttribute('data-theme', newTheme);
-  };
-
-  const handleLogout = async () => {
-    await logout();
+  const toggleTheme = () => {
+    const next: ThemeMode = theme === 'light' ? 'dark' : 'light';
+    window.localStorage.setItem('theme', next);
+    document.documentElement.setAttribute('data-theme', next);
+    window.dispatchEvent(new Event('neo-theme-change'));
   };
 
   const handleNotifClick = (notif: AppNotification) => {
     setShowNotifications(false);
     markAsRead(notif.id);
-
     if (notif.type === 'sla' || notif.type === 'sla_warning' || (notif.type === 'ticket' && notif.ticketId)) {
       router.push(`/tickets/${notif.ticketId}`);
       return;
     }
-
     if (notif.type === 'message') {
       router.push('/inbox');
     }
   };
 
-  const filteredNotifs = notifications.filter((notif) => {
-    if (activeTab === 'unread') return !notif.isRead;
-    if (activeTab === 'sla') return notif.type === 'sla' || notif.type === 'sla_warning';
-    return true;
-  });
+  const filteredNotifs = useMemo(
+    () =>
+      notifications.filter((notif) => {
+        if (activeTab === 'unread') return !notif.isRead;
+        if (activeTab === 'sla') return notif.type === 'sla' || notif.type === 'sla_warning';
+        return true;
+      }),
+    [activeTab, notifications]
+  );
+
+  const breadcrumb = useMemo<{ group?: string; label: string }>(() => {
+    const segmentMap: Array<{ match: (p: string) => boolean; group?: string; label: string }> = [
+      { match: (p) => p === '/', label: t('sidebar.menu.overview') },
+      { match: (p) => p.startsWith('/inbox'), group: t('sidebar.sections.operations'), label: t('sidebar.menu.inbox') },
+      { match: (p) => p === '/tickets/new', group: t('sidebar.menu.tickets'), label: t('sidebar.createTicket') },
+      {
+        match: (p) => p.startsWith('/tickets/'),
+        group: t('sidebar.menu.tickets'),
+        label: locale === 'th' ? 'รายละเอียดใบงาน' : 'Ticket Detail',
+      },
+      { match: (p) => p.startsWith('/tickets'), group: t('sidebar.sections.operations'), label: t('sidebar.menu.tickets') },
+      {
+        match: (p) => p.startsWith('/notifications'),
+        group: t('sidebar.sections.operations'),
+        label: t('sidebar.menu.notifications'),
+      },
+      {
+        match: (p) => p.startsWith('/analytics/personal'),
+        group: t('sidebar.menu.performance'),
+        label: t('sidebar.menu.personalPerformance'),
+      },
+      {
+        match: (p) => p.startsWith('/analytics/staff/evaluation-360'),
+        group: t('sidebar.menu.staffPerformance'),
+        label: 'Evaluation 360',
+      },
+      {
+        match: (p) => p.startsWith('/analytics/staff'),
+        group: t('sidebar.menu.performance'),
+        label: t('sidebar.menu.staffPerformance'),
+      },
+      {
+        match: (p) => p.startsWith('/analytics/insights'),
+        group: t('sidebar.menu.performance'),
+        label: locale === 'th' ? 'เชิงลึก' : 'Insights',
+      },
+      { match: (p) => p.startsWith('/analytics'), group: t('sidebar.sections.intelligence'), label: t('sidebar.menu.performance') },
+      { match: (p) => p.startsWith('/reports/daily'), group: t('sidebar.menu.reports'), label: t('sidebar.menu.dailyReport') },
+      {
+        match: (p) => p.startsWith('/reports/presentation'),
+        group: t('sidebar.menu.reports'),
+        label: locale === 'th' ? 'พรีเซนเทชัน' : 'Presentation',
+      },
+      { match: (p) => p.startsWith('/reports'), group: t('sidebar.sections.intelligence'), label: t('sidebar.menu.reportHub') },
+      { match: (p) => p.startsWith('/customers'), group: t('sidebar.sections.intelligence'), label: t('sidebar.menu.customers') },
+      { match: (p) => p.startsWith('/settings/profile'), group: t('sidebar.menu.settingsPersonal'), label: t('sidebar.menu.profile') },
+      {
+        match: (p) => p.startsWith('/settings/notifications'),
+        group: t('sidebar.menu.settingsPersonal'),
+        label: t('sidebar.menu.notificationSettings'),
+      },
+      { match: (p) => p.startsWith('/settings/projects'), group: t('sidebar.menu.settingsSystem'), label: t('sidebar.menu.projects') },
+      { match: (p) => p.startsWith('/settings/branding'), group: t('sidebar.menu.settingsSystem'), label: t('sidebar.menu.branding') },
+      { match: (p) => p.startsWith('/settings/staff'), group: t('sidebar.menu.settingsSystem'), label: t('sidebar.menu.staff') },
+      { match: (p) => p.startsWith('/settings/sla'), group: t('sidebar.menu.settingsSystem'), label: t('sidebar.menu.sla') },
+      { match: (p) => p.startsWith('/settings/master'), group: t('sidebar.menu.settingsSystem'), label: t('sidebar.menu.master') },
+      { match: (p) => p.startsWith('/settings/audit'), group: t('sidebar.menu.settingsSystem'), label: t('sidebar.menu.audit') },
+    ];
+    return segmentMap.find((entry) => entry.match(pathname)) || { label: 'Neo Support' };
+  }, [locale, pathname, t]);
+
+  const iconBtnStyle: React.CSSProperties = {
+    height: '32px',
+    minWidth: '32px',
+    padding: '0 8px',
+    borderRadius: 'var(--radius-md)',
+    border: '1px solid var(--color-border)',
+    background: 'var(--color-surface)',
+    color: 'var(--color-text-muted)',
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '6px',
+    fontSize: 'var(--text-xs)',
+    fontWeight: 600,
+    transition: 'var(--transition-colors)',
+  };
+
+  const isOnline = agent?.status === 'Active';
 
   return (
     <header className="top-bar">
-      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+      {/* Left: Menu Toggle + Dynamic Page Breadcrumb */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
         <button
+          type="button"
           onClick={() => {
             if (window.innerWidth > 1024) {
               setIsSidebarCollapsed(!isSidebarCollapsed);
@@ -228,419 +273,184 @@ export function TopBar({ isSidebarOpen, setIsSidebarOpen, isSidebarCollapsed, se
               setIsSidebarOpen(!isSidebarOpen);
             }
           }}
-          className="glass-interactive flex-center"
-          style={{
-            padding: '8px',
-            borderRadius: '8px',
-            border: '1px solid var(--border)',
-            display: 'flex',
-            color: 'var(--text-main)',
-            marginRight: '8px',
-          }}
+          aria-label={locale === 'th' ? 'สลับเมนูด้านข้าง' : 'Toggle navigation menu'}
+          aria-expanded={isSidebarOpen}
+          style={iconBtnStyle}
         >
-          <Menu size={20} />
+          <Menu size={16} aria-hidden="true" />
         </button>
 
-        <div className="show-desktop">
-          <h2
-            style={{
-              fontSize: '18px',
-              fontWeight: '800',
-              display: 'flex',
-              flexDirection: 'column',
-              lineHeight: '1.2',
-            }}
-          >
-            <span>{t('dashboard.title')}</span>
-            <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: '500' }}>
-              {t('dashboard.subtitle')}
-            </span>
-          </h2>
-        </div>
-
-        {/* Multi-Project Switcher */}
-        {projects.length > 0 && (
-          <div ref={projectMenuRef} style={{ position: 'relative', marginLeft: '10px' }}>
-            <button
-              type="button"
-              onClick={() => setShowProjectMenu((prev) => !prev)}
-              className="glass-interactive"
+        <nav aria-label={locale === 'th' ? 'ตำแหน่งหน้าปัจจุบัน' : 'Breadcrumb'} style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0 }}>
+          {breadcrumb.group && (
+            <>
+              <span className="hidden-mobile truncate" style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)', fontWeight: 500 }}>
+                {breadcrumb.group}
+              </span>
+              <ChevronRight size={13} className="hidden-mobile" color="var(--color-text-subtle)" aria-hidden="true" />
+            </>
+          )}
+          <span className="truncate" style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--color-text)' }}>
+            {breadcrumb.label}
+          </span>
+          {activeProject && (
+            <span
+              className="hidden-mobile mono"
               style={{
-                display: 'flex',
+                display: 'inline-flex',
                 alignItems: 'center',
-                gap: '8px',
-                padding: '7px 12px',
-                borderRadius: '10px',
-                border: '1px solid var(--border)',
-                background: 'var(--bg-card)',
-                color: 'var(--text-main)',
-                fontSize: '12px',
-                fontWeight: '700',
-                cursor: 'pointer',
+                gap: '5px',
+                marginLeft: '4px',
+                padding: '2px 8px',
+                borderRadius: 'var(--radius-full)',
+                border: '1px solid var(--color-border)',
+                background: 'var(--color-surface-subtle)',
+                fontSize: '11px',
+                fontWeight: 600,
+                color: 'var(--color-text-muted)',
               }}
             >
-              {activeProject ? (
-                <span
-                  style={{
-                    width: '8px',
-                    height: '8px',
-                    borderRadius: '50%',
-                    background: activeProject.primary_color || 'var(--primary)',
-                    flexShrink: 0,
-                  }}
-                />
-              ) : (
-                <Layers size={14} color="var(--primary)" />
-              )}
-              <span style={{ maxWidth: '170px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {selectedProjectId === 'all'
-                  ? agent?.role === 'Administrator'
-                    ? `ทุกโครงการ (${projects.length})`
-                    : projects.length === 1
-                      ? projects[0].name
-                      : `โครงการที่ดูแล (${projects.length})`
-                  : activeProject?.name || 'เลือกโครงการ'}
-              </span>
-              <ChevronDown size={14} color="var(--text-muted)" />
-            </button>
-
-            {showProjectMenu && (
-              <div
-                className="glass"
+              <span
+                aria-hidden="true"
                 style={{
-                  position: 'absolute',
-                  top: 'calc(100% + 8px)',
-                  left: 0,
-                  minWidth: '250px',
-                  padding: '8px',
-                  borderRadius: '12px',
-                  zIndex: 1000,
-                  boxShadow: '0 16px 36px rgba(0,0,0,0.2)',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '4px',
+                  width: 6,
+                  height: 6,
+                  borderRadius: 'var(--radius-full)',
+                  background: activeProject.primary_color || 'var(--color-primary)',
                 }}
-              >
-                {(agent?.role === 'Administrator' || projects.length > 1) && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSelectedProjectId('all');
-                      setShowProjectMenu(false);
-                    }}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      padding: '8px 10px',
-                      borderRadius: '8px',
-                      border: 'none',
-                      background: selectedProjectId === 'all' ? 'rgba(0, 102, 255, 0.1)' : 'transparent',
-                      color: 'var(--text-main)',
-                      fontSize: '12px',
-                      fontWeight: selectedProjectId === 'all' ? '800' : '600',
-                      cursor: 'pointer',
-                      textAlign: 'left',
-                    }}
-                  >
-                    <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <Layers size={14} color="var(--primary)" />
-                      {agent?.role === 'Administrator'
-                        ? `ทุกโครงการทั้งหมด (${projects.length})`
-                        : `ทุกโครงการที่ดูแล (${projects.length})`}
-                    </span>
-                    {selectedProjectId === 'all' && <Check size={14} color="var(--primary)" />}
-                  </button>
-                )}
-
-                {projects.map((proj) => {
-                  const isSelected = selectedProjectId === proj.id || (projects.length === 1 && agent?.role !== 'Administrator');
-                  return (
-                    <button
-                      key={proj.id}
-                      type="button"
-                      onClick={() => {
-                        setSelectedProjectId(proj.id);
-                        setShowProjectMenu(false);
-                      }}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        padding: '8px 10px',
-                        borderRadius: '8px',
-                        border: 'none',
-                        background: isSelected ? 'rgba(0, 102, 255, 0.1)' : 'transparent',
-                        color: 'var(--text-main)',
-                        fontSize: '12px',
-                        fontWeight: isSelected ? '800' : '600',
-                        cursor: 'pointer',
-                        textAlign: 'left',
-                      }}
-                    >
-                      <span style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
-                        <span
-                          style={{
-                            width: '8px',
-                            height: '8px',
-                            borderRadius: '50%',
-                            background: proj.primary_color || '#0066ff',
-                            flexShrink: 0,
-                          }}
-                        />
-                        <span style={{ fontSize: '10px', fontWeight: '800', opacity: 0.7 }}>{proj.code}</span>
-                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {proj.name}
-                        </span>
-                      </span>
-                      {isSelected && <Check size={14} color="var(--primary)" />}
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-
-      <div className="show-desktop" style={{ flex: 1, display: 'flex', justifyContent: 'center', padding: '0 16px' }}>
-        <TopBarClock locale={locale} />
-      </div>
-
-      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-        <style>{`
-          .avatar-bubble {
-            transition: all 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-          }
-          .avatar-bubble:hover {
-            transform: scale(1.15) translateY(-2px);
-            z-index: 50 !important;
-            box-shadow: 0 8px 20px rgba(0,0,0,0.4);
-          }
-          .avatar-bubble:hover .tooltip-presence {
-            opacity: 1 !important;
-            transform: translateX(-50%) translateY(0) scale(1) !important;
-            pointer-events: auto !important;
-          }
-        `}</style>
-
-        {/* Overlapping Online Staff indicators */}
-        {onlineStaff.length > 0 && (
-          <div className="show-desktop" style={{ display: 'flex', alignItems: 'center', marginRight: '16px', gap: '8px' }}>
-            <span style={{ fontSize: '10px', fontWeight: '850', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-              {t('dashboard.onlineStaff')}:
+              />
+              {activeProject.code}
             </span>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', position: 'relative' }}>
-              {onlineStaff.slice(0, 4).map((p, idx) => (
-                <div 
-                  key={p.id} 
-                  className="avatar-bubble"
-                  style={{ 
-                    position: 'relative', 
-                    zIndex: 10 - idx,
-                    cursor: 'default'
-                  }}
-                >
-                  {p.avatar_url ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img 
-                      src={p.avatar_url} 
-                      alt={p.full_name || ''} 
-                      style={{ 
-                        width: '30px', 
-                        height: '30px', 
-                        borderRadius: '50%', 
-                        border: '2px solid rgba(10, 14, 20, 0.8)',
-                        boxShadow: '0 4px 10px rgba(0,0,0,0.3)',
-                        objectFit: 'cover'
-                      }} 
-                    />
-                  ) : (
-                    <div 
-                      style={{ 
-                        width: '30px', 
-                        height: '30px', 
-                        borderRadius: '50%', 
-                        border: '2px solid rgba(10, 14, 20, 0.8)',
-                        background: p.status === 'Active' ? 'rgba(0, 242, 254, 0.1)' : 'rgba(115, 103, 240, 0.1)',
-                        boxShadow: '0 4px 10px rgba(0,0,0,0.3)',
-                        color: 'var(--text-main)',
-                        fontWeight: '800',
-                        fontSize: '11px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center'
-                      }}
-                    >
-                      {(p.full_name || 'A').charAt(0)}
-                    </div>
-                  )}
-                  {/* Status indicator dot */}
-                  <span 
-                    style={{ 
-                      position: 'absolute', 
-                      bottom: '0px', 
-                      right: '0px', 
-                      width: '9px', 
-                      height: '9px', 
-                      borderRadius: '50%', 
-                      border: '1.5px solid rgba(10, 14, 20, 0.9)',
-                      background: p.status === 'Active' ? '#00E676' : '#FF9100', // Neon Green vs Neon Orange
-                      boxShadow: p.status === 'Active' ? '0 0 6px #00E676' : '0 0 6px #FF9100'
-                    }}
-                  />
-                  
-                  {/* High-quality Glassmorphic Tooltip */}
-                  <div 
-                    className="tooltip-presence"
-                    style={{
-                      position: 'absolute',
-                      top: 'calc(100% + 10px)',
-                      left: '50%',
-                      transform: 'translateX(-50%) translateY(-4px) scale(0.95)',
-                      background: 'rgba(10, 14, 20, 0.9)',
-                      backdropFilter: 'blur(10px)',
-                      border: '1px solid rgba(255, 255, 255, 0.15)',
-                      borderRadius: '8px',
-                      padding: '8px 12px',
-                      whiteSpace: 'nowrap',
-                      pointerEvents: 'none',
-                      opacity: 0,
-                      transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
-                      boxShadow: '0 10px 25px rgba(0,0,0,0.5)',
-                      zIndex: 100,
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: '2px'
-                    }}
-                  >
-                    <span style={{ fontSize: '12px', fontWeight: '800', color: '#ffffff' }}>{p.full_name}</span>
-                    <span style={{ fontSize: '10px', color: 'rgba(255, 255, 255, 0.6)' }}>{p.department || t('dashboard.agentFallback')}</span>
-                    <span style={{ 
-                      fontSize: '10px', 
-                      fontWeight: '700', 
-                      color: p.status === 'Active' ? '#00E676' : '#FF9100',
-                      marginTop: '2px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '4px'
-                    }}>
-                      <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: p.status === 'Active' ? '#00E676' : '#FF9100' }} />
-                      {p.status === 'Active' ? t('dashboard.statusActive') : t('dashboard.statusBusy')}
-                    </span>
-                  </div>
-                </div>
-              ))}
-              
-              {/* Overlapping Count badge */}
-              {onlineStaff.length > 4 && (
-                <div 
-                  className="avatar-bubble group"
-                  style={{ 
-                    width: '30px', 
-                    height: '30px', 
-                    borderRadius: '50%', 
-                    border: '2px solid rgba(10, 14, 20, 0.8)',
-                    background: 'rgba(255, 255, 255, 0.05)',
-                    backdropFilter: 'blur(12px)',
-                    boxShadow: '0 4px 10px rgba(0,0,0,0.3)',
-                    zIndex: 5,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: '10px',
-                    fontWeight: '900',
-                    color: 'var(--primary)',
-                    cursor: 'default'
-                  }}
-                  title={onlineStaff.slice(4).map(p => p.full_name).join(', ')}
-                >
-                  +{onlineStaff.length - 4}
-                  
-                  {/* Tooltip for the +N badge showing other online employees */}
-                  <div 
-                    className="tooltip-presence"
-                    style={{
-                      position: 'absolute',
-                      bottom: 'calc(100% + 10px)',
-                      left: '50%',
-                      transform: 'translateX(-50%) translateY(4px) scale(0.95)',
-                      background: 'rgba(10, 14, 20, 0.9)',
-                      backdropFilter: 'blur(10px)',
-                      border: '1px solid var(--border)',
-                      borderRadius: '8px',
-                      padding: '8px 12px',
-                      whiteSpace: 'nowrap',
-                      pointerEvents: 'none',
-                      opacity: 0,
-                      transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
-                      boxShadow: '0 10px 25px rgba(0,0,0,0.5)',
-                      zIndex: 100,
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: '4px'
-                    }}
-                  >
-                    {onlineStaff.slice(4).map(p => (
-                      <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: p.status === 'Active' ? '#00E676' : '#FF9100' }} />
-                        <span style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-main)' }}>{p.full_name}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
+          )}
+        </nav>
+      </div>
 
-
-
+      {/* Center/Right Controls */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+        {/* Cmd+K Command Palette Trigger */}
         <button
-          onClick={toggleMute}
-          className="glass-interactive"
-          title={isMuted ? t('dashboard.unmuteNotifications') : t('dashboard.muteNotifications')}
+          type="button"
+          onClick={() => onOpenCommandPalette?.()}
+          aria-label={locale === 'th' ? 'เปิดคำสั่งด่วน (Cmd+K)' : 'Open command palette (Cmd+K)'}
           style={{
-            padding: '8px',
-            borderRadius: '8px',
-            border: 'none',
-            cursor: 'pointer',
-            display: 'flex',
+            height: '32px',
+            padding: '0 10px',
+            borderRadius: 'var(--radius-md)',
+            border: '1px solid var(--color-border)',
+            background: 'var(--color-surface-subtle)',
+            color: 'var(--color-text-muted)',
+            display: 'inline-flex',
             alignItems: 'center',
-            justifyContent: 'center',
-            color: isMuted ? 'var(--text-muted)' : 'var(--primary)',
-            background: isMuted ? 'transparent' : 'var(--primary-transparent)',
-            transition: 'all 0.2s',
+            gap: '8px',
+            fontSize: 'var(--text-xs)',
+            transition: 'var(--transition-colors)',
           }}
         >
-          {isMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
+          <Search size={14} aria-hidden="true" />
+          <span className="hidden-mobile">
+            {locale === 'th' ? 'ค้นหา / ข้ามหน้า...' : 'Search or jump...'}
+          </span>
+          <kbd
+            className="hidden-mobile mono"
+            style={{
+              padding: '1px 5px',
+              borderRadius: '4px',
+              border: '1px solid var(--color-border-strong)',
+              background: 'var(--color-surface)',
+              fontSize: '10px',
+              fontWeight: 600,
+              color: 'var(--color-text-muted)',
+            }}
+          >
+            ⌘K
+          </kbd>
         </button>
 
+        {/* Locale TH/EN Toggle */}
+        <button
+          type="button"
+          onClick={toggleLocale}
+          title={locale === 'th' ? t('dashboard.switchToEnglish') : t('dashboard.switchToThai')}
+          aria-label={locale === 'th' ? t('dashboard.switchToEnglish') : t('dashboard.switchToThai')}
+          style={iconBtnStyle}
+        >
+          <Languages size={15} aria-hidden="true" />
+          <span className="mono">{locale.toUpperCase()}</span>
+        </button>
+
+        {/* 2-Theme Daylight / Night Shift Toggle */}
+        <button
+          type="button"
+          onClick={toggleTheme}
+          title={
+            theme === 'light'
+              ? locale === 'th'
+                ? 'สลับเป็นโหมดมืด (Night Shift)'
+                : 'Switch to Night Shift Dark'
+              : locale === 'th'
+                ? 'สลับเป็นโหมดสว่าง (Daylight)'
+                : 'Switch to Daylight Light'
+          }
+          aria-label={theme === 'light' ? 'Switch to dark theme' : 'Switch to light theme'}
+          aria-pressed={theme === 'dark'}
+          style={iconBtnStyle}
+        >
+          {theme === 'light' ? <Moon size={15} aria-hidden="true" /> : <Sun size={15} aria-hidden="true" />}
+        </button>
+
+        {/* Sound Mute Toggle */}
+        <button
+          type="button"
+          onClick={toggleMute}
+          title={isMuted ? t('dashboard.unmuteNotifications') : t('dashboard.muteNotifications')}
+          aria-label={isMuted ? t('dashboard.unmuteNotifications') : t('dashboard.muteNotifications')}
+          aria-pressed={!isMuted}
+          style={{
+            ...iconBtnStyle,
+            color: isMuted ? 'var(--color-text-muted)' : 'var(--color-primary)',
+            background: isMuted ? 'var(--color-surface)' : 'var(--color-primary-soft)',
+            borderColor: isMuted ? 'var(--color-border)' : 'transparent',
+          }}
+        >
+          {isMuted ? <VolumeX size={15} aria-hidden="true" /> : <Volume2 size={15} aria-hidden="true" />}
+        </button>
+
+        {/* Notifications Bell + Popover */}
         <div ref={notifRef} style={{ position: 'relative' }}>
           <button
-            onClick={() => setShowNotifications(!showNotifications)}
-            className="glass-interactive"
-            style={{ padding: '8px', borderRadius: '8px', border: 'none', position: 'relative', cursor: 'pointer' }}
+            type="button"
+            onClick={() => {
+              setShowNotifications((prev) => !prev);
+              setShowUserMenu(false);
+            }}
+            aria-label={t('dashboard.notificationsTitle')}
+            aria-expanded={showNotifications}
+            aria-haspopup="dialog"
+            style={{
+              ...iconBtnStyle,
+              position: 'relative',
+              color: showNotifications ? 'var(--color-primary)' : 'var(--color-text-muted)',
+            }}
           >
-            <Bell size={18} color={showNotifications ? 'var(--primary)' : 'var(--text-muted)'} />
+            <Bell size={15} aria-hidden="true" />
             {unreadCount > 0 && (
               <span
+                className="tabular-nums"
                 style={{
                   position: 'absolute',
-                  top: '4px',
-                  right: '4px',
+                  top: -4,
+                  right: -4,
                   minWidth: '16px',
                   height: '16px',
-                  background: 'var(--danger)',
-                  borderRadius: '10px',
-                  fontSize: '9px',
-                  fontWeight: '800',
-                  color: 'white',
+                  background: 'var(--color-danger)',
+                  borderRadius: 'var(--radius-full)',
+                  fontSize: '10px',
+                  fontWeight: 700,
+                  color: '#ffffff',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   padding: '0 4px',
-                  animation: 'pulse 2s infinite',
+                  border: '2px solid var(--color-surface)',
                 }}
               >
                 {unreadCount > 9 ? '9+' : unreadCount}
@@ -650,184 +460,198 @@ export function TopBar({ isSidebarOpen, setIsSidebarOpen, isSidebarCollapsed, se
 
           {showNotifications && (
             <div
+              role="dialog"
+              aria-label={t('dashboard.notificationsTitle')}
               style={{
                 position: 'absolute',
                 top: 'calc(100% + 8px)',
                 right: 0,
-                width: '380px',
-                maxHeight: '480px',
-                background: 'var(--bg-card)',
-                border: '1px solid var(--border)',
-                borderRadius: '16px',
-                backdropFilter: 'blur(34px)',
-                boxShadow: '0 20px 60px rgba(0, 0, 0, 0.5), 0 0 0 1px var(--border)',
-                zIndex: 100,
+                width: 'min(360px, calc(100vw - 24px))',
+                maxHeight: '460px',
+                background: 'var(--color-surface)',
+                border: '1px solid var(--color-border-strong)',
+                borderRadius: 'var(--radius-xl)',
+                boxShadow: 'var(--shadow-lg)',
+                zIndex: 'var(--z-popover)',
                 overflow: 'hidden',
-                animation: 'fadeIn 0.2s ease-out',
+                display: 'flex',
+                flexDirection: 'column',
               }}
             >
-              <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--border)' }}>
-                <div
-                  style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    marginBottom: '10px',
-                  }}
-                >
+              <div style={{ padding: '12px 14px', borderBottom: '1px solid var(--color-border)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
                   <div>
-                    <h3 style={{ fontSize: '14px', fontWeight: '700', color: 'var(--text-main)' }}>
+                    <h3 style={{ fontSize: 'var(--text-base)', fontWeight: 700, color: 'var(--color-text)' }}>
                       {t('dashboard.notificationsTitle')}
                     </h3>
-                    <p style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '1px' }}>
+                    <p style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>
                       {t('dashboard.notificationsSubtitle')}
                     </p>
                   </div>
                   {unreadCount > 0 && (
                     <button
+                      type="button"
                       onClick={markAllRead}
                       style={{
-                        display: 'flex',
+                        display: 'inline-flex',
                         alignItems: 'center',
                         gap: '4px',
-                        fontSize: '11px',
-                        color: 'var(--primary)',
-                        fontWeight: '600',
-                        background: 'none',
+                        fontSize: 'var(--text-xs)',
+                        color: 'var(--color-primary)',
+                        fontWeight: 600,
+                        background: 'transparent',
                         border: 'none',
-                        cursor: 'pointer',
-                        opacity: 0.8,
                       }}
                     >
-                      <CheckCheck size={12} />
+                      <CheckCheck size={13} aria-hidden="true" />
                       {t('dashboard.markAllRead')}
                     </button>
                   )}
                 </div>
 
-                <div style={{ display: 'flex', gap: '4px', background: 'var(--bg-input)', borderRadius: '24px', padding: '3px' }}>
+                <div
+                  role="tablist"
+                  style={{
+                    display: 'flex',
+                    gap: '4px',
+                    background: 'var(--color-surface-subtle)',
+                    borderRadius: 'var(--radius-md)',
+                    padding: '3px',
+                  }}
+                >
                   {(['all', 'unread', 'sla'] as const).map((tab) => (
                     <button
                       key={tab}
+                      type="button"
+                      role="tab"
+                      aria-selected={activeTab === tab}
                       className={`notif-tab${activeTab === tab ? ' active' : ''}`}
+                      style={{ flex: 1, borderRadius: 'var(--radius-sm)' }}
                       onClick={() => setActiveTab(tab)}
                     >
                       {tab === 'all'
                         ? t('dashboard.tabs.all')
                         : tab === 'unread'
                           ? `${t('dashboard.tabs.unread')}${unreadCount > 0 ? ` (${unreadCount})` : ''}`
-                          : `⚠️ ${t('dashboard.tabs.sla')}`}
+                          : t('dashboard.tabs.sla')}
                     </button>
                   ))}
                 </div>
               </div>
 
-              <div className="no-scrollbar" style={{ maxHeight: '380px', overflowY: 'auto' }}>
+              <div className="no-scrollbar" style={{ maxHeight: '340px', overflowY: 'auto' }}>
                 {filteredNotifs.length === 0 ? (
-                  <div style={{ padding: '40px 20px', textAlign: 'center' }}>
-                    <Bell size={28} color="var(--text-muted)" style={{ marginBottom: '10px', opacity: 0.3 }} />
-                    <p style={{ color: 'var(--text-muted)', fontSize: '13px' }}>
+                  <div style={{ padding: '32px 16px', textAlign: 'center' }}>
+                    <Bell size={24} color="var(--color-text-subtle)" style={{ marginBottom: '8px' }} aria-hidden="true" />
+                    <p style={{ color: 'var(--color-text-muted)', fontSize: 'var(--text-sm)' }}>
                       {t('dashboard.noNotifications')}
                     </p>
                   </div>
                 ) : (
                   filteredNotifs.map((notif) => {
                     const IconComponent = ACTION_ICONS[notif.type] || Ticket;
-                    const iconColor = ACTION_COLORS[notif.type] || 'var(--primary)';
+                    const iconColor = ACTION_COLORS[notif.type] || 'var(--color-primary)';
 
                     return (
                       <div
                         key={notif.id}
-                        onClick={() => handleNotifClick(notif)}
                         style={{
-                          padding: '12px 16px',
-                          borderBottom: '1px solid var(--border)',
                           display: 'flex',
-                          gap: '12px',
-                          alignItems: 'flex-start',
-                          background: !notif.isRead ? 'var(--primary-transparent)' : 'transparent',
-                          cursor: 'pointer',
-                          transition: 'all 0.15s ease',
-                          position: 'relative',
-                        }}
-                        onMouseEnter={(event) => {
-                          event.currentTarget.style.background = 'var(--bg-card-hover)';
-                        }}
-                        onMouseLeave={(event) => {
-                          event.currentTarget.style.background = !notif.isRead
-                            ? 'var(--primary-transparent)'
-                            : 'transparent';
+                          alignItems: 'center',
+                          borderBottom: '1px solid var(--color-border)',
+                          background: !notif.isRead ? 'var(--color-primary-soft)' : 'transparent',
                         }}
                       >
-                        <div
+                        <button
+                          type="button"
+                          onClick={() => handleNotifClick(notif)}
                           style={{
-                            width: '32px',
-                            height: '32px',
-                            borderRadius: '10px',
-                            background: 'var(--primary-transparent)',
+                            flex: 1,
+                            minWidth: 0,
+                            padding: '10px 14px',
                             display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            flexShrink: 0,
+                            gap: '10px',
+                            alignItems: 'flex-start',
+                            background: 'transparent',
+                            border: 'none',
+                            textAlign: 'left',
                           }}
                         >
-                          <IconComponent size={14} color={iconColor} />
-                        </div>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', gap: '6px' }}>
-                            <p
+                          <span
+                            aria-hidden="true"
+                            style={{
+                              width: 28,
+                              height: 28,
+                              borderRadius: 'var(--radius-md)',
+                              background: 'var(--color-surface-subtle)',
+                              border: '1px solid var(--color-border)',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              flexShrink: 0,
+                            }}
+                          >
+                            <IconComponent size={14} color={iconColor} aria-hidden={true} />
+                          </span>
+                          <span style={{ flex: 1, minWidth: 0, display: 'block' }}>
+                            <span
+                              className="truncate"
                               style={{
-                                fontSize: '12px',
-                                fontWeight: !notif.isRead ? '700' : '400',
-                                overflow: 'hidden',
-                                textOverflow: 'ellipsis',
-                                whiteSpace: 'nowrap',
+                                display: 'block',
+                                fontSize: 'var(--text-xs)',
+                                fontWeight: !notif.isRead ? 700 : 500,
+                                color: 'var(--color-text)',
                               }}
                             >
                               {notif.title}
-                            </p>
-                            {!notif.isRead && (
-                              <button
-                                onClick={(event) => {
-                                  event.stopPropagation();
-                                  markAsRead(notif.id);
-                                }}
-                                style={{
-                                  width: '18px',
-                                  height: '18px',
-                                  borderRadius: '50%',
-                                  background: 'var(--bg-input)',
-                                  border: 'none',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'center',
-                                  cursor: 'pointer',
-                                  color: iconColor,
-                                }}
-                              >
-                                <CheckCircle2 size={10} />
-                              </button>
-                            )}
-                          </div>
-                          <p
+                            </span>
+                            <span
+                              className="truncate"
+                              style={{
+                                display: 'block',
+                                fontSize: '12px',
+                                color: 'var(--color-text-muted)',
+                                marginTop: '2px',
+                              }}
+                            >
+                              {notif.body}
+                            </span>
+                            <span
+                              style={{
+                                display: 'block',
+                                fontSize: '11px',
+                                color: 'var(--color-text-subtle)',
+                                marginTop: '3px',
+                              }}
+                            >
+                              {timeAgo(notif.createdAt, t)}
+                            </span>
+                          </span>
+                        </button>
+
+                        {!notif.isRead && (
+                          <button
+                            type="button"
+                            onClick={() => markAsRead(notif.id)}
+                            aria-label={locale === 'th' ? 'ทำเครื่องหมายว่าอ่านแล้ว' : 'Mark as read'}
+                            title={locale === 'th' ? 'ทำเครื่องหมายว่าอ่านแล้ว' : 'Mark as read'}
                             style={{
-                              fontSize: '11px',
-                              color: 'var(--text-main)',
-                              opacity: 0.7,
-                              overflow: 'hidden',
-                              textOverflow: 'ellipsis',
-                              whiteSpace: 'nowrap',
-                              marginTop: '2px',
+                              width: 28,
+                              height: 28,
+                              marginRight: '10px',
+                              borderRadius: 'var(--radius-full)',
+                              background: 'var(--color-surface)',
+                              border: '1px solid var(--color-border)',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              color: iconColor,
+                              flexShrink: 0,
                             }}
                           >
-                            {notif.body}
-                          </p>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px' }}>
-                            <p style={{ fontSize: '10px', color: 'var(--text-main)', opacity: 0.5, fontWeight: '600' }}>
-                              {timeAgo(notif.createdAt, t)}
-                            </p>
-                          </div>
-                        </div>
+                            <CheckCircle2 size={12} aria-hidden="true" />
+                          </button>
+                        )}
                       </div>
                     );
                   })
@@ -837,261 +661,204 @@ export function TopBar({ isSidebarOpen, setIsSidebarOpen, isSidebarCollapsed, se
           )}
         </div>
 
+        {/* User Profile / Status / Logout Menu */}
         <div ref={userMenuRef} style={{ position: 'relative' }}>
-          <div
-            onClick={() => setShowUserMenu(!showUserMenu)}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '12px',
-              marginLeft: '8px',
-              padding: '4px 12px 4px 4px',
-              borderRadius: '30px',
-              border: '1px solid var(--border)',
-              cursor: 'pointer',
+          <button
+            type="button"
+            onClick={() => {
+              setShowUserMenu((prev) => !prev);
+              setShowNotifications(false);
             }}
-            className="glass-interactive"
+            aria-expanded={showUserMenu}
+            aria-haspopup="menu"
+            aria-label={agent?.full_name || t('dashboard.agentFallback')}
+            style={{
+              height: '32px',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '0 8px 0 4px',
+              borderRadius: 'var(--radius-full)',
+              border: '1px solid var(--color-border)',
+              background: 'var(--color-surface)',
+              color: 'var(--color-text)',
+              transition: 'var(--transition-colors)',
+            }}
           >
-            <div style={{ position: 'relative' }}>
+            <span style={{ position: 'relative', display: 'inline-flex' }}>
               {agent?.avatar_url ? (
-                // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={agent.avatar_url}
-                  alt="User avatar"
-                  style={{ width: '30px', height: '30px', borderRadius: '50%', objectFit: 'cover' }}
+                  alt=""
+                  style={{ width: 24, height: 24, borderRadius: 'var(--radius-full)', objectFit: 'cover' }}
                 />
               ) : (
-                <div
+                <span
                   style={{
-                    width: '30px',
-                    height: '30px',
-                    borderRadius: '50%',
-                    background: 'var(--secondary)',
-                    display: 'flex',
+                    width: 24,
+                    height: 24,
+                    borderRadius: 'var(--radius-full)',
+                    background: 'var(--color-primary-solid)',
+                    display: 'inline-flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    fontWeight: '700',
+                    fontWeight: 700,
                     fontSize: '11px',
-                    color: 'white',
-                    boxShadow: '0 0 10px rgba(115, 103, 240, 0.4)',
+                    color: 'var(--color-on-primary)',
                   }}
                 >
                   {agent?.full_name?.charAt(0) || 'A'}
-                </div>
+                </span>
               )}
-              {/* Status indicator dot */}
               <span
+                aria-hidden="true"
                 style={{
                   position: 'absolute',
-                  bottom: '-1px',
-                  right: '-1px',
-                  width: '9px',
-                  height: '9px',
-                  borderRadius: '50%',
-                  border: '1.5px solid rgba(10, 14, 20, 0.9)',
-                  background: agent?.status === 'Active' ? '#00E676' : agent?.status === 'Busy' ? '#FF9100' : 'var(--text-muted)',
-                  boxShadow: agent?.status === 'Active' ? '0 0 6px #00E676' : agent?.status === 'Busy' ? '0 0 6px #FF9100' : 'none',
+                  bottom: -1,
+                  right: -1,
+                  width: 8,
+                  height: 8,
+                  borderRadius: 'var(--radius-full)',
+                  border: '1.5px solid var(--color-surface)',
+                  background: isOnline ? 'var(--color-success)' : 'var(--color-warning)',
                 }}
               />
-            </div>
-            <div className="show-desktop" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <p style={{ fontSize: '12px', fontWeight: '700' }}>{agent?.full_name || t('dashboard.agentFallback')}</p>
-              <ChevronDown size={14} opacity={0.5} />
-            </div>
-          </div>
+            </span>
+            <span className="hidden-mobile truncate" style={{ maxWidth: '120px', fontSize: 'var(--text-xs)', fontWeight: 600 }}>
+              {agent?.full_name || t('dashboard.agentFallback')}
+            </span>
+            <ChevronDown size={13} color="var(--color-text-muted)" aria-hidden="true" />
+          </button>
 
           {showUserMenu && (
             <div
+              role="menu"
               style={{
                 position: 'absolute',
                 top: 'calc(100% + 8px)',
                 right: 0,
-                width: '260px',
-                background: 'var(--bg-card)',
-                border: '1px solid var(--border)',
-                borderRadius: '16px',
-                backdropFilter: 'blur(34px)',
-                boxShadow: '0 20px 60px rgba(0, 0, 0, 0.5)',
-                zIndex: 100,
-                overflow: 'hidden',
-                animation: 'fadeIn 0.2s ease-out',
+                width: '240px',
+                background: 'var(--color-surface)',
+                border: '1px solid var(--color-border-strong)',
+                borderRadius: 'var(--radius-xl)',
+                boxShadow: 'var(--shadow-lg)',
+                zIndex: 'var(--z-popover)',
                 padding: '8px',
               }}
             >
-              <div style={{ padding: '16px', borderBottom: '1px solid var(--border)', marginBottom: '8px' }}>
-                <p style={{ fontSize: '14px', fontWeight: '800', color: 'var(--text-main)' }}>
-                  {agent?.full_name}
+              <div style={{ padding: '8px 10px 10px', borderBottom: '1px solid var(--color-border)' }}>
+                <p className="truncate" style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: 'var(--color-text)' }}>
+                  {agent?.full_name || t('dashboard.agentFallback')}
                 </p>
-                <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
+                <p style={{ fontSize: '11px', color: 'var(--color-text-muted)', marginTop: '2px' }}>
                   {agent?.role || 'Staff'}
                 </p>
               </div>
 
-              {/* Active / Busy Status Switcher */}
-              <div style={{ padding: '8px 16px', borderBottom: '1px solid var(--border)', marginBottom: '8px' }}>
-                <p style={{ fontSize: '10px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '8px', letterSpacing: '0.5px' }}>
+              <div style={{ padding: '10px 8px', borderBottom: '1px solid var(--color-border)' }}>
+                <p
+                  style={{
+                    fontSize: '11px',
+                    fontWeight: 600,
+                    color: 'var(--color-text-subtle)',
+                    textTransform: 'uppercase',
+                    marginBottom: '6px',
+                  }}
+                >
                   {t('dashboard.myStatus')}
                 </p>
-                <div style={{ display: 'flex', gap: '8px' }}>
+                <div style={{ display: 'flex', gap: '6px' }}>
                   <button
+                    type="button"
                     onClick={() => void updateStatus('Active')}
-                    className="glass-interactive"
                     style={{
                       flex: 1,
-                      padding: '8px 12px',
-                      borderRadius: '8px',
-                      background: agent?.status === 'Active' ? 'rgba(0, 230, 118, 0.15)' : 'transparent',
+                      height: '32px',
+                      borderRadius: 'var(--radius-md)',
+                      background: isOnline ? 'var(--color-success-soft)' : 'transparent',
                       border: '1px solid',
-                      borderColor: agent?.status === 'Active' ? '#00E676' : 'var(--border)',
-                      color: agent?.status === 'Active' ? '#00E676' : 'var(--text-main)',
-                      fontSize: '11px',
-                      fontWeight: '800',
-                      display: 'flex',
+                      borderColor: isOnline ? 'var(--color-success-border)' : 'var(--color-border)',
+                      color: isOnline ? 'var(--color-success-text)' : 'var(--color-text-muted)',
+                      fontSize: 'var(--text-xs)',
+                      fontWeight: 600,
+                      display: 'inline-flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      gap: '6px',
-                      cursor: 'pointer'
+                      gap: '5px',
                     }}
                   >
-                    <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#00E676', boxShadow: '0 0 6px #00E676' }} />
-                    <span>{t('dashboard.statusActive')}</span>
+                    <span style={{ width: 6, height: 6, borderRadius: 'var(--radius-full)', background: 'var(--color-success)' }} />
+                    {t('dashboard.statusActive')}
                   </button>
                   <button
+                    type="button"
                     onClick={() => void updateStatus('Busy')}
-                    className="glass-interactive"
                     style={{
                       flex: 1,
-                      padding: '8px 12px',
-                      borderRadius: '8px',
-                      background: agent?.status === 'Busy' ? 'rgba(255, 145, 0, 0.15)' : 'transparent',
+                      height: '32px',
+                      borderRadius: 'var(--radius-md)',
+                      background: agent?.status === 'Busy' ? 'var(--color-warning-soft)' : 'transparent',
                       border: '1px solid',
-                      borderColor: agent?.status === 'Busy' ? '#FF9100' : 'var(--border)',
-                      color: agent?.status === 'Busy' ? '#FF9100' : 'var(--text-main)',
-                      fontSize: '11px',
-                      fontWeight: '800',
-                      display: 'flex',
+                      borderColor: agent?.status === 'Busy' ? 'var(--color-warning-border)' : 'var(--color-border)',
+                      color: agent?.status === 'Busy' ? 'var(--color-warning-text)' : 'var(--color-text-muted)',
+                      fontSize: 'var(--text-xs)',
+                      fontWeight: 600,
+                      display: 'inline-flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      gap: '6px',
-                      cursor: 'pointer'
+                      gap: '5px',
                     }}
                   >
-                    <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#FF9100', boxShadow: '0 0 6px #FF9100' }} />
-                    <span>{t('dashboard.statusBusy')}</span>
+                    <span style={{ width: 6, height: 6, borderRadius: 'var(--radius-full)', background: 'var(--color-warning)' }} />
+                    {t('dashboard.statusBusy')}
                   </button>
                 </div>
               </div>
 
-              <div style={{ position: 'relative' }}>
-                <button
-                  onClick={() => setShowThemes(!showThemes)}
-                  className="glass-interactive"
+              <div style={{ paddingTop: '6px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                <Link
+                  href="/settings/profile"
+                  role="menuitem"
+                  onClick={() => setShowUserMenu(false)}
                   style={{
-                    width: '100%',
+                    height: '34px',
                     display: 'flex',
                     alignItems: 'center',
-                    justifyContent: 'space-between',
-                    padding: '12px 16px',
-                    borderRadius: '10px',
+                    gap: '8px',
+                    padding: '0 10px',
+                    borderRadius: 'var(--radius-md)',
+                    fontSize: 'var(--text-xs)',
+                    fontWeight: 600,
+                    color: 'var(--color-text)',
+                    textDecoration: 'none',
+                  }}
+                >
+                  <UserCog size={14} color="var(--color-text-muted)" aria-hidden="true" />
+                  <span>{t('sidebar.menu.profile')}</span>
+                </Link>
+
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => void logout()}
+                  style={{
+                    width: '100%',
+                    height: '34px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    padding: '0 10px',
+                    borderRadius: 'var(--radius-md)',
+                    border: 'none',
                     background: 'transparent',
-                    border: 'none',
-                    color: 'var(--text-main)',
-                    cursor: 'pointer',
+                    color: 'var(--color-danger-text)',
+                    fontSize: 'var(--text-xs)',
+                    fontWeight: 600,
+                    textAlign: 'left',
                   }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    <Palette size={16} color="var(--primary)" />
-                    <span style={{ fontSize: '12px', fontWeight: '600' }}>{t('dashboard.theme')}</span>
-                  </div>
-                  <ChevronDown size={14} style={{ transform: showThemes ? 'rotate(180deg)' : 'none', transition: '0.2s' }} />
-                </button>
-
-                {showThemes && (
-                  <div style={{ padding: '8px', background: 'var(--bg-input)', borderRadius: '12px', margin: '4px 8px' }}>
-                    <button
-                      onClick={() => changeTheme('light')}
-                      style={{
-                        width: '100%', display: 'flex', alignItems: 'center', gap: '10px', padding: '10px',
-                        background: theme === 'light' ? 'var(--bg-card)' : 'transparent',
-                        border: '1px solid', borderColor: theme === 'light' ? 'var(--border)' : 'transparent',
-                        borderRadius: '8px', cursor: 'pointer', color: 'var(--text-main)'
-                      }}
-                    >
-                      <Sun size={14} /> <span style={{ fontSize: '12px' }}>Light</span>
-                    </button>
-                    <button
-                      onClick={() => changeTheme('dark')}
-                      style={{
-                        width: '100%', display: 'flex', alignItems: 'center', gap: '10px', padding: '10px',
-                        background: theme === 'dark' ? 'var(--bg-card)' : 'transparent',
-                        border: '1px solid', borderColor: theme === 'dark' ? 'var(--border)' : 'transparent',
-                        borderRadius: '8px', cursor: 'pointer', color: 'var(--text-main)'
-                      }}
-                    >
-                      <Moon size={14} /> <span style={{ fontSize: '12px' }}>Dark</span>
-                    </button>
-                    <button
-                      onClick={() => changeTheme('system')}
-                      style={{
-                        width: '100%', display: 'flex', alignItems: 'center', gap: '10px', padding: '10px',
-                        background: theme === 'system' ? 'var(--bg-card)' : 'transparent',
-                        border: '1px solid', borderColor: theme === 'system' ? 'var(--border)' : 'transparent',
-                        borderRadius: '8px', cursor: 'pointer', color: 'var(--text-main)'
-                      }}
-                    >
-                      <Monitor size={14} /> <span style={{ fontSize: '12px' }}>System</span>
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              {/* Language Switcher */}
-              <div style={{ position: 'relative', marginTop: '4px' }}>
-                <button
-                  onClick={toggleLocale}
-                  className="glass-interactive"
-                  style={{
-                    width: '100%',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    padding: '12px 16px',
-                    borderRadius: '10px',
-                    background: 'transparent',
-                    border: 'none',
-                    color: 'var(--text-main)',
-                    cursor: 'pointer',
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    <Languages size={16} color="var(--primary)" />
-                    <span style={{ fontSize: '12px', fontWeight: '600' }}>{t('common.language')}</span>
-                  </div>
-                  <span style={{ fontSize: '11px', fontWeight: '800', color: 'var(--primary)', textTransform: 'uppercase' }}>
-                    {locale.toUpperCase()}
-                  </span>
-                </button>
-              </div>
-
-              <div style={{ marginTop: '8px', borderTop: '1px solid var(--border)', paddingTop: '8px' }}>
-                <button
-                  onClick={handleLogout}
-                  style={{
-                    width: '100%',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '12px',
-                    padding: '12px 16px',
-                    borderRadius: '10px',
-                    border: 'none',
-                    color: 'var(--danger)',
-                    cursor: 'pointer',
-                    marginTop: '4px',
-                  }}
-                  className="glass-interactive"
-                >
-                  <LogOut size={16} />
-                  <span style={{ fontSize: '12px', fontWeight: '800' }}>{t('dashboard.logout')}</span>
+                  <LogOut size={14} aria-hidden="true" />
+                  <span>{t('dashboard.logout')}</span>
                 </button>
               </div>
             </div>

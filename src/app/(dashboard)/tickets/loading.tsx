@@ -1,35 +1,39 @@
 'use client';
+
 import React from 'react';
 import Skeleton from '@/components/ui/Skeleton';
+import styles from './tickets-workspace.module.css';
 
 export default function TicketsLoading() {
   return (
-    <div className="animate-page-in">
-      {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
-        <div>
-          <Skeleton width={200} height={32} marginBottom={8} />
-          <Skeleton width={300} height={16} />
+    <div className={styles.workspacePage} aria-busy="true" aria-label="Loading tickets">
+      <div className={styles.headerTop}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <Skeleton width={220} height={28} borderRadius={6} />
+          <Skeleton width={320} height={16} borderRadius={4} />
         </div>
-        <Skeleton width={120} height={40} borderRadius={12} />
+        <Skeleton width={160} height={36} borderRadius={8} />
       </div>
 
-      {/* Toolbar / Filters */}
-      <div className="glass" style={{ padding: '16px', borderRadius: '16px', marginBottom: '24px', display: 'flex', gap: '16px' }}>
-         <Skeleton width={150} height={36} borderRadius={8} />
-         <Skeleton width={150} height={36} borderRadius={8} />
-         <Skeleton width={150} height={36} borderRadius={8} />
+      <div className={styles.toolbarRow}>
+        <Skeleton width={260} height={36} borderRadius={8} />
+        <Skeleton width={260} height={36} borderRadius={8} />
       </div>
 
-      {/* Content Area */}
-      <div className="glass" style={{ padding: '24px', borderRadius: '16px', minHeight: '400px' }}>
-         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            <Skeleton width="100%" height={60} borderRadius={8} />
-            <Skeleton width="100%" height={60} borderRadius={8} />
-            <Skeleton width="100%" height={60} borderRadius={8} />
-            <Skeleton width="100%" height={60} borderRadius={8} />
-            <Skeleton width="100%" height={60} borderRadius={8} />
-         </div>
+      <div
+        style={{
+          padding: '16px',
+          borderRadius: 'var(--radius-lg)',
+          border: '1px solid var(--color-border)',
+          background: 'var(--color-surface)',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '12px',
+        }}
+      >
+        {[...Array(5)].map((_, i) => (
+          <Skeleton key={i} width="100%" height={48} borderRadius={8} />
+        ))}
       </div>
     </div>
   );

@@ -3,15 +3,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   AlertCircle,
-  BarChart2,
-  Calendar,
   CheckCircle2,
   ChevronRight,
   Eye,
   FileText,
   Plus,
   Send,
-  ShieldCheck,
   Trash2,
   Zap,
 } from 'lucide-react';
@@ -19,6 +16,18 @@ import { useStaffLocale } from '@/contexts/StaffLocaleContext';
 import { useAppContext } from '@/contexts/AppContext';
 import DailyReportPage from '../daily/page';
 import PresentationPage from '../presentation/page';
+import {
+  Badge,
+  Button,
+  Card,
+  CardBody,
+  CardHeader,
+  EmptyState,
+  Input,
+  PageHeader,
+  Select,
+} from '@/components/ui';
+import styles from '@/components/reports/reports.module.css';
 
 type ReportSet = '1' | '2';
 type ReportBroadcastMode = 'manual' | 'auto';
@@ -113,65 +122,24 @@ export default function ReportsPage() {
 
   const renderTabBar = () => {
     const tabs = [
-      { id: 'daily', label: locale === 'th' ? '📝 รายงานประจำวัน' : '📝 Daily Report' },
-      { id: 'hub', label: locale === 'th' ? '📂 ศูนย์จัดเก็บรายงาน' : '📂 Report Hub' },
-      { id: 'presentation', label: locale === 'th' ? '💻 Weekly Presentation' : '💻 Weekly Presentation' }
+      { id: 'daily', label: locale === 'th' ? 'รายงานประจำวัน' : 'Daily Report' },
+      { id: 'hub', label: locale === 'th' ? 'ศูนย์ส่งรายงาน LINE' : 'Report Hub' },
+      { id: 'presentation', label: 'Weekly Presentation' },
     ];
 
     return (
-      <div 
-        style={{ 
-          position: 'sticky', 
-          top: '0px', 
-          zIndex: 99, 
-          background: 'var(--bg-deep)', 
-          paddingTop: '16px', 
-          paddingBottom: '16px', 
-          borderBottom: '1px solid var(--border)', 
-          marginRight: '-24px', 
-          marginLeft: '-24px', 
-          paddingRight: '24px', 
-          paddingLeft: '24px',
-          marginBottom: '24px',
-          backdropFilter: 'blur(10px)',
-          display: 'flex',
-          alignItems: 'center'
-        }}
-      >
-        <div 
-          style={{ 
-            display: 'inline-flex', 
-            background: 'rgba(255, 255, 255, 0.02)', 
-            border: '1px solid var(--border)', 
-            borderRadius: '16px', 
-            padding: '6px', 
-            gap: '6px',
-            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.15)',
-            flexWrap: 'wrap'
-          }}
-        >
-          {tabs.map(tab => {
+      <div className={styles.tabBarSticky}>
+        <div className={styles.tabList} role="tablist" aria-label="หมวดหมู่รายงาน">
+          {tabs.map((tab) => {
             const isActive = activeTab === tab.id;
             return (
               <button
                 key={tab.id}
+                type="button"
+                role="tab"
+                aria-selected={isActive}
                 onClick={() => setActiveTab(tab.id)}
-                className="glass-interactive"
-                style={{
-                  padding: '10px 20px',
-                  borderRadius: '10px',
-                  border: 'none',
-                  background: isActive ? 'linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%)' : 'transparent',
-                  color: isActive ? '#ffffff' : 'var(--text-muted)',
-                  fontSize: '13px',
-                  fontWeight: isActive ? '850' : '600',
-                  cursor: 'pointer',
-                  transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
-                  boxShadow: isActive ? '0 4px 15px rgba(0, 242, 254, 0.25)' : 'none',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px'
-                }}
+                className={`${styles.tabBtn} ${isActive ? styles.tabBtnActive : ''}`}
               >
                 {tab.label}
               </button>
@@ -187,10 +155,7 @@ export default function ReportsPage() {
     return userProfile?.permissions?.reports === 'edit';
   }, [userProfile]);
 
-  const previewDateLabel = useMemo(
-    () => formatPreviewDate(targetDate, locale),
-    [locale, targetDate]
-  );
+  const previewDateLabel = useMemo(() => formatPreviewDate(targetDate, locale), [locale, targetDate]);
 
   const hospitalLabel = useMemo(
     () => (locale === 'th' ? 'สรุปรายองค์กร/บริษัท' : 'Organization Summary'),
@@ -323,15 +288,12 @@ export default function ReportsPage() {
       ''
     );
   }, [lineGroups, preview.targetGroupName, settings.groupId]);
+
   const isManualMode = settings.mode === 'manual';
   const confirmScheduleChangeLabel =
-    locale === 'th'
-      ? 'à¸¢à¸·à¸™à¸¢à¸±à¸™à¸à¸²à¸£à¹€à¸›à¸¥à¸µà¹ˆà¸¢à¸™à¸Šà¹ˆà¸§à¸‡à¹€à¸§à¸¥à¸²à¸ªà¹ˆà¸‡à¸­à¸±à¸•à¹‚à¸™à¸¡à¸±à¸•à¸´à¹ƒà¸Šà¹ˆà¸«à¸£à¸·à¸­à¹„à¸¡à¹ˆ?'
-      : 'Confirm schedule time change?';
+    locale === 'th' ? 'ยืนยันการเปลี่ยนช่วงเวลาส่งอัตโนมัติใช่หรือไม่?' : 'Confirm schedule time change?';
   const confirmAddScheduleLabel =
-    locale === 'th'
-      ? 'à¸¢à¸·à¸™à¸¢à¸±à¸™à¹€à¸žà¸´à¹ˆà¸¡à¹à¸–à¸§à¹€à¸§à¸¥à¸²à¸­à¸±à¸•à¹‚à¸™à¸¡à¸±à¸•à¸´à¹ƒà¸Šà¹ˆà¸«à¸£à¸·à¸­à¹„à¸¡à¹ˆ?'
-      : 'Confirm adding a new schedule row?';
+    locale === 'th' ? 'ยืนยันเพิ่มแถวเวลาอัตโนมัติใช่หรือไม่?' : 'Confirm adding a new schedule row?';
 
   const persistSettings = async (next: ReportBroadcastSettings) => {
     setSettings(next);
@@ -394,621 +356,378 @@ export default function ReportsPage() {
   };
 
   return (
-    <div
-      style={{
-        animation: 'fadeIn 0.5s ease-out',
-        width: '100%',
-        maxWidth: 'none',
-        paddingBottom: '40px',
-      }}
-    >
+    <div className={`animate-page-in ${styles.pageStack}`}>
       {renderTabBar()}
 
-      {/* Tab: Daily Report */}
       <div style={{ display: activeTab === 'daily' ? 'block' : 'none', width: '100%' }}>
         <DailyReportPage />
       </div>
 
-      {/* Tab: Weekly Presentation */}
       <div style={{ display: activeTab === 'presentation' ? 'block' : 'none', width: '100%' }}>
         <PresentationPage />
       </div>
 
-      {/* Tab: Report Hub */}
       <div style={{ display: activeTab === 'hub' ? 'block' : 'none', width: '100%' }}>
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'flex-end',
-            marginBottom: '32px',
-            gap: '24px',
-            flexWrap: 'wrap',
-          }}
-        >
-        <div>
-          <h1
-            style={{
-              fontSize: '28px',
-              fontWeight: '800',
-              marginBottom: '4px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '12px',
-            }}
-          >
-            <ShieldCheck color="var(--primary)" size={32} />
-            {t('reports.hubTitle')}
-          </h1>
-          <p
-            style={{
-              color: 'var(--text-muted)',
-              fontSize: '11px',
-              textTransform: 'uppercase',
-              letterSpacing: '0.1em',
-            }}
-          >
-            {t('reports.hubSubtitle')}
-          </p>
-        </div>
-
-        <div
-          className="glass"
-          style={{
-            padding: '8px 16px',
-            borderRadius: '14px',
-            border: '1px solid var(--border)',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '12px',
-          }}
-        >
-          <Calendar size={18} color="var(--primary)" />
-          <input
-            type="date"
-            value={targetDate}
-            onChange={(e) => setTargetDate(e.target.value)}
-            style={{
-              background: 'transparent',
-              border: 'none',
-              color: 'var(--text-main)',
-              fontSize: '14px',
-              fontWeight: '700',
-              outline: 'none',
-              cursor: 'pointer',
-            }}
+        <div className={styles.pageStack}>
+          <PageHeader
+            title={t('reports.hubTitle')}
+            subtitle={t('reports.hubSubtitle')}
+            actions={
+              <Input
+                id="reports-hub-target-date"
+                type="date"
+                label="วันที่รายงาน"
+                value={targetDate}
+                onChange={(e) => setTargetDate(e.target.value)}
+              />
+            }
           />
-        </div>
-      </div>
 
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'minmax(0, 1fr) minmax(360px, 420px)',
-          gap: '24px',
-          alignItems: 'start',
-        }}
-      >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-          <div
-            className="glass-premium"
-            style={{ padding: '24px', position: 'relative', overflow: 'hidden' }}
-          >
-            <div style={{ position: 'absolute', top: '-10px', right: '-10px', opacity: 0.1 }}>
-              <BarChart2 size={120} color="var(--primary)" />
-            </div>
-            <h3
-              style={{
-                fontSize: '16px',
-                fontWeight: '800',
-                marginBottom: '20px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-              }}
-            >
-              <Eye size={18} color="var(--primary)" />
-              {t('reports.previewFor')}: {previewDateLabel}
-            </h3>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px' }}>
-              {[
-                {
-                  label: t('dashboard.tabs.all'),
-                  value: groupedData.total,
-                  color: 'var(--text-main)',
-                  border: '1px solid var(--border)',
-                  background: 'rgba(255,255,255,0.03)',
-                },
-                {
-                  label: t('dashboard.inProgress'),
-                  value: groupedData.newProgress,
-                  color: 'var(--primary)',
-                  border: '1px solid var(--primary)',
-                  background: 'rgba(0, 242, 254, 0.05)',
-                },
-                {
-                  label: t('dashboard.resolved'),
-                  value: groupedData.resolved,
-                  color: 'var(--success)',
-                  border: '1px solid var(--success)',
-                  background: 'rgba(40, 199, 111, 0.05)',
-                },
-              ].map((card) => (
-                <div
-                  key={card.label}
-                  style={{
-                    background: card.background,
-                    padding: '16px',
-                    borderRadius: '12px',
-                    border: card.border,
-                  }}
-                >
-                  <p
-                    style={{
-                      fontSize: '10px',
-                      color: card.color,
-                      fontWeight: '700',
-                      textTransform: 'uppercase',
-                    }}
-                  >
-                    {card.label}
-                  </p>
-                  <p style={{ fontSize: '24px', fontWeight: '900', color: card.color }}>
-                    {loading ? '...' : card.value}
-                  </p>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="glass" style={{ padding: '24px' }}>
-            <div
-              style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                marginBottom: '16px',
-              }}
-            >
-              <h3 style={{ fontSize: '14px', fontWeight: '800' }}>{hospitalLabel}</h3>
-              {loading && <Zap size={16} className="animate-pulse" color="var(--primary)" />}
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              {Object.entries(groupedData.hospitalGroups).length === 0 && !loading ? (
-                <div
-                  style={{
-                    textAlign: 'center',
-                    padding: '40px',
-                    color: 'var(--text-muted)',
-                  }}
-                >
-                  <Zap size={32} style={{ opacity: 0.1, marginBottom: '12px' }} />
-                  <p>{t('reports.noDataRange')}</p>
-                </div>
-              ) : (
-                Object.entries(groupedData.hospitalGroups).map(([name, count]) => (
-                  <div
-                    key={name}
-                    style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      padding: '12px 16px',
-                      background: 'rgba(255,255,255,0.02)',
-                      borderRadius: '10px',
-                      border: '1px solid var(--border)',
-                      gap: '12px',
-                    }}
-                  >
-                    <span style={{ fontSize: '14px', fontWeight: '600' }}>{name}</span>
-                    <span
-                      style={{
-                        fontSize: '12px',
-                        fontWeight: '800',
-                        background: 'var(--primary)',
-                        color: 'black',
-                        padding: '2px 10px',
-                        borderRadius: '20px',
-                        whiteSpace: 'nowrap',
-                      }}
-                    >
-                      {count} {t('tickets.unit')}
-                    </span>
+          <div className={styles.hubGrid}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+              <Card>
+                <CardHeader>
+                  <h2 style={{ fontSize: 'var(--text-md)', fontWeight: 700, color: 'var(--color-text)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <Eye size={18} color="var(--color-primary)" aria-hidden="true" />
+                    {t('reports.previewFor')}: {previewDateLabel}
+                  </h2>
+                </CardHeader>
+                <CardBody>
+                  <div className={styles.summaryStrip}>
+                    <div className={styles.summaryMetric}>
+                      <p className={styles.summaryMetricLabel}>{t('dashboard.tabs.all')}</p>
+                      <p className={styles.summaryMetricValue} style={{ color: 'var(--color-text)' }}>
+                        {loading ? '...' : groupedData.total}
+                      </p>
+                    </div>
+                    <div className={styles.summaryMetric} style={{ borderColor: 'var(--color-primary)', background: 'var(--color-primary-soft)' }}>
+                      <p className={styles.summaryMetricLabel} style={{ color: 'var(--color-primary)' }}>
+                        {t('dashboard.inProgress')}
+                      </p>
+                      <p className={styles.summaryMetricValue} style={{ color: 'var(--color-primary)' }}>
+                        {loading ? '...' : groupedData.newProgress}
+                      </p>
+                    </div>
+                    <div className={styles.summaryMetric} style={{ borderColor: 'var(--color-success-border)', background: 'var(--color-success-soft)' }}>
+                      <p className={styles.summaryMetricLabel} style={{ color: 'var(--color-success-text)' }}>
+                        {t('dashboard.resolved')}
+                      </p>
+                      <p className={styles.summaryMetricValue} style={{ color: 'var(--color-success-text)' }}>
+                        {loading ? '...' : groupedData.resolved}
+                      </p>
+                    </div>
                   </div>
-                ))
-              )}
-            </div>
-          </div>
-        </div>
+                </CardBody>
+              </Card>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          <div className="glass" style={{ padding: '16px', border: '1px solid var(--border)' }}>
-            <p style={{ fontSize: '12px', marginBottom: '8px', fontWeight: 800 }}>
-              {reportModeLabel}
-            </p>
-            <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
-              <button
-                disabled={!canSend}
-                className="glass-interactive"
-                onClick={() => persistSettings({ ...settings, mode: 'manual' })}
-                style={{
-                  flex: 1,
-                  borderRadius: 10,
-                  padding: '10px',
-                  border: 'none',
-                  cursor: 'pointer',
-                  background:
-                    settings.mode === 'manual' ? 'var(--primary)' : 'rgba(255,255,255,0.05)',
-                  color: settings.mode === 'manual' ? 'black' : 'var(--text-main)',
-                }}
-              >
-                Manual
-              </button>
-              <button
-                disabled={!canSend}
-                className="glass-interactive"
-                onClick={() => persistSettings({ ...settings, mode: 'auto' })}
-                style={{
-                  flex: 1,
-                  borderRadius: 10,
-                  padding: '10px',
-                  border: 'none',
-                  cursor: 'pointer',
-                  background:
-                    settings.mode === 'auto' ? 'var(--primary)' : 'rgba(255,255,255,0.05)',
-                  color: settings.mode === 'auto' ? 'black' : 'var(--text-main)',
-                }}
-              >
-                Auto
-              </button>
+              <Card>
+                <CardHeader
+                  actions={loading ? <Zap size={16} color="var(--color-primary)" aria-hidden="true" /> : null}
+                >
+                  <h2 style={{ fontSize: 'var(--text-md)', fontWeight: 700, color: 'var(--color-text)' }}>
+                    {hospitalLabel}
+                  </h2>
+                </CardHeader>
+                <CardBody>
+                  {Object.entries(groupedData.hospitalGroups).length === 0 && !loading ? (
+                    <EmptyState compact title={t('reports.noDataRange')} />
+                  ) : (
+                    <div className={styles.orgRowList}>
+                      {Object.entries(groupedData.hospitalGroups).map(([name, count]) => (
+                        <div key={name} className={styles.orgRow}>
+                          <span style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--color-text)' }}>{name}</span>
+                          <Badge variant="primary" size="md">
+                            {count} {t('tickets.unit')}
+                          </Badge>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardBody>
+              </Card>
             </div>
 
-            <p style={{ fontSize: '12px', marginBottom: '8px', fontWeight: 800 }}>
-              {lineGroupLabel}
-            </p>
-            <select
-              value={settings.groupId || ''}
-              disabled={!canSend || savingSettings}
-              onChange={(e) => void persistSettings({ ...settings, groupId: e.target.value || null })}
-              style={{
-                width: '100%',
-                borderRadius: 10,
-                padding: '10px',
-                border: '1px solid var(--border)',
-                background: 'rgba(255,255,255,0.04)',
-                color: 'var(--text-main)',
-              }}
-            >
-              <option value="">{selectGroupPlaceholder}</option>
-              {lineGroups.map((group) => (
-                <option key={group.id} value={group.group_id}>
-                  {group.name}
-                </option>
-              ))}
-            </select>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <Card>
+                <CardBody>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                    <div>
+                      <p style={{ fontSize: 'var(--text-xs)', fontWeight: 600, color: 'var(--color-text-muted)', marginBottom: 6 }}>
+                        {reportModeLabel}
+                      </p>
+                      <div className={styles.segmentedGroup} style={{ width: '100%' }}>
+                        <button
+                          type="button"
+                          disabled={!canSend}
+                          onClick={() => void persistSettings({ ...settings, mode: 'manual' })}
+                          className={`${styles.segmentedBtn} ${settings.mode === 'manual' ? styles.segmentedBtnActive : ''}`}
+                          style={{ flex: 1 }}
+                        >
+                          Manual
+                        </button>
+                        <button
+                          type="button"
+                          disabled={!canSend}
+                          onClick={() => void persistSettings({ ...settings, mode: 'auto' })}
+                          className={`${styles.segmentedBtn} ${settings.mode === 'auto' ? styles.segmentedBtnActive : ''}`}
+                          style={{ flex: 1 }}
+                        >
+                          Auto
+                        </button>
+                      </div>
+                    </div>
 
-            {schemaReady === false && (
+                    <Select
+                      id="reports-hub-line-group"
+                      label={lineGroupLabel}
+                      value={settings.groupId || ''}
+                      disabled={!canSend || savingSettings}
+                      onChange={(e) => void persistSettings({ ...settings, groupId: e.target.value || null })}
+                    >
+                      <option value="">{selectGroupPlaceholder}</option>
+                      {lineGroups.map((group) => (
+                        <option key={group.id} value={group.group_id}>
+                          {group.name}
+                        </option>
+                      ))}
+                    </Select>
+
+                    {schemaReady === false ? (
+                      <div
+                        style={{
+                          padding: '10px 12px',
+                          borderRadius: 'var(--radius-md)',
+                          border: '1px solid var(--color-danger-border)',
+                          background: 'var(--color-danger-soft)',
+                          color: 'var(--color-danger-text)',
+                          fontSize: 'var(--text-xs)',
+                          lineHeight: 1.5,
+                        }}
+                      >
+                        {scheduleSchemaWarning}
+                      </div>
+                    ) : null}
+
+                    {settingsError ? (
+                      <div
+                        style={{
+                          padding: '10px 12px',
+                          borderRadius: 'var(--radius-md)',
+                          border: '1px solid var(--color-warning-border)',
+                          background: 'var(--color-warning-soft)',
+                          color: 'var(--color-warning-text)',
+                          fontSize: 'var(--text-xs)',
+                          lineHeight: 1.5,
+                        }}
+                      >
+                        {settingsError}
+                      </div>
+                    ) : null}
+
+                    <div>
+                      <p style={{ fontSize: 'var(--text-xs)', fontWeight: 600, color: 'var(--color-text-muted)', marginBottom: 8 }}>
+                        {scheduleLabel}
+                      </p>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                        {settings.schedules.map((row, idx) => (
+                          <div
+                            key={row.id}
+                            style={{
+                              display: 'grid',
+                              gridTemplateColumns: '1fr 1fr auto',
+                              gap: 8,
+                              alignItems: 'center',
+                            }}
+                          >
+                            <Input
+                              id={`schedule-time-${row.id}`}
+                              type="time"
+                              aria-label={`เวลาส่งอัตโนมัติแถวที่ ${idx + 1}`}
+                              value={row.time}
+                              disabled={!canSend || savingSettings || isManualMode}
+                              onChange={(e) =>
+                                void (window.confirm(confirmScheduleChangeLabel) &&
+                                  persistSettings({
+                                    ...settings,
+                                    schedules: settings.schedules.map((item) =>
+                                      item.id === row.id ? { ...item, time: e.target.value } : item
+                                    ),
+                                  }))
+                              }
+                            />
+                            <Select
+                              id={`schedule-set-${row.id}`}
+                              aria-label={`ชุดรายงานแถวที่ ${idx + 1}`}
+                              value={row.set}
+                              disabled={!canSend || savingSettings || isManualMode}
+                              onChange={(e) =>
+                                void (window.confirm(confirmScheduleChangeLabel) &&
+                                  persistSettings({
+                                    ...settings,
+                                    schedules: settings.schedules.map((item) =>
+                                      item.id === row.id
+                                        ? { ...item, set: e.target.value === '2' ? '2' : '1' }
+                                        : item
+                                    ),
+                                  }))
+                              }
+                            >
+                              <option value="1">SET 1</option>
+                              <option value="2">SET 2</option>
+                            </Select>
+                            <Button
+                              variant="ghost"
+                              size="md"
+                              iconOnly
+                              aria-label={`ลบแถวเวลาที่ ${idx + 1}`}
+                              disabled={!canSend || savingSettings || isManualMode}
+                              onClick={() =>
+                                void persistSettings({
+                                  ...settings,
+                                  schedules: settings.schedules.filter((item) => item.id !== row.id),
+                                })
+                              }
+                            >
+                              <Trash2 size={16} color="var(--color-danger)" aria-hidden="true" />
+                            </Button>
+                          </div>
+                        ))}
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          fullWidth
+                          disabled={!canSend || savingSettings || isManualMode}
+                          leftIcon={<Plus size={14} aria-hidden="true" />}
+                          onClick={() =>
+                            void (window.confirm(confirmAddScheduleLabel) &&
+                              persistSettings({
+                                ...settings,
+                                schedules: [...settings.schedules, makeScheduleRow()],
+                              }))
+                          }
+                        >
+                          {addScheduleRowLabel}
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </CardBody>
+              </Card>
+
+              <Card style={{ borderColor: 'var(--color-warning-border)' }}>
+                <CardBody>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                    <FileText color="var(--color-warning)" size={20} aria-hidden="true" />
+                    <h3 style={{ fontWeight: 700, fontSize: 'var(--text-md)', color: 'var(--color-text)' }}>REPORT SET 1</h3>
+                  </div>
+                  <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)', marginBottom: 16, lineHeight: 1.6 }}>
+                    {t('reports.set1Desc')}
+                  </p>
+                  <Button
+                    variant="warning"
+                    size="md"
+                    fullWidth
+                    disabled={sending !== null || groupedData.total === 0 || loading || !canSend}
+                    loading={sending === '1'}
+                    leftIcon={<Send size={16} aria-hidden="true" />}
+                    onClick={() => void handleSendReport('1')}
+                  >
+                    {sending === '1' ? t('common.messages.loading') : t('reports.sendSet1')}
+                  </Button>
+                </CardBody>
+              </Card>
+
+              <Card style={{ borderColor: 'var(--color-primary)' }}>
+                <CardBody>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                    <Send color="var(--color-primary)" size={20} aria-hidden="true" />
+                    <h3 style={{ fontWeight: 700, fontSize: 'var(--text-md)', color: 'var(--color-text)' }}>REPORT SET 2</h3>
+                  </div>
+                  <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)', marginBottom: 16, lineHeight: 1.6 }}>
+                    {t('reports.set2Desc')}
+                  </p>
+                  <Button
+                    variant="primary"
+                    size="md"
+                    fullWidth
+                    disabled={sending !== null || groupedData.total === 0 || loading || !canSend}
+                    loading={sending === '2'}
+                    leftIcon={<ChevronRight size={16} aria-hidden="true" />}
+                    onClick={() => void handleSendReport('2')}
+                  >
+                    {sending === '2' ? t('common.messages.loading') : t('reports.sendSet2')}
+                  </Button>
+                </CardBody>
+              </Card>
+
               <div
                 style={{
-                  marginTop: '12px',
-                  padding: '10px 12px',
-                  borderRadius: 10,
-                  border: '1px solid rgba(234, 84, 85, 0.25)',
-                  background: 'rgba(234, 84, 85, 0.06)',
-                  color: 'var(--danger)',
-                  fontSize: '12px',
-                  lineHeight: 1.5,
+                  padding: '12px 14px',
+                  background: 'var(--color-danger-soft)',
+                  borderRadius: 'var(--radius-md)',
+                  border: '1px solid var(--color-danger-border)',
+                  display: 'flex',
+                  gap: 10,
                 }}
               >
-                {scheduleSchemaWarning}
+                <AlertCircle size={18} color="var(--color-danger)" style={{ flexShrink: 0, marginTop: 1 }} aria-hidden="true" />
+                <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-danger-text)', fontWeight: 600, lineHeight: 1.5 }}>
+                  {t('reports.cautionNote')}
+                </p>
               </div>
-            )}
 
-            {settingsError && (
-              <div
-                style={{
-                  marginTop: '12px',
-                  padding: '10px 12px',
-                  borderRadius: 10,
-                  border: '1px solid rgba(251, 192, 45, 0.25)',
-                  background: 'rgba(251, 192, 45, 0.08)',
-                  color: '#9a6a00',
-                  fontSize: '12px',
-                  lineHeight: 1.5,
-                }}
-              >
-                {settingsError}
-              </div>
-            )}
+              {selectedGroupName ? (
+                <Card>
+                  <CardBody compact>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                      <div
+                        style={{
+                          width: 32,
+                          height: 32,
+                          borderRadius: 'var(--radius-full)',
+                          background: 'var(--color-primary-soft)',
+                          color: 'var(--color-primary)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          flexShrink: 0,
+                        }}
+                        aria-hidden="true"
+                      >
+                        <Send size={14} />
+                      </div>
+                      <div>
+                        <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)', display: 'block' }}>
+                          {lineGroupLabel}
+                        </span>
+                        <span style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: 'var(--color-primary)' }}>
+                          {selectedGroupName}
+                        </span>
+                      </div>
+                    </div>
+                  </CardBody>
+                </Card>
+              ) : null}
 
-            <p style={{ fontSize: '12px', margin: '14px 0 8px', fontWeight: 800 }}>
-              {scheduleLabel}
-            </p>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {settings.schedules.map((row) => (
-                <div
-                  key={row.id}
+              {groupedData.total > 0 && !loading ? (
+                <p
                   style={{
-                    display: 'grid',
-                    gridTemplateColumns: '1fr 1fr auto',
-                    gap: 8,
+                    fontSize: 'var(--text-xs)',
+                    color: 'var(--color-success-text)',
+                    fontWeight: 600,
+                    display: 'flex',
                     alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 6,
                   }}
                 >
-                  <input
-                    type="time"
-                    value={row.time}
-                    disabled={!canSend || savingSettings || isManualMode}
-                    onChange={(e) =>
-                      void (window.confirm(confirmScheduleChangeLabel) &&
-                        persistSettings({
-                          ...settings,
-                          schedules: settings.schedules.map((item) =>
-                            item.id === row.id ? { ...item, time: e.target.value } : item
-                          ),
-                        }))
-                    }
-                    style={{
-                      borderRadius: 10,
-                      padding: '10px',
-                      border: '1px solid var(--border)',
-                      background: 'rgba(255,255,255,0.04)',
-                      color: 'var(--text-main)',
-                    }}
-                    lang="fr-CA"
-                  />
-                  <select
-                    value={row.set}
-                    disabled={!canSend || savingSettings || isManualMode}
-                    onChange={(e) =>
-                      void (window.confirm(confirmScheduleChangeLabel) &&
-                        persistSettings({
-                          ...settings,
-                          schedules: settings.schedules.map((item) =>
-                            item.id === row.id
-                              ? { ...item, set: e.target.value === '2' ? '2' : '1' }
-                              : item
-                          ),
-                        }))
-                    }
-                    style={{
-                      borderRadius: 10,
-                      padding: '10px',
-                      border: '1px solid var(--border)',
-                      background: 'rgba(255,255,255,0.04)',
-                      color: 'var(--text-main)',
-                    }}
-                  >
-                    <option value="1">SET 1</option>
-                    <option value="2">SET 2</option>
-                  </select>
-                  <button
-                    disabled={!canSend || savingSettings || isManualMode}
-                    onClick={() =>
-                      void persistSettings({
-                        ...settings,
-                        schedules: settings.schedules.filter((item) => item.id !== row.id),
-                      })
-                    }
-                    style={{
-                      borderRadius: 10,
-                      border: '1px solid var(--border)',
-                      background: 'rgba(255,255,255,0.04)',
-                      color: 'var(--danger)',
-                      width: 40,
-                      height: 40,
-                      cursor: 'pointer',
-                    }}
-                  >
-                    <Trash2 size={16} />
-                  </button>
-                </div>
-              ))}
-              <button
-                disabled={!canSend || savingSettings || isManualMode}
-                onClick={() =>
-                  void (window.confirm(confirmAddScheduleLabel) &&
-                    persistSettings({
-                      ...settings,
-                      schedules: [...settings.schedules, makeScheduleRow()],
-                    }))
-                }
-                style={{
-                  borderRadius: 10,
-                  border: '1px dashed var(--border)',
-                  background: 'transparent',
-                  color: 'var(--primary)',
-                  padding: '10px',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  justifyContent: 'center',
-                  alignItems: 'center',
-                  gap: 8,
-                }}
-              >
-                <Plus size={14} /> {addScheduleRowLabel}
-              </button>
+                  <CheckCircle2 size={14} aria-hidden="true" />
+                  {t('reports.dataReady')}
+                </p>
+              ) : null}
             </div>
           </div>
-
-          <div className="glass-premium" style={{ padding: '24px', border: '1px solid #FBC02D' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
-              <FileText color="#FBC02D" size={24} />
-              <h4 style={{ fontWeight: '800', fontSize: '15px' }}>REPORT SET 1</h4>
-            </div>
-            <p
-              style={{
-                fontSize: '12px',
-                color: 'var(--text-muted)',
-                marginBottom: '24px',
-                lineHeight: '1.6',
-              }}
-            >
-              {t('reports.set1Desc')}
-            </p>
-            <button
-              disabled={sending !== null || groupedData.total === 0 || loading || !canSend}
-              onClick={() => void handleSendReport('1')}
-              className="glass-interactive"
-              style={{
-                width: '100%',
-                padding: '14px',
-                borderRadius: '12px',
-                background: !canSend
-                  ? 'rgba(255,255,255,0.05)'
-                  : sending === '1'
-                    ? 'var(--bg-card)'
-                    : '#FBC02D',
-                color: !canSend ? 'var(--text-muted)' : 'black',
-                fontWeight: '900',
-                border: 'none',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '10px',
-                opacity: groupedData.total === 0 || loading ? 0.5 : 1,
-              }}
-            >
-              {sending === '1' ? (
-                t('common.messages.loading')
-              ) : (
-                <>
-                  <Send size={18} /> {t('reports.sendSet1')}
-                </>
-              )}
-            </button>
-          </div>
-
-          <div className="glass-premium" style={{ padding: '24px', border: '1px solid var(--primary)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
-              <Send color="var(--primary)" size={24} />
-              <h4 style={{ fontWeight: '800', fontSize: '15px' }}>REPORT SET 2</h4>
-            </div>
-            <p
-              style={{
-                fontSize: '12px',
-                color: 'var(--text-muted)',
-                marginBottom: '24px',
-                lineHeight: '1.6',
-              }}
-            >
-              {t('reports.set2Desc')}
-            </p>
-            <button
-              disabled={sending !== null || groupedData.total === 0 || loading || !canSend}
-              onClick={() => void handleSendReport('2')}
-              className="glass-interactive"
-              style={{
-                width: '100%',
-                padding: '14px',
-                borderRadius: '12px',
-                background: !canSend
-                  ? 'rgba(255,255,255,0.05)'
-                  : sending === '2'
-                    ? 'var(--bg-card)'
-                    : 'var(--primary)',
-                color: !canSend ? 'var(--text-muted)' : 'black',
-                fontWeight: '900',
-                border: 'none',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '10px',
-                opacity: groupedData.total === 0 || loading ? 0.5 : 1,
-              }}
-            >
-              {sending === '2' ? (
-                t('common.messages.loading')
-              ) : (
-                <>
-                  <ChevronRight size={18} /> {t('reports.sendSet2')}
-                </>
-              )}
-            </button>
-          </div>
-
-          <div
-            style={{
-              padding: '16px',
-              background: 'rgba(234, 84, 85, 0.05)',
-              borderRadius: '12px',
-              border: '1px solid rgba(234, 84, 85, 0.1)',
-              display: 'flex',
-              gap: '12px',
-            }}
-          >
-            <AlertCircle size={20} color="var(--danger)" style={{ flexShrink: 0 }} />
-            <p style={{ fontSize: '11px', color: 'var(--danger)', fontWeight: '600' }}>
-              {t('reports.cautionNote')}
-            </p>
-          </div>
-
-          {selectedGroupName && (
-            <div
-              style={{
-                padding: '16px',
-                background: 'rgba(0, 242, 254, 0.03)',
-                borderRadius: '12px',
-                border: '1px solid var(--border)',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '12px',
-              }}
-            >
-              <div
-                style={{
-                  width: '32px',
-                  height: '32px',
-                  borderRadius: '50%',
-                  background: 'rgba(0, 242, 254, 0.1)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                <Send size={14} color="var(--primary)" />
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column' }}>
-                <span
-                  style={{
-                    fontSize: '10px',
-                    color: 'var(--text-muted)',
-                    fontWeight: '700',
-                    textTransform: 'uppercase',
-                  }}
-                >
-                  {lineGroupLabel}
-                </span>
-                <span style={{ fontSize: '14px', fontWeight: '800', color: 'var(--primary)' }}>
-                  {selectedGroupName}
-                </span>
-              </div>
-            </div>
-          )}
-
-          {groupedData.total > 0 && !loading && (
-            <div style={{ textAlign: 'center', padding: '10px' }}>
-              <p
-                style={{
-                  fontSize: '11px',
-                  color: 'var(--success)',
-                  fontWeight: '700',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '6px',
-                }}
-              >
-                <CheckCircle2 size={14} /> {t('reports.dataReady')}
-              </p>
-            </div>
-          )}
         </div>
-      </div>
       </div>
     </div>
   );

@@ -3,57 +3,11 @@
 import React from 'react';
 import Link from 'next/link';
 import { LayoutGrid, List, Search } from 'lucide-react';
+import { clsx } from 'clsx';
+import { Badge } from '@/components/ui';
 import { useStaffLocale } from '@/contexts/StaffLocaleContext';
 import type { TicketWorkspaceTimeRange, TicketsViewMode } from '@/types/tickets';
-
-const wrapperStyle: React.CSSProperties = {
-  display: 'flex',
-  justifyContent: 'space-between',
-  alignItems: 'center',
-  marginBottom: '40px',
-  paddingRight: '20px',
-  width: '100%',
-  zIndex: 10,
-};
-
-const titleStyle: React.CSSProperties = {
-  fontSize: '32px',
-  fontWeight: '900',
-  letterSpacing: '-1.5px',
-  color: 'var(--text-main)',
-  margin: 0,
-};
-
-const timeRangeToggleStyle: React.CSSProperties = {
-  display: 'flex',
-  background: 'var(--bg-card)',
-  padding: '4px',
-  borderRadius: '10px',
-  border: '1px solid var(--border)',
-  marginLeft: '12px',
-};
-
-const viewToggleWrapStyle: React.CSSProperties = {
-  display: 'flex',
-  padding: '4px',
-  background: 'rgba(255,255,255,0.02)',
-  borderRadius: '14px',
-  border: '1px solid var(--border)',
-  boxShadow: '0 8px 32px rgba(0,0,0,0.2)',
-};
-
-const viewToggleButtonStyle: React.CSSProperties = {
-  padding: '10px 24px',
-  borderRadius: '10px',
-  border: 'none',
-  cursor: 'pointer',
-  fontSize: '12px',
-  fontWeight: '850',
-  display: 'flex',
-  alignItems: 'center',
-  gap: '8px',
-  transition: 'all 0.3s',
-};
+import styles from '@/app/(dashboard)/tickets/tickets-workspace.module.css';
 
 interface TicketsWorkspaceHeaderProps {
   customEnd: string;
@@ -86,7 +40,7 @@ export function TicketsWorkspaceHeader({
   timeRange,
   viewMode,
 }: TicketsWorkspaceHeaderProps) {
-  const { t } = useStaffLocale();
+  const { locale, t } = useStaffLocale();
   const timeRangeOptions: Array<{ id: TicketWorkspaceTimeRange; label: string }> = [
     { id: 'today', label: t('tickets.today') },
     { id: 'week', label: t('tickets.last7Days') },
@@ -95,152 +49,119 @@ export function TicketsWorkspaceHeader({
   ];
 
   return (
-    <div className="workspace-header" style={wrapperStyle}>
-      <div style={{ flex: 1 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '8px' }}>
-          <h1 style={titleStyle}>
-            {filterCustomerId ? t('tickets.filteredWorkspaceTitle') : t('tickets.workspaceTitle')}{' '}
-            <span style={{ color: 'var(--primary)', opacity: 0.8 }}>({resultCount})</span>
+    <header className={styles.headerWrap}>
+      <div className={styles.headerTop}>
+        <div className={styles.headerTitleGroup}>
+          <div className={styles.headerTitleRow}>
+            <h1 className={styles.headerTitle}>
+              {filterCustomerId ? t('tickets.filteredWorkspaceTitle') : t('tickets.workspaceTitle')}
+            </h1>
+            <Badge variant="primary" size="md">
+              {resultCount}
+            </Badge>
             {filterCustomerId && (
-              <Link
-                href="/tickets"
-                style={{ fontSize: '12px', marginLeft: '16px', color: 'var(--danger)', fontWeight: '800' }}
-              >
-                [{t('tickets.clearFilter')}]
+              <Link href="/tickets" className={styles.clearFilterLink}>
+                {t('tickets.clearFilter')}
               </Link>
             )}
-          </h1>
-
-          <div style={timeRangeToggleStyle}>
-            {timeRangeOptions.map((option) => (
-              <button
-                key={option.id}
-                onClick={() => setTimeRange(option.id)}
-                style={{
-                  padding: '4px 12px',
-                  borderRadius: '7px',
-                  fontSize: '11px',
-                  fontWeight: '800',
-                  border: 'none',
-                  cursor: 'pointer',
-                  background: timeRange === option.id ? 'var(--primary)' : 'transparent',
-                  color: timeRange === option.id ? '#0a0e14' : 'var(--text-muted)',
-                  transition: 'all 0.2s',
-                }}
-              >
-                {option.label}
-              </button>
-            ))}
           </div>
+          <p className={styles.headerSubtitle}>
+            {filterCustomerId
+              ? t('tickets.filteredWorkspaceDescription')
+              : t('tickets.workspaceDescription')}
+          </p>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <p style={{ color: 'var(--text-muted)', fontSize: '14px', fontWeight: '500', margin: 0 }}>
-            {filterCustomerId ? t('tickets.filteredWorkspaceDescription') : t('tickets.workspaceDescription')}
-          </p>
-          {timeRange === 'custom' && (
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                animation: 'fadeIn 0.3s ease-out',
-              }}
+        <div className={styles.toolbarRight}>
+          <div className={styles.segmented} role="group" aria-label="View mode">
+            <button
+              type="button"
+              aria-pressed={viewMode === 'table'}
+              onClick={() => setViewMode('table')}
+              className={clsx(
+                styles.segmentedBtn,
+                viewMode === 'table' && styles.segmentedBtnActive
+              )}
             >
+              <List size={15} aria-hidden="true" />
+              <span>{t('tickets.list')}</span>
+            </button>
+            <button
+              type="button"
+              aria-pressed={viewMode === 'board'}
+              onClick={() => setViewMode('board')}
+              className={clsx(
+                styles.segmentedBtn,
+                viewMode === 'board' && styles.segmentedBtnActive
+              )}
+            >
+              <LayoutGrid size={15} aria-hidden="true" />
+              <span>{t('tickets.board')}</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div className={styles.toolbarRow}>
+        <div className={styles.toolbarLeft}>
+          <div className={styles.segmented} role="group" aria-label="Time range">
+            {timeRangeOptions.map((option) => {
+              const active = timeRange === option.id;
+              return (
+                <button
+                  key={option.id}
+                  type="button"
+                  aria-pressed={active}
+                  onClick={() => setTimeRange(option.id)}
+                  className={clsx(styles.segmentedBtn, active && styles.segmentedBtnActive)}
+                >
+                  {option.label}
+                </button>
+              );
+            })}
+          </div>
+
+          {timeRange === 'custom' && (
+            <div className={styles.customDateRow}>
               <input
                 type="date"
                 value={customStart}
                 onChange={(event) => setCustomStart(event.target.value)}
-                style={{
-                  background: 'var(--bg-input)',
-                  border: '1px solid var(--border)',
-                  borderRadius: '8px',
-                  padding: '4px 8px',
-                  color: 'var(--text-main)',
-                  fontSize: '11px',
-                }}
+                aria-label={locale === 'th' ? 'วันที่เริ่มต้น' : 'Start date'}
+                className={styles.dateInput}
               />
-              <span style={{ color: 'var(--text-muted)', fontSize: '11px' }}>{t('tickets.to')}</span>
+              <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)' }}>
+                {t('tickets.to')}
+              </span>
               <input
                 type="date"
                 value={customEnd}
                 onChange={(event) => setCustomEnd(event.target.value)}
-                style={{
-                  background: 'var(--bg-input)',
-                  border: '1px solid var(--border)',
-                  borderRadius: '8px',
-                  padding: '4px 8px',
-                  color: 'var(--text-main)',
-                  fontSize: '11px',
-                }}
+                aria-label={locale === 'th' ? 'วันที่สิ้นสุด' : 'End date'}
+                className={styles.dateInput}
               />
             </div>
           )}
         </div>
 
-        {debugError && (
-          <div style={{ color: '#ea5455', fontSize: '12px', marginTop: '8px' }}>
-            {t('tickets.debugError')}: {debugError}
-          </div>
-        )}
-      </div>
-
-      <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
-        <div className="glass" style={viewToggleWrapStyle}>
-          <button
-            onClick={() => setViewMode('table')}
-            style={{
-              ...viewToggleButtonStyle,
-              background: viewMode === 'table' ? 'var(--primary)' : 'transparent',
-              color: viewMode === 'table' ? '#0a0e14' : 'var(--text-muted)',
-            }}
-          >
-            <List size={16} />
-            {t('tickets.list').toUpperCase()}
-          </button>
-          <button
-            onClick={() => setViewMode('board')}
-            style={{
-              ...viewToggleButtonStyle,
-              background: viewMode === 'board' ? 'var(--primary)' : 'transparent',
-              color: viewMode === 'board' ? '#0a0e14' : 'var(--text-muted)',
-            }}
-          >
-            <LayoutGrid size={16} />
-            {t('tickets.board').toUpperCase()}
-          </button>
-        </div>
-
-        <div style={{ position: 'relative' }}>
-          <Search
-            style={{
-              position: 'absolute',
-              left: '16px',
-              top: '50%',
-              transform: 'translateY(-50%)',
-              color: 'var(--text-muted)',
-            }}
-            size={16}
-          />
+        <div className={styles.searchBox}>
+          <Search size={15} className={styles.searchIcon} aria-hidden="true" />
           <input
-            type="text"
+            type="search"
             placeholder={t('tickets.searchPlaceholder')}
+            aria-label={t('tickets.searchPlaceholder')}
             value={searchTerm}
             onChange={(event) => setSearchTerm(event.target.value)}
-            style={{
-              background: 'rgba(255,255,255,0.02)',
-              border: '1px solid var(--border)',
-              borderRadius: '14px',
-              padding: '14px 18px 14px 48px',
-              color: 'var(--text-main)',
-              fontSize: '14px',
-              width: '240px',
-              outline: 'none',
-              boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
-            }}
+            className={styles.searchInput}
           />
         </div>
       </div>
-    </div>
+
+      {debugError && (
+        <div className={styles.debugBanner} role="alert">
+          {t('tickets.debugError')}: {debugError}
+        </div>
+      )}
+    </header>
   );
 }

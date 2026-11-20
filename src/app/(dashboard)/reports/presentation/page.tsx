@@ -1,29 +1,32 @@
-/* eslint-disable @typescript-eslint/no-explicit-any, react/no-unescaped-entities, @typescript-eslint/no-unused-vars */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 import React, { useState, useEffect, useRef } from 'react';
-import { 
-  ChevronLeft, 
-  ChevronRight, 
-  Download, 
-  Calendar, 
+import {
   Presentation,
   Loader2,
   Sliders,
   Sparkles,
   X,
   Bot,
-  CheckCircle2,
   Layers,
   FileText,
-  Info
+  Info,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
 import { useNotificationContext } from '@/contexts/NotificationContext';
 import { supabase } from '@/lib/supabase';
 import dynamic from 'next/dynamic';
+import { Button, EmptyState, Input, PageHeader, Select, Textarea } from '@/components/ui';
+import styles from '@/components/reports/reports.module.css';
 
-const PresentationViewer = dynamic(() => import('@/components/reports/PresentationViewer'), { 
-  ssr: false, 
-  loading: () => <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Loader2 className="animate-spin text-emerald-500" /></div> 
+const PresentationViewer = dynamic(() => import('@/components/reports/PresentationViewer'), {
+  ssr: false,
+  loading: () => (
+    <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <Loader2 className="animate-spin" color="var(--color-primary)" />
+    </div>
+  ),
 });
 
 let html2CanvasPromise: Promise<(typeof import('html2canvas'))['default']> | null = null;
@@ -80,109 +83,109 @@ type GeminiInsights = {
 const PRESET_PROMPTS = [
   {
     id: 'executive',
-    label: '💼 เน้นสรุปภาพรวมเชิงบริหาร (Executive Focus)',
-    prompt: 'โปรดเน้นเขียนสรุปภาพรวมผู้บริหารแบบเฉียบคม สรุปความเสี่ยงทางเทคนิคที่พบ และคำแนะนำเพื่อแก้ไขปัญหาอย่างยั่งยืน'
+    label: 'เน้นสรุปภาพรวมเชิงบริหาร (Executive Focus)',
+    prompt: 'โปรดเน้นเขียนสรุปภาพรวมผู้บริหารแบบเฉียบคม สรุปความเสี่ยงทางเทคนิคที่พบ และคำแนะนำเพื่อแก้ไขปัญหาอย่างยั่งยืน',
   },
   {
     id: 'technical',
-    label: '🛠️ เจาะลึกความเสี่ยงเชิงเทคนิค (Technical & SLA Focus)',
-    prompt: 'โปรดวิเคราะห์ตั๋วที่ค้างชี้ชัดว่าองค์กร/บริษัทไหนมีปัญหาคอขวดสูงสุด ปัญหาเชิงเทคนิคหลักคืออะไร และขั้นตอนการแก้ไขด่วนตามกำหนดเวลา SLA'
+    label: 'เจาะลึกความเสี่ยงเชิงเทคนิค (Technical & SLA Focus)',
+    prompt: 'โปรดวิเคราะห์ตั๋วที่ค้างชี้ชัดว่าองค์กร/บริษัทไหนมีปัญหาคอขวดสูงสุด ปัญหาเชิงเทคนิคหลักคืออะไร และขั้นตอนการแก้ไขด่วนตามกำหนดเวลา SLA',
   },
   {
     id: 'motivational',
-    label: '🌟 เน้นส่งเสริมทีมงานและการประสานงาน (Team Focus)',
-    prompt: 'โปรดสรุปผลงานในโทนสร้างบวกและให้กำลังใจ ชื่นชมจุดที่ปิดงานได้เร็ว และเสนอแนะจุดที่สามารถเพิ่มประสิทธิผลร่วมกันระหว่างผู้ใช้บริการและทีมซัพพอร์ต'
-  }
+    label: 'เน้นส่งเสริมทีมงานและการประสานงาน (Team Focus)',
+    prompt: 'โปรดสรุปผลงานในโทนสร้างบวกและให้กำลังใจ ชื่นชมจุดที่ปิดงานได้เร็ว และเสนอแนะจุดที่สามารถเพิ่มประสิทธิผลร่วมกันระหว่างผู้ใช้บริการและทีมซัพพอร์ต',
+  },
 ];
 
-type TemplateName = 'dark-executive' | 'cyber-neon' | 'brutalist-steel' | 'minimalist-light';
+type TemplateName = 'dark-executive' | 'ocean-cobalt' | 'brutalist-steel' | 'minimalist-light';
 
 const getThemeStyles = (template: TemplateName) => {
   switch (template) {
-    case 'cyber-neon':
+    case 'ocean-cobalt':
       return {
-        bg: '#000000',
-        cardBg: '#08080c',
-        border: '2px solid #39FF14',
-        borderThin: '1px solid rgba(57, 255, 20, 0.2)',
-        textMain: '#FFFFFF',
-        textMuted: '#888899',
-        accent1: '#39FF14', // Neon Green
-        accent2: '#FF5F1F', // Neon Orange
-        accent3: '#00E5FF', // Neon Blue
-        fontFamily: 'Courier New, monospace',
-        headerBorder: '1px solid rgba(57, 255, 20, 0.3)',
-        gradientBg: 'radial-gradient(circle at top right, #39ff1410, #000000 60%)',
-        accent1Light: 'rgba(57, 255, 20, 0.1)',
-        accent2Light: 'rgba(255, 95, 31, 0.1)',
-        accent3Light: 'rgba(0, 229, 255, 0.1)',
-        tableHeaderBg: '#0f0f14',
-        shadow: '0 0 15px rgba(57, 255, 20, 0.2)',
-        glowText: '0 0 5px #39FF14'
+        bg: '#0b1017',
+        cardBg: '#111822',
+        border: '1px solid #233042',
+        borderThin: '1px solid #233042',
+        textMain: '#f1f5f9',
+        textMuted: '#94a3b8',
+        accent1: '#3b82f6',
+        accent2: '#0d9488',
+        accent3: '#38bdf8',
+        fontFamily: 'var(--font-sans)',
+        headerBorder: '1px solid #233042',
+        gradientBg: 'linear-gradient(135deg, #0b1017 0%, #111822 100%)',
+        accent1Light: 'rgba(59, 130, 246, 0.14)',
+        accent2Light: 'rgba(13, 148, 136, 0.14)',
+        accent3Light: 'rgba(56, 189, 248, 0.14)',
+        tableHeaderBg: '#17202e',
+        shadow: '0 4px 16px rgba(0, 0, 0, 0.45)',
+        glowText: 'none',
       };
     case 'brutalist-steel':
       return {
         bg: '#18181b',
         cardBg: '#27272a',
-        border: '3px solid #f8fafc',
-        borderThin: '2px solid #f8fafc',
+        border: '2px solid #f8fafc',
+        borderThin: '1px solid #52525b',
         textMain: '#f8fafc',
         textMuted: '#a1a1aa',
-        accent1: '#f8fafc', // Stark White
-        accent2: '#fbbf24', // Bold Gold
-        accent3: '#38bdf8', // Sky Blue
-        fontFamily: 'Arial Black, Impact, sans-serif',
-        headerBorder: '3px solid #f8fafc',
+        accent1: '#f8fafc',
+        accent2: '#fbbf24',
+        accent3: '#38bdf8',
+        fontFamily: 'var(--font-sans)',
+        headerBorder: '2px solid #f8fafc',
         gradientBg: 'linear-gradient(135deg, #18181b, #27272a)',
         accent1Light: 'rgba(255, 255, 255, 0.08)',
         accent2Light: 'rgba(251, 191, 36, 0.15)',
         accent3Light: 'rgba(56, 189, 248, 0.15)',
         tableHeaderBg: '#3f3f46',
-        shadow: '8px 8px 0px rgba(248, 250, 252, 0.15)',
-        glowText: 'none'
+        shadow: '0 4px 16px rgba(0, 0, 0, 0.45)',
+        glowText: 'none',
       };
     case 'minimalist-light':
       return {
-        bg: '#fafaf9',
+        bg: '#f5f7fa',
         cardBg: '#ffffff',
-        border: '1px solid #1c1917',
-        borderThin: '1px solid #e7e5e4',
-        textMain: '#1c1917',
-        textMuted: '#57534e',
-        accent1: '#1c1917', // Elegant Charcoal
-        accent2: '#c2410c', // Rust Red
-        accent3: '#0369a1', // Muted Cyan
-        fontFamily: 'Georgia, serif',
-        headerBorder: '1px solid #1c1917',
-        gradientBg: 'radial-gradient(circle at top right, #f5f5f4, #fafaf9 80%)',
-        accent1Light: 'rgba(28, 25, 23, 0.05)',
-        accent2Light: 'rgba(194, 65, 12, 0.05)',
-        accent3Light: 'rgba(3, 105, 161, 0.05)',
-        tableHeaderBg: '#f5f5f4',
-        shadow: '0 4px 20px rgba(0, 0, 0, 0.04)',
-        glowText: 'none'
+        border: '1px solid #cbd5e1',
+        borderThin: '1px solid #e2e8f0',
+        textMain: '#0f172a',
+        textMuted: '#475569',
+        accent1: '#1d4ed8',
+        accent2: '#d97706',
+        accent3: '#0284c7',
+        fontFamily: 'var(--font-sans)',
+        headerBorder: '1px solid #cbd5e1',
+        gradientBg: 'linear-gradient(135deg, #ffffff 0%, #f0f4f8 100%)',
+        accent1Light: 'rgba(29, 78, 216, 0.08)',
+        accent2Light: 'rgba(217, 119, 6, 0.08)',
+        accent3Light: 'rgba(2, 132, 199, 0.08)',
+        tableHeaderBg: '#f1f5f9',
+        shadow: '0 2px 12px rgba(15, 23, 42, 0.06)',
+        glowText: 'none',
       };
     case 'dark-executive':
     default:
       return {
         bg: '#0f172a',
         cardBg: '#1e293b',
-        border: '1px solid #1e293b',
-        borderThin: '1px solid rgba(30, 41, 59, 0.5)',
+        border: '1px solid #334155',
+        borderThin: '1px solid #334155',
         textMain: '#f8fafc',
         textMuted: '#94a3b8',
-        accent1: '#10b981', // Emerald
-        accent2: '#f59e0b', // Gold
-        accent3: '#0ea5e9', // Sky Blue
-        fontFamily: 'Inter, sans-serif',
-        headerBorder: '1px solid #1e293b',
-        gradientBg: 'radial-gradient(circle at top right, #10b98115, #0f172a 40%)',
-        accent1Light: 'rgba(16, 185, 129, 0.1)',
-        accent2Light: 'rgba(245, 158, 11, 0.1)',
-        accent3Light: 'rgba(14, 165, 233, 0.1)',
+        accent1: '#10b981',
+        accent2: '#f59e0b',
+        accent3: '#38bdf8',
+        fontFamily: 'var(--font-sans)',
+        headerBorder: '1px solid #334155',
+        gradientBg: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',
+        accent1Light: 'rgba(16, 185, 129, 0.12)',
+        accent2Light: 'rgba(245, 158, 11, 0.12)',
+        accent3Light: 'rgba(56, 189, 248, 0.12)',
         tableHeaderBg: '#1e293b',
-        shadow: '0 10px 30px rgba(0, 0, 0, 0.5)',
-        glowText: 'none'
+        shadow: '0 8px 24px rgba(0, 0, 0, 0.45)',
+        glowText: 'none',
       };
   }
 };
@@ -191,23 +194,21 @@ export default function PresentationPage() {
   const [loading, setLoading] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [data, setData] = useState<PresentationData | null>(null);
-  const [isPreviewVisible, setIsPreviewVisible] = useState(false);
-  
-  // Custom states for Drawer, Templates & AI
+  const [isPreviewVisible, setIsPreviewVisible] = useState(true);
+
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
-  const [selectedTemplate, setSelectedTemplate] = useState<TemplateName>('dark-executive');
+  const [selectedTemplate, setSelectedTemplate] = useState<TemplateName>('ocean-cobalt');
   const [customPrompt, setCustomPrompt] = useState('');
   const [selectedPresetId, setSelectedPresetId] = useState('executive');
-  const [userApiKey, setUserApiKey] = useState('');
+  const [userApiKey] = useState('');
   const [aiInsights, setAiInsights] = useState<GeminiInsights | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiInputMode, setAiInputMode] = useState<'preset' | 'custom'>('preset');
 
-  // By default select current week (Monday to Sunday)
   const [dateRange, setDateRange] = useState(() => {
     const now = new Date();
     const day = now.getDay();
-    const diff = now.getDate() - day + (day === 0 ? -6 : 1); // adjust when day is sunday
+    const diff = now.getDate() - day + (day === 0 ? -6 : 1);
     const start = new Date(now.setDate(diff));
     const end = new Date();
     return {
@@ -229,7 +230,7 @@ export default function PresentationPage() {
   });
 
   const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
-  const [hasGlobalApiKey, setHasGlobalApiKey] = useState(false);
+  const [, setHasGlobalApiKey] = useState(false);
   const presentationRef = useRef<HTMLDivElement>(null);
   const { addToast } = useNotificationContext();
 
@@ -246,8 +247,17 @@ export default function PresentationPage() {
         console.error('Error checking global api key:', err);
       }
     }
-    checkGlobalApiKey();
+    void checkGlobalApiKey();
   }, []);
+
+  useEffect(() => {
+    if (!isDrawerOpen) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setIsDrawerOpen(false);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [isDrawerOpen]);
 
   const fetchPresentationData = async (start: string, end: string, shouldCloseDrawer = false) => {
     setLoading(true);
@@ -260,7 +270,7 @@ export default function PresentationPage() {
       const payload = await res.json();
       setData(payload);
       setIsPreviewVisible(true);
-      setAiInsights(null); // Clear previous AI analytics when loading new data
+      setAiInsights(null);
       setCurrentSlideIndex(0);
       return payload;
     } catch (err: unknown) {
@@ -277,34 +287,33 @@ export default function PresentationPage() {
     }
   };
 
-
-
   const handleGenerateAIInsights = async () => {
     setAiLoading(true);
-    const preset = PRESET_PROMPTS.find(p => p.id === selectedPresetId);
-    const finalPrompt = aiInputMode === 'custom'
-      ? customPrompt.trim()
-      : (preset ? preset.prompt : PRESET_PROMPTS[0].prompt);
+    const preset = PRESET_PROMPTS.find((p) => p.id === selectedPresetId);
+    const finalPrompt =
+      aiInputMode === 'custom'
+        ? customPrompt.trim()
+        : preset
+          ? preset.prompt
+          : PRESET_PROMPTS[0].prompt;
 
     if (aiInputMode === 'custom' && !finalPrompt) {
       addToast({
         id: `ai-empty-${Date.now()}`,
         type: 'sla_warning',
         title: 'Prompt ว่างเปล่า',
-        body: 'กรุณากรอกคำสั่ง Prompt ก่อนดำเนินการวิเคราะห์ด้วย AI ⚠️'
+        body: 'กรุณากรอกคำสั่ง Prompt ก่อนดำเนินการวิเคราะห์ด้วย AI',
       });
       setAiLoading(false);
       return;
     }
 
     try {
-      // 1. Fetch fresh statistics data based on the temp date range first
       const freshData = await fetchPresentationData(tempDateRange.start, tempDateRange.end, false);
       if (!freshData) {
         throw new Error('Unable to retrieve new statistics data for the selected period.');
       }
 
-      // 2. Call Gemini AI on the fresh statistics data
       const res = await fetch('/api/reports/presentation/gemini', {
         method: 'POST',
         headers: {
@@ -313,14 +322,13 @@ export default function PresentationPage() {
         body: JSON.stringify({
           ticketData: freshData,
           customPrompt: finalPrompt,
-          userApiKey: userApiKey.trim() || undefined
-        })
+          userApiKey: userApiKey.trim() || undefined,
+        }),
       });
 
       if (!res.ok) throw new Error('Failed to fetch AI insights from server');
       const payload: GeminiInsights = await res.json();
-      
-      // 3. Update the permanent dateRange to match the new filter
+
       setDateRange({ start: tempDateRange.start, end: tempDateRange.end });
       setAiInsights(payload);
       setIsPreviewVisible(true);
@@ -329,12 +337,12 @@ export default function PresentationPage() {
         id: `ai-success-${Date.now()}`,
         type: 'ticket',
         title: payload.isSimulated ? 'โหลดการวิเคราะห์จำลองสำเร็จ' : 'วิเคราะห์ด้วย Gemini สำเร็จ',
-        body: payload.isSimulated 
-          ? 'ระบบเรนเดอร์ข้อมูลวิเคราะห์จำลองที่สมบูรณ์แบบเรียบร้อยแล้ว ✨' 
-          : 'Gemini อัปเดตบทวิเคราะห์ระดับผู้อำนวยการลงในสไลด์เสร็จสิ้น 🚀'
+        body: payload.isSimulated
+          ? 'ระบบเรนเดอร์ข้อมูลวิเคราะห์จำลองเรียบร้อยแล้ว'
+          : 'Gemini อัปเดตบทวิเคราะห์ระดับผู้บริหารลงในสไลด์เสร็จสิ้น',
       });
       setIsDrawerOpen(false);
-      setCurrentSlideIndex(0); // Return to cover slide to review insights
+      setCurrentSlideIndex(0);
     } catch (err: unknown) {
       console.error(err);
       addToast({
@@ -371,40 +379,38 @@ export default function PresentationPage() {
       id: toastId,
       type: 'ticket',
       title: 'กำลังสร้างไฟล์ PDF...',
-      body: 'โปรดรอสักครู่ ระบบกำลังจับภาพสไลด์และสร้างไฟล์ PDF ⏳'
+      body: 'โปรดรอสักครู่ ระบบกำลังจับภาพสไลด์และสร้างไฟล์ PDF',
     });
 
     try {
       const { html2canvas, jsPDF } = await loadExportModules();
       const slides = presentationRef.current.querySelectorAll('.pdf-slide-page') as NodeListOf<HTMLElement>;
-      
-      const pdf = new jsPDF('landscape', 'mm', 'a4'); // 297 x 210 mm
+
+      const pdf = new jsPDF('landscape', 'mm', 'a4');
       const pdfWidth = pdf.internal.pageSize.getWidth();
       const pdfHeight = pdf.internal.pageSize.getHeight();
 
       for (let i = 0; i < slides.length; i++) {
         const slideElement = slides[i];
-        
-        // Temporarily force display block/flex for capturing
+
         const originalDisplay = slideElement.style.display;
         slideElement.style.display = 'flex';
         slideElement.style.position = 'absolute';
         slideElement.style.top = '0';
         slideElement.style.left = '0';
         slideElement.style.opacity = '1';
-        slideElement.style.zIndex = '-10'; // render offscreen
+        slideElement.style.zIndex = '-10';
         slideElement.style.transform = 'none';
 
         const canvas = await html2canvas(slideElement, {
-          scale: 2, // High resolution
+          scale: 2,
           useCORS: true,
           backgroundColor: activeTheme.bg,
-          logging: false
+          logging: false,
         });
 
         const imgData = canvas.toDataURL('image/png');
-        
-        // Revert styles
+
         slideElement.style.display = originalDisplay;
         slideElement.style.position = '';
         slideElement.style.top = '';
@@ -418,12 +424,12 @@ export default function PresentationPage() {
       }
 
       pdf.save(`Weekly_Presentation_${dateRange.start}_to_${dateRange.end}.pdf`);
-      
+
       addToast({
         id: `export-success-${Date.now()}`,
         type: 'ticket',
         title: 'สร้าง PDF สำเร็จ',
-        body: 'ดาวน์โหลดไฟล์ Presentation เรียบร้อยแล้ว 🎉'
+        body: 'ดาวน์โหลดไฟล์ Presentation เรียบร้อยแล้ว',
       });
     } catch (err: unknown) {
       console.error(err);
@@ -447,39 +453,37 @@ export default function PresentationPage() {
       id: toastId,
       type: 'ticket',
       title: 'กำลังสร้างไฟล์ PowerPoint...',
-      body: 'โปรดรอสักครู่ ระบบกำลังจัดเตรียมไฟล์ PowerPoint ⏳'
+      body: 'โปรดรอสักครู่ ระบบกำลังจัดเตรียมไฟล์ PowerPoint',
     });
 
     try {
       const { html2canvas, pptxgen } = await loadExportModules();
       const slides = presentationRef.current.querySelectorAll('.pdf-slide-page') as NodeListOf<HTMLElement>;
-      
+
       const pptx = new pptxgen();
       pptx.layout = 'LAYOUT_16x9';
 
       for (let i = 0; i < slides.length; i++) {
         const slideElement = slides[i];
-        
-        // Temporarily force display block/flex for capturing
+
         const originalDisplay = slideElement.style.display;
         slideElement.style.display = 'flex';
         slideElement.style.position = 'absolute';
         slideElement.style.top = '0';
         slideElement.style.left = '0';
         slideElement.style.opacity = '1';
-        slideElement.style.zIndex = '-10'; // render offscreen
+        slideElement.style.zIndex = '-10';
         slideElement.style.transform = 'none';
 
         const canvas = await html2canvas(slideElement, {
-          scale: 2, // High resolution
+          scale: 2,
           useCORS: true,
           backgroundColor: activeTheme.bg,
-          logging: false
+          logging: false,
         });
 
         const imgData = canvas.toDataURL('image/png');
-        
-        // Revert styles
+
         slideElement.style.display = originalDisplay;
         slideElement.style.position = '';
         slideElement.style.top = '';
@@ -494,17 +498,17 @@ export default function PresentationPage() {
           x: 0,
           y: 0,
           w: 10,
-          h: 5.625
+          h: 5.625,
         });
       }
 
       pptx.writeFile({ fileName: `Weekly_Presentation_${dateRange.start}_to_${dateRange.end}.pptx` });
-      
+
       addToast({
         id: `export-success-${Date.now()}`,
         type: 'ticket',
         title: 'สร้าง PowerPoint สำเร็จ',
-        body: 'ดาวน์โหลดไฟล์ Presentation (.pptx) เรียบร้อยแล้ว 🎉'
+        body: 'ดาวน์โหลดไฟล์ Presentation (.pptx) เรียบร้อยแล้ว',
       });
     } catch (err: unknown) {
       console.error(err);
@@ -519,219 +523,112 @@ export default function PresentationPage() {
     }
   };
 
-  const hasAI = !!aiInsights;
-  const totalSlides = data ? 2 + (hasAI ? 1 : 0) + (data.topOrganizations?.length || 0) : 0;
-
   return (
-    <div className="animate-page-in" style={{ height: 'calc(100vh - 40px)', display: 'flex', flexDirection: 'column', overflow: 'hidden', paddingRight: '24px' }}>
-      
-      {/* Control Bar */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexShrink: 0 }}>
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <div style={{ background: '#10b98120', padding: '10px', borderRadius: '4px', border: '1px solid #10b98140' }}>
-              <Presentation size={24} color="#10b981" />
+    <div className={`animate-page-in ${styles.pageStack}`} style={{ minHeight: 'calc(100vh - 140px)' }}>
+      <PageHeader
+        title="Weekly Presentation"
+        subtitle="สร้างสไลด์รายงานสรุปผลการดำเนินการประจำสัปดาห์ด้วยเทมเพลตและ AI"
+        actions={
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+            <Button
+              variant="secondary"
+              size="md"
+              onClick={() => setIsPreviewVisible((prev) => !prev)}
+              leftIcon={isPreviewVisible ? <EyeOff size={15} aria-hidden="true" /> : <Eye size={15} aria-hidden="true" />}
+            >
+              {isPreviewVisible ? 'ซ่อนรายงาน' : 'แสดงรายงาน'}
+            </Button>
+
+            <Button
+              variant="secondary"
+              size="md"
+              onClick={handleExportPDF}
+              disabled={exporting || !data}
+              loading={exporting}
+              leftIcon={<FileText size={15} color="var(--color-danger)" aria-hidden="true" />}
+            >
+              ส่งออก PDF
+            </Button>
+
+            <Button
+              variant="secondary"
+              size="md"
+              onClick={handleExportPPTX}
+              disabled={exporting || !data}
+              loading={exporting}
+              leftIcon={<Presentation size={15} color="var(--color-warning)" aria-hidden="true" />}
+            >
+              ส่งออก PPTX
+            </Button>
+
+            <Button
+              variant="primary"
+              size="md"
+              onClick={() => setIsDrawerOpen(true)}
+              leftIcon={<Sliders size={16} aria-hidden="true" />}
+            >
+              ตั้งค่ารายงาน & AI
+            </Button>
+          </div>
+        }
+      />
+
+      {!isPreviewVisible ? (
+        <div
+          style={{
+            flex: 1,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: 'var(--color-surface)',
+            border: '1px dashed var(--color-border-strong)',
+            borderRadius: 'var(--radius-lg)',
+            padding: 40,
+          }}
+        >
+          <EmptyState
+            icon={<Presentation size={36} color="var(--color-primary)" aria-hidden="true" />}
+            title="ย่อพรีวิวรายงานสไลด์ไว้"
+            description="คุณสามารถขยายเพื่อแสดงภาพพรีวิวสไลด์รายงาน Weekly Presentation ได้ทุกเมื่อ"
+            action={
+              <Button variant="primary" onClick={() => setIsPreviewVisible(true)} leftIcon={<Eye size={16} aria-hidden="true" />}>
+                ขยายแสดงพรีวิวสไลด์
+              </Button>
+            }
+          />
+        </div>
+      ) : (
+        <div className={styles.presentationStage}>
+          {!data && !loading ? (
+            <div style={{ margin: 'auto', padding: 40 }}>
+              <EmptyState
+                icon={<Presentation size={40} color="#3b82f6" aria-hidden="true" />}
+                title={<span style={{ color: '#f1f5f9' }}>Weekly Presentation Report</span>}
+                description={
+                  <span style={{ color: '#94a3b8' }}>
+                    รายงานสถิติและบทวิเคราะห์ประจำสัปดาห์ยังไม่ได้ดึงข้อมูล กดปุ่มตั้งค่าเพื่อเริ่มต้น
+                  </span>
+                }
+                action={
+                  <Button variant="primary" onClick={() => setIsDrawerOpen(true)} leftIcon={<Sliders size={16} aria-hidden="true" />}>
+                    ตั้งค่ารายงาน & AI เพื่อเริ่มต้น
+                  </Button>
+                }
+              />
             </div>
-            <div>
-              <h1 style={{ fontSize: '22px', fontWeight: '800', letterSpacing: '-0.5px', color: 'var(--text-main)', textTransform: 'uppercase' }}>
-                Weekly Presentation
-              </h1>
-              <p style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: '500' }}>
-                สร้างสไลด์รายงานสรุปผลการดำเนินการประจำสัปดาห์ด้วยเทมเพลตพรีเมียมและ AI
+          ) : null}
+
+          {loading ? (
+            <div style={{ margin: 'auto', textAlign: 'center', color: '#3b82f6' }}>
+              <Loader2 size={36} className="animate-spin" style={{ margin: '0 auto 12px' }} />
+              <p style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: '#f1f5f9' }}>
+                กำลังดึงข้อมูลสถิติประจำสัปดาห์...
               </p>
             </div>
-          </div>
-        </div>
+          ) : null}
 
-        <div style={{ display: 'flex', gap: '12px', alignItems: 'center', paddingRight: '12px' }}>
-          <button
-            onClick={() => setIsPreviewVisible(!isPreviewVisible)}
-            className="glass-interactive"
-            style={{
-              height: '44px',
-              padding: '0 16px',
-              borderRadius: '4px',
-              border: '1px solid ' + (isPreviewVisible ? 'var(--text-muted)' : 'var(--primary)'),
-              background: isPreviewVisible ? 'transparent' : 'var(--primary-transparent)',
-              color: isPreviewVisible ? 'var(--text-muted)' : 'var(--primary)',
-              fontWeight: '750',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              cursor: 'pointer',
-              fontSize: '12px',
-              transition: 'all 0.2s'
-            }}
-          >
-            {isPreviewVisible ? '🙈 ซ่อนรายงาน' : '👁️ แสดงรายงาน'}
-          </button>
-
-          {/* Export Buttons */}
-          <button
-            onClick={handleExportPDF}
-            disabled={exporting || !data}
-            className="glass-interactive"
-            style={{
-              height: '44px',
-              padding: '0 16px',
-              borderRadius: '4px',
-              border: '1px solid #ef4444',
-              background: 'rgba(239, 68, 68, 0.08)',
-              color: '#f87171',
-              fontWeight: '800',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '6px',
-              cursor: (exporting || !data) ? 'not-allowed' : 'pointer',
-              fontSize: '12px',
-              boxShadow: '0 4px 12px rgba(239, 68, 68, 0.05)',
-              transition: 'all 0.2s'
-            }}
-          >
-            {exporting ? <Loader2 size={14} className="animate-spin" /> : <FileText size={14} />}
-            ส่งออก PDF
-          </button>
-
-          <button
-            onClick={handleExportPPTX}
-            disabled={exporting || !data}
-            className="glass-interactive"
-            style={{
-              height: '44px',
-              padding: '0 16px',
-              borderRadius: '4px',
-              border: '1px solid #f97316',
-              background: 'rgba(249, 115, 22, 0.08)',
-              color: '#fb923c',
-              fontWeight: '800',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '6px',
-              cursor: (exporting || !data) ? 'not-allowed' : 'pointer',
-              fontSize: '12px',
-              boxShadow: '0 4px 12px rgba(249, 115, 22, 0.05)',
-              transition: 'all 0.2s'
-            }}
-          >
-            {exporting ? <Loader2 size={14} className="animate-spin" /> : <Presentation size={14} />}
-            ส่งออก PPTX
-          </button>
-
-          <div style={{ width: '1px', height: '24px', background: 'rgba(255, 255, 255, 0.1)', margin: '0 4px' }} />
-
-          {/* Main settings trigger */}
-          <button
-            onClick={() => setIsDrawerOpen(true)}
-            className="glass-interactive"
-            style={{
-              height: '44px',
-              padding: '0 20px',
-              borderRadius: '4px',
-              border: '1px solid #10b981',
-              background: '#10b98110',
-              color: '#10b981',
-              fontWeight: '700',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '10px',
-              cursor: 'pointer',
-              boxShadow: '0 4px 12px rgba(16, 185, 129, 0.1)'
-            }}
-          >
-            <Sliders size={18} />
-            ตั้งค่ารายงาน & AI
-          </button>
-        </div>
-      </div>
-
-      {/* Collapsed state placeholder banner */}
-      {!isPreviewVisible && (
-        <div style={{ display: 'flex', flex: 1, alignItems: 'center', justifyContent: 'center', background: 'var(--bg-card)', border: '1px dashed var(--border)', borderRadius: '12px', padding: '40px', textAlign: 'center', animation: 'fadeIn 0.3s', marginBottom: '24px' }}>
-          <div>
-            <Presentation size={48} color="var(--primary)" style={{ margin: '0 auto 16px', opacity: 0.7 }} />
-            <h3 style={{ fontSize: '18px', fontWeight: '800', marginBottom: '8px' }}>ย่อพรีวิวรายงานสไลด์ไว้</h3>
-            <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '16px' }}>คุณสามารถขยายเพื่อแสดงภาพพรีวิวสไลด์รายงาน Weekly Presentation ได้ทุกเมื่อ</p>
-            <button 
-              onClick={() => setIsPreviewVisible(true)}
-              className="glass-interactive"
-              style={{
-                padding: '10px 24px',
-                borderRadius: '8px',
-                border: 'none',
-                background: 'var(--primary)',
-                color: '#000',
-                fontWeight: '800',
-                cursor: 'pointer'
-              }}
-            >
-              👁️ ขยายแสดงพรีวิวสไลด์
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Main presentation area */}
-      <div 
-        style={{ 
-          flex: isPreviewVisible ? 1 : '0 0 auto', 
-          maxHeight: isPreviewVisible ? '2000px' : '0px',
-          opacity: isPreviewVisible ? 1 : 0,
-          display: 'flex', 
-          flexDirection: 'column', 
-          background: '#070a13', 
-          borderRadius: '6px', 
-          border: isPreviewVisible ? '1px solid #1e293b' : 'none', 
-          position: 'relative', 
-          overflow: 'hidden',
-          transition: 'all 0.5s cubic-bezier(0.4, 0, 0.2, 1)',
-          pointerEvents: isPreviewVisible ? 'auto' : 'none'
-        }}
-      >
-        
-        {!data && !loading && (
-          <div style={{ margin: 'auto', textAlign: 'center', color: '#64748b', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '40px' }}>
-            <Presentation size={64} style={{ margin: '0 auto 16px', opacity: 0.3, color: '#10b981' }} />
-            <h2 style={{ fontSize: '20px', fontWeight: '800', color: 'var(--text-main)' }}>Weekly Presentation Report</h2>
-            <p style={{ fontSize: '13px', marginTop: '8px', color: 'var(--text-muted)', maxWidth: '400px', lineHeight: '1.6' }}>
-              รายงานความพร้อมของสถิติและบทวิเคราะห์ประจำสัปดาห์ ยังไม่ได้ดึงข้อมูล
-            </p>
-            <button
-              onClick={() => setIsDrawerOpen(true)}
-              className="glass-interactive flex-center"
-              style={{
-                marginTop: '24px',
-                padding: '12px 24px',
-                borderRadius: '4px',
-                border: '1px solid #10b981',
-                background: '#10b98115',
-                color: '#10b981',
-                fontWeight: '700',
-                cursor: 'pointer',
-                fontSize: '13px',
-                boxShadow: '0 4px 12px rgba(16, 185, 129, 0.1)',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px'
-              }}
-            >
-              <Sliders size={18} />
-              ตั้งค่ารายงาน & AI เพื่อเริ่มต้น
-            </button>
-          </div>
-        )}
-
-        {loading && (
-          <div style={{ margin: 'auto', textAlign: 'center', color: '#10b981' }}>
-            <Loader2 size={40} className="animate-spin" style={{ margin: '0 auto 16px' }} />
-            <h2 style={{ fontSize: '16px', fontWeight: '700', letterSpacing: '1px' }}>กำลังดึงข้อมูลสถิติประจำสัปดาห์...</h2>
-          </div>
-        )}
-
-        {data && !loading && (
-          <>
-                        <PresentationViewer 
+          {data && !loading ? (
+            <PresentationViewer
               data={data}
               aiInsights={aiInsights}
               currentSlideIndex={currentSlideIndex}
@@ -739,123 +636,112 @@ export default function PresentationPage() {
               activeTheme={activeTheme}
               presentationRef={presentationRef}
             />
-                  </>
-        )}
-      </div>
-
-      {/* Right sliding Drawer Background Overlay */}
-      {isDrawerOpen && (
-        <div 
-          onClick={() => setIsDrawerOpen(false)}
-          style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            background: 'rgba(0, 0, 0, 0.6)',
-            zIndex: 999,
-            backdropFilter: 'blur(4px)',
-            transition: 'opacity 0.3s ease'
-          }}
-        />
+          ) : null}
+        </div>
       )}
 
-      {/* Settings Drawer Panel */}
-      <div
-        style={{
-          position: 'fixed',
-          top: 0,
-          right: 0,
-          bottom: 0,
-          width: '420px',
-          background: 'rgba(15, 23, 42, 0.92)',
-          backdropFilter: 'blur(20px)',
-          borderLeft: '1px solid rgba(255, 255, 255, 0.08)',
-          boxShadow: '-10px 0 30px rgba(0, 0, 0, 0.5)',
-          zIndex: 1000,
-          transform: isDrawerOpen ? 'translateX(0)' : 'translateX(100%)',
-          transition: 'transform 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
-          display: 'flex',
-          flexDirection: 'column',
-          padding: '24px',
-          color: '#f8fafc',
-          overflowY: 'auto'
-        }}
+      {isDrawerOpen ? (
+        <div
+          className={styles.drawerBackdrop}
+          role="presentation"
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget) setIsDrawerOpen(false);
+          }}
+        />
+      ) : null}
+
+      <aside
+        aria-label="ตั้งค่ารายงาน & AI"
+        aria-hidden={!isDrawerOpen}
+        className={styles.drawerPanel}
+        style={{ transform: isDrawerOpen ? 'translateX(0)' : 'translateX(100%)' }}
       >
-        {/* Drawer Header */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255, 255, 255, 0.1)', paddingBottom: '12px', marginBottom: '18px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Sliders size={20} color="#10b981" />
-            <span style={{ fontSize: '18px', fontWeight: '800', letterSpacing: '-0.3px' }}>ตั้งค่ารายงาน & AI</span>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            borderBottom: '1px solid var(--color-border)',
+            paddingBottom: 12,
+            marginBottom: 18,
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Sliders size={18} color="var(--color-primary)" aria-hidden="true" />
+            <h2 style={{ fontSize: 'var(--text-lg)', fontWeight: 700, color: 'var(--color-text)' }}>
+              ตั้งค่ารายงาน & AI
+            </h2>
           </div>
-          <button 
-            onClick={() => setIsDrawerOpen(false)}
-            style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', display: 'flex', padding: '4px' }}
-          >
-            <X size={20} />
-          </button>
+          <Button variant="ghost" size="sm" iconOnly onClick={() => setIsDrawerOpen(false)} aria-label="ปิดหน้าต่างตั้งค่า">
+            <X size={18} aria-hidden="true" />
+          </Button>
         </div>
 
-        {/* Form Body */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', flex: 1 }}>
-          
-          {/* Section 1: Date Range */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 18, flex: 1 }}>
           <div>
-            <label style={{ fontSize: '12px', fontWeight: '700', textTransform: 'uppercase', color: '#94a3b8', display: 'block', marginBottom: '8px' }}>
-              ช่วงเวลารายงาน (Date Period)
-            </label>
-            <div style={{ display: 'flex', gap: '12px' }}>
-              <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-                <span style={{ fontSize: '11px', color: '#64748b', marginBottom: '4px' }}>เริ่มวันที่</span>
-                <input
-                  type="date"
-                  value={tempDateRange.start}
-                  onChange={(e) => setTempDateRange(prev => ({ ...prev, start: e.target.value }))}
-                  style={{ width: '100%', background: '#1e293b', border: '1px solid #334155', borderRadius: '4px', padding: '8px 10px', color: '#f8fafc', outline: 'none', fontSize: '13px' }}
-                />
-              </div>
-              <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-                <span style={{ fontSize: '11px', color: '#64748b', marginBottom: '4px' }}>สิ้นสุดวันที่</span>
-                <input
-                  type="date"
-                  value={tempDateRange.end}
-                  onChange={(e) => setTempDateRange(prev => ({ ...prev, end: e.target.value }))}
-                  style={{ width: '100%', background: '#1e293b', border: '1px solid #334155', borderRadius: '4px', padding: '8px 10px', color: '#f8fafc', outline: 'none', fontSize: '13px' }}
-                />
-              </div>
+            <p style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: 'var(--color-text-muted)', marginBottom: 8 }}>
+              ช่วงเวลารายงาน
+            </p>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+              <Input
+                id="presentation-start-date"
+                type="date"
+                label="เริ่มวันที่"
+                value={tempDateRange.start}
+                onChange={(e) => setTempDateRange((prev) => ({ ...prev, start: e.target.value }))}
+              />
+              <Input
+                id="presentation-end-date"
+                type="date"
+                label="สิ้นสุดวันที่"
+                value={tempDateRange.end}
+                onChange={(e) => setTempDateRange((prev) => ({ ...prev, end: e.target.value }))}
+              />
             </div>
-            <div style={{ marginTop: '10px', display: 'flex', alignItems: 'center', gap: '8px', color: '#38bdf8', fontSize: '11px', fontWeight: '700', background: 'rgba(56, 189, 248, 0.06)', padding: '8px 12px', borderRadius: '8px', border: '1px solid rgba(56, 189, 248, 0.15)', lineHeight: '1.4' }}>
-              {loading ? <Loader2 size={12} className="animate-spin" /> : <Info size={14} style={{ flexShrink: 0 }} />}
-              <span>{loading ? 'กำลังประมวลผลวิเคราะห์ข้อมูลใหม่...' : 'เปลี่ยนช่วงเวลาแล้ว กดปุ่มดำเนินการสร้างรายงานด้านล่างเพื่ออัปเดตสไลด์'}</span>
+            <div
+              style={{
+                marginTop: 10,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                color: 'var(--color-info-text)',
+                fontSize: 'var(--text-xs)',
+                fontWeight: 600,
+                background: 'var(--color-info-soft)',
+                padding: '8px 12px',
+                borderRadius: 'var(--radius-md)',
+                border: '1px solid var(--color-info-border)',
+                lineHeight: 1.4,
+              }}
+            >
+              {loading ? <Loader2 size={14} className="animate-spin" aria-hidden="true" /> : <Info size={14} style={{ flexShrink: 0 }} aria-hidden="true" />}
+              <span>{loading ? 'กำลังประมวลผลวิเคราะห์ข้อมูลใหม่...' : 'เปลี่ยนช่วงเวลาแล้ว กดปุ่มสร้างรายงานด้านล่างเพื่ออัปเดตสไลด์'}</span>
             </div>
           </div>
 
-          {/* Section 2: Visual Style Templates Selection */}
-          <div style={{ borderTop: '1px solid rgba(255, 255, 255, 0.08)', paddingTop: '20px' }}>
-            <label style={{ fontSize: '12px', fontWeight: '700', textTransform: 'uppercase', color: '#94a3b8', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <Layers size={14} /> เลือกดีไซน์เทมเพลต (Themes)
-            </label>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-              {(['dark-executive', 'cyber-neon', 'brutalist-steel', 'minimalist-light'] as TemplateName[]).map((themeName) => {
+          <div style={{ borderTop: '1px solid var(--color-border)', paddingTop: 16 }}>
+            <p style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: 'var(--color-text-muted)', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
+              <Layers size={14} aria-hidden="true" />
+              เลือกดีไซน์เทมเพลตสไลด์
+            </p>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+              {(['ocean-cobalt', 'dark-executive', 'brutalist-steel', 'minimalist-light'] as TemplateName[]).map((themeName) => {
                 const isSelected = selectedTemplate === themeName;
                 return (
                   <button
                     key={themeName}
+                    type="button"
                     onClick={() => setSelectedTemplate(themeName)}
                     style={{
-                      padding: '12px 8px',
-                      borderRadius: '4px',
-                      background: isSelected ? 'rgba(16, 185, 129, 0.12)' : '#1e293b',
-                      border: isSelected ? '2px solid #10b981' : '1px solid #334155',
-                      color: isSelected ? '#10b981' : '#cbd5e1',
-                      cursor: 'pointer',
-                      fontSize: '11px',
-                      fontWeight: '700',
+                      padding: '10px 8px',
+                      borderRadius: 'var(--radius-md)',
+                      background: isSelected ? 'var(--color-primary-soft)' : 'var(--color-surface-subtle)',
+                      border: isSelected ? '2px solid var(--color-primary)' : '1px solid var(--color-border)',
+                      color: isSelected ? 'var(--color-primary)' : 'var(--color-text-muted)',
+                      fontSize: 'var(--text-xs)',
+                      fontWeight: 700,
                       textAlign: 'center',
                       textTransform: 'uppercase',
-                      letterSpacing: '0.5px',
-                      transition: 'all 0.2s'
                     }}
                   >
                     {themeName.replace('-', ' ')}
@@ -865,154 +751,110 @@ export default function PresentationPage() {
             </div>
           </div>
 
-          {/* Section 3: Gemini AI Prompt Setup */}
-          <div style={{ borderTop: '1px solid rgba(255, 255, 255, 0.08)', paddingTop: '20px' }}>
-            <label style={{ fontSize: '12px', fontWeight: '700', textTransform: 'uppercase', color: '#94a3b8', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <Bot size={14} /> ปลุกพลังการวิเคราะห์ด้วย AI (Gemini)
-            </label>
-            
-            {/* Tab selector for AI Mode */}
-            <div style={{ display: 'flex', background: 'rgba(255,255,255,0.05)', padding: '4px', borderRadius: '8px', marginBottom: '16px', border: '1px solid rgba(255,255,255,0.08)' }}>
+          <div style={{ borderTop: '1px solid var(--color-border)', paddingTop: 16 }}>
+            <p style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: 'var(--color-text-muted)', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
+              <Bot size={14} aria-hidden="true" />
+              วิเคราะห์ด้วย AI (Gemini)
+            </p>
+
+            <div className={styles.segmentedGroup} style={{ width: '100%', marginBottom: 12 }}>
               <button
                 type="button"
                 onClick={() => setAiInputMode('preset')}
-                style={{
-                  flex: 1,
-                  padding: '8px 12px',
-                  borderRadius: '6px',
-                  background: aiInputMode === 'preset' ? 'var(--primary)' : 'transparent',
-                  color: aiInputMode === 'preset' ? '#0f172a' : '#94a3b8',
-                  border: 'none',
-                  fontSize: '11px',
-                  fontWeight: '800',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s'
-                }}
+                className={`${styles.segmentedBtn} ${aiInputMode === 'preset' ? styles.segmentedBtnActive : ''}`}
+                style={{ flex: 1 }}
               >
                 AI Presets
               </button>
               <button
                 type="button"
                 onClick={() => setAiInputMode('custom')}
-                style={{
-                  flex: 1,
-                  padding: '8px 12px',
-                  borderRadius: '6px',
-                  background: aiInputMode === 'custom' ? 'var(--primary)' : 'transparent',
-                  color: aiInputMode === 'custom' ? '#0f172a' : '#94a3b8',
-                  border: 'none',
-                  fontSize: '11px',
-                  fontWeight: '800',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s'
-                }}
+                className={`${styles.segmentedBtn} ${aiInputMode === 'custom' ? styles.segmentedBtnActive : ''}`}
+                style={{ flex: 1 }}
               >
                 Custom Prompt
               </button>
             </div>
 
             {aiInputMode === 'preset' ? (
-              /* Presets Prompt Dropdown */
-              <div style={{ display: 'flex', flexDirection: 'column', marginBottom: '16px' }}>
-                <span style={{ fontSize: '10px', color: '#64748b', marginBottom: '6px' }}>รูปแบบบทวิเคราะห์สำเร็จรูป (AI Presets)</span>
-                <select
+              <div style={{ marginBottom: 16 }}>
+                <Select
+                  id="presentation-preset-select"
+                  label="รูปแบบบทวิเคราะห์สำเร็จรูป"
                   value={selectedPresetId}
                   onChange={(e) => setSelectedPresetId(e.target.value)}
-                  style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: '4px', padding: '10px', color: '#f8fafc', outline: 'none', fontSize: '13px', cursor: 'pointer' }}
                 >
                   {PRESET_PROMPTS.map((p) => (
-                    <option key={p.id} value={p.id}>{p.label}</option>
+                    <option key={p.id} value={p.id}>
+                      {p.label}
+                    </option>
                   ))}
-                </select>
-                <div style={{ marginTop: '8px', padding: '10px', background: 'rgba(255,255,255,0.02)', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.04)', fontSize: '11px', color: '#94a3b8', lineHeight: '1.4' }}>
-                  <strong>คำสั่งที่ใช้:</strong> {PRESET_PROMPTS.find(p => p.id === selectedPresetId)?.prompt}
+                </Select>
+                <div
+                  style={{
+                    marginTop: 8,
+                    padding: 10,
+                    background: 'var(--color-surface-subtle)',
+                    borderRadius: 'var(--radius-md)',
+                    border: '1px solid var(--color-border)',
+                    fontSize: 'var(--text-xs)',
+                    color: 'var(--color-text-muted)',
+                    lineHeight: 1.5,
+                  }}
+                >
+                  <strong>คำสั่งที่ใช้:</strong> {PRESET_PROMPTS.find((p) => p.id === selectedPresetId)?.prompt}
                 </div>
               </div>
             ) : (
-              /* Custom Prompt Text Area */
-              <div style={{ display: 'flex', flexDirection: 'column', marginBottom: '16px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                  <span style={{ fontSize: '10px', color: '#64748b' }}>ระบุ Prompt เพื่อให้ AI วิเคราะห์ตามสั่ง</span>
-                  <span style={{ fontSize: '9px', color: '#10b981', fontWeight: '800' }}>MANUAL PROMPT</span>
-                </div>
-                <textarea
-                  placeholder="ตัวอย่างเช่น: 'เน้นสรุปประเด็นขององค์กร/บริษัทนางรองเป็นพิเศษ', 'วิเคราะห์เคสปิดช้าเกินเกณฑ์', 'แสดงข้อมูลและชี้จุดบกพร่องของวิศวกร'"
+              <div style={{ marginBottom: 16 }}>
+                <Textarea
+                  id="presentation-custom-prompt"
+                  label="ระบุ Prompt เพื่อให้ AI วิเคราะห์ตามสั่ง"
+                  placeholder="ตัวอย่างเช่น: 'เน้นสรุปประเด็นขององค์กรนางรองเป็นพิเศษ', 'วิเคราะห์เคสปิดช้าเกินเกณฑ์'"
                   value={customPrompt}
                   onChange={(e) => setCustomPrompt(e.target.value)}
-                  style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: '4px', padding: '12px 14px', color: '#f8fafc', outline: 'none', fontSize: '12px', resize: 'none', fontFamily: 'inherit', height: '120px', lineHeight: '1.6' }}
+                  rows={4}
                 />
               </div>
             )}
 
-            <button
-              onClick={async () => {
-                const payload = await fetchPresentationData(tempDateRange.start, tempDateRange.end, true);
-                if (payload) {
-                  setDateRange({ start: tempDateRange.start, end: tempDateRange.end });
-                  addToast({
-                    id: `fetch-success-${Date.now()}`,
-                    type: 'ticket',
-                    title: 'สร้างรายงานสำเร็จ',
-                    body: `ดึงข้อมูลสถิติตั้งแต่วันที่ ${tempDateRange.start} ถึง ${tempDateRange.end} เรียบร้อยแล้ว 📊`
-                  });
-                }
-              }}
-              disabled={loading}
-              className="glass-interactive"
-              style={{
-                width: '100%',
-                height: '42px',
-                borderRadius: '4px',
-                border: '1px solid #10b981',
-                background: 'transparent',
-                color: '#10b981',
-                fontWeight: '700',
-                fontSize: '13px',
-                cursor: loading ? 'not-allowed' : 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '8px',
-                marginBottom: '10px',
-                transition: 'all 0.2s'
-              }}
-            >
-              {loading ? <Loader2 size={16} className="animate-spin" /> : <Presentation size={16} />}
-              {loading ? 'กำลังดึงข้อมูล...' : 'ดึงข้อมูลและสร้างรายงาน'}
-            </button>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <Button
+                variant="secondary"
+                size="md"
+                fullWidth
+                loading={loading}
+                leftIcon={<Presentation size={16} aria-hidden="true" />}
+                onClick={async () => {
+                  const payload = await fetchPresentationData(tempDateRange.start, tempDateRange.end, true);
+                  if (payload) {
+                    setDateRange({ start: tempDateRange.start, end: tempDateRange.end });
+                    addToast({
+                      id: `fetch-success-${Date.now()}`,
+                      type: 'ticket',
+                      title: 'สร้างรายงานสำเร็จ',
+                      body: `ดึงข้อมูลสถิติตั้งแต่วันที่ ${tempDateRange.start} ถึง ${tempDateRange.end} เรียบร้อยแล้ว`,
+                    });
+                  }
+                }}
+              >
+                {loading ? 'กำลังดึงข้อมูล...' : 'ดึงข้อมูลและสร้างรายงาน'}
+              </Button>
 
-            <button
-              onClick={handleGenerateAIInsights}
-              disabled={aiLoading}
-              className="glass-interactive"
-              style={{
-                width: '100%',
-                height: '42px',
-                borderRadius: '4px',
-                border: 'none',
-                background: 'linear-gradient(135deg, #10b981, #06b6d4)',
-                color: '#0f172a',
-                fontWeight: '900',
-                fontSize: '13px',
-                cursor: aiLoading ? 'not-allowed' : 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '8px',
-                boxShadow: '0 4px 15px rgba(16, 185, 129, 0.25)',
-                textShadow: '0 0 1px rgba(255,255,255,0.2)'
-              }}
-            >
-              {aiLoading ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
-              {aiLoading ? 'กำลังส่งไปให้ AI ประมวลผล...' : 'วิเคราะห์ข้อมูลด้วย Gemini'}
-            </button>
+              <Button
+                variant="primary"
+                size="md"
+                fullWidth
+                loading={aiLoading}
+                leftIcon={<Sparkles size={16} aria-hidden="true" />}
+                onClick={handleGenerateAIInsights}
+              >
+                {aiLoading ? 'กำลังส่งไปให้ AI ประมวลผล...' : 'วิเคราะห์ข้อมูลด้วย Gemini'}
+              </Button>
+            </div>
           </div>
-
-
-
         </div>
-      </div>
-
+      </aside>
     </div>
   );
 }

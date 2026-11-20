@@ -1,18 +1,18 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { 
-  CheckCircle, 
-  Clock, 
-  AlertTriangle, 
-  Star, 
-  TrendingUp, 
-  PieChart as PieIcon, 
+import {
+  CheckCircle,
+  Clock,
+  AlertTriangle,
+  Star,
+  TrendingUp,
+  PieChart as PieIcon,
   Activity,
   Loader2,
   RefreshCw,
   ShieldAlert,
-  ArrowLeft
+  ArrowLeft,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useAppContext } from '@/contexts/AppContext';
@@ -21,19 +21,20 @@ import { analyticsQueries, type AgentAnalyticsData } from '@/lib/tickets/analyti
 import { DateTime } from 'luxon';
 import {
   ResponsiveContainer,
-  AreaChart, Area,
-  PieChart, Pie, Cell,
-  XAxis, YAxis, CartesianGrid, Tooltip
+  AreaChart,
+  Area,
+  PieChart,
+  Pie,
+  Cell,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
 } from 'recharts';
+import { Badge, Button, Card, CardBody, CardHeader, EmptyState, PageHeader } from '@/components/ui';
+import styles from '@/components/analytics/analytics.module.css';
 
-const PRIORITY_COLORS: Record<string, string> = {
-  Critical: '#ea5455',
-  High: '#ff9f43',
-  Medium: '#7367f0',
-  Low: '#28c76f'
-};
-
-const CHART_COLORS = ['#00f2fe', '#7367f0', '#28c76f', '#ff9f43', '#ea5455'];
+const CHART_COLORS = ['#1D4ED8', '#0D9488', '#059669', '#D97706', '#DC2626'];
 
 export default function PersonalAnalyticsPage() {
   const { userProfile } = useAppContext();
@@ -42,15 +43,14 @@ export default function PersonalAnalyticsPage() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [data, setData] = useState<AgentAnalyticsData | null>(null);
-  
+
   const [dateRange, setDateRange] = useState({
     start: DateTime.now().minus({ days: 30 }).toISODate()!,
-    end: DateTime.now().toISODate()!
+    end: DateTime.now().toISODate()!,
   });
 
   const [activeRange, setActiveRange] = useState<'30days' | '7days' | 'custom'>('30days');
 
-  // Security authorization check
   const hasAccess = useMemo(() => {
     if (!userProfile) return false;
     if (userProfile.role === 'Administrator') return true;
@@ -61,25 +61,24 @@ export default function PersonalAnalyticsPage() {
     setMounted(true);
   }, []);
 
-  const fetchAnalytics = useCallback(async (isRefresh = false) => {
-    if (!userProfile?.id || !hasAccess) return;
-    if (isRefresh) setRefreshing(true);
-    else setLoading(true);
+  const fetchAnalytics = useCallback(
+    async (isRefresh = false) => {
+      if (!userProfile?.id || !hasAccess) return;
+      if (isRefresh) setRefreshing(true);
+      else setLoading(true);
 
-    try {
-      const statsData = await analyticsQueries.getAgentAnalytics(
-        userProfile.id,
-        dateRange.start,
-        dateRange.end
-      );
-      setData(statsData);
-    } catch (err) {
-      console.error('Failed to fetch personal analytics:', err);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, [userProfile?.id, dateRange.start, dateRange.end, hasAccess]);
+      try {
+        const statsData = await analyticsQueries.getAgentAnalytics(userProfile.id, dateRange.start, dateRange.end);
+        setData(statsData);
+      } catch (err) {
+        console.error('Failed to fetch personal analytics:', err);
+      } finally {
+        setLoading(false);
+        setRefreshing(false);
+      }
+    },
+    [userProfile?.id, dateRange.start, dateRange.end, hasAccess]
+  );
 
   useEffect(() => {
     if (userProfile?.id && hasAccess && mounted) {
@@ -94,53 +93,60 @@ export default function PersonalAnalyticsPage() {
     if (range === '30days') {
       setDateRange({
         start: DateTime.now().minus({ days: 30 }).toISODate()!,
-        end: DateTime.now().toISODate()!
+        end: DateTime.now().toISODate()!,
       });
     } else {
       setDateRange({
         start: DateTime.now().minus({ days: 7 }).toISODate()!,
-        end: DateTime.now().toISODate()!
+        end: DateTime.now().toISODate()!,
       });
     }
   };
 
   const getActionTypeLabel = (action: string) => {
     switch (action) {
-      case 'claim': return 'รับเรื่องสิทธิ์งาน';
-      case 'resolve': return 'ดำเนินการแก้ไขเสร็จสิ้น';
-      case 'close': return 'ปิดใบงานสำเร็จ';
-      case 'reject': return 'ส่งงานกลับไปแก้ไขต่อ';
-      case 'assign': return 'มอบหมายงาน';
-      case 'escalate': return 'ส่งต่อเรื่อง';
-      case 'transfer': return 'โอนย้ายแอดมิน';
-      default: return action;
+      case 'claim':
+        return 'รับเรื่องสิทธิ์งาน';
+      case 'resolve':
+        return 'ดำเนินการแก้ไขเสร็จสิ้น';
+      case 'close':
+        return 'ปิดใบงานสำเร็จ';
+      case 'reject':
+        return 'ส่งงานกลับไปแก้ไขต่อ';
+      case 'assign':
+        return 'มอบหมายงาน';
+      case 'escalate':
+        return 'ส่งต่อเรื่อง';
+      case 'transfer':
+        return 'โอนย้ายแอดมิน';
+      default:
+        return action;
     }
   };
 
-  const getActionBadgeStyle = (action: string) => {
+  const getActionBadgeVariant = (action: string): 'success' | 'primary' | 'danger' | 'neutral' => {
     switch (action) {
       case 'resolve':
       case 'close':
-        return { background: 'rgba(40, 199, 111, 0.1)', color: 'var(--success)', border: '1px solid rgba(40, 199, 111, 0.2)' };
+        return 'success';
       case 'claim':
       case 'assign':
-        return { background: 'rgba(0, 242, 254, 0.1)', color: 'var(--primary)', border: '1px solid rgba(0, 242, 254, 0.2)' };
+        return 'primary';
       case 'reject':
-        return { background: 'rgba(234, 84, 85, 0.1)', color: 'var(--danger)', border: '1px solid rgba(234, 84, 85, 0.2)' };
+        return 'danger';
       default:
-        return { background: 'rgba(255, 255, 255, 0.05)', color: 'var(--text-muted)', border: '1px solid rgba(255, 255, 255, 0.1)' };
+        return 'neutral';
     }
   };
 
-  // Pre-process category chart data to prevent empty slices
   const filteredCategoryData = useMemo(() => {
     if (!data?.categoryData) return [];
-    return data.categoryData.filter(d => d.value > 0);
+    return data.categoryData.filter((d) => d.value > 0);
   }, [data?.categoryData]);
 
   const [currentTimelinePage, setCurrentTimelinePage] = useState(1);
   const ITEMS_PER_PAGE = 10;
-  
+
   const totalTimelinePages = useMemo(() => {
     if (!data?.timeline) return 0;
     return Math.ceil(data.timeline.length / ITEMS_PER_PAGE);
@@ -152,400 +158,305 @@ export default function PersonalAnalyticsPage() {
     return data.timeline.slice(startIndex, startIndex + ITEMS_PER_PAGE);
   }, [data?.timeline, currentTimelinePage]);
 
-  // Reset timeline page when dates change
   useEffect(() => {
     setCurrentTimelinePage(1);
   }, [dateRange.start, dateRange.end]);
 
   if (!mounted) return null;
 
-  // Unauthorised fallback view
   if (!loading && !hasAccess) {
     return (
-      <div className="flex-center" style={{ height: '70vh', animation: 'fadeIn 0.5s ease-out' }}>
-        <div className="glass" style={{ maxWidth: '480px', padding: '40px', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '20px' }}>
-          <div style={{ background: 'rgba(234, 84, 85, 0.1)', padding: '16px', borderRadius: '50%', color: 'var(--danger)' }}>
-            <ShieldAlert size={48} />
-          </div>
-          <h2 style={{ fontSize: '22px', fontWeight: '800', color: 'var(--text-main)' }}>คุณไม่มีสิทธิ์ในการเข้าถึงหน้านี้</h2>
-          <p style={{ fontSize: '14px', color: 'var(--text-muted)', lineHeight: '1.5' }}>
-            สิทธิ์การเข้าถึงข้อมูลผลงานของฉัน ถูกกำหนดไว้เฉพาะผู้ดูแลระบบหลักหรือผู้ได้รับมอบหมายสิทธิ์เท่านั้น
-          </p>
-          <Link href="/" className="glass-interactive" style={{ padding: '12px 24px', background: 'var(--primary)', color: '#0a0e14', fontWeight: '800', borderRadius: '12px', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
-            <ArrowLeft size={16} /> กลับหน้าหลัก
-          </Link>
-        </div>
+      <div className="flex-center" style={{ height: '65vh' }}>
+        <Card style={{ maxWidth: 460 }}>
+          <CardBody>
+            <EmptyState
+              icon={<ShieldAlert size={36} color="var(--color-danger)" aria-hidden="true" />}
+              title="คุณไม่มีสิทธิ์ในการเข้าถึงหน้านี้"
+              description="สิทธิ์การเข้าถึงข้อมูลผลงานของฉัน ถูกกำหนดไว้เฉพาะผู้ดูแลระบบหลักหรือผู้ได้รับมอบหมายสิทธิ์เท่านั้น"
+              action={
+                <Link href="/" style={{ textDecoration: 'none' }}>
+                  <Button variant="primary" leftIcon={<ArrowLeft size={16} aria-hidden="true" />}>
+                    กลับหน้าหลัก
+                  </Button>
+                </Link>
+              }
+            />
+          </CardBody>
+        </Card>
       </div>
     );
   }
 
   return (
-    <div style={{ animation: 'fadeIn 0.5s ease-out' }}>
-      {/* Header section */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px', flexWrap: 'wrap', gap: '16px' }}>
-        <div>
-          <h1 style={{ fontSize: '28px', fontWeight: '800', lineHeight: '1.1', color: 'var(--text-main)' }}>
-            {locale === 'th' ? 'ผลงานของฉัน' : 'My Performance'}
-          </h1>
-          <p style={{ fontSize: '13px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px', marginTop: '4px' }}>
-            {userProfile?.full_name} • {((userProfile as unknown) as { department?: string })?.department || 'Staff/Agent'}
-          </p>
-        </div>
+    <div className={styles.pageStack}>
+      <PageHeader
+        title={locale === 'th' ? 'ผลงานของฉัน' : 'My Performance'}
+        subtitle={`${userProfile?.full_name || ''} • ${((userProfile as unknown) as { department?: string })?.department || 'Staff/Agent'}`}
+        actions={
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div className={styles.segmentedGroup} role="group" aria-label="ช่วงเวลาย้อนหลัง">
+              <button
+                type="button"
+                onClick={() => handleRangeChange('30days')}
+                className={`${styles.segmentedBtn} ${activeRange === '30days' ? styles.segmentedBtnActive : ''}`}
+              >
+                30 วันล่าสุด
+              </button>
+              <button
+                type="button"
+                onClick={() => handleRangeChange('7days')}
+                className={`${styles.segmentedBtn} ${activeRange === '7days' ? styles.segmentedBtnActive : ''}`}
+              >
+                7 วันล่าสุด
+              </button>
+            </div>
 
-        {/* Filters */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <div style={{ display: 'flex', background: 'rgba(0,0,0,0.2)', padding: '4px', borderRadius: '12px', border: '1px solid var(--border)' }}>
-            <button 
-              onClick={() => handleRangeChange('30days')}
-              style={{
-                padding: '8px 16px',
-                borderRadius: '10px',
-                border: 'none',
-                fontSize: '13px',
-                fontWeight: '700',
-                cursor: 'pointer',
-                background: activeRange === '30days' ? 'rgba(255,255,255,0.08)' : 'transparent',
-                color: activeRange === '30days' ? 'var(--primary)' : 'var(--text-dim)',
-                transition: 'all 0.2s'
-              }}
+            <Button
+              variant="secondary"
+              size="md"
+              iconOnly
+              onClick={() => fetchAnalytics(true)}
+              aria-label="รีเฟรชข้อมูล"
             >
-              30 วันล่าสุด
-            </button>
-            <button 
-              onClick={() => handleRangeChange('7days')}
-              style={{
-                padding: '8px 16px',
-                borderRadius: '10px',
-                border: 'none',
-                fontSize: '13px',
-                fontWeight: '700',
-                cursor: 'pointer',
-                background: activeRange === '7days' ? 'rgba(255,255,255,0.08)' : 'transparent',
-                color: activeRange === '7days' ? 'var(--primary)' : 'var(--text-dim)',
-                transition: 'all 0.2s'
-              }}
-            >
-              7 วันล่าสุด
-            </button>
+              {refreshing ? <Loader2 size={16} className="animate-spin" aria-hidden="true" /> : <RefreshCw size={16} aria-hidden="true" />}
+            </Button>
           </div>
-
-          <button 
-            onClick={() => fetchAnalytics(true)}
-            className="glass-interactive"
-            style={{ padding: '10px', borderRadius: '12px', color: 'var(--text-muted)' }}
-          >
-            {refreshing ? <Loader2 size={18} className="animate-spin" /> : <RefreshCw size={18} />}
-          </button>
-        </div>
-      </div>
+        }
+      />
 
       {loading ? (
-        <div className="flex-center" style={{ height: '50vh' }}>
-          <Loader2 className="animate-spin" size={40} color="var(--primary)" />
+        <div className="flex-center" style={{ height: '45vh' }}>
+          <Loader2 className="animate-spin" size={36} color="var(--color-primary)" />
         </div>
       ) : !data ? (
-        <div className="glass flex-center" style={{ padding: '64px', textAlign: 'center' }}>
-          <p style={{ color: 'var(--text-muted)' }}>ไม่สามารถโหลดข้อมูลสถิติการทำงานได้</p>
-        </div>
+        <Card>
+          <CardBody>
+            <EmptyState title="ไม่สามารถโหลดข้อมูลสถิติการทำงานได้" />
+          </CardBody>
+        </Card>
       ) : (
         <>
-          {/* KPI Cards Grid */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '20px', marginBottom: '32px' }}>
-            {/* KPI 1 */}
-            <div className="glass" style={{ padding: '24px', display: 'flex', alignItems: 'center', gap: '20px', position: 'relative', overflow: 'hidden' }}>
-              <div style={{ background: 'rgba(40, 199, 111, 0.1)', padding: '12px', borderRadius: '14px' }}>
-                <CheckCircle size={24} color="var(--success)" />
+          <div className={styles.kpiGrid}>
+            <div className={styles.kpiCard}>
+              <div className={styles.kpiIconBox} style={{ background: 'var(--color-success-soft)', color: 'var(--color-success)' }} aria-hidden="true">
+                <CheckCircle size={20} />
               </div>
               <div>
-                <p style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: '600' }}>งานที่ปิดเสร็จสิ้น</p>
-                <h3 style={{ fontSize: '28px', fontWeight: '850', color: 'var(--text-main)', marginTop: '4px' }}>{data.stats.resolvedCount}</h3>
-                <span style={{ fontSize: '10px', color: 'var(--text-dim)' }}>จากทั้งหมด {data.stats.totalClaimed} เคส</span>
-              </div>
-              <div style={{ position: 'absolute', right: '-10px', bottom: '-15px', opacity: 0.05, transform: 'scale(1.5)' }}>
-                <CheckCircle size={96} color="var(--success)" />
+                <p className={styles.kpiLabel}>งานที่ปิดเสร็จสิ้น</p>
+                <p className={styles.kpiValue}>{data.stats.resolvedCount}</p>
+                <p className={styles.kpiSub}>จากทั้งหมด {data.stats.totalClaimed} เคส</p>
               </div>
             </div>
 
-            {/* KPI 2 (Average Close Time - Re-themed for Readability) */}
-            <div className="glass" style={{ padding: '24px', display: 'flex', alignItems: 'center', gap: '20px', position: 'relative', overflow: 'hidden' }}>
-              <div style={{ background: 'var(--primary-transparent)', padding: '12px', borderRadius: '14px' }}>
-                <Clock size={24} color="var(--primary)" />
+            <div className={styles.kpiCard}>
+              <div className={styles.kpiIconBox} style={{ background: 'var(--color-primary-soft)', color: 'var(--color-primary)' }} aria-hidden="true">
+                <Clock size={20} />
               </div>
-              <div style={{ zIndex: 1 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <p style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: '600' }}>เวลาปิดงานเฉลี่ย</p>
-                  <span style={{ fontSize: '9px', background: 'var(--primary-transparent)', color: 'var(--primary)', padding: '2px 6px', borderRadius: '4px', fontWeight: '800' }}>SPEED METRIC</span>
-                </div>
-                <h3 style={{ fontSize: '28px', fontWeight: '850', color: 'var(--text-main)', marginTop: '4px' }}>
-                  {data.stats.avgResolutionTime} <span style={{ fontSize: '14px', fontWeight: '600' }}>ชม.</span>
-                </h3>
-                <span style={{ fontSize: '10px', color: 'var(--text-dim)' }}>
-                  SLA ผ่านเกณฑ์ <span style={{ color: 'var(--success)', fontWeight: '700' }}>{data.stats.slaComplianceRate}%</span>
-                </span>
-              </div>
-              <div style={{ position: 'absolute', right: '-10px', bottom: '-15px', opacity: 0.05, transform: 'scale(1.5)', zIndex: 0 }}>
-                <Clock size={96} color="var(--primary)" />
+              <div>
+                <p className={styles.kpiLabel}>เวลาปิดงานเฉลี่ย</p>
+                <p className={styles.kpiValue}>
+                  {data.stats.avgResolutionTime} <span style={{ fontSize: 'var(--text-sm)', fontWeight: 500 }}>ชม.</span>
+                </p>
+                <p className={styles.kpiSub}>
+                  SLA ผ่านเกณฑ์ <strong style={{ color: 'var(--color-success-text)' }}>{data.stats.slaComplianceRate}%</strong>
+                </p>
               </div>
             </div>
 
-            {/* KPI 3 */}
-            <div className="glass" style={{ padding: '24px', display: 'flex', alignItems: 'center', gap: '20px', position: 'relative', overflow: 'hidden' }}>
-              <div style={{ background: 'rgba(234, 84, 85, 0.1)', padding: '12px', borderRadius: '14px' }}>
-                <AlertTriangle size={24} color="var(--danger)" />
+            <div className={styles.kpiCard}>
+              <div className={styles.kpiIconBox} style={{ background: 'var(--color-danger-soft)', color: 'var(--color-danger)' }} aria-hidden="true">
+                <AlertTriangle size={20} />
               </div>
               <div>
-                <p style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: '600' }}>อัตราการส่งกลับแก้</p>
-                <h3 style={{ fontSize: '28px', fontWeight: '850', color: 'var(--text-main)', marginTop: '4px' }}>
-                  {data.stats.reworkRate}%
-                </h3>
-                <span style={{ fontSize: '10px', color: 'var(--text-dim)' }}>โดนตีกลับ {data.stats.reworkCount} ครั้ง</span>
-              </div>
-              <div style={{ position: 'absolute', right: '-10px', bottom: '-15px', opacity: 0.05, transform: 'scale(1.5)' }}>
-                <AlertTriangle size={96} color="var(--danger)" />
+                <p className={styles.kpiLabel}>อัตราการส่งกลับแก้</p>
+                <p className={styles.kpiValue}>{data.stats.reworkRate}%</p>
+                <p className={styles.kpiSub}>โดนตีกลับ {data.stats.reworkCount} ครั้ง</p>
               </div>
             </div>
 
-            {/* KPI 4 */}
-            <div className="glass" style={{ padding: '24px', display: 'flex', alignItems: 'center', gap: '20px', position: 'relative', overflow: 'hidden' }}>
-              <div style={{ background: 'rgba(255, 159, 67, 0.1)', padding: '12px', borderRadius: '14px' }}>
-                <Star size={24} color="var(--warning)" />
+            <div className={styles.kpiCard}>
+              <div className={styles.kpiIconBox} style={{ background: 'var(--color-warning-soft)', color: 'var(--color-warning)' }} aria-hidden="true">
+                <Star size={20} />
               </div>
               <div>
-                <p style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: '600' }}>ความพึงพอใจ CSAT</p>
-                <h3 style={{ fontSize: '28px', fontWeight: '850', color: 'var(--text-main)', marginTop: '4px' }}>
+                <p className={styles.kpiLabel}>ความพึงพอใจ CSAT</p>
+                <p className={styles.kpiValue}>
                   {data.stats.avgCsat > 0 ? `${data.stats.avgCsat} / 5` : 'ไม่มีประเมิน'}
-                </h3>
-                <div style={{ display: 'flex', gap: '2px', marginTop: '4px' }}>
+                </p>
+                <div style={{ display: 'flex', gap: 2, marginTop: 6 }} aria-hidden="true">
                   {Array.from({ length: 5 }, (_, i) => (
-                    <Star 
-                      key={i} 
-                      size={10} 
-                      fill={i < Math.round(data.stats.avgCsat) ? 'var(--warning)' : 'transparent'} 
-                      color="var(--warning)" 
+                    <Star
+                      key={i}
+                      size={12}
+                      fill={i < Math.round(data.stats.avgCsat) ? 'var(--color-warning)' : 'transparent'}
+                      color="var(--color-warning)"
                     />
                   ))}
                 </div>
               </div>
-              <div style={{ position: 'absolute', right: '-10px', bottom: '-15px', opacity: 0.05, transform: 'scale(1.5)' }}>
-                <Star size={96} color="var(--warning)" />
-              </div>
             </div>
           </div>
 
-          {/* Charts Grid */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '24px', marginBottom: '32px' }}>
-            {/* Workload Volume Trend */}
-            <div className="glass" style={{ padding: '24px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '12px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <div style={{ background: 'rgba(0, 242, 254, 0.1)', padding: '6px', borderRadius: '8px', color: 'var(--primary)' }}>
-                    <TrendingUp size={16} />
+          <div className={styles.twoColGrid}>
+            <Card>
+              <CardHeader>
+                <h2 style={{ fontSize: 'var(--text-md)', fontWeight: 600, color: 'var(--color-text)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <TrendingUp size={16} color="var(--color-primary)" aria-hidden="true" />
+                  ปริมาณงานของฉัน
+                </h2>
+              </CardHeader>
+              <CardBody>
+                <ResponsiveContainer width="100%" height={260}>
+                  <AreaChart data={data.workloadTrend}>
+                    <defs>
+                      <linearGradient id="colorReceived" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#1D4ED8" stopOpacity={0.2} />
+                        <stop offset="95%" stopColor="#1D4ED8" stopOpacity={0} />
+                      </linearGradient>
+                      <linearGradient id="colorClosed" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#059669" stopOpacity={0.2} />
+                        <stop offset="95%" stopColor="#059669" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
+                    <XAxis dataKey="name" stroke="var(--color-text-subtle)" fontSize={12} axisLine={false} tickLine={false} />
+                    <YAxis stroke="var(--color-text-subtle)" fontSize={12} axisLine={false} tickLine={false} allowDecimals={false} />
+                    <Tooltip
+                      contentStyle={{ background: 'var(--color-surface)', border: '1px solid var(--color-border-strong)', borderRadius: 'var(--radius-md)' }}
+                      labelStyle={{ fontWeight: 600, fontSize: 12, color: 'var(--color-text)' }}
+                      itemStyle={{ fontSize: 12 }}
+                    />
+                    <Area type="monotone" dataKey="received" name="งานที่รับ" stroke="#1D4ED8" strokeWidth={2.5} fillOpacity={1} fill="url(#colorReceived)" />
+                    <Area type="monotone" dataKey="closed" name="งานที่ปิด" stroke="#059669" strokeWidth={2.5} fillOpacity={1} fill="url(#colorClosed)" />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </CardBody>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <h2 style={{ fontSize: 'var(--text-md)', fontWeight: 600, color: 'var(--color-text)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <PieIcon size={16} color="var(--color-info)" aria-hidden="true" />
+                  กราฟประเภทงาน
+                </h2>
+              </CardHeader>
+              <CardBody>
+                {filteredCategoryData.length === 0 ? (
+                  <EmptyState compact title="ไม่มีข้อมูลงานในระบบ" />
+                ) : (
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-around', flexWrap: 'wrap', gap: 16 }}>
+                    <ResponsiveContainer width={190} height={210}>
+                      <PieChart>
+                        <Pie data={filteredCategoryData} innerRadius={52} outerRadius={78} paddingAngle={4} dataKey="value" strokeWidth={0}>
+                          {filteredCategoryData.map((_entry, index) => (
+                            <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
+                          ))}
+                        </Pie>
+                        <Tooltip />
+                      </PieChart>
+                    </ResponsiveContainer>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                      {filteredCategoryData.map((entry, idx) => (
+                        <div key={entry.name} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                          <span style={{ width: 10, height: 10, borderRadius: 3, background: CHART_COLORS[idx % CHART_COLORS.length] }} />
+                          <span style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--color-text)' }}>{entry.name}</span>
+                          <span className="tabular-nums" style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)' }}>
+                            ({entry.value} ใบงาน)
+                          </span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                  <h3 style={{ fontSize: '16px', fontWeight: '800', color: 'var(--text-main)' }}>ปริมาณงานของฉัน</h3>
-                </div>
-              </div>
+                )}
+              </CardBody>
+            </Card>
+          </div>
 
-              <ResponsiveContainer width="100%" height={260}>
-                <AreaChart data={data.workloadTrend}>
-                  <defs>
-                    <linearGradient id="colorReceived" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="var(--primary)" stopOpacity={0.2} />
-                      <stop offset="95%" stopColor="var(--primary)" stopOpacity={0} />
-                    </linearGradient>
-                    <linearGradient id="colorClosed" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="var(--success)" stopOpacity={0.2} />
-                      <stop offset="95%" stopColor="var(--success)" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
-                  <XAxis dataKey="name" stroke="var(--text-dim)" fontSize={11} axisLine={false} tickLine={false} />
-                  <YAxis stroke="var(--text-dim)" fontSize={11} axisLine={false} tickLine={false} allowDecimals={false} />
-                  <Tooltip 
-                    contentStyle={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px' }}
-                    labelStyle={{ fontWeight: '700', fontSize: '12px', color: 'var(--text-main)' }}
-                    itemStyle={{ fontSize: '12px' }}
-                  />
-                  <Area type="monotone" dataKey="received" name="งานที่รับ" stroke="var(--primary)" strokeWidth={3} fillOpacity={1} fill="url(#colorReceived)" />
-                  <Area type="monotone" dataKey="closed" name="งานที่ปิด" stroke="var(--success)" strokeWidth={3} fillOpacity={1} fill="url(#colorClosed)" />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
-
-            {/* Workload by Category */}
-            <div className="glass" style={{ padding: '24px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '12px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <div style={{ background: 'rgba(115, 103, 240, 0.1)', padding: '6px', borderRadius: '8px', color: 'var(--secondary)' }}>
-                    <PieIcon size={16} />
-                  </div>
-                  <h3 style={{ fontSize: '16px', fontWeight: '800', color: 'var(--text-main)' }}>กราฟประเภทงาน</h3>
-                </div>
-              </div>
-
-              {filteredCategoryData.length === 0 ? (
-                <div className="flex-center" style={{ height: '260px', color: 'var(--text-muted)' }}>ไม่มีข้อมูลงานในระบบ</div>
+          <Card>
+            <CardHeader>
+              <h2 style={{ fontSize: 'var(--text-md)', fontWeight: 600, color: 'var(--color-text)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Activity size={16} color="var(--color-warning)" aria-hidden="true" />
+                บันทึกกิจกรรมการทำงานล่าสุด
+              </h2>
+            </CardHeader>
+            <CardBody>
+              {paginatedTimeline.length === 0 ? (
+                <EmptyState compact title="ไม่มีกิจกรรมบันทึกในช่วงเวลานี้" />
               ) : (
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-around', flexWrap: 'wrap', gap: '16px' }}>
-                  <ResponsiveContainer width={180} height={200}>
-                    <PieChart>
-                      <Pie
-                        data={filteredCategoryData}
-                        innerRadius={50}
-                        outerRadius={75}
-                        paddingAngle={4}
-                        dataKey="value"
-                      >
-                        {filteredCategoryData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
-                        ))}
-                      </Pie>
-                      <Tooltip />
-                    </PieChart>
-                  </ResponsiveContainer>
+                <>
+                  <div className={styles.timelineList}>
+                    {paginatedTimeline.map((item, idx) => (
+                      <div key={item.id || idx} className={styles.timelineItem}>
+                        <div className={styles.timelineBulletCol}>
+                          <div
+                            className={styles.timelineDot}
+                            style={{
+                              background:
+                                item.action === 'resolve' || item.action === 'close'
+                                  ? 'var(--color-success)'
+                                  : item.action === 'reject'
+                                    ? 'var(--color-danger)'
+                                    : 'var(--color-primary)',
+                            }}
+                          />
+                          {idx < paginatedTimeline.length - 1 ? <div className={styles.timelineLine} /> : null}
+                        </div>
 
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                    {filteredCategoryData.map((entry, idx) => (
-                      <div key={entry.name} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        <div style={{ width: '12px', height: '12px', borderRadius: '4px', background: CHART_COLORS[idx % CHART_COLORS.length] }} />
-                        <span style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-main)' }}>{entry.name}</span>
-                        <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>({entry.value} ใบงาน)</span>
+                        <div className={styles.timelineContent}>
+                          <div className={styles.timelineHeader}>
+                            <div className={styles.timelineMeta}>
+                              <span className="tabular-nums" style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: 'var(--color-text)' }}>
+                                {item.ticketNo}
+                              </span>
+                              <span style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)' }}>{item.subject}</span>
+                              <Badge variant={getActionBadgeVariant(item.action)} size="sm">
+                                {getActionTypeLabel(item.action)}
+                              </Badge>
+                            </div>
+                            <span className="tabular-nums" style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-subtle)' }}>
+                              {DateTime.fromISO(item.createdAt).toFormat('dd MMM yyyy, HH:mm น.')}
+                            </span>
+                          </div>
+
+                          {item.note ? (
+                            <div className={styles.timelineNote}>
+                              <strong style={{ color: 'var(--color-text)', marginRight: 6 }}>บันทึก:</strong>
+                              {item.note}
+                            </div>
+                          ) : null}
+                        </div>
                       </div>
                     ))}
                   </div>
-                </div>
+
+                  {totalTimelinePages > 1 ? (
+                    <div className={styles.paginationBar}>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => setCurrentTimelinePage((prev) => Math.max(prev - 1, 1))}
+                        disabled={currentTimelinePage === 1}
+                      >
+                        ย้อนกลับ
+                      </Button>
+                      <span className="tabular-nums" style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', fontWeight: 600 }}>
+                        หน้า <strong style={{ color: 'var(--color-primary)' }}>{currentTimelinePage}</strong> จาก {totalTimelinePages}
+                      </span>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => setCurrentTimelinePage((prev) => Math.min(prev + 1, totalTimelinePages))}
+                        disabled={currentTimelinePage === totalTimelinePages}
+                      >
+                        ถัดไป
+                      </Button>
+                    </div>
+                  ) : null}
+                </>
               )}
-            </div>
-          </div>
-
-          {/* Timeline and History log */}
-          <div className="glass" style={{ padding: '24px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '24px', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '16px' }}>
-              <div style={{ background: 'rgba(255, 159, 67, 0.1)', padding: '6px', borderRadius: '8px', color: 'var(--warning)' }}>
-                <Activity size={16} />
-              </div>
-              <h3 style={{ fontSize: '16px', fontWeight: '800', color: 'var(--text-main)' }}>บันทึกกิจกรรมการทำงานล่าสุด (Activity History)</h3>
-            </div>
-
-            {paginatedTimeline.length === 0 ? (
-              <div style={{ padding: '48px 0', textAlign: 'center', color: 'var(--text-muted)' }}>
-                ไม่มีกิจกรรมบันทึกในช่วงเวลานี้
-              </div>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                {paginatedTimeline.map((item, idx) => (
-                  <div key={item.id || idx} style={{ display: 'flex', gap: '16px', borderBottom: idx < paginatedTimeline.length - 1 ? '1px solid rgba(255,255,255,0.03)' : 'none', paddingBottom: '16px' }}>
-                    {/* Bullet */}
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                      <div style={{ 
-                        width: '12px', 
-                        height: '12px', 
-                        borderRadius: '50%', 
-                        background: item.action === 'resolve' || item.action === 'close' ? 'var(--success)' : item.action === 'reject' ? 'var(--danger)' : 'var(--primary)',
-                        boxShadow: '0 0 10px rgba(0,242,254,0.3)',
-                        marginTop: '4px'
-                      }} />
-                      {idx < paginatedTimeline.length - 1 && (
-                        <div style={{ width: '2px', flex: 1, background: 'rgba(255,255,255,0.05)', marginTop: '8px' }} />
-                      )}
-                    </div>
-
-                    {/* Timeline Content */}
-                    <div style={{ flex: 1 }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                          <span style={{ fontSize: '13px', fontWeight: '800', color: 'var(--text-main)' }}>{item.ticketNo}</span>
-                          <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>{item.subject}</span>
-                          <span 
-                            style={{ 
-                              fontSize: '10px', 
-                              padding: '2px 8px', 
-                              borderRadius: '6px', 
-                              fontWeight: '800', 
-                              ...getActionBadgeStyle(item.action) 
-                            }}
-                          >
-                            {getActionTypeLabel(item.action)}
-                          </span>
-                        </div>
-
-                        <span style={{ fontSize: '11px', color: 'var(--text-dim)' }}>
-                          {DateTime.fromISO(item.createdAt).toFormat('dd MMM yyyy, HH:mm น.')}
-                        </span>
-                      </div>
-
-                      {item.note && (
-                        <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.04)', borderRadius: '10px', padding: '10px 14px', marginTop: '8px', fontSize: '13px', color: 'var(--text-dim)' }}>
-                          <span style={{ fontWeight: '700', color: 'var(--text-muted)', marginRight: '6px' }}>บันทึก:</span>
-                          {item.note}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                ))}
-
-                {/* Pagination Controls */}
-                {totalTimelinePages > 1 && (
-                  <div style={{ 
-                    display: 'flex', 
-                    justifyContent: 'center', 
-                    alignItems: 'center', 
-                    gap: '16px', 
-                    marginTop: '24px', 
-                    paddingTop: '20px', 
-                    borderTop: '1px solid rgba(255, 255, 255, 0.05)'
-                  }}>
-                    <button
-                      onClick={() => setCurrentTimelinePage(prev => Math.max(prev - 1, 1))}
-                      disabled={currentTimelinePage === 1}
-                      className="glass-interactive"
-                      style={{
-                        padding: '8px 16px',
-                        borderRadius: '10px',
-                        background: currentTimelinePage === 1 ? 'rgba(255, 255, 255, 0.02)' : 'rgba(255, 255, 255, 0.05)',
-                        border: '1px solid rgba(255, 255, 255, 0.08)',
-                        color: currentTimelinePage === 1 ? 'var(--text-dim)' : 'var(--text-main)',
-                        fontSize: '13px',
-                        fontWeight: '700',
-                        cursor: currentTimelinePage === 1 ? 'not-allowed' : 'pointer',
-                        opacity: currentTimelinePage === 1 ? 0.4 : 1,
-                        transition: 'all 0.2s ease',
-                      }}
-                    >
-                      ย้อนกลับ
-                    </button>
-                    
-                    <span style={{ 
-                      fontSize: '13px', 
-                      color: 'var(--text-muted)', 
-                      fontWeight: '600'
-                    }}>
-                      หน้า <span style={{ color: 'var(--primary)', fontWeight: '800' }}>{currentTimelinePage}</span> จาก {totalTimelinePages}
-                    </span>
-                    
-                    <button
-                      onClick={() => setCurrentTimelinePage(prev => Math.min(prev + 1, totalTimelinePages))}
-                      disabled={currentTimelinePage === totalTimelinePages}
-                      className="glass-interactive"
-                      style={{
-                        padding: '8px 16px',
-                        borderRadius: '10px',
-                        background: currentTimelinePage === totalTimelinePages ? 'rgba(255, 255, 255, 0.02)' : 'rgba(255, 255, 255, 0.05)',
-                        border: '1px solid rgba(255, 255, 255, 0.08)',
-                        color: currentTimelinePage === totalTimelinePages ? 'var(--text-dim)' : 'var(--text-main)',
-                        fontSize: '13px',
-                        fontWeight: '700',
-                        cursor: currentTimelinePage === totalTimelinePages ? 'not-allowed' : 'pointer',
-                        opacity: currentTimelinePage === totalTimelinePages ? 0.4 : 1,
-                        transition: 'all 0.2s ease',
-                      }}
-                    >
-                      ถัดไป
-                    </button>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
+            </CardBody>
+          </Card>
         </>
       )}
     </div>

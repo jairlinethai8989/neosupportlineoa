@@ -1,11 +1,11 @@
 'use client';
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useId, useState } from 'react';
 import Link from 'next/link';
 import {
+  Check,
   ChevronLeft,
   Copy,
-  Check,
   Edit3,
   Layers,
   Loader2,
@@ -13,9 +13,21 @@ import {
   Plus,
   Send,
   ShieldCheck,
-  XCircle,
 } from 'lucide-react';
 import { useAppContext } from '@/contexts/AppContext';
+import {
+  Badge,
+  Button,
+  Card,
+  CardBody,
+  CardHeader,
+  EmptyState,
+  Input,
+  Modal,
+  PageHeader,
+  Textarea,
+} from '@/components/ui';
+import styles from '../settings.module.css';
 
 interface AdminProjectRow {
   id: string;
@@ -43,7 +55,7 @@ const EMPTY_FORM = {
   code: '',
   slug: '',
   organization_label: 'หน่วยงาน',
-  primary_color: '#0066ff',
+  primary_color: '#1d4ed8',
   logo_url: '',
   line_channel_id: '',
   line_channel_secret: '',
@@ -67,6 +79,9 @@ export default function ProjectsSettingsPage() {
   const [testingGroupId, setTestingGroupId] = useState<string | null>(null);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [form, setForm] = useState(EMPTY_FORM);
+
+  const colorInputId = useId();
+  const notifyCheckboxId = useId();
 
   const loadProjects = useCallback(async () => {
     setLoading(true);
@@ -109,7 +124,7 @@ export default function ProjectsSettingsPage() {
       code: project.code,
       slug: project.slug,
       organization_label: project.organization_label || 'หน่วยงาน',
-      primary_color: project.primary_color || '#0066ff',
+      primary_color: project.primary_color || '#1d4ed8',
       logo_url: project.logo_url || '',
       line_channel_id: project.line_channel_id || '',
       line_channel_secret: '',
@@ -174,14 +189,16 @@ export default function ProjectsSettingsPage() {
 
   if (!isAdmin) {
     return (
-      <div className="glass" style={{ padding: '48px', textAlign: 'center', marginTop: '40px' }}>
-        <ShieldCheck size={40} color="var(--danger)" style={{ margin: '0 auto 12px' }} />
-        <h2 style={{ fontSize: '20px', fontWeight: '800', marginBottom: '8px' }}>
-          เฉพาะผู้ดูแลระบบ (Administrator) เท่านั้น
-        </h2>
-        <p style={{ color: 'var(--text-muted)', fontSize: '14px' }}>
-          หน้าจัดการโครงการและคีย์เชื่อมต่อ LINE OA จำกัดสิทธิ์เฉพาะผู้ดูแลระบบระดับสูง
-        </p>
+      <div className={styles.page}>
+        <Card>
+          <CardBody>
+            <EmptyState
+              icon={<ShieldCheck size={22} color="var(--color-danger)" aria-hidden="true" />}
+              title="เฉพาะผู้ดูแลระบบ (Administrator) เท่านั้น"
+              description="หน้าจัดการโครงการและคีย์เชื่อมต่อ LINE OA จำกัดสิทธิ์เฉพาะผู้ดูแลระบบระดับสูง"
+            />
+          </CardBody>
+        </Card>
       </div>
     );
   }
@@ -190,534 +207,389 @@ export default function ProjectsSettingsPage() {
     typeof window !== 'undefined' ? window.location.origin : 'https://neoworkspace.vercel.app';
 
   return (
-    <div style={{ animation: 'fadeIn 0.4s ease-out' }}>
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginBottom: '28px',
-          flexWrap: 'wrap',
-          gap: '16px',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <Link href="/" style={{ color: 'var(--text-muted)' }}>
-            <ChevronLeft size={24} />
-          </Link>
-          <div>
-            <h1 style={{ fontSize: '26px', fontWeight: '800', lineHeight: '1.15' }}>
-              จัดการโครงการ & ช่องทาง LINE OA
-            </h1>
-            <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>
-              รองรับแยก LINE OA, LIFF Portal, กลุ่มแจ้งเตือนทีมงาน และคำเรียกองค์กรแยกอิสระต่อโครงการ
-            </p>
-          </div>
-        </div>
-
-        <button
-          type="button"
-          onClick={openCreateModal}
-          className="glass-interactive"
-          style={{
-            padding: '12px 20px',
-            borderRadius: '12px',
-            border: 'none',
-            background: 'var(--primary)',
-            color: '#0a0e14',
-            fontWeight: '800',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            cursor: 'pointer',
-          }}
-        >
-          <Plus size={18} />
-          เพิ่มโครงการใหม่
-        </button>
-      </div>
+    <div className={styles.page}>
+      <PageHeader
+        title={
+          <span className={styles.headerTitleRow}>
+            <Link href="/" className={styles.backLink} aria-label="กลับหน้าหลัก">
+              <ChevronLeft size={18} aria-hidden="true" />
+            </Link>
+            <span>จัดการโครงการ &amp; ช่องทาง LINE OA</span>
+          </span>
+        }
+        subtitle="รองรับแยก LINE OA, LIFF Portal, กลุ่มแจ้งเตือนทีมงาน และคำเรียกองค์กรแยกอิสระต่อโครงการ"
+        badge={
+          <Badge variant="primary" size="md">
+            {projects.length} โครงการ
+          </Badge>
+        }
+        actions={
+          <Button variant="primary" onClick={openCreateModal} leftIcon={<Plus size={16} aria-hidden="true" />}>
+            เพิ่มโครงการใหม่
+          </Button>
+        }
+      />
 
       {error && (
-        <div
-          className="glass"
-          style={{
-            padding: '16px',
-            marginBottom: '20px',
-            border: '1px solid var(--danger)',
-            color: 'var(--danger)',
-            fontSize: '13px',
-          }}
-        >
+        <div className={`${styles.alertBanner} ${styles.alertDanger}`} role="alert">
           {error}
         </div>
       )}
 
       {loading ? (
-        <div className="flex-center" style={{ height: '40vh' }}>
-          <Loader2 className="animate-spin" color="var(--primary)" />
+        <div className="flex-center" style={{ height: '40vh' }} role="status" aria-label="กำลังโหลดโครงการ">
+          <Loader2 className="animate-spin" color="var(--color-primary)" size={28} aria-hidden="true" />
         </div>
+      ) : projects.length === 0 ? (
+        <EmptyState
+          icon={<Layers size={22} aria-hidden="true" />}
+          title="ยังไม่มีโครงการในระบบ"
+          description="เพิ่มโครงการแรกเพื่อเชื่อมต่อ LINE OA และ LIFF Portal"
+          action={
+            <Button variant="primary" onClick={openCreateModal} leftIcon={<Plus size={16} aria-hidden="true" />}>
+              เพิ่มโครงการใหม่
+            </Button>
+          }
+        />
       ) : (
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(380px, 1fr))',
-            gap: '20px',
-          }}
-        >
+        <div className={styles.projectsGrid}>
           {projects.map((proj) => {
             const webhookUrl = `${origin}/api/line/webhook/${proj.slug}`;
             const portalUrl = `${origin}/portal${proj.is_default ? '' : `?project=${proj.slug}`}`;
+            const accentColor = proj.primary_color || '#1d4ed8';
 
             return (
-              <div
+              <Card
                 key={proj.id}
-                className="glass"
-                style={{
-                  padding: '22px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '16px',
-                  borderTop: `4px solid ${proj.primary_color || '#0066ff'}`,
-                }}
+                className={styles.projectCard}
+                style={{ borderTop: `3px solid ${accentColor}` }}
               >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    <div
+                <CardHeader
+                  actions={
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      onClick={() => openEditModal(proj)}
+                      leftIcon={<Edit3 size={14} aria-hidden="true" />}
+                    >
+                      แก้ไข
+                    </Button>
+                  }
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
+                    <span
+                      className={styles.projectCodeBadge}
                       style={{
-                        width: '42px',
-                        height: '42px',
-                        borderRadius: '12px',
-                        background: `${proj.primary_color || '#0066ff'}20`,
-                        color: proj.primary_color || '#0066ff',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontWeight: '900',
-                        fontSize: '13px',
+                        background: 'var(--color-surface-subtle)',
+                        color: 'var(--color-text)',
                       }}
                     >
                       {proj.code}
-                    </div>
-                    <div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <h3 style={{ fontSize: '17px', fontWeight: '800' }}>{proj.name}</h3>
+                    </span>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
+                        <h2
+                          style={{
+                            fontSize: 'var(--text-md)',
+                            fontWeight: 'var(--weight-bold)',
+                            color: 'var(--color-text)',
+                            lineHeight: 'var(--leading-tight)',
+                          }}
+                        >
+                          {proj.name}
+                        </h2>
                         {proj.is_default && (
-                          <span
-                            style={{
-                              fontSize: '10px',
-                              fontWeight: '800',
-                              padding: '2px 8px',
-                              borderRadius: '20px',
-                              background: 'rgba(16, 185, 129, 0.12)',
-                              color: '#10b981',
-                            }}
-                          >
+                          <Badge variant="success" size="sm">
                             DEFAULT
-                          </span>
+                          </Badge>
+                        )}
+                        {!proj.is_active && (
+                          <Badge variant="neutral" size="sm">
+                            ปิดใช้งาน
+                          </Badge>
                         )}
                       </div>
-                      <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                        slug: <code>{proj.slug}</code> • คำเรียกองค์กร: {proj.organization_label} • เจ้าหน้าที่ {proj.member_count} คน
+                      <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)', marginTop: '2px' }}>
+                        slug: <code className="mono">{proj.slug}</code> • {proj.organization_label} • เจ้าหน้าที่{' '}
+                        <span className="tabular-nums">{proj.member_count}</span> คน
                       </p>
                     </div>
                   </div>
+                </CardHeader>
 
-                  <button
-                    type="button"
-                    onClick={() => openEditModal(proj)}
-                    className="glass-interactive"
-                    style={{
-                      padding: '8px 10px',
-                      borderRadius: '8px',
-                      border: '1px solid var(--border)',
-                      background: 'transparent',
-                      color: 'var(--text-main)',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                      fontSize: '12px',
-                      fontWeight: '700',
-                    }}
-                  >
-                    <Edit3 size={14} /> แก้ไข
-                  </button>
-                </div>
-
-                {/* Connection Badges */}
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                  <span
-                    style={{
-                      fontSize: '11px',
-                      fontWeight: '700',
-                      padding: '4px 10px',
-                      borderRadius: '8px',
-                      background: proj.has_line_secret ? 'rgba(16,185,129,0.12)' : 'rgba(245,158,11,0.12)',
-                      color: proj.has_line_secret ? '#10b981' : '#f59e0b',
-                    }}
-                  >
-                    {proj.has_line_secret ? '✓ Channel Secret' : '○ ใช้ Secret กลาง'}
-                  </span>
-                  <span
-                    style={{
-                      fontSize: '11px',
-                      fontWeight: '700',
-                      padding: '4px 10px',
-                      borderRadius: '8px',
-                      background: proj.has_line_token ? 'rgba(16,185,129,0.12)' : 'rgba(245,158,11,0.12)',
-                      color: proj.has_line_token ? '#10b981' : '#f59e0b',
-                    }}
-                  >
-                    {proj.has_line_token ? '✓ Access Token' : '○ ใช้ Token กลาง'}
-                  </span>
-                  <span
-                    style={{
-                      fontSize: '11px',
-                      fontWeight: '700',
-                      padding: '4px 10px',
-                      borderRadius: '8px',
-                      background: proj.line_liff_id ? 'rgba(0,102,255,0.12)' : 'rgba(148,163,184,0.15)',
-                      color: proj.line_liff_id ? '#0066ff' : 'var(--text-muted)',
-                    }}
-                  >
-                    LIFF: {proj.line_liff_id || 'ค่าเริ่มต้น (.env)'}
-                  </span>
-                </div>
-
-                {/* Webhook & Portal URLs */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '12px' }}>
-                  <div
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      gap: '8px',
-                      padding: '8px 10px',
-                      borderRadius: '8px',
-                      background: 'var(--bg-input)',
-                      border: '1px solid var(--border)',
-                    }}
-                  >
-                    <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      <strong style={{ fontSize: '10px', color: 'var(--text-muted)', marginRight: '6px' }}>WEBHOOK:</strong>
-                      <span>{webhookUrl}</span>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => handleCopy(`wh-${proj.id}`, webhookUrl)}
-                      style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer', flexShrink: 0 }}
-                      title="คัดลอก Webhook URL"
-                    >
-                      {copiedKey === `wh-${proj.id}` ? <Check size={14} /> : <Copy size={14} />}
-                    </button>
+                <CardBody compact className={styles.stackMd}>
+                  {/* Connection Badges */}
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)' }}>
+                    <Badge variant={proj.has_line_secret ? 'success' : 'warning'} size="sm" dot>
+                      {proj.has_line_secret ? 'Channel Secret พร้อม' : 'ใช้ Secret กลาง'}
+                    </Badge>
+                    <Badge variant={proj.has_line_token ? 'success' : 'warning'} size="sm" dot>
+                      {proj.has_line_token ? 'Access Token พร้อม' : 'ใช้ Token กลาง'}
+                    </Badge>
+                    <Badge variant={proj.line_liff_id ? 'info' : 'neutral'} size="sm">
+                      <span className="mono">LIFF: {proj.line_liff_id || 'ค่าเริ่มต้น (.env)'}</span>
+                    </Badge>
                   </div>
 
-                  <div
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      gap: '8px',
-                      padding: '8px 10px',
-                      borderRadius: '8px',
-                      background: 'var(--bg-input)',
-                      border: '1px solid var(--border)',
-                    }}
-                  >
-                    <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      <strong style={{ fontSize: '10px', color: 'var(--text-muted)', marginRight: '6px' }}>PORTAL LIFF:</strong>
-                      <span>{portalUrl}</span>
+                  {/* Copyable Webhook & Portal URLs */}
+                  <div className={styles.stackSm}>
+                    <div className={styles.urlBox}>
+                      <div className={styles.urlContent}>
+                        <span className={styles.urlLabel}>Webhook</span>
+                        <span className={styles.urlValue} title={webhookUrl}>
+                          {webhookUrl}
+                        </span>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => handleCopy(`wh-${proj.id}`, webhookUrl)}
+                        aria-label={`คัดลอก Webhook URL ของ ${proj.name}`}
+                        leftIcon={
+                          copiedKey === `wh-${proj.id}` ? (
+                            <Check size={14} color="var(--color-success)" aria-hidden="true" />
+                          ) : (
+                            <Copy size={14} aria-hidden="true" />
+                          )
+                        }
+                      >
+                        {copiedKey === `wh-${proj.id}` ? 'คัดลอกแล้ว' : 'คัดลอก'}
+                      </Button>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => handleCopy(`pt-${proj.id}`, portalUrl)}
-                      style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer', flexShrink: 0 }}
-                      title="คัดลอก Portal URL"
-                    >
-                      {copiedKey === `pt-${proj.id}` ? <Check size={14} /> : <Copy size={14} />}
-                    </button>
+
+                    <div className={styles.urlBox}>
+                      <div className={styles.urlContent}>
+                        <span className={styles.urlLabel}>Portal LIFF</span>
+                        <span className={styles.urlValue} title={portalUrl}>
+                          {portalUrl}
+                        </span>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => handleCopy(`pt-${proj.id}`, portalUrl)}
+                        aria-label={`คัดลอก Portal URL ของ ${proj.name}`}
+                        leftIcon={
+                          copiedKey === `pt-${proj.id}` ? (
+                            <Check size={14} color="var(--color-success)" aria-hidden="true" />
+                          ) : (
+                            <Copy size={14} aria-hidden="true" />
+                          )
+                        }
+                      >
+                        {copiedKey === `pt-${proj.id}` ? 'คัดลอกแล้ว' : 'คัดลอก'}
+                      </Button>
+                    </div>
                   </div>
-                </div>
 
-                {/* Quota & Staff Group Action */}
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    paddingTop: '10px',
-                    borderTop: '1px solid var(--border)',
-                    gap: '10px',
-                    fontSize: '12px',
-                  }}
-                >
-                  <span style={{ color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <MessageSquare size={14} />
-                    {proj.notify_on_customer_message
-                      ? 'แจ้งกลุ่ม LINE ทุกแชต'
-                      : 'แจ้งเฉพาะใบงานใหม่/ส่งต่อ (ประหยัดโควต้า)'}
-                  </span>
+                  {/* Quota & Staff Group Action */}
+                  <div className={styles.projectCardFooter}>
+                    <span
+                      style={{
+                        color: 'var(--color-text-muted)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        fontSize: 'var(--text-xs)',
+                      }}
+                    >
+                      <MessageSquare size={14} aria-hidden="true" />
+                      {proj.notify_on_customer_message
+                        ? 'แจ้งกลุ่ม LINE ทุกแชต'
+                        : 'แจ้งเฉพาะใบงานใหม่/ส่งต่อ (ประหยัดโควต้า)'}
+                    </span>
 
-                  <button
-                    type="button"
-                    onClick={() => handleTestGroup(proj)}
-                    disabled={testingGroupId === proj.id || !proj.line_staff_group_id}
-                    style={{
-                      padding: '6px 10px',
-                      borderRadius: '8px',
-                      border: '1px solid var(--border)',
-                      background: 'transparent',
-                      color: proj.line_staff_group_id ? 'var(--primary)' : 'var(--text-muted)',
-                      fontWeight: '700',
-                      fontSize: '11px',
-                      cursor: proj.line_staff_group_id ? 'pointer' : 'not-allowed',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '5px',
-                      opacity: proj.line_staff_group_id ? 1 : 0.5,
-                    }}
-                  >
-                    {testingGroupId === proj.id ? <Loader2 size={12} className="animate-spin" /> : <Send size={12} />}
-                    ทดสอบกลุ่ม LINE
-                  </button>
-                </div>
-              </div>
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      onClick={() => handleTestGroup(proj)}
+                      loading={testingGroupId === proj.id}
+                      disabled={!proj.line_staff_group_id}
+                      leftIcon={<Send size={13} aria-hidden="true" />}
+                    >
+                      ทดสอบกลุ่ม LINE
+                    </Button>
+                  </div>
+                </CardBody>
+              </Card>
             );
           })}
         </div>
       )}
 
       {/* Create / Edit Project Modal */}
-      {modalOpen && (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(0,0,0,0.75)',
-            backdropFilter: 'blur(8px)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 1100,
-            padding: '16px',
-          }}
-        >
-          <div
-            className="glass"
-            style={{
-              width: '100%',
-              maxWidth: '640px',
-              maxHeight: '90vh',
-              overflowY: 'auto',
-              padding: '28px',
-              borderRadius: '20px',
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <Layers size={22} color="var(--primary)" />
-                <h3 style={{ fontSize: '19px', fontWeight: '800' }}>
-                  {form.id ? 'แก้ไขการตั้งค่าโครงการ' : 'เพิ่มโครงการ & เชื่อมต่อ LINE OA ใหม่'}
-                </h3>
-              </div>
-              <button
-                type="button"
-                onClick={() => setModalOpen(false)}
-                style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}
-              >
-                <XCircle size={22} />
-              </button>
-            </div>
+      <Modal
+        isOpen={modalOpen}
+        onClose={() => setModalOpen(false)}
+        title={form.id ? 'แก้ไขการตั้งค่าโครงการ' : 'เพิ่มโครงการ & เชื่อมต่อ LINE OA ใหม่'}
+        description="กำหนดรหัสโครงการ Slug และคีย์เชื่อมต่อ LINE Official Account แยกอิสระ"
+        size="lg"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setModalOpen(false)}>
+              ยกเลิก
+            </Button>
+            <Button type="submit" form="project-settings-form" variant="primary" loading={submitting}>
+              บันทึกการตั้งค่าโครงการ
+            </Button>
+          </>
+        }
+      >
+        <form id="project-settings-form" onSubmit={handleSave} className={styles.stackMd}>
+          <div className={styles.formGridProjectTop}>
+            <Input
+              label="ชื่อโครงการ"
+              required
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              placeholder="เช่น NeoHos Hospital System"
+            />
+            <Input
+              label="ตัวย่อ (Code)"
+              required
+              value={form.code}
+              onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase() })}
+              placeholder="NEO"
+              className="mono"
+            />
+          </div>
 
-            <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '12px' }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', marginBottom: '4px', color: 'var(--text-muted)' }}>
-                    ชื่อโครงการ *
-                  </label>
-                  <input
-                    required
-                    value={form.name}
-                    onChange={(e) => setForm({ ...form, name: e.target.value })}
-                    placeholder="เช่น NeoHos Hospital System"
-                    style={{ width: '100%', padding: '10px 12px', borderRadius: '10px', background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-main)' }}
-                  />
-                </div>
-                <div>
-                  <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', marginBottom: '4px', color: 'var(--text-muted)' }}>
-                    ตัวย่อ (Code) *
-                  </label>
-                  <input
-                    required
-                    value={form.code}
-                    onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase() })}
-                    placeholder="NEO"
-                    style={{ width: '100%', padding: '10px 12px', borderRadius: '10px', background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-main)' }}
-                  />
-                </div>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 90px', gap: '12px' }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', marginBottom: '4px', color: 'var(--text-muted)' }}>
-                    URL Slug (ใช้ใน Webhook/Portal) *
-                  </label>
-                  <input
-                    required
-                    value={form.slug}
-                    onChange={(e) => setForm({ ...form, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-') })}
-                    placeholder="neohos"
-                    style={{ width: '100%', padding: '10px 12px', borderRadius: '10px', background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-main)' }}
-                  />
-                </div>
-                <div>
-                  <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', marginBottom: '4px', color: 'var(--text-muted)' }}>
-                    คำเรียกองค์กรฝั่งลูกค้า
-                  </label>
-                  <input
-                    value={form.organization_label}
-                    onChange={(e) => setForm({ ...form, organization_label: e.target.value })}
-                    placeholder="เช่น โรงพยาบาล / บริษัท / สาขา"
-                    style={{ width: '100%', padding: '10px 12px', borderRadius: '10px', background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-main)' }}
-                  />
-                </div>
-                <div>
-                  <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', marginBottom: '4px', color: 'var(--text-muted)' }}>
-                    สีป้าย
-                  </label>
-                  <input
-                    type="color"
-                    value={form.primary_color}
-                    onChange={(e) => setForm({ ...form, primary_color: e.target.value })}
-                    style={{ width: '100%', height: '42px', padding: '4px', borderRadius: '10px', background: 'var(--bg-input)', border: '1px solid var(--border)', cursor: 'pointer' }}
-                  />
-                </div>
-              </div>
-
-              <hr style={{ border: 'none', borderTop: '1px solid var(--border)', margin: '6px 0' }} />
-              <p style={{ fontSize: '12px', fontWeight: '800', color: 'var(--primary)' }}>
-                ตั้งค่า LINE Official Account ประจำโครงการ
-              </p>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', marginBottom: '4px', color: 'var(--text-muted)' }}>
-                    LINE LIFF ID
-                  </label>
-                  <input
-                    value={form.line_liff_id}
-                    onChange={(e) => setForm({ ...form, line_liff_id: e.target.value })}
-                    placeholder="2009xxxxxx-xxxxxxxx"
-                    style={{ width: '100%', padding: '10px 12px', borderRadius: '10px', background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-main)' }}
-                  />
-                </div>
-                <div>
-                  <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', marginBottom: '4px', color: 'var(--text-muted)' }}>
-                    LINE Login Channel ID (ไม่บังคับ)
-                  </label>
-                  <input
-                    value={form.line_channel_id}
-                    onChange={(e) => setForm({ ...form, line_channel_id: e.target.value })}
-                    placeholder="ใช้เลขหน้าเครื่องหมาย - ของ LIFF ID อัตโนมัติ"
-                    style={{ width: '100%', padding: '10px 12px', borderRadius: '10px', background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-main)' }}
-                  />
-                </div>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', marginBottom: '4px', color: 'var(--text-muted)' }}>
-                    LINE Bot Basic ID (เช่น @neohos)
-                  </label>
-                  <input
-                    value={form.line_bot_id}
-                    onChange={(e) => setForm({ ...form, line_bot_id: e.target.value })}
-                    placeholder="@myproject"
-                    style={{ width: '100%', padding: '10px 12px', borderRadius: '10px', background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-main)' }}
-                  />
-                </div>
-                <div>
-                  <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', marginBottom: '4px', color: 'var(--text-muted)' }}>
-                    LINE Staff Group ID (สำหรับแจ้งเตือนทีม)
-                  </label>
-                  <input
-                    value={form.line_staff_group_id}
-                    onChange={(e) => setForm({ ...form, line_staff_group_id: e.target.value })}
-                    placeholder="C86378841bdd..."
-                    style={{ width: '100%', padding: '10px 12px', borderRadius: '10px', background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-main)' }}
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', marginBottom: '4px', color: 'var(--text-muted)' }}>
-                  LINE Messaging API Channel Secret {form.id ? '(เว้นว่างไว้หากไม่ต้องการเปลี่ยน)' : ''}
-                </label>
-                <input
-                  type="password"
-                  value={form.line_channel_secret}
-                  onChange={(e) => setForm({ ...form, line_channel_secret: e.target.value })}
-                  placeholder={form.id ? '•••••••• (ค่าเดิมถูกบันทึกไว้อย่างปลอดภัย)' : 'ใส่ Channel Secret'}
-                  style={{ width: '100%', padding: '10px 12px', borderRadius: '10px', background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-main)' }}
-                />
-              </div>
-
-              <div>
-                <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', marginBottom: '4px', color: 'var(--text-muted)' }}>
-                  LINE Messaging API Channel Access Token {form.id ? '(เว้นว่างไว้หากไม่ต้องการเปลี่ยน)' : ''}
-                </label>
-                <textarea
-                  rows={2}
-                  value={form.line_channel_access_token}
-                  onChange={(e) => setForm({ ...form, line_channel_access_token: e.target.value })}
-                  placeholder={form.id ? '•••••••• (ค่าเดิมถูกบันทึกไว้อย่างปลอดภัย)' : 'ใส่ Long-lived Channel Access Token'}
-                  style={{ width: '100%', padding: '10px 12px', borderRadius: '10px', background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-main)', resize: 'vertical' }}
-                />
-              </div>
-
+          <div className={styles.formGridProjectSlug}>
+            <Input
+              label="URL Slug"
+              required
+              value={form.slug}
+              onChange={(e) => setForm({ ...form, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-') })}
+              placeholder="neohos"
+              className="mono"
+            />
+            <Input
+              label="คำเรียกองค์กรฝั่งลูกค้า"
+              value={form.organization_label}
+              onChange={(e) => setForm({ ...form, organization_label: e.target.value })}
+              placeholder="เช่น โรงพยาบาล / บริษัท / สาขา"
+            />
+            <div className={styles.stackSm}>
               <label
+                htmlFor={colorInputId}
                 style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '10px',
-                  fontSize: '12px',
-                  cursor: 'pointer',
-                  padding: '10px 12px',
-                  borderRadius: '10px',
-                  background: 'var(--bg-input)',
-                  border: '1px solid var(--border)',
+                  fontSize: 'var(--text-sm)',
+                  fontWeight: 'var(--weight-semibold)',
+                  color: 'var(--color-text)',
                 }}
               >
-                <input
-                  type="checkbox"
-                  checked={form.notify_on_customer_message}
-                  onChange={(e) => setForm({ ...form, notify_on_customer_message: e.target.checked })}
-                />
-                <span>
-                  แจ้งเตือนเข้ากลุ่ม LINE ทุกครั้งที่ลูกค้าพิมพ์ข้อความแชตย่อย (ปิดไว้เป็นค่าเริ่มต้นเพื่อประหยัดโควต้า LINE Push 60–70%)
-                </span>
+                สีป้าย
               </label>
-
-              <div style={{ display: 'flex', gap: '12px', marginTop: '8px' }}>
-                <button
-                  type="button"
-                  onClick={() => setModalOpen(false)}
-                  style={{ flex: 1, padding: '12px', borderRadius: '10px', background: 'transparent', border: '1px solid var(--border)', color: 'var(--text-main)', cursor: 'pointer', fontWeight: '700' }}
-                >
-                  ยกเลิก
-                </button>
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  style={{ flex: 1, padding: '12px', borderRadius: '10px', background: 'var(--primary)', border: 'none', color: '#0a0e14', fontWeight: '800', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
-                >
-                  {submitting ? <Loader2 size={16} className="animate-spin" /> : 'บันทึกการตั้งค่าโครงการ'}
-                </button>
-              </div>
-            </form>
+              <input
+                id={colorInputId}
+                type="color"
+                value={form.primary_color}
+                onChange={(e) => setForm({ ...form, primary_color: e.target.value })}
+                style={{
+                  width: '100%',
+                  height: 'var(--control-md)',
+                  padding: '3px',
+                  borderRadius: 'var(--radius-md)',
+                  background: 'var(--color-surface)',
+                  border: '1px solid var(--color-border-strong)',
+                  cursor: 'pointer',
+                }}
+              />
+            </div>
           </div>
-        </div>
-      )}
+
+          <div
+            style={{
+              paddingTop: 'var(--space-3)',
+              borderTop: '1px solid var(--color-border)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 'var(--space-3)',
+            }}
+          >
+            <p
+              style={{
+                fontSize: 'var(--text-xs)',
+                fontWeight: 'var(--weight-bold)',
+                color: 'var(--color-primary)',
+                textTransform: 'uppercase',
+                letterSpacing: '0.04em',
+              }}
+            >
+              ตั้งค่า LINE Official Account ประจำโครงการ
+            </p>
+
+            <div className={styles.formGrid2}>
+              <Input
+                label="LINE LIFF ID"
+                value={form.line_liff_id}
+                onChange={(e) => setForm({ ...form, line_liff_id: e.target.value })}
+                placeholder="2009xxxxxx-xxxxxxxx"
+                className="mono"
+              />
+              <Input
+                label="LINE Login Channel ID (ไม่บังคับ)"
+                value={form.line_channel_id}
+                onChange={(e) => setForm({ ...form, line_channel_id: e.target.value })}
+                placeholder="ใช้เลขหน้า - ของ LIFF ID อัตโนมัติ"
+                className="mono"
+              />
+            </div>
+
+            <div className={styles.formGrid2}>
+              <Input
+                label="LINE Bot Basic ID"
+                value={form.line_bot_id}
+                onChange={(e) => setForm({ ...form, line_bot_id: e.target.value })}
+                placeholder="@myproject"
+                className="mono"
+              />
+              <Input
+                label="LINE Staff Group ID (สำหรับแจ้งเตือนทีม)"
+                value={form.line_staff_group_id}
+                onChange={(e) => setForm({ ...form, line_staff_group_id: e.target.value })}
+                placeholder="C86378841bdd..."
+                className="mono"
+              />
+            </div>
+
+            <Input
+              type="password"
+              label={`LINE Messaging API Channel Secret ${form.id ? '(เว้นว่างไว้หากไม่ต้องการเปลี่ยน)' : ''}`}
+              value={form.line_channel_secret}
+              onChange={(e) => setForm({ ...form, line_channel_secret: e.target.value })}
+              placeholder={form.id ? '•••••••• (ค่าเดิมถูกบันทึกไว้อย่างปลอดภัย)' : 'ใส่ Channel Secret'}
+              className="mono"
+            />
+
+            <Textarea
+              rows={2}
+              label={`LINE Messaging API Channel Access Token ${form.id ? '(เว้นว่างไว้หากไม่ต้องการเปลี่ยน)' : ''}`}
+              value={form.line_channel_access_token}
+              onChange={(e) => setForm({ ...form, line_channel_access_token: e.target.value })}
+              placeholder={form.id ? '•••••••• (ค่าเดิมถูกบันทึกไว้อย่างปลอดภัย)' : 'ใส่ Long-lived Channel Access Token'}
+              className="mono"
+            />
+
+            <label
+              htmlFor={notifyCheckboxId}
+              className={`${styles.checkboxPill} ${form.notify_on_customer_message ? styles.checkboxPillChecked : ''}`}
+              style={{ width: '100%', padding: 'var(--space-3)' }}
+            >
+              <input
+                id={notifyCheckboxId}
+                type="checkbox"
+                className={styles.checkboxInput}
+                checked={form.notify_on_customer_message}
+                onChange={(e) => setForm({ ...form, notify_on_customer_message: e.target.checked })}
+              />
+              <span style={{ fontWeight: 'var(--weight-medium)', lineHeight: 'var(--leading-normal)' }}>
+                แจ้งเตือนเข้ากลุ่ม LINE ทุกครั้งที่ลูกค้าพิมพ์ข้อความแชตย่อย (ปิดไว้เป็นค่าเริ่มต้นเพื่อประหยัดโควต้า LINE Push 60–70%)
+              </span>
+            </label>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 }

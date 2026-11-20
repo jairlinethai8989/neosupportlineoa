@@ -1,58 +1,46 @@
 'use client';
+
 import React, { Suspense, useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { useSearchParams } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
+import { Button } from '@/components/ui';
 import { TicketsWorkspaceHeader } from '@/components/tickets/TicketsWorkspaceHeader';
 import { useStaffLocale } from '@/contexts/StaffLocaleContext';
 import { useTicketWorkspace } from '@/hooks/useTicketWorkspace';
 import styles from './tickets-workspace.module.css';
 
-const loadingContainerStyle: React.CSSProperties = {
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  height: '70vh',
-};
+const ResolveTicketModal = dynamic(
+  () => import('@/components/inbox/ResolveTicketModal').then((m) => m.ResolveTicketModal),
+  { ssr: false }
+);
 
-const ResolveTicketModal = dynamic(() => import('@/components/inbox/ResolveTicketModal').then(m => m.ResolveTicketModal), {
-  ssr: false
-});
+const TicketsBoard = dynamic(
+  () => import('@/components/tickets/TicketsBoard').then((m) => m.TicketsBoard),
+  {
+    ssr: false,
+    loading: () => (
+      <div className={styles.loadingCenter}>
+        <Loader2 className="animate-spin" size={28} color="var(--color-primary)" aria-hidden="true" />
+      </div>
+    ),
+  }
+);
 
-const TicketsBoard = dynamic(() => import('@/components/tickets/TicketsBoard').then(m => m.TicketsBoard), {
-  ssr: false,
-  loading: () => (
-    <div style={loadingContainerStyle}>
-      <Loader2 className="animate-spin" size={32} color="var(--primary)" />
-    </div>
-  )
-});
-
-const TicketsTable = dynamic(() => import('@/components/tickets/TicketsTable').then(m => m.TicketsTable), {
-  ssr: false,
-  loading: () => (
-    <div style={loadingContainerStyle}>
-      <Loader2 className="animate-spin" size={32} color="var(--primary)" />
-    </div>
-  )
-});
-
-const loadingContainerWithMessageStyle: React.CSSProperties = {
-  ...loadingContainerStyle,
-  flexDirection: 'column',
-  gap: '16px',
-};
-
-const pageContainerStyle: React.CSSProperties = {
-  height: '100%',
-  display: 'flex',
-  flexDirection: 'column',
-  width: '100%',
-  position: 'relative',
-};
+const TicketsTable = dynamic(
+  () => import('@/components/tickets/TicketsTable').then((m) => m.TicketsTable),
+  {
+    ssr: false,
+    loading: () => (
+      <div className={styles.loadingCenter}>
+        <Loader2 className="animate-spin" size={28} color="var(--color-primary)" aria-hidden="true" />
+      </div>
+    ),
+  }
+);
 
 function TicketsContent() {
-  const { t } = useStaffLocale();
+  const { locale, t } = useStaffLocale();
   const searchParams = useSearchParams();
   const filterCustomerId = searchParams.get('customerId');
 
@@ -108,36 +96,20 @@ function TicketsContent() {
 
   if (loading) {
     return (
-      <div style={loadingContainerWithMessageStyle} className="animate-page-in">
-        <Loader2 className="animate-spin" size={32} color="var(--primary)" />
-        <p style={{ color: 'var(--text-muted)' }}>{t('tickets.loadingWorkspace')}</p>
+      <div className={styles.loadingCenter} role="status" aria-live="polite">
+        <Loader2 className="animate-spin" size={28} color="var(--color-primary)" aria-hidden="true" />
+        <p style={{ margin: 0, fontSize: 'var(--text-sm)' }}>{t('tickets.loadingWorkspace')}</p>
         {showRetry && (
-          <button
-            onClick={() => refresh()}
-            className="glass-interactive flex-center animate-page-in"
-            style={{
-              padding: '10px 20px',
-              borderRadius: '12px',
-              border: '1px solid var(--border)',
-              background: 'rgba(54, 153, 255, 0.1)',
-              color: 'var(--primary)',
-              fontSize: '14px',
-              fontWeight: 700,
-              cursor: 'pointer',
-              boxShadow: '0 8px 24px rgba(54, 153, 255, 0.05)',
-              transition: 'all 0.2s ease',
-              marginTop: '12px'
-            }}
-          >
-            {t('common.retry') || 'โหลดใหม่อีกครั้ง'}
-          </button>
+          <Button variant="secondary" size="sm" onClick={() => refresh()}>
+            {locale === 'th' ? 'โหลดใหม่อีกครั้ง' : 'Retry'}
+          </Button>
         )}
       </div>
     );
   }
 
   return (
-    <div className={styles.workspacePage} style={pageContainerStyle}>
+    <div className={styles.workspacePage}>
       <TicketsWorkspaceHeader
         customEnd={customEnd}
         customStart={customStart}
@@ -153,7 +125,6 @@ function TicketsContent() {
         timeRange={timeRange}
         viewMode={viewMode}
       />
-
 
       {viewMode === 'board' ? (
         <TicketsBoard
@@ -200,8 +171,8 @@ export default function TicketsPage() {
   return (
     <Suspense
       fallback={
-        <div style={loadingContainerStyle}>
-          <Loader2 className="animate-spin" size={32} color="var(--primary)" />
+        <div className={styles.loadingCenter} role="status">
+          <Loader2 className="animate-spin" size={28} color="var(--color-primary)" aria-hidden="true" />
         </div>
       }
     >

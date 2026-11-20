@@ -1,13 +1,16 @@
 import React from 'react';
-import { ArrowLeft, CheckCircle, FileDown, Save, Loader2, Bot } from 'lucide-react';
+import { ArrowLeft, Bot, CheckCircle, FileDown, Save } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import type { TicketDetailTicket, TicketDetailUser } from '@/types/tickets';
+import { clsx } from 'clsx';
+import { Badge, Button } from '@/components/ui';
+import { useStaffLocale } from '@/contexts/StaffLocaleContext';
 import {
   canResolveTicket,
   isResolvedOrClosedStatus,
   isTicketOwnerOrAdmin,
-  isNewStatus,
 } from '@/lib/tickets/detailState';
+import type { TicketDetailTicket, TicketDetailUser } from '@/types/tickets';
+import styles from '@/app/(dashboard)/tickets/tickets-workspace.module.css';
 
 interface TicketHeaderProps {
   ticket: TicketDetailTicket | null;
@@ -37,6 +40,7 @@ export const TicketHeader: React.FC<TicketHeaderProps> = ({
   aiLoading = false,
 }) => {
   const router = useRouter();
+  const { locale } = useStaffLocale();
 
   if (!ticket) return null;
 
@@ -45,185 +49,121 @@ export const TicketHeader: React.FC<TicketHeaderProps> = ({
   const canResolve = canResolveTicket(status, isOwnerOrAdmin, isChatActive);
   const canReviewFixCompleted = status === 'Fix Completed';
 
+  const statusLower = status.toLowerCase();
+  const statusVariant =
+    statusLower === 'resolved' || statusLower === 'closed'
+      ? 'success'
+      : statusLower === 'pending'
+        ? 'danger'
+        : statusLower === 'in progress' || statusLower === 'escalated'
+          ? 'warning'
+          : 'primary';
+
   return (
-    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-        <button
+    <header className={styles.detailHeader}>
+      <div className={styles.detailHeaderLeft}>
+        <Button
+          size="md"
+          variant="secondary"
+          iconOnly
           onClick={() => router.push('/tickets')}
-          className="glass-interactive flex-center"
-          style={{ width: '40px', height: '40px', borderRadius: '12px', border: 'none' }}
+          aria-label={locale === 'th' ? 'กลับหน้ารายการใบงาน' : 'Back to tickets'}
         >
-          <ArrowLeft size={20} />
-        </button>
+          <ArrowLeft size={18} aria-hidden="true" />
+        </Button>
+
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <h1 style={{ fontSize: '24px', fontWeight: '800' }}>#{ticket.ticket_no}</h1>
-            <span
-              style={{
-                padding: '4px 10px',
-                borderRadius: '6px',
-                fontSize: '11px',
-                fontWeight: '800',
-                background: 'rgba(255, 171, 0, 0.1)',
-                color: 'var(--warning)',
-                letterSpacing: '1px',
-              }}
-            >
-              {status.toUpperCase()}
-            </span>
+          <div className={styles.detailTitleRow}>
+            <h1 className={clsx(styles.detailTitle, 'tabular-nums')}>#{ticket.ticket_no}</h1>
+            <Badge size="md" variant={statusVariant} dot>
+              {status}
+            </Badge>
             {ticket.assigned_agent && (
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  padding: '4px 12px',
-                  background: 'var(--primary-transparent)',
-                  borderRadius: '20px',
-                  marginLeft: '8px',
-                }}
-              >
-                <CheckCircle size={14} color="var(--primary)" />
-                <span style={{ fontSize: '12px', color: 'var(--primary)', fontWeight: '900' }}>
-                  Assigned: {ticket.assigned_agent.display_name}
-                </span>
-              </div>
+              <Badge size="md" variant="primary">
+                {ticket.assigned_agent.display_name}
+              </Badge>
             )}
           </div>
-          <p style={{ color: 'var(--text-muted)', fontSize: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span>Ticket Details & Management</span>
+          <p className={styles.detailMetaLine}>
+            <span>{locale === 'th' ? 'รายละเอียดและการจัดการใบงาน' : 'Ticket Details & Management'}</span>
             {ticket.created_at && (
               <>
-                <span>•</span>
-                <span style={{ color: 'var(--primary)', fontWeight: '700' }}>
-                  Reported: {new Date(ticket.created_at).toLocaleString('th-TH', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })} น.
+                <span aria-hidden="true">•</span>
+                <span className="tabular-nums">
+                  {locale === 'th' ? 'แจ้งเมื่อ' : 'Reported'}:{' '}
+                  {new Date(ticket.created_at).toLocaleString('th-TH', {
+                    day: 'numeric',
+                    month: 'short',
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })}
                 </span>
               </>
             )}
           </p>
         </div>
       </div>
-      <div style={{ display: 'flex', gap: '8px' }}>
+
+      <div className={styles.detailActions}>
         {isResolvedOrClosed && onAiSummaryClick && (
-          <button
+          <Button
+            size="md"
+            variant="secondary"
+            loading={aiLoading}
             onClick={onAiSummaryClick}
-            disabled={aiLoading}
-            className="glass-interactive flex-center"
-            style={{
-              padding: '0 20px',
-              height: '44px',
-              borderRadius: '12px',
-              border: '1px solid #38bdf8',
-              background: '#0f172a',
-              color: '#38bdf8',
-              fontWeight: '900',
-              gap: '8px',
-              boxShadow: '0 0 12px rgba(56, 189, 248, 0.2)',
-              transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-              cursor: aiLoading ? 'not-allowed' : 'pointer'
-            }}
+            leftIcon={<Bot size={16} aria-hidden="true" />}
           >
-            {aiLoading ? (
-              <Loader2 size={18} className="animate-spin" />
-            ) : (
-              <Bot size={18} style={{ color: '#38bdf8' }} />
-            )}
             {ticket.ai_analysis ? 'สรุปเคสด้วย AI อีกครั้ง' : 'สรุปเคสด้วย AI'}
-          </button>
+          </Button>
         )}
-        <button
+
+        <Button
+          size="md"
+          variant="secondary"
           onClick={onExportClick}
-          className="glass-interactive flex-center"
-          style={{
-            padding: '0 20px',
-            height: '44px',
-            borderRadius: '12px',
-            border: '1px solid var(--primary)',
-            background: 'var(--primary-transparent)',
-            color: 'var(--primary)',
-            fontWeight: '900',
-            gap: '8px',
-            boxShadow: '0 0 15px var(--primary-glow)',
-            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
-          }}
+          leftIcon={<FileDown size={16} aria-hidden="true" />}
         >
-          <FileDown size={18} /> Ticket Summary
-        </button>
+          Ticket Summary
+        </Button>
 
         {canReviewFixCompleted && (
           <>
-            <button
-              onClick={onRejectFixCompleted}
-              className="glass-interactive flex-center"
-              style={{
-                padding: '0 20px',
-                height: '44px',
-                borderRadius: '12px',
-                border: '1px solid #f59e0b',
-                background: 'rgba(245, 158, 11, 0.12)',
-                color: '#f59e0b',
-                fontWeight: '900',
-                gap: '8px',
-              }}
-            >
+            <Button size="md" variant="warning" onClick={onRejectFixCompleted}>
               ส่งกลับแก้ต่อ
-            </button>
-            <button
+            </Button>
+            <Button
+              size="md"
+              variant="primary"
               onClick={onResolveClick}
-              className="glass-interactive flex-center"
-              style={{
-                padding: '0 20px',
-                height: '44px',
-                borderRadius: '12px',
-                border: 'none',
-                background: '#22c55e',
-                color: 'white',
-                fontWeight: '900',
-                gap: '8px',
-                boxShadow: '0 4px 12px rgba(34, 197, 94, 0.3)',
-              }}
+              leftIcon={<CheckCircle size={16} aria-hidden="true" />}
             >
-              <CheckCircle size={18} /> ยืนยันผลและปิดงาน
-            </button>
+              ยืนยันผลและปิดงาน
+            </Button>
           </>
         )}
+
         {!canReviewFixCompleted && canResolve && (
-          <button
+          <Button
+            size="md"
+            variant="primary"
             onClick={onResolveClick}
-            className="glass-interactive flex-center"
-            style={{
-              padding: '0 20px',
-              height: '44px',
-              borderRadius: '12px',
-              border: 'none',
-              background: '#22c55e',
-              color: 'white',
-              fontWeight: '900',
-              gap: '8px',
-              boxShadow: '0 4px 12px rgba(34, 197, 94, 0.3)',
-            }}
+            leftIcon={<CheckCircle size={16} aria-hidden="true" />}
           >
-            <CheckCircle size={18} /> Resolve Ticket
-          </button>
+            Resolve Ticket
+          </Button>
         )}
-        <button
+
+        <Button
+          size="md"
+          variant="primary"
+          loading={updating}
           onClick={onUpdate}
-          disabled={updating}
-          className="glass-interactive flex-center"
-          style={{
-            padding: '0 20px',
-            height: '44px',
-            borderRadius: '12px',
-            border: '1px solid var(--primary)',
-            background: 'var(--primary)',
-            color: 'white',
-            fontWeight: '800',
-            gap: '8px',
-          }}
+          leftIcon={<Save size={16} aria-hidden="true" />}
         >
-          {updating ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />} Save Changes
-        </button>
+          {locale === 'th' ? 'รีเฟรช / บันทึก' : 'Save Changes'}
+        </Button>
       </div>
-    </div>
+    </header>
   );
 };

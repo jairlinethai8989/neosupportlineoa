@@ -1,110 +1,58 @@
 'use client';
 
 import React from 'react';
-import { ArrowDown, ArrowUp, ArrowUpDown, ExternalLink, Loader2, MessageCircle, Zap } from 'lucide-react';
+import {
+  ArrowDown,
+  ArrowUp,
+  ArrowUpDown,
+  ExternalLink,
+  Loader2,
+  MessageCircle,
+  Zap,
+} from 'lucide-react';
 import Link from 'next/link';
+import { clsx } from 'clsx';
+import { Badge, Button } from '@/components/ui';
+import type { BadgeVariant } from '@/components/ui';
 import { useStaffLocale } from '@/contexts/StaffLocaleContext';
 import { translateTicketStatus } from '@/lib/i18n/staff';
 import type { TicketWorkspaceSortConfig, TicketWorkspaceTicket } from '@/types/tickets';
+import styles from '@/app/(dashboard)/tickets/tickets-workspace.module.css';
 
-type SortableColumnKey = 'ticket_no' | 'subject' | 'organization' | 'customer' | 'agent' | 'status' | 'created_at';
+type SortableColumnKey =
+  | 'ticket_no'
+  | 'subject'
+  | 'organization'
+  | 'customer'
+  | 'agent'
+  | 'status'
+  | 'created_at';
+
 type TableColumn = {
   key: SortableColumnKey | 'actions';
   label: string;
   noSort?: boolean;
 };
 
-const tableWrapStyle: React.CSSProperties = { overflowX: 'auto', padding: '1px' };
-const tableStyle: React.CSSProperties = { width: '100%', borderCollapse: 'collapse', textAlign: 'left' };
-const tableHeadStyle: React.CSSProperties = {
-  background: 'rgba(255, 255, 255, 0.03)',
-  borderBottom: '1px solid var(--border)',
-};
-
-const tableHeadCellStyle: React.CSSProperties = {
-  padding: '16px 20px',
-  fontSize: '11px',
-  fontWeight: '800',
-  color: 'var(--text-muted)',
-  textTransform: 'uppercase',
-  userSelect: 'none',
-};
-
-const sortLabelWrapStyle: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: '8px' };
-const sortIconWrapStyle: React.CSSProperties = { display: 'flex', alignItems: 'center' };
-const rowStyle: React.CSSProperties = { borderBottom: '1px solid var(--border)' };
-const cellStyle: React.CSSProperties = { padding: '16px 20px' };
-const subjectCellStyle: React.CSSProperties = { ...cellStyle, fontSize: '14px', fontWeight: '500' };
-const hospitalCellStyle: React.CSSProperties = {
-  ...cellStyle,
-  fontSize: '13px',
-  fontWeight: '700',
-  color: 'var(--primary)',
-};
-const ticketLinkStyle: React.CSSProperties = { fontSize: '13px', fontWeight: '800', color: 'var(--primary)', textDecoration: 'none' };
-const actionWrapStyle: React.CSSProperties = { display: 'flex', gap: '8px' };
-
-const actionButtonBaseStyle: React.CSSProperties = {
-  width: '32px',
-  height: '32px',
-  borderRadius: '8px',
-};
-
-const messageActionButtonStyle: React.CSSProperties = {
-  ...actionButtonBaseStyle,
-  width: '36px',
-  height: '36px',
-  color: 'var(--primary)',
-  background: 'var(--primary-transparent)',
-  border: '1px solid var(--primary)',
-};
-
-const detailsActionButtonStyle: React.CSSProperties = {
-  ...actionButtonBaseStyle,
-  color: 'var(--text-muted)',
-};
-
 function renderSortIcon(columnKey: SortableColumnKey, sortConfig: TicketWorkspaceSortConfig) {
   if (sortConfig.key !== columnKey) {
-    return <ArrowUpDown size={12} style={{ opacity: 0.3 }} />;
+    return <ArrowUpDown size={12} style={{ opacity: 0.4 }} aria-hidden="true" />;
   }
-  return sortConfig.direction === 'asc' ? <ArrowUp size={12} /> : <ArrowDown size={12} />;
-}
-
-function getStatusColor(status: string) {
-  const normalized = String(status || 'New').toLowerCase();
-  const colors: Record<string, string> = {
-    new: 'var(--primary)',
-    pending: '#ea5455',
-    assigned: '#3699FF',
-    'in progress': '#ff9f43',
-    resolved: '#28c76f',
-    closed: '#94a3b8',
-    escalated: '#7367f0',
-    'fix completed': '#00cfe8',
-  };
-  return colors[normalized] || 'gray';
-}
-
-function StatusBadge({ status, locale }: { status: string; locale: 'th' | 'en' }) {
-  const color = getStatusColor(status);
-  const label = translateTicketStatus(status || 'New', locale);
-  return (
-    <span
-      style={{
-        padding: '4px 10px',
-        borderRadius: '8px',
-        fontSize: '11px',
-        fontWeight: '850',
-        textTransform: 'uppercase',
-        background: `${color}15`,
-        color: color,
-        border: `1px solid ${color}30`,
-      }}
-    >
-      {label}
-    </span>
+  return sortConfig.direction === 'asc' ? (
+    <ArrowUp size={12} aria-hidden="true" />
+  ) : (
+    <ArrowDown size={12} aria-hidden="true" />
   );
+}
+
+function getStatusBadgeVariant(status: string): BadgeVariant {
+  const normalized = String(status || 'New').toLowerCase();
+  if (normalized === 'new') return 'primary';
+  if (normalized === 'pending') return 'danger';
+  if (normalized === 'in progress' || normalized === 'escalated') return 'warning';
+  if (normalized === 'resolved') return 'success';
+  if (normalized === 'assigned' || normalized === 'fix completed') return 'info';
+  return 'neutral';
 }
 
 interface TicketsTableProps {
@@ -130,7 +78,7 @@ export function TicketsTable({
 
   const columns: TableColumn[] = [
     { key: 'ticket_no', label: t('tickets.ticketId') },
-    { key: 'created_at', label: 'วันที่แจ้งงาน' },
+    { key: 'created_at', label: locale === 'th' ? 'วันที่แจ้งงาน' : 'Created' },
     { key: 'subject', label: t('tickets.subject') },
     { key: 'organization', label: t('tickets.organization') },
     { key: 'customer', label: t('tickets.customer') },
@@ -140,27 +88,24 @@ export function TicketsTable({
   ];
 
   return (
-    <div className="glass board-scroll-container" style={tableWrapStyle}>
-      <table style={tableStyle}>
-        <thead style={tableHeadStyle}>
+    <div className={styles.tableContainer}>
+      <table className={styles.table}>
+        <thead className={styles.tableHead}>
           <tr>
             {columns.map((column) => (
-              <th
-                key={column.key}
-                onClick={() => !column.noSort && handleSort(column.key)}
-                style={{
-                  ...tableHeadCellStyle,
-                  cursor: column.noSort ? 'default' : 'pointer',
-                }}
-              >
-                <div style={sortLabelWrapStyle}>
-                  {column.label}
-                  {!column.noSort && (
-                    <span style={sortIconWrapStyle}>
-                      {renderSortIcon(column.key as SortableColumnKey, sortConfig)}
-                    </span>
-                  )}
-                </div>
+              <th key={column.key} className={styles.tableTh}>
+                {column.noSort ? (
+                  column.label
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => handleSort(column.key)}
+                    className={styles.sortBtn}
+                  >
+                    <span>{column.label}</span>
+                    {renderSortIcon(column.key as SortableColumnKey, sortConfig)}
+                  </button>
+                )}
               </th>
             ))}
           </tr>
@@ -173,109 +118,115 @@ export function TicketsTable({
               ticket.customers?.display_name ||
               ticket.assigned_agent?.display_name ||
               t('tickets.noData');
+            const statusLower = String(ticket.status || '').toLowerCase();
 
             return (
-              <tr key={ticket.id} style={rowStyle}>
-                <td style={cellStyle}>
-                  <Link href={`/tickets/${ticket.id}`} style={ticketLinkStyle}>
+              <tr key={ticket.id} className={styles.tableRow}>
+                <td className={styles.tableTd}>
+                  <Link
+                    href={`/tickets/${ticket.id}`}
+                    className={clsx(styles.ticketNoLink, 'tabular-nums')}
+                  >
                     #{ticket.ticket_no}
                   </Link>
                 </td>
-                <td style={cellStyle}>
+                <td className={styles.tableTd}>
                   {ticket.created_at ? (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                      <span style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-main)' }}>
-                        {new Date(ticket.created_at).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: '2-digit' })}
+                    <div>
+                      <span className={clsx(styles.tableDateMain, 'tabular-nums')}>
+                        {new Date(ticket.created_at).toLocaleDateString('th-TH', {
+                          day: 'numeric',
+                          month: 'short',
+                          year: '2-digit',
+                        })}
                       </span>
-                      <span style={{ fontSize: '11px', color: 'var(--text-dim)' }}>
-                        {new Date(ticket.created_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })} น.
+                      <span className={clsx(styles.tableDateSub, 'tabular-nums')}>
+                        {new Date(ticket.created_at).toLocaleTimeString('th-TH', {
+                          hour: '2-digit',
+                          minute: '2-digit',
+                          hour12: false,
+                        })}
                       </span>
                     </div>
                   ) : (
-                    <span style={{ opacity: 0.3 }}>-</span>
+                    <span style={{ color: 'var(--color-text-disabled)' }}>-</span>
                   )}
                 </td>
-                <td style={subjectCellStyle}>{ticket.subject}</td>
-                <td style={hospitalCellStyle}>{hospitalName}</td>
-                <td style={cellStyle}>{customerName}</td>
-                <td style={cellStyle}>
+                <td className={styles.tableTd} style={{ fontWeight: 500, maxWidth: 320 }}>
+                  {ticket.subject}
+                </td>
+                <td className={clsx(styles.tableTd, styles.tableOrg)}>{hospitalName}</td>
+                <td className={styles.tableTd}>{customerName}</td>
+                <td className={styles.tableTd}>
                   {ticket.assigned_agent ? (
-                    <span style={{ 
-                      color: '#ffffff', 
-                      background: ticket.assigned_agent.theme_color || 'var(--primary)', 
-                      padding: '4px 10px',
-                      borderRadius: '8px',
-                      fontSize: '11px',
-                      fontWeight: '800',
-                      textTransform: 'uppercase',
-                      textShadow: '0 1px 2px rgba(0,0,0,0.2)'
-                    }}>
+                    <span
+                      className={styles.agentPill}
+                      style={{
+                        background:
+                          ticket.assigned_agent.theme_color || 'var(--color-primary-solid)',
+                      }}
+                    >
                       {ticket.assigned_agent.display_name}
                     </span>
                   ) : (
-                    <span style={{ opacity: 0.3 }}>{t('tickets.noData')}</span>
+                    <span style={{ color: 'var(--color-text-disabled)' }}>{t('tickets.noData')}</span>
                   )}
                 </td>
-                <td style={cellStyle}>
-                  <StatusBadge status={ticket.status || ''} locale={locale} />
+                <td className={styles.tableTd}>
+                  <Badge size="sm" variant={getStatusBadgeVariant(ticket.status || 'New')} dot>
+                    {translateTicketStatus(ticket.status || 'New', locale)}
+                  </Badge>
                 </td>
-                <td style={cellStyle}>
-                  <div style={actionWrapStyle}>
-                    {/* ปุ่มรับงาน: แสดงเฉพาะ New */}
-                    {String(ticket.status || '').toLowerCase() === 'new' && (
-                      <button
+                <td className={styles.tableTd}>
+                  <div className={styles.tableActions}>
+                    {statusLower === 'new' && (
+                      <Button
+                        size="sm"
+                        variant="primary"
                         disabled={claimingId === ticket.id || isViewOnly}
                         onClick={() => handleClaim(ticket.id)}
-                        className="glass-interactive flex-center"
-                        style={{
-                          height: '36px',
-                          padding: '0 14px',
-                          borderRadius: '10px',
-                          border: 'none',
-                          background: (claimingId === ticket.id || isViewOnly) ? 'var(--border)' : 'var(--primary)',
-                          color: (claimingId === ticket.id || isViewOnly) ? 'var(--text-muted)' : '#000',
-                          fontSize: '12px',
-                          fontWeight: '850',
-                          cursor: (claimingId === ticket.id || isViewOnly) ? 'not-allowed' : 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '6px',
-                          opacity: isViewOnly ? 0.5 : 1,
-                          boxShadow: (claimingId === ticket.id || isViewOnly) ? 'none' : '0 4px 14px rgba(8,145,178,0.3)',
-                          whiteSpace: 'nowrap',
-                        }}
                       >
-                        {claimingId === ticket.id
-                          ? <><Loader2 className="animate-spin" size={14} />{t('tickets.claiming')}</>
-                          : <><Zap size={14} />{t('tickets.claimTicket')}</>}
-                      </button>
+                        {claimingId === ticket.id ? (
+                          <>
+                            <Loader2 className="animate-spin" size={14} aria-hidden="true" />
+                            <span>{t('tickets.claiming')}</span>
+                          </>
+                        ) : (
+                          <>
+                            <Zap size={14} aria-hidden="true" />
+                            <span>{t('tickets.claimTicket')}</span>
+                          </>
+                        )}
+                      </Button>
                     )}
-                    {convId && !['new', 'resolved', 'closed', 'pending', 'escalated', 'fix completed'].includes(String(ticket.status || '').toLowerCase()) && (
-                      <Link
-                        href={`/inbox?cid=${convId}`}
-                        title={t('tickets.openInboxChat')}
-                        className="glass-interactive flex-center"
-                        style={{ 
-                          ...messageActionButtonStyle, 
-                          width: 'auto',
-                          padding: '0 12px',
-                          gap: '6px',
-                          color: getStatusColor(ticket.status || ''), 
-                          background: `${getStatusColor(ticket.status || '')}20`,
-                          border: `1px solid ${getStatusColor(ticket.status || '')}50`
-                        }}
-                      >
-                        <MessageCircle size={16} />
-                        <span style={{ fontSize: '12px', fontWeight: '800' }}>แชท</span>
-                      </Link>
-                    )}
+
+                    {convId &&
+                      ![
+                        'new',
+                        'resolved',
+                        'closed',
+                        'pending',
+                        'escalated',
+                        'fix completed',
+                      ].includes(statusLower) && (
+                        <Link
+                          href={`/inbox?cid=${convId}`}
+                          title={t('tickets.openInboxChat')}
+                          aria-label={t('tickets.openInboxChat')}
+                          className={styles.chatPillLink}
+                        >
+                          <MessageCircle size={14} aria-hidden="true" />
+                          <span>{locale === 'th' ? 'แชท' : 'Chat'}</span>
+                        </Link>
+                      )}
+
                     <Link
                       href={`/tickets/${ticket.id}`}
                       title={t('tickets.openTicketDetails')}
-                      className="glass-interactive flex-center"
-                      style={detailsActionButtonStyle}
+                      aria-label={t('tickets.openTicketDetails')}
+                      className={styles.iconLinkBtn}
                     >
-                      <ExternalLink size={16} />
+                      <ExternalLink size={15} aria-hidden="true" />
                     </Link>
                   </div>
                 </td>

@@ -1,37 +1,38 @@
 'use client';
 /* eslint-disable @next/next/no-img-element */
 /* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable jsx-a11y/alt-text */
-import React, { useState, useEffect } from 'react';
-import { supabase } from '@/lib/supabase';
-import { 
-  Save, 
-  Loader2, 
-  ChevronLeft,
-  ShieldCheck,
-  Building,
-  Camera,
-  Trash2,
-  Plus
-} from 'lucide-react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
-import Skeleton from '@/components/ui/Skeleton';
+import { Building, Camera, ChevronLeft, Loader2, Save, ShieldCheck } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
 import { useNotificationContext } from '@/contexts/NotificationContext';
-import { auditService } from '@/lib/services/auditService';
 import { useAppContext } from '@/contexts/AppContext';
 import { useStaffLocale } from '@/contexts/StaffLocaleContext';
+import {
+  Button,
+  Card,
+  CardBody,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+  Input,
+  PageHeader,
+  Select,
+  Skeleton,
+} from '@/components/ui';
+import styles from '../settings.module.css';
 
 export default function BrandingSettingsPage() {
-  const { t, locale } = useStaffLocale();
+  const { t } = useStaffLocale();
   const { userProfile } = useAppContext();
   const [company, setCompany] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const { addToast } = useNotificationContext();
+  const logoInputRef = useRef<HTMLInputElement>(null);
 
-  const canEdit = React.useMemo(() => {
+  const canEdit = useMemo(() => {
     if (userProfile?.role === 'Administrator') return true;
     return userProfile?.permissions?.settings_branding === 'edit';
   }, [userProfile]);
@@ -40,7 +41,7 @@ export default function BrandingSettingsPage() {
     async function fetchData() {
       const { data: c } = await supabase.from('company_settings').select('*').limit(1).single();
       if (c && !c.modules) {
-        c.modules = []; // Fallback to empty array, modules should come from Master Data
+        c.modules = [];
       }
       setCompany(c);
       setLoading(false);
@@ -49,68 +50,76 @@ export default function BrandingSettingsPage() {
   }, []);
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-     const file = event.target.files?.[0];
-     if (!file) return;
+    const file = event.target.files?.[0];
+    if (!file) return;
 
-     setUploading(true);
-     try {
-        const fileExt = file.name.split('.').pop();
-        const fileName = `${Math.random()}.${fileExt}`;
-        const filePath = `company/${fileName}`;
+    setUploading(true);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Math.random()}.${fileExt}`;
+      const filePath = `company/${fileName}`;
 
-        const { error: uploadError } = await supabase.storage
-           .from('chat_media') 
-           .upload(filePath, file);
+      const { error: uploadError } = await supabase.storage.from('chat_media').upload(filePath, file);
 
-        if (uploadError) throw uploadError;
+      if (uploadError) throw uploadError;
 
-        const { data: { publicUrl } } = supabase.storage.from('chat_media').getPublicUrl(filePath);
-        setCompany({ ...company, logo_url: publicUrl });
-        addToast({
-           id: 'logo-upload',
-           type: 'ticket',
-           title: t('settingsBranding.messages.uploadSuccessTitle'),
-           body: t('common.messages.success')
-        });
-     } catch (err: any) {
-        alert(t('common.messages.error') + ': ' + (err.message || 'Error uploading file'));
-     } finally {
-        setUploading(false);
-     }
+      const {
+        data: { publicUrl },
+      } = supabase.storage.from('chat_media').getPublicUrl(filePath);
+      setCompany({ ...company, logo_url: publicUrl });
+      addToast({
+        id: 'logo-upload',
+        type: 'ticket',
+        title: t('settingsBranding.messages.uploadSuccessTitle'),
+        body: t('common.messages.success'),
+      });
+    } catch (err: any) {
+      alert(t('common.messages.error') + ': ' + (err.message || 'Error uploading file'));
+    } finally {
+      setUploading(false);
+      event.target.value = '';
+    }
   };
 
   const handleSaveCompany = async () => {
     setSaving(true);
     try {
       if (company?.id) {
-         const { error } = await supabase.from('company_settings').update({
+        const { error } = await supabase
+          .from('company_settings')
+          .update({
             company_name: company.company_name,
             logo_url: company.logo_url,
-            updated_at: new Date().toISOString()
-          }).eq('id', company.id);
-         if (error) throw error;
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', company.id);
+        if (error) throw error;
       } else {
-         const { error } = await supabase.from('company_settings').insert([{
-            company_name: company.company_name,
-            logo_url: company.logo_url,
-          }]);
-         if (error) throw error;
+        const { error } = await supabase.from('company_settings').insert([
+          {
+            company_name: company?.company_name,
+            logo_url: company?.logo_url,
+          },
+        ]);
+        if (error) throw error;
       }
-      // Log the update (Secondary operation, don't let it block success)
+
       try {
         const { auditService } = await import('@/lib/services/auditService');
-        const { data: { user } } = await supabase.auth.getUser();
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
         await auditService.log({
           performer_id: user?.id,
           action_type: 'BRANDING_UPDATE',
           entity_type: 'COMPANY',
           entity_id: company?.id,
-          new_data: { 
-            company_name: company?.company_name, 
+          new_data: {
+            company_name: company?.company_name,
             logo_url: company?.logo_url,
-            active_threshold_minutes: company?.active_threshold_minutes || 15
+            active_threshold_minutes: company?.active_threshold_minutes || 15,
           },
-          note: `Updated corporate branding and active threshold settings`
+          note: `Updated corporate branding and active threshold settings`,
         });
       } catch (logErr) {
         console.error('Logging failed:', logErr);
@@ -120,11 +129,10 @@ export default function BrandingSettingsPage() {
         id: 'branding-save',
         type: 'ticket',
         title: t('settingsBranding.messages.saveSuccessTitle'),
-        body: t('common.messages.saveSuccess')
+        body: t('common.messages.saveSuccess'),
       });
     } catch (err: any) {
       console.error('Save failed details:', err);
-      // Detailed error for better debugging
       const errorMsg = err.message || err.details || 'Unknown database error';
       alert(`${t('common.messages.saveFailed')}: ${errorMsg}\n\n${t('settingsBranding.messages.migrationNote')}`);
     } finally {
@@ -134,162 +142,149 @@ export default function BrandingSettingsPage() {
 
   if (loading) {
     return (
-      <div className="animate-page-in">
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '32px' }}>
-          <Skeleton width={32} height={32} borderRadius="50%" />
-          <Skeleton width={400} height={32} />
+      <div className={styles.page}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
+          <Skeleton width={32} height={32} borderRadius={8} />
+          <Skeleton width={280} height={28} />
         </div>
-
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '32px' }}>
-          {[1, 2].map(i => (
-            <div key={i} className="glass" style={{ padding: '32px' }}>
-              <div style={{ display: 'flex', gap: '16px', marginBottom: '32px' }}>
-                <Skeleton width={44} height={44} borderRadius={12} />
-                <div style={{ flex: 1 }}>
-                  <Skeleton width="60%" height={24} marginBottom={8} />
-                  <Skeleton width="40%" height={12} />
-                </div>
-              </div>
-              <Skeleton width="100%" height={180} borderRadius={16} marginBottom={32} />
-              <Skeleton width="100%" height={16} marginBottom={12} />
-              <Skeleton width="100%" height={48} borderRadius={10} marginBottom={24} />
-              <Skeleton width="100%" height={56} borderRadius={12} />
-            </div>
-          ))}
+        <div style={{ maxWidth: '640px', width: '100%' }}>
+          <Card>
+            <CardBody className={styles.stackMd}>
+              <Skeleton width="100%" height={184} borderRadius={12} />
+              <Skeleton width="100%" height={40} borderRadius={8} />
+              <Skeleton width="100%" height={40} borderRadius={8} />
+              <Skeleton width="100%" height={44} borderRadius={8} />
+            </CardBody>
+          </Card>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="animate-page-in">
-      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '32px' }}>
-         <Link href="/" className="glass-interactive flex-center" style={{ width: '40px', height: '40px', borderRadius: '50%', color: 'var(--text-muted)', display: 'flex', textDecoration: 'none' }}><ChevronLeft size={20} /></Link>
-         <h1 style={{ fontSize: '28px', fontWeight: '900', letterSpacing: '-0.5px' }}>{t('settingsBranding.title')}</h1>
-      </div>
+    <div className={styles.page}>
+      <PageHeader
+        title={
+          <span className={styles.headerTitleRow}>
+            <Link href="/" className={styles.backLink} aria-label="กลับหน้าหลัก">
+              <ChevronLeft size={18} aria-hidden="true" />
+            </Link>
+            <span>{t('settingsBranding.title')}</span>
+          </span>
+        }
+      />
 
-     <div style={{ display: 'grid', gridTemplateColumns: 'minmax(400px, 600px)', gap: '32px', justifyContent: 'center' }}>
-         {/* 1. Company Branding */}
-         <div className="glass" style={{ padding: '32px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '32px' }}>
-               <div style={{ background: 'var(--primary)', padding: '10px', borderRadius: '12px' }}>
-                  <Building size={24} color="#0a0e14" />
-               </div>
-               <div>
-                 <h2 style={{ fontSize: '20px', fontWeight: '700', lineHeight: '1.2' }}>{t('settingsBranding.sectionTitle')}</h2>
-                 <p style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>{t('settingsBranding.sectionSubtitle')}</p>
-               </div>
+      <div style={{ maxWidth: '640px', width: '100%' }}>
+        <Card>
+          <CardHeader>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
+              <div className={`${styles.statIcon} ${styles.statIconPrimary}`}>
+                <Building size={18} aria-hidden="true" />
+              </div>
+              <div>
+                <CardTitle>{t('settingsBranding.sectionTitle')}</CardTitle>
+                <CardDescription>{t('settingsBranding.sectionSubtitle')}</CardDescription>
+              </div>
             </div>
+          </CardHeader>
 
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: '32px' }}>
-               <div className="glass" style={{ 
-                  position: 'relative', 
-                  width: '100%', 
-                  height: '180px', 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  justifyContent: 'center', 
-                  overflow: 'hidden', 
-                  padding: '24px', 
-                  background: 'rgba(0,0,0,0.1)', 
-                  backgroundImage: 'radial-gradient(var(--border) 1px, transparent 0)',
-                  backgroundSize: '24px 24px',
-                  borderRadius: '16px',
-                  border: '1px solid var(--border)'
-               }}>
-                  {company?.logo_url ? (
-                    <img src={company.logo_url} style={{ maxHeight: '100%', maxWidth: '100%', objectFit: 'contain' }} />
-                  ) : (
-                    <div style={{ textAlign: 'center' }}>
-                       <Building size={48} color="var(--border)" />
-                       <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '8px' }}>{t('settingsBranding.noLogo')}</p>
-                    </div>
-                  )}
-                  <label 
-                     className="glass-interactive flex-center"
-                     style={{ 
-                      position: 'absolute', bottom: '12px', right: '12px', 
-                      background: 'var(--primary)', padding: '0 20px', height: '40px', borderRadius: '10px', 
-                      cursor: !canEdit ? 'not-allowed' : 'pointer', boxShadow: '0 8px 20px rgba(0, 242, 254, 0.3)',
-                      gap: '8px', fontSize: '13px', fontWeight: '850', border: 'none', color: 'black',
-                      opacity: !canEdit ? 0.5 : 1
-                   }}>
-                     {uploading ? <Loader2 size={16} className="animate-spin" /> : <Camera size={18} />}
-                     <span>{uploading ? t('settingsBranding.uploading') : t('settingsBranding.changeLogo')}</span>
-                     <input type="file" hidden accept="image/*" onChange={handleFileUpload} disabled={uploading || !canEdit} />
-                  </label>
-               </div>
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-               <div>
-                  <label style={{ display: 'block', fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '8px', letterSpacing: '0.5px' }}>{t('settingsBranding.companyName')}</label>
-                  <input 
-                    type="text" 
-                    placeholder={t('settingsBranding.companyNamePlaceholder')}
-                    value={company?.company_name || ''} 
-                    onChange={e => setCompany({...(company || {}), company_name: e.target.value})}
-                    style={{ width: '100%', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '10px', padding: '14px', color: 'var(--text-main)', outline: 'none', fontWeight: '600' }}
-                  />
-               </div>
-               <div>
-                  <label style={{ display: 'block', fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '8px', letterSpacing: '0.5px' }}>
-                    {t('settingsBranding.activeThreshold')}
-                  </label>
-                  <select 
-                    value={company?.active_threshold_minutes || 15} 
-                    onChange={e => setCompany({...(company || {}), active_threshold_minutes: parseInt(e.target.value)})}
-                    disabled={!canEdit}
-                    style={{ 
-                      width: '100%', 
-                      background: 'var(--bg-input)', 
-                      border: '1px solid var(--border)', 
-                      borderRadius: '10px', 
-                      padding: '14px', 
-                      color: 'var(--text-main)', 
-                      outline: 'none', 
-                      fontWeight: '600',
-                      cursor: !canEdit ? 'not-allowed' : 'pointer',
-                      appearance: 'none',
-                      backgroundImage: 'url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'%23a0aec0\' stroke-width=\'2\' stroke-linecap=\'round\' stroke-linejoin=\'round\'%3e%3cpolyline points=\'6 9 12 15 18 9\'%3e%3c/polyline%3e%3c/svg%3e")',
-                      backgroundRepeat: 'no-repeat',
-                      backgroundPosition: 'right 14px center',
-                      backgroundSize: '16px'
-                    }}
-                  >
-                     <option value={5} style={{ background: '#0a0e14', color: 'var(--text-main)' }}>{t('settingsBranding.minutes5')}</option>
-                     <option value={10} style={{ background: '#0a0e14', color: 'var(--text-main)' }}>{t('settingsBranding.minutes10')}</option>
-                     <option value={15} style={{ background: '#0a0e14', color: 'var(--text-main)' }}>{t('settingsBranding.minutes15')}</option>
-                  </select>
-                  <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '6px', lineHeight: '1.4' }}>
-                     {t('settingsBranding.activeThresholdHelp')}
+          <CardBody className={styles.stackMd}>
+            <div className={styles.logoDropzone}>
+              {company?.logo_url ? (
+                <img
+                  src={company.logo_url}
+                  alt={company?.company_name || 'Company Logo'}
+                  style={{ maxHeight: '100%', maxWidth: '100%', objectFit: 'contain' }}
+                />
+              ) : (
+                <div style={{ textAlign: 'center', color: 'var(--color-text-muted)' }}>
+                  <Building size={40} style={{ opacity: 0.4, margin: '0 auto' }} aria-hidden="true" />
+                  <p style={{ fontSize: 'var(--text-xs)', marginTop: 'var(--space-2)' }}>
+                    {t('settingsBranding.noLogo')}
                   </p>
-               </div>
+                </div>
+              )}
 
-               <button 
-                onClick={handleSaveCompany}
-                disabled={saving || uploading || !canEdit}
-                className="glass-interactive" 
-                style={{ width: '100%', height: '56px', borderRadius: '14px', background: 'var(--primary)', border: 'none', color: '#0a0e14', fontWeight: '900', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', marginTop: '12px', boxShadow: '0 8px 30px rgba(0, 242, 254, 0.2)', opacity: !canEdit ? 0.5 : 1, cursor: !canEdit ? 'not-allowed' : 'pointer' }}>
-                  {saving ? <Loader2 className="animate-spin" /> : <><Save size={20} /> {t('settingsBranding.saveBranding')}</>}
-               </button>
+              <input
+                ref={logoInputRef}
+                type="file"
+                hidden
+                accept="image/*"
+                onChange={handleFileUpload}
+                disabled={uploading || !canEdit}
+                aria-label={t('settingsBranding.changeLogo')}
+              />
+              <Button
+                variant="primary"
+                size="sm"
+                className={styles.logoUploadBtn}
+                disabled={uploading || !canEdit}
+                loading={uploading}
+                onClick={() => logoInputRef.current?.click()}
+                leftIcon={uploading ? undefined : <Camera size={15} aria-hidden="true" />}
+              >
+                {uploading ? t('settingsBranding.uploading') : t('settingsBranding.changeLogo')}
+              </Button>
             </div>
 
-            <div style={{ padding: '16px', marginTop: '24px', background: 'rgba(54, 153, 255, 0.05)', borderRadius: '12px', border: '1px solid rgba(54, 153, 255, 0.1)' }}>
-               <div style={{ display: 'flex', gap: '12px' }}>
-                  <ShieldCheck size={18} color="var(--primary)" />
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    <p style={{ fontSize: '13px', color: 'var(--text-main)', fontWeight: '700' }}>{t('settingsBranding.infoTitle')}</p>
-                    <p style={{ fontSize: '12px', color: 'var(--text-muted)', lineHeight: '1.5' }}>
-                       {t('settingsBranding.infoBody')}
-                    </p>
-                    <Link href="/settings/master" style={{ color: 'var(--primary)', fontSize: '12px', fontWeight: '800', marginTop: '8px', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                       {t('settingsBranding.manageMasterData')} →
-                    </Link>
-                  </div>
-               </div>
+            <Input
+              label={t('settingsBranding.companyName')}
+              placeholder={t('settingsBranding.companyNamePlaceholder')}
+              value={company?.company_name || ''}
+              disabled={!canEdit}
+              onChange={(e) => setCompany({ ...(company || {}), company_name: e.target.value })}
+            />
+
+            <Select
+              label={t('settingsBranding.activeThreshold')}
+              value={company?.active_threshold_minutes || 15}
+              disabled={!canEdit}
+              hint={t('settingsBranding.activeThresholdHelp')}
+              onChange={(e) =>
+                setCompany({ ...(company || {}), active_threshold_minutes: parseInt(e.target.value, 10) })
+              }
+            >
+              <option value={5}>{t('settingsBranding.minutes5')}</option>
+              <option value={10}>{t('settingsBranding.minutes10')}</option>
+              <option value={15}>{t('settingsBranding.minutes15')}</option>
+            </Select>
+
+            <Button
+              variant="primary"
+              size="lg"
+              fullWidth
+              onClick={handleSaveCompany}
+              disabled={uploading || !canEdit}
+              loading={saving}
+              leftIcon={saving ? <Loader2 size={18} className="animate-spin" aria-hidden="true" /> : <Save size={18} aria-hidden="true" />}
+            >
+              {t('settingsBranding.saveBranding')}
+            </Button>
+
+            <div className={`${styles.alertBanner} ${styles.alertInfo}`}>
+              <ShieldCheck size={18} style={{ flexShrink: 0, marginTop: '2px' }} aria-hidden="true" />
+              <div className={styles.stackSm}>
+                <p style={{ fontWeight: 'var(--weight-semibold)', color: 'var(--color-text)' }}>
+                  {t('settingsBranding.infoTitle')}
+                </p>
+                <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)', lineHeight: 'var(--leading-normal)' }}>
+                  {t('settingsBranding.infoBody')}
+                </p>
+                <Link
+                  href="/settings/master"
+                  style={{
+                    color: 'var(--color-primary)',
+                    fontSize: 'var(--text-xs)',
+                    fontWeight: 'var(--weight-semibold)',
+                    textDecoration: 'none',
+                  }}
+                >
+                  {t('settingsBranding.manageMasterData')} →
+                </Link>
+              </div>
             </div>
-         </div>
+          </CardBody>
+        </Card>
       </div>
     </div>
   );

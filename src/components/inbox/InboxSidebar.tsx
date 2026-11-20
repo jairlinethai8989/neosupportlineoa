@@ -1,9 +1,12 @@
 'use client';
-import React from 'react';
-import { Mail, ChevronLeft, ChevronRight } from 'lucide-react';
+
+import React, { useMemo, useState } from 'react';
+import { ChevronLeft, ChevronRight, Mail, Search } from 'lucide-react';
+import { clsx } from 'clsx';
+import { Badge, Button, EmptyState } from '@/components/ui';
 import { useStaffLocale } from '@/contexts/StaffLocaleContext';
 import type { InboxConversation, InboxViewMode } from '@/types/inbox';
-import { getHospitalColorStyles } from '@/lib/inbox/colors';
+import styles from './inbox.module.css';
 
 interface InboxSidebarProps {
   conversations: InboxConversation[];
@@ -14,6 +17,8 @@ interface InboxSidebarProps {
   hasNextPage: boolean;
   onPageChange: (page: number) => void;
 }
+
+type QueueFilterTab = 'all' | 'active' | 'linked';
 
 function isConversationActive(chat: InboxConversation) {
   const normalizedStatus = String(chat.status || '').toLowerCase().trim();
@@ -33,252 +38,185 @@ export const InboxSidebar: React.FC<InboxSidebarProps> = ({
   onPageChange,
 }) => {
   const { locale, t } = useStaffLocale();
+  const [filterTab, setFilterTab] = useState<QueueFilterTab>('all');
+  const [searchTerm, setSearchTerm] = useState('');
+
+  const visibleConversations = useMemo(() => {
+    const query = searchTerm.trim().toLowerCase();
+    return conversations.filter((chat) => {
+      if (filterTab === 'active' && !isConversationActive(chat)) return false;
+      if (filterTab === 'linked' && !chat.ticket_data?.id && !chat.current_ticket_id) return false;
+      if (!query) return true;
+
+      const customerName = (chat.customers?.display_name || '').toLowerCase();
+      const orgName = (chat.ticket_data?.organizations?.name || '').toLowerCase();
+      const subject = (chat.ticket_data?.subject || '').toLowerCase();
+      const ticketNo = (chat.ticket_data?.ticket_no || '').toLowerCase();
+      const projectCode = (chat.projects?.code || '').toLowerCase();
+
+      return (
+        customerName.includes(query) ||
+        orgName.includes(query) ||
+        subject.includes(query) ||
+        ticketNo.includes(query) ||
+        projectCode.includes(query)
+      );
+    });
+  }, [conversations, filterTab, searchTerm]);
+
+  const tabs: Array<{ id: QueueFilterTab; label: string }> = [
+    { id: 'all', label: locale === 'th' ? 'ทั้งหมด' : 'All' },
+    { id: 'active', label: locale === 'th' ? 'กำลังคุย' : 'Active' },
+    { id: 'linked', label: locale === 'th' ? 'มีใบงาน' : 'Tickets' },
+  ];
 
   return (
-    <div
-      className={`glass inbox-list-panel ${viewMode !== 'list' ? 'hidden-mobile' : ''}`}
-      style={{ width: '260px', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
+    <aside
+      aria-label={t('inbox.activeChats')}
+      className={clsx(styles.queuePane, viewMode !== 'list' && styles.hiddenMobile)}
     >
-      <div
-        style={{
-          padding: '24px',
-          borderBottom: '1px solid var(--border)',
-          background: 'linear-gradient(to right, rgba(255,255,255,0.03), transparent)',
-        }}
-      >
-        <h2
-          style={{
-            fontSize: '18px',
-            fontWeight: '900',
-            color: 'var(--primary)',
-            margin: 0,
-            letterSpacing: '-0.5px',
-          }}
-        >
-          {t('inbox.activeChats')}
-        </h2>
-        <p style={{ fontSize: '12px', color: 'var(--text-dim)', marginTop: '4px' }}>
-          {t('inbox.queueSubtitle')}
-        </p>
+      <div className={styles.queueHeader}>
+        <div className={styles.queueTitleRow}>
+          <h2 className={styles.queueTitle}>{t('inbox.activeChats')}</h2>
+          <Badge variant="primary" size="sm">
+            {visibleConversations.length}
+          </Badge>
+        </div>
+
+        <div className={styles.queueSearchWrap}>
+          <Search size={14} className={styles.queueSearchIcon} aria-hidden="true" />
+          <input
+            type="search"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder={t('inbox.searchPlaceholder')}
+            aria-label={t('inbox.searchPlaceholder')}
+            className={styles.queueSearchInput}
+          />
+        </div>
+
+        <div className={styles.queueTabs} role="tablist" aria-label="Conversation queue filters">
+          {tabs.map((tab) => {
+            const active = filterTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                role="tab"
+                aria-selected={active}
+                onClick={() => setFilterTab(tab.id)}
+                className={clsx(styles.queueTab, active && styles.queueTabActive)}
+              >
+                {tab.label}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
-      <div style={{ flex: 1, overflowY: 'auto' }} className="no-scrollbar">
-        {conversations.length === 0 ? (
-          <div style={{ padding: '60px 20px', textAlign: 'center', color: 'var(--text-muted)' }}>
-            <Mail size={40} style={{ marginBottom: '16px', opacity: 0.2 }} />
-            <p style={{ fontSize: '13px' }}>{t('inbox.noMessages')}</p>
-          </div>
+      <div className={styles.queueList}>
+        {visibleConversations.length === 0 ? (
+          <EmptyState
+            compact
+            icon={<Mail size={20} aria-hidden="true" />}
+            title={t('inbox.noMessages')}
+          />
         ) : (
-          conversations.map((chat) => {
+          visibleConversations.map((chat) => {
             const active = isConversationActive(chat);
+            const selected = selectedChat?.id === chat.id;
             const hospitalName = chat.ticket_data?.organizations?.name;
-            const colors = getHospitalColorStyles(hospitalName);
 
             return (
-              <div
+              <button
                 key={chat.id}
+                type="button"
                 onClick={() => onSelectChat(chat)}
-                className="glass-interactive"
-                style={{
-                  padding: '16px 24px',
-                  borderBottom: '1px solid var(--border)',
-                  cursor: 'pointer',
-                  background:
-                    selectedChat?.id === chat.id ? colors.bg : 'transparent',
-                  borderLeft:
-                    selectedChat?.id === chat.id
-                      ? `4px solid ${colors.accent}`
-                      : '4px solid transparent',
-                  transition: 'all 0.2s ease',
-                  display: 'flex',
-                  gap: '14px',
-                  alignItems: 'center',
-                }}
+                aria-current={selected ? 'true' : undefined}
+                className={clsx(styles.queueItem, selected && styles.queueItemSelected)}
               >
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '2px' }}>
-                    <p
-                      style={{
-                        fontWeight: '750',
-                        fontSize: '12px',
-                        color:
-                          selectedChat?.id === chat.id ? colors.accent : 'var(--text-main)',
-                        whiteSpace: 'nowrap',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                      }}
-                    >
-                      {chat.customers?.display_name || 'LINE User'}
-                    </p>
-                    <p style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: '600' }}>
-                      {chat.last_message_at
-                        ? new Date(chat.last_message_at).toLocaleTimeString('th-TH', {
-                            hour: '2-digit',
-                            minute: '2-digit',
-                            hour12: false,
-                          })
-                        : '-'}
-                    </p>
-                  </div>
-                  
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1px' }}>
-                    {(chat.projects?.code || hospitalName) && (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexWrap: 'wrap', marginTop: '3px', marginBottom: '3px' }}>
-                        {chat.projects?.code && (
-                          <span
-                            style={{
-                              display: 'inline-block',
-                              padding: '2px 6px',
-                              borderRadius: '6px',
-                              fontSize: '9px',
-                              fontWeight: '900',
-                              background: `${chat.projects.primary_color || '#0066ff'}20`,
-                              color: chat.projects.primary_color || '#0066ff',
-                              border: `1px solid ${chat.projects.primary_color || '#0066ff'}40`,
-                              letterSpacing: '0.4px',
-                            }}
-                          >
-                            {chat.projects.code}
-                          </span>
-                        )}
-                        {hospitalName && (
-                          <span style={{ 
-                            display: 'inline-block',
-                            padding: '2px 8px',
-                            borderRadius: '6px',
-                            fontSize: '9px',
-                            fontWeight: '800',
-                            background: colors.bg,
-                            color: colors.text,
-                            border: `1px solid ${colors.border}`,
-                            maxWidth: '150px',
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                            whiteSpace: 'nowrap',
-                            letterSpacing: '0.3px',
-                          }}>
-                            {hospitalName}
-                          </span>
-                        )}
-                      </div>
-                    )}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', minHeight: '12px' }}>
-                      {chat.ticket_data?.subject ? (
-                        <span style={{ 
-                          fontSize: '11px', 
-                          color: 'var(--text-muted)',
-                          fontWeight: '500',
-                          maxWidth: '210px',
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          whiteSpace: 'nowrap',
-                          marginTop: '2px',
-                        }}>
-                          {chat.ticket_data.subject}
-                        </span>
-                      ) : (
-                        <div />
-                      )}
-                      <span
-                        title={active ? 'Active session' : 'Closed session'}
-                        style={{
-                          width: '8px',
-                          height: '8px',
-                          borderRadius: '50%',
-                          background: active ? 'var(--success)' : 'var(--text-muted)',
-                          boxShadow: active ? '0 0 10px rgba(40, 199, 111, 0.7)' : 'none',
-                          flexShrink: 0,
-                        }}
-                      />
-                    </div>
-                  </div>
+                <div className={styles.queueItemTop}>
+                  <span className={styles.queueCustomerName}>
+                    {chat.customers?.display_name || t('inbox.lineUser')}
+                  </span>
+                  <span className={clsx(styles.queueTime, 'mono tabular-nums')}>
+                    {chat.last_message_at
+                      ? new Date(chat.last_message_at).toLocaleTimeString('th-TH', {
+                          hour: '2-digit',
+                          minute: '2-digit',
+                          hour12: false,
+                        })
+                      : '-'}
+                  </span>
                 </div>
-              </div>
+
+                {(chat.projects?.code || hospitalName) && (
+                  <div className={styles.queueMetaRow}>
+                    {chat.projects?.code && (
+                      <Badge
+                        size="sm"
+                        variant="neutral"
+                        dot={chat.projects.primary_color || true}
+                      >
+                        {chat.projects.code}
+                      </Badge>
+                    )}
+                    {hospitalName && (
+                      <span className={styles.queueOrg}>{hospitalName}</span>
+                    )}
+                  </div>
+                )}
+
+                <div className={styles.queueBottomRow}>
+                  <span className={styles.queueSnippet}>
+                    {chat.ticket_data?.subject ||
+                      (chat.ticket_data?.ticket_no
+                        ? `#${chat.ticket_data.ticket_no}`
+                        : t('inbox.noTicket'))}
+                  </span>
+                  <Badge
+                    size="sm"
+                    variant={active ? 'success' : 'neutral'}
+                    dot
+                  >
+                    {active ? (locale === 'th' ? 'เปิด' : 'Active') : (locale === 'th' ? 'ปิด' : 'Closed')}
+                  </Badge>
+                </div>
+              </button>
             );
           })
         )}
       </div>
 
       {(hasNextPage || currentPage > 1 || conversations.length > 0) && (
-        <div
-          style={{
-            padding: '16px 24px',
-            borderTop: '1px solid var(--border)',
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            background: 'rgba(255,255,255,0.01)',
-          }}
-        >
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            background: 'rgba(255, 255, 255, 0.03)',
-            border: '1px solid var(--border)',
-            borderRadius: '12px',
-            padding: '3px 6px',
-            boxShadow: 'inset 0 1px 3px rgba(0, 0, 0, 0.2)',
-          }}>
-            <button
-              disabled={currentPage <= 1}
-              onClick={() => onPageChange(currentPage - 1)}
-              className="glass-interactive flex-center"
-              style={{
-                width: '28px',
-                height: '28px',
-                background: currentPage <= 1 ? 'transparent' : 'rgba(255, 255, 255, 0.06)',
-                border: '1px solid var(--border)',
-                borderRadius: '8px',
-                color: currentPage <= 1 ? 'var(--text-dim)' : 'var(--primary)',
-                cursor: currentPage <= 1 ? 'not-allowed' : 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                opacity: currentPage <= 1 ? 0.2 : 1,
-                transition: 'all 0.2s ease-in-out',
-                boxShadow: currentPage <= 1 ? 'none' : '0 2px 8px rgba(0, 242, 254, 0.15)',
-              }}
-              title={locale === 'th' ? 'ก่อนหน้า' : 'Previous'}
-            >
-              <ChevronLeft size={16} />
-            </button>
-            <span style={{
-              fontSize: '11px',
-              fontWeight: '800',
-              color: 'var(--text-main)',
-              minWidth: '45px',
-              textAlign: 'center',
-              letterSpacing: '0.5px'
-            }}>
-              {locale === 'th' ? 'หน้า' : 'Page'} {currentPage}
-            </span>
-            <button
-              disabled={!hasNextPage}
-              onClick={() => onPageChange(currentPage + 1)}
-              className="glass-interactive flex-center"
-              style={{
-                width: '28px',
-                height: '28px',
-                background: !hasNextPage ? 'transparent' : 'rgba(255, 255, 255, 0.06)',
-                border: '1px solid var(--border)',
-                borderRadius: '8px',
-                color: !hasNextPage ? 'var(--text-dim)' : 'var(--primary)',
-                cursor: !hasNextPage ? 'not-allowed' : 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                opacity: !hasNextPage ? 0.2 : 1,
-                transition: 'all 0.2s ease-in-out',
-                boxShadow: !hasNextPage ? 'none' : '0 2px 8px rgba(0, 242, 254, 0.15)',
-              }}
-              title={locale === 'th' ? 'ถัดไป' : 'Next'}
-            >
-              <ChevronRight size={16} />
-            </button>
-          </div>
+        <div className={styles.queueFooter}>
+          <Button
+            size="sm"
+            variant="ghost"
+            iconOnly
+            disabled={currentPage <= 1}
+            onClick={() => onPageChange(currentPage - 1)}
+            aria-label={locale === 'th' ? 'หน้าก่อนหน้า' : 'Previous page'}
+            title={locale === 'th' ? 'ก่อนหน้า' : 'Previous'}
+          >
+            <ChevronLeft size={16} aria-hidden="true" />
+          </Button>
+          <span className={clsx(styles.queuePageLabel, 'tabular-nums')}>
+            {locale === 'th' ? 'หน้า' : 'Page'} {currentPage}
+          </span>
+          <Button
+            size="sm"
+            variant="ghost"
+            iconOnly
+            disabled={!hasNextPage}
+            onClick={() => onPageChange(currentPage + 1)}
+            aria-label={locale === 'th' ? 'หน้าถัดไป' : 'Next page'}
+            title={locale === 'th' ? 'ถัดไป' : 'Next'}
+          >
+            <ChevronRight size={16} aria-hidden="true" />
+          </Button>
         </div>
       )}
-    </div>
+    </aside>
   );
 };

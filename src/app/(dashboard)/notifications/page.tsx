@@ -1,62 +1,62 @@
 'use client';
-/* eslint-disable @typescript-eslint/no-explicit-any */
-import React, { useState, useMemo, useEffect } from 'react';
-import { 
-  Bell, 
-  Search, 
-  CheckCheck, 
-  Ticket, 
-  Zap, 
-  MessageSquare,
+
+import React, { useEffect, useMemo, useState } from 'react';
+import {
+  Activity,
   AlertTriangle,
+  Bell,
+  CheckCheck,
   CheckCircle2,
+  Clock,
+  ExternalLink,
+  MessageSquare,
+  RefreshCw,
+  Search,
+  Settings2,
+  ShieldCheck,
+  Smartphone,
+  Ticket,
+  Trash2,
   Volume2,
   VolumeX,
-  Settings2,
-  ExternalLink,
-  Smartphone,
-  ShieldCheck,
-  Clock,
-  Activity,
-  RefreshCw,
-  Trash2,
-  Loader2,
+  Zap,
 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { clsx } from 'clsx';
+import {
+  Badge,
+  Button,
+  Card,
+  CardBody,
+  CardHeader,
+  CardTitle,
+  EmptyState,
+  Modal,
+  PageHeader,
+} from '@/components/ui';
 import { useNotificationContext } from '@/contexts/NotificationContext';
 import { useStaffLocale } from '@/contexts/StaffLocaleContext';
-import { useRouter } from 'next/navigation';
 import type { AppNotification } from '@/hooks/useNotifications';
+import styles from './notifications.module.css';
 
-
-// ---------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------
-const ACTION_ICONS: Record<string, any> = {
-  'sla':         AlertTriangle,
-  'sla_warning': Clock,
-  'ticket':      Ticket,
-  'message':     MessageSquare,
-  'system':      ShieldCheck,
+const ACTION_ICONS: Record<string, React.ComponentType<{ size?: number; 'aria-hidden'?: boolean }>> = {
+  sla: AlertTriangle,
+  sla_warning: Clock,
+  ticket: Ticket,
+  message: MessageSquare,
+  system: ShieldCheck,
 };
 
-const ACTION_COLORS: Record<string, string> = {
-  'sla':         '#ea5455',
-  'sla_warning': '#ff9f43',
-  'ticket':      '#00f2fe',
-  'message':     '#28c76f',
-  'system':      '#7367f0',
-};
-
-const getNotificationTypeLabel = (type: string, t: any) => {
+function getNotificationTypeLabel(type: string, t: (key: string) => string) {
   if (type === 'sla') return t('notificationsHub.overSla');
   if (type === 'sla_warning') return t('notificationsHub.nearSla');
   if (type === 'ticket') return t('sidebar.menu.tickets');
   if (type === 'message') return t('sidebar.menu.inbox');
   if (type === 'system') return t('common.system');
   return type;
-};
+}
 
-function timeAgo(dateStr: string, t: any): string {
+function timeAgo(dateStr: string, t: (key: string) => string): string {
   if (!dateStr) return '';
   const now = new Date();
   const d = new Date(dateStr);
@@ -69,59 +69,64 @@ function timeAgo(dateStr: string, t: any): string {
   return `${Math.floor(hrs / 24)} ${t('dashboard.daysAgo')}`;
 }
 
-// ---------------------------------------------------------------
-// SLA Status Badge
-// ---------------------------------------------------------------
-function SlaBadge({ minutesRemaining, t }: { minutesRemaining?: number, t: any }) {
+function SlaBadge({
+  minutesRemaining,
+  t,
+}: {
+  minutesRemaining?: number;
+  t: (key: string) => string;
+}) {
   if (minutesRemaining === undefined) return null;
+  const unit = t('dashboard.minutesAgo').replace('ที่แล้ว', '');
   if (minutesRemaining < 0) {
     return (
-      <span style={{ fontSize: '10px', fontWeight: '900', color: '#ea5455', background: 'rgba(234,84,85,0.1)', padding: '2px 8px', borderRadius: '20px', border: '1px solid rgba(234,84,85,0.2)', whiteSpace: 'nowrap' }}>
-        {t('notificationsHub.overSla')} {Math.abs(minutesRemaining)} {t('dashboard.minutesAgo').replace('ที่แล้ว', '')}
-      </span>
-    );
-  }
-  if (minutesRemaining <= 60) {
-    return (
-      <span style={{ fontSize: '10px', fontWeight: '900', color: '#ff9f43', background: 'rgba(255,159,67,0.1)', padding: '2px 8px', borderRadius: '20px', border: '1px solid rgba(255,159,67,0.2)', whiteSpace: 'nowrap' }}>
-        {t('notificationsHub.nearSla')} {minutesRemaining} {t('dashboard.minutesAgo').replace('ที่แล้ว', '')}
-      </span>
+      <Badge size="sm" variant="danger">
+        {t('notificationsHub.overSla')} {Math.abs(minutesRemaining)} {unit}
+      </Badge>
     );
   }
   return (
-    <span style={{ fontSize: '10px', fontWeight: '900', color: '#ffcd3c', background: 'rgba(255,205,60,0.1)', padding: '2px 8px', borderRadius: '20px', border: '1px solid rgba(255,205,60,0.2)', whiteSpace: 'nowrap' }}>
-      {t('notificationsHub.nearSla')} {minutesRemaining} {t('dashboard.minutesAgo').replace('ที่แล้ว', '')}
-    </span>
+    <Badge size="sm" variant="warning">
+      {t('notificationsHub.nearSla')} {minutesRemaining} {unit}
+    </Badge>
   );
 }
 
-// ---------------------------------------------------------------
-// Page Component
-// ---------------------------------------------------------------
 export default function NotificationsPage() {
-  const { t } = useStaffLocale();
+  const { locale, t } = useStaffLocale();
   const router = useRouter();
-  const { 
-    notifications, unreadCount, markAllRead, clearNotifications, markAsRead,
-    isMuted, toggleMute, soundMode, setSoundMode, soundVoice, setSoundVoice, testSound
+  const {
+    notifications,
+    unreadCount,
+    markAllRead,
+    clearNotifications,
+    markAsRead,
+    isMuted,
+    toggleMute,
+    soundMode,
+    setSoundMode,
+    soundVoice,
+    setSoundVoice,
+    testSound,
   } = useNotificationContext();
-  
+
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState<'all' | 'unread' | 'sla'>('all');
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [testingSound, setTestingSound] = useState(false);
   const [browserNotifsEnabled, setBrowserNotifsEnabled] = useState(
     typeof window !== 'undefined' && 'Notification' in window
       ? Notification.permission === 'granted'
       : false
   );
 
-  // Refresh timestamp every minute
   useEffect(() => {
-    const t = setInterval(() => {
+    const timer = setInterval(() => {
       if (typeof window !== 'undefined' && 'Notification' in window) {
         setBrowserNotifsEnabled(Notification.permission === 'granted');
       }
     }, 60000);
-    return () => clearInterval(t);
+    return () => clearInterval(timer);
   }, []);
 
   const requestNotificationPermission = async () => {
@@ -130,25 +135,32 @@ export default function NotificationsPage() {
     setBrowserNotifsEnabled(permission === 'granted');
   };
 
-  // ---------------------------------------------------------------
-  // Derived data
-  // ---------------------------------------------------------------
-  const slaBreached = useMemo(() => notifications.filter(n => n.type === 'sla'), [notifications]);
-  const slaWarning  = useMemo(() => notifications.filter(n => n.type === 'sla_warning'), [notifications]);
+  const slaBreached = useMemo(
+    () => notifications.filter((n) => n.type === 'sla'),
+    [notifications]
+  );
+  const slaWarning = useMemo(
+    () => notifications.filter((n) => n.type === 'sla_warning'),
+    [notifications]
+  );
 
   const filteredNotifs = useMemo(() => {
     return notifications
-      .filter(n => {
+      .filter((n) => {
         const s = searchTerm.toLowerCase();
-        const matchSearch = !s || n.title.toLowerCase().includes(s) || n.body.toLowerCase().includes(s) || n.ticketNo?.toString().includes(s);
+        const matchSearch =
+          !s ||
+          n.title.toLowerCase().includes(s) ||
+          n.body.toLowerCase().includes(s) ||
+          n.ticketNo?.toString().includes(s);
         if (!matchSearch) return false;
         if (activeTab === 'unread') return !n.isRead;
         if (activeTab === 'sla') return n.type === 'sla' || n.type === 'sla_warning';
         return true;
       })
       .sort((a, b) => {
-        // SLA breached first, then warning, then by date
-        const priority = (n: AppNotification) => n.type === 'sla' ? 0 : n.type === 'sla_warning' ? 1 : 2;
+        const priority = (n: AppNotification) =>
+          n.type === 'sla' ? 0 : n.type === 'sla_warning' ? 1 : 2;
         if (priority(a) !== priority(b)) return priority(a) - priority(b);
         return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
       });
@@ -160,423 +172,513 @@ export default function NotificationsPage() {
     else if (notif.type === 'message') router.push('/inbox');
   };
 
-  const handleClearNotifications = () => {
-    if (typeof window === 'undefined') return;
-    const shouldClear = window.confirm(t('notificationsHub.clearConfirm') || 'Clear all notifications from this list?');
-    if (!shouldClear) return;
-    clearNotifications();
+  const handleTestSound = async () => {
+    setTestingSound(true);
+    const res = await testSound();
+    if (!res.ok) {
+      console.error('[SoundTest]', res.detail);
+    }
+    setTestingSound(false);
   };
 
   const tabs: { key: 'all' | 'unread' | 'sla'; label: string }[] = [
     { key: 'all', label: t('dashboard.tabs.all') },
-    { key: 'unread', label: `${t('dashboard.tabs.unread')}${unreadCount > 0 ? ` (${unreadCount})` : ''}` },
-    { key: 'sla', label: `🔥 ${t('dashboard.tabs.sla')}${(slaBreached.length + slaWarning.length) > 0 ? ` (${slaBreached.length + slaWarning.length})` : ''}` },
+    {
+      key: 'unread',
+      label: `${t('dashboard.tabs.unread')}${unreadCount > 0 ? ` (${unreadCount})` : ''}`,
+    },
+    {
+      key: 'sla',
+      label: `${t('dashboard.tabs.sla')}${slaBreached.length + slaWarning.length > 0 ? ` (${slaBreached.length + slaWarning.length})` : ''}`,
+    },
   ];
 
-  // ---------------------------------------------------------------
-  // Sound Widget Component
-  // ---------------------------------------------------------------
-  function SoundSettingsWidget() {
-    const [testing, setTesting] = useState(false);
-
-    const handleTest = async () => {
-      setTesting(true);
-      const res = await testSound();
-      if (!res.ok) {
-        console.error('[SoundTest]', res.detail);
-      }
-      setTesting(false);
-    };
-
-    return (
-      <div className="glass" style={{ padding: '20px', borderRadius: '20px', border: '1px solid var(--border)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <Volume2 size={18} color="var(--primary)" />
-            <h2 style={{ fontSize: '15px', fontWeight: '800' }}>{t('settingsNotifications.soundTitle')}</h2>
-          </div>
-          <button 
-            onClick={toggleMute}
-            style={{ 
-              background: isMuted ? 'rgba(234, 84, 85, 0.1)' : 'rgba(40, 199, 111, 0.1)',
-              border: 'none', padding: '6px 10px', borderRadius: '8px', cursor: 'pointer',
-              display: 'flex', alignItems: 'center', gap: '6px', transition: 'all 0.2s'
-            }}
-          >
-            {isMuted ? <VolumeX size={14} color="#ea5455" /> : <Volume2 size={14} color="#28c76f" />}
-            <span style={{ fontSize: '11px', fontWeight: '800', color: isMuted ? '#ea5455' : '#28c76f' }}>
-              {isMuted ? t('common.off') : t('common.on')}
-            </span>
-          </button>
-        </div>
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', background: 'rgba(255,255,255,0.03)', padding: '4px', borderRadius: '12px' }}>
-            <button 
-              onClick={() => setSoundMode('beep')}
-              style={{
-                padding: '10px', borderRadius: '9px', border: 'none', fontSize: '12px', fontWeight: '700', cursor: 'pointer',
-                background: soundMode === 'beep' ? 'rgba(0, 242, 254, 0.1)' : 'transparent',
-                color: soundMode === 'beep' ? 'var(--primary)' : 'var(--text-dim)',
-                transition: 'all 0.2s'
-              }}
-            >
-              {t('settingsNotifications.soundBeep')}
-            </button>
-            <button 
-              onClick={() => setSoundMode('voice')}
-              style={{
-                padding: '10px', borderRadius: '9px', border: 'none', fontSize: '12px', fontWeight: '700', cursor: 'pointer',
-                background: soundMode === 'voice' ? 'rgba(0, 242, 254, 0.1)' : 'transparent',
-                color: soundMode === 'voice' ? 'var(--primary)' : 'var(--text-dim)',
-                transition: 'all 0.2s'
-              }}
-            >
-              {t('settingsNotifications.soundVoice')}
-            </button>
-          </div>
-
-          {soundMode === 'voice' && (
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', padding: '12px', background: 'rgba(255,255,255,0.02)', borderRadius: '12px', border: '1px solid var(--border)' }}>
-              <button 
-                onClick={() => setSoundVoice('female')}
-                style={{ 
-                  display: 'flex', alignItems: 'center', gap: '8px', background: 'transparent', border: 'none', cursor: 'pointer',
-                  color: soundVoice === 'female' ? 'var(--primary)' : 'var(--text-muted)', fontSize: '12px', fontWeight: '700'
-                }}
-              >
-                <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: soundVoice === 'female' ? 'var(--primary)' : 'transparent', border: '1px solid var(--border)' }} />
-                {t('notificationsHub.alerts.voiceFemale')}
-              </button>
-              <button 
-                onClick={() => setSoundVoice('male')}
-                style={{ 
-                  display: 'flex', alignItems: 'center', gap: '8px', background: 'transparent', border: 'none', cursor: 'pointer',
-                  color: soundVoice === 'male' ? 'var(--primary)' : 'var(--text-muted)', fontSize: '12px', fontWeight: '700'
-                }}
-              >
-                <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: soundVoice === 'male' ? 'var(--primary)' : 'transparent', border: '1px solid var(--border)' }} />
-                {t('notificationsHub.alerts.voiceMale')}
-              </button>
-            </div>
-          )}
-
-          <button 
-            onClick={handleTest}
-            disabled={testing}
-            className="glass-interactive"
-            style={{ width: '100%', padding: '12px', borderRadius: '12px', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border)', color: 'var(--primary)', fontSize: '13px', fontWeight: '800', cursor: testing ? 'default' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
-          >
-            {testing ? <Loader2 size={16} className="animate-spin" /> : <Volume2 size={16} />}
-            {t('settingsNotifications.testSound')}
-          </button>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div style={{ animation: 'fadeIn 0.5s ease-out' }}>
-      {/* Header */}
-      <header style={{ marginBottom: '32px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '16px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-          <div className="glass" style={{ width: '56px', height: '56px', borderRadius: '18px', background: 'var(--primary-glow)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 8px 25px rgba(0, 242, 254, 0.2)' }}>
-            <Bell color="var(--primary)" size={28} />
+    <div className={styles.page}>
+      <PageHeader
+        title={t('notificationsHub.title')}
+        badge={
+          <div className={styles.statusBadges}>
+            {unreadCount > 0 && (
+              <Badge variant="primary" dot>
+                {unreadCount} {t('dashboard.tabs.unread')}
+              </Badge>
+            )}
+            {slaBreached.length > 0 && (
+              <Badge variant="danger" dot>
+                {slaBreached.length} {t('notificationsHub.overSla')}
+              </Badge>
+            )}
+            {slaWarning.length > 0 && (
+              <Badge variant="warning" dot>
+                {slaWarning.length} {t('notificationsHub.nearSla')}
+              </Badge>
+            )}
           </div>
-          <div>
-            <h1 style={{ fontSize: '28px', fontWeight: '900', letterSpacing: '-0.5px', marginBottom: '6px' }}>{t('notificationsHub.title')}</h1>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-              {unreadCount > 0 && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(54, 153, 255, 0.08)', padding: '4px 12px', borderRadius: '20px', border: '1px solid rgba(54, 153, 255, 0.15)' }}>
-                  <div className="pulse-dot" style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--primary)' }} />
-                  <span style={{ fontSize: '12px', fontWeight: '800', color: 'var(--primary)' }}>{unreadCount} {t('dashboard.tabs.unread')}</span>
-                </div>
-              )}
-              {slaBreached.length > 0 && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(234, 84, 85, 0.08)', padding: '4px 12px', borderRadius: '20px', border: '1px solid rgba(234, 84, 85, 0.2)' }}>
-                  <AlertTriangle size={12} color="#ea5455" />
-                  <span style={{ fontSize: '12px', fontWeight: '800', color: '#ea5455' }}>{slaBreached.length} {t('notificationsHub.overSla')}</span>
-                </div>
-              )}
-              {slaWarning.length > 0 && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(255, 159, 67, 0.08)', padding: '4px 12px', borderRadius: '20px', border: '1px solid rgba(255, 159, 67, 0.2)' }}>
-                  <Clock size={12} color="#ff9f43" />
-                  <span style={{ fontSize: '12px', fontWeight: '800', color: '#ff9f43' }}>{slaWarning.length} {t('notificationsHub.nearSla')}</span>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-        
-        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-          <button 
-            onClick={requestNotificationPermission}
-            className="glass-interactive" 
-            style={{ padding: '10px 16px', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '8px', color: browserNotifsEnabled ? 'var(--primary)' : 'var(--text-muted)', border: '1px solid var(--border)', background: 'rgba(255, 255, 255, 0.02)', cursor: 'pointer', fontWeight: '700', fontSize: '13px' }}
-          >
-            {browserNotifsEnabled ? <Volume2 size={16} /> : <VolumeX size={16} />}
-            {browserNotifsEnabled ? t('notificationsHub.browserStatus') : t('settingsNotifications.requestPermission')}
-          </button>
-
-          {unreadCount > 0 && (
-            <button 
-              onClick={markAllRead}
-              className="glass-interactive" 
-              style={{ padding: '10px 20px', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '8px', color: '#0a0e14', background: 'var(--primary)', border: 'none', cursor: 'pointer', fontWeight: '900', fontSize: '13px', boxShadow: '0 4px 15px rgba(0, 242, 254, 0.3)' }}
+        }
+        actions={
+          <>
+            <Button
+              size="sm"
+              variant={browserNotifsEnabled ? 'secondary' : 'ghost'}
+              onClick={requestNotificationPermission}
+              leftIcon={
+                browserNotifsEnabled ? (
+                  <Volume2 size={15} aria-hidden="true" />
+                ) : (
+                  <VolumeX size={15} aria-hidden="true" />
+                )
+              }
             >
-              <CheckCheck size={16} />
-              {t('dashboard.markAllRead')}
-            </button>
-          )}
+              {browserNotifsEnabled
+                ? t('notificationsHub.browserStatus')
+                : t('settingsNotifications.requestPermission')}
+            </Button>
 
-          {notifications.length > 0 && (
-            <button
-              onClick={handleClearNotifications}
-              className="glass-interactive"
-              style={{ padding: '10px 16px', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '8px', color: '#ff9f43', border: '1px solid rgba(255, 159, 67, 0.3)', background: 'rgba(255, 159, 67, 0.08)', cursor: 'pointer', fontWeight: '800', fontSize: '13px' }}
-            >
-              <Trash2 size={16} />
-              {t('notificationsHub.clearAll')}
-            </button>
-          )}
-        </div>
-      </header>
+            {unreadCount > 0 && (
+              <Button
+                size="sm"
+                variant="primary"
+                onClick={markAllRead}
+                leftIcon={<CheckCheck size={15} aria-hidden="true" />}
+              >
+                {t('dashboard.markAllRead')}
+              </Button>
+            )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: '28px' }}>
+            {notifications.length > 0 && (
+              <Button
+                size="sm"
+                variant="warning"
+                onClick={() => setShowClearConfirm(true)}
+                leftIcon={<Trash2 size={15} aria-hidden="true" />}
+              >
+                {t('notificationsHub.clearAll')}
+              </Button>
+            )}
+          </>
+        }
+      />
 
-        {/* LEFT: Notification List */}
-        <div style={{ minWidth: 0 }}>
-          <div className="glass" style={{ padding: '20px', borderRadius: '20px', border: '1px solid var(--border)' }}>
-            {/* Tabs + Search */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
-              <div style={{ display: 'flex', gap: '4px', background: 'rgba(255,255,255,0.03)', padding: '4px', borderRadius: '12px', flexWrap: 'wrap' }}>
-                {tabs.map(tab => (
-                  <button key={tab.key} onClick={() => setActiveTab(tab.key)} style={{
-                    padding: '9px 18px', borderRadius: '9px', border: 'none', fontSize: '13px',
-                    fontWeight: '800', cursor: 'pointer',
-                    background: activeTab === tab.key ? 'rgba(54, 153, 255, 0.12)' : 'transparent',
-                    color: activeTab === tab.key ? 'var(--primary)' : 'var(--text-dim)',
-                    transition: 'all 0.2s',
-                  }}>
-                    {tab.label}
-                  </button>
-                ))}
+      <div className={styles.grid}>
+        <Card>
+          <CardBody>
+            <div className={styles.listToolbar}>
+              <div className={styles.tabs} role="tablist" aria-label="Notification filters">
+                {tabs.map((tab) => {
+                  const active = activeTab === tab.key;
+                  return (
+                    <button
+                      key={tab.key}
+                      type="button"
+                      role="tab"
+                      aria-selected={active}
+                      onClick={() => setActiveTab(tab.key)}
+                      className={clsx(styles.tabBtn, active && styles.tabBtnActive)}
+                    >
+                      {tab.label}
+                    </button>
+                  );
+                })}
               </div>
-              <div style={{ position: 'relative', minWidth: '220px' }}>
-                <Search size={16} style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', opacity: 0.35 }} />
-                <input 
-                  type="text" placeholder={t('notificationsHub.searchPlaceholder')}
-                  value={searchTerm} onChange={e => setSearchTerm(e.target.value)}
-                  style={{ width: '100%', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '10px', padding: '10px 14px 10px 42px', color: 'var(--text-main)', fontSize: '13px' }}
+
+              <div className={styles.searchWrap}>
+                <Search size={14} className={styles.searchIcon} aria-hidden="true" />
+                <input
+                  type="search"
+                  placeholder={t('notificationsHub.searchPlaceholder')}
+                  aria-label={t('notificationsHub.searchPlaceholder')}
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className={styles.searchInput}
                 />
               </div>
             </div>
 
-            {/* Notification cards */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <div className={styles.notifList}>
               {filteredNotifs.length === 0 ? (
-                <div style={{ padding: '80px 24px', textAlign: 'center' }}>
-                  <Bell size={52} style={{ opacity: 0.07, marginBottom: '16px' }} />
-                  <p style={{ color: 'var(--text-muted)', fontWeight: '600', fontSize: '14px' }}>{t('dashboard.noNotifications')}</p>
-                </div>
+                <EmptyState
+                  icon={<Bell size={22} aria-hidden="true" />}
+                  title={t('dashboard.noNotifications')}
+                />
               ) : (
-                filteredNotifs.map(notif => {
+                filteredNotifs.map((notif) => {
                   const IconComp = ACTION_ICONS[notif.type] || Ticket;
-                  const iconColor = ACTION_COLORS[notif.type] || '#00f2fe';
-                  const isSlaAlert = notif.type === 'sla' || notif.type === 'sla_warning';
+                  const isSla = notif.type === 'sla';
+                  const isSlaWarn = notif.type === 'sla_warning';
 
                   return (
                     <div
                       key={notif.id}
-                      onClick={() => handleNotifClick(notif)}
-                      className="notif-card-premium"
-                      style={{
-                        background: !notif.isRead ? (isSlaAlert ? `${iconColor}08` : 'rgba(0, 242, 254, 0.03)') : 'rgba(255,255,255,0.01)',
-                        border: `1px solid ${!notif.isRead ? `${iconColor}18` : 'var(--border)'}`,
-                        borderLeft: isSlaAlert ? `3px solid ${iconColor}` : undefined,
-                        borderRadius: '14px',
-                        padding: '16px 20px',
-                        display: 'flex',
-                        gap: '16px',
-                        alignItems: 'center',
-                        cursor: 'pointer',
-                        transition: 'all 0.2s ease',
-                      }}
+                      className={clsx(
+                        styles.notifItem,
+                        !notif.isRead && styles.notifItemUnread,
+                        isSla && styles.notifItemSla,
+                        isSlaWarn && styles.notifItemWarning
+                      )}
                     >
-                      <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: `${iconColor}12`, border: `1px solid ${iconColor}20`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                        <IconComp size={20} color={iconColor} />
-                      </div>
-
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '3px', flexWrap: 'wrap' }}>
-                          <span style={{ fontSize: '10px', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '0.08em', color: iconColor, opacity: 0.9 }}>
-                            {getNotificationTypeLabel(notif.type, t)}
-                          </span>
-                          <span style={{ fontSize: '10px', color: 'var(--text-main)', opacity: 0.5 }}>•</span>
-                          <span style={{ fontSize: '10px', color: 'var(--text-main)', opacity: 0.6, fontWeight: '600' }}>{timeAgo(notif.createdAt, t)}</span>
-                          {notif.minutesRemaining !== undefined && <SlaBadge minutesRemaining={notif.minutesRemaining} t={t} />}
+                      <button
+                        type="button"
+                        onClick={() => handleNotifClick(notif)}
+                        className={styles.notifMainBtn}
+                      >
+                        <div
+                          className={clsx(
+                            styles.notifIconBox,
+                            isSla
+                              ? styles.notifIconSla
+                              : isSlaWarn
+                                ? styles.notifIconWarning
+                                : notif.type === 'message'
+                                  ? styles.notifIconMessage
+                                  : styles.notifIconTicket
+                          )}
+                          aria-hidden="true"
+                        >
+                          <IconComp size={18} aria-hidden={true} />
                         </div>
-                        <h3 style={{ fontSize: '14px', fontWeight: !notif.isRead ? '800' : '600', color: 'var(--text-main)', marginBottom: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {notif.title}
-                        </h3>
-                        <p style={{ fontSize: '12px', color: 'var(--text-main)', opacity: 0.7, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {notif.body}
-                        </p>
-                      </div>
 
-                      <div style={{ display: 'flex', gap: '8px', flexShrink: 0 }}>
-                        {notif.isRead ? (
-                          <div style={{ padding: '8px', borderRadius: '8px', background: 'rgba(255,255,255,0.03)', color: 'var(--text-muted)', opacity: 0.4 }}>
-                            <CheckCircle2 size={16} />
+                        <div className={styles.notifBody}>
+                          <div className={styles.notifMeta}>
+                            <span style={{ fontWeight: 700 }}>
+                              {getNotificationTypeLabel(notif.type, t)}
+                            </span>
+                            <span aria-hidden="true">•</span>
+                            <span className="tabular-nums">{timeAgo(notif.createdAt, t)}</span>
+                            {notif.minutesRemaining !== undefined && (
+                              <SlaBadge minutesRemaining={notif.minutesRemaining} t={t} />
+                            )}
                           </div>
-                        ) : (
-                          <button 
-                            onClick={e => { e.stopPropagation(); markAsRead(notif.id); }}
-                            className="glass-interactive"
-                            style={{ padding: '8px', borderRadius: '8px', border: 'none', background: 'var(--primary-glow)', color: 'var(--primary)', cursor: 'pointer' }}
-                          >
-                            <CheckCheck size={16} />
-                          </button>
-                        )}
-                      </div>
+                          <p className={styles.notifTitle}>{notif.title}</p>
+                          <p className={styles.notifSubtitle}>{notif.body}</p>
+                        </div>
+                      </button>
+
+                      {notif.isRead ? (
+                        <span
+                          aria-label={locale === 'th' ? 'อ่านแล้ว' : 'Read'}
+                          style={{ color: 'var(--color-text-disabled)', padding: '6px' }}
+                        >
+                          <CheckCircle2 size={16} aria-hidden="true" />
+                        </span>
+                      ) : (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          iconOnly
+                          onClick={() => markAsRead(notif.id)}
+                          aria-label={locale === 'th' ? 'ทำเครื่องหมายว่าอ่านแล้ว' : 'Mark as read'}
+                          title={locale === 'th' ? 'ทำเครื่องหมายว่าอ่านแล้ว' : 'Mark as read'}
+                        >
+                          <CheckCheck size={15} aria-hidden="true" />
+                        </Button>
+                      )}
                     </div>
                   );
                 })
               )}
             </div>
-          </div>
-        </div>
+          </CardBody>
+        </Card>
 
-        {/* RIGHT: Widgets */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-
-          {/* SLA Overview Widget */}
-          <div className="glass" style={{ borderRadius: '20px', border: '1px solid var(--border)', overflow: 'hidden' }}>
-            <div style={{ padding: '20px 20px 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <Activity size={18} color="var(--primary)" />
-                <h2 style={{ fontSize: '15px', fontWeight: '800' }}>{t('notificationsHub.slaMonitor')}</h2>
+        <div className={styles.sidebarCol}>
+          {/* SLA Monitor */}
+          <Card>
+            <CardHeader
+              actions={
+                <span
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    fontSize: '11px',
+                    color: 'var(--color-text-subtle)',
+                  }}
+                >
+                  <RefreshCw size={11} aria-hidden="true" />
+                  <span className="tabular-nums">90s</span>
+                </span>
+              }
+            >
+              <CardTitle>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+                  <Activity size={16} color="var(--color-primary)" aria-hidden="true" />
+                  {t('notificationsHub.slaMonitor')}
+                </span>
+              </CardTitle>
+            </CardHeader>
+            <CardBody style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <div className={clsx(styles.statTile, slaBreached.length > 0 && styles.statTileDanger)}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: 'var(--text-sm)', fontWeight: 600 }}>
+                  <AlertTriangle size={14} color="var(--color-danger)" aria-hidden="true" />
+                  <span>{t('notificationsHub.overSla')}</span>
+                </div>
+                <span
+                  className={clsx(styles.statNumber, 'tabular-nums')}
+                  style={{
+                    color: slaBreached.length > 0 ? 'var(--color-danger-text)' : 'var(--color-text-muted)',
+                  }}
+                >
+                  {slaBreached.length}
+                </span>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', opacity: 0.5 }}>
-                <RefreshCw size={11} />
-                <span style={{ fontSize: '10px' }}>90 {t('dashboard.minutesAgo').replace('ที่แล้ว', '')}</span>
-              </div>
-            </div>
 
-            {/* Stat bars */}
-            <div style={{ padding: '0 20px 20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              {/* Breached */}
-              <div style={{ padding: '14px', borderRadius: '12px', background: slaBreached.length > 0 ? 'rgba(234,84,85,0.07)' : 'rgba(255,255,255,0.02)', border: `1px solid ${slaBreached.length > 0 ? 'rgba(234,84,85,0.2)' : 'var(--border)'}` }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <AlertTriangle size={14} color="#ea5455" />
-                    <span style={{ fontSize: '13px', fontWeight: '700' }}>{t('notificationsHub.overSla')}</span>
-                  </div>
-                  <span style={{ fontSize: '22px', fontWeight: '900', color: slaBreached.length > 0 ? '#ea5455' : 'var(--text-muted)' }}>
-                    {slaBreached.length}
+              <div className={clsx(styles.statTile, slaWarning.length > 0 && styles.statTileWarning)}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: 'var(--text-sm)', fontWeight: 600 }}>
+                  <Clock size={14} color="var(--color-warning)" aria-hidden="true" />
+                  <span>
+                    {t('notificationsHub.nearSla')} (≤60m)
                   </span>
                 </div>
-                {slaBreached.length > 0 && (
-                  <p style={{ fontSize: '11px', color: 'var(--text-dim)', marginTop: '4px' }}>{t('settingsSla.escalationLevels')}</p>
-                )}
+                <span
+                  className={clsx(styles.statNumber, 'tabular-nums')}
+                  style={{
+                    color: slaWarning.length > 0 ? 'var(--color-warning-text)' : 'var(--color-text-muted)',
+                  }}
+                >
+                  {slaWarning.length}
+                </span>
               </div>
 
-              {/* Warning */}
-              <div style={{ padding: '14px', borderRadius: '12px', background: slaWarning.length > 0 ? 'rgba(255,159,67,0.07)' : 'rgba(255,255,255,0.02)', border: `1px solid ${slaWarning.length > 0 ? 'rgba(255,159,67,0.2)' : 'var(--border)'}` }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <Clock size={14} color="#ff9f43" />
-                    <span style={{ fontSize: '13px', fontWeight: '700' }}>{t('notificationsHub.nearSla')} (≤60 {t('dashboard.minutesAgo').replace('ที่แล้ว', '')})</span>
-                  </div>
-                  <span style={{ fontSize: '22px', fontWeight: '900', color: slaWarning.length > 0 ? '#ff9f43' : 'var(--text-muted)' }}>
-                    {slaWarning.length}
-                  </span>
-                </div>
-                {slaWarning.length > 0 && (
-                  <p style={{ fontSize: '11px', color: 'var(--text-dim)', marginTop: '4px' }}>{t('settingsSla.policyGuide')}</p>
-                )}
-              </div>
-
-              {/* All clear */}
               {slaBreached.length === 0 && slaWarning.length === 0 && (
-                <div style={{ padding: '14px', borderRadius: '12px', background: 'rgba(40,199,111,0.07)', border: '1px solid rgba(40,199,111,0.2)', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <CheckCircle2 size={18} color="#28c76f" />
+                <div className={clsx(styles.statTile, styles.statTileSuccess)} style={{ justifyContent: 'flex-start', gap: '10px' }}>
+                  <CheckCircle2 size={18} color="var(--color-success)" aria-hidden="true" />
                   <div>
-                    <p style={{ fontSize: '13px', fontWeight: '800', color: '#28c76f' }}>{t('notificationsHub.allNormal')}</p>
-                    <p style={{ fontSize: '11px', color: 'var(--text-dim)', marginTop: '2px' }}>{t('notificationsHub.noActiveSla')}</p>
+                    <p style={{ margin: 0, fontSize: 'var(--text-xs)', fontWeight: 700, color: 'var(--color-success-text)' }}>
+                      {t('notificationsHub.allNormal')}
+                    </p>
+                    <p style={{ margin: '2px 0 0', fontSize: '11px', color: 'var(--color-text-muted)' }}>
+                      {t('notificationsHub.noActiveSla')}
+                    </p>
                   </div>
                 </div>
               )}
 
-              <button onClick={() => router.push('/tickets')} style={{ width: '100%', padding: '12px', borderRadius: '10px', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border)', color: 'var(--text-muted)', fontSize: '12px', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
-                {t('notificationsHub.viewAllTickets')} <ExternalLink size={12} />
-              </button>
-            </div>
-          </div>
+              <Button
+                size="sm"
+                variant="secondary"
+                fullWidth
+                onClick={() => router.push('/tickets')}
+                rightIcon={<ExternalLink size={12} aria-hidden="true" />}
+              >
+                {t('notificationsHub.viewAllTickets')}
+              </Button>
+            </CardBody>
+          </Card>
 
-          {/* Channel Settings */}
-          <div className="glass" style={{ padding: '20px', borderRadius: '20px', border: '1px solid var(--border)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
-              <Settings2 size={18} color="var(--primary)" />
-              <h2 style={{ fontSize: '15px', fontWeight: '800' }}>{t('notificationsHub.channels')}</h2>
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px', background: 'rgba(255,255,255,0.02)', borderRadius: '10px', border: '1px solid var(--border)' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <Smartphone size={16} color="var(--primary)" />
-                  <span style={{ fontSize: '13px', fontWeight: '700' }}>{t('notificationsHub.inApp')}</span>
-                </div>
-                <span style={{ color: '#28c76f', fontSize: '10px', fontWeight: '900' }}>{t('notificationsHub.active')}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px', background: browserNotifsEnabled ? 'rgba(40,199,111,0.05)' : 'rgba(255,255,255,0.02)', borderRadius: '10px', border: `1px solid ${browserNotifsEnabled ? 'rgba(40,199,111,0.2)' : 'var(--border)'}` }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <Volume2 size={16} color={browserNotifsEnabled ? '#28c76f' : 'var(--text-dim)'} />
-                  <span style={{ fontSize: '13px', fontWeight: '700' }}>{t('notificationsHub.browserPush')}</span>
-                </div>
-                <span style={{ color: browserNotifsEnabled ? '#28c76f' : 'var(--text-muted)', fontSize: '10px', fontWeight: '900' }}>
-                  {browserNotifsEnabled ? t('notificationsHub.enabled') : t('common.inactive')}
+          {/* Channels */}
+          <Card>
+            <CardHeader>
+              <CardTitle>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+                  <Settings2 size={16} color="var(--color-primary)" aria-hidden="true" />
+                  {t('notificationsHub.channels')}
                 </span>
+              </CardTitle>
+            </CardHeader>
+            <CardBody style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <div className={styles.channelRow}>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+                  <Smartphone size={15} color="var(--color-primary)" aria-hidden="true" />
+                  {t('notificationsHub.inApp')}
+                </span>
+                <Badge size="sm" variant="success">
+                  {t('notificationsHub.active')}
+                </Badge>
               </div>
-            </div>
-          </div>
+              <div className={styles.channelRow}>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+                  <Volume2
+                    size={15}
+                    color={browserNotifsEnabled ? 'var(--color-success)' : 'var(--color-text-muted)'}
+                    aria-hidden="true"
+                  />
+                  {t('notificationsHub.browserPush')}
+                </span>
+                <Badge size="sm" variant={browserNotifsEnabled ? 'success' : 'neutral'}>
+                  {browserNotifsEnabled
+                    ? t('notificationsHub.enabled')
+                    : locale === 'th'
+                      ? 'ปิดอยู่'
+                      : 'Off'}
+                </Badge>
+              </div>
+            </CardBody>
+          </Card>
 
-          {/* Sound Settings Widget */}
-          <SoundSettingsWidget />
-
-          <div className="glass" style={{ padding: '20px', borderRadius: '20px', border: '1px solid var(--border)', background: 'linear-gradient(135deg, rgba(54, 153, 255, 0.04) 0%, rgba(0, 242, 254, 0.04) 100%)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
-              <Zap size={16} color="var(--primary)" />
-              <h2 style={{ fontSize: '14px', fontWeight: '800' }}>{t('notificationsHub.quickTip')}</h2>
-            </div>
-            <p style={{ fontSize: '12px', color: 'var(--text-dim)', lineHeight: '1.6', marginBottom: '16px' }}>
-              {t('notificationsHub.tipBody')}
-            </p>
-            <button 
-              onClick={() => router.push('/settings/profile')}
-              style={{ width: '100%', padding: '10px', borderRadius: '9px', background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border)', color: 'var(--text-main)', fontSize: '12px', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+          {/* Sound Settings */}
+          <Card>
+            <CardHeader
+              actions={
+                <Button
+                  size="sm"
+                  variant={isMuted ? 'danger' : 'secondary'}
+                  onClick={toggleMute}
+                  leftIcon={
+                    isMuted ? (
+                      <VolumeX size={14} aria-hidden="true" />
+                    ) : (
+                      <Volume2 size={14} aria-hidden="true" />
+                    )
+                  }
+                >
+                  {isMuted
+                    ? locale === 'th'
+                      ? 'ปิดเสียง'
+                      : 'Muted'
+                    : locale === 'th'
+                      ? 'เปิดเสียง'
+                      : 'On'}
+                </Button>
+              }
             >
-              {t('notificationsHub.goToList')} <ExternalLink size={12} />
-            </button>
-          </div>
+              <CardTitle>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+                  <Volume2 size={16} color="var(--color-primary)" aria-hidden="true" />
+                  {t('settingsNotifications.soundTitle')}
+                </span>
+              </CardTitle>
+            </CardHeader>
+            <CardBody style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <div className={styles.tabs} style={{ width: '100%' }}>
+                <button
+                  type="button"
+                  aria-pressed={soundMode === 'beep'}
+                  onClick={() => setSoundMode('beep')}
+                  className={clsx(styles.tabBtn, soundMode === 'beep' && styles.tabBtnActive)}
+                  style={{ flex: 1 }}
+                >
+                  {t('settingsNotifications.soundBeep')}
+                </button>
+                <button
+                  type="button"
+                  aria-pressed={soundMode === 'voice'}
+                  onClick={() => setSoundMode('voice')}
+                  className={clsx(styles.tabBtn, soundMode === 'voice' && styles.tabBtnActive)}
+                  style={{ flex: 1 }}
+                >
+                  {t('settingsNotifications.soundVoice')}
+                </button>
+              </div>
+
+              {soundMode === 'voice' && (
+                <div className={styles.radioPair} role="radiogroup" aria-label="Voice gender">
+                  <button
+                    type="button"
+                    role="radio"
+                    aria-checked={soundVoice === 'female'}
+                    onClick={() => setSoundVoice('female')}
+                    className={clsx(
+                      styles.radioBtn,
+                      soundVoice === 'female' && styles.radioBtnActive
+                    )}
+                  >
+                    <span
+                      style={{
+                        width: 8,
+                        height: 8,
+                        borderRadius: '50%',
+                        background:
+                          soundVoice === 'female' ? 'var(--color-primary)' : 'transparent',
+                        border: '1px solid var(--color-border-strong)',
+                      }}
+                      aria-hidden="true"
+                    />
+                    {t('notificationsHub.alerts.voiceFemale')}
+                  </button>
+                  <button
+                    type="button"
+                    role="radio"
+                    aria-checked={soundVoice === 'male'}
+                    onClick={() => setSoundVoice('male')}
+                    className={clsx(
+                      styles.radioBtn,
+                      soundVoice === 'male' && styles.radioBtnActive
+                    )}
+                  >
+                    <span
+                      style={{
+                        width: 8,
+                        height: 8,
+                        borderRadius: '50%',
+                        background: soundVoice === 'male' ? 'var(--color-primary)' : 'transparent',
+                        border: '1px solid var(--color-border-strong)',
+                      }}
+                      aria-hidden="true"
+                    />
+                    {t('notificationsHub.alerts.voiceMale')}
+                  </button>
+                </div>
+              )}
+
+              <Button
+                size="sm"
+                variant="secondary"
+                fullWidth
+                loading={testingSound}
+                onClick={handleTestSound}
+                leftIcon={<Volume2 size={14} aria-hidden="true" />}
+              >
+                {t('settingsNotifications.testSound')}
+              </Button>
+            </CardBody>
+          </Card>
+
+          {/* Quick Tip */}
+          <Card>
+            <CardHeader>
+              <CardTitle>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+                  <Zap size={16} color="var(--color-primary)" aria-hidden="true" />
+                  {t('notificationsHub.quickTip')}
+                </span>
+              </CardTitle>
+            </CardHeader>
+            <CardBody style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <p style={{ margin: 0, fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)', lineHeight: 1.55 }}>
+                {t('notificationsHub.tipBody')}
+              </p>
+              <Button
+                size="sm"
+                variant="secondary"
+                fullWidth
+                onClick={() => router.push('/settings/profile')}
+                rightIcon={<ExternalLink size={12} aria-hidden="true" />}
+              >
+                {t('notificationsHub.goToList')}
+              </Button>
+            </CardBody>
+          </Card>
         </div>
       </div>
 
-      <style dangerouslySetInnerHTML={{ __html: `
-        .notif-card-premium:hover {
-          background: rgba(255,255,255,0.04) !important;
-          transform: translateY(-1px);
-          box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+      <Modal
+        isOpen={showClearConfirm}
+        onClose={() => setShowClearConfirm(false)}
+        size="sm"
+        title={t('notificationsHub.clearAll')}
+        description={t('notificationsHub.clearConfirm')}
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setShowClearConfirm(false)}>
+              {t('common.cancel')}
+            </Button>
+            <Button
+              variant="danger"
+              onClick={() => {
+                setShowClearConfirm(false);
+                clearNotifications();
+              }}
+            >
+              {t('notificationsHub.clearAll')}
+            </Button>
+          </>
         }
-        .pulse-dot { animation: sla-pulse 2s infinite; }
-        @keyframes sla-pulse {
-          0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(0, 242, 254, 0.4); }
-          50% { opacity: 0.7; box-shadow: 0 0 0 8px rgba(0, 242, 254, 0); }
-        }
-        @keyframes fadeIn {
-          from { opacity: 0; transform: translateY(10px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-      `}} />
+      >
+        <p style={{ margin: 0, fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)' }}>
+          {t('notificationsHub.clearConfirm')}
+        </p>
+      </Modal>
     </div>
   );
 }

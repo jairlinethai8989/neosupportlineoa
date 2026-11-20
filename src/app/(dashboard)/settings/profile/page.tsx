@@ -1,80 +1,79 @@
 'use client';
 /* eslint-disable @next/next/no-img-element */
 /* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable jsx-a11y/alt-text */
-import React, { useState, useEffect } from 'react';
-import { supabase } from '@/lib/supabase';
-import { 
-  User, 
-  Camera, 
-  Save, 
-  Loader2, 
+import React, { useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
+import {
+  Camera,
+  Check,
   ChevronLeft,
-  ShieldCheck,
+  ClipboardCheck,
+  Loader2,
   Lock,
   Mail,
   MessageSquarePlus,
-  ClipboardCheck,
-  Trash2,
-  CheckCircle,
   PenTool,
-  Plus
+  Plus,
+  Save,
+  ShieldCheck,
+  Trash2,
+  User,
+  X,
 } from 'lucide-react';
-import Link from 'next/link';
+import { supabase } from '@/lib/supabase';
 import { auditService } from '@/lib/services/auditService';
 import { SignaturePad } from '@/components/profile/SignaturePad';
 import { ImageCropper } from '@/components/profile/ImageCropper';
 import { useStaffLocale } from '@/contexts/StaffLocaleContext';
+import {
+  Button,
+  Card,
+  CardBody,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+  EmptyState,
+  Input,
+  PageHeader,
+  Select,
+} from '@/components/ui';
+import styles from '../settings.module.css';
 
 const AVATAR_SEEDS = [
   'Ariel', 'Willow', 'Casper', 'Sasha', 'Jasper', 'Zoey', 'Felix', 'Luna',
   'Simba', 'Nala', 'Coco', 'Ruby', 'Milo', 'Cleo', 'Jack', 'Oliver',
   'Midnight', 'Shadow', 'Ginger', 'Snowball', 'Pepper', 'Sunny', 'Cookie', 'Bear',
-  'Charlie', 'Daisy', 'Max', 'Bella', 'Rocky', 'Lola'
+  'Charlie', 'Daisy', 'Max', 'Bella', 'Rocky', 'Lola',
 ];
 
 const PROFILE_COLORS = [
-  '#00f2fe', // primary
-  '#28c76f', // green
-  '#ea5455', // red
-  '#ff9f43', // orange
-  '#7367f0', // purple
-  '#3699ff', // blue
-  '#e83e8c', // pink
-  '#20c997', // teal
-  '#6610f2', // indigo
-  '#fd7e14', // rust
-  '#ffc107', // yellow
-  '#17a2b8', // cyan
-  '#6f42c1', // violet
-  '#d63384', // magenta
-  '#0dcaf0', // light blue
-  '#198754', // dark green
-  '#dc3545', // dark red
-  '#ffc0cb', // light pink
-  '#8b4513', // saddle brown
-  '#483d8b', // dark slate blue
-  '#008080', // pure teal
-  '#556b2f', // dark olive green
-  '#4682b4', // steel blue
-  '#c71585'  // medium violet red
+  '#1d4ed8', // Ocean Cobalt
+  '#2563eb', // Cobalt Bright
+  '#3b82f6', // Sky Cobalt
+  '#0284c7', // Cerulean
+  '#0ea5e9', // Sky Blue
+  '#0891b2', // Cyan Deep
+  '#06b6d4', // Cyan
+  '#0d9488', // Teal
+  '#14b8a6', // Mint Teal
+  '#059669', // Emerald
+  '#10b981', // Green
+  '#16a34a', // Forest Green
+  '#65a30d', // Olive Green
+  '#ca8a04', // Gold
+  '#d97706', // Amber
+  '#f59e0b', // Warm Amber
+  '#ea580c', // Burnt Orange
+  '#f97316', // Signal Orange
+  '#dc2626', // Crimson
+  '#ef4444', // Red
+  '#b91c1c', // Deep Crimson
+  '#475569', // Slate
+  '#334155', // Deep Slate
+  '#0f172a', // Charcoal Navy
 ];
 
-const AVATAR_OPTIONS = AVATAR_SEEDS.map(seed => `https://api.dicebear.com/7.x/adventurer/svg?seed=${seed}`);
-
-const DEPT_BADGES: Record<string, string> = {
-  'IT Support': '💻',
-  'Customer Service': '🎧',
-  'Billing': '💵',
-  'Accounting': '📊',
-  'Management': '🛡️',
-  'Sales': '🚀',
-  'Marketing': '📢',
-  'Operations': '⚙️',
-  'Human Resources': '👥',
-  'Administration': '🏢'
-};
+const AVATAR_OPTIONS = AVATAR_SEEDS.map((seed) => `https://api.dicebear.com/7.x/adventurer/svg?seed=${seed}`);
 
 export default function ProfileSettingsPage() {
   const { t } = useStaffLocale();
@@ -91,58 +90,73 @@ export default function ProfileSettingsPage() {
   const [activeTab, setActiveTab] = useState<'profile' | 'security'>('profile');
   const [cropImageSrc, setCropImageSrc] = useState<string | null>(null);
 
+  const [addingQuick, setAddingQuick] = useState(false);
+  const [quickDraft, setQuickDraft] = useState('');
+  const [addingRes, setAddingRes] = useState(false);
+  const [resDraft, setResDraft] = useState('');
+
+  const avatarInputRef = useRef<HTMLInputElement>(null);
+
   useEffect(() => {
     async function fetchData() {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (user) {
         const { data: p } = await supabase.from('profiles').select('*').eq('id', user.id).single();
-        const { data: depts } = await supabase.from('departments').select('name').eq('is_active', true).eq('dept_type', 'organization').order('name');
+        const { data: depts } = await supabase
+          .from('departments')
+          .select('name')
+          .eq('is_active', true)
+          .eq('dept_type', 'organization')
+          .order('name');
         setProfile(p);
-        if (depts) setCompanyDepts(depts.map(d => d.name));
+        if (depts) setCompanyDepts(depts.map((d) => d.name));
       }
       setLoading(false);
     }
     fetchData();
   }, []);
 
-  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-     const file = event.target.files?.[0];
-     if (!file) return;
+  const triggerToast = (message: string, duration = 3000) => {
+    setToastMsg(message);
+    setShowToast(true);
+    setTimeout(() => setShowToast(false), duration);
+  };
 
-     // Read file as data URL to pass to cropper
-     const reader = new FileReader();
-     reader.addEventListener('load', () => setCropImageSrc(reader.result?.toString() || null));
-     reader.readAsDataURL(file);
-     
-     // Reset input so the same file can be selected again if canceled
-     event.target.value = '';
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.addEventListener('load', () => setCropImageSrc(reader.result?.toString() || null));
+    reader.readAsDataURL(file);
+
+    event.target.value = '';
   };
 
   const handleCropComplete = async (croppedFile: File) => {
-     setCropImageSrc(null);
-     setUploading(true);
-     try {
-        const fileExt = croppedFile.name.split('.').pop();
-        const fileName = `${Math.random()}.${fileExt}`;
-        const filePath = `profile/${fileName}`;
+    setCropImageSrc(null);
+    setUploading(true);
+    try {
+      const fileExt = croppedFile.name.split('.').pop();
+      const fileName = `${Math.random()}.${fileExt}`;
+      const filePath = `profile/${fileName}`;
 
-        const { error: uploadError } = await supabase.storage
-           .from('chat_media') 
-           .upload(filePath, croppedFile);
+      const { error: uploadError } = await supabase.storage.from('chat_media').upload(filePath, croppedFile);
+      if (uploadError) throw uploadError;
 
-        if (uploadError) throw uploadError;
+      const {
+        data: { publicUrl },
+      } = supabase.storage.from('chat_media').getPublicUrl(filePath);
+      setProfile({ ...profile, avatar_url: publicUrl });
 
-        const { data: { publicUrl } } = supabase.storage.from('chat_media').getPublicUrl(filePath);
-        setProfile({ ...profile, avatar_url: publicUrl });
-        
-        setToastMsg(t('common.messages.success'));
-        setShowToast(true);
-        setTimeout(() => setShowToast(false), 3000);
-     } catch (err: any) {
-        alert(t('common.messages.error') + ': ' + (err.message || 'Error'));
-     } finally {
-        setUploading(false);
-     }
+      triggerToast(t('common.messages.success'));
+    } catch (err: any) {
+      alert(t('common.messages.error') + ': ' + (err.message || 'Error'));
+    } finally {
+      setUploading(false);
+    }
   };
 
   const handleSignatureSave = async (dataUrl: string) => {
@@ -151,25 +165,26 @@ export default function ProfileSettingsPage() {
       const res = await fetch(dataUrl);
       const blob = await res.blob();
       const file = new File([blob], `signature_${profile.id}.png`, { type: 'image/png' });
-      
-      const filePath = `signatures/${profile.id}_${Date.now()}.png`;
-      const { error: uploadError } = await supabase.storage
-        .from('chat_media')
-        .upload(filePath, file);
 
+      const filePath = `signatures/${profile.id}_${Date.now()}.png`;
+      const { error: uploadError } = await supabase.storage.from('chat_media').upload(filePath, file);
       if (uploadError) throw uploadError;
-      const { data: { publicUrl } } = supabase.storage.from('chat_media').getPublicUrl(filePath);
-      
-      const { error } = await supabase.from('profiles').update({
-        signature_url: publicUrl,
-        updated_at: new Date().toISOString()
-      }).eq('id', profile.id);
+
+      const {
+        data: { publicUrl },
+      } = supabase.storage.from('chat_media').getPublicUrl(filePath);
+
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          signature_url: publicUrl,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', profile.id);
 
       if (error) throw error;
       setProfile({ ...profile, signature_url: publicUrl });
-      setToastMsg(t('common.messages.saveSuccess'));
-      setShowToast(true);
-      setTimeout(() => setShowToast(false), 3000);
+      triggerToast(t('common.messages.saveSuccess'));
     } catch (err: any) {
       alert(t('common.messages.saveFailed') + ': ' + err.message);
     } finally {
@@ -182,23 +197,24 @@ export default function ProfileSettingsPage() {
     try {
       const fileExt = file.name.split('.').pop();
       const filePath = `signatures/${profile.id}_${Date.now()}.${fileExt}`;
-      const { error: uploadError } = await supabase.storage
-        .from('chat_media')
-        .upload(filePath, file);
-
+      const { error: uploadError } = await supabase.storage.from('chat_media').upload(filePath, file);
       if (uploadError) throw uploadError;
-      const { data: { publicUrl } } = supabase.storage.from('chat_media').getPublicUrl(filePath);
-      
-      const { error } = await supabase.from('profiles').update({
-        signature_url: publicUrl,
-        updated_at: new Date().toISOString()
-      }).eq('id', profile.id);
+
+      const {
+        data: { publicUrl },
+      } = supabase.storage.from('chat_media').getPublicUrl(filePath);
+
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          signature_url: publicUrl,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', profile.id);
 
       if (error) throw error;
       setProfile({ ...profile, signature_url: publicUrl });
-      setToastMsg(t('common.messages.saveSuccess'));
-      setShowToast(true);
-      setTimeout(() => setShowToast(false), 3000);
+      triggerToast(t('common.messages.saveSuccess'));
     } catch (err: any) {
       alert(t('common.messages.saveFailed') + ': ' + err.message);
     } finally {
@@ -209,40 +225,41 @@ export default function ProfileSettingsPage() {
   const handleSaveProfile = async () => {
     setSaving(true);
     try {
-      const { error } = await supabase.from('profiles').update({
-        full_name: profile.full_name,
-        avatar_url: profile.avatar_url,
-        department: profile.department,
-        landing_page: profile.landing_page || null,
-        theme_color: profile.theme_color,
-        signature_url: profile.signature_url,
-        quick_replies: profile.quick_replies || [],
-        resolution_templates: profile.resolution_templates || [],
-        auto_logout_minutes: profile.auto_logout_minutes ?? 0,
-        updated_at: new Date().toISOString()
-      }).eq('id', profile.id);
-      
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          full_name: profile.full_name,
+          avatar_url: profile.avatar_url,
+          department: profile.department,
+          landing_page: profile.landing_page || null,
+          theme_color: profile.theme_color,
+          signature_url: profile.signature_url,
+          quick_replies: profile.quick_replies || [],
+          resolution_templates: profile.resolution_templates || [],
+          auto_logout_minutes: profile.auto_logout_minutes ?? 0,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', profile.id);
+
       if (error) throw error;
       await auditService.log({
         performer_id: profile.id,
         action_type: 'PROFILE_UPDATE',
         entity_type: 'PROFILE',
         entity_id: profile.id,
-        new_data: { 
-          full_name: profile.full_name, 
+        new_data: {
+          full_name: profile.full_name,
           department: profile.department,
           landing_page: profile.landing_page || null,
           avatar_url: profile.avatar_url,
           theme_color: profile.theme_color,
           signature_url: profile.signature_url,
-          auto_logout_minutes: profile.auto_logout_minutes ?? 0
+          auto_logout_minutes: profile.auto_logout_minutes ?? 0,
         },
-        note: `Updated own profile information`
+        note: `Updated own profile information`,
       });
-      setToastMsg(t('common.messages.saveSuccess'));
-      setShowToast(true);
-      setTimeout(() => setShowToast(false), 3000);
-    } catch (err) {
+      triggerToast(t('common.messages.saveSuccess'));
+    } catch {
       alert(t('common.messages.saveFailed'));
     } finally {
       setSaving(false);
@@ -253,29 +270,30 @@ export default function ProfileSettingsPage() {
     if (!text.trim() || !profile) return;
     const key = type === 'quick' ? 'quick_replies' : 'resolution_templates';
     const current = profile[key] || [];
-    if (current.includes(text)) return;
-    
-    const updatedList = [...current, text];
+    if (current.includes(text.trim())) return;
+
+    const updatedList = [...current, text.trim()];
     const updatedProfile = { ...profile, [key]: updatedList };
     setProfile(updatedProfile);
 
     try {
-      const { error } = await supabase.from('profiles').update({
-        [key]: updatedList,
-        updated_at: new Date().toISOString()
-      }).eq('id', profile.id);
-      
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          [key]: updatedList,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', profile.id);
+
       if (!error) {
         await auditService.log({
           performer_id: profile.id,
           action_type: 'TEMPLATE_ADD',
           entity_type: 'PROFILE_TEMPLATE',
-          new_data: { type, text },
-          note: `Added new ${type === 'quick' ? 'Quick Reply' : 'Resolution Template'}`
+          new_data: { type, text: text.trim() },
+          note: `Added new ${type === 'quick' ? 'Quick Reply' : 'Resolution Template'}`,
         });
-        setToastMsg(t('common.messages.saveSuccess'));
-        setShowToast(true);
-        setTimeout(() => setShowToast(false), 2000);
+        triggerToast(t('common.messages.saveSuccess'), 2000);
       }
     } catch (err) {
       console.error('Auto-save failed:', err);
@@ -291,10 +309,13 @@ export default function ProfileSettingsPage() {
     setProfile(updatedProfile);
 
     try {
-      const { error } = await supabase.from('profiles').update({
-        [key]: next,
-        updated_at: new Date().toISOString()
-      }).eq('id', profile.id);
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          [key]: next,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', profile.id);
 
       if (!error) {
         await auditService.log({
@@ -302,11 +323,9 @@ export default function ProfileSettingsPage() {
           action_type: 'TEMPLATE_DELETE',
           entity_type: 'PROFILE_TEMPLATE',
           new_data: { type, index },
-          note: `Removed ${type === 'quick' ? 'Quick Reply' : 'Resolution Template'}`
+          note: `Removed ${type === 'quick' ? 'Quick Reply' : 'Resolution Template'}`,
         });
-        setToastMsg(t('common.messages.deleteSuccess'));
-        setShowToast(true);
-        setTimeout(() => setShowToast(false), 2000);
+        triggerToast(t('common.messages.deleteSuccess'), 2000);
       }
     } catch (err) {
       console.error('Auto-delete failed:', err);
@@ -323,11 +342,9 @@ export default function ProfileSettingsPage() {
     try {
       const { error } = await supabase.auth.updateUser({ password: newPassword });
       if (error) throw error;
-      setToastMsg(t('common.messages.success'));
-      setShowToast(true);
+      triggerToast(t('common.messages.success'));
       setNewPassword('');
       setConfirmPassword('');
-      setTimeout(() => setShowToast(false), 3000);
     } catch (err: any) {
       alert(t('common.messages.error') + ': ' + err.message);
     } finally {
@@ -335,272 +352,450 @@ export default function ProfileSettingsPage() {
     }
   };
 
-  if (loading) return <div className="flex-center" style={{ height: '70vh' }}><Loader2 className="animate-spin" color="var(--primary)" /></div>;
+  if (loading) {
+    return (
+      <div className="flex-center" style={{ height: '70vh' }} role="status" aria-label={t('common.messages.loading')}>
+        <Loader2 className="animate-spin" color="var(--color-primary)" size={28} aria-hidden="true" />
+      </div>
+    );
+  }
 
   return (
-    <div style={{ animation: 'fadeIn 0.5s ease-out', width: '100%', paddingBottom: '60px' }}>
-      {/* 1. Header Area */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '32px' }}>
-         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-            <Link href="/" style={{ color: 'var(--text-muted)', background: 'var(--bg-card)', padding: '10px', borderRadius: '12px', border: '1px solid var(--border)' }}><ChevronLeft size={24} /></Link>
-            <div>
-              <h1 style={{ fontSize: '28px', fontWeight: '800', lineHeight: 1 }}>{t('settingsProfile.title')}</h1>
-              <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px', textTransform: 'uppercase', letterSpacing: '2px' }}>{t('settingsProfile.subtitle')}</p>
-            </div>
-         </div>
-      </div>
+    <div className={styles.page}>
+      <PageHeader
+        title={
+          <span className={styles.headerTitleRow}>
+            <Link href="/" className={styles.backLink} aria-label="กลับหน้าหลัก">
+              <ChevronLeft size={18} aria-hidden="true" />
+            </Link>
+            <span>{t('settingsProfile.title')}</span>
+          </span>
+        }
+        subtitle={t('settingsProfile.subtitle')}
+      />
 
-      {/* 2. Navigation Tabs */}
-      <div style={{ display: 'flex', gap: '12px', marginBottom: '32px', padding: '6px', background: 'rgba(255,255,255,0.03)', borderRadius: '16px', width: 'fit-content', border: '1px solid var(--border)' }}>
-        <button 
+      <div className={styles.segmentedTabs} role="tablist" aria-label="หมวดการตั้งค่าโปรไฟล์">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === 'profile'}
           onClick={() => setActiveTab('profile')}
-          style={{ 
-            padding: '12px 28px', borderRadius: '12px', border: 'none', 
-            background: activeTab === 'profile' ? 'var(--primary)' : 'transparent',
-            color: activeTab === 'profile' ? '#000' : 'var(--text-muted)',
-            fontWeight: '800', cursor: 'pointer', transition: 'all 0.3s',
-            boxShadow: activeTab === 'profile' ? '0 4px 15px rgba(0, 242, 254, 0.2)' : 'none'
-          }}
+          className={`${styles.segmentedTab} ${activeTab === 'profile' ? styles.segmentedTabActive : ''}`}
         >
-          {t('settingsProfile.profileTab')}
+          <User size={15} aria-hidden="true" />
+          <span>{t('settingsProfile.profileTab')}</span>
         </button>
-        <button 
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === 'security'}
           onClick={() => setActiveTab('security')}
-          style={{ 
-            padding: '12px 28px', borderRadius: '12px', border: 'none', 
-            background: activeTab === 'security' ? '#7367f0' : 'transparent',
-            color: activeTab === 'security' ? '#fff' : 'var(--text-muted)',
-            fontWeight: '800', cursor: 'pointer', transition: 'all 0.3s',
-            boxShadow: activeTab === 'security' ? '0 4px 15px rgba(115, 103, 240, 0.3)' : 'none'
-          }}
+          className={`${styles.segmentedTab} ${activeTab === 'security' ? styles.segmentedTabActive : ''}`}
         >
-          {t('settingsProfile.securityTab')}
+          <Lock size={15} aria-hidden="true" />
+          <span>{t('settingsProfile.securityTab')}</span>
         </button>
       </div>
 
       {activeTab === 'profile' ? (
-        <div style={{ 
-          display: 'grid', 
-          gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', 
-          gap: '24px', 
-          animation: 'slideUp 0.4s ease-out',
-          alignItems: 'start'
-        }}>
-          
-          {/* 1. Identity Column */}
-          <div className="glass" style={{ padding: '24px', height: 'fit-content' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px' }}>
-               <div style={{ background: 'var(--secondary)', padding: '8px', borderRadius: '10px' }}>
-                   <User size={20} color="var(--primary)" />
-               </div>
-               <h2 style={{ fontSize: '18px', fontWeight: '700' }}>{t('settingsProfile.profileSection')}</h2>
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: '24px' }}>
-              <div style={{ position: 'relative', marginBottom: '20px' }}>
-                 <img 
-                   src={profile?.avatar_url || 'https://ui-avatars.com/api/?name=' + profile?.full_name} 
-                   style={{ width: '110px', height: '110px', borderRadius: '50%', objectFit: 'cover', border: '4px solid var(--border)', background: 'var(--bg-deep)' }} 
-                 />
-                 <label style={{ position: 'absolute', bottom: '0', right: '0', background: 'var(--primary)', padding: '8px', borderRadius: '50%', cursor: 'pointer', boxShadow: '0 6px 20px rgba(0,242,254,0.4)', border: '3px solid var(--bg-card)' }}>
-                    {uploading ? <Loader2 size={14} className="animate-spin" /> : <Camera size={14} color="#000" />}
-                    <input type="file" hidden accept="image/*" onChange={handleFileUpload} disabled={uploading} />
-                 </label>
-              </div>
-
-              <div style={{ 
-                display: 'grid', 
-                gridTemplateColumns: 'repeat(6, 1fr)', 
-                gap: '6px', 
-                padding: '12px', 
-                borderRadius: '16px', 
-                border: '1px solid var(--border)', 
-                background: 'rgba(255,255,255,0.01)',
-                maxHeight: '100px',
-                overflowY: 'auto'
-              }}>
-                {AVATAR_OPTIONS.map((url, idx) => (
-                   <button key={idx} onClick={() => setProfile({...profile, avatar_url: url})} style={{ width: '28px', height: '28px', borderRadius: '6px', overflow: 'hidden', border: profile?.avatar_url === url ? '2px solid var(--primary)' : '1px solid transparent', padding: 0, cursor: 'pointer' }}>
-                     <img src={url} style={{ width: '100%', height: '100%' }} />
-                   </button>
-                ))}
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-               <div>
-                  <label style={{ display: 'block', fontSize: '10px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '6px' }}>{t('settingsProfile.fullName')}</label>
-                  <input type="text" value={profile?.full_name || ''} onChange={e => setProfile({...profile, full_name: e.target.value})} style={{ width: '100%', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '12px', padding: '12px', color: 'var(--text-main)', outline: 'none', fontWeight: '700', fontSize: '14px' }} />
-               </div>
-               <div>
-                  <label style={{ display: 'block', fontSize: '10px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '6px' }}>{t('settingsProfile.department')}</label>
-                  <select value={profile?.department || ''} onChange={e => setProfile({...profile, department: e.target.value})} style={{ width: '100%', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '12px', padding: '12px', color: 'var(--text-main)', outline: 'none', fontWeight: '700', fontSize: '14px' }}>
-                    <option value="">{t('settingsProfile.selectDepartment')}</option>
-                    {companyDepts.map((d: string) => (<option key={d} value={d}>{d}</option>))}
-                  </select>
-               </div>
-               <div>
-                  <label style={{ display: 'block', fontSize: '10px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '6px' }}>หน้าแรกหลังเข้าสู่ระบบ (Default Landing Page)</label>
-                  <select value={profile?.landing_page || ''} onChange={e => setProfile({...profile, landing_page: e.target.value})} style={{ width: '100%', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '12px', padding: '12px', color: 'var(--text-main)', outline: 'none', fontWeight: '700', fontSize: '14px' }}>
-                    <option value="">ค่าเริ่มต้นตามสิทธิ์ระบบ (Default by Role)</option>
-                    <option value="dashboard">หน้าแดชบอร์ดหลัก (Dashboard)</option>
-                    <option value="inbox">หน้ากล่องใบงาน (Ticket Inbox)</option>
-                  </select>
-               </div>
-               <div>
-                  <label style={{ display: 'block', fontSize: '10px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '6px' }}>{t('settingsProfile.autoLogout')}</label>
-                  <select value={profile?.auto_logout_minutes ?? 0} onChange={e => setProfile({...profile, auto_logout_minutes: parseInt(e.target.value) || 0})} style={{ width: '100%', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '12px', padding: '12px', color: 'var(--text-main)', outline: 'none', fontWeight: '700', fontSize: '14px' }}>
-                    <option value={0}>{t('settingsProfile.autoLogoutNever')}</option>
-                    <option value={5}>{t('settingsProfile.autoLogout5Min')}</option>
-                    <option value={15}>{t('settingsProfile.autoLogout15Min')}</option>
-                    <option value={30}>{t('settingsProfile.autoLogout30Min')}</option>
-                    <option value={60}>{t('settingsProfile.autoLogout1Hour')}</option>
-                    <option value={120}>{t('settingsProfile.autoLogout2Hours')}</option>
-                  </select>
-                  <span style={{ display: 'block', fontSize: '11px', color: 'var(--text-muted)', marginTop: '6px', lineHeight: '1.4' }}>
-                    {t('settingsProfile.autoLogoutHint')}
-                  </span>
-               </div>
-
-               <div>
-                   <label style={{ display: 'block', fontSize: '10px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '6px' }}>สีประจำตัว (Theme Color)</label>
-                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(8, 1fr)', gap: '12px 8px', padding: '12px', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '12px', justifyItems: 'center', alignItems: 'center' }}>
-                     {PROFILE_COLORS.map(color => (
-                       <button
-                         key={color}
-                         onClick={() => setProfile({...profile, theme_color: color})}
-                         style={{
-                           width: '28px', height: '28px', borderRadius: '50%', cursor: 'pointer',
-                           background: color, border: profile?.theme_color === color ? '3px solid white' : '2px solid transparent',
-                           boxShadow: profile?.theme_color === color ? `0 0 0 2px ${color}` : 'none',
-                           transition: 'transform 0.15s ease'
-                         }}
-                       />
-                     ))}
-                   </div>
-               </div>
-               
-               <button 
-                onClick={handleSaveProfile}
-                disabled={saving || uploading}
-                className="glass-interactive" 
-                style={{ width: '100%', padding: '14px', borderRadius: '14px', background: 'var(--primary)', border: 'none', color: '#000', fontWeight: '900', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginTop: '8px', fontSize: '14px' }}>
-                  {saving ? <Loader2 className="animate-spin" size={18} /> : <><Save size={18} /> {t('settingsProfile.saveProfile')}</>}
-               </button>
-            </div>
-          </div>
-
-          {/* 2. Digital Signature Column */}
-          <div className="glass" style={{ padding: '24px', height: 'fit-content' }}>
-             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px' }}>
-                <div style={{ background: 'rgba(0, 242, 254, 0.1)', padding: '8px', borderRadius: '10px' }}>
-                   <PenTool size={20} color="var(--primary)" />
+        <div className={styles.threeColProfile}>
+          {/* 1. Identity Card */}
+          <Card>
+            <CardHeader>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
+                <div className={`${styles.statIcon} ${styles.statIconPrimary}`}>
+                  <User size={18} aria-hidden="true" />
                 </div>
-                <h2 style={{ fontSize: '18px', fontWeight: '700' }}>{t('settingsProfile.signatureSection')}</h2>
-             </div>
-             <SignaturePad 
-                initialValue={profile?.signature_url} 
-                onSave={handleSignatureSave} 
-                onUpload={handleSignatureUpload} 
-             />
-          </div>
-
-          {/* 3. Workflow Column */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-            {/* Compact Quick Replies */}
-            <div className="glass" style={{ padding: '24px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    <div style={{ background: 'rgba(0, 242, 254, 0.1)', padding: '8px', borderRadius: '10px' }}>
-                       <MessageSquarePlus size={20} color="var(--primary)" />
-                    </div>
-                    <h2 style={{ fontSize: '16px', fontWeight: '700' }}>{t('settingsProfile.quickReplies')}</h2>
-                 </div>
-                 <button onClick={() => { const val = prompt(t('settingsProfile.addQuickReplyPrompt')); if (val) addTemplate('quick', val); }} className="glass-interactive" style={{ padding: '6px 14px', borderRadius: '10px', background: 'var(--primary)', border: 'none', color: '#000', fontSize: '11px', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <Plus size={14} /> {t('settingsProfile.add')}
-                 </button>
+                <CardTitle>{t('settingsProfile.profileSection')}</CardTitle>
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '200px', overflowY: 'auto', paddingRight: '4px' }}>
-                 {(profile?.quick_replies || []).map((text: string, idx: number) => (
-                    <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', padding: '10px 14px', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '12px' }}>
-                       <p style={{ fontSize: '13px', flex: 1, fontWeight: '500', margin: 0 }}>{text}</p>
-                       <button onClick={() => removeTemplate('quick', idx)} style={{ padding: '4px', color: 'var(--danger)', background: 'transparent', border: 'none', cursor: 'pointer' }}><Trash2 size={16} /></button>
-                    </div>
-                 ))}
-                 {(profile?.quick_replies || []).length === 0 && <div style={{ padding: '20px', textAlign: 'center', border: '1px dashed var(--border)', borderRadius: '12px', color: 'var(--text-muted)', fontSize: '12px' }}>{t('settingsProfile.noData')}</div>}
-              </div>
-            </div>
+            </CardHeader>
 
-            {/* Compact Resolution Templates */}
-            <div className="glass" style={{ padding: '24px' }}>
-               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                     <div style={{ background: 'rgba(40, 199, 111, 0.1)', padding: '8px', borderRadius: '10px' }}>
-                        <ClipboardCheck size={20} color="#28c76f" />
-                     </div>
-                     <h2 style={{ fontSize: '16px', fontWeight: '700' }}>{t('settingsProfile.resolutionTemplates')}</h2>
-                  </div>
-                  <button onClick={() => { const val = prompt(t('settingsProfile.addResolutionTemplatePrompt')); if (val) addTemplate('res', val); }} className="glass-interactive" style={{ padding: '6px 14px', borderRadius: '10px', background: '#28c76f', border: 'none', color: '#fff', fontSize: '11px', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                     <Plus size={14} /> {t('settingsProfile.add')}
+            <CardBody className={styles.stackMd}>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 'var(--space-4)' }}>
+                <div className={styles.avatarFrame}>
+                  <img
+                    src={
+                      profile?.avatar_url ||
+                      `https://ui-avatars.com/api/?name=${encodeURIComponent(profile?.full_name || 'User')}`
+                    }
+                    alt={profile?.full_name || 'Profile avatar'}
+                    className={styles.avatarImg}
+                  />
+                  <input
+                    ref={avatarInputRef}
+                    type="file"
+                    hidden
+                    accept="image/*"
+                    onChange={handleFileUpload}
+                    disabled={uploading}
+                    aria-label="อัปโหลดรูปโปรไฟล์"
+                  />
+                  <button
+                    type="button"
+                    className={styles.avatarEditBtn}
+                    onClick={() => avatarInputRef.current?.click()}
+                    disabled={uploading}
+                    aria-label="เปลี่ยนรูปโปรไฟล์"
+                  >
+                    {uploading ? <Loader2 size={14} className="animate-spin" aria-hidden="true" /> : <Camera size={14} aria-hidden="true" />}
                   </button>
-               </div>
-               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '200px', overflowY: 'auto', paddingRight: '4px' }}>
-                  {(profile?.resolution_templates || []).map((text: string, idx: number) => (
-                     <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', padding: '10px 14px', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '12px' }}>
-                        <p style={{ fontSize: '13px', flex: 1, fontWeight: '500', margin: 0 }}>{text}</p>
-                        <button onClick={() => removeTemplate('res', idx)} style={{ padding: '4px', color: 'var(--danger)', background: 'transparent', border: 'none', cursor: 'pointer' }}><Trash2 size={16} /></button>
-                     </div>
+                </div>
+
+                <div className={styles.avatarGrid} role="group" aria-label="เลือกอวตารสำเร็จรูป">
+                  {AVATAR_OPTIONS.map((url, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => setProfile({ ...profile, avatar_url: url })}
+                      aria-label={`เลือกอวตาร ${AVATAR_SEEDS[idx]}`}
+                      aria-pressed={profile?.avatar_url === url}
+                      className={`${styles.avatarPresetBtn} ${
+                        profile?.avatar_url === url ? styles.avatarPresetBtnActive : ''
+                      }`}
+                    >
+                      <img src={url} alt="" style={{ width: '100%', height: '100%', display: 'block' }} />
+                    </button>
                   ))}
-                  {(profile?.resolution_templates || []).length === 0 && <div style={{ padding: '20px', textAlign: 'center', border: '1px dashed var(--border)', borderRadius: '12px', color: 'var(--text-muted)', fontSize: '12px' }}>{t('settingsProfile.noData')}</div>}
-               </div>
-            </div>
+                </div>
+              </div>
+
+              <Input
+                label={t('settingsProfile.fullName')}
+                value={profile?.full_name || ''}
+                onChange={(e) => setProfile({ ...profile, full_name: e.target.value })}
+              />
+
+              <Select
+                label={t('settingsProfile.department')}
+                value={profile?.department || ''}
+                onChange={(e) => setProfile({ ...profile, department: e.target.value })}
+              >
+                <option value="">{t('settingsProfile.selectDepartment')}</option>
+                {companyDepts.map((d: string) => (
+                  <option key={d} value={d}>
+                    {d}
+                  </option>
+                ))}
+              </Select>
+
+              <Select
+                label="หน้าแรกหลังเข้าสู่ระบบ (Default Landing Page)"
+                value={profile?.landing_page || ''}
+                onChange={(e) => setProfile({ ...profile, landing_page: e.target.value })}
+              >
+                <option value="">ค่าเริ่มต้นตามสิทธิ์ระบบ (Default by Role)</option>
+                <option value="dashboard">หน้าแดชบอร์ดหลัก (Dashboard)</option>
+                <option value="inbox">หน้ากล่องใบงาน (Ticket Inbox)</option>
+              </Select>
+
+              <Select
+                label={t('settingsProfile.autoLogout')}
+                value={profile?.auto_logout_minutes ?? 0}
+                hint={t('settingsProfile.autoLogoutHint')}
+                onChange={(e) =>
+                  setProfile({ ...profile, auto_logout_minutes: parseInt(e.target.value, 10) || 0 })
+                }
+              >
+                <option value={0}>{t('settingsProfile.autoLogoutNever')}</option>
+                <option value={5}>{t('settingsProfile.autoLogout5Min')}</option>
+                <option value={15}>{t('settingsProfile.autoLogout15Min')}</option>
+                <option value={30}>{t('settingsProfile.autoLogout30Min')}</option>
+                <option value={60}>{t('settingsProfile.autoLogout1Hour')}</option>
+                <option value={120}>{t('settingsProfile.autoLogout2Hours')}</option>
+              </Select>
+
+              <fieldset style={{ border: 'none', padding: 0, margin: 0 }}>
+                <legend
+                  style={{
+                    fontSize: 'var(--text-sm)',
+                    fontWeight: 'var(--weight-semibold)',
+                    color: 'var(--color-text)',
+                    marginBottom: '6px',
+                  }}
+                >
+                  สีประจำตัว (Theme Color)
+                </legend>
+                <div className={styles.swatchGrid}>
+                  {PROFILE_COLORS.map((color) => {
+                    const active = profile?.theme_color === color;
+                    return (
+                      <button
+                        key={color}
+                        type="button"
+                        aria-label={`เลือกสี ${color}`}
+                        aria-pressed={active}
+                        onClick={() => setProfile({ ...profile, theme_color: color })}
+                        className={`${styles.swatchBtn} ${active ? styles.swatchBtnActive : ''}`}
+                        style={{ backgroundColor: color }}
+                      />
+                    );
+                  })}
+                </div>
+              </fieldset>
+
+              <Button
+                variant="primary"
+                size="lg"
+                fullWidth
+                onClick={handleSaveProfile}
+                disabled={uploading}
+                loading={saving}
+                leftIcon={<Save size={16} aria-hidden="true" />}
+              >
+                {t('settingsProfile.saveProfile')}
+              </Button>
+            </CardBody>
+          </Card>
+
+          {/* 2. Digital Signature Card */}
+          <Card>
+            <CardHeader>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
+                <div className={`${styles.statIcon} ${styles.statIconPrimary}`}>
+                  <PenTool size={18} aria-hidden="true" />
+                </div>
+                <CardTitle>{t('settingsProfile.signatureSection')}</CardTitle>
+              </div>
+            </CardHeader>
+            <CardBody>
+              <SignaturePad
+                initialValue={profile?.signature_url}
+                onSave={handleSignatureSave}
+                onUpload={handleSignatureUpload}
+              />
+            </CardBody>
+          </Card>
+
+          {/* 3. Workflow Templates Column */}
+          <div className={styles.stackMd}>
+            <Card>
+              <CardHeader
+                actions={
+                  <Button
+                    size="sm"
+                    variant="primary"
+                    onClick={() => {
+                      setAddingQuick(true);
+                      setQuickDraft('');
+                    }}
+                    leftIcon={<Plus size={14} aria-hidden="true" />}
+                  >
+                    {t('settingsProfile.add')}
+                  </Button>
+                }
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+                  <MessageSquarePlus size={18} color="var(--color-primary)" aria-hidden="true" />
+                  <CardTitle>{t('settingsProfile.quickReplies')}</CardTitle>
+                </div>
+              </CardHeader>
+              <CardBody className={styles.stackSm}>
+                {addingQuick && (
+                  <form
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      if (!quickDraft.trim()) return;
+                      void addTemplate('quick', quickDraft);
+                      setQuickDraft('');
+                      setAddingQuick(false);
+                    }}
+                    style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center' }}
+                  >
+                    <Input
+                      autoFocus
+                      aria-label={t('settingsProfile.addQuickReplyPrompt')}
+                      placeholder={t('settingsProfile.addQuickReplyPrompt')}
+                      value={quickDraft}
+                      onChange={(e) => setQuickDraft(e.target.value)}
+                    />
+                    <Button type="submit" size="sm" variant="primary" iconOnly aria-label="บันทึกข้อความตอบกลับด่วน">
+                      <Check size={15} aria-hidden="true" />
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      iconOnly
+                      onClick={() => setAddingQuick(false)}
+                      aria-label="ยกเลิก"
+                    >
+                      <X size={15} aria-hidden="true" />
+                    </Button>
+                  </form>
+                )}
+
+                <div className={styles.templateList}>
+                  {(profile?.quick_replies || []).map((text: string, idx: number) => (
+                    <div key={idx} className={styles.templateItem}>
+                      <p style={{ margin: 0, flex: 1, color: 'var(--color-text)' }}>{text}</p>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        iconOnly
+                        onClick={() => removeTemplate('quick', idx)}
+                        aria-label={`ลบข้อความ ${text}`}
+                      >
+                        <Trash2 size={15} color="var(--color-danger)" aria-hidden="true" />
+                      </Button>
+                    </div>
+                  ))}
+                  {(profile?.quick_replies || []).length === 0 && (
+                    <EmptyState compact title={t('settingsProfile.noData')} />
+                  )}
+                </div>
+              </CardBody>
+            </Card>
+
+            <Card>
+              <CardHeader
+                actions={
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={() => {
+                      setAddingRes(true);
+                      setResDraft('');
+                    }}
+                    leftIcon={<Plus size={14} aria-hidden="true" />}
+                  >
+                    {t('settingsProfile.add')}
+                  </Button>
+                }
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+                  <ClipboardCheck size={18} color="var(--color-success)" aria-hidden="true" />
+                  <CardTitle>{t('settingsProfile.resolutionTemplates')}</CardTitle>
+                </div>
+              </CardHeader>
+              <CardBody className={styles.stackSm}>
+                {addingRes && (
+                  <form
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      if (!resDraft.trim()) return;
+                      void addTemplate('res', resDraft);
+                      setResDraft('');
+                      setAddingRes(false);
+                    }}
+                    style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center' }}
+                  >
+                    <Input
+                      autoFocus
+                      aria-label={t('settingsProfile.addResolutionTemplatePrompt')}
+                      placeholder={t('settingsProfile.addResolutionTemplatePrompt')}
+                      value={resDraft}
+                      onChange={(e) => setResDraft(e.target.value)}
+                    />
+                    <Button type="submit" size="sm" variant="primary" iconOnly aria-label="บันทึกรูปแบบการปิดงาน">
+                      <Check size={15} aria-hidden="true" />
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      iconOnly
+                      onClick={() => setAddingRes(false)}
+                      aria-label="ยกเลิก"
+                    >
+                      <X size={15} aria-hidden="true" />
+                    </Button>
+                  </form>
+                )}
+
+                <div className={styles.templateList}>
+                  {(profile?.resolution_templates || []).map((text: string, idx: number) => (
+                    <div key={idx} className={styles.templateItem}>
+                      <p style={{ margin: 0, flex: 1, color: 'var(--color-text)' }}>{text}</p>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        iconOnly
+                        onClick={() => removeTemplate('res', idx)}
+                        aria-label={`ลบรูปแบบ ${text}`}
+                      >
+                        <Trash2 size={15} color="var(--color-danger)" aria-hidden="true" />
+                      </Button>
+                    </div>
+                  ))}
+                  {(profile?.resolution_templates || []).length === 0 && (
+                    <EmptyState compact title={t('settingsProfile.noData')} />
+                  )}
+                </div>
+              </CardBody>
+            </Card>
           </div>
         </div>
       ) : (
-        <div style={{ display: 'flex', justifyContent: 'flex-start', animation: 'fadeIn 0.3s' }}>
-          {/* Security & Password */}
-          <div className="glass" style={{ padding: '40px', width: '100%', maxWidth: '600px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '32px' }}>
-               <div style={{ background: 'rgba(234, 84, 85, 0.1)', padding: '10px', borderRadius: '12px' }}>
-                  <Lock size={24} color="var(--danger)" />
-               </div>
-               <div>
-                 <h2 style={{ fontSize: '20px', fontWeight: '700' }}>{t('settingsProfile.securitySection')}</h2>
-                 <p style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>{t('settingsProfile.securitySubtitle')}</p>
-               </div>
-            </div>
+        <div style={{ maxWidth: '560px', width: '100%' }}>
+          <Card>
+            <CardHeader>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
+                <div className={`${styles.statIcon} ${styles.statIconDanger}`}>
+                  <Lock size={18} aria-hidden="true" />
+                </div>
+                <div>
+                  <CardTitle>{t('settingsProfile.securitySection')}</CardTitle>
+                  <CardDescription>{t('settingsProfile.securitySubtitle')}</CardDescription>
+                </div>
+              </div>
+            </CardHeader>
 
-            <div style={{ marginBottom: '32px' }}>
-               <label style={{ display: 'block', fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '12px' }}>{t('settingsProfile.email')}</label>
-               <div style={{ padding: '18px', background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border)', borderRadius: '16px', display: 'flex', alignItems: 'center', gap: '16px' }}>
-                 <Mail size={20} color="var(--text-muted)" />
-                 <span style={{ fontWeight: '700', color: 'var(--text-muted)', fontSize: '16px' }}>{profile?.email}</span>
-               </div>
-            </div>
+            <CardBody className={styles.stackLg}>
+              <Input
+                label={t('settingsProfile.email')}
+                value={profile?.email || ''}
+                readOnly
+                disabled
+                leftIcon={<Mail size={16} aria-hidden="true" />}
+              />
 
-            <form onSubmit={handleChangePassword} style={{ display: 'flex', flexDirection: 'column', gap: '20px', borderTop: '1px solid var(--border)', paddingTop: '32px' }}>
-               <h3 style={{ fontSize: '15px', fontWeight: '700', marginBottom: '4px' }}>{t('settingsProfile.changePassword')}</h3>
-               <input type="password" required value={newPassword} onChange={e => setNewPassword(e.target.value)} placeholder={t('settingsProfile.newPasswordPlaceholder')} style={{ width: '100%', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '16px', padding: '16px', fontWeight: '700' }} />
-               <input type="password" required value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} placeholder={t('settingsProfile.confirmPasswordPlaceholder')} style={{ width: '100%', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '16px', padding: '16px', fontWeight: '700' }} />
-               <button type="submit" disabled={updatingPassword} className="glass-interactive" style={{ width: '100%', padding: '18px', borderRadius: '16px', background: 'rgba(234, 84, 85, 0.1)', border: '1px solid rgba(234, 84, 85, 0.2)', color: 'var(--danger)', fontWeight: '900', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', marginTop: '8px' }}>
-                 {updatingPassword ? <Loader2 className="animate-spin" /> : <><ShieldCheck size={22} /> {t('settingsProfile.updatePassword')}</>}
-               </button>
-            </form>
-          </div>
+              <form
+                onSubmit={handleChangePassword}
+                className={styles.stackMd}
+                style={{ paddingTop: 'var(--space-4)', borderTop: '1px solid var(--color-border)' }}
+              >
+                <h3 style={{ fontSize: 'var(--text-md)', fontWeight: 'var(--weight-semibold)' }}>
+                  {t('settingsProfile.changePassword')}
+                </h3>
+                <Input
+                  type="password"
+                  required
+                  label={t('settingsProfile.newPasswordPlaceholder')}
+                  placeholder={t('settingsProfile.newPasswordPlaceholder')}
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                />
+                <Input
+                  type="password"
+                  required
+                  label={t('settingsProfile.confirmPasswordPlaceholder')}
+                  placeholder={t('settingsProfile.confirmPasswordPlaceholder')}
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                />
+                <Button
+                  type="submit"
+                  variant="danger"
+                  size="lg"
+                  fullWidth
+                  loading={updatingPassword}
+                  leftIcon={<ShieldCheck size={18} aria-hidden="true" />}
+                >
+                  {t('settingsProfile.updatePassword')}
+                </Button>
+              </form>
+            </CardBody>
+          </Card>
         </div>
       )}
 
-       {showToast && (
-        <div style={{
-          position: 'fixed', bottom: '32px', right: '32px', background: 'var(--primary)', color: 'black', padding: '16px 28px', borderRadius: '14px', fontWeight: '900', display: 'flex', alignItems: 'center', gap: '12px', boxShadow: '0 10px 40px rgba(0, 242, 254, 0.3)', zIndex: 9999, animation: 'slideInRight 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
-        }}>
-          <ShieldCheck size={20} />
-          {toastMsg}
+      {showToast && (
+        <div className={styles.floatingToast} role="status">
+          <ShieldCheck size={16} aria-hidden="true" />
+          <span>{toastMsg}</span>
         </div>
       )}
 
       {cropImageSrc && (
-        <ImageCropper 
+        <ImageCropper
           imageSrc={cropImageSrc}
           onCropComplete={handleCropComplete}
           onCancel={() => setCropImageSrc(null)}

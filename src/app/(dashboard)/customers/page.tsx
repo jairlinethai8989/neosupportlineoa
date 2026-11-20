@@ -3,36 +3,44 @@
 /* eslint-disable @next/next/no-img-element */
 import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/lib/supabase';
-import { 
-  Users, 
-  Search, 
-  Loader2, 
-  Building, 
-  MapPin, 
-  Ticket, 
+import {
+  Users,
+  Search,
+  Loader2,
+  Building,
+  MapPin,
+  Ticket,
   ArrowRight,
   User as UserIcon,
   RefreshCcw,
-  Plus,
   AlertCircle,
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
-  X,
   Clock,
   ExternalLink,
   FileText,
-  MessageSquare,
   Copy,
   Calendar,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
 } from 'lucide-react';
 import Link from 'next/link';
 import Skeleton from '@/components/ui/Skeleton';
 import { getHospitalColorStyles } from '@/lib/inbox/colors';
 import { useAppContext } from '@/contexts/AppContext';
 import useSWR from 'swr';
+import {
+  Badge,
+  Button,
+  Card,
+  CardBody,
+  EmptyState,
+  Input,
+  Modal,
+  PageHeader,
+} from '@/components/ui';
+import styles from '@/components/reports/reports.module.css';
 
 const CUSTOMERS_PAGE_SIZE = 30;
 
@@ -41,7 +49,10 @@ export default function CustomersPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [page, setPage] = useState(1);
-  const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' }>({ key: 'created_at', direction: 'desc' });
+  const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' }>({
+    key: 'created_at',
+    direction: 'desc',
+  });
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -102,26 +113,28 @@ export default function CustomersPage() {
       .range(from, to);
 
     if (fetchErr) {
-       console.warn('Initial fetch failed, trying compact fallback:', fetchErr.message);
-       let fallbackQuery = supabase
-         .from('customers')
-         .select('id, display_name, full_name, line_username, line_user_id, project_id, organization_id, department_id, position_id, created_at', { count: 'exact' });
+      console.warn('Initial fetch failed, trying compact fallback:', fetchErr.message);
+      let fallbackQuery = supabase
+        .from('customers')
+        .select('id, display_name, full_name, line_username, line_user_id, project_id, organization_id, department_id, position_id, created_at', {
+          count: 'exact',
+        });
 
-       if (effectiveProjectIds && effectiveProjectIds.length > 0) {
-         fallbackQuery = fallbackQuery.in('project_id', effectiveProjectIds);
-       }
-       if (debouncedSearch) {
-         fallbackQuery = fallbackQuery.or(
-           `display_name.ilike.%${debouncedSearch}%,full_name.ilike.%${debouncedSearch}%,line_username.ilike.%${debouncedSearch}%`
-         );
-       }
+      if (effectiveProjectIds && effectiveProjectIds.length > 0) {
+        fallbackQuery = fallbackQuery.in('project_id', effectiveProjectIds);
+      }
+      if (debouncedSearch) {
+        fallbackQuery = fallbackQuery.or(
+          `display_name.ilike.%${debouncedSearch}%,full_name.ilike.%${debouncedSearch}%,line_username.ilike.%${debouncedSearch}%`
+        );
+      }
 
-       const { data: basicData, count: basicCount, error: basicErr } = await fallbackQuery
-         .order(sortColumn, { ascending: sortConfig.direction === 'asc' })
-         .range(from, to);
-       
-       if (basicErr) throw basicErr;
-       return { rows: basicData || [], totalCount: basicCount || 0 };
+      const { data: basicData, count: basicCount, error: basicErr } = await fallbackQuery
+        .order(sortColumn, { ascending: sortConfig.direction === 'asc' })
+        .range(from, to);
+
+      if (basicErr) throw basicErr;
+      return { rows: basicData || [], totalCount: basicCount || 0 };
     }
     return { rows: data || [], totalCount: count || 0 };
   };
@@ -130,7 +143,7 @@ export default function CustomersPage() {
     ? ['customers_list', page, debouncedSearch, sortConfig.key, sortConfig.direction, selectedProjectId, (effectiveProjectIds || []).join(',')]
     : null;
   const { data: customersPayload, error: swrError, isLoading: isSwrLoading, mutate } = useSWR(swrKey, fetcher);
-  
+
   const customers = useMemo(() => customersPayload?.rows || [], [customersPayload?.rows]);
   const totalCustomersCount = customersPayload?.totalCount || 0;
   const totalPages = Math.max(1, Math.ceil(totalCustomersCount / CUSTOMERS_PAGE_SIZE));
@@ -139,12 +152,10 @@ export default function CustomersPage() {
 
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // History Modal States
   const [selectedCustomer, setSelectedCustomer] = useState<any | null>(null);
   const [customerTickets, setCustomerTickets] = useState<any[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
 
-  // Profile Modal State
   const [profileCustomer, setProfileCustomer] = useState<any | null>(null);
   const [copiedId, setCopiedId] = useState(false);
 
@@ -159,7 +170,7 @@ export default function CustomersPage() {
         .eq('customer_id', customer.id)
         .order('created_at', { ascending: false })
         .limit(50);
-      
+
       if (error) throw error;
       setCustomerTickets(data || []);
     } catch (err: any) {
@@ -168,18 +179,6 @@ export default function CustomersPage() {
       setLoadingHistory(false);
     }
   };
-
-  // Lock body scroll when modals are open to prevent page bounce/jump
-  useEffect(() => {
-    if (selectedCustomer || profileCustomer) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = '';
-    }
-    return () => {
-      document.body.style.overflow = '';
-    };
-  }, [selectedCustomer, profileCustomer]);
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
@@ -196,7 +195,7 @@ export default function CustomersPage() {
   };
 
   const filteredCustomers = useMemo(() => {
-    const result = customers.filter(c => {
+    const result = customers.filter((c) => {
       const name = String(c.display_name || '').toLowerCase();
       const fullName = String(c.full_name || '').toLowerCase();
       const lineName = String(c.line_username || '').toLowerCase();
@@ -238,719 +237,566 @@ export default function CustomersPage() {
 
   if (loading && !isRefreshing) {
     return (
-      <div className="animate-page-in">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
+      <div className={`animate-page-in ${styles.pageStack}`}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
-            <Skeleton width={300} height={40} marginBottom={8} />
-            <Skeleton width={250} height={20} />
+            <Skeleton width={260} height={32} marginBottom={8} />
+            <Skeleton width={220} height={16} />
           </div>
-          <div style={{ display: 'flex', gap: '12px' }}>
-            <Skeleton width={48} height={48} borderRadius={12} />
-            <Skeleton width={180} height={48} borderRadius={12} />
-          </div>
+          <Skeleton width={40} height={36} borderRadius={8} />
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '20px', marginBottom: '32px' }}>
-          {[1, 2, 3, 4].map(i => (
-            <div key={i} className="glass" style={{ padding: '24px', borderRadius: '24px' }}>
-              <Skeleton width="40%" height={12} marginBottom={12} />
-              <Skeleton width="60%" height={32} />
-            </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16 }}>
+          {[1, 2, 3, 4].map((i) => (
+            <Card key={i}>
+              <CardBody>
+                <Skeleton width="45%" height={12} marginBottom={10} />
+                <Skeleton width="55%" height={28} />
+              </CardBody>
+            </Card>
           ))}
         </div>
 
-        <div className="glass" style={{ padding: '32px', borderRadius: '32px' }}>
-          <Skeleton width="100%" height={56} borderRadius={16} marginBottom={24} />
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            {[1, 2, 3, 4, 5].map(i => (
-              <div key={i} style={{ display: 'flex', gap: '20px', alignItems: 'center', padding: '12px 0' }}>
-                <Skeleton width={52} height={52} borderRadius={16} />
-                <div style={{ flex: 1 }}>
-                  <Skeleton width="30%" height={16} marginBottom={8} />
-                  <Skeleton width="20%" height={12} />
-                </div>
-                <Skeleton width="20%" height={24} />
-                <Skeleton width="15%" height={24} />
-                <Skeleton width={100} height={44} borderRadius={12} />
-              </div>
+        <Card>
+          <CardBody>
+            <Skeleton width="100%" height={40} borderRadius={8} marginBottom={16} />
+            {[1, 2, 3, 4, 5].map((i) => (
+              <Skeleton key={i} width="100%" height={56} borderRadius={8} marginBottom={10} />
             ))}
-          </div>
-        </div>
+          </CardBody>
+        </Card>
       </div>
     );
   }
 
   return (
-    <div className="animate-page-in">
-      {/* 1. Page Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
-        <div>
-          <h1 style={{ fontSize: '32px', fontWeight: '900', color: 'var(--text-main)', letterSpacing: '-1.5px', marginBottom: '8px' }}>
-            Customer Management <span style={{ color: 'var(--primary)', opacity: 0.8 }}>({totalCustomersCount})</span>
-          </h1>
-          <p style={{ color: 'var(--text-muted)', fontSize: '15px' }}>รายชื่อลูกค้าและพนักงานที่ลงทะเบียนผ่าน LINE OA</p>
-        </div>
-        
-        <div style={{ display: 'flex', gap: '12px' }}>
-           <button 
-             onClick={handleRefresh}
-             className="glass-interactive flex-center" 
-             style={{ width: '48px', height: '48px', borderRadius: '12px', border: '1px solid var(--border)', color: 'var(--text-main)' }}
-           >
-              <RefreshCcw size={20} className={isRefreshing ? 'animate-spin' : ''} />
-           </button>
-           {/* Removed Add Customer button */}
-        </div>
-      </div>
-
-      {error && (
-         <div className="glass" style={{ padding: '16px', background: 'rgba(234, 84, 85, 0.1)', color: '#ea5455', borderRadius: '16px', border: '1px solid rgba(234, 84, 85, 0.2)', marginBottom: '24px', display: 'flex', gap: '12px', alignItems: 'center' }}>
-            <AlertCircle size={20} />
-            <div>
-               <p style={{ fontWeight: '800', fontSize: '14px' }}>Query Error Detected</p>
-               <p style={{ fontSize: '12px' }}>{error}</p>
-            </div>
-         </div>
-      )}
-
-      {/* 2. Top Banner Stats */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '20px', marginBottom: '32px' }}>
-         {[
-           { label: 'Total Customers', val: customers.length, color: 'var(--primary)', icon: Users },
-           { label: 'Active Sessions', val: customers.filter(c => c.status === 'active').length || 0, color: 'var(--success)', icon: Ticket },
-           { label: 'Organization Partners', val: [...new Set(customers.map(c => c.organization_id).filter(Boolean))].length, color: '#7367f0', icon: Building },
-           { label: 'System Regions', val: 5, color: '#ff9f43', icon: MapPin },
-         ].map((stat, i) => (
-            <div key={i} className="glass" style={{ padding: '24px', borderRadius: '24px', position: 'relative', overflow: 'hidden' }}>
-               <div style={{ position: 'absolute', right: '-10px', bottom: '-10px', opacity: 0.05 }}>
-                  <stat.icon size={80} color={stat.color} />
-               </div>
-               <p style={{ fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '8px', letterSpacing: '1px' }}>{stat.label}</p>
-               <h3 style={{ fontSize: '28px', fontWeight: '900', color: stat.color }}>{stat.val}</h3>
-            </div>
-         ))}
-      </div>
-
-      {/* 3. Search and Content Section */}
-      <div className="glass" style={{ padding: '32px', borderRadius: '32px', border: '1px solid var(--border)', background: 'rgba(255, 255, 255, 0.01)' }}>
-         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', gap: '24px' }}>
-            <div style={{ position: 'relative', flex: 1 }}>
-               <Search style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} size={18} />
-               <input 
-                 type="text" 
-                 placeholder="ค้นหาตามชื่อลูกค้า..." 
-                 value={searchTerm}
-                 onChange={e => setSearchTerm(e.target.value)}
-                 style={{ 
-                   width: '100%', 
-                   background: 'rgba(255, 255, 255, 0.05)', 
-                   border: '1px solid var(--border)', 
-                   borderRadius: '16px', 
-                   padding: '16px 16px 16px 48px', 
-                   color: 'var(--text-main)',
-                   fontSize: '15px',
-                   outline: 'none'
-                 }}
-               />
-            </div>
-         </div>
-
-         {/* Customer Table */}
-         <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: '0 12px' }}>
-               <thead>
-                  <tr style={{ textAlign: 'left' }}>
-                    {[
-                      { key: 'display_name', label: 'Customer Profile' },
-                      { key: 'organization', label: 'Organization / Dept' },
-                      { key: 'status', label: 'Contact Status', noSort: true },
-                      { key: 'created_at', label: 'Created Date' },
-                      { key: 'actions', label: 'Actions', noSort: true, textAlign: 'right' }
-                    ].map(col => (
-                      <th 
-                        key={col.key}
-                        onClick={() => !col.noSort && handleSort(col.key)}
-                        style={{ 
-                          padding: '0 20px', 
-                          fontSize: '11px', 
-                          fontWeight: '800', 
-                          color: 'var(--text-muted)', 
-                          textTransform: 'uppercase',
-                          cursor: col.noSort ? 'default' : 'pointer',
-                          textAlign: (col as any).textAlign || 'left',
-                          userSelect: 'none'
-                        }}
-                      >
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: (col as any).textAlign === 'right' ? 'flex-end' : 'flex-start', gap: '8px' }}>
-                          {col.label}
-                          {!col.noSort && (
-                            <span style={{ display: 'flex', alignItems: 'center' }}>
-                              {sortConfig.key === col.key ? (
-                                sortConfig.direction === 'asc' ? <ArrowUp size={12} /> : <ArrowDown size={12} />
-                              ) : (
-                                <ArrowUpDown size={12} style={{ opacity: 0.3 }} />
-                              )}
-                            </span>
-                          )}
-                        </div>
-                      </th>
-                    ))}
-                  </tr>
-               </thead>
-               <tbody>
-                  {filteredCustomers.map((c) => (
-                    <tr key={c.id} className="row-interactive" style={{ animation: 'contentSlideIn 0.4s ease-out forwards', animationDelay: `${Math.min(0.5, (customers.indexOf(c) * 0.05))}s` }}>
-                       <td style={{ padding: '16px 20px', background: 'rgba(255, 255, 255, 0.02)', borderRadius: '20px 0 0 20px' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                             <div style={{ 
-                                width: '52px', 
-                                height: '52px', 
-                                borderRadius: '16px', 
-                                background: 'var(--secondary)', 
-                                overflow: 'hidden', 
-                                border: '1px solid var(--border)',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center'
-                             }}>
-                                {c.avatar_url ? (
-                                   <img src={c.avatar_url} alt="avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                                ) : <UserIcon size={24} color="var(--text-muted)" />}
-                             </div>
-                             <div>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                                  <h4 style={{ fontSize: '15px', fontWeight: '800', color: 'var(--text-main)' }}>
-                                     {c.full_name || c.display_name}
-                                  </h4>
-                                  {c.projects?.code && (
-                                    <span
-                                      style={{
-                                        fontSize: '10px',
-                                        fontWeight: '900',
-                                        padding: '2px 7px',
-                                        borderRadius: '6px',
-                                        background: `${c.projects.primary_color || '#0066ff'}20`,
-                                        color: c.projects.primary_color || '#0066ff',
-                                      }}
-                                    >
-                                      {c.projects.code}
-                                    </span>
-                                  )}
-                                </div>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                   <span style={{ fontSize: '11px', color: 'var(--success)', fontWeight: '800' }}>LINE:</span>
-                                   <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: '600' }}>
-                                      {c.line_username || 'Not Captured'}
-                                   </span>
-                                </div>
-                             </div>
-                          </div>
-                       </td>
-                       <td style={{ padding: '16px 20px', background: 'rgba(255, 255, 255, 0.02)' }}>
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                             <span style={{ fontSize: '14px', fontWeight: '700', color: 'var(--primary)' }}>{c.organizations?.name || 'Unspecified'}</span>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                 <span style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: '600' }}>
-                                    {c.departments?.name || 'No Department'}
-                                 </span>
-                                 <span style={{ width: '3px', height: '3px', borderRadius: '50%', background: 'var(--text-dim)' }} />
-                                 <span style={{ fontSize: '11px', color: 'var(--text-dim)' }}>
-                                    {c.positions?.name || 'General Staff'}
-                                 </span>
-                              </div>
-                          </div>
-                       </td>
-                       <td style={{ padding: '16px 20px', background: 'rgba(255, 255, 255, 0.02)' }}>
-                          <span style={{ 
-                             display: 'inline-flex', 
-                             alignItems: 'center', 
-                             gap: '6px', 
-                             padding: '4px 12px', 
-                             borderRadius: '8px', 
-                             fontSize: '11px', 
-                             fontWeight: '850', 
-                             background: 'rgba(40, 199, 111, 0.1)', 
-                             color: 'var(--success)',
-                             border: '1px solid rgba(40, 199, 111, 0.2)'
-                          }}>
-                             <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--success)' }} />
-                             CONNECTED
-                          </span>
-                       </td>
-                       <td style={{ padding: '16px 20px', background: 'rgba(255, 255, 255, 0.02)' }}>
-                          <p style={{ fontSize: '13px', fontWeight: '600' }}>{new Date(c.created_at).toLocaleDateString('th-TH')}</p>
-                          <p style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{new Date(c.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
-                       </td>
-                       <td style={{ padding: '16px 20px', background: 'rgba(255, 255, 255, 0.02)', borderRadius: '0 20px 20px 0', textAlign: 'right' }}>
-                          <button 
-                            onClick={() => openHistory(c)}
-                            className="glass-interactive flex-center" 
-                            style={{ 
-                              display: 'inline-flex', 
-                              width: '44px', 
-                              height: '44px', 
-                              borderRadius: '12px', 
-                              border: '1px solid var(--border)', 
-                              color: 'var(--primary)',
-                              marginLeft: '8px',
-                              background: 'none',
-                              cursor: 'pointer'
-                            }}
-                            title="View Ticket History"
-                          >
-                             <Ticket size={18} />
-                          </button>
-                          <button 
-                            onClick={() => {
-                              setProfileCustomer(c);
-                              setCopiedId(false);
-                            }}
-                            className="glass-interactive flex-center" 
-                            style={{ 
-                              display: 'inline-flex', 
-                              width: '44px', 
-                              height: '44px', 
-                              borderRadius: '12px', 
-                              border: '1px solid var(--border)', 
-                              color: 'var(--text-muted)',
-                              marginLeft: '8px',
-                              background: 'none',
-                              cursor: 'pointer'
-                            }}
-                            title="View Customer Profile"
-                          >
-                             <ArrowRight size={18} />
-                          </button>
-                       </td>
-                    </tr>
-                  ))}
-                  {filteredCustomers.length === 0 && (
-                    <tr>
-                       <td colSpan={5} style={{ padding: '80px 0', textAlign: 'center', opacity: 0.3 }}>
-                          <Users size={64} style={{ marginBottom: '16px' }} />
-                          <h4 style={{ fontSize: '18px', fontWeight: '800' }}>No Customers Found</h4>
-                          <p style={{ fontSize: '14px' }}>ยังไม่มีข้อมูลพนักงานที่ลงทะเบียน</p>
-                       </td>
-                    </tr>
-                  )}
-               </tbody>
-            </table>
-         </div>
-
-         {/* Server-side Pagination Controls */}
-         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '20px', paddingTop: '16px', borderTop: '1px solid var(--border)', flexWrap: 'wrap', gap: '12px' }}>
-           <span style={{ fontSize: '13px', color: 'var(--text-muted)', fontWeight: '600' }}>
-             หน้า {page} / {totalPages} • แสดง {customers.length} จากทั้งหมด {totalCustomersCount} รายการ
-           </span>
-           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-             <button
-               type="button"
-               onClick={() => setPage((p) => Math.max(1, p - 1))}
-               disabled={page <= 1}
-               className="glass-interactive"
-               style={{
-                 padding: '8px 14px',
-                 borderRadius: '10px',
-                 border: '1px solid var(--border)',
-                 background: 'var(--bg-input)',
-                 color: 'var(--text-main)',
-                 fontWeight: '700',
-                 fontSize: '12px',
-                 display: 'flex',
-                 alignItems: 'center',
-                 gap: '4px',
-                 cursor: page <= 1 ? 'not-allowed' : 'pointer',
-                 opacity: page <= 1 ? 0.45 : 1,
-               }}
-             >
-               <ChevronLeft size={14} /> ก่อนหน้า
-             </button>
-             <button
-               type="button"
-               onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-               disabled={page >= totalPages}
-               className="glass-interactive"
-               style={{
-                 padding: '8px 14px',
-                 borderRadius: '10px',
-                 border: '1px solid var(--border)',
-                 background: 'var(--bg-input)',
-                 color: 'var(--text-main)',
-                 fontWeight: '700',
-                 fontSize: '12px',
-                 display: 'flex',
-                 alignItems: 'center',
-                 gap: '4px',
-                 cursor: page >= totalPages ? 'not-allowed' : 'pointer',
-                 opacity: page >= totalPages ? 0.45 : 1,
-               }}
-             >
-               ถัดไป <ChevronRight size={14} />
-             </button>
-           </div>
-         </div>
-      </div>
-
-      <style dangerouslySetInnerHTML={{ __html: `
-        .row-interactive:hover td:first-child {
-           border-top-left-radius: 20px;
-           border-bottom-left-radius: 20px;
+    <div className={`animate-page-in ${styles.pageStack}`}>
+      <PageHeader
+        title="Customer Management"
+        subtitle="รายชื่อลูกค้าและพนักงานที่ลงทะเบียนผ่าน LINE OA"
+        badge={
+          <Badge variant="primary" size="md">
+            {totalCustomersCount} รายการ
+          </Badge>
         }
-        .row-interactive:hover td:last-child {
-           border-top-right-radius: 20px;
-           border-bottom-right-radius: 20px;
+        actions={
+          <Button
+            variant="secondary"
+            size="md"
+            iconOnly
+            onClick={handleRefresh}
+            aria-label="รีเฟรชรายชื่อลูกค้า"
+          >
+            <RefreshCcw size={16} className={isRefreshing ? 'animate-spin' : ''} aria-hidden="true" />
+          </Button>
         }
-      `}} />
+      />
 
-      {/* 4. History Modal */}
-      {selectedCustomer && (
-         <div style={{
-           position: 'fixed',
-           inset: 0,
-           background: 'rgba(15, 23, 42, 0.7)',
-           backdropFilter: 'blur(8px)',
-           display: 'flex',
-           alignItems: 'center',
-           justifyContent: 'center',
-           zIndex: 10000,
-           padding: '20px',
-           animation: 'modalFadeIn 0.3s ease'
-         }}>
-           <div style={{
-             width: '100%',
-             maxWidth: '700px',
-             background: 'var(--bg-sidebar)',
-             borderRadius: '24px',
-             border: '1px solid var(--border)',
-             display: 'flex',
-             flexDirection: 'column',
-             maxHeight: '85vh',
-             overflow: 'hidden',
-             boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
-             animation: 'modalContentIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)'
-           }}>
-             {/* Modal Header */}
-             <div style={{ padding: '24px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-               <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px' }}>
-                     <Clock size={20} color="var(--primary)" />
-                     <h3 style={{ fontSize: '18px', fontWeight: '800', color: 'var(--text-main)' }}>Ticket History</h3>
-                  </div>
-                  <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
-                     ประวัติการแจ้งงานของ: <span style={{ color: 'var(--primary)', fontWeight: '700' }}>{selectedCustomer.full_name || selectedCustomer.display_name}</span>
-                  </p>
-               </div>
-               <button 
-                 onClick={() => setSelectedCustomer(null)}
-                 style={{ width: '36px', height: '36px', borderRadius: '10px', border: 'none', background: 'rgba(255,255,255,0.05)', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-               >
-                 <X size={20} />
-               </button>
-             </div>
-
-             {/* Modal Content */}
-             <div style={{ padding: '24px', overflowY: 'auto', flex: 1 }}>
-                {loadingHistory ? (
-                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '40px 0', gap: '12px' }}>
-                      <Loader2 size={32} className="animate-spin" color="var(--primary)" />
-                      <p style={{ fontSize: '14px', color: 'var(--text-muted)' }}>กำลังโหลดประวัติ...</p>
-                   </div>
-                ) : customerTickets.length > 0 ? (
-                   <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                      {customerTickets.map((t) => (
-                         <div key={t.id} className="glass" style={{ padding: '16px', borderRadius: '16px', border: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
-                               <div style={{ 
-                                  width: '48px', height: '48px', borderRadius: '12px', background: 'rgba(54, 153, 255, 0.1)', 
-                                  display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--primary)' 
-                               }}>
-                                  <FileText size={20} />
-                               </div>
-                               <div>
-                                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '2px' }}>
-                                     <span style={{ fontSize: '14px', fontWeight: '800', color: 'var(--text-main)' }}>#{t.ticket_no}</span>
-                                     <span style={{ 
-                                        fontSize: '10px', fontWeight: '800', padding: '2px 8px', borderRadius: '6px',
-                                        background: t.status === 'closed' ? 'rgba(40, 199, 111, 0.1)' : 'rgba(255, 159, 67, 0.1)',
-                                        color: t.status === 'closed' ? 'var(--success)' : 'var(--warning)'
-                                     }}>
-                                        {t.status?.toUpperCase()}
-                                     </span>
-                                  </div>
-                                  <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '4px' }}>{t.subject}</p>
-                                  <p style={{ fontSize: '11px', color: 'var(--text-dim)' }}>
-                                     แจ้งเมื่อ: {new Date(t.created_at).toLocaleString('th-TH', { dateStyle: 'medium', timeStyle: 'short' })}
-                                  </p>
-                               </div>
-                            </div>
-                            <Link 
-                              href={`/tickets/${t.id}`}
-                              style={{ 
-                                 width: '40px', height: '40px', borderRadius: '10px', border: '1px solid var(--border)', 
-                                 display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--primary)',
-                                 background: 'rgba(255,255,255,0.02)'
-                              }}
-                            >
-                               <ExternalLink size={18} />
-                            </Link>
-                         </div>
-                      ))}
-                   </div>
-                ) : (
-                   <div style={{ textAlign: 'center', padding: '40px 0', opacity: 0.5 }}>
-                      <FileText size={48} style={{ marginBottom: '12px' }} />
-                      <p>ไม่พบประวัติการแจ้งงาน</p>
-                   </div>
-                )}
-             </div>
-           </div>
-         </div>
-      )}
-
-      {/* 5. Customer Profile Modal */}
-      {profileCustomer && (() => {
-        const brand = getHospitalColorStyles(profileCustomer.organizations?.name);
-        return (
-          <div style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(15, 23, 42, 0.65)',
-            backdropFilter: 'blur(10px)',
+      {error ? (
+        <div
+          role="alert"
+          style={{
+            padding: '12px 16px',
+            background: 'var(--color-danger-soft)',
+            color: 'var(--color-danger-text)',
+            borderRadius: 'var(--radius-md)',
+            border: '1px solid var(--color-danger-border)',
             display: 'flex',
+            gap: 12,
             alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 10000,
-            padding: '20px',
-            animation: 'modalFadeIn 0.3s ease'
-          }}>
-            <div style={{
-              width: '100%',
-              maxWidth: '540px',
-              background: 'var(--bg-sidebar)',
-              borderRadius: '28px',
-              border: `1px solid var(--border)`,
-              display: 'flex',
-              flexDirection: 'column',
-              overflow: 'hidden',
-              boxShadow: `0 25px 50px -12px rgba(0, 0, 0, 0.3), 0 0 40px -10px ${brand.border}`,
-              animation: 'modalContentIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)'
-            }}>
-              {/* Modal Header */}
-              <div style={{ 
-                padding: '24px 28px', 
-                borderBottom: '1px solid var(--border)', 
-                display: 'flex', 
-                justifyContent: 'space-between', 
-                alignItems: 'center',
-                background: `linear-gradient(to bottom, ${brand.bg}, transparent)`
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <UserIcon size={20} color={brand.accent} />
-                  <h3 style={{ fontSize: '18px', fontWeight: '800', color: 'var(--text-main)' }}>ข้อมูลโปรไฟล์ลูกค้า</h3>
-                </div>
-                <button 
-                  onClick={() => setProfileCustomer(null)}
-                  style={{ width: '36px', height: '36px', borderRadius: '10px', border: 'none', background: 'rgba(255,255,255,0.05)', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                >
-                  <X size={20} />
-                </button>
-              </div>
+          }}
+        >
+          <AlertCircle size={18} aria-hidden="true" />
+          <div>
+            <p style={{ fontWeight: 700, fontSize: 'var(--text-sm)' }}>Query Error Detected</p>
+            <p style={{ fontSize: 'var(--text-xs)' }}>{error}</p>
+          </div>
+        </div>
+      ) : null}
 
-              {/* Modal Content */}
-              <div style={{ padding: '32px 28px', overflowY: 'auto' }}>
-                
-                {/* 1. Avatar & Quick Info */}
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: '28px', textAlign: 'center' }}>
-                  <div style={{ 
-                    width: '100px', 
-                    height: '100px', 
-                    borderRadius: '30px', 
-                    background: 'var(--bg-deep)', 
-                    overflow: 'hidden', 
-                    border: `2px solid ${brand.accent}`,
-                    boxShadow: `0 0 20px -5px ${brand.accent}`,
-                    display: 'flex',
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: 16 }}>
+        {[
+          { label: 'Total Customers', val: customers.length, color: '#1D4ED8', bg: 'var(--color-primary-soft)', icon: Users },
+          { label: 'Active Sessions', val: customers.filter((c) => c.status === 'active').length || 0, color: '#059669', bg: 'var(--color-success-soft)', icon: Ticket },
+          { label: 'Organization Partners', val: [...new Set(customers.map((c) => c.organization_id).filter(Boolean))].length, color: '#0D9488', bg: 'var(--color-info-soft)', icon: Building },
+          { label: 'System Regions', val: 5, color: '#D97706', bg: 'var(--color-warning-soft)', icon: MapPin },
+        ].map((stat) => (
+          <Card key={stat.label}>
+            <CardBody>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                <span style={{ fontSize: 'var(--text-xs)', fontWeight: 600, color: 'var(--color-text-muted)' }}>{stat.label}</span>
+                <span
+                  style={{
+                    width: 32,
+                    height: 32,
+                    borderRadius: 'var(--radius-md)',
+                    background: stat.bg,
+                    color: stat.color,
+                    display: 'inline-flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    marginBottom: '16px',
-                    position: 'relative'
-                  }}>
+                  }}
+                  aria-hidden="true"
+                >
+                  <stat.icon size={16} />
+                </span>
+              </div>
+              <p className="tabular-nums" style={{ fontSize: 'var(--text-2xl)', fontWeight: 700, color: 'var(--color-text)' }}>
+                {stat.val}
+              </p>
+            </CardBody>
+          </Card>
+        ))}
+      </div>
+
+      <Card>
+        <CardBody>
+          <div style={{ marginBottom: 20 }}>
+            <Input
+              id="customers-search-input"
+              type="text"
+              aria-label="ค้นหาตามชื่อลูกค้า"
+              placeholder="ค้นหาตามชื่อลูกค้า, ชื่อจริง หรือ LINE username..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              leftIcon={<Search size={16} aria-hidden="true" />}
+            />
+          </div>
+
+          <div className={styles.customersTableWrap}>
+            <table className={styles.customersTable}>
+              <thead>
+                <tr>
+                  {[
+                    { key: 'display_name', label: 'Customer Profile' },
+                    { key: 'organization', label: 'Organization / Dept' },
+                    { key: 'status', label: 'Contact Status', noSort: true },
+                    { key: 'created_at', label: 'Created Date' },
+                    { key: 'actions', label: 'Actions', noSort: true, textAlign: 'right' as const },
+                  ].map((col) => (
+                    <th key={col.key} style={{ textAlign: col.textAlign || 'left' }}>
+                      {col.noSort ? (
+                        col.label
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => handleSort(col.key)}
+                          className={styles.customersSortBtn}
+                        >
+                          {col.label}
+                          {sortConfig.key === col.key ? (
+                            sortConfig.direction === 'asc' ? (
+                              <ArrowUp size={12} aria-hidden="true" />
+                            ) : (
+                              <ArrowDown size={12} aria-hidden="true" />
+                            )
+                          ) : (
+                            <ArrowUpDown size={12} style={{ opacity: 0.4 }} aria-hidden="true" />
+                          )}
+                        </button>
+                      )}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {filteredCustomers.map((c) => (
+                  <tr key={c.id}>
+                    <td>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                        <div
+                          style={{
+                            width: 44,
+                            height: 44,
+                            borderRadius: 'var(--radius-md)',
+                            background: 'var(--color-surface-subtle)',
+                            overflow: 'hidden',
+                            border: '1px solid var(--color-border)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            flexShrink: 0,
+                          }}
+                        >
+                          {c.avatar_url ? (
+                            <img src={c.avatar_url} alt={c.full_name || c.display_name || 'avatar'} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          ) : (
+                            <UserIcon size={20} color="var(--color-text-muted)" aria-hidden="true" />
+                          )}
+                        </div>
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                            <span style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: 'var(--color-text)' }}>
+                              {c.full_name || c.display_name}
+                            </span>
+                            {c.projects?.code ? (
+                              <Badge variant="neutral" size="sm" dot={c.projects.primary_color || '#1D4ED8'}>
+                                {c.projects.code}
+                              </Badge>
+                            ) : null}
+                          </div>
+                          <div style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)', marginTop: 2 }}>
+                            <strong style={{ color: 'var(--color-success-text)' }}>LINE:</strong> {c.line_username || 'Not Captured'}
+                          </div>
+                        </div>
+                      </div>
+                    </td>
+
+                    <td>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                        <span style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--color-primary)' }}>
+                          {c.organizations?.name || 'Unspecified'}
+                        </span>
+                        <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)' }}>
+                          {c.departments?.name || 'No Department'} • {c.positions?.name || 'General Staff'}
+                        </span>
+                      </div>
+                    </td>
+
+                    <td>
+                      <Badge variant="success" size="sm" dot>
+                        CONNECTED
+                      </Badge>
+                    </td>
+
+                    <td className="tabular-nums">
+                      <p style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--color-text)' }}>
+                        {new Date(c.created_at).toLocaleDateString('th-TH')}
+                      </p>
+                      <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)' }}>
+                        {new Date(c.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </p>
+                    </td>
+
+                    <td style={{ textAlign: 'right' }}>
+                      <div style={{ display: 'inline-flex', gap: 6 }}>
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          iconOnly
+                          onClick={() => openHistory(c)}
+                          aria-label={`ดูประวัติใบงานของ ${c.full_name || c.display_name}`}
+                          title="ดูประวัติใบงาน"
+                        >
+                          <Ticket size={15} color="var(--color-primary)" aria-hidden="true" />
+                        </Button>
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          iconOnly
+                          onClick={() => {
+                            setProfileCustomer(c);
+                            setCopiedId(false);
+                          }}
+                          aria-label={`ดูโปรไฟล์ของ ${c.full_name || c.display_name}`}
+                          title="ดูโปรไฟล์ลูกค้า"
+                        >
+                          <ArrowRight size={15} aria-hidden="true" />
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+
+                {filteredCustomers.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} style={{ padding: '48px 16px' }}>
+                      <EmptyState
+                        compact
+                        icon={<Users size={36} color="var(--color-text-subtle)" aria-hidden="true" />}
+                        title="No Customers Found"
+                        description="ยังไม่มีข้อมูลพนักงานที่ลงทะเบียน"
+                      />
+                    </td>
+                  </tr>
+                ) : null}
+              </tbody>
+            </table>
+          </div>
+
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginTop: 16,
+              paddingTop: 16,
+              borderTop: '1px solid var(--color-border)',
+              flexWrap: 'wrap',
+              gap: 12,
+            }}
+          >
+            <span className="tabular-nums" style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)', fontWeight: 600 }}>
+              หน้า {page} / {totalPages} • แสดง {customers.length} จากทั้งหมด {totalCustomersCount} รายการ
+            </span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={page <= 1}
+                leftIcon={<ChevronLeft size={14} aria-hidden="true" />}
+              >
+                ก่อนหน้า
+              </Button>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                disabled={page >= totalPages}
+                rightIcon={<ChevronRight size={14} aria-hidden="true" />}
+              >
+                ถัดไป
+              </Button>
+            </div>
+          </div>
+        </CardBody>
+      </Card>
+
+      {/* History Modal */}
+      <Modal
+        isOpen={Boolean(selectedCustomer)}
+        onClose={() => setSelectedCustomer(null)}
+        size="lg"
+        title={
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+            <Clock size={18} color="var(--color-primary)" aria-hidden="true" />
+            Ticket History
+          </span>
+        }
+        description={
+          selectedCustomer
+            ? `ประวัติการแจ้งงานของ: ${selectedCustomer.full_name || selectedCustomer.display_name}`
+            : undefined
+        }
+      >
+        {loadingHistory ? (
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '32px 0', gap: 12 }}>
+            <Loader2 size={28} className="animate-spin" color="var(--color-primary)" />
+            <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)' }}>กำลังโหลดประวัติ...</p>
+          </div>
+        ) : customerTickets.length > 0 ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {customerTickets.map((t) => (
+              <div
+                key={t.id}
+                style={{
+                  padding: 14,
+                  borderRadius: 'var(--radius-md)',
+                  border: '1px solid var(--color-border)',
+                  background: 'var(--color-surface-subtle)',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  gap: 12,
+                }}
+              >
+                <div style={{ display: 'flex', gap: 12, alignItems: 'center', minWidth: 0 }}>
+                  <div
+                    style={{
+                      width: 40,
+                      height: 40,
+                      borderRadius: 'var(--radius-md)',
+                      background: 'var(--color-primary-soft)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: 'var(--color-primary)',
+                      flexShrink: 0,
+                    }}
+                    aria-hidden="true"
+                  >
+                    <FileText size={18} />
+                  </div>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2, flexWrap: 'wrap' }}>
+                      <span className="tabular-nums" style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: 'var(--color-text)' }}>
+                        #{t.ticket_no}
+                      </span>
+                      <Badge variant={t.status?.toLowerCase() === 'closed' || t.status?.toLowerCase() === 'resolved' ? 'success' : 'warning'} size="sm">
+                        {t.status?.toUpperCase()}
+                      </Badge>
+                    </div>
+                    <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)' }}>{t.subject}</p>
+                    <p className="tabular-nums" style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-subtle)', marginTop: 2 }}>
+                      แจ้งเมื่อ: {new Date(t.created_at).toLocaleString('th-TH', { dateStyle: 'medium', timeStyle: 'short' })}
+                    </p>
+                  </div>
+                </div>
+                <Link href={`/tickets/${t.id}`} aria-label={`เปิดใบงาน ${t.ticket_no}`}>
+                  <Button variant="secondary" size="sm" iconOnly>
+                    <ExternalLink size={15} aria-hidden="true" />
+                  </Button>
+                </Link>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <EmptyState compact icon={<FileText size={32} aria-hidden="true" />} title="ไม่พบประวัติการแจ้งงาน" />
+        )}
+      </Modal>
+
+      {/* Customer Profile Modal */}
+      {(() => {
+        const brand = profileCustomer ? getHospitalColorStyles(profileCustomer.organizations?.name) : null;
+        return (
+          <Modal
+            isOpen={Boolean(profileCustomer)}
+            onClose={() => setProfileCustomer(null)}
+            size="md"
+            title={
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                <UserIcon size={18} color={brand?.accent || 'var(--color-primary)'} aria-hidden="true" />
+                ข้อมูลโปรไฟล์ลูกค้า
+              </span>
+            }
+            footer={
+              profileCustomer ? (
+                <Button
+                  variant="primary"
+                  size="md"
+                  leftIcon={<Ticket size={16} aria-hidden="true" />}
+                  onClick={() => {
+                    const target = profileCustomer;
+                    setProfileCustomer(null);
+                    void openHistory(target);
+                  }}
+                >
+                  ประวัติการแจ้งงาน
+                </Button>
+              ) : null
+            }
+          >
+            {profileCustomer && brand ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
+                  <div
+                    style={{
+                      width: 84,
+                      height: 84,
+                      borderRadius: 'var(--radius-xl)',
+                      background: 'var(--color-surface-subtle)',
+                      overflow: 'hidden',
+                      border: `2px solid ${brand.accent}`,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      marginBottom: 12,
+                    }}
+                  >
                     {profileCustomer.avatar_url ? (
-                       <img src={profileCustomer.avatar_url} alt="avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                    ) : <UserIcon size={44} color="var(--text-muted)" />}
+                      <img src={profileCustomer.avatar_url} alt={profileCustomer.full_name || profileCustomer.display_name || 'avatar'} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    ) : (
+                      <UserIcon size={36} color="var(--color-text-muted)" aria-hidden="true" />
+                    )}
                   </div>
 
-                  <h4 style={{ fontSize: '20px', fontWeight: '900', color: 'var(--text-main)', marginBottom: '4px' }}>
+                  <h3 style={{ fontSize: 'var(--text-lg)', fontWeight: 700, color: 'var(--color-text)' }}>
                     {profileCustomer.full_name || profileCustomer.display_name}
-                  </h4>
-                  
-                  {profileCustomer.display_name && profileCustomer.full_name && (
-                    <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '12px' }}>
+                  </h3>
+                  {profileCustomer.display_name && profileCustomer.full_name ? (
+                    <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)', marginTop: 2, marginBottom: 8 }}>
                       LINE Display: {profileCustomer.display_name}
                     </p>
-                  )}
-
-                  <span style={{ 
-                     display: 'inline-flex', 
-                     alignItems: 'center', 
-                     gap: '6px', 
-                     padding: '6px 14px', 
-                     borderRadius: '10px', 
-                     fontSize: '11px', 
-                     fontWeight: '850', 
-                     background: 'rgba(16, 185, 129, 0.1)', 
-                     color: '#10b981',
-                     border: '1px solid rgba(16, 185, 129, 0.2)',
-                     letterSpacing: '0.5px'
-                  }}>
-                     <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#10b981' }} />
-                     CONNECTED TO LINE OA
-                  </span>
+                  ) : null}
+                  <Badge variant="success" size="sm" dot>
+                    CONNECTED TO LINE OA
+                  </Badge>
                 </div>
 
-                {/* 2. Detail Grid */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '24px' }}>
-                  
-                  {/* Organization */}
-                  <div className="glass" style={{ padding: '16px', borderRadius: '16px', border: '1px solid var(--border)', background: 'var(--bg-deep)' }}>
-                    <p style={{ fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <Building size={12} color={brand.accent} /> องค์กร/บริษัท
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                  <div style={{ padding: 12, borderRadius: 'var(--radius-md)', border: '1px solid var(--color-border)', background: 'var(--color-surface-subtle)' }}>
+                    <p style={{ fontSize: 'var(--text-xs)', fontWeight: 600, color: 'var(--color-text-muted)', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <Building size={12} color={brand.accent} aria-hidden="true" /> องค์กร/บริษัท
                     </p>
-                    <p style={{ fontSize: '14px', fontWeight: '850', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: brand.accent, boxShadow: `0 0 10px ${brand.accent}` }} />
+                    <p style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: 'var(--color-text)' }}>
                       {profileCustomer.organizations?.name || 'ไม่ระบุ'}
                     </p>
                   </div>
 
-                  {/* Department */}
-                  <div className="glass" style={{ padding: '16px', borderRadius: '16px', border: '1px solid var(--border)', background: 'var(--bg-deep)' }}>
-                    <p style={{ fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <MapPin size={12} color="var(--primary)" /> แผนก / หน่วยงาน
+                  <div style={{ padding: 12, borderRadius: 'var(--radius-md)', border: '1px solid var(--color-border)', background: 'var(--color-surface-subtle)' }}>
+                    <p style={{ fontSize: 'var(--text-xs)', fontWeight: 600, color: 'var(--color-text-muted)', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <MapPin size={12} color="var(--color-primary)" aria-hidden="true" /> แผนก / หน่วยงาน
                     </p>
-                    <p style={{ fontSize: '14px', fontWeight: '750', color: 'var(--text-main)' }}>
+                    <p style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--color-text)' }}>
                       {profileCustomer.departments?.name || 'ไม่ระบุ'}
                     </p>
                   </div>
 
-                  {/* Position */}
-                  <div className="glass" style={{ padding: '16px', borderRadius: '16px', border: '1px solid var(--border)', background: 'var(--bg-deep)' }}>
-                    <p style={{ fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <UserIcon size={12} color="var(--success)" /> ตำแหน่งงาน
+                  <div style={{ padding: 12, borderRadius: 'var(--radius-md)', border: '1px solid var(--color-border)', background: 'var(--color-surface-subtle)' }}>
+                    <p style={{ fontSize: 'var(--text-xs)', fontWeight: 600, color: 'var(--color-text-muted)', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <UserIcon size={12} color="var(--color-success)" aria-hidden="true" /> ตำแหน่งงาน
                     </p>
-                    <p style={{ fontSize: '14px', fontWeight: '750', color: 'var(--text-main)' }}>
+                    <p style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--color-text)' }}>
                       {profileCustomer.positions?.name || 'ไม่ระบุ'}
                     </p>
                   </div>
 
-                  {/* Registered Date */}
-                  <div className="glass" style={{ padding: '16px', borderRadius: '16px', border: '1px solid var(--border)', background: 'var(--bg-deep)' }}>
-                    <p style={{ fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <Calendar size={12} color="#ff9f43" /> วันที่ลงทะเบียน
+                  <div style={{ padding: 12, borderRadius: 'var(--radius-md)', border: '1px solid var(--color-border)', background: 'var(--color-surface-subtle)' }}>
+                    <p style={{ fontSize: 'var(--text-xs)', fontWeight: 600, color: 'var(--color-text-muted)', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <Calendar size={12} color="var(--color-warning)" aria-hidden="true" /> วันที่ลงทะเบียน
                     </p>
-                    <p style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-main)' }}>
+                    <p className="tabular-nums" style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--color-text)' }}>
                       {new Date(profileCustomer.created_at).toLocaleDateString('th-TH', { dateStyle: 'medium' })}
                     </p>
                   </div>
 
-                  {/* LINE Username */}
-                  <div className="glass" style={{ padding: '16px', borderRadius: '16px', border: '1px solid var(--border)', background: 'var(--bg-deep)', gridColumn: 'span 2' }}>
-                    <p style={{ fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '6px' }}>
+                  <div style={{ padding: 12, borderRadius: 'var(--radius-md)', border: '1px solid var(--color-border)', background: 'var(--color-surface-subtle)', gridColumn: 'span 2' }}>
+                    <p style={{ fontSize: 'var(--text-xs)', fontWeight: 600, color: 'var(--color-text-muted)', marginBottom: 4 }}>
                       LINE Username
                     </p>
-                    <p style={{ fontSize: '14px', fontWeight: '700', color: 'var(--text-main)', fontFamily: 'monospace' }}>
+                    <p className="tabular-nums" style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--color-text)' }}>
                       {profileCustomer.line_username || 'ไม่พบบันทึก'}
                     </p>
                   </div>
 
-                  {/* LINE User ID */}
-                  <div className="glass" style={{ 
-                    padding: '16px', 
-                    borderRadius: '16px', 
-                    border: '1px solid var(--border)', 
-                    background: 'var(--bg-deep)', 
-                    gridColumn: 'span 2',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center'
-                  }}>
-                    <div style={{ flex: 1, marginRight: '12px' }}>
-                      <p style={{ fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '6px' }}>
+                  <div
+                    style={{
+                      padding: 12,
+                      borderRadius: 'var(--radius-md)',
+                      border: '1px solid var(--color-border)',
+                      background: 'var(--color-surface-subtle)',
+                      gridColumn: 'span 2',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      gap: 12,
+                    }}
+                  >
+                    <div style={{ minWidth: 0, flex: 1 }}>
+                      <p style={{ fontSize: 'var(--text-xs)', fontWeight: 600, color: 'var(--color-text-muted)', marginBottom: 4 }}>
                         LINE User ID
                       </p>
-                      <p style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text-main)', fontFamily: 'monospace', wordBreak: 'break-all' }}>
+                      <p className="tabular-nums" style={{ fontSize: 'var(--text-xs)', fontWeight: 600, color: 'var(--color-text)', wordBreak: 'break-all' }}>
                         {profileCustomer.line_user_id || 'ไม่พบบันทึก'}
                       </p>
                     </div>
-                    {profileCustomer.line_user_id && (
-                      <button
+                    {profileCustomer.line_user_id ? (
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        iconOnly
+                        aria-label="คัดลอก LINE User ID"
                         onClick={() => {
-                          navigator.clipboard.writeText(profileCustomer.line_user_id);
+                          void navigator.clipboard.writeText(profileCustomer.line_user_id);
                           setCopiedId(true);
                           setTimeout(() => setCopiedId(false), 2000);
                         }}
-                        style={{
-                          width: '36px',
-                          height: '36px',
-                          borderRadius: '10px',
-                          border: '1px solid var(--border)',
-                          background: 'rgba(255, 255, 255, 0.05)',
-                          color: copiedId ? 'var(--success)' : 'var(--text-muted)',
-                          cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          transition: 'all 0.2s ease',
-                          flexShrink: 0
-                        }}
-                        title="Copy User ID"
                       >
-                        {copiedId ? <span style={{ fontSize: '11px', fontWeight: '800' }}>✓</span> : <Copy size={16} />}
-                      </button>
-                    )}
+                        {copiedId ? (
+                          <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--color-success-text)' }}>✓</span>
+                        ) : (
+                          <Copy size={14} aria-hidden="true" />
+                        )}
+                      </Button>
+                    ) : null}
                   </div>
-
                 </div>
-
               </div>
-
-              {/* Modal Footer Actions */}
-              <div style={{ padding: '20px 28px', borderTop: '1px solid var(--border)', display: 'flex', gap: '12px', justifyContent: 'center', background: 'rgba(255, 255, 255, 0.01)' }}>
-                <button
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    openHistory(profileCustomer);
-                    setProfileCustomer(null);
-                  }}
-                  style={{
-                    padding: '0 32px',
-                    height: '48px',
-                    borderRadius: '12px',
-                    border: 'none',
-                    background: brand.gradient,
-                    color: '#ffffff',
-                    fontWeight: '850',
-                    fontSize: '14px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                    cursor: 'pointer',
-                    boxShadow: `0 4px 15px -3px ${brand.accent}`
-                  }}
-                >
-                  <Ticket size={16} /> ประวัติการแจ้งงาน
-                </button>
-              </div>
-
-            </div>
-          </div>
+            ) : null}
+          </Modal>
         );
       })()}
-
-      <style dangerouslySetInnerHTML={{ __html: `
-        @keyframes modalFadeIn { from { opacity: 0; } to { opacity: 1; } }
-        @keyframes modalContentIn { from { opacity: 0; transform: translateY(20px) scale(0.95); } to { opacity: 1; transform: translateY(0) scale(1); } }
-      `}} />
     </div>
   );
 }

@@ -1,28 +1,31 @@
 'use client';
 /* eslint-disable @next/next/no-img-element */
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   Bell,
-  ChevronRight,
+  Check,
   ChevronDown,
+  ChevronRight,
+  ChevronsUpDown,
+  Flame,
   Inbox,
+  Layers,
   LayoutDashboard,
   Plus,
   Send,
   Settings,
   ShieldCheck,
   Ticket,
-  Users,
   TrendingUp,
-  Flame,
   UserCog,
+  Users,
 } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
 import { useAppContext } from '@/contexts/AppContext';
 import { useNotificationContext } from '@/contexts/NotificationContext';
 import { useStaffLocale } from '@/contexts/StaffLocaleContext';
+import { hasStaffRouteAccess } from '@/components/ui/CommandPalette';
 
 interface SidebarProps {
   onClickLink?: () => void;
@@ -38,7 +41,7 @@ type SidebarChildItem = {
 type SidebarLinkItem = {
   name: string;
   label: string;
-  icon: React.ComponentType<{ size?: number }>;
+  icon: React.ComponentType<{ size?: number; 'aria-hidden'?: boolean }>;
   path: string;
   count?: number;
 };
@@ -46,13 +49,11 @@ type SidebarLinkItem = {
 type SidebarGroupItem = {
   name: string;
   label: string;
-  icon: React.ComponentType<{ size?: number }>;
+  icon: React.ComponentType<{ size?: number; 'aria-hidden'?: boolean }>;
   children: SidebarChildItem[];
 };
 
 type SidebarItem = SidebarLinkItem | SidebarGroupItem;
-
-const DEFAULT_OPEN_MENUS: string[] = [];
 
 function isGroupItem(item: SidebarItem): item is SidebarGroupItem {
   return 'children' in item;
@@ -60,15 +61,48 @@ function isGroupItem(item: SidebarItem): item is SidebarGroupItem {
 
 function MainSidebarComponent({ onClickLink, isCollapsed = false }: SidebarProps) {
   const pathname = usePathname();
-  const { companySettings: company, userProfile: profile, logout } = useAppContext();
+  const {
+    companySettings: company,
+    userProfile: profile,
+    projects,
+    selectedProjectId,
+    setSelectedProjectId,
+    activeProject,
+    onlineUserIds,
+    updateStatus,
+  } = useAppContext();
   const { unreadCount, newTicketsCount, slaAlertCount, inboxCount } = useNotificationContext();
-  const { t } = useStaffLocale();
+  const { locale, t } = useStaffLocale();
 
-  const [openMenus, setOpenMenus] = useState<string[]>(DEFAULT_OPEN_MENUS);
-  const [hoveredItem, setHoveredItem] = useState<{
-    label: string;
-    top: number;
-  } | null>(null);
+  const [openMenus, setOpenMenus] = useState<string[]>(() => {
+    if (pathname.startsWith('/settings/profile') || pathname.startsWith('/settings/notifications')) {
+      return ['SettingsPersonal'];
+    }
+    if (pathname.startsWith('/settings/')) {
+      return ['Settings'];
+    }
+    return [];
+  });
+  const [showProjectMenu, setShowProjectMenu] = useState(false);
+  const [hoveredItem, setHoveredItem] = useState<{ label: string; top: number } | null>(null);
+  const projectMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleOutside = (event: MouseEvent) => {
+      if (projectMenuRef.current && !projectMenuRef.current.contains(event.target as Node)) {
+        setShowProjectMenu(false);
+      }
+    };
+    const handleEsc = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setShowProjectMenu(false);
+    };
+    document.addEventListener('mousedown', handleOutside);
+    document.addEventListener('keydown', handleEsc);
+    return () => {
+      document.removeEventListener('mousedown', handleOutside);
+      document.removeEventListener('keydown', handleEsc);
+    };
+  }, []);
 
   const handleMouseEnter = useCallback(
     (event: React.MouseEvent<HTMLAnchorElement | HTMLButtonElement>, label: string) => {
@@ -93,87 +127,9 @@ function MainSidebarComponent({ onClickLink, isCollapsed = false }: SidebarProps
   const userRole = profile?.role || '';
   const permissions = profile?.permissions || null;
 
-  const handleLogout = useCallback(async () => {
-    await logout();
-  }, [logout]);
-
   const toggleMenu = useCallback((name: string) => {
     setOpenMenus((prev) => (prev.includes(name) ? prev.filter((menu) => menu !== name) : [...prev, name]));
   }, []);
-
-  const hasAccess = useCallback(
-    (name: string, path?: string) => {
-      if (userRole === 'Administrator') return true;
-      if (!permissions) return false;
-
-      const key = name.toLowerCase();
-      const normalizedPath = path?.toLowerCase() || '';
-
-      if (normalizedPath === '/analytics/personal') {
-        return permissions.analytics_personal === 'view' || permissions.analytics_personal === 'edit';
-      }
-
-      if (normalizedPath === '/analytics/staff') {
-        return permissions.analytics_staff === 'view' || permissions.analytics_staff === 'edit';
-      }
-
-      if (
-        key.includes('overview') ||
-        normalizedPath === '/' ||
-        key.includes('analytics') ||
-        key.includes('performance') ||
-        key.includes('dashboard') ||
-        normalizedPath.includes('analytics')
-      ) {
-        return permissions.analytics === 'view' || permissions.analytics === 'edit';
-      }
-      if (key.includes('inbox') || normalizedPath.includes('inbox')) {
-        return permissions.inbox === 'view' || permissions.inbox === 'edit';
-      }
-      if (key.includes('ticket') || normalizedPath === '/tickets' || normalizedPath.includes('tickets/')) {
-        return permissions.tickets === 'view' || permissions.tickets === 'edit';
-      }
-      if (normalizedPath.includes('/settings/notifications')) {
-        return permissions.notifications === 'view' || permissions.notifications === 'edit';
-      }
-      if (key.includes('notification')) {
-        return permissions.notifications === 'view' || permissions.notifications === 'edit';
-      }
-      if (key.includes('customer')) {
-        return permissions.customers === 'view' || permissions.customers === 'edit';
-      }
-      if (key.includes('report')) {
-        return permissions.reports === 'view' || permissions.reports === 'edit';
-      }
-
-      if (normalizedPath.includes('/settings/profile')) {
-        return permissions.settings_profile === 'view' || permissions.settings_profile === 'edit';
-      }
-      if (normalizedPath.includes('/settings/branding')) {
-        return permissions.settings_branding === 'view' || permissions.settings_branding === 'edit';
-      }
-      if (normalizedPath.includes('/settings/projects')) {
-        return userRole === 'Administrator';
-      }
-      if (normalizedPath.includes('/settings/staff')) {
-        return permissions.settings_staff === 'view' || permissions.settings_staff === 'edit';
-      }
-      if (normalizedPath.includes('/settings/sla')) {
-        return permissions.settings_sla === 'view' || permissions.settings_sla === 'edit';
-      }
-      if (normalizedPath.includes('/settings/master')) {
-        return permissions.settings_master === 'view' || permissions.settings_master === 'edit';
-      }
-      if (normalizedPath.includes('/settings/audit')) {
-        return permissions.settings_audit === 'view' || permissions.settings_audit === 'edit';
-      }
-
-      if (key.includes('settings')) return true;
-
-      return false;
-    },
-    [permissions, userRole]
-  );
 
   const menuSections = useMemo(
     () => [
@@ -242,155 +198,372 @@ function MainSidebarComponent({ onClickLink, isCollapsed = false }: SidebarProps
           ...section,
           items: section.items
             .map((item) => {
-              if (!hasAccess(item.name, 'path' in item ? item.path : undefined)) {
+              if (!hasStaffRouteAccess(userRole, permissions, item.name, 'path' in item ? item.path : undefined)) {
                 return null;
               }
-
               if (isGroupItem(item)) {
-                const children = item.children.filter((child) => hasAccess(child.name, child.path));
+                const children = item.children.filter((child) =>
+                  hasStaffRouteAccess(userRole, permissions, child.name, child.path)
+                );
                 if (children.length === 0) return null;
                 return { ...item, children };
               }
-
               return item;
             })
             .filter(Boolean) as SidebarItem[],
         }))
         .filter((section) => section.items.length > 0),
-    [hasAccess, menuSections]
+    [menuSections, permissions, userRole]
   );
 
+  const activeProjectLabel = useMemo(() => {
+    if (selectedProjectId === 'all') {
+      if (userRole === 'Administrator') {
+        return locale === 'th' ? `ทุกโครงการ (${projects.length})` : `All projects (${projects.length})`;
+      }
+      if (projects.length === 1) return projects[0].name;
+      return locale === 'th' ? `โครงการที่ดูแล (${projects.length})` : `My projects (${projects.length})`;
+    }
+    return activeProject?.name || (locale === 'th' ? 'เลือกโครงการ' : 'Select project');
+  }, [activeProject?.name, locale, projects, selectedProjectId, userRole]);
+
+  const isOnline = profile?.status === 'Active';
+  const onlineCount = onlineUserIds.length;
+  const canCreateTicket = hasStaffRouteAccess(userRole, permissions, 'ticket');
+
   return (
-    <aside style={{ display: 'flex', flexDirection: 'column', height: '100%', background: 'var(--bg-sidebar)', position: 'relative' }}>
+    <aside
+      aria-label={locale === 'th' ? 'เมนูหลัก' : 'Primary sidebar'}
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        height: '100%',
+        background: 'var(--color-surface)',
+        position: 'relative',
+      }}
+    >
+      {/* Brand header */}
       <div
         style={{
-          padding: isCollapsed ? '24px 12px' : '24px',
+          height: 'var(--topbar-height)',
+          padding: isCollapsed ? '0 var(--space-3)' : '0 var(--space-4)',
           display: 'flex',
           alignItems: 'center',
-          gap: '12px',
+          gap: '10px',
           justifyContent: isCollapsed ? 'center' : 'flex-start',
+          borderBottom: '1px solid var(--color-border)',
+          flexShrink: 0,
         }}
       >
         {company?.logo_url ? (
           <img
             src={company.logo_url}
-            alt="Company Logo"
-            style={{ width: '36px', height: '36px', borderRadius: '8px', objectFit: 'contain' }}
+            alt={company.company_name || 'Company Logo'}
+            style={{ width: 28, height: 28, borderRadius: 'var(--radius-sm)', objectFit: 'contain', flexShrink: 0 }}
           />
         ) : (
           <div
             style={{
-              background: 'var(--primary)',
-              width: '36px',
-              height: '36px',
-              borderRadius: '8px',
+              background: 'var(--color-primary-solid)',
+              width: 28,
+              height: 28,
+              borderRadius: 'var(--radius-md)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              boxShadow: '0 0 15px var(--primary-glow)',
               flexShrink: 0,
             }}
           >
-            <ShieldCheck color="#0a0e14" size={20} />
+            <ShieldCheck color="#ffffff" size={16} aria-hidden="true" />
           </div>
         )}
         {!isCollapsed && (
-          <h1
+          <span
+            className="truncate"
             style={{
-              fontSize: '18px',
-              fontWeight: '800',
-              color: 'var(--text-main)',
-              textTransform: 'uppercase',
-              whiteSpace: 'nowrap',
-              letterSpacing: '-0.5px',
+              fontSize: '14px',
+              fontWeight: 700,
+              color: 'var(--color-text)',
+              letterSpacing: '-0.01em',
             }}
           >
             {company?.company_name || 'NEO SUPPORT'}
-          </h1>
+          </span>
         )}
       </div>
 
-      {!isCollapsed && hasAccess('ticket') && (
-        <div style={{ padding: '0 20px 20px' }}>
-          <Link href="/tickets/new" style={{ textDecoration: 'none' }}>
-            <button
-              className="glass-interactive"
+      {/* Multi-Project Switcher (Linear/Notion placement at top of sidebar) */}
+      {projects.length > 0 && (
+        <div
+          ref={projectMenuRef}
+          style={{
+            padding: isCollapsed ? 'var(--space-3) var(--space-2) 0' : 'var(--space-3) var(--space-3) 0',
+            position: 'relative',
+          }}
+        >
+          <button
+            type="button"
+            onClick={() => setShowProjectMenu((prev) => !prev)}
+            aria-expanded={showProjectMenu}
+            aria-haspopup="listbox"
+            aria-label={locale === 'th' ? `สลับโครงการ: ${activeProjectLabel}` : `Switch project: ${activeProjectLabel}`}
+            onMouseEnter={(e) => handleMouseEnter(e, activeProjectLabel)}
+            onMouseLeave={handleMouseLeave}
+            style={{
+              width: '100%',
+              height: '36px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: isCollapsed ? 'center' : 'space-between',
+              gap: '8px',
+              padding: isCollapsed ? '0' : '0 10px',
+              borderRadius: 'var(--radius-md)',
+              border: '1px solid var(--color-border)',
+              background: 'var(--color-surface-subtle)',
+              color: 'var(--color-text)',
+              fontSize: 'var(--text-xs)',
+              fontWeight: 600,
+              transition: 'var(--transition-colors)',
+            }}
+          >
+            <span style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
+              {activeProject ? (
+                <span
+                  aria-hidden="true"
+                  style={{
+                    width: 8,
+                    height: 8,
+                    borderRadius: 'var(--radius-full)',
+                    background: activeProject.primary_color || 'var(--color-primary)',
+                    flexShrink: 0,
+                  }}
+                />
+              ) : (
+                <Layers size={14} color="var(--color-primary)" aria-hidden="true" style={{ flexShrink: 0 }} />
+              )}
+              {!isCollapsed && (
+                <span className="truncate" style={{ fontSize: 'var(--text-xs)', fontWeight: 600 }}>
+                  {activeProjectLabel}
+                </span>
+              )}
+            </span>
+            {!isCollapsed && <ChevronsUpDown size={14} color="var(--color-text-muted)" aria-hidden="true" style={{ flexShrink: 0 }} />}
+          </button>
+
+          {showProjectMenu && (
+            <div
+              role="listbox"
+              aria-label={locale === 'th' ? 'รายการโครงการ' : 'Projects'}
               style={{
-                width: '100%',
-                padding: '14px',
-                borderRadius: '14px',
-                background: 'linear-gradient(135deg, var(--primary) 0%, var(--border-active) 100%)',
-                color: 'white',
-                border: 'none',
-                fontWeight: '700',
+                position: 'absolute',
+                top: isCollapsed ? 'var(--space-3)' : 'calc(100% + 6px)',
+                left: isCollapsed ? 'calc(100% + 8px)' : 'var(--space-3)',
+                right: isCollapsed ? 'auto' : 'var(--space-3)',
+                minWidth: isCollapsed ? '230px' : 'auto',
+                padding: '6px',
+                borderRadius: 'var(--radius-lg)',
+                background: 'var(--color-surface)',
+                border: '1px solid var(--color-border-strong)',
+                boxShadow: 'var(--shadow-lg)',
+                zIndex: 'var(--z-popover)',
                 display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '8px',
-                boxShadow: '0 10px 25px var(--primary-transparent)',
-                cursor: 'pointer',
+                flexDirection: 'column',
+                gap: '2px',
               }}
             >
-              <Plus size={18} />
-              {t('sidebar.createTicket')}
-            </button>
+              {(userRole === 'Administrator' || projects.length > 1) && (
+                <button
+                  type="button"
+                  role="option"
+                  aria-selected={selectedProjectId === 'all'}
+                  onClick={() => {
+                    setSelectedProjectId('all');
+                    setShowProjectMenu(false);
+                  }}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: '8px',
+                    padding: '7px 8px',
+                    borderRadius: 'var(--radius-sm)',
+                    border: 'none',
+                    background: selectedProjectId === 'all' ? 'var(--color-primary-soft)' : 'transparent',
+                    color: selectedProjectId === 'all' ? 'var(--color-primary)' : 'var(--color-text)',
+                    fontSize: 'var(--text-xs)',
+                    fontWeight: selectedProjectId === 'all' ? 600 : 500,
+                    textAlign: 'left',
+                  }}
+                >
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
+                    <Layers size={14} color="var(--color-primary)" aria-hidden="true" />
+                    <span className="truncate">
+                      {userRole === 'Administrator'
+                        ? locale === 'th'
+                          ? `ทุกโครงการทั้งหมด (${projects.length})`
+                          : `All projects (${projects.length})`
+                        : locale === 'th'
+                          ? `ทุกโครงการที่ดูแล (${projects.length})`
+                          : `My projects (${projects.length})`}
+                    </span>
+                  </span>
+                  {selectedProjectId === 'all' && <Check size={14} color="var(--color-primary)" aria-hidden="true" />}
+                </button>
+              )}
+
+              {projects.map((proj) => {
+                const isSelected =
+                  selectedProjectId === proj.id || (projects.length === 1 && userRole !== 'Administrator');
+                return (
+                  <button
+                    key={proj.id}
+                    type="button"
+                    role="option"
+                    aria-selected={isSelected}
+                    onClick={() => {
+                      setSelectedProjectId(proj.id);
+                      setShowProjectMenu(false);
+                    }}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: '8px',
+                      padding: '7px 8px',
+                      borderRadius: 'var(--radius-sm)',
+                      border: 'none',
+                      background: isSelected ? 'var(--color-primary-soft)' : 'transparent',
+                      color: isSelected ? 'var(--color-primary)' : 'var(--color-text)',
+                      fontSize: 'var(--text-xs)',
+                      fontWeight: isSelected ? 600 : 500,
+                      textAlign: 'left',
+                    }}
+                  >
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
+                      <span
+                        aria-hidden="true"
+                        style={{
+                          width: 8,
+                          height: 8,
+                          borderRadius: 'var(--radius-full)',
+                          background: proj.primary_color || 'var(--color-primary)',
+                          flexShrink: 0,
+                        }}
+                      />
+                      <span className="mono" style={{ fontSize: '10px', fontWeight: 700, opacity: 0.75 }}>
+                        {proj.code}
+                      </span>
+                      <span className="truncate">{proj.name}</span>
+                    </span>
+                    {isSelected && <Check size={14} color="var(--color-primary)" aria-hidden="true" />}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Primary New Ticket CTA */}
+      {canCreateTicket && (
+        <div style={{ padding: isCollapsed ? 'var(--space-3) var(--space-2)' : 'var(--space-3)' }}>
+          <Link
+            href="/tickets/new"
+            onClick={onClickLink}
+            aria-label={isCollapsed ? t('sidebar.createTicket') : undefined}
+            onMouseEnter={(e: React.MouseEvent<HTMLAnchorElement>) => handleMouseEnter(e, t('sidebar.createTicket'))}
+            onMouseLeave={handleMouseLeave}
+            style={{
+              width: '100%',
+              height: '38px',
+              padding: isCollapsed ? '0' : '0 12px',
+              borderRadius: 'var(--radius-md)',
+              background: 'var(--color-primary-solid)',
+              color: 'var(--color-on-primary)',
+              fontWeight: 600,
+              fontSize: 'var(--text-sm)',
+              textDecoration: 'none',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px',
+              transition: 'var(--transition-colors)',
+            }}
+          >
+            <Plus size={16} aria-hidden="true" />
+            {!isCollapsed && <span>{t('sidebar.createTicket')}</span>}
           </Link>
         </div>
       )}
 
-      <nav style={{ padding: '0 12px', flex: 1, overflowY: 'auto' }} className="no-scrollbar">
+      {/* Navigation Sections */}
+      <nav
+        aria-label={locale === 'th' ? 'หมวดหมู่เมนู' : 'Navigation sections'}
+        style={{ padding: isCollapsed ? '0 var(--space-2)' : '0 var(--space-3)', flex: 1, overflowY: 'auto' }}
+        className="no-scrollbar"
+      >
         {filteredMenuSections.map((section) => (
-          <div key={section.section} style={{ marginBottom: '24px' }}>
+          <div key={section.section} style={{ marginBottom: 'var(--space-5)' }}>
             {!isCollapsed && (
-              <label
+              <div
                 style={{
-                  fontSize: '10px',
-                  fontWeight: '700',
-                  color: 'var(--text-dim)',
+                  fontSize: '11px',
+                  fontWeight: 600,
+                  color: 'var(--color-text-subtle)',
                   textTransform: 'uppercase',
-                  letterSpacing: '0.8px',
-                  padding: '0 16px',
+                  letterSpacing: '0.04em',
+                  padding: '0 10px',
                   marginBottom: '6px',
-                  display: 'block',
                 }}
               >
                 {section.section}
-              </label>
+              </div>
             )}
 
             {section.items.map((item) => {
               if (isGroupItem(item)) {
                 const isOpen = openMenus.includes(item.name);
+                const hasActiveChild = item.children.some((child) => pathname === child.path);
                 return (
-                  <div key={item.name} style={{ marginBottom: '4px' }}>
+                  <div key={item.name} style={{ marginBottom: '2px' }}>
                     <button
+                      type="button"
                       onClick={() => !isCollapsed && toggleMenu(item.name)}
-                      className="sidebar-btn-premium"
+                      aria-expanded={isOpen}
                       aria-label={isCollapsed ? item.label : undefined}
+                      className={`sidebar-btn-premium ${hasActiveChild ? 'active' : ''}`}
                       onMouseEnter={(e: React.MouseEvent<HTMLButtonElement>) => handleMouseEnter(e, item.label)}
                       onMouseLeave={handleMouseLeave}
                       style={{
                         width: '100%',
+                        height: '36px',
                         display: 'flex',
                         alignItems: 'center',
+                        justifyContent: isCollapsed ? 'center' : 'flex-start',
                         gap: isCollapsed ? '0' : '10px',
-                        padding: '10px 16px',
-                        borderRadius: '10px',
-                        color: 'var(--text-muted)',
+                        padding: isCollapsed ? '0' : '0 10px',
+                        borderRadius: 'var(--radius-md)',
                         background: 'transparent',
                         border: 'none',
-                        cursor: 'pointer',
                       }}
                     >
-                      <item.icon size={18} />
+                      <item.icon size={17} aria-hidden={true} />
                       {!isCollapsed && (
                         <>
-                          <span style={{ fontWeight: isOpen ? '700' : '500', fontSize: '13px', flex: 1, textAlign: 'left', color: isOpen ? 'var(--text-main)' : 'inherit' }}>
+                          <span
+                            className="truncate"
+                            style={{
+                              fontWeight: isOpen || hasActiveChild ? 600 : 500,
+                              fontSize: 'var(--text-sm)',
+                              flex: 1,
+                              textAlign: 'left',
+                            }}
+                          >
                             {item.label}
                           </span>
-                          <div style={{ opacity: 0.5, display: 'flex', alignItems: 'center' }}>
+                          <span style={{ opacity: 0.65, display: 'inline-flex', alignItems: 'center' }} aria-hidden="true">
                             {isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                          </div>
+                          </span>
                         </>
                       )}
                     </button>
@@ -398,32 +571,38 @@ function MainSidebarComponent({ onClickLink, isCollapsed = false }: SidebarProps
                     {isOpen && !isCollapsed && (
                       <div
                         style={{
-                          marginLeft: '28px',
-                          borderLeft: '1px solid var(--border)',
-                          paddingLeft: '8px',
-                          marginTop: '4px',
+                          marginLeft: '18px',
+                          borderLeft: '1px solid var(--color-border)',
+                          paddingLeft: '10px',
+                          marginTop: '2px',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: '2px',
                         }}
                       >
                         {item.children.map((child) => {
                           const isChildActive = pathname === child.path;
-
                           return (
                             <Link
                               key={child.path}
                               href={child.path}
                               onClick={onClickLink}
+                              aria-current={isChildActive ? 'page' : undefined}
                               style={{
-                                display: 'block',
-                                padding: '8px 16px',
-                                fontSize: '12px',
-                                color: isChildActive ? 'var(--primary)' : 'var(--text-muted)',
-                                fontWeight: isChildActive ? '700' : '500',
+                                display: 'flex',
+                                alignItems: 'center',
+                                height: '32px',
+                                padding: '0 10px',
+                                fontSize: 'var(--text-xs)',
+                                color: isChildActive ? 'var(--color-primary)' : 'var(--color-text-muted)',
+                                fontWeight: isChildActive ? 600 : 500,
                                 textDecoration: 'none',
-                                borderRadius: '8px',
-                                background: isChildActive ? 'var(--primary-transparent)' : 'transparent',
+                                borderRadius: 'var(--radius-sm)',
+                                background: isChildActive ? 'var(--color-primary-soft)' : 'transparent',
+                                transition: 'var(--transition-colors)',
                               }}
                             >
-                              {child.label}
+                              <span className="truncate">{child.label}</span>
                             </Link>
                           );
                         })}
@@ -433,62 +612,70 @@ function MainSidebarComponent({ onClickLink, isCollapsed = false }: SidebarProps
                 );
               }
 
-              const isActive = pathname === item.path;
+              const isActive = item.path === '/' ? pathname === '/' : pathname === item.path || pathname.startsWith(`${item.path}/`);
               return (
                 <Link
                   key={item.path}
                   href={item.path}
                   onClick={onClickLink}
-                  className={`sidebar-btn-premium ${isActive ? 'active' : ''}`}
+                  aria-current={isActive ? 'page' : undefined}
                   aria-label={isCollapsed ? item.label : undefined}
+                  className={`sidebar-btn-premium ${isActive ? 'active' : ''}`}
                   onMouseEnter={(e: React.MouseEvent<HTMLAnchorElement>) => handleMouseEnter(e, item.label)}
                   onMouseLeave={handleMouseLeave}
                   style={{
+                    height: '36px',
                     display: 'flex',
                     alignItems: 'center',
+                    justifyContent: isCollapsed ? 'center' : 'flex-start',
                     gap: isCollapsed ? '0' : '10px',
-                    padding: '10px 16px',
-                    borderRadius: '10px',
-                    marginBottom: '4px',
+                    padding: isCollapsed ? '0' : '0 10px',
+                    borderRadius: 'var(--radius-md)',
+                    marginBottom: '2px',
                     textDecoration: 'none',
-                    fontWeight: isActive ? '700' : '500',
-                    color: isActive ? 'var(--primary)' : 'var(--text-muted)',
+                    fontWeight: isActive ? 600 : 500,
                   }}
                 >
-                  <item.icon size={18} />
-                  {!isCollapsed && <span style={{ fontSize: '13px', flex: 1 }}>{item.label}</span>}
+                  <item.icon size={17} aria-hidden={true} />
+                  {!isCollapsed && (
+                    <span className="truncate" style={{ fontSize: 'var(--text-sm)', flex: 1 }}>
+                      {item.label}
+                    </span>
+                  )}
                   {!isCollapsed && item.count !== undefined && item.count > 0 && (
-                    <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
                       {item.name === 'Notifications' && slaAlertCount > 0 && (
-                        <div
+                        <span
+                          aria-label={locale === 'th' ? 'มีแจ้งเตือน SLA' : 'SLA alerts'}
                           style={{
-                            background: '#ea5455',
-                            color: 'white',
-                            padding: '3px',
-                            borderRadius: '6px',
-                            display: 'flex',
+                            background: 'var(--color-danger)',
+                            color: '#ffffff',
+                            width: 18,
+                            height: 18,
+                            borderRadius: 'var(--radius-sm)',
+                            display: 'inline-flex',
                             alignItems: 'center',
                             justifyContent: 'center',
-                            boxShadow: '0 0 10px rgba(234, 84, 85, 0.4)',
-                            animation: 'sidebar-pulse 2s infinite'
                           }}
                         >
-                          <Flame size={10} />
-                        </div>
+                          <Flame size={10} aria-hidden="true" />
+                        </span>
                       )}
                       <span
+                        className="tabular-nums"
                         style={{
-                          fontSize: '10px',
-                          background: isActive ? 'var(--primary)' : 'var(--primary-transparent)',
-                          color: isActive ? '#fff' : 'var(--primary)',
-                          padding: '2px 8px',
-                          borderRadius: '10px',
-                          fontWeight: '700',
+                          fontSize: '11px',
+                          background: isActive ? 'var(--color-primary-solid)' : 'var(--color-primary-soft)',
+                          color: isActive ? 'var(--color-on-primary)' : 'var(--color-primary)',
+                          padding: '1px 7px',
+                          borderRadius: 'var(--radius-full)',
+                          fontWeight: 600,
+                          lineHeight: '16px',
                         }}
                       >
                         {item.count}
                       </span>
-                    </div>
+                    </span>
                   )}
                 </Link>
               );
@@ -497,76 +684,161 @@ function MainSidebarComponent({ onClickLink, isCollapsed = false }: SidebarProps
         ))}
       </nav>
 
-      <div style={{ padding: '16px', borderTop: '1px solid var(--border)', display: 'flex', flexDirection: 'column' }}>
-        <p style={{ fontSize: '10px', color: 'var(--text-dim)', textAlign: 'center' }}>
-          {!isCollapsed && 'Neo Support v2.0.0'}
-        </p>
+      {/* Bottom Agent Profile + Presence/Online Status + Version Footer */}
+      <div
+        style={{
+          padding: isCollapsed ? 'var(--space-3) var(--space-2)' : 'var(--space-3)',
+          borderTop: '1px solid var(--color-border)',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '8px',
+          flexShrink: 0,
+        }}
+      >
+        <button
+          type="button"
+          onClick={() => void updateStatus(isOnline ? 'Busy' : 'Active')}
+          title={
+            isOnline
+              ? `${t('dashboard.statusActive')} — ${locale === 'th' ? 'คลิกเพื่อสลับเป็นติดงาน' : 'Click to set Busy'}`
+              : `${t('dashboard.statusBusy')} — ${locale === 'th' ? 'คลิกเพื่อสลับเป็นพร้อมทำงาน' : 'Click to set Active'}`
+          }
+          aria-label={
+            isCollapsed
+              ? `${profile?.full_name || t('dashboard.agentFallback')} (${isOnline ? t('dashboard.statusActive') : t('dashboard.statusBusy')})`
+              : undefined
+          }
+          onMouseEnter={(e) =>
+            handleMouseEnter(
+              e,
+              `${profile?.full_name || t('dashboard.agentFallback')} • ${isOnline ? t('dashboard.statusActive') : t('dashboard.statusBusy')}`
+            )
+          }
+          onMouseLeave={handleMouseLeave}
+          style={{
+            width: '100%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: isCollapsed ? 'center' : 'flex-start',
+            gap: '10px',
+            padding: isCollapsed ? '4px' : '6px 8px',
+            borderRadius: 'var(--radius-md)',
+            border: '1px solid var(--color-border)',
+            background: 'var(--color-surface-subtle)',
+            textAlign: 'left',
+            transition: 'var(--transition-colors)',
+          }}
+        >
+          <div style={{ position: 'relative', flexShrink: 0 }}>
+            {profile?.avatar_url ? (
+              <img
+                src={profile.avatar_url}
+                alt={profile.full_name || 'Agent avatar'}
+                style={{ width: 28, height: 28, borderRadius: 'var(--radius-full)', objectFit: 'cover', display: 'block' }}
+              />
+            ) : (
+              <div
+                style={{
+                  width: 28,
+                  height: 28,
+                  borderRadius: 'var(--radius-full)',
+                  background: 'var(--color-primary-solid)',
+                  color: 'var(--color-on-primary)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '12px',
+                  fontWeight: 700,
+                }}
+              >
+                {profile?.full_name?.charAt(0) || 'A'}
+              </div>
+            )}
+            <span
+              aria-hidden="true"
+              style={{
+                position: 'absolute',
+                bottom: -1,
+                right: -1,
+                width: 9,
+                height: 9,
+                borderRadius: 'var(--radius-full)',
+                border: '2px solid var(--color-surface)',
+                background: isOnline ? 'var(--color-success)' : 'var(--color-warning)',
+              }}
+            />
+          </div>
+
+          {!isCollapsed && (
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div
+                className="truncate"
+                style={{ fontSize: 'var(--text-xs)', fontWeight: 600, color: 'var(--color-text)', lineHeight: 1.25 }}
+              >
+                {profile?.full_name || t('dashboard.agentFallback')}
+              </div>
+              <div
+                style={{
+                  fontSize: '11px',
+                  color: isOnline ? 'var(--color-success-text)' : 'var(--color-warning-text)',
+                  fontWeight: 500,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: '4px',
+                }}
+              >
+                <span className="truncate">{isOnline ? t('dashboard.statusActive') : t('dashboard.statusBusy')}</span>
+                {onlineCount > 0 && (
+                  <span className="tabular-nums" style={{ color: 'var(--color-text-muted)', fontSize: '10px' }}>
+                    {onlineCount} online
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
+        </button>
+
         {!isCollapsed && (
-          <button
-            onClick={handleLogout}
-            className="glass-interactive"
+          <p
+            className="mono"
             style={{
-              marginTop: '12px',
-              padding: '10px 14px',
-              borderRadius: '12px',
-              border: '1px solid var(--border)',
-              background: 'rgba(234, 84, 85, 0.06)',
-              color: 'var(--danger)',
-              fontWeight: '800',
-              cursor: 'pointer',
+              fontSize: '11px',
+              color: 'var(--color-text-subtle)',
+              textAlign: 'center',
+              lineHeight: 1.2,
             }}
           >
-            Logout
-          </button>
+            Neo Support v2.0.0
+          </p>
         )}
       </div>
 
-      {hoveredItem && (
+      {/* Collapsed Sidebar Tooltip */}
+      {hoveredItem && isCollapsed && (
         <div
           role="tooltip"
-          aria-label={hoveredItem.label}
           style={{
             position: 'absolute',
             left: '100%',
             top: `${hoveredItem.top}px`,
             transform: 'translateY(-50%)',
-            marginLeft: '12px',
-            padding: '8px 14px',
-            background: '#1e293b',
-            color: 'white',
-            fontSize: '12px',
-            fontWeight: '700',
-            borderRadius: '8px',
+            marginLeft: '10px',
+            padding: '6px 10px',
+            background: 'var(--color-text)',
+            color: 'var(--color-canvas)',
+            fontSize: 'var(--text-xs)',
+            fontWeight: 600,
+            borderRadius: 'var(--radius-md)',
             whiteSpace: 'nowrap',
-            zIndex: 1000,
+            zIndex: 'var(--z-popover)',
             pointerEvents: 'none',
-            boxShadow: '0 10px 25px rgba(0,0,0,0.5)',
-            border: '1px solid rgba(255,255,255,0.15)',
-            animation: 'tooltipIn 0.2s ease-out',
+            boxShadow: 'var(--shadow-md)',
           }}
         >
           {hoveredItem.label}
         </div>
       )}
-
-      <style
-        dangerouslySetInnerHTML={{
-          __html: `
-            .sidebar-btn-premium {
-              position: relative;
-            }
-            @keyframes tooltipIn {
-              from { opacity: 0; transform: translateX(-10px); }
-              to { opacity: 1; transform: translateX(0); }
-            }
-            @keyframes sidebar-pulse {
-              0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(234, 84, 85, 0.4); }
-              50% { transform: scale(1.1); box-shadow: 0 0 0 6px rgba(234, 84, 85, 0); }
-              100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(234, 84, 85, 0); }
-            }
-          `,
-        }}
-      />
     </aside>
   );
 }

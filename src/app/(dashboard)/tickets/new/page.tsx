@@ -1,33 +1,39 @@
 'use client';
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @next/next/no-img-element */
-import React, { useState, useEffect, useRef } from 'react';
-import { useRouter } from 'next/navigation';
-import { supabase } from '@/lib/supabase';
-import { 
-  Search, 
-  Loader2, 
-  AlertCircle, 
-  ShieldCheck,
-  Building,
-  ArrowLeft,
-  Paperclip,
-  X,
-  File,
-  ChevronDown
-} from 'lucide-react';
+import React, { useEffect, useId, useRef, useState } from 'react';
 import Link from 'next/link';
-import { useStaffLocale } from '@/contexts/StaffLocaleContext';
+import { useRouter } from 'next/navigation';
+import {
+  AlertCircle,
+  ArrowLeft,
+  Building,
+  ChevronDown,
+  File,
+  Paperclip,
+  Search,
+  ShieldCheck,
+  X,
+} from 'lucide-react';
+import { clsx } from 'clsx';
+import { Badge, Button, Card, CardBody, PageHeader, Select, Textarea } from '@/components/ui';
 import { useAppContext } from '@/contexts/AppContext';
+import { useStaffLocale } from '@/contexts/StaffLocaleContext';
 import { getStaffMessage, translateTicketPriority } from '@/lib/i18n/staff';
-import { calculateSlaDeadline } from '@/lib/utils/slaUtils';
+import { supabase } from '@/lib/supabase';
 import { compressImage } from '@/lib/utils/imageCompression';
+import { calculateSlaDeadline } from '@/lib/utils/slaUtils';
+import styles from '../tickets-workspace.module.css';
 
 export default function CreateInternalTicketPage() {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { projects, activeProject, ensureOrganizations, organizations: contextOrgs } = useAppContext();
-  
+  const { locale } = useStaffLocale();
+
+  const orgBtnId = useId();
+  const subjectBtnId = useId();
+
   // Form State
   const [selectedProjectId, setSelectedProjectId] = useState('');
   const [selectedHospitalId, setSelectedHospitalId] = useState('');
@@ -36,13 +42,18 @@ export default function CreateInternalTicketPage() {
   const [priority, setPriority] = useState('Medium');
   const [attachments, setAttachments] = useState<any[]>([]);
   const [subjectTypes, setSubjectTypes] = useState<string[]>([]);
-  
+
   // UI State
   const [organizations, setOrganizations] = useState<any[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [staffProfile, setStaffProfile] = useState<any>(null);
+
+  const [isHospitalOpen, setIsHospitalOpen] = useState(false);
+  const [isSubjectOpen, setIsSubjectOpen] = useState(false);
+  const hospitalRef = useRef<HTMLDivElement>(null);
+  const subjectRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!selectedProjectId && (activeProject?.id || projects[0]?.id)) {
@@ -56,71 +67,83 @@ export default function CreateInternalTicketPage() {
 
   useEffect(() => {
     async function init() {
-      // 1. Get Current Staff Profile
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (user) {
         const { data: p } = await supabase.from('profiles').select('*').eq('id', user.id).single();
         setStaffProfile(p);
       }
 
-      // 2. Fetch Organizations and Hybrid Ticket Subject Types
-      let orgQuery = supabase.from('organizations').select('*').eq('is_active', true).order('name', { ascending: true });
-      let subjectQuery = supabase.from('ticket_subject_types').select('name').eq('is_active', true).order('name', { ascending: true });
+      let orgQuery = supabase
+        .from('organizations')
+        .select('*')
+        .eq('is_active', true)
+        .order('name', { ascending: true });
+      let subjectQuery = supabase
+        .from('ticket_subject_types')
+        .select('name')
+        .eq('is_active', true)
+        .order('name', { ascending: true });
       if (selectedProjectId) {
         orgQuery = orgQuery.eq('project_id', selectedProjectId);
         subjectQuery = subjectQuery.or(`project_id.is.null,project_id.eq.${selectedProjectId}`);
       }
 
-      const [{ data: hData }, { data: subjectsRes }] = await Promise.all([
-        orgQuery,
-        subjectQuery,
-      ]);
-      
+      const [{ data: hData }, { data: subjectsRes }] = await Promise.all([orgQuery, subjectQuery]);
+
       setOrganizations((hData && hData.length > 0 ? hData : contextOrgs) || []);
       const subjects = subjectsRes?.map((s: any) => s.name) || [];
-      setSubjectTypes(subjects.length > 0 ? subjects : ['ลบ', 'แก้ไขออเดอร์', 'แจ้ง error', 'เรื่องอื่นๆ']);
+      setSubjectTypes(
+        subjects.length > 0 ? subjects : ['ลบ', 'แก้ไขออเดอร์', 'แจ้ง error', 'เรื่องอื่นๆ']
+      );
     }
-    init();
+    void init();
   }, [contextOrgs, selectedProjectId]);
 
-  const { locale } = useStaffLocale();
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (hospitalRef.current && !hospitalRef.current.contains(event.target as Node)) {
+        setIsHospitalOpen(false);
+      }
+      if (subjectRef.current && !subjectRef.current.contains(event.target as Node)) {
+        setIsSubjectOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
-  const PRIORITY_COLORS: Record<string, string> = {
-    Low: '#00cfe8',
-    Medium: '#ff9f43',
-    High: '#ea5455',
-    Critical: '#8b5cf6',
-  };
-
-  const filteredOrganizations = organizations.filter(h => 
-    h.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    h.abbreviation?.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredOrganizations = organizations.filter(
+    (h) =>
+      h.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      h.abbreviation?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (files) {
-      const newAttachments = Array.from(files).map(file => ({
+      const newAttachments = Array.from(files).map((file) => ({
         id: Math.random().toString(36).substr(2, 9),
         file,
-        preview: file.type.startsWith('image/') ? URL.createObjectURL(file) : null
+        preview: file.type.startsWith('image/') ? URL.createObjectURL(file) : null,
       }));
-      setAttachments(prev => [...prev, ...newAttachments]);
+      setAttachments((prev) => [...prev, ...newAttachments]);
     }
   };
 
   const removeAttachment = (id: string) => {
-    setAttachments(prev => prev.filter(a => a.id !== id));
+    setAttachments((prev) => prev.filter((a) => a.id !== id));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedHospitalId) {
-      setError('กรุณาเลือกองค์กร/บริษัท (Please select a organization)');
+      setError(locale === 'th' ? 'กรุณาเลือกองค์กร/บริษัท' : 'Please select an organization');
       return;
     }
     if (!subject.trim()) {
-      setError('กรุณาระบุหัวข้อเรื่อง (Please enter a subject)');
+      setError(locale === 'th' ? 'กรุณาระบุหัวข้อเรื่อง' : 'Please enter a subject');
       return;
     }
 
@@ -128,14 +151,12 @@ export default function CreateInternalTicketPage() {
     setError(null);
 
     try {
-      // 1. Upload Attachments if any
       const uploadedUrls: string[] = [];
       for (const att of attachments) {
         let fileToUpload = att.file;
         let contentType = att.file.type;
         let ext = att.file.name.split('.').pop();
 
-        // Compress if image
         if (contentType.startsWith('image/')) {
           try {
             const compressed = await compressImage(att.file, { quality: 1.0 });
@@ -151,14 +172,15 @@ export default function CreateInternalTicketPage() {
         const { error: uploadError } = await supabase.storage
           .from('chat_media')
           .upload(fileName, fileToUpload, { contentType });
-        
+
         if (!uploadError) {
-          const { data: { publicUrl } } = supabase.storage.from('chat_media').getPublicUrl(fileName);
+          const {
+            data: { publicUrl },
+          } = supabase.storage.from('chat_media').getPublicUrl(fileName);
           uploadedUrls.push(publicUrl);
         }
       }
 
-      // 2. Find or Create Customer record for this staff member scoped by project
       let staffCustomerId = null;
       if (staffProfile?.id) {
         const staffCustomerKey = `staff_${staffProfile.id}`;
@@ -188,20 +210,18 @@ export default function CreateInternalTicketPage() {
             .insert([customerInsert])
             .select('id')
             .single();
-          
+
           if (newCustomer) {
             staffCustomerId = newCustomer.id;
           }
         }
       }
 
-      // 3. Generate a temporary Ticket No
       const selectedProj = projects.find((p) => p.id === selectedProjectId);
       const prefix = selectedProj?.code || 'TIC';
       const datePart = new Date().toISOString().slice(0, 10).replace(/-/g, '');
       const tempNo = `${prefix}-${datePart}-${Math.floor(1000 + Math.random() * 9000)}`;
 
-      // 4. Calculate SLA Deadline (Hybrid: prefer project rule else global)
       let slaDueAt = null;
       try {
         let slaQuery = supabase
@@ -216,7 +236,7 @@ export default function CreateInternalTicketPage() {
           (slaRules || []).find((r: any) => r.project_id === selectedProjectId) ||
           (slaRules || [])[0] ||
           null;
-        
+
         if (slaRule) {
           const duration = slaRule.resolution_time_minutes || slaRule.response_time_minutes || 60;
           slaDueAt = calculateSlaDeadline(new Date(), duration).toISOString();
@@ -225,11 +245,10 @@ export default function CreateInternalTicketPage() {
         console.warn('SLA Calculation skipped:', e);
       }
 
-      // 5. Create Internal Ticket
       const ticketPayload: Record<string, unknown> = {
-        ticket_no: tempNo, 
-        customer_id: staffCustomerId, 
-        organization_id: selectedHospitalId, 
+        ticket_no: tempNo,
+        customer_id: staffCustomerId,
+        organization_id: selectedHospitalId,
         subject: `[Private] ${subject}`,
         description: description || subject,
         status: 'New',
@@ -250,32 +269,35 @@ export default function CreateInternalTicketPage() {
 
       if (ticketError) throw new Error(`สร้างใบงานไม่สำเร็จ: ${ticketError.message}`);
 
-      // 4. Record attachments as a system message/log if needed
       if (uploadedUrls.length > 0) {
-        // Option A: Add to first log
-        await supabase.from('ticket_logs').insert([{
-           ticket_id: newTicket.id,
-           action_type: 'create',
-           performer_id: staffProfile?.id,
-           note: `Internal Ticket created with ${uploadedUrls.length} attachments.\nURLs: ${uploadedUrls.join('\n')}`
-        }]);
-
-        // Option B: Add as system messages so they show in chat
-        for (const url of uploadedUrls) {
-          await supabase.from('messages').insert([{
+        await supabase.from('ticket_logs').insert([
+          {
             ticket_id: newTicket.id,
-            sender_type: 'system',
-            content: url,
-            message_type: 'image'
-          }]);
+            action_type: 'create',
+            performer_id: staffProfile?.id,
+            note: `Internal Ticket created with ${uploadedUrls.length} attachments.\nURLs: ${uploadedUrls.join('\n')}`,
+          },
+        ]);
+
+        for (const url of uploadedUrls) {
+          await supabase.from('messages').insert([
+            {
+              ticket_id: newTicket.id,
+              sender_type: 'system',
+              content: url,
+              message_type: 'image',
+            },
+          ]);
         }
       } else {
-        await supabase.from('ticket_logs').insert([{
-          ticket_id: newTicket.id,
-          action_type: 'create',
-          performer_id: staffProfile?.id,
-          note: `Internal Ticket created by ${staffProfile?.full_name}`
-        }]);
+        await supabase.from('ticket_logs').insert([
+          {
+            ticket_id: newTicket.id,
+            action_type: 'create',
+            performer_id: staffProfile?.id,
+            note: `Internal Ticket created by ${staffProfile?.full_name}`,
+          },
+        ]);
       }
 
       router.push(`/tickets/${newTicket.id}`);
@@ -285,69 +307,57 @@ export default function CreateInternalTicketPage() {
     }
   };
 
-  const [isHospitalOpen, setIsHospitalOpen] = useState(false);
-  const [isSubjectOpen, setIsSubjectOpen] = useState(false);
-  const hospitalRef = useRef<HTMLDivElement>(null);
-  const subjectRef = useRef<HTMLDivElement>(null);
+  const selectedHospital = organizations.find((h) => h.id === selectedHospitalId);
 
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (hospitalRef.current && !hospitalRef.current.contains(event.target as Node)) {
-        setIsHospitalOpen(false);
-      }
-      if (subjectRef.current && !subjectRef.current.contains(event.target as Node)) {
-        setIsSubjectOpen(false);
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  const selectedHospital = organizations.find(h => h.id === selectedHospitalId);
+  const priorityClassMap: Record<string, string> = {
+    Low: styles.priorityBtnActiveLow,
+    Medium: styles.priorityBtnActiveMedium,
+    High: styles.priorityBtnActiveHigh,
+    Critical: styles.priorityBtnActiveCritical,
+  };
 
   return (
-    <div style={{ animation: 'fadeIn 0.5s ease-out', maxWidth: '100%', margin: '0', padding: '24px 32px 100px' }}>
-      {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '32px' }}>
-        <Link href="/tickets" className="glass-interactive flex-center" style={{ width: '40px', height: '40px', borderRadius: '12px', border: '1px solid var(--border)', color: 'var(--text-main)' }}>
-          <ArrowLeft size={20} />
-        </Link>
-        <div>
-          <h1 style={{ fontSize: '28px', fontWeight: '900', color: 'var(--text-main)', letterSpacing: '-1px' }}>สร้างใบงานใหม่ (สำหรับองค์กร/บริษัท)</h1>
-          <p style={{ color: 'var(--text-muted)', fontSize: '14px' }}>การสร้างใบงานระบุเจาะจงกลุ่มเป้าหมาย (Organization Private Ticket)</p>
-        </div>
-      </div>
+    <div className={styles.createPage}>
+      <PageHeader
+        title={
+          locale === 'th'
+            ? 'สร้างใบงานใหม่ (สำหรับองค์กร/บริษัท)'
+            : 'Create Internal Ticket'
+        }
+        subtitle={
+          locale === 'th'
+            ? 'สร้างใบงานระบุเจาะจงองค์กรหรือหน่วยงานภายในระบบ'
+            : 'Create an organization-scoped internal support ticket'
+        }
+        actions={
+          <Link
+            href="/tickets"
+            className={styles.iconLinkBtn}
+            style={{ width: 'auto', padding: '0 12px', gap: '6px', fontSize: 'var(--text-xs)', fontWeight: 600 }}
+          >
+            <ArrowLeft size={15} aria-hidden="true" />
+            <span>{locale === 'th' ? 'กลับหน้ารายการ' : 'Back to tickets'}</span>
+          </Link>
+        }
+      />
 
-      <div className="glass" style={{ padding: '32px', borderRadius: '24px', background: 'rgba(255,255,255,0.01)', border: '1px solid var(--border)' }}>
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-          {error && (
-            <div className="flex" style={{ padding: '16px', borderRadius: '12px', background: 'rgba(234, 84, 85, 0.1)', color: '#ea5455', border: '1px solid rgba(234, 84, 85, 0.2)', gap: '12px', alignItems: 'center' }}>
-              <AlertCircle size={20} />
-              <span style={{ fontSize: '14px', fontWeight: '700' }}>{error}</span>
-            </div>
-          )}
+      <Card>
+        <CardBody>
+          <form onSubmit={handleSubmit} className={styles.createForm}>
+            {error && (
+              <div className={styles.debugBanner} role="alert" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <AlertCircle size={16} aria-hidden="true" />
+                <span>{error}</span>
+              </div>
+            )}
 
-          {/* 0. Project Selection */}
-          {projects.length > 0 && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              <label style={{ fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px' }}>
-                โครงการ (PROJECT)
-              </label>
-              <select
+            {projects.length > 0 && (
+              <Select
+                label={locale === 'th' ? 'โครงการ' : 'Project'}
                 value={selectedProjectId}
                 onChange={(e) => {
                   setSelectedProjectId(e.target.value);
                   setSelectedHospitalId('');
-                }}
-                style={{
-                  padding: '14px 16px',
-                  borderRadius: '16px',
-                  background: 'var(--bg-card)',
-                  border: '1.5px solid var(--border)',
-                  color: 'var(--text-main)',
-                  fontSize: '15px',
-                  fontWeight: '700',
-                  outline: 'none',
                 }}
               >
                 {projects.map((p) => (
@@ -355,321 +365,294 @@ export default function CreateInternalTicketPage() {
                     {p.code} • {p.name}
                   </option>
                 ))}
-              </select>
-            </div>
-          )}
+              </Select>
+            )}
 
-          {/* 1. Organization Selection Listbox */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', position: 'relative' }} ref={hospitalRef}>
-            <label style={{ fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px' }}>เลือกองค์กร/บริษัท (SELECT ORGANIZATION)</label>
-            <div 
-              onClick={() => setIsHospitalOpen(!isHospitalOpen)}
-              className="glass-interactive"
-              style={{ 
-                padding: '16px', 
-                borderRadius: '16px', 
-                background: 'var(--bg-card)', 
-                border: '1.5px solid var(--border)', 
-                display: 'flex', 
-                justifyContent: 'space-between', 
-                alignItems: 'center', 
-                cursor: 'pointer',
-                transition: 'all 0.2s'
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <Building size={18} style={{ color: selectedHospital ? 'var(--primary)' : 'var(--text-muted)' }} />
-                <span style={{ fontSize: '15px', color: selectedHospital ? 'var(--text-main)' : 'var(--text-muted)', fontWeight: selectedHospital ? '700' : '400' }}>
-                  {selectedHospital ? selectedHospital.name : 'ค้นหาหรือเลือกองค์กร/บริษัท...'}
+            {/* Organization Dropdown */}
+            <div className={styles.dropdownWrap} ref={hospitalRef}>
+              <label htmlFor={orgBtnId} className={styles.fieldLabel}>
+                {locale === 'th' ? 'เลือกองค์กร/บริษัท' : 'Organization'}{' '}
+                <span style={{ color: 'var(--color-danger)' }} aria-hidden="true">*</span>
+              </label>
+              <button
+                id={orgBtnId}
+                type="button"
+                aria-haspopup="listbox"
+                aria-expanded={isHospitalOpen}
+                onClick={() => setIsHospitalOpen(!isHospitalOpen)}
+                className={styles.dropdownTrigger}
+              >
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
+                  <Building
+                    size={16}
+                    color={selectedHospital ? 'var(--color-primary)' : 'var(--color-text-muted)'}
+                    aria-hidden="true"
+                  />
+                  <span
+                    style={{
+                      color: selectedHospital ? 'var(--color-text)' : 'var(--color-text-subtle)',
+                      fontWeight: selectedHospital ? 600 : 400,
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {selectedHospital
+                      ? selectedHospital.name
+                      : locale === 'th'
+                        ? 'ค้นหาหรือเลือกองค์กร/บริษัท...'
+                        : 'Search or select organization...'}
+                  </span>
                 </span>
-              </div>
-              <ChevronDown size={18} style={{ color: 'var(--text-muted)', transform: isHospitalOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
-            </div>
+                <ChevronDown
+                  size={16}
+                  style={{
+                    color: 'var(--color-text-muted)',
+                    transform: isHospitalOpen ? 'rotate(180deg)' : 'none',
+                    transition: 'transform 150ms',
+                    flexShrink: 0,
+                  }}
+                  aria-hidden="true"
+                />
+              </button>
 
-            {isHospitalOpen && (
-              <div style={{ 
-                position: 'absolute', 
-                top: '100%', 
-                left: 0, 
-                right: 0, 
-                zIndex: 100, 
-                marginTop: '8px', 
-                background: 'var(--bg-card)', 
-                border: '1px solid var(--border)', 
-                borderRadius: '16px', 
-                boxShadow: '0 10px 40px rgba(0,0,0,0.2)',
-                overflow: 'hidden',
-                animation: 'slideDown 0.2s ease-out'
-              }}>
-                <div style={{ padding: '12px', borderBottom: '1px solid var(--border)', position: 'relative' }}>
-                   <Search style={{ position: 'absolute', left: '24px', top: '24px', color: 'var(--text-muted)' }} size={16} />
-                   <input 
-                      type="text" 
-                      placeholder="พิมพ์เพื่อค้นหา..." 
+              {isHospitalOpen && (
+                <div className={styles.dropdownPanel} role="listbox" aria-labelledby={orgBtnId}>
+                  <div className={styles.dropdownSearchWrap}>
+                    <Search
+                      size={14}
+                      style={{
+                        position: 'absolute',
+                        left: '18px',
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        color: 'var(--color-text-subtle)',
+                      }}
+                      aria-hidden="true"
+                    />
+                    <input
+                      type="text"
+                      placeholder={locale === 'th' ? 'พิมพ์เพื่อค้นหา...' : 'Type to search...'}
+                      aria-label={locale === 'th' ? 'ค้นหาองค์กร/บริษัท' : 'Search organization'}
                       autoFocus
                       value={searchTerm}
-                      onChange={e => setSearchTerm(e.target.value)}
-                      style={{ 
-                        width: '100%', 
-                        background: 'rgba(255,255,255,0.03)', 
-                        border: '1px solid var(--border)', 
-                        borderRadius: '12px', 
-                        padding: '10px 10px 10px 36px', 
-                        color: 'var(--text-main)', 
-                        outline: 'none',
-                        fontSize: '14px'
-                      }}
-                   />
-                </div>
-                <div className="custom-scrollbar" style={{ maxHeight: '250px', overflowY: 'auto' }}>
-                  {filteredOrganizations.length > 0 ? filteredOrganizations.map(h => (
-                    <div 
-                      key={h.id}
-                      onClick={() => { setSelectedHospitalId(h.id); setIsHospitalOpen(false); }}
-                      style={{ 
-                        padding: '12px 20px', 
-                        cursor: 'pointer', 
-                        display: 'flex', 
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        background: selectedHospitalId === h.id ? 'rgba(0, 242, 254, 0.08)' : 'transparent',
-                        transition: 'all 0.2s',
-                        borderBottom: '1px solid rgba(255,255,255,0.03)'
-                      }}
-                      onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.03)'}
-                      onMouseLeave={(e) => e.currentTarget.style.background = selectedHospitalId === h.id ? 'rgba(0, 242, 254, 0.08)' : 'transparent'}
-                    >
-                      <span style={{ fontSize: '14px', fontWeight: selectedHospitalId === h.id ? '700' : '400', color: selectedHospitalId === h.id ? 'var(--primary)' : 'var(--text-main)' }}>{h.name}</span>
-                      {h.abbreviation && <span style={{ fontSize: '10px', color: 'var(--text-muted)', background: 'rgba(255,255,255,0.05)', padding: '2px 6px', borderRadius: '4px' }}>{h.abbreviation}</span>}
-                    </div>
-                  )) : (
-                    <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>ไม่พบรายชื่อองค์กร/บริษัท</div>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* 2. Subject Selection Listbox */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', position: 'relative' }} ref={subjectRef}>
-            <label style={{ fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px' }}>หัวข้อที่ต้องการแจ้ง (SUBJECT)</label>
-            <div 
-              onClick={() => setIsSubjectOpen(!isSubjectOpen)}
-              className="glass-interactive"
-              style={{ 
-                padding: '16px', 
-                borderRadius: '16px', 
-                background: 'var(--bg-card)', 
-                border: '1.5px solid var(--border)', 
-                display: 'flex', 
-                justifyContent: 'space-between', 
-                alignItems: 'center', 
-                cursor: 'pointer',
-                transition: 'all 0.2s'
-              }}
-            >
-              <span style={{ fontSize: '15px', color: subject ? 'var(--text-main)' : 'var(--text-muted)', fontWeight: subject ? '700' : '400' }}>
-                {subject ? subject : 'เลือกหัวข้อเรื่องที่ต้องการแจ้ง...'}
-              </span>
-              <ChevronDown size={18} style={{ color: 'var(--text-muted)', transform: isSubjectOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
-            </div>
-
-            {isSubjectOpen && (
-              <div style={{ 
-                position: 'absolute', 
-                top: '100%', 
-                left: 0, 
-                right: 0, 
-                zIndex: 100, 
-                marginTop: '8px', 
-                background: 'var(--bg-card)', 
-                border: '1px solid var(--border)', 
-                borderRadius: '16px', 
-                boxShadow: '0 10px 40px rgba(0,0,0,0.2)',
-                overflow: 'hidden',
-                animation: 'slideDown 0.2s ease-out'
-              }}>
-                <div className="custom-scrollbar" style={{ maxHeight: '200px', overflowY: 'auto' }}>
-                  {subjectTypes.map((st, idx) => (
-                    <div 
-                      key={idx}
-                      onClick={() => { setSubject(st); setIsSubjectOpen(false); }}
-                      style={{ 
-                        padding: '14px 20px', 
-                        cursor: 'pointer', 
-                        fontSize: '14px',
-                        background: subject === st ? 'rgba(0, 242, 254, 0.08)' : 'transparent',
-                        color: subject === st ? 'var(--primary)' : 'var(--text-main)',
-                        transition: 'all 0.2s',
-                        borderBottom: '1px solid rgba(255,255,255,0.03)'
-                      }}
-                      onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.03)'}
-                      onMouseLeave={(e) => e.currentTarget.style.background = subject === st ? 'rgba(0, 242, 254, 0.08)' : 'transparent'}
-                    >
-                      {st}
-                    </div>
-                  ))}
-                  <div style={{ padding: '12px', borderTop: '1px solid var(--border)' }}>
-                    <input 
-                      type="text" 
-                      placeholder="ระบุหัวข้ออื่นๆ..." 
-                      value={subjectTypes.includes(subject) ? '' : subject}
-                      onChange={e => setSubject(e.target.value)}
-                      onKeyDown={e => e.key === 'Enter' && setIsSubjectOpen(false)}
-                      style={{ 
-                        width: '100%', 
-                        background: 'transparent', 
-                        border: '1px dashed var(--border)', 
-                        borderRadius: '8px', 
-                        padding: '8px 12px', 
-                        color: 'var(--text-main)', 
-                        fontSize: '13px',
-                        outline: 'none'
-                      }}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className={styles.searchInput}
+                      style={{ height: '34px' }}
                     />
                   </div>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* 3. Description */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            <label style={{ fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px' }}>รายละเอียดเพิ่มเติม (DESCRIPTION)</label>
-            <textarea 
-              placeholder="แจ้งรายละเอียดของปัญหา…" 
-              value={description}
-              onChange={e => setDescription(e.target.value)}
-              className="focus-ring"
-              style={{ 
-                height: '100px', 
-                padding: '16px', 
-                borderRadius: '16px', 
-                background: 'var(--bg-card)', 
-                border: '1.5px solid var(--border)', 
-                color: 'var(--text-main)', 
-                fontSize: '15px', 
-                outline: 'none', 
-                resize: 'none',
-                boxShadow: '0 2px 8px rgba(0,0,0,0.02)',
-                transition: 'all 0.2s'
-              }}
-            />
-          </div>
-
-          {/* 4. Attachments */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            <label style={{ fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px' }}>แนบภาพหรือไฟล์ (ATTACHMENTS)</label>
-            <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-               {attachments.map(att => (
-                 <div key={att.id} style={{ position: 'relative', width: '70px', height: '70px', borderRadius: '12px', overflow: 'hidden', border: '1px solid var(--border)', background: 'rgba(255,255,255,0.05)' }}>
-                    {att.preview ? (
-                      <img src={att.preview} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="preview" />
+                  <div className={clsx(styles.dropdownList, 'custom-scrollbar')}>
+                    {filteredOrganizations.length > 0 ? (
+                      filteredOrganizations.map((h) => {
+                        const isSelected = selectedHospitalId === h.id;
+                        return (
+                          <button
+                            key={h.id}
+                            type="button"
+                            role="option"
+                            aria-selected={isSelected}
+                            onClick={() => {
+                              setSelectedHospitalId(h.id);
+                              setIsHospitalOpen(false);
+                            }}
+                            className={clsx(
+                              styles.dropdownOption,
+                              isSelected && styles.dropdownOptionSelected
+                            )}
+                          >
+                            <span>{h.name}</span>
+                            {h.abbreviation && (
+                              <Badge size="sm" variant="neutral">
+                                {h.abbreviation}
+                              </Badge>
+                            )}
+                          </button>
+                        );
+                      })
                     ) : (
-                      <div className="flex-center" style={{ height: '100%', color: 'var(--text-muted)' }}><File size={20} /></div>
+                      <div
+                        style={{
+                          padding: '20px',
+                          textAlign: 'center',
+                          fontSize: 'var(--text-xs)',
+                          color: 'var(--color-text-muted)',
+                        }}
+                      >
+                        {locale === 'th' ? 'ไม่พบรายชื่อองค์กร/บริษัท' : 'No organizations found'}
+                      </div>
                     )}
-                    <button 
-                      type="button" 
-                      onClick={() => removeAttachment(att.id)}
-                      style={{ position: 'absolute', top: '2px', right: '2px', background: 'rgba(0,0,0,0.5)', color: 'white', border: 'none', borderRadius: '50%', width: '18px', height: '18px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <X size={12} />
-                    </button>
-                 </div>
-               ))}
-               <button 
-                 type="button"
-                 onClick={() => fileInputRef.current?.click()}
-                 className="glass-interactive"
-                 style={{ width: '70px', height: '70px', borderRadius: '12px', border: '2px dashed var(--border)', color: 'var(--text-muted)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '2px', cursor: 'pointer' }}
-               >
-                 <Paperclip size={18} />
-                 <span style={{ fontSize: '9px' }}>เพิ่มไฟล์</span>
-               </button>
-               <input 
-                 type="file" 
-                 ref={fileInputRef} 
-                 onChange={handleFileChange} 
-                 multiple 
-                 style={{ display: 'none' }} 
-                 accept="image/*, application/pdf, .doc, .docx, .xls, .xlsx"
-               />
+                  </div>
+                </div>
+              )}
             </div>
-          </div>
 
-          {/* 5. Priority */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            <label style={{ fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px' }}>{getStaffMessage(locale, 'dashboard.priorityBreakdown')} (PRIORITY)</label>
-            <div style={{ display: 'flex', gap: '12px' }}>
-              {['Low', 'Medium', 'High', 'Critical'].map(p => (
-                <button 
-                  key={p} 
-                  type="button" 
-                  onClick={() => setPriority(p)}
-                  style={{ 
-                    flex: 1, 
-                    padding: '12px', 
-                    borderRadius: '12px', 
-                    border: priority === p ? `1px solid ${PRIORITY_COLORS[p]}` : '1px solid var(--border)', 
-                    background: priority === p ? PRIORITY_COLORS[p] : 'transparent', 
-                    color: priority === p ? (p === 'Critical' || p === 'High' ? 'white' : 'black') : 'var(--text-muted)', 
-                    fontWeight: priority === p ? '900' : '600', 
-                    fontSize: '13px',
-                    transition: 'all 0.2s',
-                    boxShadow: priority === p ? `0 4px 12px ${PRIORITY_COLORS[p]}40` : 'none'
+            {/* Subject Dropdown */}
+            <div className={styles.dropdownWrap} ref={subjectRef}>
+              <label htmlFor={subjectBtnId} className={styles.fieldLabel}>
+                {locale === 'th' ? 'หัวข้อที่ต้องการแจ้ง' : 'Subject'}{' '}
+                <span style={{ color: 'var(--color-danger)' }} aria-hidden="true">*</span>
+              </label>
+              <button
+                id={subjectBtnId}
+                type="button"
+                aria-haspopup="listbox"
+                aria-expanded={isSubjectOpen}
+                onClick={() => setIsSubjectOpen(!isSubjectOpen)}
+                className={styles.dropdownTrigger}
+              >
+                <span
+                  style={{
+                    color: subject ? 'var(--color-text)' : 'var(--color-text-subtle)',
+                    fontWeight: subject ? 600 : 400,
                   }}
                 >
-                  {translateTicketPriority(p, locale)}
-                </button>
-              ))}
+                  {subject ||
+                    (locale === 'th' ? 'เลือกหัวข้อเรื่องที่ต้องการแจ้ง...' : 'Select a subject...')}
+                </span>
+                <ChevronDown
+                  size={16}
+                  style={{
+                    color: 'var(--color-text-muted)',
+                    transform: isSubjectOpen ? 'rotate(180deg)' : 'none',
+                    transition: 'transform 150ms',
+                    flexShrink: 0,
+                  }}
+                  aria-hidden="true"
+                />
+              </button>
+
+              {isSubjectOpen && (
+                <div className={styles.dropdownPanel} role="listbox" aria-labelledby={subjectBtnId}>
+                  <div className={clsx(styles.dropdownList, 'custom-scrollbar')}>
+                    {subjectTypes.map((st, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        role="option"
+                        aria-selected={subject === st}
+                        onClick={() => {
+                          setSubject(st);
+                          setIsSubjectOpen(false);
+                        }}
+                        className={clsx(
+                          styles.dropdownOption,
+                          subject === st && styles.dropdownOptionSelected
+                        )}
+                      >
+                        {st}
+                      </button>
+                    ))}
+                    <div style={{ padding: '10px 12px', borderTop: '1px solid var(--color-border)' }}>
+                      <input
+                        type="text"
+                        placeholder={locale === 'th' ? 'ระบุหัวข้ออื่นๆ...' : 'Custom subject...'}
+                        aria-label={locale === 'th' ? 'ระบุหัวข้ออื่นๆ' : 'Custom subject'}
+                        value={subjectTypes.includes(subject) ? '' : subject}
+                        onChange={(e) => setSubject(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            setIsSubjectOpen(false);
+                          }
+                        }}
+                        className={styles.searchInput}
+                        style={{ paddingLeft: '12px', height: '34px' }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
-          </div>
 
-          {/* Submit */}
-          <button 
-            type="submit" 
-            disabled={submitting}
-            className="glass-interactive"
-            style={{ 
-              marginTop: '12px', 
-              padding: '20px', 
-              borderRadius: '20px', 
-              background: 'var(--primary)', 
-              color: 'black', 
-              fontWeight: '900', 
-              fontSize: '17px', 
-              display: 'flex', 
-              alignItems: 'center', 
-              justifyContent: 'center', 
-              gap: '12px',
-              border: 'none',
-              opacity: submitting ? 0.7 : 1,
-              cursor: submitting ? 'not-allowed' : 'pointer'
-            }}
-          >
-            {submitting ? <Loader2 className="animate-spin" size={24} /> : (
-              <>
-                <ShieldCheck size={24} /> {getStaffMessage(locale, 'inbox.confirmPendingButton').replace('Pending', locale === 'th' ? 'สร้างใบงาน' : 'Create Ticket')}
-              </>
-            )}
-          </button>
-        </form>
-      </div>
+            <Textarea
+              label={locale === 'th' ? 'รายละเอียดเพิ่มเติม' : 'Description'}
+              rows={4}
+              placeholder={locale === 'th' ? 'แจ้งรายละเอียดของปัญหา…' : 'Describe the issue...'}
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+            />
 
-      <style dangerouslySetInnerHTML={{ __html: `
-        @keyframes fadeIn {
-          from { opacity: 0; transform: translateY(20px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        @keyframes slideDown {
-          from { opacity: 0; transform: translateY(-10px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        .focus-ring:focus {
-          border-color: var(--primary) !important;
-          box-shadow: 0 0 0 4px var(--primary-transparent) !important;
-          background: rgba(255,255,255,0.02) !important;
-        }
-      `}} />
+            <div className={styles.dropdownWrap}>
+              <span className={styles.fieldLabel}>
+                {locale === 'th' ? 'แนบภาพหรือไฟล์' : 'Attachments'}
+              </span>
+              <div className={styles.attachmentsRow}>
+                {attachments.map((att) => (
+                  <div key={att.id} className={styles.attachmentThumb}>
+                    {att.preview ? (
+                      <img
+                        src={att.preview}
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                        alt="Attachment preview"
+                      />
+                    ) : (
+                      <File size={20} color="var(--color-text-muted)" aria-hidden="true" />
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => removeAttachment(att.id)}
+                      aria-label={locale === 'th' ? 'ลบไฟล์แนบ' : 'Remove attachment'}
+                      className={styles.attachmentRemoveBtn}
+                    >
+                      <X size={12} aria-hidden="true" />
+                    </button>
+                  </div>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className={styles.attachmentAddBtn}
+                >
+                  <Paperclip size={16} aria-hidden="true" />
+                  <span>{locale === 'th' ? 'เพิ่มไฟล์' : 'Add file'}</span>
+                </button>
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleFileChange}
+                  multiple
+                  style={{ display: 'none' }}
+                  accept="image/*, application/pdf, .doc, .docx, .xls, .xlsx"
+                />
+              </div>
+            </div>
+
+            <div className={styles.dropdownWrap}>
+              <span className={styles.fieldLabel}>
+                {getStaffMessage(locale, 'dashboard.priorityBreakdown')}
+              </span>
+              <div className={styles.priorityGrid} role="radiogroup" aria-label="Ticket priority">
+                {['Low', 'Medium', 'High', 'Critical'].map((p) => {
+                  const active = priority === p;
+                  return (
+                    <button
+                      key={p}
+                      type="button"
+                      role="radio"
+                      aria-checked={active}
+                      onClick={() => setPriority(p)}
+                      className={clsx(styles.priorityBtn, active && priorityClassMap[p])}
+                    >
+                      {translateTicketPriority(p, locale)}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <Button
+              type="submit"
+              variant="primary"
+              size="lg"
+              fullWidth
+              loading={submitting}
+              leftIcon={<ShieldCheck size={18} aria-hidden="true" />}
+            >
+              {locale === 'th' ? 'สร้างใบงาน' : 'Create Ticket'}
+            </Button>
+          </form>
+        </CardBody>
+      </Card>
     </div>
   );
 }

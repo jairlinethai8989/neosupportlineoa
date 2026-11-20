@@ -1,33 +1,87 @@
 'use client';
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import clsx from 'clsx';
 import { useLiff } from '@/hooks/useLiff';
 import { supabase } from '@/lib/supabase';
 import { submitSurveyAction } from '@/app/actions/portalActions';
-import { 
-  MessageSquare, 
-  CheckCircle, 
-  Clock, 
+import {
+  MessageSquare,
+  Check,
+  Clock,
   ShieldAlert,
   Settings,
-  ArrowRight,
+  ChevronRight,
   RefreshCw,
   ChevronLeft,
-  ChevronRight,
   ChevronsLeft,
   ChevronsRight,
-  Search
+  Search,
+  Star,
 } from 'lucide-react';
 import Link from 'next/link';
-import Skeleton from '@/components/ui/Skeleton';
+import styles from './portal.module.css';
 
 const ProfileRegistrationModal = React.lazy(() => import('@/components/portal/ProfileRegistrationModal'));
 
 const ITEMS_PER_PAGE = 5;
 
+const RATING_LABELS: Record<number, string> = {
+  1: 'ควรปรับปรุง',
+  2: 'พอใช้',
+  3: 'ดี',
+  4: 'ดีมาก',
+  5: 'ยอดเยี่ยมที่สุด',
+};
+
+const PROGRESS_STEPS = ['รับเรื่องแล้ว', 'กำลังแก้ไข', 'เสร็จสิ้น'] as const;
+
 function isSurveyEligibleStatus(status: unknown) {
   const s = String(status || '').toLowerCase();
   return s === 'resolved' || s === 'closed';
+}
+
+/** Maps a ticket status to the 1-based current step of the 3-step stepper. */
+function getProgressStep(status: unknown): number {
+  const s = String(status || '').toLowerCase();
+  if (s === 'resolved' || s === 'closed') return 3;
+  if (s === 'open' || s === 'new' || s === '') return 1;
+  return 2;
+}
+
+function getStatusBadge(status: unknown): { className: string; label: string } {
+  const s = String(status || '').toLowerCase();
+  if (s === 'in progress') return { className: styles.badgeBrand, label: String(status) };
+  if (s === 'pending') return { className: styles.badgeWarning, label: String(status) };
+  if (s === 'escalated') return { className: styles.badgeDanger, label: String(status) };
+  if (s === 'fix completed') return { className: styles.badgeInfo, label: 'รอตรวจสอบ (Fix Completed)' };
+  return { className: styles.badgeNeutral, label: String(status || 'Open') };
+}
+
+// 3-step visual progress stepper (รับเรื่องแล้ว -> กำลังแก้ไข -> เสร็จสิ้น)
+function ProgressStepper({ status }: { status: unknown }) {
+  const current = getProgressStep(status);
+  return (
+    <ol className={styles.stepper} aria-label={`ความคืบหน้า: ${PROGRESS_STEPS[current - 1]}`}>
+      {PROGRESS_STEPS.map((label, index) => {
+        const stepNo = index + 1;
+        const done = stepNo < current || current === 3;
+        const isCurrent = stepNo === current && current !== 3;
+        return (
+          <li
+            key={label}
+            className={clsx(styles.step, done && styles.stepDone, isCurrent && styles.stepCurrent)}
+            aria-current={isCurrent ? 'step' : undefined}
+          >
+            <span className={styles.stepDot} aria-hidden="true">
+              {done && <Check size={14} strokeWidth={3} />}
+            </span>
+            <span>{label}</span>
+          </li>
+        );
+      })}
+    </ol>
+  );
 }
 
 // 1. Memoized Survey Modal to prevent full page re-renders during star hover/typing
@@ -58,99 +112,90 @@ const PortalSurveyModal = React.memo(function PortalSurveyModal({
   setShowSurvey,
   onSubmit,
 }: PortalSurveyModalProps) {
-  if (!showSurvey || !pendingSurveyTicket) return null;
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const isVisible = showSurvey && Boolean(pendingSurveyTicket);
+
+  useEffect(() => {
+    if (!isVisible) return;
+    dialogRef.current?.focus();
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setShowSurvey(false);
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [isVisible, setShowSurvey]);
+
+  if (!isVisible) return null;
+
+  const activeValue = surveyHover || surveyValue;
 
   return (
-    <div className="portal-survey-overlay">
-      <div className="portal-survey-modal">
-        <div style={{ textAlign: 'center', marginBottom: '24px' }}>
-          <div style={{
-            display: 'inline-flex',
-            padding: '12px',
-            background: '#f0f9ff',
-            borderRadius: '50%',
-            marginBottom: '16px',
-            color: 'var(--portal-primary)',
-          }}>
+    <div className={styles.overlay}>
+      <div
+        ref={dialogRef}
+        className={styles.dialog}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="portal-survey-title"
+        tabIndex={-1}
+      >
+        <div className={styles.dialogHead}>
+          <span className={styles.dialogIcon} aria-hidden="true">
             <Clock size={24} />
-          </div>
-          <h3 style={{ fontSize: '20px', fontWeight: '900', color: '#1e293b', marginBottom: '8px' }}>
+          </span>
+          <h3 id="portal-survey-title" className={styles.dialogTitle}>
             ประเมินความพึงพอใจ
           </h3>
-          <p style={{ fontSize: '14px', color: '#64748b' }}>
-            งานหมายเลข #{pendingSurveyTicket.ticket_no} ได้รับการแก้ไขแล้ว ช่วยให้คะแนนเราหน่อยนะครับ
+          <p className={styles.dialogText}>
+            งานหมายเลข <span className={styles.tabular}>#{pendingSurveyTicket.ticket_no}</span> ได้รับการแก้ไขแล้ว
+            ช่วยให้คะแนนเราหน่อยนะครับ
           </p>
         </div>
 
-        <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', marginBottom: '12px' }}>
+        <div role="radiogroup" aria-label="ให้คะแนนความพึงพอใจ 1 ถึง 5 ดาว" className={styles.stars}>
           {[1, 2, 3, 4, 5].map((star) => (
             <button
               key={star}
               type="button"
+              role="radio"
+              aria-checked={surveyValue === star}
+              aria-label={`${star} ดาว - ${RATING_LABELS[star]}`}
+              className={clsx(styles.star, activeValue >= star && styles.starOn)}
               onClick={() => setSurveyValue(star)}
               onMouseEnter={() => setSurveyHover(star)}
               onMouseLeave={() => setSurveyHover(0)}
-              style={{ background: 'none', border: 'none', cursor: 'pointer', outline: 'none', transition: 'transform 0.2s', padding: '4px' }}
             >
-              <svg
-                width="36"
-                height="36"
-                viewBox="0 0 24 24"
-                fill={(surveyHover || surveyValue) >= star ? '#f59e0b' : 'none'}
-                stroke={(surveyHover || surveyValue) >= star ? '#f59e0b' : '#cbd5e1'}
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
-              </svg>
+              <Star size={36} strokeWidth={2} aria-hidden="true" />
             </button>
           ))}
         </div>
 
-        <div style={{ textAlign: 'center', height: '20px', fontSize: '12px', color: '#f59e0b', fontWeight: '700', marginBottom: '24px' }}>
-          {surveyValue === 5 ? 'ยอดเยี่ยมที่สุด' : surveyValue === 4 ? 'ดีมาก' : surveyValue === 3 ? 'ดี' : surveyValue === 2 ? 'พอใช้' : surveyValue === 1 ? 'ควรปรับปรุง' : ''}
+        <div className={styles.ratingLabel} aria-live="polite">
+          {RATING_LABELS[surveyValue] || ''}
         </div>
 
-        <textarea
-          placeholder="ข้อเสนอแนะเพิ่มเติม (ถ้ามี)..."
-          value={surveyComment}
-          onChange={(event) => setSurveyComment(event.target.value)}
-          className="portal-survey-comment"
-        />
+        <div className={styles.field}>
+          <label htmlFor="portal-survey-comment" className={styles.label}>
+            ข้อเสนอแนะเพิ่มเติม (ถ้ามี)
+          </label>
+          <textarea
+            id="portal-survey-comment"
+            placeholder="บอกเราได้ครับว่าชอบส่วนไหน หรืออยากให้ปรับปรุงอะไร"
+            value={surveyComment}
+            onChange={(event) => setSurveyComment(event.target.value)}
+            className={styles.textarea}
+          />
+        </div>
 
-        <div style={{ display: 'flex', gap: '12px' }}>
-          <button
-            type="button"
-            onClick={() => setShowSurvey(false)}
-            style={{
-              flex: 1,
-              padding: '14px',
-              borderRadius: '12px',
-              border: '1px solid #e2e8f0',
-              background: 'white',
-              color: '#64748b',
-              fontWeight: '700',
-              cursor: 'pointer',
-            }}
-          >
+        <div className={styles.dialogActions}>
+          <button type="button" onClick={() => setShowSurvey(false)} className={clsx(styles.btn, styles.btnSecondary)}>
             ข้ามก่อน
           </button>
           <button
             type="button"
             onClick={onSubmit}
             disabled={submittingSurvey || surveyValue === 0}
-            style={{
-              flex: 2,
-              padding: '14px',
-              borderRadius: '12px',
-              border: 'none',
-              background: 'var(--portal-primary)',
-              color: 'white',
-              fontWeight: '800',
-              cursor: 'pointer',
-              opacity: submittingSurvey || surveyValue === 0 ? 0.5 : 1,
-            }}
+            className={clsx(styles.btn, styles.btnPrimary)}
           >
             {submittingSurvey ? 'กำลังส่ง...' : 'ส่งผลประเมิน'}
           </button>
@@ -172,78 +217,46 @@ const PortalTicketCard = React.memo(function PortalTicketCard({
   isPast = false,
   projectQuery = '',
 }: PortalTicketCardProps) {
+  const href = `/portal/tickets/${ticket.id}${projectQuery}`;
+
   if (isPast) {
+    const isCanceled = String(ticket.status || '').toLowerCase() === 'canceled';
     return (
-      <Link href={`/portal/tickets/${ticket.id}${projectQuery}`} style={{ textDecoration: 'none', color: 'inherit' }}>
-        <div className="portal-glass" style={{ padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'white', border: '1px solid rgba(0,0,0,0.02)' }}>
-          <div>
-            <p style={{ fontSize: '14px', fontWeight: '800', color: '#1e293b' }}>#{ticket.ticket_no}</p>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '4px' }}>
-              <span style={{
-                background: '#dcfce7',
-                color: '#166534',
-                padding: '2px 8px',
-                borderRadius: '6px',
-                fontSize: '10px',
-                fontWeight: '800'
-              }}>สำเร็จ</span>
-              <p style={{ fontSize: '11px', color: 'var(--portal-text-muted)' }}>{new Date(ticket.resolved_at || ticket.created_at).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: '2-digit' })}</p>
+      <Link href={href} className={clsx(styles.ticketLink, styles.ticketLinkPast)}>
+        <div className={styles.ticketTop}>
+          <div className={styles.ticketMain}>
+            <p className={styles.ticketNo}>#{ticket.ticket_no}</p>
+            <div className={styles.ticketMeta}>
+              <span className={clsx(styles.badge, isCanceled ? styles.badgeNeutral : styles.badgeSuccess)}>
+                {isCanceled ? 'ยกเลิก' : 'สำเร็จ'}
+              </span>
+              <span>
+                {new Date(ticket.resolved_at || ticket.created_at).toLocaleDateString('th-TH', {
+                  day: 'numeric',
+                  month: 'short',
+                  year: '2-digit',
+                })}
+              </span>
             </div>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <CheckCircle size={16} color="#22c55e" />
-            <ArrowRight size={14} color="#cbd5e1" />
-          </div>
+          <ChevronRight size={18} className={styles.chevron} aria-hidden="true" />
         </div>
       </Link>
     );
   }
 
-  const statusLower = String(ticket.status || '').toLowerCase();
-  const badgeBg =
-    statusLower === 'in progress'
-      ? '#dbeafe'
-      : statusLower === 'pending'
-        ? '#fef3c7'
-        : statusLower === 'escalated'
-          ? '#fee2e2'
-          : statusLower === 'fix completed'
-            ? '#e0f2fe'
-            : '#f1f5f9';
-  const badgeColor =
-    statusLower === 'in progress'
-      ? '#1e40af'
-      : statusLower === 'pending'
-        ? '#92400e'
-        : statusLower === 'escalated'
-          ? '#991b1b'
-          : statusLower === 'fix completed'
-            ? '#0369a1'
-            : '#475569';
-  const statusLabel = statusLower === 'fix completed' ? 'รอตรวจสอบ (Fix Completed)' : ticket.status;
+  const badge = getStatusBadge(ticket.status);
 
   return (
-    <Link href={`/portal/tickets/${ticket.id}${projectQuery}`} style={{ textDecoration: 'none', color: 'inherit' }}>
-      <div className="portal-glass" style={{ padding: '16px', background: 'white' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <p style={{ fontWeight: '700', fontSize: '14px', marginBottom: '2px', color: '#0f172a' }}>#{ticket.ticket_no}</p>
-            <p className="truncate" style={{ fontSize: '12px', color: '#64748b' }}>{ticket.subject || 'แจ้งปัญหาทั่วไป'}</p>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{
-              background: badgeBg,
-              color: badgeColor,
-              padding: '6px 12px',
-              fontSize: '11px',
-              fontWeight: '800',
-              borderRadius: '8px',
-              border: '1px solid rgba(0,0,0,0.05)'
-            }}>{statusLabel}</span>
-            <ArrowRight size={14} color="#94a3b8" />
-          </div>
+    <Link href={href} className={styles.ticketLink}>
+      <div className={styles.ticketTop}>
+        <div className={styles.ticketMain}>
+          <p className={styles.ticketNo}>#{ticket.ticket_no}</p>
+          <p className={styles.ticketSubject}>{ticket.subject || 'แจ้งปัญหาทั่วไป'}</p>
         </div>
+        <span className={clsx(styles.badge, badge.className)}>{badge.label}</span>
       </div>
+      <ProgressStepper status={ticket.status} />
     </Link>
   );
 });
@@ -604,40 +617,34 @@ export default function PortalPage() {
   }, [pendingSurveyTicket, surveyValue, surveyComment, fetchTickets]);
 
 
+  const accentStyle = projectConfig?.primary_color
+    ? ({ '--portal-accent': projectConfig.primary_color } as React.CSSProperties)
+    : undefined;
+  const projectName = projectConfig?.name || 'Support Portal';
+  const customerOrgName = customerData?.organizations?.name || '';
+  const totalHistoryPages = Math.ceil(totalHistory / ITEMS_PER_PAGE) || 1;
+
   if (!isReady || (profile && fetching && !needsRegistration)) {
     return (
-      <div className="animate-page-in">
-        <div style={{ marginBottom: '40px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div>
-            <Skeleton width={120} height={12} marginBottom={12} />
-            <Skeleton width={250} height={32} />
-          </div>
-          <Skeleton width={44} height={44} borderRadius={12} />
-        </div>
-
-        <div style={{ marginBottom: '40px' }}>
-          <div className="portal-glass" style={{ padding: '24px', borderRadius: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '16px' }}>
-             <Skeleton width={44} height={44} borderRadius={14} />
-             <Skeleton width={200} height={24} />
+      <div className={styles.root} style={accentStyle} role="status" aria-live="polite" aria-label="กำลังโหลดข้อมูล">
+        <div className={styles.header}>
+          <div className={styles.brand}>
+            <span className={clsx(styles.skeleton)} style={{ width: 48, height: 48 }} />
+            <div>
+              <span className={styles.skeleton} style={{ width: 96, height: 12, marginBottom: 8 }} />
+              <span className={styles.skeleton} style={{ width: 180, height: 22 }} />
+            </div>
           </div>
         </div>
-
-        <div style={{ marginBottom: '32px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px' }}>
-             <Skeleton width={180} height={16} />
-             <Skeleton width={80} height={16} />
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-             {[1, 2, 3].map((i) => (
-                <div key={i} className="portal-glass" style={{ padding: '20px', borderRadius: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                   <div style={{ flex: 1 }}>
-                      <Skeleton width={120} height={20} marginBottom={8} />
-                      <Skeleton width="60%" height={16} />
-                   </div>
-                   <Skeleton width={80} height={24} borderRadius={30} />
-                </div>
-             ))}
-          </div>
+        <span className={styles.skeleton} style={{ width: '100%', height: 48, borderRadius: 10 }} />
+        <div className={styles.list}>
+          {[1, 2, 3].map((i) => (
+            <div key={i} className={styles.card}>
+              <span className={styles.skeleton} style={{ width: 120, height: 18, marginBottom: 8 }} />
+              <span className={styles.skeleton} style={{ width: '60%', height: 14, marginBottom: 16 }} />
+              <span className={styles.skeleton} style={{ width: '100%', height: 24 }} />
+            </div>
+          ))}
         </div>
       </div>
     );
@@ -645,16 +652,12 @@ export default function PortalPage() {
 
   if (liffError || !profile) {
     return (
-      <div className="flex-center portal-glass" style={{ height: '70vh', margin: '20px', padding: '32px', textAlign: 'center', flexDirection: 'column', gap: '20px', border: '1px solid #fee2e2', background: 'white' }}>
-        <ShieldAlert size={48} color="#ef4444" />
-        <h2 style={{ fontSize: '18px', fontWeight: '800', color: '#1e293b' }}>ไม่สามารถเข้าถึงได้</h2>
-        <p style={{ color: '#64748b', fontSize: '14px' }}>กรุณาเข้าใช้งานผ่านแอปพลิเคชัน LINE เพื่อการบริการที่สมบูรณ์</p>
-        <button 
-           type="button"
-           onClick={() => setMockLogin()}
-           style={{ padding: '12px 24px', borderRadius: '12px', border: '1px solid #e2e8f0', background: 'white', color: '#1e293b', fontWeight: '700', marginTop: '16px', cursor: 'pointer' }}
-        >
-           จำลองสถานะการทำงาน (Mock Login)
+      <div className={clsx(styles.root, styles.fatal)} style={accentStyle} role="alert">
+        <ShieldAlert size={48} className={styles.fatalIcon} aria-hidden="true" />
+        <h2>ไม่สามารถเข้าถึงได้</h2>
+        <p>กรุณาเข้าใช้งานผ่านแอปพลิเคชัน LINE เพื่อการบริการที่สมบูรณ์</p>
+        <button type="button" onClick={() => setMockLogin()} className={clsx(styles.btn, styles.btnSecondary)}>
+          จำลองสถานะการทำงาน (Mock Login)
         </button>
       </div>
     );
@@ -662,192 +665,201 @@ export default function PortalPage() {
 
   return (
     <>
-    <div>
-      <PortalSurveyModal
-        showSurvey={showSurvey}
-        pendingSurveyTicket={pendingSurveyTicket}
-        surveyValue={surveyValue}
-        surveyHover={surveyHover}
-        surveyComment={surveyComment}
-        submittingSurvey={submittingSurvey}
-        setSurveyValue={setSurveyValue}
-        setSurveyHover={setSurveyHover}
-        setSurveyComment={setSurveyComment}
-        setShowSurvey={(show) => {
-          setShowSurvey(show);
-          if (!show && typeof window !== 'undefined') {
-            const url = new URL(window.location.href);
-            if (url.searchParams.has('survey_ticket_id')) {
-              url.searchParams.delete('survey_ticket_id');
-              window.history.replaceState({}, '', url.toString());
+      <div className={styles.root} style={accentStyle}>
+        <PortalSurveyModal
+          showSurvey={showSurvey}
+          pendingSurveyTicket={pendingSurveyTicket}
+          surveyValue={surveyValue}
+          surveyHover={surveyHover}
+          surveyComment={surveyComment}
+          submittingSurvey={submittingSurvey}
+          setSurveyValue={setSurveyValue}
+          setSurveyHover={setSurveyHover}
+          setSurveyComment={setSurveyComment}
+          setShowSurvey={(show) => {
+            setShowSurvey(show);
+            if (!show && typeof window !== 'undefined') {
+              const url = new URL(window.location.href);
+              if (url.searchParams.has('survey_ticket_id')) {
+                url.searchParams.delete('survey_ticket_id');
+                window.history.replaceState({}, '', url.toString());
+              }
             }
-          }
-        }}
-        onSubmit={handleSubmitSurvey}
-      />
+          }}
+          onSubmit={handleSubmitSurvey}
+        />
 
-      <div style={{ marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-         <div>
-            <p style={{ color: projectConfig?.primary_color || 'var(--portal-primary)', fontWeight: '700', letterSpacing: '0.5px', textTransform: 'uppercase', fontSize: '10px', marginBottom: '4px' }}>
-              {projectConfig?.name || 'Support Portal'}
-            </p>
-            <h2 style={{ fontSize: '22px', fontWeight: '800', color: '#0f172a' }}>สวัสดี, {profile?.displayName?.split(' ')[0] || 'คุณลูกค้า'}</h2>
-         </div>
-          <div style={{ display: 'flex', gap: '10px' }}>
-             <button type="button" onClick={() => fetchTickets()} style={{ padding: '8px', border: '1px solid var(--portal-border)', borderRadius: '8px', background: 'white', color: fetching ? 'var(--portal-primary)' : '#64748b', cursor: 'pointer' }} aria-label="Refresh">
-                <RefreshCw size={20} className={fetching ? 'animate-spin' : ''} />
-             </button>
-             <button type="button" onClick={() => setIsEditModalOpen(true)} style={{ padding: '8px', border: '1px solid var(--portal-border)', borderRadius: '8px', background: 'white', color: '#64748b', cursor: 'pointer' }} aria-label="Settings">
-                <Settings size={20} />
-             </button>
+        <header className={styles.header}>
+          <div className={styles.brand}>
+            <div className={styles.logo}>
+              {projectConfig?.logo_url ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={projectConfig.logo_url} alt={`โลโก้ ${projectName}`} />
+              ) : (
+                <span aria-hidden="true">{projectName.charAt(0).toUpperCase()}</span>
+              )}
+            </div>
+            <div className={styles.brandText}>
+              <p className={styles.projectName}>{projectName}</p>
+              <h2 className={styles.greeting}>สวัสดี, {profile?.displayName?.split(' ')[0] || 'คุณลูกค้า'}</h2>
+              {customerOrgName && <p className={styles.orgLine}>{customerOrgName}</p>}
+            </div>
           </div>
-      </div>
+          <div className={styles.headerActions}>
+            <button
+              type="button"
+              onClick={() => fetchTickets()}
+              className={styles.iconBtn}
+              aria-label="รีเฟรชข้อมูล"
+            >
+              <RefreshCw size={20} className={fetching ? styles.spin : undefined} aria-hidden="true" />
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsEditModalOpen(true)}
+              className={styles.iconBtn}
+              aria-label="แก้ไขข้อมูลส่วนตัว"
+            >
+              <Settings size={20} aria-hidden="true" />
+            </button>
+          </div>
+        </header>
 
-      <section style={{ marginBottom: '32px' }}>
-         <Link href={`/portal/create${projectQuery}`} style={{ textDecoration: 'none' }}>
-            <div className="portal-btn-primary" style={{ 
-               padding: '16px', 
-               borderRadius: '12px',
-               display: 'flex',
-               alignItems: 'center',
-               justifyContent: 'center',
-               gap: '12px'
-            }}>
-               <MessageSquare size={20} />
-               <p style={{ fontSize: '16px', fontWeight: '700' }}>แจ้งปัญหาการใช้งานใหม่</p>
-            </div>
-         </Link>
-      </section>
+        <section aria-label="เปิดใบงานใหม่">
+          <Link href={`/portal/create${projectQuery}`} className={clsx(styles.btn, styles.btnPrimary, styles.btnBlock)}>
+            <MessageSquare size={20} aria-hidden="true" />
+            แจ้งปัญหา / เปิดใบงานใหม่
+          </Link>
+        </section>
 
-      <section style={{ marginBottom: '32px' }}>
-         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
-            <h3 style={{ fontSize: '11px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase' }}>
-               ใบงานที่กำลังดำเนินการ
+        <section className={styles.section} aria-labelledby="portal-active-heading">
+          <div className={styles.sectionHead}>
+            <h3 id="portal-active-heading" className={styles.sectionTitle}>
+              ใบงานที่กำลังดำเนินการ
             </h3>
-         </div>
+            {activeTickets.length > 0 && <span className={styles.countPill}>{activeTickets.length}</span>}
+          </div>
 
-         {activeTickets.length === 0 ? (
-            <div style={{ padding: '32px 16px', textAlign: 'center', color: '#94a3b8', border: '1px dashed #e2e8f0', borderRadius: '12px' }}>
-               <p style={{ fontSize: '13px' }}>ขณะนี้คุณไม่มีใบงานที่ค้างอยู่</p>
-            </div>
-         ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                {activeTickets.map(ticket => (
-                  <PortalTicketCard key={ticket.id} ticket={ticket} projectQuery={projectQuery} />
-                ))}
-            </div>
-         )}
-      </section>
+          {activeTickets.length === 0 ? (
+            <p className={styles.empty}>ขณะนี้คุณไม่มีใบงานที่ค้างอยู่</p>
+          ) : (
+            <ul className={styles.list}>
+              {activeTickets.map((ticket) => (
+                <li key={ticket.id}>
+                  <PortalTicketCard ticket={ticket} projectQuery={projectQuery} />
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
 
-      {/* History */}
-      <section style={{ marginTop: '24px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px', borderTop: '1px solid var(--portal-border)', paddingTop: '24px' }}>
-           <Clock size={16} color="var(--portal-text-muted)" />
-           <h3 style={{ fontSize: '13px', fontWeight: '800', color: 'var(--portal-text-muted)', textTransform: 'uppercase', letterSpacing: '0.8px' }}>ประวัติการแจ้งงาน</h3>
-        </div>
+        {/* History */}
+        <section className={styles.section} aria-labelledby="portal-history-heading">
+          <div className={styles.sectionHead}>
+            <h3 id="portal-history-heading" className={styles.sectionTitle}>
+              ประวัติการแจ้งงาน
+            </h3>
+          </div>
 
-        <div style={{ position: 'relative', marginBottom: '16px' }}>
-          <Search 
-            size={18} 
-            color="var(--portal-text-muted)" 
-            style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)' }} 
-          />
-          <input
-            type="text"
-            placeholder="ค้นหาตามเลขใบงาน หรือ หัวข้อเรื่อง..."
-            value={searchQuery}
-            onChange={(e) => {
-              setSearchQuery(e.target.value);
-              setHistoryPage(1);
-            }}
-            style={{
-              width: '100%',
-              padding: '12px 16px 12px 42px',
-              borderRadius: '12px',
-              border: '1px solid var(--portal-border)',
-              fontSize: '13px',
-              outline: 'none',
-              transition: 'border-color 0.2s',
-              background: '#f8fafc',
-            }}
-          />
-        </div>
-        
-        {pastTickets.length === 0 ? (
-          <div style={{ padding: '24px', textAlign: 'center', color: '#94a3b8', background: '#f8fafc', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
-            <p style={{ fontSize: '12px' }}>
+          <div className={styles.searchField}>
+            <label htmlFor="portal-history-search" className={styles.srOnly}>
+              ค้นหาประวัติตามเลขใบงานหรือหัวข้อเรื่อง
+            </label>
+            <Search size={18} className={styles.searchIcon} aria-hidden="true" />
+            <input
+              id="portal-history-search"
+              type="search"
+              placeholder="ค้นหาตามเลขใบงาน หรือ หัวข้อเรื่อง"
+              value={searchQuery}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setHistoryPage(1);
+              }}
+              className={styles.searchInput}
+            />
+          </div>
+
+          {pastTickets.length === 0 ? (
+            <p className={styles.empty}>
               {searchQuery.trim() ? 'ไม่พบประวัติการแจ้งงานที่ตรงกับการค้นหา' : 'ยังไม่มีประวัติการแจ้งงาน'}
             </p>
-          </div>
-        ) : (
-          <>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-               {pastTickets.map(ticket => (
-                  <PortalTicketCard key={ticket.id} ticket={ticket} isPast projectQuery={projectQuery} />
-               ))}
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginTop: '24px' }}>
-               <button 
+          ) : (
+            <>
+              <ul className={styles.list}>
+                {pastTickets.map((ticket) => (
+                  <li key={ticket.id}>
+                    <PortalTicketCard ticket={ticket} isPast projectQuery={projectQuery} />
+                  </li>
+                ))}
+              </ul>
+              <nav className={styles.pagination} aria-label="เลื่อนหน้าประวัติการแจ้งงาน">
+                <button
                   type="button"
+                  className={styles.pageBtn}
                   disabled={historyPage === 1}
                   onClick={() => setHistoryPage(1)}
-                  style={{ padding: '8px', borderRadius: '8px', border: '1px solid var(--portal-border)', background: 'white', opacity: historyPage === 1 ? 0.3 : 1, cursor: 'pointer' }}
-               >
-                  <ChevronsLeft size={16} />
-               </button>
-               <button 
+                  aria-label="หน้าแรก"
+                >
+                  <ChevronsLeft size={18} aria-hidden="true" />
+                </button>
+                <button
                   type="button"
+                  className={styles.pageBtn}
                   disabled={historyPage === 1}
-                  onClick={() => setHistoryPage(prev => prev - 1)}
-                  style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--portal-border)', background: 'white', color: '#1e293b', fontWeight: '700', fontSize: '13px', opacity: historyPage === 1 ? 0.3 : 1, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
-               >
-                  <ChevronLeft size={16} /> ก่อนหน้า
-               </button>
-               
-               <span style={{ fontSize: '13px', fontWeight: '800', color: '#64748b', margin: '0 8px' }}>
-                  หน้า {historyPage} / {Math.ceil(totalHistory / ITEMS_PER_PAGE) || 1}
-               </span>
+                  onClick={() => setHistoryPage((prev) => prev - 1)}
+                  aria-label="หน้าก่อนหน้า"
+                >
+                  <ChevronLeft size={18} aria-hidden="true" />
+                  ก่อนหน้า
+                </button>
 
-               <button 
+                <span className={styles.pageInfo} aria-live="polite">
+                  หน้า {historyPage} / {totalHistoryPages}
+                </span>
+
+                <button
                   type="button"
+                  className={styles.pageBtn}
                   disabled={historyPage * ITEMS_PER_PAGE >= totalHistory}
-                  onClick={() => setHistoryPage(prev => prev + 1)}
-                  style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--portal-border)', background: 'white', color: '#1e293b', fontWeight: '700', fontSize: '13px', opacity: historyPage * ITEMS_PER_PAGE >= totalHistory ? 0.3 : 1, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
-               >
-                  ถัดไป <ChevronRight size={16} />
-               </button>
-               <button 
+                  onClick={() => setHistoryPage((prev) => prev + 1)}
+                  aria-label="หน้าถัดไป"
+                >
+                  ถัดไป
+                  <ChevronRight size={18} aria-hidden="true" />
+                </button>
+                <button
                   type="button"
+                  className={styles.pageBtn}
                   disabled={historyPage * ITEMS_PER_PAGE >= totalHistory}
                   onClick={() => setHistoryPage(Math.ceil(totalHistory / ITEMS_PER_PAGE))}
-                  style={{ padding: '8px', borderRadius: '8px', border: '1px solid var(--portal-border)', background: 'white', opacity: historyPage * ITEMS_PER_PAGE >= totalHistory ? 0.3 : 1, cursor: 'pointer' }}
-               >
-                  <ChevronsRight size={16} />
-               </button>
-            </div>
-          </>
-        )}
-      </section>
-    </div>
+                  aria-label="หน้าสุดท้าย"
+                >
+                  <ChevronsRight size={18} aria-hidden="true" />
+                </button>
+              </nav>
+            </>
+          )}
+        </section>
+      </div>
 
-    {/* MODALS - Moved outside container to avoid transform-fixed ghosting */}
-    <React.Suspense fallback={null}>
-      <ProfileRegistrationModal 
-          isOpen={needsRegistration || isEditModalOpen} 
+      {/* MODALS - Moved outside container to avoid transform-fixed ghosting */}
+      <React.Suspense fallback={null}>
+        <ProfileRegistrationModal
+          isOpen={needsRegistration || isEditModalOpen}
           profile={profile}
           projectConfig={projectConfig}
           projectOrganizations={projectOrganizations}
           existingCustomer={customerData}
           onComplete={() => {
-              setNeedsRegistration(false);
-              setIsEditModalOpen(false);
-              customerIdRef.current = null; // reset cache so customer data re-fetched
-              customerDataRef.current = null;
-              fetchTickets();
+            setNeedsRegistration(false);
+            setIsEditModalOpen(false);
+            customerIdRef.current = null; // reset cache so customer data re-fetched
+            customerDataRef.current = null;
+            fetchTickets();
           }}
           onClose={() => setIsEditModalOpen(false)}
-      />
-    </React.Suspense>
+        />
+      </React.Suspense>
     </>
   );
 }

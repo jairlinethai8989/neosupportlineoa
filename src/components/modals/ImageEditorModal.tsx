@@ -1,20 +1,21 @@
 'use client';
+
 import React, { useEffect, useRef, useState } from 'react';
-import { compressImage } from '@/lib/utils/imageCompression';
 import {
-  X,
-  Square,
+  ArrowUpRight,
   Circle as CircleIcon,
-  Type,
-  Pencil,
-  Undo,
-  RotateCcw,
-  Send,
   Loader2,
   Minus,
+  Pencil,
   Plus,
-  ArrowUpRight,
+  RotateCcw,
+  Send,
+  Square,
+  Type,
+  Undo,
+  X,
 } from 'lucide-react';
+import { compressImage } from '@/lib/utils/imageCompression';
 
 interface ImageEditorModalProps {
   imageUrl: string;
@@ -24,7 +25,14 @@ interface ImageEditorModalProps {
 
 type Tool = 'pencil' | 'rect' | 'circle' | 'text' | 'arrow';
 
-const COLORS = ['#ff0000', '#ffff00', '#00f2fe', '#28c76f', '#ffffff', '#000000'];
+const COLORS = [
+  { hex: '#dc2626', label: 'Red' },
+  { hex: '#eab308', label: 'Yellow' },
+  { hex: '#2563eb', label: 'Blue' },
+  { hex: '#059669', label: 'Green' },
+  { hex: '#ffffff', label: 'White' },
+  { hex: '#0f172a', label: 'Black' },
+];
 const MAX_RESOLUTION = 2048;
 
 export default function ImageEditorModal({
@@ -34,7 +42,7 @@ export default function ImageEditorModal({
 }: ImageEditorModalProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [tool, setTool] = useState<Tool>('pencil');
-  const [color, setColor] = useState('#ff0000');
+  const [color, setColor] = useState('#dc2626');
   const [lineWidth, setLineWidth] = useState(3);
   const [history, setHistory] = useState<string[]>([]);
   const [isSaving, setIsSaving] = useState(false);
@@ -46,10 +54,20 @@ export default function ImageEditorModal({
   useEffect(() => {
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.stopPropagation();
+        onClose();
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+
     return () => {
+      document.removeEventListener('keydown', handleKeyDown);
       document.body.style.overflow = previousOverflow;
     };
-  }, []);
+  }, [onClose]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -198,12 +216,18 @@ export default function ImageEditorModal({
       const endY = point.y;
       const angle = Math.atan2(endY - startY, endX - startX);
       const headLength = Math.max(12, lineWidth * 3);
-      
+
       ctx.moveTo(startX, startY);
       ctx.lineTo(endX, endY);
-      ctx.lineTo(endX - headLength * Math.cos(angle - Math.PI / 6), endY - headLength * Math.sin(angle - Math.PI / 6));
+      ctx.lineTo(
+        endX - headLength * Math.cos(angle - Math.PI / 6),
+        endY - headLength * Math.sin(angle - Math.PI / 6)
+      );
       ctx.moveTo(endX, endY);
-      ctx.lineTo(endX - headLength * Math.cos(angle + Math.PI / 6), endY - headLength * Math.sin(angle + Math.PI / 6));
+      ctx.lineTo(
+        endX - headLength * Math.cos(angle + Math.PI / 6),
+        endY - headLength * Math.sin(angle + Math.PI / 6)
+      );
       ctx.stroke();
     }
   };
@@ -248,18 +272,27 @@ export default function ImageEditorModal({
     }
   };
 
+  const tools: Array<{ id: Tool; icon: typeof Pencil; label: string }> = [
+    { id: 'pencil', icon: Pencil, label: 'Freehand pencil' },
+    { id: 'arrow', icon: ArrowUpRight, label: 'Arrow' },
+    { id: 'rect', icon: Square, label: 'Rectangle' },
+    { id: 'circle', icon: CircleIcon, label: 'Circle' },
+    { id: 'text', icon: Type, label: 'Add text' },
+  ];
+
   return (
     <div
+      role="dialog"
+      aria-modal="true"
+      aria-label="Image editor"
       className="editor-modal-root"
       style={{
         position: 'fixed',
         inset: 0,
-        background: 'rgba(0, 0, 0, 0.92)',
-        backdropFilter: 'blur(10px)',
+        background: 'rgba(11, 16, 23, 0.96)',
         zIndex: 9999,
         display: 'flex',
         flexDirection: 'column',
-        animation: 'fadeIn 0.25s ease-out',
       }}
     >
       <div
@@ -270,25 +303,31 @@ export default function ImageEditorModal({
           justifyContent: 'space-between',
           gap: '12px',
           flexWrap: 'wrap',
-          borderBottom: '1px solid rgba(255,255,255,0.12)',
+          borderBottom: '1px solid #233042',
+          background: '#111822',
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
           <button
+            type="button"
             onClick={onClose}
+            aria-label="Close image editor"
             style={{
-              background: 'rgba(255,255,255,0.12)',
-              border: 'none',
-              color: 'white',
-              width: '40px',
-              height: '40px',
-              borderRadius: '10px',
+              background: '#17202e',
+              border: '1px solid #233042',
+              color: '#f1f5f9',
+              width: '36px',
+              height: '36px',
+              borderRadius: '8px',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
               cursor: 'pointer',
             }}
           >
-            <X size={20} />
+            <X size={18} aria-hidden="true" />
           </button>
-          <h3 style={{ fontWeight: 800, color: 'white', fontSize: 'clamp(18px, 4vw, 30px)' }}>
+          <h3 style={{ margin: 0, fontWeight: 700, color: '#f1f5f9', fontSize: 'var(--text-md)' }}>
             เครื่องมือแก้ไขรูปภาพ
           </h3>
         </div>
@@ -298,55 +337,72 @@ export default function ImageEditorModal({
           style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}
         >
           <button
+            type="button"
             onClick={undo}
             disabled={history.length <= 1}
+            aria-label="Undo last stroke"
             style={{
-              background: 'none',
-              border: 'none',
-              color: history.length <= 1 ? 'rgba(255,255,255,0.3)' : 'white',
-              cursor: 'pointer',
-              display: 'flex',
+              background: '#17202e',
+              border: '1px solid #233042',
+              borderRadius: '8px',
+              height: '36px',
+              padding: '0 12px',
+              color: history.length <= 1 ? '#55657c' : '#f1f5f9',
+              cursor: history.length <= 1 ? 'not-allowed' : 'pointer',
+              display: 'inline-flex',
               alignItems: 'center',
               gap: '6px',
+              fontSize: 'var(--text-xs)',
+              fontWeight: 600,
             }}
           >
-            <Undo size={18} /> ย้อนกลับ
+            <Undo size={15} aria-hidden="true" /> ย้อนกลับ
           </button>
           <button
+            type="button"
             onClick={resetCanvas}
+            aria-label="Reset canvas"
             style={{
-              background: 'none',
-              border: 'none',
-              color: 'white',
+              background: '#17202e',
+              border: '1px solid #233042',
+              borderRadius: '8px',
+              height: '36px',
+              padding: '0 12px',
+              color: '#f1f5f9',
               cursor: 'pointer',
-              display: 'flex',
+              display: 'inline-flex',
               alignItems: 'center',
               gap: '6px',
+              fontSize: 'var(--text-xs)',
+              fontWeight: 600,
             }}
           >
-            <RotateCcw size={18} /> ล้าง
+            <RotateCcw size={15} aria-hidden="true" /> ล้าง
           </button>
           <button
+            type="button"
             onClick={handleSave}
             disabled={isSaving}
             style={{
-              background: 'var(--primary)',
-              color: '#0a0e14',
+              background: '#2563eb',
+              color: '#ffffff',
               border: 'none',
-              padding: '10px 18px',
-              borderRadius: '10px',
-              fontWeight: 800,
-              display: 'flex',
+              height: '36px',
+              padding: '0 16px',
+              borderRadius: '8px',
+              fontWeight: 600,
+              fontSize: 'var(--text-sm)',
+              display: 'inline-flex',
               alignItems: 'center',
               gap: '8px',
-              cursor: 'pointer',
+              cursor: isSaving ? 'not-allowed' : 'pointer',
             }}
           >
             {isSaving ? (
-              <Loader2 size={18} className="animate-spin" />
+              <Loader2 size={16} className="animate-spin" aria-hidden="true" />
             ) : (
               <>
-                <Send size={18} /> ส่งภาพที่แก้ไข
+                <Send size={15} aria-hidden="true" /> ส่งภาพที่แก้ไข
               </>
             )}
           </button>
@@ -359,7 +415,7 @@ export default function ImageEditorModal({
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          padding: '10px',
+          padding: '12px',
           overflow: 'hidden',
         }}
       >
@@ -371,9 +427,9 @@ export default function ImageEditorModal({
           onPointerCancel={stopDrawing}
           onPointerLeave={stopDrawing}
           style={{
-            boxShadow: '0 20px 60px rgba(0,0,0,0.5)',
+            boxShadow: 'var(--shadow-lg)',
             cursor: tool === 'text' ? 'text' : 'crosshair',
-            background: 'white',
+            background: '#ffffff',
             borderRadius: '8px',
             maxWidth: '100%',
             maxHeight: '100%',
@@ -391,107 +447,125 @@ export default function ImageEditorModal({
           padding: '12px',
           display: 'flex',
           justifyContent: 'center',
-          borderTop: '1px solid rgba(255,255,255,0.12)',
-          background: 'rgba(0,0,0,0.45)',
+          alignItems: 'center',
+          borderTop: '1px solid #233042',
+          background: '#111822',
           gap: '14px',
           flexWrap: 'wrap',
         }}
       >
-        <div style={{ display: 'flex', gap: '8px' }}>
-          {[
-            { id: 'pencil', icon: Pencil },
-            { id: 'arrow', icon: ArrowUpRight },
-            { id: 'rect', icon: Square },
-            { id: 'circle', icon: CircleIcon },
-            { id: 'text', icon: Type },
-          ].map((item) => (
-            <button
-              key={item.id}
-              onClick={() => setTool(item.id as Tool)}
-              style={{
-                width: '46px',
-                height: '46px',
-                borderRadius: '12px',
-                background: tool === item.id ? 'var(--primary)' : 'rgba(255,255,255,0.08)',
-                border:
-                  tool === item.id ? 'none' : '1px solid rgba(255,255,255,0.12)',
-                color: tool === item.id ? '#0a0e14' : 'white',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <item.icon size={19} />
-            </button>
-          ))}
+        <div style={{ display: 'flex', gap: '8px' }} role="group" aria-label="Drawing tools">
+          {tools.map((item) => {
+            const active = tool === item.id;
+            return (
+              <button
+                key={item.id}
+                type="button"
+                aria-label={item.label}
+                aria-pressed={active}
+                onClick={() => setTool(item.id)}
+                style={{
+                  width: '40px',
+                  height: '40px',
+                  borderRadius: '8px',
+                  background: active ? '#2563eb' : '#17202e',
+                  border: active ? '1px solid #3b82f6' : '1px solid #233042',
+                  color: '#ffffff',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <item.icon size={18} aria-hidden="true" />
+              </button>
+            );
+          })}
         </div>
 
-        <div style={{ width: '1px', height: '42px', background: 'rgba(255,255,255,0.12)' }} />
+        <div style={{ width: '1px', height: '32px', background: '#233042' }} />
 
-        <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
-          {COLORS.map((itemColor) => (
-            <button
-              key={itemColor}
-              onClick={() => setColor(itemColor)}
-              style={{
-                width: '30px',
-                height: '30px',
-                borderRadius: '50%',
-                background: itemColor,
-                border:
-                  color === itemColor
-                    ? '3px solid white'
-                    : '2px solid rgba(255,255,255,0.24)',
-                cursor: 'pointer',
-                transform: color === itemColor ? 'scale(1.14)' : 'scale(1)',
-                transition: 'all 0.18s ease',
-              }}
-            />
-          ))}
+        <div
+          style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}
+          role="group"
+          aria-label="Brush color"
+        >
+          {COLORS.map((itemColor) => {
+            const active = color === itemColor.hex;
+            return (
+              <button
+                key={itemColor.hex}
+                type="button"
+                aria-label={`Color ${itemColor.label}`}
+                aria-pressed={active}
+                onClick={() => setColor(itemColor.hex)}
+                style={{
+                  width: '28px',
+                  height: '28px',
+                  borderRadius: '50%',
+                  background: itemColor.hex,
+                  border: active ? '3px solid #ffffff' : '2px solid #33455e',
+                  cursor: 'pointer',
+                  transform: active ? 'scale(1.12)' : 'scale(1)',
+                  transition: 'transform 150ms ease',
+                }}
+              />
+            );
+          })}
         </div>
 
-        <div style={{ width: '1px', height: '42px', background: 'rgba(255,255,255,0.12)' }} />
+        <div style={{ width: '1px', height: '32px', background: '#233042' }} />
 
         <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
           <button
+            type="button"
+            aria-label="Decrease stroke width"
             onClick={() => setLineWidth((prev) => Math.max(1, prev - 1))}
             style={{
-              background: 'none',
-              border: '1px solid rgba(255,255,255,0.22)',
-              color: 'white',
+              background: '#17202e',
+              border: '1px solid #233042',
+              color: '#f1f5f9',
               borderRadius: '50%',
               width: '32px',
               height: '32px',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
               cursor: 'pointer',
             }}
           >
-            <Minus size={16} />
+            <Minus size={15} aria-hidden="true" />
           </button>
           <div
+            aria-label={`Stroke width ${lineWidth}`}
             style={{
               width: `${lineWidth * 3 + 10}px`,
               height: `${lineWidth * 3 + 10}px`,
               borderRadius: '50%',
               background: color,
-              border: '2px solid white',
+              border: '2px solid #ffffff',
               minWidth: '14px',
               minHeight: '14px',
             }}
           />
           <button
+            type="button"
+            aria-label="Increase stroke width"
             onClick={() => setLineWidth((prev) => Math.min(20, prev + 1))}
             style={{
-              background: 'none',
-              border: '1px solid rgba(255,255,255,0.22)',
-              color: 'white',
+              background: '#17202e',
+              border: '1px solid #233042',
+              color: '#f1f5f9',
               borderRadius: '50%',
               width: '32px',
               height: '32px',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
               cursor: 'pointer',
             }}
           >
-            <Plus size={16} />
+            <Plus size={15} aria-hidden="true" />
           </button>
         </div>
       </div>
@@ -499,10 +573,6 @@ export default function ImageEditorModal({
       <style
         dangerouslySetInnerHTML={{
           __html: `
-            @keyframes fadeIn {
-              from { opacity: 0; }
-              to { opacity: 1; }
-            }
             @media (max-width: 768px) {
               .editor-header-actions {
                 width: 100%;

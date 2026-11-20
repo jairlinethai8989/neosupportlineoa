@@ -1,22 +1,25 @@
 'use client';
 /* eslint-disable @next/next/no-img-element */
 import React, { type FormEvent, type RefObject } from 'react';
-import { 
-  ArrowLeft, 
-  Info, 
-  Loader2, 
-  Send, 
-  Paperclip, 
-  MessageSquare, 
-  Plus, 
-  Pencil, 
-  Trash2, 
-  Clock,
+import {
   AlertTriangle,
+  ArrowLeft,
+  Clock,
+  Info,
+  Loader2,
+  Lock,
+  MessageSquare,
   PanelRightClose,
   PanelRightOpen,
-  Lock
+  Paperclip,
+  Pencil,
+  Plus,
+  Send,
+  Trash2,
+  Zap,
 } from 'lucide-react';
+import { clsx } from 'clsx';
+import { Badge, Button, EmptyState } from '@/components/ui';
 import { useStaffLocale } from '@/contexts/StaffLocaleContext';
 import type {
   InboxAgent,
@@ -25,6 +28,7 @@ import type {
   InboxTicket,
   InboxViewMode,
 } from '@/types/inbox';
+import styles from './inbox.module.css';
 
 interface ChatWindowProps {
   selectedChat: InboxConversation;
@@ -87,28 +91,25 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
   onLoadOlderMessages,
   messagesEndRef,
   isSidebarCollapsed = false,
-  onToggleSidebar
+  onToggleSidebar,
 }) => {
-  const { t } = useStaffLocale();
+  const { locale, t } = useStaffLocale();
+
   if (!selectedChat) {
     return (
-      <div className="glass inbox-chat-panel animate-page-in" style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-        <div className="flex-center" style={{ height: '100%', flexDirection: 'column', gap: '24px' }}>
-          <div className="glass flex-center" style={{ width: '140px', height: '140px', borderRadius: '40px', background: 'rgba(54, 153, 255, 0.03)', border: '1px solid var(--border)', position: 'relative' }}>
-             <MessageSquare size={56} color="var(--primary)" style={{ opacity: 0.4 }} />
-             <div className="skeleton" style={{ position: 'absolute', bottom: '-10px', width: '80%', height: '8px', opacity: 0.2 }} />
-          </div>
-          <div style={{ textAlign: 'center' }}>
-            <h3 style={{ fontSize: '22px', fontWeight: '900', marginBottom: '8px', letterSpacing: '-0.5px' }}>NeoSupport Central Hub</h3>
-            <p style={{ color: 'var(--text-muted)', maxWidth: '340px', fontSize: '14px', lineHeight: '1.6' }}>{t('inbox.selectChatSubtitle')}</p>
-          </div>
-        </div>
-      </div>
+      <section className={styles.threadPane}>
+        <EmptyState
+          icon={<MessageSquare size={22} aria-hidden="true" />}
+          title={t('inbox.selectChatTitle')}
+          description={t('inbox.selectChatSubtitle')}
+        />
+      </section>
     );
   }
 
   const statusLower = currentTicket?.status?.toLowerCase();
-  const isResolved = statusLower === 'resolved' || statusLower === 'closed' || statusLower === 'fix completed';
+  const isResolved =
+    statusLower === 'resolved' || statusLower === 'closed' || statusLower === 'fix completed';
   const isViewOnly = !!(agent?.role !== 'Administrator' && agent?.permissions?.inbox === 'view');
   const isUnassigned = !!(currentTicket && !currentTicket.assigned_agent_id);
   const normalizedConversationStatus = String(selectedChat.status || '')
@@ -120,9 +121,10 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
       normalizedConversationStatus
     );
 
-  const handleMessagesScroll = async (
-    event: React.UIEvent<HTMLDivElement>
-  ) => {
+  const isComposerLocked =
+    isViewOnly || (!isInternalMode && (isResolved || isUnassigned || !isSessionActive));
+
+  const handleMessagesScroll = async (event: React.UIEvent<HTMLDivElement>) => {
     const target = event.currentTarget;
     if (!hasMoreMessages || loadingMoreMessages || target.scrollTop > 60) return;
 
@@ -137,384 +139,441 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
   };
 
   return (
-    <div data-capture-root="true" className={`glass inbox-chat-panel ${viewMode !== 'chat' ? 'hidden-mobile' : ''}`} style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-      <div style={{ padding: '16px 24px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg-topbar)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-           <button 
+    <section
+      data-capture-root="true"
+      aria-label={selectedChat.customers?.display_name || t('inbox.lineUser')}
+      className={clsx(styles.threadPane, viewMode !== 'chat' && styles.hiddenMobile)}
+    >
+      {/* Clean 58px Header */}
+      <header className={styles.threadHeader}>
+        <div className={styles.threadHeaderLeft}>
+          <Button
+            size="sm"
+            variant="ghost"
+            iconOnly
             onClick={() => setViewMode('list')}
-            aria-label="Back to conversations"
-            className="show-mobile glass-interactive flex-center" style={{ width: '36px', height: '36px', borderRadius: '8px', border: '1px solid var(--border)', marginRight: '8px' }}>
-              <ArrowLeft size={18} aria-hidden="true" />
-           </button>
-           <div style={{ width: '42px', height: '42px', borderRadius: '12px', background: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '800', color: '#0a0e14', boxShadow: '0 4px 12px rgba(0,242,254,0.2)' }}>
-              {selectedChat.customers?.display_name?.charAt(0) || 'L'}
-           </div>
-           <div>
-              <p style={{ fontWeight: '800', fontSize: '16px' }}>{selectedChat.customers?.display_name || 'LINE User'}</p>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <span
-                  style={{
-                    width: '6px',
-                    height: '6px',
-                    borderRadius: '50%',
-                    background: isSessionActive ? 'var(--success)' : 'var(--text-muted)',
-                  }}
-                />
-                <span
-                  style={{
-                    fontSize: '11px',
-                    color: isSessionActive ? 'var(--success)' : 'var(--text-muted)',
-                    fontWeight: '700',
-                    textTransform: 'uppercase',
-                  }}
-                >
-                  {isSessionActive ? (t('inbox.activeSession') || 'Active Session') : (t('inbox.closedSession') || 'Closed Session')}
-                </span>
-              </div>
-           </div>
-        </div>
-        <div style={{ display: 'flex', gap: '10px' }}>
-           <button 
-            onClick={() => setViewMode('details')}
-            className="show-mobile glass-interactive flex-center" style={{ width: '38px', height: '38px', borderRadius: '10px', border: '1px solid var(--border)', color: 'var(--text-muted)' }}>
-              <Info size={18} aria-hidden="true" />
-           </button>
-           
-           <button 
-            onClick={() => onToggleSidebar?.()}
-            className="hidden-mobile glass-interactive" 
-            style={{ 
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              padding: '0 14px',
-              height: '38px', 
-              borderRadius: '12px', 
-              border: `1px solid ${isSidebarCollapsed ? 'var(--primary)' : 'var(--border)'}`, 
-              color: isSidebarCollapsed ? 'var(--primary)' : 'var(--text-muted)',
-              background: isSidebarCollapsed ? 'rgba(54, 153, 255, 0.08)' : 'rgba(255, 255, 255, 0.02)',
-              fontSize: '12px',
-              fontWeight: '800',
-              transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-            }}>
-              {isSidebarCollapsed ? <PanelRightOpen size={16} aria-hidden="true" /> : <PanelRightClose size={16} aria-hidden="true" />}
-              <span style={{ whiteSpace: 'nowrap' }}>{isSidebarCollapsed ? t('inbox.showInfo') : t('inbox.hideInfo')}</span>
-           </button>
-        </div>
-      </div>
+            aria-label={locale === 'th' ? 'กลับไปรายการแชท' : 'Back to conversations'}
+            className={styles.mobileOnly}
+          >
+            <ArrowLeft size={18} aria-hidden="true" />
+          </Button>
 
-      <div
-        style={{ flex: 1, padding: '24px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '16px' }}
-        className="no-scrollbar"
-        onScroll={handleMessagesScroll}
-      >
-        {(hasMoreMessages || loadingMoreMessages) && (
-          <div style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '12px' }}>
-            {loadingMoreMessages ? (t('inbox.loadingOlderMessages') || 'Loading older messages...') : (t('inbox.scrollToLoadOlder') || 'Scroll up to load older messages')}
+          <div className={styles.threadAvatar} aria-hidden="true">
+            {selectedChat.customers?.display_name?.charAt(0) || 'L'}
           </div>
-        )}
-        {hasMoreMessages && (
-          <div className="show-mobile" style={{ justifyContent: 'center' }}>
-            <button
-              type="button"
-              onClick={() => {
-                void onLoadOlderMessages();
-              }}
-              disabled={loadingMoreMessages}
-              className="glass-interactive"
-              style={{
-                padding: '8px 14px',
-                borderRadius: '10px',
-                border: '1px solid var(--border)',
-                background: 'var(--bg-input)',
-                color: 'var(--text-main)',
-                fontSize: '12px',
-                fontWeight: '700',
-                cursor: loadingMoreMessages ? 'not-allowed' : 'pointer',
-                opacity: loadingMoreMessages ? 0.6 : 1,
-              }}
+
+          <div className={styles.threadTitleBlock}>
+            <div className={styles.threadCustomerRow}>
+              <h2 className={styles.threadCustomerName}>
+                {selectedChat.customers?.display_name || t('inbox.lineUser')}
+              </h2>
+              {currentTicket?.ticket_no && (
+                <span className={clsx(styles.threadTicketNo, 'mono tabular-nums')}>
+                  #{currentTicket.ticket_no}
+                </span>
+              )}
+            </div>
+            <div className={styles.threadStatusRow}>
+              <Badge size="sm" variant={isSessionActive ? 'success' : 'neutral'} dot>
+                {isSessionActive ? t('inbox.activeSession') : t('inbox.closedSession')}
+              </Badge>
+              {currentTicket?.status && (
+                <Badge
+                  size="sm"
+                  variant={
+                    isResolved
+                      ? 'success'
+                      : statusLower === 'pending'
+                        ? 'danger'
+                        : statusLower === 'escalated'
+                          ? 'warning'
+                          : 'primary'
+                  }
+                >
+                  {currentTicket.status}
+                </Badge>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div className={styles.threadHeaderActions}>
+          {isUnassigned && (
+            <Button
+              size="sm"
+              variant="primary"
+              onClick={onClaim}
+              leftIcon={<Zap size={14} aria-hidden="true" />}
             >
-              {loadingMoreMessages ? (t('common.messages.loading') || 'Loading...') : (t('inbox.loadOlder') || 'Load older')}
-            </button>
+              {t('inbox.claimTicket')}
+            </Button>
+          )}
+
+          <Button
+            size="sm"
+            variant="ghost"
+            iconOnly
+            onClick={() => setViewMode('details')}
+            aria-label={t('inbox.ticketInfo')}
+            className={styles.mobileOnly}
+          >
+            <Info size={18} aria-hidden="true" />
+          </Button>
+
+          <Button
+            size="sm"
+            variant={isSidebarCollapsed ? 'secondary' : 'ghost'}
+            onClick={() => onToggleSidebar?.()}
+            aria-expanded={!isSidebarCollapsed}
+            aria-label={isSidebarCollapsed ? t('inbox.showInfo') : t('inbox.hideInfo')}
+            leftIcon={
+              isSidebarCollapsed ? (
+                <PanelRightOpen size={15} aria-hidden="true" />
+              ) : (
+                <PanelRightClose size={15} aria-hidden="true" />
+              )
+            }
+            className={styles.desktopOnly}
+          >
+            {isSidebarCollapsed ? t('inbox.showInfo') : t('inbox.hideInfo')}
+          </Button>
+        </div>
+      </header>
+
+      {/* Message Stream */}
+      <div className={styles.messagesStream} onScroll={handleMessagesScroll}>
+        {(hasMoreMessages || loadingMoreMessages) && (
+          <div className={styles.loadOlderHint}>
+            {loadingMoreMessages ? t('inbox.loadingOlderMessages') : t('inbox.scrollToLoadOlder')}
           </div>
         )}
+
+        {hasMoreMessages && (
+          <div className={styles.mobileOnly} style={{ justifyContent: 'center' }}>
+            <Button
+              size="sm"
+              variant="secondary"
+              loading={loadingMoreMessages}
+              onClick={() => void onLoadOlderMessages()}
+            >
+              {loadingMoreMessages ? t('common.messages.loading') : t('inbox.loadOlder')}
+            </Button>
+          </div>
+        )}
+
         {messages.length === 0 && (
-          <div style={{ margin: 'auto', textAlign: 'center', color: 'var(--text-muted)' }}>
-            <p style={{ fontSize: '14px' }}>{t('inbox.waitingNewMessage') || 'กำลังรอข้อความใหม่...'}</p>
-          </div>
+          <EmptyState compact title={t('inbox.waitingNewMessage')} />
         )}
-        {messages.filter((message) => message.message_type !== 'unsent').map((msg, index) => {
+
+        {messages
+          .filter((message) => message.message_type !== 'unsent')
+          .map((msg) => {
             const isOwn = msg.staff_id === agent?.id;
             const isAdmin = agent?.role === 'Administrator';
-            const canDelete = Boolean((isOwn || isAdmin) && msg.sender_type === 'agent' && onDeleteMessage);
+            const canDelete = Boolean(
+              (isOwn || isAdmin) && msg.sender_type === 'agent' && onDeleteMessage
+            );
             const isInternal = Boolean(msg.is_internal);
+            const isAgent = msg.sender_type === 'agent';
+            const isSystem = msg.sender_type === 'system';
+
+            const mediaSource = msg.media_path || msg.content || '';
+            const isImage =
+              Boolean(mediaSource) &&
+              (msg.message_type === 'image' ||
+                (String(mediaSource).startsWith('http') &&
+                  /\.(jpeg|jpg|gif|png|webp)$/i.test(String(mediaSource))));
+            const isFile =
+              !isImage &&
+              (msg.message_type === 'file' ||
+                (String(mediaSource).startsWith('http') && msg.message_type !== 'text'));
 
             return (
-              <div key={msg.id} className="animate-content-slide message-row-container" style={{ 
-                alignSelf: msg.sender_type === 'agent' ? 'flex-end' : 'flex-start', 
-                maxWidth: '80%',
-                animationDelay: `${Math.min(0.3, (index % 10) * 0.05)}s` 
-              }}>
-                 {isInternal && (
-                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: msg.sender_type === 'agent' ? 'flex-end' : 'flex-start', gap: '4px', marginBottom: '4px', fontSize: '10px', fontWeight: '800', color: '#d97706' }}>
-                     <Lock size={10} /> โน้ตภายในทีม (ลูกค้าไม่เห็น)
-                   </div>
-                 )}
-                 <div style={{ 
-                    padding: '12px 18px', 
-                    borderRadius: msg.sender_type === 'agent' ? '20px 20px 4px 20px' : '20px 20px 20px 4px', 
-                    background: isInternal
-                      ? 'rgba(245, 158, 11, 0.14)'
-                      : msg.sender_type === 'agent' 
-                        ? 'linear-gradient(135deg, var(--secondary) 0%, oklch(60% 0.15 280) 100%)' 
-                        : (msg.sender_type === 'system' ? 'var(--bg-input)' : 'var(--bg-card)'),
-                    border: isInternal
-                      ? '1px dashed rgba(245, 158, 11, 0.7)'
-                      : '1px solid ' + (msg.sender_type === 'agent' ? 'rgba(255, 255, 255, 0.1)' : 'var(--border)'),
-                    fontSize: '14px',
-                    lineHeight: '1.6',
-                    boxShadow: isInternal ? 'none' : msg.sender_type === 'agent' ? '0 8px 25px -5px rgba(115, 103, 240, 0.3)' : 'none',
-                    color: isInternal
-                      ? 'var(--text-main)'
-                      : msg.sender_type === 'system' 
-                        ? 'var(--primary)' 
-                        : (msg.sender_type === 'agent' ? 'white' : 'var(--text-main)'),
-                    position: 'relative',
-                    transition: 'transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1)'
-                 }}>
-                   {(msg.media_path || msg.content) && (msg.message_type === 'image' || (String(msg.media_path || msg.content).startsWith('http') && String(msg.media_path || msg.content).match(/\.(jpeg|jpg|gif|png|webp|JPG|PNG)$/i))) ? (
-                      <div style={{ position: 'relative', overflow: 'hidden', borderRadius: '10px' }}>
-                         <img 
-                            src={msg.media_path || msg.content || ''} 
-                            loading="lazy"
-                            style={{ maxWidth: '100%', borderRadius: '10px', display: 'block', cursor: 'pointer' }} 
-                            onClick={() => onEditImage(msg.media_path || msg.content || '')}
-                            alt="Chat attachment" 
-                            title={t('inbox.imageEditHint') || 'คลิกเพื่อทำการแก้ไขภาพ (Edit/Draw)'}
-                         />
-                      </div>
-                   ) : msg.message_type === 'file' || ((msg.media_path || msg.content)?.startsWith('http') && msg.message_type !== 'text') ? (
-                      <a href={msg.media_path || msg.content || ''} target="_blank" rel="noreferrer" style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--primary)', textDecoration: 'none', fontWeight: 'bold' }}>
-                         <Clock size={16} /> {t('inbox.viewAttachment') || 'ดูไฟล์แนบ'}
-                      </a>
-                   ) : (
-                      msg.content
-                   )}
+              <div
+                key={msg.id}
+                className={clsx(
+                  styles.messageGroup,
+                  isSystem && !isInternal
+                    ? styles.messageGroupSystem
+                    : isAgent
+                      ? styles.messageGroupAgent
+                      : styles.messageGroupCustomer
+                )}
+              >
+                {isInternal && (
+                  <div className={styles.internalLabel}>
+                    <Lock size={11} aria-hidden="true" />
+                    <span>
+                      {locale === 'th'
+                        ? 'โน้ตภายในทีม (ลูกค้าไม่เห็น)'
+                        : 'Internal Note (Hidden from customer)'}
+                    </span>
+                  </div>
+                )}
+
+                <div
+                  className={clsx(
+                    styles.bubble,
+                    isInternal
+                      ? styles.bubbleInternal
+                      : isSystem
+                        ? styles.bubbleSystem
+                        : isAgent
+                          ? styles.bubbleAgent
+                          : styles.bubbleCustomer
+                  )}
+                >
+                  {isImage ? (
+                    <button
+                      type="button"
+                      onClick={() => onEditImage(mediaSource)}
+                      aria-label={t('inbox.imageEditHint')}
+                      title={t('inbox.imageEditHint')}
+                      className={styles.bubbleImageBtn}
+                    >
+                      <img
+                        src={mediaSource}
+                        loading="lazy"
+                        alt="Chat attachment"
+                        className={styles.bubbleImage}
+                      />
+                    </button>
+                  ) : isFile ? (
+                    <a
+                      href={mediaSource}
+                      target="_blank"
+                      rel="noreferrer"
+                      className={styles.attachmentLink}
+                    >
+                      <Clock size={15} aria-hidden="true" />
+                      <span>{t('inbox.viewAttachment')}</span>
+                    </a>
+                  ) : (
+                    msg.content
+                  )}
                 </div>
-                <p style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '6px', textAlign: msg.sender_type === 'agent' ? 'right' : 'left', opacity: 0.7, display: 'flex', alignItems: 'center', justifyContent: msg.sender_type === 'agent' ? 'flex-end' : 'flex-start', gap: '4px' }}>
-                   {new Date(msg.created_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', hour12: false })}
-                   {canDelete && (
-                      <span 
-                        onClick={() => onDeleteMessage && onDeleteMessage(msg.id)}
-                        className="unsend-btn"
-                        style={{ color: 'var(--text-muted)', cursor: 'pointer', marginLeft: '12px', textDecoration: 'underline' }}>
-                        Unsend
-                      </span>
-                   )}
-                </p>
-             </div>
+
+                <div className={styles.messageMeta}>
+                  <span className="mono tabular-nums">
+                    {new Date(msg.created_at).toLocaleTimeString('th-TH', {
+                      hour: '2-digit',
+                      minute: '2-digit',
+                      hour12: false,
+                    })}
+                  </span>
+                  {canDelete && (
+                    <button
+                      type="button"
+                      onClick={() => onDeleteMessage && void onDeleteMessage(msg.id)}
+                      className={styles.unsendBtn}
+                      aria-label={locale === 'th' ? 'ยกเลิกข้อความ' : 'Unsend message'}
+                    >
+                      Unsend
+                    </button>
+                  )}
+                </div>
+              </div>
             );
-        })}
+          })}
         <div ref={messagesEndRef} />
       </div>
 
-      <div style={{ padding: '20px 24px', borderTop: '1px solid var(--border)', background: 'var(--bg-topbar)', position: 'relative' }}>
+      {/* Composer */}
+      <div className={clsx(styles.composerArea, isInternalMode && styles.composerAreaWhisper)}>
         {showCanned && (
-          <div className="glass animate-fade-in" style={{ position: 'absolute', bottom: '100%', left: '24px', right: '24px', marginBottom: '8px', padding: '12px', display: 'flex', flexDirection: 'column', gap: '4px', zIndex: 100, maxHeight: '200px', overflowY: 'auto', boxShadow: '0 -10px 25px rgba(0,0,0,0.5)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', padding: '0 8px' }}>
-              <p style={{ fontSize: '11px', fontWeight: '800', color: 'var(--primary)', textTransform: 'uppercase' }}>{t('inbox.quickReplies') || 'ข้อความสำเร็จรูป (QUICK REPLIES)'}</p>
-              <button 
-                type="button" 
-                onClick={(e) => { e.preventDefault(); onAddCanned(); }} 
-                style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', fontWeight: '800' }}>
-                 <Plus size={12} /> {t('common.add')}
-              </button>
+          <div className={styles.cannedPopover} role="region" aria-label={t('inbox.quickReplies')}>
+            <div className={styles.cannedHeader}>
+              <span className={styles.cannedTitle}>{t('inbox.quickReplies')}</span>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={(e) => {
+                  e.preventDefault();
+                  onAddCanned();
+                }}
+                leftIcon={<Plus size={13} aria-hidden="true" />}
+              >
+                {t('common.add')}
+              </Button>
             </div>
             {cannedResponses.map((res, i) => (
-              <div key={i} style={{ display: 'flex', gap: '4px' }}>
-                <button 
-                  type="button" 
-                  onClick={(e) => { e.preventDefault(); onUseCanned(res); }} 
-                  className="glass-interactive" 
-                  style={{ flex: 1, padding: '10px 14px', borderRadius: '8px', background: 'var(--bg-input)', border: '1px solid transparent', color: 'var(--text-main)', fontSize: '13px', textAlign: 'left', transition: 'all 0.2s', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+              <div key={i} className={styles.cannedRow}>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    onUseCanned(res);
+                  }}
+                  className={styles.cannedItemBtn}
                 >
                   {res}
                 </button>
-                <button 
-                  type="button" 
-                  onClick={(e) => { e.preventDefault(); onEditCanned(i); }} 
-                  style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '8px' }}><Pencil size={14} /></button>
-                <button 
-                  type="button" 
-                  onClick={(e) => { e.preventDefault(); onDeleteCanned(i); }} 
-                  style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', padding: '8px' }}><Trash2 size={14} /></button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  iconOnly
+                  onClick={(e) => {
+                    e.preventDefault();
+                    onEditCanned(i);
+                  }}
+                  aria-label={locale === 'th' ? 'แก้ไขข้อความสำเร็จรูป' : 'Edit quick reply'}
+                >
+                  <Pencil size={13} aria-hidden="true" />
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  iconOnly
+                  onClick={(e) => {
+                    e.preventDefault();
+                    onDeleteCanned(i);
+                  }}
+                  aria-label={locale === 'th' ? 'ลบข้อความสำเร็จรูป' : 'Delete quick reply'}
+                >
+                  <Trash2 size={13} aria-hidden="true" />
+                </Button>
               </div>
             ))}
           </div>
         )}
-         {isUnassigned && (
-            <div className="glass animate-fade-in" style={{ padding: '12px 20px', background: 'rgba(255, 120, 0, 0.1)', border: '1px solid rgba(255,120,0,0.2)', borderRadius: '14px', marginBottom: '12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                 <AlertTriangle size={16} color="#ff9f43" />
-                 <p style={{ fontSize: '13px', color: '#ff9f43', fontWeight: '800' }}>{t('inbox.unassignedTicketNotice') || 'ใบงานยังไม่มีผู้ดูแล'}</p>
-              </div>
-              <button 
-                onClick={onClaim}
-                style={{ padding: '6px 16px', borderRadius: '8px', background: 'var(--primary)', color: 'black', border: 'none', fontSize: '11px', fontWeight: '900', cursor: 'pointer' }}
-              >
-                 {t('inbox.claimTicket')}
-              </button>
+
+        {isUnassigned && (
+          <div className={clsx(styles.noticeBanner, styles.noticeWarning)}>
+            <div className={styles.noticeLeft}>
+              <AlertTriangle size={15} aria-hidden="true" />
+              <span>{t('inbox.unassignedTicketNotice')}</span>
             </div>
-         )}
-         {!isSessionActive && !isResolved && (
-            <div className="glass animate-fade-in" style={{ padding: '12px 20px', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.2)', borderRadius: '14px', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-               <AlertTriangle size={16} color="#ef4444" />
-               <p style={{ fontSize: '13px', color: '#ef4444', fontWeight: '800' }}>
-                 {t('inbox.sessionEndedWarning') || 'จบการสนทนาแล้ว อย่าลืมกดปิดใบงาน'}
-               </p>
+            <Button size="sm" variant="primary" onClick={onClaim}>
+              {t('inbox.claimTicket')}
+            </Button>
+          </div>
+        )}
+
+        {!isSessionActive && !isResolved && (
+          <div className={clsx(styles.noticeBanner, styles.noticeDanger)}>
+            <div className={styles.noticeLeft}>
+              <AlertTriangle size={15} aria-hidden="true" />
+              <span>{t('inbox.sessionEndedWarning')}</span>
             </div>
-         )}
-         <form onSubmit={onSendMessage}>
+          </div>
+        )}
+
+        <form onSubmit={onSendMessage}>
           {setIsInternalMode && (
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px', gap: '8px', flexWrap: 'wrap' }}>
-              <div style={{ display: 'flex', gap: '6px' }}>
+            <div className={styles.modeBar} style={{ marginBottom: '8px' }}>
+              <div className={styles.modeTabs}>
                 <button
                   type="button"
+                  aria-pressed={!isInternalMode}
                   onClick={() => setIsInternalMode(false)}
-                  style={{
-                    padding: '5px 12px',
-                    borderRadius: '8px',
-                    fontSize: '11px',
-                    fontWeight: '800',
-                    border: `1px solid ${!isInternalMode ? 'var(--primary)' : 'var(--border)'}`,
-                    background: !isInternalMode ? 'rgba(0, 102, 255, 0.12)' : 'transparent',
-                    color: !isInternalMode ? 'var(--primary)' : 'var(--text-muted)',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '5px',
-                  }}
+                  className={clsx(styles.modeBtn, !isInternalMode && styles.modeBtnPublicActive)}
                 >
-                  <MessageSquare size={12} /> ตอบลูกค้า (ส่ง LINE)
+                  <MessageSquare size={13} aria-hidden="true" />
+                  <span>{locale === 'th' ? 'ตอบลูกค้า (ส่ง LINE)' : 'Reply Customer (LINE)'}</span>
                 </button>
                 <button
                   type="button"
-                  onClick={() => setIsInternalMode(true)}
+                  aria-pressed={isInternalMode}
                   disabled={isViewOnly}
-                  style={{
-                    padding: '5px 12px',
-                    borderRadius: '8px',
-                    fontSize: '11px',
-                    fontWeight: '800',
-                    border: `1px solid ${isInternalMode ? '#f59e0b' : 'var(--border)'}`,
-                    background: isInternalMode ? 'rgba(245, 158, 11, 0.16)' : 'transparent',
-                    color: isInternalMode ? '#d97706' : 'var(--text-muted)',
-                    cursor: isViewOnly ? 'not-allowed' : 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '5px',
-                  }}
+                  onClick={() => setIsInternalMode(true)}
+                  className={clsx(styles.modeBtn, isInternalMode && styles.modeBtnWhisperActive)}
                 >
-                  <Lock size={12} /> โน้ตภายใน (ไม่ส่งลูกค้า)
+                  <Lock size={13} aria-hidden="true" />
+                  <span>{locale === 'th' ? 'โน้ตภายใน (ไม่ส่งลูกค้า)' : 'Internal Note'}</span>
                 </button>
               </div>
               {isInternalMode && (
-                <span style={{ fontSize: '11px', fontWeight: '700', color: '#d97706' }}>
-                  ข้อความนี้จะเห็นเฉพาะทีมงานภายในเท่านั้น
+                <span className={styles.whisperHint}>
+                  <Lock size={12} aria-hidden="true" />
+                  {locale === 'th'
+                    ? 'ข้อความนี้จะเห็นเฉพาะทีมงานภายในเท่านั้น'
+                    : 'Visible to internal staff only'}
                 </span>
               )}
             </div>
           )}
-          <div className="glass" style={{
-            padding: '6px 14px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '12px',
-            background: isInternalMode ? 'rgba(245, 158, 11, 0.08)' : 'var(--bg-input)',
-            borderRadius: '14px',
-            border: isInternalMode ? '1px dashed #f59e0b' : '1px solid var(--border)',
-          }}>
-             <button 
-               type="button" 
-               onClick={() => setShowCanned(!showCanned)} 
-               disabled={!isInternalMode && (isResolved || isUnassigned || !isSessionActive)}
-               title={t('inbox.quickReplies') || 'ข้อความสำเร็จรูป'} 
-               aria-label="Quick replies" 
-               className="glass-interactive flex-center" 
-               style={{ 
-                 width: '36px', 
-                 height: '36px', 
-                 background: 'none', 
-                 border: 'none', 
-                 color: showCanned ? 'var(--primary)' : 'var(--text-muted)', 
-                 cursor: (!isInternalMode && (isResolved || isUnassigned || !isSessionActive)) ? 'not-allowed' : 'pointer',
-                 opacity: (!isInternalMode && (isResolved || isUnassigned || !isSessionActive)) ? 0.4 : 1
-               }}
-             >
-               <MessageSquare size={19} aria-hidden="true" />
-             </button>
-             <button 
-               type="button" 
-               onClick={onAttachClick} 
-               disabled={isInternalMode || isResolved || isUnassigned || !isSessionActive}
-               title={t('inbox.attachHint') || 'แนบไฟล์หรือวางรูปภาพ (Ctrl+V)'} 
-               aria-label="Attach file or paste image" 
-               className="glass-interactive flex-center" 
-               style={{ 
-                 width: '36px', 
-                 height: '36px', 
-                 background: 'none', 
-                 border: 'none', 
-                 color: 'var(--text-muted)', 
-                 cursor: (isInternalMode || isResolved || isUnassigned || !isSessionActive) ? 'not-allowed' : 'pointer',
-                 opacity: (isInternalMode || isResolved || isUnassigned || !isSessionActive) ? 0.4 : 1 
-               }}
-             >
-               <Paperclip size={20} aria-hidden="true" />
-             </button>
 
-           <input 
-              type="text" 
+          <div className={clsx(styles.composerBox, isInternalMode && styles.composerBoxWhisper)}>
+            <Button
+              size="sm"
+              variant="ghost"
+              iconOnly
+              onClick={() => setShowCanned(!showCanned)}
+              disabled={!isInternalMode && (isResolved || isUnassigned || !isSessionActive)}
+              title={t('inbox.quickReplies')}
+              aria-label={t('inbox.quickReplies')}
+              aria-expanded={showCanned}
+            >
+              <MessageSquare size={17} aria-hidden="true" />
+            </Button>
+
+            <Button
+              size="sm"
+              variant="ghost"
+              iconOnly
+              onClick={onAttachClick}
+              disabled={isInternalMode || isResolved || isUnassigned || !isSessionActive}
+              title={t('inbox.attachHint')}
+              aria-label={t('inbox.attachHint')}
+            >
+              <Paperclip size={17} aria-hidden="true" />
+            </Button>
+
+            <input
+              type="text"
               value={newMessage}
               onChange={(e) => setNewMessage(e.target.value)}
+              aria-label={
+                isInternalMode
+                  ? locale === 'th'
+                    ? 'บันทึกโน้ตภายในทีม'
+                    : 'Internal note message'
+                  : t('inbox.typeMessagePlaceholder')
+              }
               placeholder={
-                 isViewOnly
-                   ? (t('inbox.viewOnlyPlaceholder') || 'คุณมีสิทธิ์อ่านเท่านั้น (View Only)')
-                   : isInternalMode
-                     ? 'บันทึกโน้ตภายในทีม (ลูกค้าจะไม่เห็นข้อความนี้)...'
-                     : isResolved
-                       ? (t('inbox.readOnlyPlaceholder') || 'ใบงานถูกปิดแล้ว (Read Only)')
-                       : isUnassigned
-                         ? (t('inbox.claimBeforeChatPlaceholder') || 'กรุณากดรับงานก่อนเริ่มการสนทนา')
-                         : !isSessionActive
-                           ? (t('inbox.sessionEndedPlaceholder') || 'จบการสนทนาแล้ว อย่าลืมกดปิดใบงาน')
-                           : (t('inbox.typeMessagePlaceholder') || 'พิมพ์ข้อความ หรือวางรูปภาพ Ctrl+V...')
-               } 
-              disabled={isViewOnly || (!isInternalMode && (isResolved || isUnassigned || !isSessionActive))}
-              style={{ flex: 1, background: 'none', border: 'none', outline: 'none', color: 'var(--text-main)', padding: '12px 0', fontSize: '14px', opacity: (!isInternalMode && (isResolved || isUnassigned || !isSessionActive)) ? 0.4 : 1 }}
-           />
-           <button 
-             type="submit"
-             disabled={sending || !newMessage.trim() || isViewOnly || (!isInternalMode && (isResolved || isUnassigned || !isSessionActive))}
-             style={{ 
-               background: isInternalMode ? '#f59e0b' : 'var(--primary)', 
-               border: 'none', 
-               color: '#0a0e14', 
-               width: '42px', 
-               height: '36px', 
-               borderRadius: '10px', 
-               display: 'flex', 
-               alignItems: 'center', 
-               justifyContent: 'center', 
-               cursor: (sending || !newMessage.trim() || isViewOnly || (!isInternalMode && (isResolved || isUnassigned || !isSessionActive))) ? 'not-allowed' : 'pointer',
-               transition: 'all 0.2s',
-               opacity: (sending || !newMessage.trim() || isViewOnly || (!isInternalMode && (isResolved || isUnassigned || !isSessionActive))) ? 0.4 : 1 
-             }}>
-              {sending ? <Loader2 size={18} className="animate-spin" aria-hidden="true" /> : <Send size={18} aria-hidden="true" />}
-           </button>
-        </div>
-      </form>
-    </div>
-  </div>
+                isViewOnly
+                  ? t('inbox.viewOnlyPlaceholder')
+                  : isInternalMode
+                    ? locale === 'th'
+                      ? 'บันทึกโน้ตภายในทีม (ลูกค้าจะไม่เห็นข้อความนี้)...'
+                      : 'Write an internal note (hidden from customer)...'
+                    : isResolved
+                      ? t('inbox.readOnlyPlaceholder')
+                      : isUnassigned
+                        ? t('inbox.claimBeforeChatPlaceholder')
+                        : !isSessionActive
+                          ? t('inbox.sessionEndedPlaceholder')
+                          : t('inbox.typeMessagePlaceholder')
+              }
+              disabled={isComposerLocked}
+              className={styles.composerInput}
+            />
+
+            <Button
+              type="submit"
+              size="sm"
+              variant="primary"
+              disabled={sending || !newMessage.trim() || isComposerLocked}
+              aria-label={
+                isInternalMode
+                  ? locale === 'th'
+                    ? 'บันทึกโน้ตภายใน'
+                    : 'Post internal note'
+                  : locale === 'th'
+                    ? 'ส่งข้อความ'
+                    : 'Send message'
+              }
+              className={isInternalMode ? styles.sendBtnWhisper : undefined}
+            >
+              {sending ? (
+                <Loader2 size={16} className="animate-spin" aria-hidden="true" />
+              ) : (
+                <Send size={16} aria-hidden="true" />
+              )}
+            </Button>
+          </div>
+        </form>
+      </div>
+    </section>
   );
 };
