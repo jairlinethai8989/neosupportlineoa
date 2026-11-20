@@ -2,9 +2,9 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import clsx from 'clsx';
-import { useLiff } from '@/hooks/useLiff';
+import { useLiff, canUseMockLogin } from '@/hooks/useLiff';
 import { supabase } from '@/lib/supabase';
-import { submitSurveyAction } from '@/app/actions/portalActions';
+import { getPortalBootstrapAction, submitSurveyAction } from '@/app/actions/portalActions';
 import {
   MessageSquare,
   Check,
@@ -262,7 +262,7 @@ const PortalTicketCard = React.memo(function PortalTicketCard({
 });
 
 export default function PortalPage() {
-  const { profile, idToken, isReady, error: liffError, projectConfig, projectOrganizations, setMockLogin } = useLiff();
+  const { profile, idToken, isReady, error: liffError, projectConfig, projectOrganizations, login, setMockLogin } = useLiff();
   const projectQuery =
     projectConfig && !projectConfig.is_default && projectConfig.slug
       ? `?project=${encodeURIComponent(projectConfig.slug)}`
@@ -375,79 +375,43 @@ export default function PortalPage() {
     if (!silent) setFetching(true);
 
     try {
-      // Use cached customerId when available and organization_id is already registered
-      let customerId = customerIdRef.current;
-      let customer: any = customerDataRef.current;
+      const page = historyPageRef.current;
+      const query = debouncedSearchQueryRef.current;
 
-      if (!customerId || !customer?.organization_id) {
-        let custQuery = supabase
-          .from('customers')
-          .select('*, organizations(name, abbreviation)')
-          .eq('line_user_id', profile.userId);
-        if (realProjectId) {
-          custQuery = custQuery.eq('project_id', realProjectId);
-        }
-        const { data } = await custQuery.limit(1).maybeSingle();
-        customer = data;
-        if (customer?.id) {
-          customerIdRef.current = customer.id;
-          customerId = customer.id;
-          customerDataRef.current = customer;
-          setCustomerData(customer);
-        }
+      const bootstrap = await getPortalBootstrapAction({
+        lineUserId: profile.userId,
+        idToken,
+        projectId: realProjectId,
+        projectSlug: projectConfig?.slug || null,
+        page,
+        pageSize: ITEMS_PER_PAGE,
+        searchQuery: query,
+      });
+
+      const customer = bootstrap.customer as any;
+      if (customer?.id) {
+        customerIdRef.current = customer.id;
+        customerDataRef.current = customer;
+        setCustomerData(customer);
       }
 
-      if (!customerId || !customer?.organization_id) {
+      if (!customer?.id || !customer?.organization_id) {
         setNeedsRegistration(true);
         return;
       }
 
       setNeedsRegistration(false);
-
-      const page = historyPageRef.current;
-      const query = debouncedSearchQueryRef.current;
-      const from = (page - 1) * ITEMS_PER_PAGE;
-      const to = from + ITEMS_PER_PAGE - 1;
-
-      // Build paginated query for past tickets
-      let pastQuery = supabase
-        .from('tickets')
-        .select('id, ticket_no, subject, status, created_at, resolved_at', { count: 'exact' })
-        .eq('customer_id', customerId)
-        .in('status', ['Resolved', 'Closed', 'Canceled', 'resolved', 'closed', 'canceled']);
-
-      if (query.trim()) {
-        const cleanQuery = query.trim();
-        pastQuery = pastQuery.or(`ticket_no.ilike.%${cleanQuery}%,subject.ilike.%${cleanQuery}%`);
-      }
-
-      const [activeRes, pastRes] = await Promise.all([
-        supabase
-          .from('tickets')
-          .select('id, ticket_no, subject, status, created_at, resolved_at')
-          .eq('customer_id', customerId)
-          .not('status', 'in', '("Resolved","Closed","Canceled","resolved","closed","canceled")')
-          .order('created_at', { ascending: false }),
-        pastQuery
-          .order('created_at', { ascending: false })
-          .range(from, to)
-      ]);
-
-      if (activeRes.data) {
-        setActiveTickets(activeRes.data);
-      }
-      if (pastRes.data) {
-        setPastTickets(pastRes.data);
-        void refreshPendingSurvey(customerId, [...(activeRes.data || []), ...pastRes.data]);
-      }
-      if (pastRes.count !== null) setTotalHistory(pastRes.count);
+      setActiveTickets(bootstrap.activeTickets);
+      setPastTickets(bootstrap.pastTickets);
+      setTotalHistory(bootstrap.totalHistory);
+      void refreshPendingSurvey(customer.id, [...bootstrap.activeTickets, ...bootstrap.pastTickets]);
     } catch (err) {
       console.error('Portal Fetch Error:', err);
     } finally {
       inFlightRef.current = false;
       setFetching(false);
     }
-  }, [profile?.userId, realProjectId, refreshPendingSurvey]);
+  }, [profile?.userId, idToken, realProjectId, projectConfig?.slug, refreshPendingSurvey]);
   // NOTE: historyPage/debouncedSearchQuery intentionally excluded — read via refs to keep callback stable
 
   // Trigger re-fetch when historyPage or debouncedSearchQuery changes (without recreating fetchTickets)
@@ -654,11 +618,22 @@ export default function PortalPage() {
     return (
       <div className={clsx(styles.root, styles.fatal)} style={accentStyle} role="alert">
         <ShieldAlert size={48} className={styles.fatalIcon} aria-hidden="true" />
-        <h2>ไม่สามารถเข้าถึงได้</h2>
-        <p>กรุณาเข้าใช้งานผ่านแอปพลิเคชัน LINE เพื่อการบริการที่สมบูรณ์</p>
-        <button type="button" onClick={() => setMockLogin()} className={clsx(styles.btn, styles.btnSecondary)}>
-          จำลองสถานะการทำงาน (Mock Login)
-        </button>
+        <h2>{liffError ? 'ไม่สามารถเชื่อมต่อ LINE ได้' : 'กรุณาเข้าสู่ระบบด้วย LINE'}</h2>
+        <p>
+          {liffError
+            ? liffError
+            : 'กรุณาเข้าสู่ระบบผ่านบัญชี LINE ของท่านเพื่อเริ่มต้นแจ้งปัญหาและติดตามสถานะใบงาน'}
+        </p>
+        {!liffError && (
+          <button type="button" onClick={() => login()} className={clsx(styles.btn, styles.btnPrimary)}>
+            เข้าสู่ระบบด้วย LINE
+          </button>
+        )}
+        {canUseMockLogin && (
+          <button type="button" onClick={() => setMockLogin()} className={clsx(styles.btn, styles.btnSecondary)}>
+            จำลองสถานะการทำงาน (Mock Login)
+          </button>
+        )}
       </div>
     );
   }

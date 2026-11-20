@@ -580,3 +580,108 @@ export async function syncLiffCustomerProfileAction(input: {
     return { success: false };
   }
 }
+
+/**
+ * Fetches the verified customer profile and paginated tickets for the Portal home page.
+ * Uses supabaseAdmin after verifying LIFF identity so RLS never blocks legitimate LINE users.
+ */
+export async function getPortalBootstrapAction(input: {
+  lineUserId?: string | null;
+  idToken?: string | null;
+  projectId?: string | null;
+  projectSlug?: string | null;
+  page?: number;
+  pageSize?: number;
+  searchQuery?: string;
+}): Promise<{
+  customer: Record<string, unknown> | null;
+  activeTickets: Record<string, unknown>[];
+  pastTickets: Record<string, unknown>[];
+  totalHistory: number;
+  error?: string;
+}> {
+  try {
+    const project = input.projectId
+      ? await resolveProjectById(input.projectId)
+      : await resolveProjectBySlug(input.projectSlug);
+    const realProjectId = project && project.id !== 'default-env-fallback' ? project.id : null;
+
+    const identity = await verifyLiffIdentity({
+      lineUserId: input.lineUserId,
+      idToken: input.idToken,
+      channelId: project?.line_channel_id,
+      liffId: project?.line_liff_id,
+    });
+
+    let custQuery = supabaseAdmin
+      .from('customers')
+      .select('*, organizations(name, abbreviation)')
+      .eq('line_user_id', identity.lineUserId);
+
+    if (realProjectId) {
+      custQuery = custQuery.eq('project_id', realProjectId);
+    }
+
+    const { data: customer, error: custError } = await custQuery.limit(1).maybeSingle();
+    if (custError) {
+      return {
+        customer: null,
+        activeTickets: [],
+        pastTickets: [],
+        totalHistory: 0,
+        error: custError.message,
+      };
+    }
+
+    if (!customer || !customer.organization_id) {
+      return {
+        customer: (customer as Record<string, unknown>) || null,
+        activeTickets: [],
+        pastTickets: [],
+        totalHistory: 0,
+      };
+    }
+
+    const page = Math.max(1, input.page || 1);
+    const pageSize = Math.max(1, input.pageSize || 5);
+    const from = (page - 1) * pageSize;
+    const to = from + pageSize - 1;
+    const cleanQuery = (input.searchQuery || '').trim();
+
+    let pastQuery = supabaseAdmin
+      .from('tickets')
+      .select('id, ticket_no, subject, status, created_at, resolved_at', { count: 'exact' })
+      .eq('customer_id', customer.id)
+      .in('status', ['Resolved', 'Closed', 'Canceled', 'resolved', 'closed', 'canceled']);
+
+    if (cleanQuery) {
+      pastQuery = pastQuery.or(`ticket_no.ilike.%${cleanQuery}%,subject.ilike.%${cleanQuery}%`);
+    }
+
+    const [activeRes, pastRes] = await Promise.all([
+      supabaseAdmin
+        .from('tickets')
+        .select('id, ticket_no, subject, status, created_at, resolved_at')
+        .eq('customer_id', customer.id)
+        .not('status', 'in', '("Resolved","Closed","Canceled","resolved","closed","canceled")')
+        .order('created_at', { ascending: false }),
+      pastQuery.order('created_at', { ascending: false }).range(from, to),
+    ]);
+
+    return {
+      customer: customer as Record<string, unknown>,
+      activeTickets: (activeRes.data || []) as Record<string, unknown>[],
+      pastTickets: (pastRes.data || []) as Record<string, unknown>[],
+      totalHistory: pastRes.count || 0,
+    };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Failed to load portal data';
+    return {
+      customer: null,
+      activeTickets: [],
+      pastTickets: [],
+      totalHistory: 0,
+      error: message,
+    };
+  }
+}

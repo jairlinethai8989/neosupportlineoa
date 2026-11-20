@@ -15,7 +15,7 @@ import {
   X,
 } from 'lucide-react';
 import { compressImage } from '@/lib/utils/imageCompression';
-import { createPortalTicketAction } from '@/app/actions/portalActions';
+import { createPortalTicketAction, getPortalBootstrapAction } from '@/app/actions/portalActions';
 import styles from '../portal.module.css';
 
 const ChatAttachmentModal = React.lazy(() => import('@/components/chat/ChatAttachmentModal'));
@@ -45,15 +45,13 @@ export default function CreateTicketPage() {
     if (!profile?.userId || !projectConfig) return;
 
     async function checkCustomer() {
-      let custQuery = supabase
-        .from('customers')
-        .select('*, organizations(name, abbreviation)')
-        .eq('line_user_id', profile?.userId);
-      if (realProjectId) {
-        custQuery = custQuery.eq('project_id', realProjectId);
-      }
-
-      const { data: customer } = await custQuery.limit(1).maybeSingle();
+      const bootstrap = await getPortalBootstrapAction({
+        lineUserId: profile?.userId,
+        idToken: getIdToken(),
+        projectId: realProjectId,
+        projectSlug: projectConfig?.slug || null,
+      });
+      const customer = bootstrap.customer as any;
 
       if (!customer || !customer.organization_id) {
         router.push(`/portal${projectQuery}`);
@@ -65,7 +63,7 @@ export default function CreateTicketPage() {
       setChecking(false);
     }
     checkCustomer();
-  }, [profile?.userId, projectConfig, projectQuery, projectSubjectTypes, realProjectId, router]);
+  }, [profile?.userId, getIdToken, projectConfig, projectQuery, projectSubjectTypes, realProjectId, router]);
 
   const accentStyle = projectConfig?.primary_color
     ? ({ '--portal-accent': projectConfig.primary_color } as React.CSSProperties)
