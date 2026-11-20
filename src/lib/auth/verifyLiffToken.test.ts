@@ -54,4 +54,27 @@ describe('verifyLiffIdentity', () => {
 
     expect(result).toEqual({ lineUserId: 'U_MOCK_USER', verified: false });
   });
+
+  it('uses per-project liffId channel ID instead of env default when verifying multi-OA token', async () => {
+    process.env.NEXT_PUBLIC_LIFF_ID = '2001234567-DefaultLiff';
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ sub: 'U_PROJECT_TWO' }),
+    } as Response);
+
+    const result = await verifyLiffIdentity({
+      lineUserId: 'U_IGNORED',
+      idToken: 'project2.jwt.token',
+      liffId: '2009998888-ProjectTwo',
+    });
+
+    expect(result).toEqual({ lineUserId: 'U_PROJECT_TWO', verified: true });
+    expect(global.fetch).toHaveBeenCalledWith(
+      'https://api.line.me/oauth2/v2.1/verify',
+      expect.objectContaining({
+        method: 'POST',
+        body: 'id_token=project2.jwt.token&client_id=2009998888',
+      })
+    );
+  });
 });

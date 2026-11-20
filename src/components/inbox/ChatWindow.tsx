@@ -14,7 +14,8 @@ import {
   Clock,
   AlertTriangle,
   PanelRightClose,
-  PanelRightOpen
+  PanelRightOpen,
+  Lock
 } from 'lucide-react';
 import { useStaffLocale } from '@/contexts/StaffLocaleContext';
 import type {
@@ -30,6 +31,8 @@ interface ChatWindowProps {
   messages: InboxMessage[];
   newMessage: string;
   setNewMessage: (msg: string) => void;
+  isInternalMode?: boolean;
+  setIsInternalMode?: (internal: boolean) => void;
   sending: boolean;
   onSendMessage: (e: FormEvent<HTMLFormElement>) => void;
   viewMode: InboxViewMode;
@@ -60,6 +63,8 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
   messages,
   newMessage,
   setNewMessage,
+  isInternalMode = false,
+  setIsInternalMode,
   sending,
   onSendMessage,
   viewMode,
@@ -242,6 +247,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
             const isOwn = msg.staff_id === agent?.id;
             const isAdmin = agent?.role === 'Administrator';
             const canDelete = Boolean((isOwn || isAdmin) && msg.sender_type === 'agent' && onDeleteMessage);
+            const isInternal = Boolean(msg.is_internal);
 
             return (
               <div key={msg.id} className="animate-content-slide message-row-container" style={{ 
@@ -249,19 +255,30 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
                 maxWidth: '80%',
                 animationDelay: `${Math.min(0.3, (index % 10) * 0.05)}s` 
               }}>
+                 {isInternal && (
+                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: msg.sender_type === 'agent' ? 'flex-end' : 'flex-start', gap: '4px', marginBottom: '4px', fontSize: '10px', fontWeight: '800', color: '#d97706' }}>
+                     <Lock size={10} /> โน้ตภายในทีม (ลูกค้าไม่เห็น)
+                   </div>
+                 )}
                  <div style={{ 
                     padding: '12px 18px', 
                     borderRadius: msg.sender_type === 'agent' ? '20px 20px 4px 20px' : '20px 20px 20px 4px', 
-                    background: msg.sender_type === 'agent' 
-                      ? 'linear-gradient(135deg, var(--secondary) 0%, oklch(60% 0.15 280) 100%)' 
-                      : (msg.sender_type === 'system' ? 'var(--bg-input)' : 'var(--bg-card)'),
-                    border: '1px solid ' + (msg.sender_type === 'agent' ? 'rgba(255, 255, 255, 0.1)' : 'var(--border)'),
+                    background: isInternal
+                      ? 'rgba(245, 158, 11, 0.14)'
+                      : msg.sender_type === 'agent' 
+                        ? 'linear-gradient(135deg, var(--secondary) 0%, oklch(60% 0.15 280) 100%)' 
+                        : (msg.sender_type === 'system' ? 'var(--bg-input)' : 'var(--bg-card)'),
+                    border: isInternal
+                      ? '1px dashed rgba(245, 158, 11, 0.7)'
+                      : '1px solid ' + (msg.sender_type === 'agent' ? 'rgba(255, 255, 255, 0.1)' : 'var(--border)'),
                     fontSize: '14px',
                     lineHeight: '1.6',
-                    boxShadow: msg.sender_type === 'agent' ? '0 8px 25px -5px rgba(115, 103, 240, 0.3)' : 'none',
-                    color: msg.sender_type === 'system' 
-                      ? 'var(--primary)' 
-                      : (msg.sender_type === 'agent' ? 'white' : 'var(--text-main)'),
+                    boxShadow: isInternal ? 'none' : msg.sender_type === 'agent' ? '0 8px 25px -5px rgba(115, 103, 240, 0.3)' : 'none',
+                    color: isInternal
+                      ? 'var(--text-main)'
+                      : msg.sender_type === 'system' 
+                        ? 'var(--primary)' 
+                        : (msg.sender_type === 'agent' ? 'white' : 'var(--text-main)'),
                     position: 'relative',
                     transition: 'transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1)'
                  }}>
@@ -358,11 +375,69 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
             </div>
          )}
          <form onSubmit={onSendMessage}>
-          <div className="glass" style={{ padding: '6px 14px', display: 'flex', alignItems: 'center', gap: '12px', background: 'var(--bg-input)', borderRadius: '14px', border: '1px solid var(--border)' }}>
+          {setIsInternalMode && (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px', gap: '8px', flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', gap: '6px' }}>
+                <button
+                  type="button"
+                  onClick={() => setIsInternalMode(false)}
+                  style={{
+                    padding: '5px 12px',
+                    borderRadius: '8px',
+                    fontSize: '11px',
+                    fontWeight: '800',
+                    border: `1px solid ${!isInternalMode ? 'var(--primary)' : 'var(--border)'}`,
+                    background: !isInternalMode ? 'rgba(0, 102, 255, 0.12)' : 'transparent',
+                    color: !isInternalMode ? 'var(--primary)' : 'var(--text-muted)',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '5px',
+                  }}
+                >
+                  <MessageSquare size={12} /> ตอบลูกค้า (ส่ง LINE)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsInternalMode(true)}
+                  disabled={isViewOnly}
+                  style={{
+                    padding: '5px 12px',
+                    borderRadius: '8px',
+                    fontSize: '11px',
+                    fontWeight: '800',
+                    border: `1px solid ${isInternalMode ? '#f59e0b' : 'var(--border)'}`,
+                    background: isInternalMode ? 'rgba(245, 158, 11, 0.16)' : 'transparent',
+                    color: isInternalMode ? '#d97706' : 'var(--text-muted)',
+                    cursor: isViewOnly ? 'not-allowed' : 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '5px',
+                  }}
+                >
+                  <Lock size={12} /> โน้ตภายใน (ไม่ส่งลูกค้า)
+                </button>
+              </div>
+              {isInternalMode && (
+                <span style={{ fontSize: '11px', fontWeight: '700', color: '#d97706' }}>
+                  ข้อความนี้จะเห็นเฉพาะทีมงานภายในเท่านั้น
+                </span>
+              )}
+            </div>
+          )}
+          <div className="glass" style={{
+            padding: '6px 14px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+            background: isInternalMode ? 'rgba(245, 158, 11, 0.08)' : 'var(--bg-input)',
+            borderRadius: '14px',
+            border: isInternalMode ? '1px dashed #f59e0b' : '1px solid var(--border)',
+          }}>
              <button 
                type="button" 
                onClick={() => setShowCanned(!showCanned)} 
-               disabled={isResolved || isUnassigned || !isSessionActive}
+               disabled={!isInternalMode && (isResolved || isUnassigned || !isSessionActive)}
                title={t('inbox.quickReplies') || 'ข้อความสำเร็จรูป'} 
                aria-label="Quick replies" 
                className="glass-interactive flex-center" 
@@ -372,8 +447,8 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
                  background: 'none', 
                  border: 'none', 
                  color: showCanned ? 'var(--primary)' : 'var(--text-muted)', 
-                 cursor: (isResolved || isUnassigned || !isSessionActive) ? 'not-allowed' : 'pointer',
-                 opacity: (isResolved || isUnassigned || !isSessionActive) ? 0.4 : 1
+                 cursor: (!isInternalMode && (isResolved || isUnassigned || !isSessionActive)) ? 'not-allowed' : 'pointer',
+                 opacity: (!isInternalMode && (isResolved || isUnassigned || !isSessionActive)) ? 0.4 : 1
                }}
              >
                <MessageSquare size={19} aria-hidden="true" />
@@ -381,7 +456,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
              <button 
                type="button" 
                onClick={onAttachClick} 
-               disabled={isResolved || isUnassigned || !isSessionActive}
+               disabled={isInternalMode || isResolved || isUnassigned || !isSessionActive}
                title={t('inbox.attachHint') || 'แนบไฟล์หรือวางรูปภาพ (Ctrl+V)'} 
                aria-label="Attach file or paste image" 
                className="glass-interactive flex-center" 
@@ -391,8 +466,8 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
                  background: 'none', 
                  border: 'none', 
                  color: 'var(--text-muted)', 
-                 cursor: (isResolved || isUnassigned || !isSessionActive) ? 'not-allowed' : 'pointer',
-                 opacity: (isResolved || isUnassigned || !isSessionActive) ? 0.4 : 1 
+                 cursor: (isInternalMode || isResolved || isUnassigned || !isSessionActive) ? 'not-allowed' : 'pointer',
+                 opacity: (isInternalMode || isResolved || isUnassigned || !isSessionActive) ? 0.4 : 1 
                }}
              >
                <Paperclip size={20} aria-hidden="true" />
@@ -403,24 +478,26 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
               value={newMessage}
               onChange={(e) => setNewMessage(e.target.value)}
               placeholder={
-                 isResolved
-                   ? (t('inbox.readOnlyPlaceholder') || 'ใบงานถูกปิดแล้ว (Read Only)')
-                   : isViewOnly
-                     ? (t('inbox.viewOnlyPlaceholder') || 'คุณมีสิทธิ์อ่านเท่านั้น (View Only)')
-                     : isUnassigned
-                       ? (t('inbox.claimBeforeChatPlaceholder') || 'กรุณากดรับงานก่อนเริ่มการสนทนา')
-                       : !isSessionActive
-                         ? (t('inbox.sessionEndedPlaceholder') || 'จบการสนทนาแล้ว อย่าลืมกดปิดใบงาน')
-                         : (t('inbox.typeMessagePlaceholder') || 'พิมพ์ข้อความ หรือวางรูปภาพ Ctrl+V...')
+                 isViewOnly
+                   ? (t('inbox.viewOnlyPlaceholder') || 'คุณมีสิทธิ์อ่านเท่านั้น (View Only)')
+                   : isInternalMode
+                     ? 'บันทึกโน้ตภายในทีม (ลูกค้าจะไม่เห็นข้อความนี้)...'
+                     : isResolved
+                       ? (t('inbox.readOnlyPlaceholder') || 'ใบงานถูกปิดแล้ว (Read Only)')
+                       : isUnassigned
+                         ? (t('inbox.claimBeforeChatPlaceholder') || 'กรุณากดรับงานก่อนเริ่มการสนทนา')
+                         : !isSessionActive
+                           ? (t('inbox.sessionEndedPlaceholder') || 'จบการสนทนาแล้ว อย่าลืมกดปิดใบงาน')
+                           : (t('inbox.typeMessagePlaceholder') || 'พิมพ์ข้อความ หรือวางรูปภาพ Ctrl+V...')
                } 
-              disabled={isResolved || isViewOnly || isUnassigned || !isSessionActive}
-              style={{ flex: 1, background: 'none', border: 'none', outline: 'none', color: 'var(--text-main)', padding: '12px 0', fontSize: '14px', opacity: (isResolved || isUnassigned || !isSessionActive) ? 0.4 : 1 }}
+              disabled={isViewOnly || (!isInternalMode && (isResolved || isUnassigned || !isSessionActive))}
+              style={{ flex: 1, background: 'none', border: 'none', outline: 'none', color: 'var(--text-main)', padding: '12px 0', fontSize: '14px', opacity: (!isInternalMode && (isResolved || isUnassigned || !isSessionActive)) ? 0.4 : 1 }}
            />
            <button 
              type="submit"
-             disabled={sending || !newMessage.trim() || isResolved || isUnassigned || !isSessionActive}
+             disabled={sending || !newMessage.trim() || isViewOnly || (!isInternalMode && (isResolved || isUnassigned || !isSessionActive))}
              style={{ 
-               background: 'var(--primary)', 
+               background: isInternalMode ? '#f59e0b' : 'var(--primary)', 
                border: 'none', 
                color: '#0a0e14', 
                width: '42px', 
@@ -429,9 +506,9 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
                display: 'flex', 
                alignItems: 'center', 
                justifyContent: 'center', 
-               cursor: (sending || !newMessage.trim() || isResolved || isUnassigned || !isSessionActive) ? 'not-allowed' : 'pointer',
+               cursor: (sending || !newMessage.trim() || isViewOnly || (!isInternalMode && (isResolved || isUnassigned || !isSessionActive))) ? 'not-allowed' : 'pointer',
                transition: 'all 0.2s',
-               opacity: (sending || !newMessage.trim() || isResolved || isUnassigned || !isSessionActive) ? 0.4 : 1 
+               opacity: (sending || !newMessage.trim() || isViewOnly || (!isInternalMode && (isResolved || isUnassigned || !isSessionActive))) ? 0.4 : 1 
              }}>
               {sending ? <Loader2 size={18} className="animate-spin" aria-hidden="true" /> : <Send size={18} aria-hidden="true" />}
            </button>

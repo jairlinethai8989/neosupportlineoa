@@ -9,17 +9,28 @@ import {
   ChevronDown,
   Info
 } from 'lucide-react';
-import { LiffProfile } from '@/hooks/useLiff';
+import { LiffProfile, PortalOrgOption } from '@/hooks/useLiff';
+import type { ProjectPublicConfig } from '@/types/project';
 
 interface ProfileRegistrationModalProps {
   isOpen: boolean;
   profile: LiffProfile | null;
+  projectConfig?: ProjectPublicConfig | null;
+  projectOrganizations?: PortalOrgOption[];
   existingCustomer?: any; // If null, user needs registration. If exists, user is editing.
   onComplete: () => void;
   onClose?: () => void; // Optional: Only for closing when editing
 }
 
-export default function ProfileRegistrationModal({ isOpen, profile, existingCustomer, onComplete, onClose }: ProfileRegistrationModalProps) {
+export default function ProfileRegistrationModal({
+  isOpen,
+  profile,
+  projectConfig,
+  projectOrganizations,
+  existingCustomer,
+  onComplete,
+  onClose,
+}: ProfileRegistrationModalProps) {
   const [organizations, setOrganizations] = useState<any[]>([]);
   const [departments, setDepartments] = useState<any[]>([]);
   const [positions, setPositions] = useState<any[]>([]);
@@ -33,7 +44,7 @@ export default function ProfileRegistrationModal({ isOpen, profile, existingCust
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
 
-  // Fetch Master Data
+  // Fetch Master Data (scoped to project when available)
   useEffect(() => {
     if (!isOpen) return;
 
@@ -41,8 +52,20 @@ export default function ProfileRegistrationModal({ isOpen, profile, existingCust
       setLoadingOpts(true);
       setError('');
       try {
+        const realProjectId =
+          projectConfig?.id && projectConfig.id !== 'default-env-fallback'
+            ? projectConfig.id
+            : null;
+
+        let orgQuery = supabase.from('organizations').select('*').order('name');
+        if (realProjectId) {
+          orgQuery = orgQuery.eq('project_id', realProjectId);
+        }
+
         const [hRes, dRes, pRes] = await Promise.all([
-          supabase.from('organizations').select('*').order('name'),
+          projectOrganizations && projectOrganizations.length > 0
+            ? Promise.resolve({ data: projectOrganizations, error: null })
+            : orgQuery,
           supabase.from('departments').select('*').eq('dept_type', 'organization').eq('is_active', true).order('name'),
           supabase.from('positions').select('*').order('name')
         ]);
@@ -74,7 +97,7 @@ export default function ProfileRegistrationModal({ isOpen, profile, existingCust
       }
     }
     loadMasterData();
-  }, [isOpen, existingCustomer, profile]);
+  }, [isOpen, existingCustomer, profile, projectConfig?.id, projectOrganizations]);
 
   if (!isOpen) return null;
 
@@ -96,8 +119,11 @@ export default function ProfileRegistrationModal({ isOpen, profile, existingCust
     setError('');
 
     try {
-      // USE UPSERT: This handles both Insert and Update transparently and 
-      // prevents "duplicate key on line_user_id" errors.
+      const realProjectId =
+        projectConfig?.id && projectConfig.id !== 'default-env-fallback'
+          ? projectConfig.id
+          : null;
+
       const payload: any = {
         line_user_id: profile.userId,
         display_name: displayName, // Keep as primary display name
@@ -108,15 +134,32 @@ export default function ProfileRegistrationModal({ isOpen, profile, existingCust
         position_id: selectedPosition,
         updated_at: new Date().toISOString()
       };
-
-      // Add ID if it's a known existing customer to be extra safe with PostgREST
-      if (existingCustomer?.id) {
-        payload.id = existingCustomer.id;
+      if (realProjectId) {
+        payload.project_id = realProjectId;
       }
 
-      const { error: saveErr } = await supabase
-        .from('customers')
-        .upsert(payload, { onConflict: 'line_user_id' });
+      // Check existing customer scoped by project_id to handle composite unique index cleanly
+      let targetCustomerId = existingCustomer?.id || null;
+      if (!targetCustomerId) {
+        let lookup = supabase
+          .from('customers')
+          .select('id')
+          .eq('line_user_id', profile.userId);
+        if (realProjectId) {
+          lookup = lookup.eq('project_id', realProjectId);
+        }
+        const { data: found } = await lookup.limit(1).maybeSingle();
+        targetCustomerId = found?.id || null;
+      }
+
+      let saveErr = null;
+      if (targetCustomerId) {
+        const res = await supabase.from('customers').update(payload).eq('id', targetCustomerId);
+        saveErr = res.error;
+      } else {
+        const res = await supabase.from('customers').insert([payload]);
+        saveErr = res.error;
+      }
 
       if (saveErr) throw saveErr;
 
@@ -205,7 +248,7 @@ export default function ProfileRegistrationModal({ isOpen, profile, existingCust
 
           {/* Organization Select */}
           <div style={{ position: 'relative' }}>
-            <label style={labelStyle}>โรงพยาบาล</label>
+            <label style={labelStyle}>{projectConfig?.organization_label || 'หน่วยงาน / โรงพยาบาล'}</label>
             <select
               value={selectedHospital}
               onChange={(e) => setSelectedHospital(e.target.value)}
@@ -213,7 +256,9 @@ export default function ProfileRegistrationModal({ isOpen, profile, existingCust
               style={inputStyle}
               required
             >
-              <option value="" disabled style={{ background: '#1a1d23' }}>โปรดเลือกโรงพยาบาล...</option>
+              <option value="" disabled style={{ background: '#1a1d23' }}>
+                โปรดเลือก{projectConfig?.organization_label || 'หน่วยงาน'}...
+              </option>
               {organizations.map(h => (
                 <option key={h.id} value={h.id} style={{ background: '#1a1d23' }}>{h.name}</option>
               ))}

@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextResponse } from 'next/server';
 import { createSupabaseServerClient } from '@/lib/supabase-server';
+import { resolveScopedProjectIds } from '@/lib/projects/projectAccess';
 
 export const runtime = 'nodejs';
 
@@ -9,31 +10,55 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const preset = searchParams.get('preset') || 'all'; // 7days, 30days, all
     const organizationId = searchParams.get('organizationId');
+    const requestedProjectId = searchParams.get('projectId');
     let startDate = searchParams.get('startDate');
     let endDate = searchParams.get('endDate');
 
     const supabase = await createSupabaseServerClient();
     const profileBypassAuth = process.env.NODE_ENV !== 'production' && process.env.PROFILE_BYPASS_AUTH === '1';
 
+    let scopedProjectIds: string[] | null = null;
     if (!profileBypassAuth) {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
       }
+      try {
+        const resolved = await resolveScopedProjectIds(user.id, requestedProjectId);
+        scopedProjectIds = resolved.projectIds;
+      } catch {
+        return NextResponse.json({ error: 'Forbidden project scope' }, { status: 403 });
+      }
     }
 
     // Query 0: Active Organizations
-    const { data: organizationsList, error: hospListErr } = await supabase
+    let orgQuery = supabase
       .from('organizations')
       .select('id, name')
       .eq('is_active', true)
       .order('name');
+    if (scopedProjectIds && scopedProjectIds.length > 0) {
+      orgQuery = orgQuery.in('project_id', scopedProjectIds);
+    }
+    const { data: organizationsList, error: hospListErr } = await orgQuery;
     if (hospListErr) throw hospListErr;
 
     // Check if client only wants organizations list (light request)
     const organizationsOnly = searchParams.get('organizationsOnly') === 'true';
     if (organizationsOnly) {
       return NextResponse.json({ organizations: organizationsList });
+    }
+
+    if (Array.isArray(scopedProjectIds) && scopedProjectIds.length === 0) {
+      return NextResponse.json({
+        organizations: [],
+        organizationStats: [],
+        issueStats: [],
+        subjectStats: [],
+        staffStats: [],
+        heatmap: Array.from({ length: 7 }, () => Array.from({ length: 24 }, () => 0)),
+        totalTickets: 0,
+      });
     }
 
     // Determine date range based on preset
@@ -64,6 +89,9 @@ export async function GET(req: Request) {
         created_at
       `);
 
+    if (scopedProjectIds && scopedProjectIds.length > 0) {
+      combinedQuery = combinedQuery.in('project_id', scopedProjectIds);
+    }
     if (startDate) combinedQuery = combinedQuery.gte('created_at', startDate);
     if (endDate) combinedQuery = combinedQuery.lte('created_at', endDate);
     if (organizationId && organizationId !== 'all') combinedQuery = combinedQuery.eq('organization_id', organizationId);

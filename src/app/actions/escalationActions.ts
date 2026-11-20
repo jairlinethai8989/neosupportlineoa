@@ -270,7 +270,7 @@ export async function updateEscalatedTicketStatus(
 
     const { data: ticket, error: fetchError } = await supabaseAdmin
       .from('tickets')
-      .select('id, ticket_no, status, assigned_agent_id, resolution_summary')
+      .select('id, ticket_no, status, assigned_agent_id, resolution_summary, project_id')
       .eq('id', handoff.ticket_id)
       .maybeSingle();
 
@@ -354,7 +354,8 @@ export async function updateEscalatedTicketStatus(
       `สถานะใหม่: ${nextStatus}\n` +
       `ผู้รายงาน: ${reporter}\n` +
       `รายละเอียด: ${notesPreview}\n` +
-      `ตรวจสอบ/ปิดงาน: ${APP_BASE_URL}/tickets/${ticketRow.id}`
+      `ตรวจสอบ/ปิดงาน: ${APP_BASE_URL}/tickets/${ticketRow.id}`,
+      (ticket as { project_id?: string | null }).project_id || null
     );
 
     if (ticketRow.assigned_agent_id) {

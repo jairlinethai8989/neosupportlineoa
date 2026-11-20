@@ -5,15 +5,25 @@ export interface VerifiedLiffIdentity {
   verified: boolean;
 }
 
-function getLineLoginChannelId(): string | null {
+function extractChannelIdFromLiffId(liffId?: string | null): string | null {
+  const trimmed = liffId?.trim();
+  if (trimmed && trimmed.includes('-')) {
+    const channelId = trimmed.split('-')[0]?.trim();
+    if (channelId) return channelId;
+  }
+  return null;
+}
+
+function getLineLoginChannelId(overrideChannelId?: string | null, overrideLiffId?: string | null): string | null {
+  if (overrideChannelId?.trim()) return overrideChannelId.trim();
+  const fromOverrideLiff = extractChannelIdFromLiffId(overrideLiffId);
+  if (fromOverrideLiff) return fromOverrideLiff;
+
   const explicit = process.env.LINE_LOGIN_CHANNEL_ID?.trim();
   if (explicit) return explicit;
 
-  const liffId = process.env.NEXT_PUBLIC_LIFF_ID?.trim();
-  if (liffId && liffId.includes('-')) {
-    const channelId = liffId.split('-')[0]?.trim();
-    if (channelId) return channelId;
-  }
+  const fromEnvLiff = extractChannelIdFromLiffId(process.env.NEXT_PUBLIC_LIFF_ID);
+  if (fromEnvLiff) return fromEnvLiff;
 
   return null;
 }
@@ -27,15 +37,17 @@ function isMockLiffAllowed(): boolean {
 
 /**
  * Verifies a LINE LIFF ID token against LINE's OAuth2 verify endpoint.
- * In development / mock mode, falls back to client-supplied lineUserId when no idToken is present.
+ * Supports per-project channelId / liffId overrides for Multi-LINE OA portals.
  */
 export async function verifyLiffIdentity(input: {
   lineUserId?: string | null;
   idToken?: string | null;
+  channelId?: string | null;
+  liffId?: string | null;
 }): Promise<VerifiedLiffIdentity> {
   const trimmedToken = input.idToken?.trim();
   const fallbackUserId = input.lineUserId?.trim();
-  const channelId = getLineLoginChannelId();
+  const channelId = getLineLoginChannelId(input.channelId, input.liffId);
 
   if (trimmedToken && channelId) {
     const body = new URLSearchParams({

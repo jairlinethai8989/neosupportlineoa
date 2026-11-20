@@ -86,7 +86,7 @@ async function loadHtml2Canvas() {
  * 2. Main Analytics Page
  */
 export default function AdvancedAnalyticsPage() {
-  const { userProfile } = useAppContext();
+  const { userProfile, effectiveProjectIds, selectedProjectId, projectsLoaded } = useAppContext();
   
   // Tab permissions
   const showSupervisorTabs = useMemo(() => {
@@ -112,15 +112,31 @@ export default function AdvancedAnalyticsPage() {
   });
 
   const fetcher = async () => {
+    if (Array.isArray(effectiveProjectIds) && effectiveProjectIds.length === 0) {
+      return {
+        total_records: 0,
+        status_data: [],
+        priority_data: [],
+        trend_data: [],
+        category_data: [],
+        peak_data: [],
+        resolution_data: [],
+        csat_data: [],
+        sla_data: [],
+      };
+    }
     const { data, error } = await supabase.rpc('get_analytics_dashboard_v2', {
       start_date: dateRange.start,
-      end_date: dateRange.end
+      end_date: dateRange.end,
+      p_project_ids: effectiveProjectIds,
     });
     if (error) throw error;
     return data;
   };
 
-  const currentKey = `analytics_${dateRange.start}_${dateRange.end}`;
+  const currentKey = projectsLoaded
+    ? `analytics_${dateRange.start}_${dateRange.end}_${selectedProjectId}_${(effectiveProjectIds || []).join(',')}`
+    : null;
   const { data: aggregatedData, isLoading: isSwrLoading } = useSWR(currentKey, fetcher);
   const loading = isSwrLoading && !aggregatedData;
 

@@ -164,12 +164,17 @@ const PortalSurveyModal = React.memo(function PortalSurveyModal({
 interface PortalTicketCardProps {
   ticket: any;
   isPast?: boolean;
+  projectQuery?: string;
 }
 
-const PortalTicketCard = React.memo(function PortalTicketCard({ ticket, isPast = false }: PortalTicketCardProps) {
+const PortalTicketCard = React.memo(function PortalTicketCard({
+  ticket,
+  isPast = false,
+  projectQuery = '',
+}: PortalTicketCardProps) {
   if (isPast) {
     return (
-      <Link href={`/portal/tickets/${ticket.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
+      <Link href={`/portal/tickets/${ticket.id}${projectQuery}`} style={{ textDecoration: 'none', color: 'inherit' }}>
         <div className="portal-glass" style={{ padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'white', border: '1px solid rgba(0,0,0,0.02)' }}>
           <div>
             <p style={{ fontSize: '14px', fontWeight: '800', color: '#1e293b' }}>#{ticket.ticket_no}</p>
@@ -218,7 +223,7 @@ const PortalTicketCard = React.memo(function PortalTicketCard({ ticket, isPast =
   const statusLabel = statusLower === 'fix completed' ? 'รอตรวจสอบ (Fix Completed)' : ticket.status;
 
   return (
-    <Link href={`/portal/tickets/${ticket.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
+    <Link href={`/portal/tickets/${ticket.id}${projectQuery}`} style={{ textDecoration: 'none', color: 'inherit' }}>
       <div className="portal-glass" style={{ padding: '16px', background: 'white' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div style={{ flex: 1, minWidth: 0 }}>
@@ -244,7 +249,13 @@ const PortalTicketCard = React.memo(function PortalTicketCard({ ticket, isPast =
 });
 
 export default function PortalPage() {
-  const { profile, isReady, error: liffError, setMockLogin } = useLiff();
+  const { profile, isReady, error: liffError, projectConfig, projectOrganizations, setMockLogin } = useLiff();
+  const projectQuery =
+    projectConfig && !projectConfig.is_default && projectConfig.slug
+      ? `?project=${encodeURIComponent(projectConfig.slug)}`
+      : '';
+  const realProjectId =
+    projectConfig?.id && projectConfig.id !== 'default-env-fallback' ? projectConfig.id : null;
   const [activeTickets, setActiveTickets] = useState<any[]>([]);
   const [pastTickets, setPastTickets] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -356,11 +367,14 @@ export default function PortalPage() {
       let customer: any = customerDataRef.current;
 
       if (!customerId || !customer?.organization_id) {
-        const { data } = await supabase
+        let custQuery = supabase
           .from('customers')
           .select('*, organizations(name, abbreviation)')
-          .eq('line_user_id', profile.userId)
-          .maybeSingle();
+          .eq('line_user_id', profile.userId);
+        if (realProjectId) {
+          custQuery = custQuery.eq('project_id', realProjectId);
+        }
+        const { data } = await custQuery.limit(1).maybeSingle();
         customer = data;
         if (customer?.id) {
           customerIdRef.current = customer.id;
@@ -420,7 +434,7 @@ export default function PortalPage() {
       inFlightRef.current = false;
       setFetching(false);
     }
-  }, [profile?.userId, refreshPendingSurvey]);
+  }, [profile?.userId, realProjectId, refreshPendingSurvey]);
   // NOTE: historyPage/debouncedSearchQuery intentionally excluded — read via refs to keep callback stable
 
   // Trigger re-fetch when historyPage or debouncedSearchQuery changes (without recreating fetchTickets)
@@ -674,7 +688,9 @@ export default function PortalPage() {
 
       <div style={{ marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
          <div>
-            <p style={{ color: 'var(--portal-primary)', fontWeight: '700', letterSpacing: '0.5px', textTransform: 'uppercase', fontSize: '10px', marginBottom: '4px' }}>Support Portal</p>
+            <p style={{ color: projectConfig?.primary_color || 'var(--portal-primary)', fontWeight: '700', letterSpacing: '0.5px', textTransform: 'uppercase', fontSize: '10px', marginBottom: '4px' }}>
+              {projectConfig?.name || 'Support Portal'}
+            </p>
             <h2 style={{ fontSize: '22px', fontWeight: '800', color: '#0f172a' }}>สวัสดี, {profile?.displayName?.split(' ')[0] || 'คุณลูกค้า'}</h2>
          </div>
           <div style={{ display: 'flex', gap: '10px' }}>
@@ -688,7 +704,7 @@ export default function PortalPage() {
       </div>
 
       <section style={{ marginBottom: '32px' }}>
-         <Link href="/portal/create" style={{ textDecoration: 'none' }}>
+         <Link href={`/portal/create${projectQuery}`} style={{ textDecoration: 'none' }}>
             <div className="portal-btn-primary" style={{ 
                padding: '16px', 
                borderRadius: '12px',
@@ -717,7 +733,7 @@ export default function PortalPage() {
          ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                 {activeTickets.map(ticket => (
-                  <PortalTicketCard key={ticket.id} ticket={ticket} />
+                  <PortalTicketCard key={ticket.id} ticket={ticket} projectQuery={projectQuery} />
                 ))}
             </div>
          )}
@@ -767,7 +783,7 @@ export default function PortalPage() {
           <>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                {pastTickets.map(ticket => (
-                  <PortalTicketCard key={ticket.id} ticket={ticket} isPast />
+                  <PortalTicketCard key={ticket.id} ticket={ticket} isPast projectQuery={projectQuery} />
                ))}
             </div>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginTop: '24px' }}>
@@ -819,6 +835,8 @@ export default function PortalPage() {
       <ProfileRegistrationModal 
           isOpen={needsRegistration || isEditModalOpen} 
           profile={profile}
+          projectConfig={projectConfig}
+          projectOrganizations={projectOrganizations}
           existingCustomer={customerData}
           onComplete={() => {
               setNeedsRegistration(false);

@@ -19,6 +19,13 @@ export interface InboxConversation {
   last_message_at: string | null;
   customer_id: string | null;
   current_ticket_id?: string | null;
+  project_id?: string | null;
+  projects?: {
+    id: string;
+    name: string | null;
+    code: string | null;
+    primary_color?: string | null;
+  } | null;
   is_active?: boolean | null;
   customers?: InboxCustomer | null;
   ticket_data?: {
@@ -40,6 +47,7 @@ export interface InboxMessage {
   message_type: string | null;
   media_path?: string | null;
   media_mime_type?: string | null;
+  is_internal?: boolean;
   created_at: string;
 }
 

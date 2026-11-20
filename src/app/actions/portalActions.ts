@@ -1,22 +1,29 @@
 'use server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
-import { notifyStaffGroupIfConfigured } from '@/lib/utils/lineNotifications';
+import {
+  notifyStaffGroupIfConfigured,
+  shouldNotifyStaffGroupOnMessage,
+} from '@/lib/utils/lineNotifications';
 import { verifyLiffIdentity } from '@/lib/auth/verifyLiffToken';
 import { calculateSlaDeadline } from '@/lib/utils/slaUtils';
 import { invalidateAllLiveCaches } from '@/lib/cache/liveCache';
 import { invalidateAllPreviewCaches } from '@/lib/reports/previewCache';
+import { resolveProjectById, resolveProjectBySlug } from '@/lib/projects/projectResolver';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const APP_BASE_URL = (process.env.NEXT_PUBLIC_APP_URL || 'https://neoworkspace.vercel.app').replace(/\/$/, '');
 
 /**
  * Securely creates a new support ticket from the Customer Portal.
- * Verifies LINE LIFF ID token server-side, calculates SLA, creates ticket/conversation/messages,
- * and pushes a notification to the internal LINE staff group if configured.
+ * Verifies LINE LIFF ID token server-side against the project's LINE channel,
+ * calculates hybrid SLA, creates ticket/conversation/messages scoped by project_id,
+ * and pushes a notification to the project's internal LINE staff group if configured.
  */
 export async function createPortalTicketAction(input: {
   lineUserId?: string | null;
   idToken?: string | null;
+  projectId?: string | null;
+  projectSlug?: string | null;
   subject: string;
   description: string;
   attachmentUrl?: string | null;
@@ -26,16 +33,28 @@ export async function createPortalTicketAction(input: {
   if (!subject) throw new Error('กรุณาเลือกหัวข้อปัญหา');
   if (!description) throw new Error('กรุณาระบุรายละเอียดเพิ่มเติม');
 
+  const project = input.projectId
+    ? await resolveProjectById(input.projectId)
+    : await resolveProjectBySlug(input.projectSlug);
+  const realProjectId = project && project.id !== 'default-env-fallback' ? project.id : null;
+
   const identity = await verifyLiffIdentity({
     lineUserId: input.lineUserId,
     idToken: input.idToken,
+    channelId: project?.line_channel_id,
+    liffId: project?.line_liff_id,
   });
 
-  const { data: customer, error: customerError } = await supabaseAdmin
+  let customerQuery = supabaseAdmin
     .from('customers')
-    .select('id, display_name, organization_id, department_id, organizations(name, abbreviation)')
-    .eq('line_user_id', identity.lineUserId)
-    .maybeSingle();
+    .select('id, display_name, organization_id, department_id, project_id, organizations(name, abbreviation)')
+    .eq('line_user_id', identity.lineUserId);
+
+  if (realProjectId) {
+    customerQuery = customerQuery.eq('project_id', realProjectId);
+  }
+
+  const { data: customer, error: customerError } = await customerQuery.limit(1).maybeSingle();
 
   if (customerError || !customer) {
     throw new Error('ไม่พบข้อมูลลูกค้าในระบบ กรุณาลงทะเบียนก่อนใช้งาน');
@@ -44,10 +63,12 @@ export async function createPortalTicketAction(input: {
     throw new Error('กรุณาลงทะเบียนหน่วยงานก่อนเปิดใบงาน');
   }
 
+  const effectiveProjectId = (customer as { project_id?: string | null }).project_id || realProjectId;
+
   const orgRel = Array.isArray(customer.organizations)
     ? customer.organizations[0]
     : customer.organizations;
-  const hospitalAbbr = (orgRel as { abbreviation?: string | null } | null)?.abbreviation || 'NEO';
+  const hospitalAbbr = (orgRel as { abbreviation?: string | null } | null)?.abbreviation || project?.code || 'NEO';
   const orgName = (orgRel as { name?: string | null } | null)?.name || 'ไม่ระบุหน่วยงาน';
 
   const now = new Date();
@@ -57,11 +78,18 @@ export async function createPortalTicketAction(input: {
 
   let slaDueAt: string | null = null;
   try {
-    const { data: slaRule } = await supabaseAdmin
+    let slaQuery = supabaseAdmin
       .from('sla_rules')
-      .select('response_time_minutes, resolution_time_minutes')
-      .eq('priority', 'Medium')
-      .maybeSingle();
+      .select('response_time_minutes, resolution_time_minutes, project_id')
+      .eq('priority', 'Medium');
+
+    if (effectiveProjectId) {
+      slaQuery = slaQuery.or(`project_id.is.null,project_id.eq.${effectiveProjectId}`);
+    }
+
+    const { data: slaRules } = await slaQuery;
+    const projectSpecificRule = (slaRules || []).find((r) => r.project_id === effectiveProjectId);
+    const slaRule = projectSpecificRule || (slaRules || [])[0] || null;
 
     if (slaRule) {
       const duration = slaRule.resolution_time_minutes || slaRule.response_time_minutes || 60;
@@ -71,20 +99,25 @@ export async function createPortalTicketAction(input: {
     console.warn('Portal create SLA calculation skipped:', slaErr);
   }
 
+  const ticketInsertPayload: Record<string, unknown> = {
+    ticket_no: ticketNo,
+    customer_id: customer.id,
+    organization_id: customer.organization_id,
+    current_department_id: customer.department_id,
+    subject,
+    description,
+    status: 'New',
+    priority: 'Medium',
+    created_at: now.toISOString(),
+    sla_due_at: slaDueAt,
+  };
+  if (effectiveProjectId) {
+    ticketInsertPayload.project_id = effectiveProjectId;
+  }
+
   const { data: createdTicket, error: ticketError } = await supabaseAdmin
     .from('tickets')
-    .insert([{
-      ticket_no: ticketNo,
-      customer_id: customer.id,
-      organization_id: customer.organization_id,
-      current_department_id: customer.department_id,
-      subject,
-      description,
-      status: 'New',
-      priority: 'Medium',
-      created_at: now.toISOString(),
-      sla_due_at: slaDueAt,
-    }])
+    .insert([ticketInsertPayload])
     .select()
     .single();
 
@@ -92,14 +125,19 @@ export async function createPortalTicketAction(input: {
     throw new Error(`Ticket Creation Failed: ${ticketError?.message || 'Unknown error'}`);
   }
 
+  const convInsertPayload: Record<string, unknown> = {
+    customer_id: customer.id,
+    status: 'active',
+    current_ticket_id: createdTicket.id,
+    last_message_at: now.toISOString(),
+  };
+  if (effectiveProjectId) {
+    convInsertPayload.project_id = effectiveProjectId;
+  }
+
   const { data: newConv } = await supabaseAdmin
     .from('conversations')
-    .insert([{
-      customer_id: customer.id,
-      status: 'active',
-      current_ticket_id: createdTicket.id,
-      last_message_at: now.toISOString(),
-    }])
+    .insert([convInsertPayload])
     .select('id')
     .single();
 
@@ -114,6 +152,8 @@ export async function createPortalTicketAction(input: {
         customer_id: customer.id,
         message_type: 'image',
         content: input.attachmentUrl,
+        media_path: input.attachmentUrl,
+        is_internal: false,
       }]);
     }
 
@@ -124,21 +164,23 @@ export async function createPortalTicketAction(input: {
       customer_id: customer.id,
       message_type: 'text',
       content: description,
+      is_internal: false,
     }]);
   }
 
   invalidateAllLiveCaches();
   invalidateAllPreviewCaches();
 
-  // Notify internal LINE staff group (non-blocking)
   const preview = description.length > 140 ? `${description.slice(0, 140)}...` : description;
+  const projectLabel = project?.name ? `[${project.name}] ` : '';
   void notifyStaffGroupIfConfigured(
-    `🆕 ใบงานใหม่ #${ticketNo}\n` +
+    `🆕 ${projectLabel}ใบงานใหม่ #${ticketNo}\n` +
     `หน่วยงาน: ${orgName}\n` +
     `ผู้แจ้ง: ${customer.display_name || 'ลูกค้า'}\n` +
     `หัวข้อ: ${subject}\n` +
     `รายละเอียด: ${preview}\n` +
-    `เปิดดู: ${APP_BASE_URL}/tickets/${createdTicket.id}`
+    `เปิดดู: ${APP_BASE_URL}/tickets/${createdTicket.id}`,
+    effectiveProjectId
   );
 
   return { ticket: createdTicket };
@@ -146,8 +188,8 @@ export async function createPortalTicketAction(input: {
 
 /**
  * Securely sends a message from the Portal (Customer side).
- * Verifies LINE LIFF ID token and ticket ownership before inserting.
- * After successful insert, pushes a LINE notification to the internal staff group.
+ * Verifies LINE LIFF ID token against the ticket's project channel and checks ticket ownership.
+ * Optionally pushes LINE staff group alert only when the project enables message-level alerts.
  */
 export async function sendPortalMessageAction(
   ticketId: string,
@@ -160,31 +202,41 @@ export async function sendPortalMessageAction(
     throw new Error('Missing required fields');
   }
 
-  const identity = await verifyLiffIdentity({
-    lineUserId,
-    idToken,
-  });
-
-  // 1. Verify Ownership — find customer by verified line_user_id
-  const { data: customer, error: customerError } = await supabaseAdmin
-    .from('customers')
-    .select('id, display_name')
-    .eq('line_user_id', identity.lineUserId)
-    .single();
-
-  if (customerError || !customer) {
-    throw new Error('Unauthorized: Customer not found');
-  }
-
-  // 2. Verify ticket belongs to this customer
+  // 1. Resolve ticket first so we can verify LIFF token against the ticket's project channel
   const { data: ticket, error: ticketError } = await supabaseAdmin
     .from('tickets')
-    .select('id, customer_id, ticket_no')
+    .select('id, customer_id, ticket_no, project_id')
     .eq('id', ticketId)
     .single();
 
   if (ticketError || !ticket) {
     throw new Error('Ticket not found');
+  }
+
+  const projectId = (ticket as { project_id?: string | null }).project_id || null;
+  const project = projectId ? await resolveProjectById(projectId) : await resolveProjectBySlug(null);
+
+  const identity = await verifyLiffIdentity({
+    lineUserId,
+    idToken,
+    channelId: project?.line_channel_id,
+    liffId: project?.line_liff_id,
+  });
+
+  // 2. Verify Ownership — find customer by verified line_user_id within this project
+  let customerQuery = supabaseAdmin
+    .from('customers')
+    .select('id, display_name')
+    .eq('line_user_id', identity.lineUserId);
+
+  if (projectId) {
+    customerQuery = customerQuery.eq('project_id', projectId);
+  }
+
+  const { data: customer, error: customerError } = await customerQuery.limit(1).maybeSingle();
+
+  if (customerError || !customer) {
+    throw new Error('Unauthorized: Customer not found');
   }
 
   if (ticket.customer_id !== customer.id) {
@@ -207,7 +259,9 @@ export async function sendPortalMessageAction(
       sender_type: 'customer',
       customer_id: customer.id,
       content: content,
+      media_path: messageType !== 'text' ? content : null,
       message_type: messageType,
+      is_internal: false,
     }])
     .select()
     .single();
@@ -224,19 +278,24 @@ export async function sendPortalMessageAction(
       .eq('id', conversation.id);
   }
 
-  // 6. Push notification to internal LINE staff group (non-blocking)
-  const preview =
-    messageType === 'text'
-      ? content.length > 120
-        ? `${content.slice(0, 120)}...`
-        : content
-      : `[ส่งไฟล์แนบ: ${messageType}]`;
-  void notifyStaffGroupIfConfigured(
-    `💬 ข้อความใหม่จากลูกค้า (#${ticket.ticket_no})\n` +
-    `จาก: ${customer.display_name || 'ลูกค้า'}\n` +
-    `ข้อความ: ${preview}\n` +
-    `ตอบกลับ: ${APP_BASE_URL}/inbox?tid=${ticket.id}`
-  );
+  // 6. Push notification to internal LINE staff group only if project enabled routine message alerts
+  const shouldNotify = await shouldNotifyStaffGroupOnMessage(projectId);
+  if (shouldNotify) {
+    const preview =
+      messageType === 'text'
+        ? content.length > 120
+          ? `${content.slice(0, 120)}...`
+          : content
+        : `[ส่งไฟล์แนบ: ${messageType}]`;
+    const projectLabel = project?.name ? `[${project.name}] ` : '';
+    void notifyStaffGroupIfConfigured(
+      `💬 ${projectLabel}ข้อความใหม่จากลูกค้า (#${ticket.ticket_no})\n` +
+      `จาก: ${customer.display_name || 'ลูกค้า'}\n` +
+      `ข้อความ: ${preview}\n` +
+      `ตอบกลับ: ${APP_BASE_URL}/inbox?tid=${ticket.id}`,
+      projectId
+    );
+  }
 
   return message;
 }

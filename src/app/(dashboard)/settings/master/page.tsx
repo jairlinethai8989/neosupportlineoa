@@ -36,7 +36,10 @@ export default function MasterSettingsPage() {
     refreshData,
     userProfile,
     ensureOrganizations,
-    ensureDepartments
+    ensureDepartments,
+    projects,
+    activeProject,
+    selectedProjectId,
   } = useAppContext();
 
   useEffect(() => {
@@ -64,6 +67,7 @@ export default function MasterSettingsPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [newItemName, setNewItemName] = useState('');
   const [newItemAbbr, setNewItemAbbr] = useState('');
+  const [newItemProjectId, setNewItemProjectId] = useState<string>('');
   const [editItemName, setEditItemName] = useState('');
   const [editItemAbbr, setEditItemAbbr] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -130,7 +134,14 @@ export default function MasterSettingsPage() {
     setIsAdding(false);
     setEditingId(null);
     setNewItemName('');
-  }, [fetchData]);
+    if (activeTab === 'organizations') {
+      setNewItemProjectId(activeProject?.id || projects[0]?.id || '');
+    } else {
+      setNewItemProjectId(selectedProjectId !== 'all' ? selectedProjectId : '');
+    }
+  }, [activeTab, activeProject?.id, fetchData, projects, selectedProjectId]);
+
+  const isProjectScopedTab = ['organizations', 'modules', 'issue_types', 'subject_types'].includes(activeTab);
 
   const handleAdd = async () => {
     if (!newItemName.trim()) return;
@@ -145,6 +156,9 @@ export default function MasterSettingsPage() {
     if (activeTab === 'organizations') {
       payload.abbreviation = newItemAbbr.trim() || newItemName.slice(0, 10).toUpperCase();
       payload.ticket_prefix = `SRS_${payload.abbreviation}_`;
+      if (newItemProjectId) payload.project_id = newItemProjectId;
+    } else if (isProjectScopedTab) {
+      payload.project_id = newItemProjectId || null;
     }
 
     if (activeTab === 'line_groups') {
@@ -380,6 +394,23 @@ export default function MasterSettingsPage() {
                    />
                  )}
 
+                 {isProjectScopedTab && projects.length > 0 && (
+                   <select
+                     value={newItemProjectId}
+                     onChange={(e) => setNewItemProjectId(e.target.value)}
+                     style={{ flex: 1, minWidth: '170px', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', borderRadius: '12px', padding: '14px 20px', color: 'var(--text-main)', fontSize: '14px', outline: 'none', cursor: 'pointer' }}
+                   >
+                     {activeTab !== 'organizations' && (
+                       <option value="">ใช้ร่วมทุกโครงการ (Global)</option>
+                     )}
+                     {projects.map((p) => (
+                       <option key={p.id} value={p.id}>
+                         {p.code} • {p.name}
+                       </option>
+                     ))}
+                   </select>
+                 )}
+
                  {activeTab === 'hospital_depts' && (
                    <select
                      value=""
@@ -452,6 +483,22 @@ export default function MasterSettingsPage() {
                                     {item.abbreviation}
                                   </span>
                                 )}
+                                {isProjectScopedTab && projects.length > 0 && (() => {
+                                  const proj = projects.find((p) => p.id === item.project_id);
+                                  if (!proj && activeTab !== 'organizations') {
+                                    return (
+                                      <span style={{ fontSize: '10px', fontWeight: '800', padding: '2px 7px', borderRadius: '6px', background: 'rgba(16,185,129,0.12)', color: '#10b981' }}>
+                                        GLOBAL
+                                      </span>
+                                    );
+                                  }
+                                  if (!proj) return null;
+                                  return (
+                                    <span style={{ fontSize: '10px', fontWeight: '800', padding: '2px 7px', borderRadius: '6px', background: `${proj.primary_color || '#0066ff'}20`, color: proj.primary_color || '#0066ff' }}>
+                                      {proj.code}
+                                    </span>
+                                  );
+                                })()}
                                 {(activeTab === 'line_groups' && item.group_id) && (
                                   <span style={{ fontSize: '11px', background: 'rgba(255,255,255,0.1)', padding: '2px 6px', borderRadius: '4px', color: 'var(--primary)' }}>
                                     {item.group_id}

@@ -239,7 +239,16 @@ export default function TicketDetailPage() {
   const { id } = useParams();
   const ticketId = Array.isArray(id) ? id[0] : id;
   const router = useRouter();
-  const { isReady, profile, getIdToken, error: liffError, setMockLogin } = useLiff();
+  const { isReady, profile, projectConfig, getIdToken, error: liffError, setMockLogin } = useLiff();
+  const projectSlugParam =
+    projectConfig && !projectConfig.is_default && projectConfig.slug
+      ? `project=${encodeURIComponent(projectConfig.slug)}`
+      : '';
+  const portalHomeUrl = projectSlugParam ? `/portal?${projectSlugParam}` : '/portal';
+  const buildSurveyRedirectUrl = (tid: string) =>
+    projectSlugParam
+      ? `/portal?${projectSlugParam}&survey_ticket_id=${tid}`
+      : `/portal?survey_ticket_id=${tid}`;
   const [ticket, setTicket] = useState<any | null>(null);
   const [logs, setLogs] = useState<any[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -335,13 +344,16 @@ export default function TicketDetailPage() {
            return;
         }
 
-        // SECURITY: Verify owner customer ID mapping with profile.userId
+        // SECURITY: Verify owner customer ID mapping with profile.userId (scoped by project_id)
         if (profile?.userId && ticketData.customer_id) {
-          const { data: ownerCustomer } = await supabase
+          let ownerQuery = supabase
             .from('customers')
             .select('id')
-            .eq('line_user_id', profile.userId)
-            .maybeSingle();
+            .eq('line_user_id', profile.userId);
+          if (ticketData.project_id) {
+            ownerQuery = ownerQuery.eq('project_id', ticketData.project_id);
+          }
+          const { data: ownerCustomer } = await ownerQuery.limit(1).maybeSingle();
 
           if (!ownerCustomer || ownerCustomer.id !== ticketData.customer_id) {
             console.warn('Access denied: user does not own this ticket');
@@ -382,7 +394,10 @@ export default function TicketDetailPage() {
         }
 
         const loadMessages = async (cidToUse: string | null) => {
-          let messagesQuery = supabase.from('messages').select('id, content, media_path, media_mime_type, sender_type, message_type, created_at, ticket_id, conversation_id');
+          let messagesQuery = supabase
+            .from('messages')
+            .select('id, content, media_path, media_mime_type, sender_type, message_type, is_internal, created_at, ticket_id, conversation_id')
+            .neq('is_internal', true);
           if (cidToUse) {
             messagesQuery = messagesQuery.or(`ticket_id.eq.${ticketId},conversation_id.eq.${cidToUse}`);
           } else {
@@ -404,7 +419,7 @@ export default function TicketDetailPage() {
           !surveyState.responded &&
           isSurveyEligibleStatus(ticketData.status)
         ) {
-          router.push(`/portal?survey_ticket_id=${ticketId}`);
+          router.push(buildSurveyRedirectUrl(ticketId));
         }
 
       } catch (err: any) {
@@ -436,7 +451,8 @@ export default function TicketDetailPage() {
       const cid = conversationIdRef.current;
       let q = supabase
         .from('messages')
-        .select('id, content, media_path, media_mime_type, sender_type, message_type, created_at, ticket_id, conversation_id');
+        .select('id, content, media_path, media_mime_type, sender_type, message_type, is_internal, created_at, ticket_id, conversation_id')
+        .neq('is_internal', true);
       q = cid
         ? q.or(`ticket_id.eq.${ticketId},conversation_id.eq.${cid}`)
         : q.eq('ticket_id', ticketId);
@@ -447,6 +463,7 @@ export default function TicketDetailPage() {
 
     // Helper: deduplicated message insert handler
     const handleMessageInsert = (msg: any) => {
+      if (msg?.is_internal) return;
       setMessages(prev => {
         if (prev.some(m => m.id === msg.id)) return prev;
         if (msg.sender_type === 'customer') {
@@ -540,7 +557,7 @@ export default function TicketDetailPage() {
           .order('created_at', { ascending: false })
           .then(({ data }: any) => { if (data) setLogs(data); });
         if (isSurveyEligibleStatus(nextTicket?.status) && !hasRespondedRef.current) {
-          router.push(`/portal?survey_ticket_id=${ticketId}`);
+          router.push(buildSurveyRedirectUrl(ticketId));
         }
       })
 
@@ -625,13 +642,16 @@ export default function TicketDetailPage() {
   }, [loadSurveyState, ticketId]);
 
   useEffect(() => {
-    if (isSurveyEligibleStatus(ticket?.status) && !hasResponded) {
+    if (isSurveyEligibleStatus(ticket?.status) && !hasResponded && ticketId) {
+      const targetUrl = projectSlugParam
+        ? `/portal?${projectSlugParam}&survey_ticket_id=${ticketId}`
+        : `/portal?survey_ticket_id=${ticketId}`;
       const timer = setTimeout(() => {
-        router.push(`/portal?survey_ticket_id=${ticketId}`);
+        router.push(targetUrl);
       }, 1500);
       return () => clearTimeout(timer);
     }
-  }, [ticket?.status, hasResponded, ticketId, router]);
+  }, [ticket?.status, hasResponded, ticketId, projectSlugParam, router]);
 
   const handleEditExistingImage = (url: string) => {
     setViewingImage(url);
@@ -742,7 +762,7 @@ export default function TicketDetailPage() {
      <div className="flex-center" style={{ height: '100vh', background: '#fbfcfd', color: '#1e293b', flexDirection: 'column', gap: '16px' }}>
         <AlertCircle size={48} color="#ef4444" />
         <h2 style={{ fontSize: '18px', fontWeight: '800' }}>ไม่พบข้อมูลใบงาน</h2>
-        <button type="button" onClick={() => router.push('/portal')} style={{ padding: '10px 20px', borderRadius: '8px', border: '1px solid #e2e8f0', background: 'white', color: '#1e293b', cursor: 'pointer' }}>
+        <button type="button" onClick={() => router.push(portalHomeUrl)} style={{ padding: '10px 20px', borderRadius: '8px', border: '1px solid #e2e8f0', background: 'white', color: '#1e293b', cursor: 'pointer' }}>
            กลับสู่หน้าหลัก
         </button>
      </div>
@@ -790,7 +810,7 @@ export default function TicketDetailPage() {
     }
   };
 
-  const filteredMessages = messages.filter((m: any) => m.message_type !== 'unsent');
+  const filteredMessages = messages.filter((m: any) => m.message_type !== 'unsent' && !m.is_internal);
 
   return (
     <div className="portal-container" style={{ animation: 'fadeIn 0.5s ease-out', position: 'relative' }}>
@@ -897,7 +917,7 @@ export default function TicketDetailPage() {
        )}
 
        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px', padding: '0 4px' }}>
-          <button type="button" onClick={() => router.push('/portal')} style={{ padding: '8px', borderRadius: '12px', border: '1px solid var(--portal-border)', background: 'white', color: '#1e293b', cursor: 'pointer' }}>
+          <button type="button" onClick={() => router.push(portalHomeUrl)} style={{ padding: '8px', borderRadius: '12px', border: '1px solid var(--portal-border)', background: 'white', color: '#1e293b', cursor: 'pointer' }}>
              <ArrowLeft size={18} />
           </button>
           <h2 style={{ fontSize: '18px', fontWeight: '900', color: '#1e293b' }}>ตั๋วเลขที่ #{ticket.ticket_no}</h2>

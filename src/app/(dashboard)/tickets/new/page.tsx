@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { useStaffLocale } from '@/contexts/StaffLocaleContext';
+import { useAppContext } from '@/contexts/AppContext';
 import { getStaffMessage, translateTicketPriority } from '@/lib/i18n/staff';
 import { calculateSlaDeadline } from '@/lib/utils/slaUtils';
 import { compressImage } from '@/lib/utils/imageCompression';
@@ -25,8 +26,10 @@ import { compressImage } from '@/lib/utils/imageCompression';
 export default function CreateInternalTicketPage() {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { projects, activeProject, ensureOrganizations, organizations: contextOrgs } = useAppContext();
   
   // Form State
+  const [selectedProjectId, setSelectedProjectId] = useState('');
   const [selectedHospitalId, setSelectedHospitalId] = useState('');
   const [subject, setSubject] = useState('');
   const [description, setDescription] = useState('');
@@ -42,6 +45,16 @@ export default function CreateInternalTicketPage() {
   const [staffProfile, setStaffProfile] = useState<any>(null);
 
   useEffect(() => {
+    if (!selectedProjectId && (activeProject?.id || projects[0]?.id)) {
+      setSelectedProjectId(activeProject?.id || projects[0]?.id || '');
+    }
+  }, [activeProject?.id, projects, selectedProjectId]);
+
+  useEffect(() => {
+    void ensureOrganizations();
+  }, [ensureOrganizations]);
+
+  useEffect(() => {
     async function init() {
       // 1. Get Current Staff Profile
       const { data: { user } } = await supabase.auth.getUser();
@@ -50,18 +63,25 @@ export default function CreateInternalTicketPage() {
         setStaffProfile(p);
       }
 
-      // 2. Fetch Organizations and Ticket Subject Types
+      // 2. Fetch Organizations and Hybrid Ticket Subject Types
+      let orgQuery = supabase.from('organizations').select('*').eq('is_active', true).order('name', { ascending: true });
+      let subjectQuery = supabase.from('ticket_subject_types').select('name').eq('is_active', true).order('name', { ascending: true });
+      if (selectedProjectId) {
+        orgQuery = orgQuery.eq('project_id', selectedProjectId);
+        subjectQuery = subjectQuery.or(`project_id.is.null,project_id.eq.${selectedProjectId}`);
+      }
+
       const [{ data: hData }, { data: subjectsRes }] = await Promise.all([
-        supabase.from('organizations').select('*').eq('is_active', true).order('name', { ascending: true }),
-        supabase.from('ticket_subject_types').select('name').eq('is_active', true).order('name', { ascending: true })
+        orgQuery,
+        subjectQuery,
       ]);
       
-      setOrganizations(hData || []);
+      setOrganizations((hData && hData.length > 0 ? hData : contextOrgs) || []);
       const subjects = subjectsRes?.map((s: any) => s.name) || [];
       setSubjectTypes(subjects.length > 0 ? subjects : ['ลบ', 'แก้ไขออเดอร์', 'แจ้ง error', 'เรื่องอื่นๆ']);
     }
     init();
-  }, []);
+  }, [contextOrgs, selectedProjectId]);
 
   const { locale } = useStaffLocale();
 
@@ -138,27 +158,34 @@ export default function CreateInternalTicketPage() {
         }
       }
 
-      // 2. Find or Create Customer record for this staff member
+      // 2. Find or Create Customer record for this staff member scoped by project
       let staffCustomerId = null;
       if (staffProfile?.id) {
         const staffCustomerKey = `staff_${staffProfile.id}`;
-        const { data: existingCustomer } = await supabase
+        let existingCustQuery = supabase
           .from('customers')
           .select('id')
-          .eq('line_user_id', staffCustomerKey)
-          .maybeSingle();
+          .eq('line_user_id', staffCustomerKey);
+        if (selectedProjectId) {
+          existingCustQuery = existingCustQuery.eq('project_id', selectedProjectId);
+        }
+        const { data: existingCustomer } = await existingCustQuery.limit(1).maybeSingle();
 
         if (existingCustomer) {
           staffCustomerId = existingCustomer.id;
         } else {
+          const customerInsert: Record<string, unknown> = {
+            line_user_id: staffCustomerKey,
+            display_name: `${staffProfile.full_name || 'Staff'} (Internal)`,
+            full_name: staffProfile.full_name || 'Internal Staff',
+            organization_id: selectedHospitalId,
+          };
+          if (selectedProjectId) {
+            customerInsert.project_id = selectedProjectId;
+          }
           const { data: newCustomer } = await supabase
             .from('customers')
-            .insert([{
-              line_user_id: staffCustomerKey,
-              display_name: `${staffProfile.full_name || 'Staff'} (Internal)`,
-              full_name: staffProfile.full_name || 'Internal Staff',
-              organization_id: selectedHospitalId, // Assign to the selected organization
-            }])
+            .insert([customerInsert])
             .select('id')
             .single();
           
@@ -168,22 +195,29 @@ export default function CreateInternalTicketPage() {
         }
       }
 
-      // 3. Generate a temporary Ticket No (if DB trigger is not yet active)
-      // TIC-YYYYMMDD-RAND
+      // 3. Generate a temporary Ticket No
+      const selectedProj = projects.find((p) => p.id === selectedProjectId);
+      const prefix = selectedProj?.code || 'TIC';
       const datePart = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-      const tempNo = `TIC-${datePart}-${Math.floor(1000 + Math.random() * 9000)}`;
+      const tempNo = `${prefix}-${datePart}-${Math.floor(1000 + Math.random() * 9000)}`;
 
-      // 4. Calculate SLA Deadline
+      // 4. Calculate SLA Deadline (Hybrid: prefer project rule else global)
       let slaDueAt = null;
       try {
-        const { data: slaRule } = await supabase
+        let slaQuery = supabase
           .from('sla_rules')
-          .select('response_time_minutes, resolution_time_minutes')
-          .eq('priority', priority)
-          .maybeSingle();
+          .select('response_time_minutes, resolution_time_minutes, project_id')
+          .eq('priority', priority);
+        if (selectedProjectId) {
+          slaQuery = slaQuery.or(`project_id.is.null,project_id.eq.${selectedProjectId}`);
+        }
+        const { data: slaRules } = await slaQuery;
+        const slaRule =
+          (slaRules || []).find((r: any) => r.project_id === selectedProjectId) ||
+          (slaRules || [])[0] ||
+          null;
         
         if (slaRule) {
-          // Use resolution_time_minutes as the primary deadline for the dashboard
           const duration = slaRule.resolution_time_minutes || slaRule.response_time_minutes || 60;
           slaDueAt = calculateSlaDeadline(new Date(), duration).toISOString();
         }
@@ -192,7 +226,7 @@ export default function CreateInternalTicketPage() {
       }
 
       // 5. Create Internal Ticket
-      const ticketPayload = {
+      const ticketPayload: Record<string, unknown> = {
         ticket_no: tempNo, 
         customer_id: staffCustomerId, 
         organization_id: selectedHospitalId, 
@@ -202,8 +236,11 @@ export default function CreateInternalTicketPage() {
         priority: priority,
         assigned_agent_id: staffProfile?.id,
         source: 'Internal',
-        sla_due_at: slaDueAt
+        sla_due_at: slaDueAt,
       };
+      if (selectedProjectId) {
+        ticketPayload.project_id = selectedProjectId;
+      }
 
       const { data: newTicket, error: ticketError } = await supabase
         .from('tickets')
@@ -287,6 +324,38 @@ export default function CreateInternalTicketPage() {
             <div className="flex" style={{ padding: '16px', borderRadius: '12px', background: 'rgba(234, 84, 85, 0.1)', color: '#ea5455', border: '1px solid rgba(234, 84, 85, 0.2)', gap: '12px', alignItems: 'center' }}>
               <AlertCircle size={20} />
               <span style={{ fontSize: '14px', fontWeight: '700' }}>{error}</span>
+            </div>
+          )}
+
+          {/* 0. Project Selection */}
+          {projects.length > 0 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <label style={{ fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px' }}>
+                โครงการ (PROJECT)
+              </label>
+              <select
+                value={selectedProjectId}
+                onChange={(e) => {
+                  setSelectedProjectId(e.target.value);
+                  setSelectedHospitalId('');
+                }}
+                style={{
+                  padding: '14px 16px',
+                  borderRadius: '16px',
+                  background: 'var(--bg-card)',
+                  border: '1.5px solid var(--border)',
+                  color: 'var(--text-main)',
+                  fontSize: '15px',
+                  fontWeight: '700',
+                  outline: 'none',
+                }}
+              >
+                {projects.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.code} • {p.name}
+                  </option>
+                ))}
+              </select>
             </div>
           )}
 

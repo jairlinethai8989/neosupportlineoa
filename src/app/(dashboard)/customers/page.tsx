@@ -24,15 +24,45 @@ import {
   FileText,
   MessageSquare,
   Copy,
-  Calendar
+  Calendar,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import Link from 'next/link';
 import Skeleton from '@/components/ui/Skeleton';
 import { getHospitalColorStyles } from '@/lib/inbox/colors';
+import { useAppContext } from '@/contexts/AppContext';
 import useSWR from 'swr';
 
+const CUSTOMERS_PAGE_SIZE = 30;
+
 export default function CustomersPage() {
-  const fetcher = async (): Promise<any[]> => {
+  const { effectiveProjectIds, selectedProjectId, projectsLoaded } = useAppContext();
+  const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [page, setPage] = useState(1);
+  const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' }>({ key: 'created_at', direction: 'desc' });
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchTerm.trim());
+      setPage(1);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [selectedProjectId]);
+
+  const fetcher = async (): Promise<{ rows: any[]; totalCount: number }> => {
+    if (Array.isArray(effectiveProjectIds) && effectiveProjectIds.length === 0) {
+      return { rows: [], totalCount: 0 };
+    }
+
+    const from = (page - 1) * CUSTOMERS_PAGE_SIZE;
+    const to = from + CUSTOMERS_PAGE_SIZE - 1;
+
     const customerListSelect = `
       id,
       display_name,
@@ -40,46 +70,74 @@ export default function CustomersPage() {
       line_username,
       line_user_id,
       avatar_url,
+      project_id,
       organization_id,
       department_id,
       position_id,
       status,
       created_at,
+      projects:project_id (id, name, code, primary_color),
       organizations (name),
       departments (name),
       positions (name)
     `;
 
-    // Fetch explicit columns (excluding heavy metadata JSON) with safety limit
-    const { data, error: fetchErr } = await supabase
+    let query = supabase
       .from('customers')
-      .select(customerListSelect)
-      .order('created_at', { ascending: false })
-      .limit(300);
+      .select(customerListSelect, { count: 'exact' });
+
+    if (effectiveProjectIds && effectiveProjectIds.length > 0) {
+      query = query.in('project_id', effectiveProjectIds);
+    }
+
+    if (debouncedSearch) {
+      query = query.or(
+        `display_name.ilike.%${debouncedSearch}%,full_name.ilike.%${debouncedSearch}%,line_username.ilike.%${debouncedSearch}%`
+      );
+    }
+
+    const sortColumn = sortConfig.key === 'display_name' ? 'display_name' : 'created_at';
+    const { data, count, error: fetchErr } = await query
+      .order(sortColumn, { ascending: sortConfig.direction === 'asc' })
+      .range(from, to);
 
     if (fetchErr) {
        console.warn('Initial fetch failed, trying compact fallback:', fetchErr.message);
-       const { data: basicData, error: basicErr } = await supabase
+       let fallbackQuery = supabase
          .from('customers')
-         .select('id, display_name, full_name, line_username, line_user_id, organization_id, department_id, position_id, created_at')
-         .order('created_at', { ascending: false })
-         .limit(300);
+         .select('id, display_name, full_name, line_username, line_user_id, project_id, organization_id, department_id, position_id, created_at', { count: 'exact' });
+
+       if (effectiveProjectIds && effectiveProjectIds.length > 0) {
+         fallbackQuery = fallbackQuery.in('project_id', effectiveProjectIds);
+       }
+       if (debouncedSearch) {
+         fallbackQuery = fallbackQuery.or(
+           `display_name.ilike.%${debouncedSearch}%,full_name.ilike.%${debouncedSearch}%,line_username.ilike.%${debouncedSearch}%`
+         );
+       }
+
+       const { data: basicData, count: basicCount, error: basicErr } = await fallbackQuery
+         .order(sortColumn, { ascending: sortConfig.direction === 'asc' })
+         .range(from, to);
        
        if (basicErr) throw basicErr;
-       return basicData || [];
+       return { rows: basicData || [], totalCount: basicCount || 0 };
     }
-    return data || [];
+    return { rows: data || [], totalCount: count || 0 };
   };
 
-  const { data: customersData, error: swrError, isLoading: isSwrLoading, mutate } = useSWR('customers_list', fetcher);
+  const swrKey = projectsLoaded
+    ? ['customers_list', page, debouncedSearch, sortConfig.key, sortConfig.direction, selectedProjectId, (effectiveProjectIds || []).join(',')]
+    : null;
+  const { data: customersPayload, error: swrError, isLoading: isSwrLoading, mutate } = useSWR(swrKey, fetcher);
   
-  const customers = customersData || [];
-  const loading = isSwrLoading && !customersData;
+  const customers = useMemo(() => customersPayload?.rows || [], [customersPayload?.rows]);
+  const totalCustomersCount = customersPayload?.totalCount || 0;
+  const totalPages = Math.max(1, Math.ceil(totalCustomersCount / CUSTOMERS_PAGE_SIZE));
+  const loading = (!projectsLoaded || isSwrLoading) && !customersPayload;
   const error = swrError?.message || null;
 
-  const [searchTerm, setSearchTerm] = useState('');
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' }>({ key: 'created_at', direction: 'desc' });
 
   // History Modal States
   const [selectedCustomer, setSelectedCustomer] = useState<any | null>(null);
@@ -228,7 +286,7 @@ export default function CustomersPage() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
         <div>
           <h1 style={{ fontSize: '32px', fontWeight: '900', color: 'var(--text-main)', letterSpacing: '-1.5px', marginBottom: '8px' }}>
-            Customer Management <span style={{ color: 'var(--primary)', opacity: 0.8 }}>({customers.length})</span>
+            Customer Management <span style={{ color: 'var(--primary)', opacity: 0.8 }}>({totalCustomersCount})</span>
           </h1>
           <p style={{ color: 'var(--text-muted)', fontSize: '15px' }}>รายชื่อลูกค้าและพนักงานที่ลงทะเบียนผ่าน LINE OA</p>
         </div>
@@ -360,9 +418,25 @@ export default function CustomersPage() {
                                 ) : <UserIcon size={24} color="var(--text-muted)" />}
                              </div>
                              <div>
-                                <h4 style={{ fontSize: '15px', fontWeight: '800', color: 'var(--text-main)' }}>
-                                   {c.full_name || c.display_name}
-                                </h4>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                                  <h4 style={{ fontSize: '15px', fontWeight: '800', color: 'var(--text-main)' }}>
+                                     {c.full_name || c.display_name}
+                                  </h4>
+                                  {c.projects?.code && (
+                                    <span
+                                      style={{
+                                        fontSize: '10px',
+                                        fontWeight: '900',
+                                        padding: '2px 7px',
+                                        borderRadius: '6px',
+                                        background: `${c.projects.primary_color || '#0066ff'}20`,
+                                        color: c.projects.primary_color || '#0066ff',
+                                      }}
+                                    >
+                                      {c.projects.code}
+                                    </span>
+                                  )}
+                                </div>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                                    <span style={{ fontSize: '11px', color: 'var(--success)', fontWeight: '800' }}>LINE:</span>
                                    <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: '600' }}>
@@ -461,6 +535,59 @@ export default function CustomersPage() {
                   )}
                </tbody>
             </table>
+         </div>
+
+         {/* Server-side Pagination Controls */}
+         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '20px', paddingTop: '16px', borderTop: '1px solid var(--border)', flexWrap: 'wrap', gap: '12px' }}>
+           <span style={{ fontSize: '13px', color: 'var(--text-muted)', fontWeight: '600' }}>
+             หน้า {page} / {totalPages} • แสดง {customers.length} จากทั้งหมด {totalCustomersCount} รายการ
+           </span>
+           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+             <button
+               type="button"
+               onClick={() => setPage((p) => Math.max(1, p - 1))}
+               disabled={page <= 1}
+               className="glass-interactive"
+               style={{
+                 padding: '8px 14px',
+                 borderRadius: '10px',
+                 border: '1px solid var(--border)',
+                 background: 'var(--bg-input)',
+                 color: 'var(--text-main)',
+                 fontWeight: '700',
+                 fontSize: '12px',
+                 display: 'flex',
+                 alignItems: 'center',
+                 gap: '4px',
+                 cursor: page <= 1 ? 'not-allowed' : 'pointer',
+                 opacity: page <= 1 ? 0.45 : 1,
+               }}
+             >
+               <ChevronLeft size={14} /> ก่อนหน้า
+             </button>
+             <button
+               type="button"
+               onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+               disabled={page >= totalPages}
+               className="glass-interactive"
+               style={{
+                 padding: '8px 14px',
+                 borderRadius: '10px',
+                 border: '1px solid var(--border)',
+                 background: 'var(--bg-input)',
+                 color: 'var(--text-main)',
+                 fontWeight: '700',
+                 fontSize: '12px',
+                 display: 'flex',
+                 alignItems: 'center',
+                 gap: '4px',
+                 cursor: page >= totalPages ? 'not-allowed' : 'pointer',
+                 opacity: page >= totalPages ? 0.45 : 1,
+               }}
+             >
+               ถัดไป <ChevronRight size={14} />
+             </button>
+           </div>
          </div>
       </div>
 

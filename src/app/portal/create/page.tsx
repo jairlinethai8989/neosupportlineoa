@@ -18,7 +18,13 @@ const ChatAttachmentModal = React.lazy(() => import('@/components/chat/ChatAttac
 
 export default function CreateTicketPage() {
    const router = useRouter();
-   const { profile, getIdToken, isReady } = useLiff();
+   const { profile, getIdToken, isReady, projectConfig, projectSubjectTypes } = useLiff();
+   const projectQuery =
+     projectConfig && !projectConfig.is_default && projectConfig.slug
+       ? `?project=${encodeURIComponent(projectConfig.slug)}`
+       : '';
+   const realProjectId =
+     projectConfig?.id && projectConfig.id !== 'default-env-fallback' ? projectConfig.id : null;
 
    const [subject, setSubject] = useState('');
    const [description, setDescription] = useState('');
@@ -32,25 +38,30 @@ export default function CreateTicketPage() {
    const [checking, setChecking] = useState(true);
 
     useEffect(() => {
-      if (!profile?.userId) return;
+      if (!profile?.userId || !projectConfig) return;
 
       async function checkCustomer() {
-         const [{ data: customer }, { data: subjectsRes }] = await Promise.all([
-            supabase.from('customers').select('*, organizations(name, abbreviation)').eq('line_user_id', profile?.userId).maybeSingle(),
-            supabase.from('ticket_subject_types').select('name').eq('is_active', true).order('name', { ascending: true })
-         ]);
+         let custQuery = supabase
+            .from('customers')
+            .select('*, organizations(name, abbreviation)')
+            .eq('line_user_id', profile?.userId);
+         if (realProjectId) {
+            custQuery = custQuery.eq('project_id', realProjectId);
+         }
+
+         const { data: customer } = await custQuery.limit(1).maybeSingle();
 
          if (!customer || !customer.organization_id) {
-            router.push('/portal');
+            router.push(`/portal${projectQuery}`);
          } else {
             setCustomerData(customer);
-            const subjects = subjectsRes?.map((s: any) => s.name) || [];
+            const subjects = projectSubjectTypes || [];
             setSubjectTypes(subjects.length > 0 ? subjects : ['ลบ', 'แก้ไขออเดอร์', 'แจ้ง error', 'เรื่องอื่นๆ']);
          }
          setChecking(false);
       }
       checkCustomer();
-   }, [profile?.userId, router]);
+   }, [profile?.userId, projectConfig, projectQuery, projectSubjectTypes, realProjectId, router]);
 
    if (!isReady || checking) {
       return <div className="flex-center" style={{ height: '100vh', background: '#fbfcfd' }}><Loader2 className="animate-spin" color="var(--portal-primary)" size={32} /></div>;
@@ -105,12 +116,14 @@ export default function CreateTicketPage() {
          const { ticket: createdTicket } = await createPortalTicketAction({
             lineUserId: profile?.userId || null,
             idToken: getIdToken(),
+            projectId: realProjectId,
+            projectSlug: projectConfig?.slug || null,
             subject: subject.trim(),
             description: description.trim(),
             attachmentUrl,
          });
 
-         router.replace(`/portal/tickets/${createdTicket.id}`);
+         router.replace(`/portal/tickets/${createdTicket.id}${projectQuery}`);
 
       } catch (err: any) {
          setError(err.message);
@@ -122,7 +135,7 @@ export default function CreateTicketPage() {
       <div className="portal-container">
          <div style={{ padding: '0 20px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', animation: 'fadeIn 0.5s ease-out' }}>
             <button
-               onClick={() => router.push('/portal')}
+               onClick={() => router.push(`/portal${projectQuery}`)}
                style={{
                   width: '40px',
                   height: '40px',

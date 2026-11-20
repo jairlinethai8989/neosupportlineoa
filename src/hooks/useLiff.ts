@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import liff from '@line/liff';
 import { supabase } from '@/lib/supabase';
+import type { ProjectPublicConfig } from '@/types/project';
 
 export interface LiffProfile {
   userId: string;
@@ -9,49 +10,90 @@ export interface LiffProfile {
   pictureUrl?: string;
 }
 
+export interface PortalOrgOption {
+  id: string;
+  name: string;
+  abbreviation?: string | null;
+  project_id?: string | null;
+}
+
 export const canUseMockLogin =
   process.env.NODE_ENV !== 'production' || process.env.NEXT_PUBLIC_ENABLE_LIFF_MOCK === 'true';
 
-export function useLiff() {
+function detectPortalContext(): { projectSlug: string | null; ticketId: string | null } {
+  if (typeof window === 'undefined') {
+    return { projectSlug: null, ticketId: null };
+  }
+  const params = new URLSearchParams(window.location.search);
+  const projectSlug = params.get('project')?.trim() || null;
+  const ticketMatch = /^\/portal\/tickets\/([^/?#]+)/.exec(window.location.pathname);
+  const ticketId = ticketMatch?.[1] || null;
+  return { projectSlug, ticketId };
+}
+
+export function useLiff(explicitProjectSlug?: string | null) {
   const [isReady, setIsReady] = useState(false);
   const [profile, setProfile] = useState<LiffProfile | null>(null);
   const [idToken, setIdToken] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [projectConfig, setProjectConfig] = useState<ProjectPublicConfig | null>(null);
+  const [projectOrganizations, setProjectOrganizations] = useState<PortalOrgOption[]>([]);
+  const [projectSubjectTypes, setProjectSubjectTypes] = useState<string[]>([]);
 
   useEffect(() => {
-    if (!profile?.userId) return;
+    if (!profile?.userId || !projectConfig) return;
     const currentProfile = profile;
+    const currentProjectId =
+      projectConfig.id && projectConfig.id !== 'default-env-fallback'
+        ? projectConfig.id
+        : null;
     let isCancelled = false;
 
     async function syncCustomerProfile() {
-      const payload = {
+      let existingQuery = supabase
+        .from('customers')
+        .select('id')
+        .eq('line_user_id', currentProfile.userId);
+
+      if (currentProjectId) {
+        existingQuery = existingQuery.eq('project_id', currentProjectId);
+      }
+
+      const { data: existing } = await existingQuery.limit(1).maybeSingle();
+      if (isCancelled) return;
+
+      const metadata = {
+        line_profile: {
+          display_name: currentProfile.displayName,
+          picture_url: currentProfile.pictureUrl || null,
+          synced_at: new Date().toISOString(),
+        },
+      };
+
+      const payload: Record<string, unknown> = {
         line_user_id: currentProfile.userId,
         display_name: currentProfile.displayName,
         avatar_url: currentProfile.pictureUrl || null,
-        metadata: {
-          line_profile: {
-            display_name: currentProfile.displayName,
-            picture_url: currentProfile.pictureUrl || null,
-            synced_at: new Date().toISOString(),
-          },
-        },
+        metadata,
         updated_at: new Date().toISOString(),
       };
+      if (currentProjectId) {
+        payload.project_id = currentProjectId;
+      }
 
-      let { error: syncError } = await supabase
-        .from('customers')
-        .upsert(payload, { onConflict: 'line_user_id' });
+      const writeRow = async (row: Record<string, unknown>) => {
+        if (existing?.id) {
+          return supabase.from('customers').update(row).eq('id', existing.id);
+        }
+        return supabase.from('customers').insert([row]);
+      };
+
+      let { error: syncError } = await writeRow(payload);
 
       if (syncError?.code === 'PGRST204' && String(syncError.message || '').includes('avatar_url')) {
-        const fallbackPayload = {
-          line_user_id: currentProfile.userId,
-          display_name: currentProfile.displayName,
-          metadata: payload.metadata,
-          updated_at: new Date().toISOString(),
-        };
-        const fallback = await supabase
-          .from('customers')
-          .upsert(fallbackPayload, { onConflict: 'line_user_id' });
+        const fallbackPayload = { ...payload };
+        delete fallbackPayload.avatar_url;
+        const fallback = await writeRow(fallbackPayload);
         syncError = fallback.error;
       }
 
@@ -64,21 +106,58 @@ export function useLiff() {
     return () => {
       isCancelled = true;
     };
-  }, [profile]);
+  }, [profile, projectConfig]);
 
   useEffect(() => {
+    let cancelled = false;
+
     const initLiff = async () => {
       try {
-        const liffId = process.env.NEXT_PUBLIC_LIFF_ID;
+        const ctx = detectPortalContext();
+        const slugToLoad = explicitProjectSlug ?? ctx.projectSlug;
+        const qs = new URLSearchParams();
+        if (slugToLoad) qs.set('project', slugToLoad);
+        if (!slugToLoad && ctx.ticketId) qs.set('ticketId', ctx.ticketId);
+        const queryString = qs.toString();
+
+        let resolvedProject: ProjectPublicConfig | null = null;
+        try {
+          const res = await fetch(
+            `/api/portal/project-config${queryString ? `?${queryString}` : ''}`,
+            { cache: 'no-store' }
+          );
+          if (res.ok) {
+            const payload = (await res.json()) as {
+              project?: ProjectPublicConfig;
+              organizations?: PortalOrgOption[];
+              subjectTypes?: string[];
+            };
+            if (!cancelled && payload.project) {
+              resolvedProject = payload.project;
+              setProjectConfig(payload.project);
+              setProjectOrganizations(payload.organizations || []);
+              setProjectSubjectTypes(payload.subjectTypes || []);
+            }
+          }
+        } catch (cfgErr) {
+          console.warn('Portal project-config fetch failed, using env fallback:', cfgErr);
+        }
+
+        const liffId = resolvedProject?.line_liff_id || process.env.NEXT_PUBLIC_LIFF_ID;
         if (!liffId) {
-          setError('LIFF ID is missing in environment (NEXT_PUBLIC_LIFF_ID).');
+          if (!cancelled) {
+            setError('LIFF ID is missing in project settings or environment.');
+            setIsReady(true);
+          }
           return;
         }
 
         await liff.init({ liffId });
+        if (cancelled) return;
 
         if (liff.isLoggedIn()) {
           const p = await liff.getProfile();
+          if (cancelled) return;
           setProfile({
             userId: p.userId,
             displayName: p.displayName,
@@ -102,13 +181,18 @@ export function useLiff() {
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : 'Unknown error';
         console.error('LIFF init error:', err);
-        setError('Failed to initialize LIFF: ' + message);
-        setIsReady(true);
+        if (!cancelled) {
+          setError('Failed to initialize LIFF: ' + message);
+          setIsReady(true);
+        }
       }
     };
 
     void initLiff();
-  }, []);
+    return () => {
+      cancelled = true;
+    };
+  }, [explicitProjectSlug]);
 
   const login = () => {
     if (!liff.isLoggedIn()) {
@@ -120,34 +204,39 @@ export function useLiff() {
     if (liff.isLoggedIn()) {
       liff.logout();
       window.location.reload();
-      return;
     }
-    setProfile(null);
   };
 
-  const setMockLogin = (userId: string = 'U_MOCK_ADMIN', name: string = 'Mock User') => {
+  const getIdToken = () => {
+    if (idToken) return idToken;
+    try {
+      return liff.getIDToken() || null;
+    } catch {
+      return null;
+    }
+  };
+
+  const setMockLogin = (userId = 'U_MOCK_ADMIN', displayName = 'Mock Test User') => {
     if (!canUseMockLogin) {
       setError('Mock login is disabled in production.');
       return;
     }
-    setProfile({
-      userId,
-      displayName: name,
-      pictureUrl: `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}`,
-    });
+    setProfile({ userId, displayName });
+    setIdToken(null);
+    setError(null);
+    setIsReady(true);
   };
 
-  const getIdToken = (): string | null => {
-    try {
-      if (liff.isLoggedIn()) {
-        const freshToken = liff.getIDToken();
-        if (freshToken) return freshToken;
-      }
-    } catch {
-      // Ignore LIFF SDK errors in mock/non-LIFF environments
-    }
-    return idToken;
+  return {
+    profile,
+    isReady,
+    error,
+    projectConfig,
+    projectOrganizations,
+    projectSubjectTypes,
+    login,
+    logout,
+    getIdToken,
+    setMockLogin,
   };
-
-  return { isReady, profile, idToken, getIdToken, error, login, logout, setMockLogin, canUseMockLogin };
 }

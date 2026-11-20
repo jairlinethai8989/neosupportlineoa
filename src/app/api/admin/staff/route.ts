@@ -22,7 +22,7 @@ export async function POST(req: Request) {
 
     // 2. Parse request
     const body = await req.json();
-    const { username, password, full_name, role, department } = body;
+    const { username, password, full_name, role, department, project_ids } = body;
 
     if (!username || !password || !full_name) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
@@ -76,6 +76,34 @@ export async function POST(req: Request) {
       // Cleanup auth user if profile fails
       await supabaseAdmin.auth.admin.deleteUser(newUser.user.id);
       throw profileError;
+    }
+
+    // 5b. Assign project memberships (use selected project_ids, or fallback to Default Project)
+    let assignedProjectIds: string[] = Array.isArray(project_ids)
+      ? project_ids.filter((id: unknown): id is string => typeof id === 'string' && id.trim().length > 0)
+      : [];
+
+    if (assignedProjectIds.length === 0) {
+      const { data: defaultProj } = await supabaseAdmin
+        .from('projects')
+        .select('id')
+        .eq('is_default', true)
+        .limit(1)
+        .maybeSingle();
+      if (defaultProj?.id) {
+        assignedProjectIds = [defaultProj.id];
+      }
+    }
+
+    if (assignedProjectIds.length > 0) {
+      await supabaseAdmin.from('project_members').upsert(
+        assignedProjectIds.map((projectId) => ({
+          project_id: projectId,
+          profile_id: newUser.user.id,
+          project_role: role === 'Administrator' ? 'lead' : 'agent',
+        })),
+        { onConflict: 'project_id,profile_id' }
+      );
     }
 
     // 6. Log the activity

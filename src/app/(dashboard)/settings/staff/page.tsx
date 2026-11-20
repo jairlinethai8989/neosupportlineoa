@@ -38,8 +38,11 @@ import { translateStaffRole, translateStaffStatus } from '@/lib/i18n/staff';
 
 export default function StaffManagementPage() {
   const { t, locale } = useStaffLocale();
-  const { userProfile } = useAppContext();
+  const { userProfile, projects: contextProjects, refreshData } = useAppContext();
   const [staff, setStaff] = useState<any[]>([]);
+  const [allProjects, setAllProjects] = useState<any[]>([]);
+  const [staffProjectsMap, setStaffProjectsMap] = useState<Record<string, string[]>>({});
+  const [selectedStaffProjectIds, setSelectedStaffProjectIds] = useState<string[]>([]);
   
   const canEdit = useMemo(() => {
     if (userProfile?.role === 'Administrator') return true;
@@ -53,7 +56,8 @@ export default function StaffManagementPage() {
     password: '',
     full_name: '',
     role: 'Agent',
-    department: t('settingsStaff.defaults.department')
+    department: t('settingsStaff.defaults.department'),
+    project_ids: [] as string[],
   });
   const [submitting, setSubmitting] = useState(false);
   const [departments, setDepartments] = useState<string[]>([]);
@@ -81,10 +85,15 @@ export default function StaffManagementPage() {
 
   const fetchStaff = useCallback(async () => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .order('full_name', { ascending: true });
+    const [{ data, error }, { data: membershipRows }] = await Promise.all([
+      supabase
+        .from('profiles')
+        .select('*')
+        .order('full_name', { ascending: true }),
+      supabase
+        .from('project_members')
+        .select('profile_id, project_id'),
+    ]);
     
     if (error) {
       console.error('Fetch error:', error);
@@ -92,6 +101,13 @@ export default function StaffManagementPage() {
     } else {
       setStaff(data || []);
     }
+
+    const nextMap: Record<string, string[]> = {};
+    for (const row of membershipRows || []) {
+      if (!nextMap[row.profile_id]) nextMap[row.profile_id] = [];
+      nextMap[row.profile_id].push(row.project_id);
+    }
+    setStaffProjectsMap(nextMap);
     setLoading(false);
   }, [t]);
 
@@ -101,17 +117,33 @@ export default function StaffManagementPage() {
       if (!isMounted) return;
       await fetchStaff();
       
-      // Fetch dynamic organization departments from normalized table
-      const { data: depts } = await supabase.from('departments').select('name').eq('is_active', true).eq('dept_type', 'organization').order('name');
+      const [{ data: depts }, projRes] = await Promise.all([
+        supabase.from('departments').select('name').eq('is_active', true).eq('dept_type', 'organization').order('name'),
+        fetch('/api/projects/mine', { cache: 'no-store' }).then((r) => (r.ok ? r.json() : { projects: [] })).catch(() => ({ projects: [] })),
+      ]);
+
+      const loadedProjects = (projRes.projects && projRes.projects.length > 0 ? projRes.projects : contextProjects) || [];
+      setAllProjects(loadedProjects);
+      const defaultProj = loadedProjects.find((p: any) => p.is_default) || loadedProjects[0];
+
       if (depts) {
         const deptNames = depts.map(d => d.name);
         setDepartments(deptNames);
-        setForm(prev => ({ ...prev, department: deptNames[0] || '' }));
+        setForm(prev => ({
+          ...prev,
+          department: deptNames[0] || '',
+          project_ids: prev.project_ids.length > 0 ? prev.project_ids : defaultProj ? [defaultProj.id] : [],
+        }));
+      } else if (defaultProj) {
+        setForm(prev => ({
+          ...prev,
+          project_ids: prev.project_ids.length > 0 ? prev.project_ids : [defaultProj.id],
+        }));
       }
     };
     fetchStaffAsync();
     return () => { isMounted = false; };
-  }, [fetchStaff]);
+  }, [contextProjects, fetchStaff]);
 
   const handleDeleteStaff = async (id: string, name: string) => {
     if (!confirm(t('common.messages.deleteConfirm').replace('{name}', name))) return;
@@ -153,8 +185,16 @@ export default function StaffManagementPage() {
       if (!res.ok) throw new Error(data.error || 'Failed to create staff');
       
       alert(t('common.messages.success'));
+      const defaultProj = allProjects.find((p) => p.is_default) || allProjects[0];
       setIsModalOpen(false);
-      setForm({ username: '', password: '', full_name: '', role: 'Agent', department: t('settingsStaff.defaults.department') });
+      setForm({
+        username: '',
+        password: '',
+        full_name: '',
+        role: 'Agent',
+        department: t('settingsStaff.defaults.department'),
+        project_ids: defaultProj ? [defaultProj.id] : [],
+      });
       fetchStaff();
     } catch (err: any) {
       alert(t('common.messages.error') + ': ' + err.message);
@@ -169,22 +209,35 @@ export default function StaffManagementPage() {
       ...DEFAULT_PERMISSIONS,
       ...(staffMember.permissions || {})
     });
+    setSelectedStaffProjectIds(staffProjectsMap[staffMember.id] || []);
     setPermissionModalOpen(true);
   };
 
   const handleSavePermissions = async () => {
     setSubmitting(true);
     try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({ permissions })
-        .eq('id', selectedStaff.id);
-      
+      const [{ error }, projRes] = await Promise.all([
+        supabase
+          .from('profiles')
+          .update({ permissions })
+          .eq('id', selectedStaff.id),
+        fetch(`/api/admin/staff/${selectedStaff.id}/projects`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ projectIds: selectedStaffProjectIds }),
+        }),
+      ]);
+
       if (error) throw error;
-      
+      if (!projRes.ok) {
+        const errBody = await projRes.json().catch(() => ({}));
+        throw new Error(errBody.error || 'Failed to save project scope');
+      }
+
       alert(t('common.messages.success'));
       setPermissionModalOpen(false);
-      fetchStaff();
+      await fetchStaff();
+      await refreshData('projects');
 
       const { data: { user } } = await supabase.auth.getUser();
       await auditService.log({
@@ -400,9 +453,42 @@ export default function StaffManagementPage() {
                    <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>{member.department}</span>
                 </td>
                 <td style={{ padding: '16px 24px' }}>
-                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <Shield size={14} color={member.role === 'Administrator' ? 'var(--primary)' : 'var(--text-muted)'} />
-                      <span style={{ fontSize: '13px', fontWeight: '600' }}>{translateStaffRole(member.role, locale)}</span>
+                   <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <Shield size={14} color={member.role === 'Administrator' ? 'var(--primary)' : 'var(--text-muted)'} />
+                        <span style={{ fontSize: '13px', fontWeight: '600' }}>{translateStaffRole(member.role, locale)}</span>
+                     </div>
+                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                       {member.role === 'Administrator' ? (
+                         <span style={{ fontSize: '10px', fontWeight: '800', padding: '1px 6px', borderRadius: '6px', background: 'rgba(16,185,129,0.12)', color: '#10b981' }}>
+                           ทุกโครงการ
+                         </span>
+                       ) : (staffProjectsMap[member.id] || []).length === 0 ? (
+                         <span style={{ fontSize: '10px', fontWeight: '700', padding: '1px 6px', borderRadius: '6px', background: 'rgba(245,158,11,0.12)', color: '#f59e0b' }}>
+                           ยังไม่กำหนดโครงการ
+                         </span>
+                       ) : (
+                         (staffProjectsMap[member.id] || []).map((pid) => {
+                           const proj = allProjects.find((p) => p.id === pid);
+                           if (!proj) return null;
+                           return (
+                             <span
+                               key={pid}
+                               style={{
+                                 fontSize: '10px',
+                                 fontWeight: '800',
+                                 padding: '1px 6px',
+                                 borderRadius: '6px',
+                                 background: `${proj.primary_color || '#0066ff'}20`,
+                                 color: proj.primary_color || '#0066ff',
+                               }}
+                             >
+                               {proj.code}
+                             </span>
+                           );
+                         })
+                       )}
+                     </div>
                    </div>
                 </td>
                 <td style={{ padding: '16px 24px' }}>
@@ -531,6 +617,51 @@ export default function StaffManagementPage() {
                 </div>
               </div>
 
+              {/* Assign Projects on Staff Creation */}
+              {allProjects.length > 0 && form.role !== 'Administrator' && (
+                <div>
+                  <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '6px' }}>
+                    โครงการที่รับผิดชอบ (เลือกได้หลายโครงการ)
+                  </label>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                    {allProjects.map((proj) => {
+                      const checked = form.project_ids.includes(proj.id);
+                      return (
+                        <label
+                          key={proj.id}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            padding: '6px 10px',
+                            borderRadius: '8px',
+                            border: `1px solid ${checked ? proj.primary_color || 'var(--primary)' : 'var(--border)'}`,
+                            background: checked ? `${proj.primary_color || '#0066ff'}18` : 'var(--bg-input)',
+                            fontSize: '12px',
+                            fontWeight: '700',
+                            cursor: 'pointer',
+                          }}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={(e) => {
+                              setForm((prev) => ({
+                                ...prev,
+                                project_ids: e.target.checked
+                                  ? [...prev.project_ids, proj.id]
+                                  : prev.project_ids.filter((id) => id !== proj.id),
+                              }));
+                            }}
+                          />
+                          <span>{proj.code} • {proj.name}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
               <div style={{ marginTop: '12px', display: 'flex', gap: '12px' }}>
                 <button type="button" onClick={() => setIsModalOpen(false)} style={{ flex: 1, padding: '14px', borderRadius: '10px', background: 'transparent', border: '1px solid var(--border)', color: 'var(--text-main)', cursor: 'pointer' }}>{t('common.cancel')}</button>
                 <button 
@@ -577,6 +708,61 @@ export default function StaffManagementPage() {
               overflowY: 'auto',
               paddingRight: '4px'
             }}>
+              {/* Project Access Assignment */}
+              {allProjects.length > 0 && (
+                <div style={{ padding: '16px 20px', background: 'rgba(0, 102, 255, 0.05)', borderRadius: '14px', border: '1px solid var(--border)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                    <span style={{ fontSize: '13px', fontWeight: '800' }}>
+                      โครงการที่อนุญาตให้เข้าถึงและดูแล
+                    </span>
+                    {selectedStaff?.role === 'Administrator' && (
+                      <span style={{ fontSize: '11px', fontWeight: '700', color: '#10b981' }}>
+                        Administrator เข้าถึงได้ทุกโครงการอัตโนมัติ
+                      </span>
+                    )}
+                  </div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                    {allProjects.map((proj) => {
+                      const isChecked =
+                        selectedStaff?.role === 'Administrator' ||
+                        selectedStaffProjectIds.includes(proj.id);
+                      return (
+                        <label
+                          key={proj.id}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            padding: '6px 10px',
+                            borderRadius: '8px',
+                            border: `1px solid ${isChecked ? proj.primary_color || 'var(--primary)' : 'var(--border)'}`,
+                            background: isChecked ? `${proj.primary_color || '#0066ff'}18` : 'transparent',
+                            fontSize: '12px',
+                            fontWeight: '700',
+                            cursor: selectedStaff?.role === 'Administrator' || !canEdit ? 'not-allowed' : 'pointer',
+                            opacity: selectedStaff?.role === 'Administrator' ? 0.8 : 1,
+                          }}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            disabled={selectedStaff?.role === 'Administrator' || !canEdit}
+                            onChange={(e) => {
+                              setSelectedStaffProjectIds((prev) =>
+                                e.target.checked
+                                  ? [...prev, proj.id]
+                                  : prev.filter((id) => id !== proj.id)
+                              );
+                            }}
+                          />
+                          <span>{proj.code} • {proj.name}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
               {[
                 { key: 'analytics', label: t('settingsStaff.permissionLabels.analytics'), icon: BarChart2 },
                 { key: 'analytics_personal', label: t('settingsStaff.permissionLabels.analyticsPersonal'), icon: User },

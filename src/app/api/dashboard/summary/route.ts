@@ -8,6 +8,7 @@ import {
   readLiveCache,
 } from '@/lib/cache/liveCache';
 import { CACHE_POLICY } from '@/lib/cache/policy';
+import { resolveScopedProjectIds } from '@/lib/projects/projectAccess';
 
 function parseIsoDate(value: string | null): Date | null {
   if (!value) return null;
@@ -30,6 +31,7 @@ export async function GET(req: Request) {
     const organizationId = searchParams.get('organizationId') || '';
     const moduleFilter = searchParams.get('module') || '';
     const issueType = searchParams.get('issueType') || '';
+    const requestedProjectId = searchParams.get('projectId') || '';
 
     if (!fromDate || !toDate) {
       return NextResponse.json({ error: 'Invalid from/to datetime.' }, { status: 400 });
@@ -39,6 +41,7 @@ export async function GET(req: Request) {
       process.env.NODE_ENV !== 'production' &&
       process.env.PROFILE_BYPASS_AUTH === '1';
 
+    let scopedProjectIds: string[] | null = null;
     if (!profileBypassAuth) {
       const supabaseServer = await createSupabaseServerClient();
       const {
@@ -47,11 +50,32 @@ export async function GET(req: Request) {
       if (!user) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
       }
+      try {
+        const resolved = await resolveScopedProjectIds(user.id, requestedProjectId || null);
+        scopedProjectIds = resolved.projectIds;
+      } catch {
+        return NextResponse.json({ error: 'Forbidden project scope' }, { status: 403 });
+      }
+    }
+
+    // If a non-admin staff member has 0 assigned projects, return empty summary immediately
+    if (Array.isArray(scopedProjectIds) && scopedProjectIds.length === 0) {
+      return NextResponse.json({
+        stats: { totalToday: 0, yesterdayCount: 0, newTickets: 0, inProgress: 0, pending: 0, escalated: 0, resolved: 0, totalAll: 0, avgCsat: 0.0, trendPct: null },
+        statusData: [],
+        priorityData: [],
+        organizationData: [],
+        agentData: [],
+        trendByDay: [],
+        heatmap: [],
+        recentLogs: [],
+      });
     }
 
     const fromIso = fromDate.toISOString();
     const toIso = toDate.toISOString();
-    const cacheKey = buildVersionedLiveCacheKey(`dashboard:${fromIso}:${toIso}:logs=${includeLogs ? '1' : '0'}:hosp=${organizationId}:mod=${moduleFilter}:type=${issueType}`);
+    const projectCacheSegment = scopedProjectIds ? scopedProjectIds.join(',') : 'all';
+    const cacheKey = buildVersionedLiveCacheKey(`dashboard:${fromIso}:${toIso}:logs=${includeLogs ? '1' : '0'}:hosp=${organizationId}:mod=${moduleFilter}:type=${issueType}:proj=${projectCacheSegment}`);
     const cacheHitBeforeLoad = readLiveCache(cacheKey) !== null;
     const ttlMs = includeLogs
       ? CACHE_POLICY.live.dashboardSummaryWithLogsTtlMs
@@ -59,7 +83,16 @@ export async function GET(req: Request) {
 
     const payload = await getOrSetLiveCache(cacheKey, ttlMs, async () => {
       // 1. Fetch Aggregated Data via RPC and Recent Logs in parallel
-      const ticketLogSelect = `
+      const ticketLogSelect = scopedProjectIds
+        ? `
+        id,
+        ticket_id,
+        action_type,
+        note,
+        created_at,
+        tickets!inner(ticket_no, project_id)
+      `
+        : `
         id,
         ticket_id,
         action_type,
@@ -68,6 +101,20 @@ export async function GET(req: Request) {
         tickets(ticket_no)
       `;
 
+      let logsQuery = includeLogs
+        ? supabaseAdmin
+            .from('ticket_logs')
+            .select(ticketLogSelect)
+            .gte('created_at', fromIso)
+            .lte('created_at', toIso)
+            .order('created_at', { ascending: false })
+            .limit(10)
+        : null;
+
+      if (logsQuery && scopedProjectIds) {
+        logsQuery = logsQuery.in('tickets.project_id', scopedProjectIds);
+      }
+
       const [rpcRes, logsRes] = await Promise.all([
         supabaseAdmin.rpc('get_dashboard_summary', {
           p_start_date: fromIso,
@@ -75,16 +122,9 @@ export async function GET(req: Request) {
           p_organization_id: organizationId || null,
           p_module: moduleFilter || null,
           p_issue_type: issueType || null,
+          p_project_ids: scopedProjectIds,
         }),
-        includeLogs
-          ? supabaseAdmin
-              .from('ticket_logs')
-              .select(ticketLogSelect)
-              .gte('created_at', fromIso)
-              .lte('created_at', toIso)
-              .order('created_at', { ascending: false })
-              .limit(10)
-          : Promise.resolve({ data: null, error: null }),
+        logsQuery ?? Promise.resolve({ data: null, error: null }),
       ]);
 
       const { data: rpcData, error: rpcError } = rpcRes;

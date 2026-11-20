@@ -24,7 +24,9 @@ import {
   Palette,
   Ticket,
   AlertCircle,
-  MessageSquare
+  MessageSquare,
+  Layers,
+  Check
 } from 'lucide-react';
 import { TopBarClock } from '@/components/layout/TopBarClock';
 
@@ -68,12 +70,22 @@ interface TopBarProps {
 
 export function TopBar({ isSidebarOpen, setIsSidebarOpen, isSidebarCollapsed, setIsSidebarCollapsed }: TopBarProps) {
   const router = useRouter();
-  const { userProfile: agent, updateStatus, onlineUserIds, logout } = useAppContext();
+  const {
+    userProfile: agent,
+    updateStatus,
+    onlineUserIds,
+    logout,
+    projects,
+    selectedProjectId,
+    setSelectedProjectId,
+    activeProject,
+  } = useAppContext();
   const { notifications, unreadCount, markAllRead, markAsRead, isMuted, toggleMute } = useNotificationContext();
   const { locale, toggleLocale, t } = useStaffLocale();
 
   const [showNotifications, setShowNotifications] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [showProjectMenu, setShowProjectMenu] = useState(false);
   const [showThemes, setShowThemes] = useState(false);
   const [activeTab, setActiveTab] = useState<'all' | 'unread' | 'sla'>('all');
   const [theme, setTheme] = useState(() => {
@@ -86,6 +98,7 @@ export function TopBar({ isSidebarOpen, setIsSidebarOpen, isSidebarCollapsed, se
 
   const notifRef = useRef<HTMLDivElement>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
+  const projectMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const fetchAllProfiles = async () => {
@@ -166,6 +179,9 @@ export function TopBar({ isSidebarOpen, setIsSidebarOpen, isSidebarCollapsed, se
       if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
         setShowUserMenu(false);
       }
+      if (projectMenuRef.current && !projectMenuRef.current.contains(event.target as Node)) {
+        setShowProjectMenu(false);
+      }
     }
     document.addEventListener('mousedown', handleClick);
     return () => document.removeEventListener('mousedown', handleClick);
@@ -241,6 +257,150 @@ export function TopBar({ isSidebarOpen, setIsSidebarOpen, isSidebarCollapsed, se
             </span>
           </h2>
         </div>
+
+        {/* Multi-Project Switcher */}
+        {projects.length > 0 && (
+          <div ref={projectMenuRef} style={{ position: 'relative', marginLeft: '10px' }}>
+            <button
+              type="button"
+              onClick={() => setShowProjectMenu((prev) => !prev)}
+              className="glass-interactive"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '7px 12px',
+                borderRadius: '10px',
+                border: '1px solid var(--border)',
+                background: 'var(--bg-card)',
+                color: 'var(--text-main)',
+                fontSize: '12px',
+                fontWeight: '700',
+                cursor: 'pointer',
+              }}
+            >
+              {activeProject ? (
+                <span
+                  style={{
+                    width: '8px',
+                    height: '8px',
+                    borderRadius: '50%',
+                    background: activeProject.primary_color || 'var(--primary)',
+                    flexShrink: 0,
+                  }}
+                />
+              ) : (
+                <Layers size={14} color="var(--primary)" />
+              )}
+              <span style={{ maxWidth: '170px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {selectedProjectId === 'all'
+                  ? agent?.role === 'Administrator'
+                    ? `ทุกโครงการ (${projects.length})`
+                    : projects.length === 1
+                      ? projects[0].name
+                      : `โครงการที่ดูแล (${projects.length})`
+                  : activeProject?.name || 'เลือกโครงการ'}
+              </span>
+              <ChevronDown size={14} color="var(--text-muted)" />
+            </button>
+
+            {showProjectMenu && (
+              <div
+                className="glass"
+                style={{
+                  position: 'absolute',
+                  top: 'calc(100% + 8px)',
+                  left: 0,
+                  minWidth: '250px',
+                  padding: '8px',
+                  borderRadius: '12px',
+                  zIndex: 1000,
+                  boxShadow: '0 16px 36px rgba(0,0,0,0.2)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '4px',
+                }}
+              >
+                {(agent?.role === 'Administrator' || projects.length > 1) && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedProjectId('all');
+                      setShowProjectMenu(false);
+                    }}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '8px 10px',
+                      borderRadius: '8px',
+                      border: 'none',
+                      background: selectedProjectId === 'all' ? 'rgba(0, 102, 255, 0.1)' : 'transparent',
+                      color: 'var(--text-main)',
+                      fontSize: '12px',
+                      fontWeight: selectedProjectId === 'all' ? '800' : '600',
+                      cursor: 'pointer',
+                      textAlign: 'left',
+                    }}
+                  >
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <Layers size={14} color="var(--primary)" />
+                      {agent?.role === 'Administrator'
+                        ? `ทุกโครงการทั้งหมด (${projects.length})`
+                        : `ทุกโครงการที่ดูแล (${projects.length})`}
+                    </span>
+                    {selectedProjectId === 'all' && <Check size={14} color="var(--primary)" />}
+                  </button>
+                )}
+
+                {projects.map((proj) => {
+                  const isSelected = selectedProjectId === proj.id || (projects.length === 1 && agent?.role !== 'Administrator');
+                  return (
+                    <button
+                      key={proj.id}
+                      type="button"
+                      onClick={() => {
+                        setSelectedProjectId(proj.id);
+                        setShowProjectMenu(false);
+                      }}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        padding: '8px 10px',
+                        borderRadius: '8px',
+                        border: 'none',
+                        background: isSelected ? 'rgba(0, 102, 255, 0.1)' : 'transparent',
+                        color: 'var(--text-main)',
+                        fontSize: '12px',
+                        fontWeight: isSelected ? '800' : '600',
+                        cursor: 'pointer',
+                        textAlign: 'left',
+                      }}
+                    >
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
+                        <span
+                          style={{
+                            width: '8px',
+                            height: '8px',
+                            borderRadius: '50%',
+                            background: proj.primary_color || '#0066ff',
+                            flexShrink: 0,
+                          }}
+                        />
+                        <span style={{ fontSize: '10px', fontWeight: '800', opacity: 0.7 }}>{proj.code}</span>
+                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {proj.name}
+                        </span>
+                      </span>
+                      {isSelected && <Check size={14} color="var(--primary)" />}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="show-desktop" style={{ flex: 1, display: 'flex', justifyContent: 'center', padding: '0 16px' }}>

@@ -121,7 +121,12 @@ export async function listTicketWorkspaceTickets(input: {
   searchTerm?: string;
   sortKey?: string;
   sortDirection?: 'asc' | 'desc';
+  projectIds?: string[] | null;
 }): Promise<TicketWorkspaceTicket[]> {
+  if (Array.isArray(input.projectIds) && input.projectIds.length === 0) {
+    return [];
+  }
+
   const limit = Math.max(1, Math.min(input.limit || 50, 200));
   const page = Math.max(1, input.page || 1);
   const fromOffset = (page - 1) * limit;
@@ -130,6 +135,10 @@ export async function listTicketWorkspaceTickets(input: {
   let query = supabase
     .from('tickets')
     .select(ticketWorkspaceTicketSelect);
+
+  if (input.projectIds && input.projectIds.length > 0) {
+    query = query.in('project_id', input.projectIds);
+  }
 
   // Apply Search
   if (input.searchTerm && input.searchTerm.trim() !== '') {

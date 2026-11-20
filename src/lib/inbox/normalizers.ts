@@ -107,6 +107,7 @@ export function normalizeInboxConversation(value: unknown): InboxConversation | 
   const conversationCustomer = normalizeInboxCustomer(value.customers);
   const ticketData = isRecord(value.ticket_data) ? value.ticket_data : null;
   const ticketCustomer = ticketData ? normalizeInboxCustomer(ticketData.customers) : null;
+  const projectData = isRecord(value.projects) ? value.projects : null;
 
   return {
     id: asString(value.id) || '',
@@ -114,6 +115,15 @@ export function normalizeInboxConversation(value: unknown): InboxConversation | 
     last_message_at: asString(value.last_message_at),
     customer_id: asString(value.customer_id),
     current_ticket_id: asString(value.current_ticket_id),
+    project_id: asString(value.project_id),
+    projects: projectData
+      ? {
+          id: asString(projectData.id) || '',
+          name: asString(projectData.name),
+          code: asString(projectData.code),
+          primary_color: asString(projectData.primary_color),
+        }
+      : null,
     is_active: asBoolean(value.is_active),
     customers: mergeInboxCustomerSources(conversationCustomer, ticketCustomer),
     ticket_data: ticketData ? {
@@ -147,6 +157,7 @@ export function normalizeInboxMessage(value: unknown): InboxMessage | null {
     message_type: asString(value.message_type),
     media_path: asString(value.media_path),
     media_mime_type: asString(value.media_mime_type),
+    is_internal: Boolean(value.is_internal),
     created_at: asString(value.created_at) || new Date(0).toISOString(),
   };
 }

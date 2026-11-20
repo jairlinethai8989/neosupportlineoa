@@ -177,6 +177,7 @@ interface TicketWorkspaceCache {
   sortConfig: TicketWorkspaceSortConfig;
   ticketPage: number;
   filterCustomerId: string | null;
+  projectScopeKey: string;
   userProfile: TicketWorkspaceProfile | null;
   personalResTemplates: string[];
   availableModules: string[];
@@ -188,7 +189,14 @@ let ticketWorkspaceCache: TicketWorkspaceCache | null = null;
 export function useTicketWorkspace(filterCustomerId: string | null) {
   const router = useRouter();
   const { addToast, lastDbEvent } = useNotificationContext();
-  const { userProfile: appProfile, companySettings: appSettings } = useAppContext();
+  const {
+    userProfile: appProfile,
+    companySettings: appSettings,
+    effectiveProjectIds,
+    selectedProjectId,
+    projectsLoaded,
+  } = useAppContext();
+  const projectScopeKey = `${selectedProjectId}:${effectiveProjectIds ? effectiveProjectIds.join(',') : 'all'}`;
 
   const getOrInitializeCache = useCallback((): TicketWorkspaceCache => {
     if (!ticketWorkspaceCache || ticketWorkspaceCache.filterCustomerId !== filterCustomerId) {
@@ -207,6 +215,7 @@ export function useTicketWorkspace(filterCustomerId: string | null) {
         },
         ticketPage: 1,
         filterCustomerId,
+        projectScopeKey,
         userProfile: null,
         personalResTemplates: [],
         availableModules: [],
@@ -214,7 +223,7 @@ export function useTicketWorkspace(filterCustomerId: string | null) {
       };
     }
     return ticketWorkspaceCache;
-  }, [filterCustomerId]);
+  }, [filterCustomerId, projectScopeKey]);
 
   const initialCache = ticketWorkspaceCache && ticketWorkspaceCache.filterCustomerId === filterCustomerId ? ticketWorkspaceCache : null;
 
@@ -268,7 +277,8 @@ export function useTicketWorkspace(filterCustomerId: string | null) {
       cache.customEnd !== customEnd ||
       cache.searchTerm !== searchTerm ||
       cache.sortConfig.key !== sortConfig.key ||
-      cache.sortConfig.direction !== sortConfig.direction;
+      cache.sortConfig.direction !== sortConfig.direction ||
+      cache.projectScopeKey !== projectScopeKey;
 
     if (filtersChanged) {
       cache.ticketsByPage.clear();
@@ -284,7 +294,8 @@ export function useTicketWorkspace(filterCustomerId: string | null) {
     cache.searchTerm = searchTerm;
     cache.sortConfig = sortConfig;
     cache.ticketPage = ticketPage;
-  }, [timeRange, customStart, customEnd, searchTerm, sortConfig, ticketPage, getOrInitializeCache]);
+    cache.projectScopeKey = projectScopeKey;
+  }, [timeRange, customStart, customEnd, searchTerm, sortConfig, ticketPage, projectScopeKey, getOrInitializeCache]);
 
   // Sync tickets list state to cache
   useEffect(() => {
@@ -311,6 +322,7 @@ export function useTicketWorkspace(filterCustomerId: string | null) {
     userProfile?.permissions?.tickets === 'view';
 
   const fetchData = useCallback(async (isSilent = false) => {
+    if (!projectsLoaded) return;
     setDebugError(null);
     if (!isSilent) setLoading(true);
 
@@ -326,6 +338,7 @@ export function useTicketWorkspace(filterCustomerId: string | null) {
         searchTerm,
         sortKey: sortConfig.key,
         sortDirection: sortConfig.direction,
+        projectIds: effectiveProjectIds,
       });
       const pageTickets = ticketResult.slice(0, WORKSPACE_TICKETS_PAGE_SIZE);
       const hasNext = ticketResult.length > WORKSPACE_TICKETS_PAGE_SIZE;
@@ -396,6 +409,8 @@ export function useTicketWorkspace(filterCustomerId: string | null) {
     searchTerm,
     sortConfig.key,
     sortConfig.direction,
+    effectiveProjectIds,
+    projectsLoaded,
     getOrInitializeCache,
   ]);
 
@@ -540,7 +555,11 @@ export function useTicketWorkspace(filterCustomerId: string | null) {
     const { table, action, payload } = lastDbEvent;
 
     if (table === 'tickets') {
-      const p = payload as any;
+      const p = payload as { new?: Record<string, unknown>; old?: Record<string, unknown> };
+      const eventProjectId = String(p.new?.project_id || p.old?.project_id || '');
+      if (effectiveProjectIds && eventProjectId && !effectiveProjectIds.includes(eventProjectId)) {
+        return;
+      }
       if (action === 'INSERT' || action === 'UPDATE') {
         const ticketId = String(p.new?.id || p.old?.id || '');
         if (ticketId) {

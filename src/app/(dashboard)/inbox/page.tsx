@@ -214,6 +214,8 @@ function InboxContent() {
     messages,
     newMessage,
     setNewMessage,
+    isInternalMode,
+    setIsInternalMode,
     currentTicket,
     sending,
     setSending,
@@ -458,6 +460,8 @@ function InboxContent() {
               messages={messages}
               newMessage={newMessage}
               setNewMessage={setNewMessage}
+              isInternalMode={isInternalMode}
+              setIsInternalMode={setIsInternalMode}
               onSendMessage={handleSendMessage}
               sending={sending}
               agent={agent}

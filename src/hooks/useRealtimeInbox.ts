@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '@/lib/supabase';
+import { useAppContext } from '@/contexts/AppContext';
 import {
   getInboxConversationById,
   listInboxConversations,
@@ -70,6 +71,7 @@ interface InboxWorkspaceCache {
   cursorByPage: Map<number, { lastMessageAt: string; id: string } | null>;
   page: number;
   pageSize: number;
+  scopeKey: string;
 }
 
 let inboxWorkspaceCache: InboxWorkspaceCache | null = null;
@@ -82,6 +84,8 @@ export function useRealtimeInbox(options: {
     page = 1,
     pageSize = 10
   } = options;
+  const { effectiveProjectIds, selectedProjectId, projectsLoaded } = useAppContext();
+  const scopeKey = `${selectedProjectId}:${effectiveProjectIds ? effectiveProjectIds.join(',') : 'all'}`;
 
   const getOrInitializeCache = useCallback((): InboxWorkspaceCache => {
     if (!inboxWorkspaceCache) {
@@ -91,10 +95,11 @@ export function useRealtimeInbox(options: {
         cursorByPage: new Map([[1, null]]),
         page,
         pageSize,
+        scopeKey,
       };
     }
     return inboxWorkspaceCache;
-  }, [page, pageSize]);
+  }, [page, pageSize, scopeKey]);
 
   const initialCache = inboxWorkspaceCache;
 
@@ -128,10 +133,10 @@ export function useRealtimeInbox(options: {
     return () => clearTimeout(timer);
   }, [loading]);
 
-  // Sync state filters & page config to cache, and clear page caches if query parameters change
+  // Sync state filters & page config to cache, and clear page caches if query parameters or project scope change
   useEffect(() => {
     const cache = getOrInitializeCache();
-    const configChanged = cache.pageSize !== pageSize;
+    const configChanged = cache.pageSize !== pageSize || cache.scopeKey !== scopeKey;
 
     if (configChanged) {
       cache.conversationsByPage.clear();
@@ -142,7 +147,8 @@ export function useRealtimeInbox(options: {
 
     cache.pageSize = pageSize;
     cache.page = page;
-  }, [page, pageSize, getOrInitializeCache]);
+    cache.scopeKey = scopeKey;
+  }, [page, pageSize, scopeKey, getOrInitializeCache]);
 
   // Sync conversations list state to cache
   useEffect(() => {
@@ -163,6 +169,7 @@ export function useRealtimeInbox(options: {
   }, [getOrInitializeCache]);
 
   const fetchConversations = useCallback(async (opts: { silent?: boolean } = {}) => {
+    if (!projectsLoaded) return;
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
     }
@@ -180,6 +187,7 @@ export function useRealtimeInbox(options: {
         pageSize,
         cursorLastMessageAt: cursor?.lastMessageAt || null,
         cursorId: cursor?.id || null,
+        projectIds: effectiveProjectIds,
       });
 
       if (controller.signal.aborted) return;
@@ -198,7 +206,7 @@ export function useRealtimeInbox(options: {
       }
       console.error('Fetch Inbox Error:', error);
       try {
-        const fallback = await listInboxConversations(pageSize);
+        const fallback = await listInboxConversations(pageSize, effectiveProjectIds);
         if (controller.signal.aborted) return;
         const activeFallback = fallback.filter(isConversationActiveLike);
         setConversations(sortConversations(activeFallback));
@@ -211,7 +219,7 @@ export function useRealtimeInbox(options: {
         setLoading(false);
       }
     }
-  }, [page, pageSize]);
+  }, [effectiveProjectIds, page, pageSize, projectsLoaded]);
 
   const scheduleRefresh = useCallback((delayMs = 250) => {
     if (refreshTimerRef.current) {
@@ -282,6 +290,13 @@ export function useRealtimeInbox(options: {
             }
 
             setConversations((current) => {
+              if (
+                effectiveProjectIds &&
+                latestConversation.project_id &&
+                !effectiveProjectIds.includes(latestConversation.project_id)
+              ) {
+                return current.filter((conversation) => conversation.id !== rowId);
+              }
               if (!isConversationActiveLike(latestConversation)) {
                 return current.filter((conversation) => conversation.id !== rowId);
               }
@@ -307,7 +322,7 @@ export function useRealtimeInbox(options: {
       }
       void supabase.removeChannel(channel);
     };
-  }, [page, pageSize, scheduleRefresh]);
+  }, [effectiveProjectIds, page, pageSize, scheduleRefresh]);
 
   return {
     conversations,

@@ -164,7 +164,13 @@ function computeDateWindow(
 
 export default function Home() {
   const { t } = useStaffLocale();
-  const { organizations: contextOrgs, companySettings, ensureOrganizations } = useAppContext();
+  const {
+    scopedOrganizations: contextOrgs,
+    companySettings,
+    ensureOrganizations,
+    selectedProjectId,
+    effectiveProjectIds,
+  } = useAppContext();
   const router = useRouter();
 
   // Date Filter State
@@ -218,9 +224,9 @@ export default function Home() {
     () => computeDateWindow(timeRange, customStart, customEnd),
     [timeRange, customStart, customEnd]
   );
-  const currentWindowKey = `${dateWindow.from.toISOString()}_${dateWindow.to.toISOString()}_h=${selectedHospital}_m=${selectedModule}_t=${selectedIssueType}`;
+  const currentWindowKey = `${dateWindow.from.toISOString()}_${dateWindow.to.toISOString()}_h=${selectedHospital}_m=${selectedModule}_t=${selectedIssueType}_p=${selectedProjectId}`;
 
-  const fetchUrl = `/api/dashboard/summary?from=${encodeURIComponent(dateWindow.from.toISOString())}&to=${encodeURIComponent(dateWindow.to.toISOString())}&includeLogs=1&organizationId=${selectedHospital}&module=${selectedModule}&issueType=${selectedIssueType}`;
+  const fetchUrl = `/api/dashboard/summary?from=${encodeURIComponent(dateWindow.from.toISOString())}&to=${encodeURIComponent(dateWindow.to.toISOString())}&includeLogs=1&organizationId=${selectedHospital}&module=${selectedModule}&issueType=${selectedIssueType}&projectId=${encodeURIComponent(selectedProjectId)}`;
   const { data: payload, isLoading: isSwrLoading, mutate } = useSWR(
     fetchUrl,
     (url: string) => fetch(url).then((res) => {
@@ -282,6 +288,9 @@ export default function Home() {
         .gte('created_at', dateWindow.from.toISOString())
         .lte('created_at', dateWindow.to.toISOString());
         
+      if (effectiveProjectIds && effectiveProjectIds.length > 0) {
+        query = query.in('project_id', effectiveProjectIds);
+      }
       if (selectedHospital) {
         query = query.eq('organization_id', selectedHospital);
       }

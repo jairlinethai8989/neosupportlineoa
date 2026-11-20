@@ -1,25 +1,13 @@
 import { NextResponse } from 'next/server';
-import * as line from '@line/bot-sdk';
+import type * as line from '@line/bot-sdk';
 import { createSupabaseServerClient } from '@/lib/supabase-server';
-
-/**
- * Configure LINE SDK client
- */
-const config = {
-  channelAccessToken: process.env.LINE_CHANNEL_ACCESS_TOKEN || 'unset',
-  channelSecret: process.env.LINE_CHANNEL_SECRET || 'unset',
-};
-
-const client = new line.Client(config);
-
-
+import { sendLineUserNotification } from '@/lib/utils/lineNotifications';
 
 /**
  * API Route for Outbound / Push Messages
- * Allows sending messages from the agent dashboard to specific LINE users
+ * Allows sending messages from the agent dashboard to specific LINE users per project.
  */
 export async function POST(req: Request) {
-  // Defense-in-depth: Auth & Role check
   const supabase = await createSupabaseServerClient();
   const { data: { user } } = await supabase.auth.getUser();
 
@@ -27,49 +15,37 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Unauthorized: Access denied.' }, { status: 401 });
   }
 
-  // Check profile role
   const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single();
   if (!profile || (profile.role !== 'Agent' && profile.role !== 'Administrator')) {
     return NextResponse.json({ error: 'Forbidden: Insufficient permissions.' }, { status: 403 });
   }
 
   try {
-    const { to, messages } = await req.json();
+    const { to, messages, projectId } = await req.json();
 
     if (!to || !messages || !Array.isArray(messages)) {
-      return NextResponse.json({ 
-        error: 'Invalid Request: Missing "to" userId or "messages" array.' 
+      return NextResponse.json({
+        error: 'Invalid Request: Missing "to" userId or "messages" array.',
       }, { status: 400 });
     }
 
-    if (!config.channelAccessToken) {
-      return NextResponse.json({ 
-        error: 'Configuration Error: LINE_CHANNEL_ACCESS_TOKEN is not set.' 
+    const ok = await sendLineUserNotification(to, messages as line.Message[], projectId || null);
+    if (!ok) {
+      return NextResponse.json({
+        error: 'Failed to send message via LINE (check project LINE Channel Access Token or user ID).',
       }, { status: 500 });
     }
 
-    // Call LINE Messaging API - Push Message
-    // In production, you might want to switch to 'replyMessage' if within the reply window (24h)
-    // to save costs/quotas, but for simplicity we use 'pushMessage' as a primary method for agent initiated msgs
-    await client.pushMessage(to, messages);
-
-    return NextResponse.json({ 
-      status: 'success', 
-      message: 'Message sent successfully to LINE.' 
+    return NextResponse.json({
+      status: 'success',
+      message: 'Message sent successfully to LINE.',
     });
-
   } catch (error: unknown) {
     console.error('LINE Messaging API Push Error:', error);
-    const status =
-      typeof error === 'object' && error && 'statusCode' in error && typeof (error as { statusCode?: unknown }).statusCode === 'number'
-        ? ((error as { statusCode: number }).statusCode || 500)
-        : 500;
-    const errorMessage =
-      error instanceof Error ? error.message : 'Internal Server Error';
-
-    return NextResponse.json({ 
-      error: 'Failed to send message via LINE', 
-      details: errorMessage 
-    }, { status });
+    const errorMessage = error instanceof Error ? error.message : 'Internal Server Error';
+    return NextResponse.json({
+      error: 'Failed to send message via LINE',
+      details: errorMessage,
+    }, { status: 500 });
   }
 }

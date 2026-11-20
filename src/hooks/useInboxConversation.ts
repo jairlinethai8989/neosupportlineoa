@@ -51,6 +51,7 @@ export function useInboxConversation({
 }: UseInboxConversationOptions) {
   const [messages, setMessages] = useState<InboxMessage[]>([]);
   const [newMessage, setNewMessage] = useState('');
+  const [isInternalMode, setIsInternalMode] = useState(false);
   const [currentTicket, setCurrentTicket] = useState<InboxTicket | null>(null);
   const [sending, setSending] = useState(false);
   const [showResolveModal, setShowResolveModal] = useState(false);
@@ -350,7 +351,7 @@ export function useInboxConversation({
     if (!newMessage.trim() || !selectedChat || !agent) return;
 
     const statusLower = currentTicket?.status?.toLowerCase();
-    if (statusLower === 'resolved' || statusLower === 'closed' || statusLower === 'fix completed') {
+    if (!isInternalMode && (statusLower === 'resolved' || statusLower === 'closed' || statusLower === 'fix completed')) {
       addToast(getInboxWarningToast('ไม่สามารถส่งข้อความได้', getInboxClosedTicketMessage()));
       return;
     }
@@ -363,6 +364,7 @@ export function useInboxConversation({
       conversation_id: selectedChat.id,
       ticket_id: currentTicket?.id || selectedChat.current_ticket_id || null,
       message_type: 'text',
+      is_internal: isInternalMode,
       created_at: new Date().toISOString(),
     };
 
@@ -377,6 +379,7 @@ export function useInboxConversation({
         staffId: agent.id,
         content: optimisticMessage.content || '',
         messageType: 'text',
+        isInternal: isInternalMode,
       });
     } catch (error: unknown) {
       setMessages((prev) => prev.filter((message) => message.id !== optimisticMessage.id));
@@ -491,6 +494,8 @@ export function useInboxConversation({
     setMessages,
     newMessage,
     setNewMessage,
+    isInternalMode,
+    setIsInternalMode,
     currentTicket,
     setCurrentTicket,
     sending,

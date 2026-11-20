@@ -152,6 +152,9 @@ function MainSidebarComponent({ onClickLink, isCollapsed = false }: SidebarProps
       if (normalizedPath.includes('/settings/branding')) {
         return permissions.settings_branding === 'view' || permissions.settings_branding === 'edit';
       }
+      if (normalizedPath.includes('/settings/projects')) {
+        return userRole === 'Administrator';
+      }
       if (normalizedPath.includes('/settings/staff')) {
         return permissions.settings_staff === 'view' || permissions.settings_staff === 'edit';
       }
@@ -218,6 +221,7 @@ function MainSidebarComponent({ onClickLink, isCollapsed = false }: SidebarProps
             label: t('sidebar.menu.settingsSystem'),
             icon: Settings,
             children: [
+              { name: 'Projects', label: t('sidebar.menu.projects'), path: '/settings/projects' },
               { name: 'Branding', label: t('sidebar.menu.branding'), path: '/settings/branding' },
               { name: 'Staff', label: t('sidebar.menu.staff'), path: '/settings/staff' },
               { name: 'SLA', label: t('sidebar.menu.sla'), path: '/settings/sla' },
@@ -495,7 +499,7 @@ function MainSidebarComponent({ onClickLink, isCollapsed = false }: SidebarProps
 
       <div style={{ padding: '16px', borderTop: '1px solid var(--border)', display: 'flex', flexDirection: 'column' }}>
         <p style={{ fontSize: '10px', color: 'var(--text-dim)', textAlign: 'center' }}>
-          {!isCollapsed && 'Neo Support v1.1.2'}
+          {!isCollapsed && 'Neo Support v2.0.0'}
         </p>
         {!isCollapsed && (
           <button

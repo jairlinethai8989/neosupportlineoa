@@ -21,6 +21,8 @@ export const inboxConversationSelect = `
   last_message_at,
   customer_id,
   current_ticket_id,
+  project_id,
+  projects:project_id (id, name, code, primary_color),
   customers (
     id,
     display_name,
@@ -51,6 +53,8 @@ const inboxConversationSelectLegacy = `
   last_message_at,
   customer_id,
   current_ticket_id,
+  project_id,
+  projects:project_id (id, name, code, primary_color),
   customers (
     id,
     display_name,
@@ -80,6 +84,8 @@ export const inboxConversationSelectForList = `
   last_message_at,
   customer_id,
   current_ticket_id,
+  project_id,
+  projects:project_id (id, name, code, primary_color),
   customers (
     id,
     display_name,
@@ -108,6 +114,8 @@ const inboxConversationSelectForListLegacy = `
   last_message_at,
   customer_id,
   current_ticket_id,
+  project_id,
+  projects:project_id (id, name, code, primary_color),
   customers (
     id,
     display_name,
@@ -134,7 +142,8 @@ const inboxConversationSelectMinimal = `
   status,
   last_message_at,
   customer_id,
-  current_ticket_id
+  current_ticket_id,
+  project_id
 `;
 
 function isMissingAvatarColumnError(error: unknown): boolean {
@@ -180,6 +189,9 @@ export const inboxMessageSelect = `
   conversation_id,
   ticket_id,
   message_type,
+  media_path,
+  media_mime_type,
+  is_internal,
   created_at
 `;
 
@@ -416,14 +428,28 @@ async function enrichConversationsIfNeeded(
   });
 }
 
-export async function listInboxConversations(limit = 100): Promise<InboxConversation[]> {
+export async function listInboxConversations(
+  limit = 100,
+  projectIds?: string[] | null
+): Promise<InboxConversation[]> {
+  if (Array.isArray(projectIds) && projectIds.length === 0) {
+    return [];
+  }
+
   const { data, error } = await runConversationQueryWithAvatarFallback(
-    (selectClause) =>
-      supabase
+    (selectClause) => {
+      let query = supabase
         .from('conversations')
         .select(selectClause)
         .order('last_message_at', { ascending: false })
-        .limit(limit),
+        .limit(limit);
+
+      if (projectIds && projectIds.length > 0) {
+        query = query.in('project_id', projectIds);
+      }
+
+      return query;
+    },
     { isList: true }
   );
 
@@ -456,7 +482,12 @@ export async function listInboxConversationsV2(input: {
   startDate?: string | null;
   endDate?: string | null;
   search?: string;
+  projectIds?: string[] | null;
 }): Promise<{ data: InboxConversation[]; hasNext: boolean; nextCursor: { lastMessageAt: string; id: string } | null }> {
+  if (Array.isArray(input.projectIds) && input.projectIds.length === 0) {
+    return { data: [], hasNext: false, nextCursor: null };
+  }
+
   const pageSize = input.pageSize || 10;
 
   const { data, error } = await runConversationQueryWithAvatarFallback(
@@ -472,6 +503,10 @@ export async function listInboxConversationsV2(input: {
         query = query.eq('status', 'active');
       } else if (input.status === 'closed') {
         query = query.in('status', ['closed', 'resolved', 'done', 'archived']);
+      }
+
+      if (input.projectIds && input.projectIds.length > 0) {
+        query = query.in('project_id', input.projectIds);
       }
 
       if (input.cursorLastMessageAt && input.cursorId) {

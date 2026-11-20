@@ -17,7 +17,7 @@ async function pushAgentReplyToLineInternal(
   try {
     const { data: conversation } = await supabaseAdmin
       .from('conversations')
-      .select('customer_id, current_ticket_id, customers(line_user_id)')
+      .select('customer_id, current_ticket_id, project_id, customers(line_user_id)')
       .eq('id', conversationId)
       .maybeSingle();
 
@@ -28,19 +28,28 @@ async function pushAgentReplyToLineInternal(
     if (!lineUserId) return false;
 
     const resolvedTicketId = ticketId || conversation?.current_ticket_id || null;
+    const projectId = (conversation as { project_id?: string | null } | null)?.project_id || null;
     let ticketNo: string | null = null;
+    let projectSlug: string | null = null;
     if (resolvedTicketId) {
       const { data: ticket } = await supabaseAdmin
         .from('tickets')
-        .select('ticket_no')
+        .select('ticket_no, projects:project_id(slug, is_default)')
         .eq('id', resolvedTicketId)
         .maybeSingle();
       ticketNo = ticket?.ticket_no || null;
+      const projRel = Array.isArray((ticket as Record<string, unknown> | null)?.projects)
+        ? ((ticket as Record<string, unknown>).projects as Array<{ slug?: string; is_default?: boolean }>)[0]
+        : ((ticket as Record<string, unknown> | null)?.projects as { slug?: string; is_default?: boolean } | null);
+      if (projRel && !projRel.is_default && projRel.slug) {
+        projectSlug = projRel.slug;
+      }
     }
 
+    const portalQuery = projectSlug ? `?project=${encodeURIComponent(projectSlug)}` : '';
     const portalLink = resolvedTicketId
-      ? `${APP_BASE_URL}/portal/tickets/${resolvedTicketId}`
-      : `${APP_BASE_URL}/portal`;
+      ? `${APP_BASE_URL}/portal/tickets/${resolvedTicketId}${portalQuery}`
+      : `${APP_BASE_URL}/portal${portalQuery}`;
     const ticketPrefix = ticketNo ? `[#${ticketNo}] ` : '';
 
     if (messageType === 'image' && content.startsWith('https://')) {
@@ -54,7 +63,7 @@ async function pushAgentReplyToLineInternal(
           type: 'text',
           text: `${ticketPrefix}เจ้าหน้าที่ส่งรูปภาพให้คุณ\nเปิดดูแชท: ${portalLink}`,
         },
-      ]);
+      ], projectId);
     }
 
     const bodyText =
@@ -65,7 +74,7 @@ async function pushAgentReplyToLineInternal(
     return await sendLineUserNotification(lineUserId, {
       type: 'text',
       text: `${ticketPrefix}เจ้าหน้าที่ตอบกลับ:\n${bodyText}\n\nดูรายละเอียดเพิ่มเติม: ${portalLink}`,
-    });
+    }, projectId);
   } catch (err) {
     console.error('[LinePush] Failed to push agent reply to LINE:', err);
     return false;
@@ -118,7 +127,8 @@ export async function sendAgentMessageAction(
   ticketId: string | null, 
   content: string, 
   messageType: string = 'text',
-  mediaMimeType?: string
+  mediaMimeType?: string,
+  isInternal: boolean = false
 ) {
   const user = await getSessionUser();
   await verifyAgentRole(user.id);
@@ -131,16 +141,19 @@ export async function sendAgentMessageAction(
     content: messageType === 'text' ? content : `[${messageType.toUpperCase()} Attachment]`,
     message_type: messageType,
     media_path: messageType !== 'text' ? content : null,
-    media_mime_type: mediaMimeType || null
+    media_mime_type: mediaMimeType || null,
+    is_internal: isInternal,
   }]);
   
   if (dbError) throw new Error(dbError.message);
 
-  await supabaseAdmin.from('conversations').update({
-    last_message_at: new Date().toISOString()
-  }).eq('id', conversationId);
+  if (!isInternal) {
+    await supabaseAdmin.from('conversations').update({
+      last_message_at: new Date().toISOString()
+    }).eq('id', conversationId);
 
-  void pushAgentReplyToLineInternal(conversationId, ticketId, content, messageType);
+    void pushAgentReplyToLineInternal(conversationId, ticketId, content, messageType);
+  }
 }
 
 export async function sendSystemMessageAction(

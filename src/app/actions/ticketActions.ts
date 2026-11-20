@@ -315,8 +315,19 @@ export async function resolveTicketAction(
                .maybeSingle();
 
              if (customer?.line_user_id) {
+               let portalQuery = '';
+               if (ticket.project_id) {
+                 const { data: proj } = await supabaseAdmin
+                   .from('projects')
+                   .select('slug, is_default')
+                   .eq('id', ticket.project_id)
+                   .maybeSingle();
+                 if (proj && !proj.is_default && proj.slug) {
+                   portalQuery = `?project=${encodeURIComponent(proj.slug)}`;
+                 }
+               }
                const surveyUrl = `${APP_BASE_URL}/survey/${ticketId}`;
-               const portalUrl = `${APP_BASE_URL}/portal/tickets/${ticketId}`;
+               const portalUrl = `${APP_BASE_URL}/portal/tickets/${ticketId}${portalQuery}`;
                const ticketNoLabel = ticket.ticket_no ? `#${ticket.ticket_no}` : ticketId;
                await sendLineUserNotification(customer.line_user_id, {
                  type: 'text',
@@ -326,7 +337,7 @@ export async function resolveTicketAction(
                    (module ? `ระบบที่เกี่ยวข้อง: ${module}\n` : '') +
                    `\n⭐ กรุณาประเมินความพึงพอใจได้ที่:\n${surveyUrl}\n\n` +
                    `ดูประวัติใบงาน: ${portalUrl}`,
-               });
+               }, ticket.project_id);
              }
            } catch (lineErr) {
              console.error('[ResolveAction] Silent LINE Push Error:', lineErr);

@@ -1,16 +1,26 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '@/lib/supabase';
+import type { ProjectSummary } from '@/types/project';
+
+const SELECTED_PROJECT_STORAGE_KEY = 'neo_selected_project_id_v1';
 
 interface AppContextType {
   authUserId: string | null;
   userProfile: UserProfile | null;
   companySettings: CompanySettings | null;
   organizations: Array<Record<string, unknown>>;
+  scopedOrganizations: Array<Record<string, unknown>>;
   departments: Array<Record<string, unknown>>;
+  projects: ProjectSummary[];
+  projectsLoaded: boolean;
+  selectedProjectId: string;
+  setSelectedProjectId: (id: string) => void;
+  effectiveProjectIds: string[] | null;
+  activeProject: ProjectSummary | null;
   loading: boolean;
-  refreshData: (type?: 'all' | 'profile' | 'settings' | 'organizations' | 'departments') => Promise<void>;
+  refreshData: (type?: 'all' | 'profile' | 'settings' | 'organizations' | 'departments' | 'projects') => Promise<void>;
   ensureOrganizations: () => Promise<void>;
   ensureDepartments: () => Promise<void>;
   updateStatus: (status: 'Active' | 'Busy') => Promise<void>;
@@ -46,7 +56,7 @@ export interface CompanySettings {
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
-type RefreshScope = 'all' | 'profile' | 'settings' | 'organizations' | 'departments';
+type RefreshScope = 'all' | 'profile' | 'settings' | 'organizations' | 'departments' | 'projects';
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const profileBypassAuth =
@@ -56,11 +66,59 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [companySettings, setCompanySettings] = useState<CompanySettings | null>(null);
   const [organizations, setOrganizations] = useState<Array<Record<string, unknown>>>([]);
   const [departments, setDepartments] = useState<Array<Record<string, unknown>>>([]);
+  const [projects, setProjects] = useState<ProjectSummary[]>([]);
+  const [isProjectAdmin, setIsProjectAdmin] = useState(false);
+  const [projectsLoaded, setProjectsLoaded] = useState(false);
+  const [selectedProjectId, setSelectedProjectIdState] = useState<string>(() => {
+    if (typeof window === 'undefined') return 'all';
+    return localStorage.getItem(SELECTED_PROJECT_STORAGE_KEY) || 'all';
+  });
   const [loading, setLoading] = useState(true);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [onlineUserIds, setOnlineUserIds] = useState<string[]>([]);
   const organizationsLoadedRef = React.useRef(false);
   const departmentsLoadedRef = React.useRef(false);
+
+  const setSelectedProjectId = useCallback((id: string) => {
+    const nextId = id || 'all';
+    setSelectedProjectIdState(nextId);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(SELECTED_PROJECT_STORAGE_KEY, nextId);
+    }
+  }, []);
+
+  const fetchProjects = useCallback(async () => {
+    try {
+      const res = await fetch('/api/projects/mine', { cache: 'no-store' });
+      if (!res.ok) {
+        setProjectsLoaded(true);
+        return;
+      }
+      const data = (await res.json()) as {
+        isAdmin?: boolean;
+        projects?: ProjectSummary[];
+      };
+      const loadedProjects = data.projects || [];
+      setProjects(loadedProjects);
+      setIsProjectAdmin(Boolean(data.isAdmin));
+      setSelectedProjectIdState((prev) => {
+        if (prev !== 'all' && !loadedProjects.some((p) => p.id === prev)) {
+          if (typeof window !== 'undefined') {
+            localStorage.setItem(SELECTED_PROJECT_STORAGE_KEY, 'all');
+          }
+          return 'all';
+        }
+        if (!data.isAdmin && loadedProjects.length === 1 && prev === 'all') {
+          return loadedProjects[0].id;
+        }
+        return prev;
+      });
+    } catch (err) {
+      console.warn('AppProvider projects load skipped:', err);
+    } finally {
+      setProjectsLoaded(true);
+    }
+  }, []);
 
   const fetchProfile = useCallback(async (userId: string) => {
     const { data, error } = await supabase.from('profiles').select('*').eq('id', userId).maybeSingle();
@@ -130,7 +188,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             fetchSettings(),
             fetchOrganizations(),
             fetchDepartments(),
+            fetchProjects(),
           ]);
+          return;
+        }
+
+        if (type === 'projects') {
+          await fetchProjects();
           return;
         }
 
@@ -156,7 +220,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         console.error('AppProvider refresh error:', err);
       }
     },
-    [currentUserId, fetchDepartments, fetchOrganizations, fetchProfile, fetchSettings]
+    [currentUserId, fetchDepartments, fetchOrganizations, fetchProfile, fetchProjects, fetchSettings]
   );
 
   const updateStatus = useCallback(async (status: 'Active' | 'Busy') => {
@@ -358,11 +422,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         setLoading(false);
 
         // Background data: do not block first paint.
-        // Only profile + settings are critical. Organizations/departments are lazy-loaded by pages that need them.
+        // Only profile + settings + user projects are critical. Organizations/departments are lazy-loaded by pages that need them.
         void fetchProfile(user.id).catch(err => console.error('AppProvider profile load error:', err));
         void fetchSettings().catch((err) => {
           console.error('AppProvider settings load error:', err);
         });
+        void fetchProjects();
 
         profileChannel = supabase
           .channel(`profile-updates-${user.id}`)
@@ -389,7 +454,36 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       supabase.removeChannel(settingsChannel);
       if (profileChannel) supabase.removeChannel(profileChannel);
     };
-  }, [fetchDepartments, fetchOrganizations, fetchProfile, fetchSettings, profileBypassAuth]);
+  }, [fetchDepartments, fetchOrganizations, fetchProfile, fetchProjects, fetchSettings, profileBypassAuth]);
+
+  const effectiveProjectIds = useMemo<string[] | null>(() => {
+    if (!projectsLoaded) return null;
+    if (selectedProjectId && selectedProjectId !== 'all') {
+      return [selectedProjectId];
+    }
+    if (isProjectAdmin || userProfile?.role === 'Administrator') {
+      return null;
+    }
+    return projects.map((p) => p.id);
+  }, [isProjectAdmin, projects, projectsLoaded, selectedProjectId, userProfile?.role]);
+
+  const activeProject = useMemo<ProjectSummary | null>(() => {
+    if (selectedProjectId && selectedProjectId !== 'all') {
+      return projects.find((p) => p.id === selectedProjectId) || null;
+    }
+    if (projects.length === 1) return projects[0];
+    return null;
+  }, [projects, selectedProjectId]);
+
+  const scopedOrganizations = useMemo(() => {
+    if (!effectiveProjectIds) return organizations;
+    if (effectiveProjectIds.length === 0) return [];
+    const allowed = new Set(effectiveProjectIds);
+    return organizations.filter((org) => {
+      const pid = org.project_id as string | null | undefined;
+      return !pid || allowed.has(pid);
+    });
+  }, [effectiveProjectIds, organizations]);
 
   return (
     <AppContext.Provider
@@ -398,7 +492,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         userProfile,
         companySettings,
         organizations,
+        scopedOrganizations,
         departments,
+        projects,
+        projectsLoaded,
+        selectedProjectId,
+        setSelectedProjectId,
+        effectiveProjectIds,
+        activeProject,
         loading,
         refreshData,
         ensureOrganizations,

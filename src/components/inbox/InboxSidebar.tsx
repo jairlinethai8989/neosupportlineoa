@@ -122,26 +122,45 @@ export const InboxSidebar: React.FC<InboxSidebarProps> = ({
                   </div>
                   
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '1px' }}>
-                    {hospitalName && (
-                      <span style={{ 
-                        display: 'inline-block',
-                        padding: '2px 8px',
-                        borderRadius: '6px',
-                        fontSize: '9px',
-                        fontWeight: '800',
-                        background: colors.bg,
-                        color: colors.text,
-                        border: `1px solid ${colors.border}`,
-                        maxWidth: 'fit-content',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap',
-                        marginTop: '3px',
-                        marginBottom: '3px',
-                        letterSpacing: '0.3px',
-                      }}>
-                        {hospitalName}
-                      </span>
+                    {(chat.projects?.code || hospitalName) && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexWrap: 'wrap', marginTop: '3px', marginBottom: '3px' }}>
+                        {chat.projects?.code && (
+                          <span
+                            style={{
+                              display: 'inline-block',
+                              padding: '2px 6px',
+                              borderRadius: '6px',
+                              fontSize: '9px',
+                              fontWeight: '900',
+                              background: `${chat.projects.primary_color || '#0066ff'}20`,
+                              color: chat.projects.primary_color || '#0066ff',
+                              border: `1px solid ${chat.projects.primary_color || '#0066ff'}40`,
+                              letterSpacing: '0.4px',
+                            }}
+                          >
+                            {chat.projects.code}
+                          </span>
+                        )}
+                        {hospitalName && (
+                          <span style={{ 
+                            display: 'inline-block',
+                            padding: '2px 8px',
+                            borderRadius: '6px',
+                            fontSize: '9px',
+                            fontWeight: '800',
+                            background: colors.bg,
+                            color: colors.text,
+                            border: `1px solid ${colors.border}`,
+                            maxWidth: '150px',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
+                            letterSpacing: '0.3px',
+                          }}>
+                            {hospitalName}
+                          </span>
+                        )}
+                      </div>
                     )}
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', minHeight: '12px' }}>
                       {chat.ticket_data?.subject ? (

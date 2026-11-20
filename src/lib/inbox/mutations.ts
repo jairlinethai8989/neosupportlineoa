@@ -38,8 +38,10 @@ export async function sendInboxAgentMessage(input: {
   content: string;
   messageType?: string;
   mediaMimeType?: string;
+  isInternal?: boolean;
 }) {
   const messageType = input.messageType || 'text';
+  const isInternal = Boolean(input.isInternal);
   const baseMessage = {
     conversation_id: input.conversationId,
     ticket_id: input.ticketId,
@@ -47,6 +49,7 @@ export async function sendInboxAgentMessage(input: {
     staff_id: input.staffId,
     content: messageType === 'text' ? input.content : `[${messageType.toUpperCase()} Attachment]`,
     message_type: messageType,
+    is_internal: isInternal,
   };
   const messageWithMedia =
     messageType === 'text'
@@ -102,23 +105,25 @@ export async function sendInboxAgentMessage(input: {
     );
   }
 
-  const { error: updateError } = await supabase
-    .from('conversations')
-    .update({ last_message_at: new Date().toISOString() })
-    .eq('id', input.conversationId);
+  if (!isInternal) {
+    const { error: updateError } = await supabase
+      .from('conversations')
+      .update({ last_message_at: new Date().toISOString() })
+      .eq('id', input.conversationId);
 
-  if (updateError) {
-    // Do not fail send flow when metadata timestamp update is blocked (e.g., RLS).
-    console.warn('Inbox: last_message_at update skipped:', updateError);
+    if (updateError) {
+      // Do not fail send flow when metadata timestamp update is blocked (e.g., RLS).
+      console.warn('Inbox: last_message_at update skipped:', updateError);
+    }
+    void pushAgentReplyToLineAction(
+      input.conversationId,
+      input.ticketId,
+      input.content,
+      messageType
+    ).catch((err) => {
+      console.warn('Inbox: outbound LINE push skipped:', err);
+    });
   }
-  void pushAgentReplyToLineAction(
-    input.conversationId,
-    input.ticketId,
-    input.content,
-    messageType
-  ).catch((err) => {
-    console.warn('Inbox: outbound LINE push skipped:', err);
-  });
   return { success: true as const };
 }
 
