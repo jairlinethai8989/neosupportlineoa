@@ -243,12 +243,25 @@ export async function sendPortalMessageAction(
     throw new Error('Unauthorized: You do not own this ticket');
   }
 
-  // 3. Resolve Conversation ID
-  const { data: conversation } = await supabaseAdmin
+  // 3. Resolve Conversation ID (with fallback to customer's latest conversation)
+  let { data: conversation } = await supabaseAdmin
     .from('conversations')
     .select('id')
     .eq('current_ticket_id', ticketId)
+    .order('last_message_at', { ascending: false })
+    .limit(1)
     .maybeSingle();
+
+  if (!conversation) {
+    const { data: fallbackConv } = await supabaseAdmin
+      .from('conversations')
+      .select('id')
+      .eq('customer_id', customer.id)
+      .order('last_message_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    conversation = fallbackConv;
+  }
 
   // 4. Insert Message Securely
   const { data: message, error: insertError } = await supabaseAdmin
@@ -270,11 +283,15 @@ export async function sendPortalMessageAction(
     throw new Error('Failed to send message: ' + insertError.message);
   }
 
-  // 5. Update conversation timestamp if exists
+  // 5. Update conversation timestamp and ensure active linkage if exists
   if (conversation) {
     await supabaseAdmin
       .from('conversations')
-      .update({ last_message_at: new Date().toISOString() })
+      .update({
+        last_message_at: new Date().toISOString(),
+        current_ticket_id: ticketId,
+        status: 'active',
+      })
       .eq('id', conversation.id);
   }
 
@@ -346,7 +363,7 @@ export async function submitSurveyAction(
 
   const { data: ticket } = await supabaseAdmin
     .from('tickets')
-    .select('id')
+    .select('id, status')
     .eq('id', ticketId)
     .maybeSingle();
 
@@ -368,14 +385,16 @@ export async function submitSurveyAction(
     };
   }
 
+  const nowIso = new Date().toISOString();
+  const cleanComment = (comment || '').trim();
   const { error } = await supabaseAdmin
     .from('csat_surveys')
     .upsert(
       {
         ticket_id: ticketId,
         score: normalizedScore,
-        comment: (comment || '').trim(),
-        responded_at: new Date().toISOString(),
+        comment: cleanComment,
+        responded_at: nowIso,
       },
       { onConflict: 'ticket_id' }
     );
@@ -384,9 +403,197 @@ export async function submitSurveyAction(
     return { success: false, error: `ไม่สามารถบันทึกการประเมินได้: ${error.message}` };
   }
 
+  // Transition ticket from Resolved -> Closed and log completion
+  const prevStatus = String((ticket as { status?: string | null }).status || 'Resolved');
+  if (prevStatus.toLowerCase() === 'resolved') {
+    await supabaseAdmin
+      .from('tickets')
+      .update({ status: 'Closed', updated_at: nowIso })
+      .eq('id', ticketId);
+  }
+
+  await supabaseAdmin.from('ticket_logs').insert([
+    {
+      ticket_id: ticketId,
+      action_type: 'status_change',
+      from_status: prevStatus,
+      to_status: 'Closed',
+      note: `ลูกค้าประเมินความพึงพอใจ ${normalizedScore}/5 ดาว${
+        cleanComment ? ` (${cleanComment})` : ''
+      } — ปิดจบใบงานสมบูรณ์`,
+    },
+  ]);
+
   invalidateAllLiveCaches();
   invalidateAllPreviewCaches();
   return { success: true };
+}
+
+/**
+ * Securely loads ticket details, conversationId, non-internal messages, logs, and CSAT status
+ * for /portal/tickets/[id] using supabaseAdmin + LIFF identity verification (bypassing anon RLS issues).
+ */
+export async function getPortalTicketDetailAction(input: {
+  ticketId: string;
+  lineUserId?: string | null;
+  idToken?: string | null;
+}): Promise<{
+  ticket: Record<string, unknown> | null;
+  conversationId: string | null;
+  messages: Record<string, unknown>[];
+  logs: Record<string, unknown>[];
+  survey: { responded: boolean; value: number; hasSurveyRecord: boolean };
+  forbidden?: boolean;
+  error?: string;
+}> {
+  const emptySurvey = { responded: false, value: 0, hasSurveyRecord: false };
+  try {
+    if (!input.ticketId || !UUID_REGEX.test(input.ticketId)) {
+      return {
+        ticket: null,
+        conversationId: null,
+        messages: [],
+        logs: [],
+        survey: emptySurvey,
+        error: 'Invalid ticket ID',
+      };
+    }
+
+    const { data: ticketData, error: ticketErr } = await supabaseAdmin
+      .from('tickets')
+      .select(
+        '*, assigned_agent:profiles!assigned_agent_id(id, full_name, avatar_url, department, role)'
+      )
+      .eq('id', input.ticketId)
+      .maybeSingle();
+
+    if (ticketErr || !ticketData) {
+      return {
+        ticket: null,
+        conversationId: null,
+        messages: [],
+        logs: [],
+        survey: emptySurvey,
+      };
+    }
+
+    const projectId = (ticketData as { project_id?: string | null }).project_id || null;
+    const customerId = (ticketData as { customer_id?: string | null }).customer_id || null;
+
+    if ((input.lineUserId || input.idToken) && customerId) {
+      const project = projectId
+        ? await resolveProjectById(projectId)
+        : await resolveProjectBySlug(null);
+
+      const identity = await verifyLiffIdentity({
+        lineUserId: input.lineUserId,
+        idToken: input.idToken,
+        channelId: project?.line_channel_id,
+        liffId: project?.line_liff_id,
+      });
+
+      let ownerQuery = supabaseAdmin
+        .from('customers')
+        .select('id')
+        .eq('line_user_id', identity.lineUserId);
+
+      if (projectId) {
+        ownerQuery = ownerQuery.eq('project_id', projectId);
+      }
+
+      const { data: ownerCustomer } = await ownerQuery.limit(1).maybeSingle();
+      if (!ownerCustomer || ownerCustomer.id !== customerId) {
+        return {
+          ticket: null,
+          conversationId: null,
+          messages: [],
+          logs: [],
+          survey: emptySurvey,
+          forbidden: true,
+          error: 'Access denied: user does not own this ticket',
+        };
+      }
+    }
+
+    const { data: convData } = await supabaseAdmin
+      .from('conversations')
+      .select('id')
+      .eq('current_ticket_id', input.ticketId)
+      .order('last_message_at', { ascending: false, nullsFirst: false })
+      .limit(1)
+      .maybeSingle();
+
+    let cid: string | null = convData?.id || null;
+    if (!cid && customerId) {
+      const { data: convFallback } = await supabaseAdmin
+        .from('conversations')
+        .select('id')
+        .eq('customer_id', customerId)
+        .order('last_message_at', { ascending: false, nullsFirst: false })
+        .limit(1)
+        .maybeSingle();
+      cid = convFallback?.id || null;
+    }
+
+    let messagesQuery = supabaseAdmin
+      .from('messages')
+      .select(
+        'id, content, media_path, media_mime_type, sender_type, message_type, is_internal, created_at, ticket_id, conversation_id'
+      )
+      .neq('is_internal', true);
+
+    if (cid) {
+      messagesQuery = messagesQuery.or(
+        `ticket_id.eq.${input.ticketId},conversation_id.eq.${cid}`
+      );
+    } else {
+      messagesQuery = messagesQuery.eq('ticket_id', input.ticketId);
+    }
+
+    const [messagesRes, logsRes, surveyRes] = await Promise.all([
+      messagesQuery.order('created_at', { ascending: true }),
+      supabaseAdmin
+        .from('ticket_logs')
+        .select('id, created_at, action_type, to_status')
+        .eq('ticket_id', input.ticketId)
+        .order('created_at', { ascending: false }),
+      supabaseAdmin
+        .from('csat_surveys')
+        .select('score, rating, responded_at')
+        .eq('ticket_id', input.ticketId)
+        .maybeSingle(),
+    ]);
+
+    const sData = surveyRes.data as {
+      score?: number | null;
+      rating?: number | null;
+      responded_at?: string | null;
+    } | null;
+    const sValue = sData?.score || sData?.rating || 0;
+    const sResponded = Boolean(sData?.responded_at || sValue);
+
+    return {
+      ticket: ticketData as Record<string, unknown>,
+      conversationId: cid,
+      messages: (messagesRes.data || []) as Record<string, unknown>[],
+      logs: (logsRes.data || []) as Record<string, unknown>[],
+      survey: {
+        responded: sResponded,
+        value: sValue,
+        hasSurveyRecord: Boolean(sData),
+      },
+    };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Failed to load portal ticket';
+    return {
+      ticket: null,
+      conversationId: null,
+      messages: [],
+      logs: [],
+      survey: emptySurvey,
+      error: message,
+    };
+  }
 }
 
 /**

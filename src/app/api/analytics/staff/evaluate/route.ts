@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createSupabaseServerClient } from '@/lib/supabase-server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
+import { callGeminiJsonWithFallback } from '@/lib/server/geminiClient';
 
 export const runtime = 'nodejs';
 
@@ -205,36 +206,8 @@ ${recentLogsText}
   "overallSummary": "สรุปภาพรวมในระดับผู้อำนวยการ วิเคราะห์จุดเด่นภาพกว้าง และความเหมาะสมในการเติบโตในสายงาน (2-3 ประโยค)"
 }`;
 
-    // 7. Request Content Generation from Gemini 3.5 Flash
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: systemPrompt }] }],
-          generationConfig: {
-            responseMimeType: 'application/json',
-          }
-        }),
-      }
-    );
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Gemini API returned error status:', response.status, errorText);
-      throw new Error(`Gemini API error: ${response.statusText}`);
-    }
-
-    const resData = await response.json();
-    const parsedText = resData.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (!parsedText) {
-      throw new Error('Invalid or empty response structure from Gemini API');
-    }
-
-    const aiResult = JSON.parse(parsedText);
+    // 7. Request Content Generation from Gemini with multi-model fallback
+    const aiResult = await callGeminiJsonWithFallback(apiKey, systemPrompt);
 
     // 8. Persist to Database via Upsert
     const { data: saved, error: dbError } = await supabaseAdmin

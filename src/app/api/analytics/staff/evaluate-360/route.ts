@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createSupabaseServerClient } from '@/lib/supabase-server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
+import { callGeminiJsonWithFallback } from '@/lib/server/geminiClient';
 
 export const runtime = 'nodejs';
 
@@ -252,27 +253,10 @@ ${chatText}
   "comments": "บทสรุปและข้อเสนอแนะแนะเป็นภาพรวมเชิงวิเคราะห์ของพนักงานรายนี้โดยสังเขป (3-4 ประโยค)"
 }`;
 
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: systemPrompt }] }],
-            generationConfig: { responseMimeType: 'application/json' }
-          }),
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error(`Gemini API Error: ${response.statusText}`);
-      }
-
-      const resData = await response.json();
-      const parsedText = resData.candidates?.[0]?.content?.parts?.[0]?.text;
-      if (!parsedText) throw new Error('Empty response from Gemini');
-
-      const aiResult = JSON.parse(parsedText);
+      const aiResult = await callGeminiJsonWithFallback<{
+        scores: Record<string, number>;
+        comments: string;
+      }>(apiKey, systemPrompt);
       return NextResponse.json({
         scores: aiResult.scores,
         comments: aiResult.comments,

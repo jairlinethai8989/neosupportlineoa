@@ -36,6 +36,7 @@ interface TicketSidebarProps {
   onCloseSession: () => void;
   onCopySurvey: () => void;
   onWarn: (title: string, body: string) => void;
+  onTicketUpdated?: (ticket: InboxTicket) => void;
 }
 
 function getSlaProgress(slaDueAt?: string | null, createdAt?: string | null) {
@@ -67,15 +68,13 @@ export const TicketSidebar: React.FC<TicketSidebarProps> = React.memo(function T
   onCloseSession,
   onCopySurvey,
   onWarn,
+  onTicketUpdated,
 }: TicketSidebarProps) {
   const { locale, t } = useStaffLocale();
-  void onTransfer;
 
   const statusLower = currentTicket?.status?.toLowerCase();
-  const isResolved =
-    statusLower === 'resolved' ||
-    statusLower === 'closed' ||
-    statusLower === 'fix completed';
+  const isResolved = statusLower === 'resolved' || statusLower === 'closed';
+  const isFixCompleted = statusLower === 'fix completed';
   const isOwner = currentTicket?.assigned_agent_id === agent?.id;
   const isAdmin = agent?.role === 'Administrator';
   const isSessionActive =
@@ -88,6 +87,12 @@ export const TicketSidebar: React.FC<TicketSidebarProps> = React.memo(function T
   const [isProcessing, setIsProcessing] = useState(false);
   const [showEscalateModal, setShowEscalateModal] = useState(false);
   const [showPendingConfirm, setShowPendingConfirm] = useState(false);
+  const [showTransferModal, setShowTransferModal] = useState(false);
+  const [showRejectFixModal, setShowRejectFixModal] = useState(false);
+  const [staffOptions, setStaffOptions] = useState<Array<{ id: string; full_name: string }>>([]);
+  const [transferTargetId, setTransferTargetId] = useState('');
+  const [transferNote, setTransferNote] = useState('');
+  const [rejectFixNote, setRejectFixNote] = useState('');
   const [escalationNote, setEscalationNote] = useState('');
   const [expiryHours, setExpiryHours] = useState(72);
   const [activeHandoff, setActiveHandoff] = useState<{
@@ -378,6 +383,33 @@ export const TicketSidebar: React.FC<TicketSidebarProps> = React.memo(function T
             </Button>
           </div>
 
+          <Button
+            size="sm"
+            variant="secondary"
+            fullWidth
+            disabled={isProcessing}
+            onClick={async () => {
+              setShowTransferModal(true);
+              if (staffOptions.length === 0) {
+                const { data } = await supabase
+                  .from('profiles')
+                  .select('id, full_name')
+                  .order('full_name', { ascending: true });
+                if (data) {
+                  setStaffOptions(
+                    data.map((row) => ({
+                      id: String(row.id),
+                      full_name: String(row.full_name || row.id),
+                    }))
+                  );
+                }
+              }
+            }}
+            leftIcon={<User size={14} aria-hidden="true" />}
+          >
+            {locale === 'th' ? 'โอนงานให้เจ้าหน้าที่อื่น' : 'Transfer to Agent'}
+          </Button>
+
           {activeMagicLink && (
             <div className={styles.magicLinkBox}>
               <span className={styles.magicLinkLabel}>{t('inbox.magicLinkReady')}</span>
@@ -434,20 +466,30 @@ export const TicketSidebar: React.FC<TicketSidebarProps> = React.memo(function T
           </Button>
         )}
 
+        {currentTicket && isFixCompleted && (isOwner || isAdmin) && (
+          <Button
+            variant="danger"
+            fullWidth
+            disabled={isProcessing}
+            onClick={() => setShowRejectFixModal(true)}
+            leftIcon={<AlertTriangle size={16} aria-hidden="true" />}
+          >
+            {locale === 'th' ? 'ตีกลับให้แก้ไขใหม่ (Reject Fix)' : 'Reject & Request Rework'}
+          </Button>
+        )}
+
         {currentTicket && !isResolved && (isOwner || isAdmin) && (
           <Button
-            variant={isSessionActive ? 'secondary' : 'primary'}
+            variant="primary"
             fullWidth
-            onClick={() => {
-              if (isSessionActive) {
-                onWarn(t('inbox.resolveWarningTitle'), t('inbox.resolveWarningBody'));
-                return;
-              }
-              onResolve();
-            }}
+            onClick={onResolve}
             leftIcon={<CheckCircle size={16} aria-hidden="true" />}
           >
-            {t('inbox.resolveTicket')}
+            {isFixCompleted
+              ? locale === 'th'
+                ? 'ตรวจรับและปิดงาน (Approve & Resolve)'
+                : 'Approve & Resolve'
+              : t('inbox.resolveTicket')}
           </Button>
         )}
       </div>
@@ -569,6 +611,165 @@ export const TicketSidebar: React.FC<TicketSidebarProps> = React.memo(function T
           <option value={168}>{locale === 'th' ? '168 ชั่วโมง (7 วัน)' : '168 hours (7 days)'}</option>
           <option value={720}>{locale === 'th' ? '720 ชั่วโมง (30 วัน)' : '720 hours (30 days)'}</option>
         </Select>
+      </Modal>
+
+      {/* Transfer to Agent Modal */}
+      <Modal
+        isOpen={showTransferModal}
+        onClose={() => setShowTransferModal(false)}
+        size="sm"
+        title={locale === 'th' ? 'โอนงานให้เจ้าหน้าที่' : 'Transfer Ticket'}
+        description={
+          locale === 'th'
+            ? 'เลือกเจ้าหน้าที่ผู้รับผิดชอบคนใหม่และระบุหมายเหตุการโอนงาน'
+            : 'Select the receiving agent and provide a transfer note.'
+        }
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setShowTransferModal(false)}>
+              {t('common.cancel')}
+            </Button>
+            <Button
+              variant="primary"
+              loading={isProcessing}
+              disabled={!transferTargetId || isProcessing}
+              onClick={async () => {
+                if (!currentTicket?.id || !transferTargetId) return;
+                setIsProcessing(true);
+                try {
+                  const updated = await ticketService.transfer(
+                    currentTicket.id,
+                    agent?.id,
+                    transferTargetId,
+                    undefined,
+                    transferNote.trim() || undefined
+                  );
+                  if (updated && onTicketUpdated) {
+                    onTicketUpdated({
+                      ...currentTicket,
+                      status: updated.status || 'Escalated',
+                      assigned_agent_id: transferTargetId,
+                    });
+                  }
+                  setShowTransferModal(false);
+                  setTransferTargetId('');
+                  setTransferNote('');
+                  onTransfer();
+                } catch (err: unknown) {
+                  onWarn(
+                    t('common.messages.error'),
+                    err instanceof Error ? err.message : 'Transfer failed'
+                  );
+                } finally {
+                  setIsProcessing(false);
+                }
+              }}
+            >
+              {locale === 'th' ? 'ยืนยันโอนงาน' : 'Confirm Transfer'}
+            </Button>
+          </>
+        }
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <Select
+            label={locale === 'th' ? 'เจ้าหน้าที่ผู้รับงาน' : 'Target Agent'}
+            required
+            value={transferTargetId}
+            onChange={(e) => setTransferTargetId(e.target.value)}
+          >
+            <option value="">
+              {locale === 'th' ? '-- เลือกเจ้าหน้าที่ --' : '-- Select Agent --'}
+            </option>
+            {staffOptions
+              .filter((s) => s.id !== agent?.id)
+              .map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.full_name}
+                </option>
+              ))}
+          </Select>
+          <Textarea
+            label={locale === 'th' ? 'เหตุผล / หมายเหตุการโอนงาน' : 'Transfer Reason / Note'}
+            value={transferNote}
+            onChange={(e) => setTransferNote(e.target.value)}
+            placeholder={
+              locale === 'th'
+                ? 'ระบุรายละเอียดเพื่อส่งต่อให้ผู้รับงาน...'
+                : 'Add context for the receiving agent...'
+            }
+          />
+        </div>
+      </Modal>
+
+      {/* Reject Fix Completed Modal */}
+      <Modal
+        isOpen={showRejectFixModal}
+        onClose={() => setShowRejectFixModal(false)}
+        size="sm"
+        title={locale === 'th' ? 'ตีกลับงานให้แก้ไขใหม่' : 'Reject Fix & Request Rework'}
+        description={
+          locale === 'th'
+            ? 'ระบุสิ่งที่ยังไม่ผ่านการตรวจสอบเพื่อส่งกลับให้ทีมแก้ไขต่อ'
+            : 'Specify what needs further fixing before resolving.'
+        }
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setShowRejectFixModal(false)}>
+              {t('common.cancel')}
+            </Button>
+            <Button
+              variant="danger"
+              loading={isProcessing}
+              disabled={!rejectFixNote.trim() || isProcessing}
+              onClick={async () => {
+                if (!currentTicket?.id || !rejectFixNote.trim()) return;
+                setIsProcessing(true);
+                try {
+                  const updated = await ticketService.reviewFixCompleted(
+                    currentTicket.id,
+                    'reject',
+                    rejectFixNote.trim()
+                  );
+                  if (updated && onTicketUpdated) {
+                    onTicketUpdated({
+                      ...currentTicket,
+                      status: updated.status || 'In Progress',
+                    });
+                  }
+                  setShowRejectFixModal(false);
+                  setRejectFixNote('');
+                  onWarn(
+                    locale === 'th' ? 'ตีกลับงานแก้ไขแล้ว' : 'Returned for Rework',
+                    locale === 'th'
+                      ? 'เปลี่ยนสถานะใบงานกลับไปดำเนินการแก้ไขต่อเรียบร้อยแล้ว'
+                      : 'Ticket status returned for rework.'
+                  );
+                } catch (err: unknown) {
+                  onWarn(
+                    t('common.messages.error'),
+                    err instanceof Error ? err.message : 'Reject failed'
+                  );
+                } finally {
+                  setIsProcessing(false);
+                }
+              }}
+            >
+              {locale === 'th' ? 'ยืนยันตีกลับงาน' : 'Confirm Reject'}
+            </Button>
+          </>
+        }
+      >
+        <Textarea
+          label={locale === 'th' ? 'รายละเอียดที่ต้องแก้ไขเพิ่มเติม' : 'Rework Feedback'}
+          required
+          value={rejectFixNote}
+          onChange={(e) => setRejectFixNote(e.target.value)}
+          placeholder={
+            locale === 'th'
+              ? 'ระบุจุดที่ยังพบปัญหาหรือสิ่งที่ต้องการให้แก้ไขเพิ่ม...'
+              : 'Describe what still needs fixing...'
+          }
+        />
       </Modal>
     </aside>
   );

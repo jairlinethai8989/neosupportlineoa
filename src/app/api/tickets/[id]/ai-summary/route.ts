@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createSupabaseServerClient } from '@/lib/supabase-server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
+import { callGeminiJsonWithFallback } from '@/lib/server/geminiClient';
 
 export const runtime = 'nodejs';
 
@@ -165,36 +166,8 @@ ${chatLog}
     }
 
     if (!aiResult) {
-      console.log('Calling Gemini API...');
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: systemInstructions }] }],
-            generationConfig: {
-              responseMimeType: 'application/json',
-            }
-          }),
-        }
-      );
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Gemini API returned error status:', response.status, errorText);
-        throw new Error(`Gemini API error: ${response.statusText}`);
-      }
-
-      const resData = await response.json();
-      const parsedText = resData.candidates?.[0]?.content?.parts?.[0]?.text;
-      if (!parsedText) {
-        throw new Error('Invalid or empty response structure from Gemini API');
-      }
-
-      aiResult = JSON.parse(parsedText);
+      console.log('Calling Gemini API with model fallback...');
+      aiResult = await callGeminiJsonWithFallback(apiKey, systemInstructions);
     }
 
     // 6. Save back to database

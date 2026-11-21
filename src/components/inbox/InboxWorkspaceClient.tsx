@@ -2,7 +2,7 @@
 
 import React, { Suspense, useCallback, useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
-import { useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Loader2, MessageSquare } from 'lucide-react';
 import { clsx } from 'clsx';
 import { Button, EmptyState, Modal } from '@/components/ui';
@@ -64,6 +64,7 @@ function InboxContent({
 }) {
   const { locale, t } = useStaffLocale();
   const { addToast } = useNotificationContext();
+  const router = useRouter();
   const searchParams = useSearchParams();
   const cid = searchParams.get('cid');
   const tid = searchParams.get('tid');
@@ -158,6 +159,7 @@ function InboxContent({
     isInternalMode,
     setIsInternalMode,
     currentTicket,
+    setCurrentTicket,
     sending,
     setSending,
     showResolveModal,
@@ -198,22 +200,24 @@ function InboxContent({
     );
   }, []);
 
-  const handleFetchGlobalHistory = useCallback(
-    () =>
-      showInfoToast(
-        locale === 'th' ? 'ฟีเจอร์ยังไม่พร้อม' : 'Coming soon',
-        t('inbox.globalHistoryComingSoon')
-      ),
-    [locale, showInfoToast, t]
-  );
+  const handleFetchGlobalHistory = useCallback(() => {
+    const customerId = selectedChat?.customer_id || currentTicket?.customer_id;
+    if (customerId) {
+      router.push(`/tickets?customerId=${encodeURIComponent(customerId)}`);
+    } else {
+      router.push('/tickets');
+    }
+  }, [currentTicket?.customer_id, router, selectedChat?.customer_id]);
 
   const handleTransferInfo = useCallback(
     () =>
       showInfoToast(
-        locale === 'th' ? 'ฟีเจอร์ยังไม่พร้อม' : 'Coming soon',
-        t('inbox.transferComingSoon')
+        locale === 'th' ? 'โอนงานสำเร็จ' : 'Ticket Transferred',
+        locale === 'th'
+          ? 'โอนใบงานไปยังเจ้าหน้าที่ผู้รับผิดชอบคนใหม่เรียบร้อยแล้ว'
+          : 'Ticket has been transferred to the selected agent.'
       ),
-    [locale, showInfoToast, t]
+    [locale, showInfoToast]
   );
 
   const handleOpenCloseConfirm = useCallback(() => setShowCloseSessionConfirm(true), []);
@@ -462,6 +466,7 @@ function InboxContent({
             onCloseSession={handleOpenCloseConfirm}
             onCopySurvey={handleCopySurvey}
             onWarn={showInfoToast}
+            onTicketUpdated={setCurrentTicket}
           />
         </div>
       )}

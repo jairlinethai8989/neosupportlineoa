@@ -72,7 +72,7 @@ async function getActiveHandoff(ticketIdOrToken: string) {
   return result.data;
 }
 
-async function reopenConversationForTicket(ticketId: string) {
+async function reopenConversationForTicket(ticketId: string): Promise<string | null> {
   const { data: lastTicketMessage } = await supabaseAdmin
     .from('messages')
     .select('conversation_id')
@@ -81,18 +81,34 @@ async function reopenConversationForTicket(ticketId: string) {
     .limit(1)
     .maybeSingle();
 
-  if (!lastTicketMessage?.conversation_id) {
-    return;
+  let conversationId = lastTicketMessage?.conversation_id || null;
+  if (!conversationId) {
+    const { data: convRow } = await supabaseAdmin
+      .from('conversations')
+      .select('id')
+      .eq('current_ticket_id', ticketId)
+      .order('last_message_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    conversationId = convRow?.id || null;
   }
 
+  if (!conversationId) {
+    return null;
+  }
+
+  const nowIso = new Date().toISOString();
   await supabaseAdmin
     .from('conversations')
     .update({
       status: 'active',
       current_ticket_id: ticketId,
-      updated_at: new Date().toISOString(),
+      last_message_at: nowIso,
+      updated_at: nowIso,
     })
-    .eq('id', lastTicketMessage.conversation_id);
+    .eq('id', conversationId);
+
+  return conversationId;
 }
 
 export async function verifyEscalationPin(ticketId: string, pin: string) {
@@ -338,7 +354,37 @@ export async function updateEscalatedTicketStatus(
       },
     ]);
 
-    await reopenConversationForTicket(ticketRow.id);
+    const reopenedConvId = await reopenConversationForTicket(ticketRow.id);
+    if (reopenedConvId) {
+      const internalMessages: Array<Record<string, unknown>> = [
+        {
+          conversation_id: reopenedConvId,
+          ticket_id: ticketRow.id,
+          sender_type: 'system',
+          content: reportText,
+          message_type: 'text',
+          is_internal: true,
+        },
+      ];
+
+      for (const url of attachmentUrls || []) {
+        if (url && typeof url === 'string') {
+          const isImg = /\.(jpeg|jpg|gif|png|webp)$/i.test(url);
+          internalMessages.push({
+            conversation_id: reopenedConvId,
+            ticket_id: ticketRow.id,
+            sender_type: 'system',
+            content: url,
+            media_path: url,
+            message_type: isImg ? 'image' : 'file',
+            is_internal: true,
+          });
+        }
+      }
+
+      await supabaseAdmin.from('messages').insert(internalMessages);
+    }
+
     invalidateAllLiveCaches();
     invalidateAllPreviewCaches();
 

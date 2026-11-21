@@ -19,7 +19,11 @@ import {
   Star
 } from 'lucide-react';
 import { useLiff } from '@/hooks/useLiff';
-import { sendPortalMessageAction, submitSurveyAction } from '@/app/actions/portalActions';
+import {
+  getPortalTicketDetailAction,
+  sendPortalMessageAction,
+  submitSurveyAction,
+} from '@/app/actions/portalActions';
 import { compressImage } from '@/lib/utils/imageCompression';
 import styles from './ticket.module.css';
 
@@ -241,126 +245,61 @@ export default function TicketDetailPage() {
   const loadSurveyState = useCallback(async () => {
     if (!ticketId) return null;
 
-    const { data } = await supabase
-      .from('csat_surveys')
-      .select('score, rating, responded_at')
-      .eq('ticket_id', ticketId)
-      .maybeSingle();
+    const detail = await getPortalTicketDetailAction({
+      ticketId,
+      lineUserId: profile?.userId || null,
+      idToken: getIdToken(),
+    });
+    const survey = detail.survey;
 
-    const value = data?.score || data?.rating || 0;
-    const responded = Boolean(data?.responded_at || value);
-
-    if (responded) {
+    if (survey.responded) {
       setHasResponded(true);
-      if (value) setSurveyScore(value);
+      if (survey.value) setSurveyScore(survey.value);
     }
 
-    return {
-      responded,
-      value,
-      hasSurveyRecord: Boolean(data),
-    };
-  }, [ticketId]);
+    return survey;
+  }, [ticketId, profile?.userId, getIdToken]);
 
   // 1. Fetch initial ticket data once isReady and ticketId are available
   useEffect(() => {
-    if (!ticketId) return;
+    if (!ticketId || !isReady) return;
 
     async function fetchTicketData() {
       if (!ticketId) return;
       setLoading(true);
       try {
-        // Combined initial query with joins to avoid sequential waterfalls (fetched only once!)
-        const { data: ticketData, error: e1 } = await supabase
-          .from('tickets')
-          .select(`*, assigned_agent:profiles!assigned_agent_id(*)`)
-          .eq('id', ticketId)
-          .maybeSingle();
+        const detail = await getPortalTicketDetailAction({
+          ticketId,
+          lineUserId: profile?.userId || null,
+          idToken: getIdToken(),
+        });
 
-        if (e1) throw e1;
-        if (!ticketData) {
+        if (detail.forbidden || !detail.ticket) {
+          if (detail.forbidden) {
+            console.warn('Access denied: user does not own this ticket');
+          }
+          setTicket(null);
           setLoading(false);
           return;
         }
 
-        // SECURITY: Verify owner customer ID mapping with profile.userId (scoped by project_id)
-        if (profile?.userId && ticketData.customer_id) {
-          let ownerQuery = supabase
-            .from('customers')
-            .select('id')
-            .eq('line_user_id', profile.userId);
-          if (ticketData.project_id) {
-            ownerQuery = ownerQuery.eq('project_id', ticketData.project_id);
-          }
-          const { data: ownerCustomer } = await ownerQuery.limit(1).maybeSingle();
-
-          if (!ownerCustomer || ownerCustomer.id !== ticketData.customer_id) {
-            console.warn('Access denied: user does not own this ticket');
-            setTicket(null);
-            setLoading(false);
-            return;
-          }
-        }
-
+        const ticketData = detail.ticket as any;
         setTicket(ticketData);
 
-        // Fetch conversation directly in parallel with message loaders
-        const { data: convData } = await supabase
-          .from('conversations')
-          .select('id')
-          .eq('current_ticket_id', ticketId)
-          .order('last_message_at', { ascending: false, nullsFirst: false })
-          .limit(1)
-          .maybeSingle();
-
-        let cid = convData?.id || null;
-
-        if (!cid && ticketData.customer_id) {
-          const { data: convFallback } = await supabase
-            .from('conversations')
-            .select('id')
-            .eq('customer_id', ticketData.customer_id)
-            .eq('status', 'active')
-            .order('last_message_at', { ascending: false, nullsFirst: false })
-            .limit(1)
-            .maybeSingle();
-          cid = convFallback?.id || null;
+        if (detail.conversationId) {
+          setConversationId(detail.conversationId);
+          conversationIdRef.current = detail.conversationId;
         }
 
-        if (cid) {
-          setConversationId(cid);
-          conversationIdRef.current = cid;
-        }
+        setMessages(detail.messages);
+        setLogs(detail.logs);
 
-        const loadMessages = async (cidToUse: string | null) => {
-          let messagesQuery = supabase
-            .from('messages')
-            .select('id, content, media_path, media_mime_type, sender_type, message_type, is_internal, created_at, ticket_id, conversation_id')
-            .neq('is_internal', true);
-          if (cidToUse) {
-            messagesQuery = messagesQuery.or(`ticket_id.eq.${ticketId},conversation_id.eq.${cidToUse}`);
-          } else {
-            messagesQuery = messagesQuery.eq('ticket_id', ticketId);
-          }
-          const { data } = await messagesQuery.order('created_at', { ascending: true });
-          if (data) setMessages(data);
-        };
-
-        const [lRes, surveyState] = await Promise.all([
-          supabase.from('ticket_logs').select('id, created_at, action_type, to_status').eq('ticket_id', ticketId).order('created_at', { ascending: false }),
-          loadSurveyState(),
-          loadMessages(cid)
-        ]);
-
-        if (lRes.data) setLogs(lRes.data);
-        if (
-          surveyState &&
-          !surveyState.responded &&
-          isSurveyEligibleStatus(ticketData.status)
-        ) {
+        if (detail.survey.responded) {
+          setHasResponded(true);
+          if (detail.survey.value) setSurveyScore(detail.survey.value);
+        } else if (isSurveyEligibleStatus(ticketData.status)) {
           router.push(buildSurveyRedirectUrl(ticketId));
         }
-
       } catch (err: any) {
         console.error('Error fetching ticket:', err);
       } finally {
@@ -385,18 +324,16 @@ export default function TicketDetailPage() {
 
     console.log(`[Realtime] Initializing stable channel for ticket: ${ticketId}`);
 
-    // Helper: fetch all messages for this ticket (uses ref for latest conversationId)
+    // Helper: fetch all messages for this ticket via Server Action (bypasses anon RLS)
     const refetchMessages = () => {
-      const cid = conversationIdRef.current;
-      let q = supabase
-        .from('messages')
-        .select('id, content, media_path, media_mime_type, sender_type, message_type, is_internal, created_at, ticket_id, conversation_id')
-        .neq('is_internal', true);
-      q = cid
-        ? q.or(`ticket_id.eq.${ticketId},conversation_id.eq.${cid}`)
-        : q.eq('ticket_id', ticketId);
-      q.order('created_at', { ascending: true }).then(({ data }: any) => {
-        if (data) setMessages(data);
+      void getPortalTicketDetailAction({
+        ticketId,
+        lineUserId: profile?.userId || null,
+        idToken: getIdToken(),
+      }).then((detail) => {
+        if (detail.messages) setMessages(detail.messages);
+        if (detail.ticket) setTicket(detail.ticket);
+        if (detail.logs) setLogs(detail.logs);
       });
     };
 

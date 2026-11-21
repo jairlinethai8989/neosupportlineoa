@@ -100,16 +100,20 @@ export async function POST(req: Request) {
 
       const endpoints = [
         {
+          url: `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${encodeURIComponent(candidateKey)}`,
+          label: 'Gemini 2.0 Flash (v1beta)',
+        },
+        {
+          url: `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(candidateKey)}`,
+          label: 'Gemini 2.5 Flash (v1beta)',
+        },
+        {
           url: `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${encodeURIComponent(candidateKey)}`,
           label: 'Gemini 1.5 Flash (v1)',
         },
         {
           url: `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${encodeURIComponent(candidateKey)}`,
           label: 'Gemini 1.5 Flash (v1beta)',
-        },
-        {
-          url: `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(candidateKey)}`,
-          label: 'Gemini 2.5 Flash (v1beta)',
         },
       ];
 

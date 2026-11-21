@@ -581,7 +581,9 @@ export function useInboxConversation({
       });
 
       setCurrentTicket(resolvedTicket);
-      markConversationClosedLocally();
+      if (resolvedTicket?.status !== 'Fix Completed') {
+        markConversationClosedLocally();
+      }
       setShowResolveModal(false);
       addToast(getInboxResolveSuccessToast(resolvedTicket?.status === 'Fix Completed'));
     } catch (error: unknown) {
@@ -590,13 +592,15 @@ export function useInboxConversation({
       const refreshedTicket = await getInboxTicketById(ticketId);
       const refreshedStatusLower = refreshedTicket?.status?.toLowerCase();
       const isActuallyResolved =
-        refreshedStatusLower === 'resolved' || 
-        refreshedStatusLower === 'closed' || 
+        refreshedStatusLower === 'resolved' ||
+        refreshedStatusLower === 'closed' ||
         refreshedStatusLower === 'fix completed';
 
       if (isActuallyResolved && refreshedTicket) {
         setCurrentTicket(refreshedTicket);
-        markConversationClosedLocally();
+        if (refreshedStatusLower !== 'fix completed') {
+          markConversationClosedLocally();
+        }
         setShowResolveModal(false);
         addToast(getInboxResolveSuccessToast(refreshedTicket?.status === 'Fix Completed'));
       } else {
