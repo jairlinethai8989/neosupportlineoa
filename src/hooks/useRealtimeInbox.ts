@@ -101,7 +101,8 @@ export function useRealtimeInbox(options: {
     initialData &&
     page === 1 &&
     !inboxWorkspaceCache &&
-    initialData.scopeKey === scopeKey
+    initialData.scopeKey === scopeKey &&
+    (initialData.conversations.length > 0 || !initialData.hasNextPage)
   ) {
     const cursorMap = new Map<number, { lastMessageAt: string; id: string } | null>([[1, null]]);
     if (initialData.hasNextPage && initialData.nextCursor) {
@@ -144,7 +145,12 @@ export function useRealtimeInbox(options: {
     return !initialCache.conversationsByPage.has(page);
   });
   const skipInitialFetchRef = useRef(
-    Boolean(initialData && page === 1 && initialData.scopeKey === scopeKey)
+    Boolean(
+      initialData &&
+        page === 1 &&
+        initialData.scopeKey === scopeKey &&
+        initialData.conversations.length > 0
+    )
   );
 
   const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);

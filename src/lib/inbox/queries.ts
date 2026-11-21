@@ -47,7 +47,7 @@ export const inboxConversationSelect = `
   )
 `;
 
-const inboxConversationSelectLegacy = `
+export const inboxConversationSelectLegacy = `
   id,
   status,
   last_message_at,
@@ -108,7 +108,7 @@ export const inboxConversationSelectForList = `
   )
 `;
 
-const inboxConversationSelectForListLegacy = `
+export const inboxConversationSelectForListLegacy = `
   id,
   status,
   last_message_at,
@@ -137,7 +137,7 @@ const inboxConversationSelectForListLegacy = `
   )
 `;
 
-const inboxConversationSelectMinimal = `
+export const inboxConversationSelectMinimal = `
   id,
   status,
   last_message_at,
@@ -146,7 +146,9 @@ const inboxConversationSelectMinimal = `
   project_id
 `;
 
-function isMissingAvatarColumnError(error: unknown): boolean {
+let missingAvatarColumnCache = false;
+
+export function isMissingAvatarColumnError(error: unknown): boolean {
   if (!error || typeof error !== 'object') return false;
   const maybe = error as { code?: string; message?: string };
   const message = String(maybe.message || '').toLowerCase();
@@ -156,17 +158,25 @@ function isMissingAvatarColumnError(error: unknown): boolean {
   );
 }
 
-async function runConversationQueryWithAvatarFallback<T>(
+export async function runConversationQueryWithAvatarFallback<T>(
   runQuery: (
     selectClause: string
   ) => PromiseLike<{ data: T | null; error: unknown }> | { data: T | null; error: unknown },
   options?: { isList?: boolean }
 ): Promise<{ data: T | null; error: unknown }> {
-  const selectPrimary = options?.isList ? inboxConversationSelectForList : inboxConversationSelect;
+  const selectPrimary = options?.isList
+    ? missingAvatarColumnCache
+      ? inboxConversationSelectForListLegacy
+      : inboxConversationSelectForList
+    : missingAvatarColumnCache
+      ? inboxConversationSelectLegacy
+      : inboxConversationSelect;
+
   const primary = await runQuery(selectPrimary);
   if (!primary.error) return primary;
 
-  if (isMissingAvatarColumnError(primary.error)) {
+  if (!missingAvatarColumnCache && isMissingAvatarColumnError(primary.error)) {
+    missingAvatarColumnCache = true;
     const selectLegacy = options?.isList ? inboxConversationSelectForListLegacy : inboxConversationSelectLegacy;
     const legacy = await runQuery(selectLegacy);
     if (!legacy.error) return legacy;
@@ -273,21 +283,41 @@ async function enrichConversationsIfNeeded(
 
   const [customerResult, ticketResult] = await Promise.all([
     customerIds.length
-      ? supabase
-          .from('customers')
-          .select(`
-            id,
-            display_name,
-            line_user_id,
-            avatar_url,
-            organization_id,
-            department_id,
-            position_id,
-            organizations:organization_id (id, name),
-            departments:department_id (id, name),
-            positions:position_id (id, name)
-          `)
-          .in('id', customerIds)
+      ? (async () => {
+          const primaryCustomer = await supabase
+            .from('customers')
+            .select(`
+              id,
+              display_name,
+              line_user_id,
+              avatar_url,
+              organization_id,
+              department_id,
+              position_id,
+              organizations:organization_id (id, name),
+              departments:department_id (id, name),
+              positions:position_id (id, name)
+            `)
+            .in('id', customerIds);
+          if (!primaryCustomer.error) return primaryCustomer;
+          if (isMissingAvatarColumnError(primaryCustomer.error)) {
+            return supabase
+              .from('customers')
+              .select(`
+                id,
+                display_name,
+                line_user_id,
+                organization_id,
+                department_id,
+                position_id,
+                organizations:organization_id (id, name),
+                departments:department_id (id, name),
+                positions:position_id (id, name)
+              `)
+              .in('id', customerIds);
+          }
+          return primaryCustomer;
+        })()
       : Promise.resolve({ data: [], error: null }),
     ticketIds.length
       ? supabase

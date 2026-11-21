@@ -1,4 +1,4 @@
-# NEO Support V2.0.0 - แพลตฟอร์มการสนับสนุนแบบ Omnichannel
+# NEO Support V2.1.0 - แพลตฟอร์มการสนับสนุนแบบ Omnichannel
 
 NEO Support คือแดชบอร์ดการสนับสนุนระดับองค์กรสำหรับ **LINE Official Accounts** ขับเคลื่อนด้วย Next.js 14, Supabase และระบบการออกแบบ Glassmorphism ระดับพรีเมียม
 

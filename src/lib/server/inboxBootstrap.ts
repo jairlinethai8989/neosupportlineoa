@@ -1,9 +1,8 @@
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import {
-  inboxConversationSelect,
-  inboxConversationSelectForList,
   inboxMessageSelect,
   inboxTicketSelect,
+  runConversationQueryWithAvatarFallback,
 } from '@/lib/inbox/queries';
 import {
   normalizeInboxConversation,
@@ -56,11 +55,9 @@ async function resolveConversationByCidOrTid(
   tid: string | null
 ): Promise<InboxConversation | null> {
   if (cid) {
-    const { data, error } = await supabaseAdmin
-      .from('conversations')
-      .select(inboxConversationSelect)
-      .eq('id', cid)
-      .maybeSingle();
+    const { data, error } = await runConversationQueryWithAvatarFallback((selectClause) =>
+      supabaseAdmin.from('conversations').select(selectClause).eq('id', cid).maybeSingle()
+    );
     if (!error && data) {
       return normalizeInboxConversation(data);
     }
@@ -72,21 +69,21 @@ async function resolveConversationByCidOrTid(
       p_ticket_id: tid,
     });
     if (convId && typeof convId === 'string') {
-      const { data } = await supabaseAdmin
-        .from('conversations')
-        .select(inboxConversationSelect)
-        .eq('id', convId)
-        .maybeSingle();
+      const { data } = await runConversationQueryWithAvatarFallback((selectClause) =>
+        supabaseAdmin.from('conversations').select(selectClause).eq('id', convId).maybeSingle()
+      );
       if (data) return normalizeInboxConversation(data);
     }
 
-    const { data: directConv } = await supabaseAdmin
-      .from('conversations')
-      .select(inboxConversationSelect)
-      .eq('current_ticket_id', tid)
-      .order('last_message_at', { ascending: false, nullsFirst: false })
-      .limit(1)
-      .maybeSingle();
+    const { data: directConv } = await runConversationQueryWithAvatarFallback((selectClause) =>
+      supabaseAdmin
+        .from('conversations')
+        .select(selectClause)
+        .eq('current_ticket_id', tid)
+        .order('last_message_at', { ascending: false, nullsFirst: false })
+        .limit(1)
+        .maybeSingle()
+    );
     if (directConv) return normalizeInboxConversation(directConv);
   }
 
@@ -117,23 +114,28 @@ export async function getInitialInboxBootstrap(input: {
     };
   }
 
-  let listQuery = supabaseAdmin
-    .from('conversations')
-    .select(inboxConversationSelectForList)
-    .eq('status', 'active')
-    .order('last_message_at', { ascending: false, nullsFirst: false })
-    .order('id', { ascending: false })
-    .limit(pageSize + 1);
-
-  if (input.scopedProjectIds && input.scopedProjectIds.length > 0) {
-    listQuery = listQuery.in('project_id', input.scopedProjectIds);
-  }
-
   const cid = input.cid?.trim() || null;
   const tid = input.tid?.trim() || null;
 
   const [listRes, fetchedSelectedChat] = await Promise.all([
-    listQuery,
+    runConversationQueryWithAvatarFallback(
+      (selectClause) => {
+        let listQuery = supabaseAdmin
+          .from('conversations')
+          .select(selectClause)
+          .eq('status', 'active')
+          .order('last_message_at', { ascending: false, nullsFirst: false })
+          .order('id', { ascending: false })
+          .limit(pageSize + 1);
+
+        if (input.scopedProjectIds && input.scopedProjectIds.length > 0) {
+          listQuery = listQuery.in('project_id', input.scopedProjectIds);
+        }
+
+        return listQuery;
+      },
+      { isList: true }
+    ),
     cid || tid ? resolveConversationByCidOrTid(cid, tid) : Promise.resolve(null),
   ]);
 

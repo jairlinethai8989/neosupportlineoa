@@ -809,7 +809,7 @@ function MainSidebarComponent({ onClickLink, isCollapsed = false }: SidebarProps
               lineHeight: 1.2,
             }}
           >
-            Neo Support v2.0.0
+            Neo Support v2.1.0
           </p>
         )}
       </div>
