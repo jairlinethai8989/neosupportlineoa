@@ -1,5 +1,6 @@
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import {
+  enrichConversationsIfNeeded,
   inboxMessageSelect,
   inboxTicketSelect,
   runConversationQueryWithAvatarFallback,
@@ -140,7 +141,10 @@ export async function getInitialInboxBootstrap(input: {
   ]);
 
   const rawRows = Array.isArray(listRes.data) ? listRes.data : [];
-  const normalizedList = normalizeInboxConversations(rawRows.slice(0, pageSize));
+  const normalizedList = await enrichConversationsIfNeeded(
+    normalizeInboxConversations(rawRows.slice(0, pageSize)),
+    supabaseAdmin
+  );
   const visibleConversations = normalizedList.filter(isConversationActiveLikeServer);
   const hasNextPage = rawRows.length > pageSize;
   const lastRow = normalizedList[normalizedList.length - 1];
@@ -155,7 +159,11 @@ export async function getInitialInboxBootstrap(input: {
       ? visibleConversations.find((c) => c.current_ticket_id === tid) || null
       : null;
 
-  const initialSelectedChat = matchedFromList || fetchedSelectedChat;
+  let initialSelectedChat = matchedFromList || fetchedSelectedChat;
+  if (initialSelectedChat && (!initialSelectedChat.customers || !initialSelectedChat.ticket_data)) {
+    const [enrichedSelected] = await enrichConversationsIfNeeded([initialSelectedChat], supabaseAdmin);
+    initialSelectedChat = enrichedSelected || initialSelectedChat;
+  }
   let initialSelectedMessages: InboxMessage[] = [];
   let initialSelectedTicket: InboxTicket | null = null;
 

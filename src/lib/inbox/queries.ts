@@ -256,8 +256,9 @@ type EnrichTicketRow = {
   departments?: { id: string; name: string | null } | null;
 };
 
-async function enrichConversationsIfNeeded(
-  conversations: InboxConversation[]
+export async function enrichConversationsIfNeeded(
+  conversations: InboxConversation[],
+  dbClient: { from: typeof supabase.from } = supabase
 ): Promise<InboxConversation[]> {
   const needsCustomer = conversations.some((item) => item.customer_id && !item.customers);
   const needsTicket = conversations.some(
@@ -284,7 +285,7 @@ async function enrichConversationsIfNeeded(
   const [customerResult, ticketResult] = await Promise.all([
     customerIds.length
       ? (async () => {
-          const primaryCustomer = await supabase
+          const primaryCustomer = await dbClient
             .from('customers')
             .select(`
               id,
@@ -301,7 +302,7 @@ async function enrichConversationsIfNeeded(
             .in('id', customerIds);
           if (!primaryCustomer.error) return primaryCustomer;
           if (isMissingAvatarColumnError(primaryCustomer.error)) {
-            return supabase
+            return dbClient
               .from('customers')
               .select(`
                 id,
@@ -320,7 +321,7 @@ async function enrichConversationsIfNeeded(
         })()
       : Promise.resolve({ data: [], error: null }),
     ticketIds.length
-      ? supabase
+      ? dbClient
           .from('tickets')
           .select('id,ticket_no,subject,status,customer_id,organization_id,current_department_id,organizations:organization_id(id,name),departments:current_department_id(id,name)')
           .in('id', ticketIds)

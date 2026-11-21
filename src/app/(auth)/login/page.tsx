@@ -223,7 +223,7 @@ export default function LoginPage() {
                 color: 'var(--color-text-subtle)',
               }}
             >
-              Powered by NeoNetwork <span className="mono" style={{ marginLeft: '6px' }}>v2.1.0</span>
+              Powered by NeoNetwork <span className="mono" style={{ marginLeft: '6px' }}>v2.1.1</span>
             </div>
           </CardBody>
         </Card>
