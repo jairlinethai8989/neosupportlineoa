@@ -3,8 +3,15 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '@/lib/supabase';
 import type { ProjectSummary } from '@/types/project';
+import type { DashboardBootstrapData } from '@/lib/server/dashboardBootstrap';
 
 const SELECTED_PROJECT_STORAGE_KEY = 'neo_selected_project_id_v1';
+
+function persistSelectedProject(nextId: string) {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem(SELECTED_PROJECT_STORAGE_KEY, nextId);
+  document.cookie = `${SELECTED_PROJECT_STORAGE_KEY}=${encodeURIComponent(nextId)}; path=/; max-age=31536000; SameSite=Lax`;
+}
 
 interface AppContextType {
   authUserId: string | null;
@@ -19,6 +26,7 @@ interface AppContextType {
   setSelectedProjectId: (id: string) => void;
   effectiveProjectIds: string[] | null;
   activeProject: ProjectSummary | null;
+  initialCounts: { newTicketsCount: number; inboxCount: number } | null;
   loading: boolean;
   refreshData: (type?: 'all' | 'profile' | 'settings' | 'organizations' | 'departments' | 'projects') => Promise<void>;
   ensureOrganizations: () => Promise<void>;
@@ -58,33 +66,68 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 
 type RefreshScope = 'all' | 'profile' | 'settings' | 'organizations' | 'departments' | 'projects';
 
-export function AppProvider({ children }: { children: React.ReactNode }) {
+export function AppProvider({
+  children,
+  initialBootstrap = null,
+}: {
+  children: React.ReactNode;
+  initialBootstrap?: DashboardBootstrapData | null;
+}) {
   const profileBypassAuth =
     process.env.NODE_ENV !== 'production' &&
     process.env.NEXT_PUBLIC_PROFILE_BYPASS_AUTH === '1';
-  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
-  const [companySettings, setCompanySettings] = useState<CompanySettings | null>(null);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(
+    () => (initialBootstrap?.userProfile as UserProfile | null) ?? null
+  );
+  const [companySettings, setCompanySettings] = useState<CompanySettings | null>(
+    () => (initialBootstrap?.companySettings as CompanySettings | null) ?? null
+  );
   const [organizations, setOrganizations] = useState<Array<Record<string, unknown>>>([]);
   const [departments, setDepartments] = useState<Array<Record<string, unknown>>>([]);
-  const [projects, setProjects] = useState<ProjectSummary[]>([]);
-  const [isProjectAdmin, setIsProjectAdmin] = useState(false);
-  const [projectsLoaded, setProjectsLoaded] = useState(false);
+  const [projects, setProjects] = useState<ProjectSummary[]>(
+    () => initialBootstrap?.projects ?? []
+  );
+  const [isProjectAdmin, setIsProjectAdmin] = useState(
+    () => initialBootstrap?.isAdmin ?? false
+  );
+  const [projectsLoaded, setProjectsLoaded] = useState(() => Boolean(initialBootstrap));
   const [selectedProjectId, setSelectedProjectIdState] = useState<string>(() => {
+    if (initialBootstrap?.initialSelectedProjectId) {
+      return initialBootstrap.initialSelectedProjectId;
+    }
     if (typeof window === 'undefined') return 'all';
     return localStorage.getItem(SELECTED_PROJECT_STORAGE_KEY) || 'all';
   });
-  const [loading, setLoading] = useState(true);
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(() => !initialBootstrap);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(
+    () => initialBootstrap?.userId ?? null
+  );
   const [onlineUserIds, setOnlineUserIds] = useState<string[]>([]);
   const organizationsLoadedRef = React.useRef(false);
   const departmentsLoadedRef = React.useRef(false);
+  const hasServerBootstrapRef = React.useRef(Boolean(initialBootstrap));
 
   const setSelectedProjectId = useCallback((id: string) => {
     const nextId = id || 'all';
     setSelectedProjectIdState(nextId);
-    if (typeof window !== 'undefined') {
-      localStorage.setItem(SELECTED_PROJECT_STORAGE_KEY, nextId);
+    persistSelectedProject(nextId);
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const savedLocal = localStorage.getItem(SELECTED_PROJECT_STORAGE_KEY);
+    if (
+      savedLocal &&
+      savedLocal !== selectedProjectId &&
+      (savedLocal === 'all' || projects.some((p) => p.id === savedLocal))
+    ) {
+      setSelectedProjectIdState(savedLocal);
+      persistSelectedProject(savedLocal);
+    } else if (selectedProjectId) {
+      persistSelectedProject(selectedProjectId);
     }
+    // Sync localStorage -> cookie once on initial hydration
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const fetchProjects = useCallback(async () => {
@@ -127,20 +170,35 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const fetchSettings = useCallback(async () => {
+    try {
+      const res = await fetch('/api/bootstrap', { cache: 'no-store' });
+      if (res.ok) {
+        const boot = (await res.json()) as DashboardBootstrapData;
+        if (boot.companySettings) {
+          setCompanySettings(boot.companySettings as CompanySettings);
+          return;
+        }
+      }
+    } catch {
+      // Fallback to direct query without exposing gemini_api_key
+    }
+
     const [settingsRes, modulesRes, issuesRes, subjectsRes] = await Promise.all([
       supabase.from('company_settings').select('*').limit(1).maybeSingle(),
       supabase.from('ticket_modules').select('name').eq('is_active', true),
       supabase.from('ticket_issue_types').select('name').eq('is_active', true),
-      supabase.from('ticket_subject_types').select('name').eq('is_active', true)
+      supabase.from('ticket_subject_types').select('name').eq('is_active', true),
     ]);
-    
+
     if (settingsRes.error) throw settingsRes.error;
-    
-    const data = settingsRes.data || {};
-    data.modules = modulesRes.data?.map(d => d.name) || [];
-    data.issue_types = issuesRes.data?.map(d => d.name) || [];
-    data.subject_types = subjectsRes.data?.map(d => d.name) || [];
-    
+
+    const raw = (settingsRes.data || {}) as Record<string, unknown>;
+    const { gemini_api_key: _geminiApiKey, ...data } = raw;
+    void _geminiApiKey;
+    data.modules = modulesRes.data?.map((d) => d.name) || [];
+    data.issue_types = issuesRes.data?.map((d) => d.name) || [];
+    data.subject_types = subjectsRes.data?.map((d) => d.name) || [];
+
     setCompanySettings(data as CompanySettings);
   }, []);
 
@@ -284,8 +342,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       }
     };
 
-    // Send immediate heartbeat
-    void sendHeartbeat();
+    // Defer initial heartbeat slightly so first paint & charts aren't contested
+    const initialBeatTimer = setTimeout(() => {
+      void sendHeartbeat();
+    }, 1500);
 
     // Check-in every 2 minutes
     const intervalId = setInterval(() => {
@@ -293,42 +353,50 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }, 120000);
 
     return () => {
+      clearTimeout(initialBeatTimer);
       clearInterval(intervalId);
     };
   }, [currentUserId]);
 
-  // Supabase Realtime Presence for tracking online staff
+  // Supabase Realtime Presence for tracking online staff (deferred slightly after first paint)
   useEffect(() => {
     if (!currentUserId) {
       setOnlineUserIds([]);
       return;
     }
 
-    const presenceChannel = supabase.channel('online-staff-presence', {
-      config: {
-        presence: {
-          key: currentUserId,
+    let presenceChannel: ReturnType<typeof supabase.channel> | null = null;
+    const timer = setTimeout(() => {
+      presenceChannel = supabase.channel('online-staff-presence', {
+        config: {
+          presence: {
+            key: currentUserId,
+          },
         },
-      },
-    });
-
-    presenceChannel
-      .on('presence', { event: 'sync' }, () => {
-        const state = presenceChannel.presenceState();
-        const ids = Object.keys(state);
-        setOnlineUserIds(ids);
-      })
-      .subscribe(async (status) => {
-        if (status === 'SUBSCRIBED') {
-          await presenceChannel.track({
-            id: currentUserId,
-            online_at: new Date().toISOString(),
-          });
-        }
       });
 
+      presenceChannel
+        .on('presence', { event: 'sync' }, () => {
+          if (!presenceChannel) return;
+          const state = presenceChannel.presenceState();
+          const ids = Object.keys(state);
+          setOnlineUserIds(ids);
+        })
+        .subscribe(async (status) => {
+          if (status === 'SUBSCRIBED' && presenceChannel) {
+            await presenceChannel.track({
+              id: currentUserId,
+              online_at: new Date().toISOString(),
+            });
+          }
+        });
+    }, 1500);
+
     return () => {
-      void supabase.removeChannel(presenceChannel);
+      clearTimeout(timer);
+      if (presenceChannel) {
+        void supabase.removeChannel(presenceChannel);
+      }
     };
   }, [currentUserId]);
 
@@ -373,14 +441,60 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     let cancelled = false;
     let profileChannel: ReturnType<typeof supabase.channel> | null = null;
-    const settingsChannel = supabase
-      .channel('settings-updates')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'company_settings' }, () => {
-        void fetchSettings().catch((err) => console.error('AppProvider settings refresh error:', err));
-      })
-      .subscribe();
+    let settingsChannel: ReturnType<typeof supabase.channel> | null = null;
+
+    const subscribeRealtime = (uid: string | null) => {
+      settingsChannel = supabase
+        .channel('settings-updates')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'company_settings' }, () => {
+          void fetchSettings().catch((err) => console.error('AppProvider settings refresh error:', err));
+        })
+        .subscribe();
+
+      if (uid) {
+        profileChannel = supabase
+          .channel(`profile-updates-${uid}`)
+          .on(
+            'postgres_changes',
+            { event: 'UPDATE', schema: 'public', table: 'profiles', filter: `id=eq.${uid}` },
+            () => {
+              void fetchProfile(uid).catch((err) => console.error('AppProvider profile refresh error:', err));
+            }
+          )
+          .subscribe();
+      }
+    };
 
     async function bootstrap() {
+      // Fast path: server layout already hydrated profile, settings, and projects
+      if (hasServerBootstrapRef.current) {
+        setTimeout(() => {
+          if (!cancelled) subscribeRealtime(currentUserId);
+        }, 1200);
+        return;
+      }
+
+      try {
+        const res = await fetch(
+          `/api/bootstrap?projectId=${encodeURIComponent(selectedProjectId || 'all')}`,
+          { cache: 'no-store' }
+        );
+        if (res.ok && !cancelled) {
+          const boot = (await res.json()) as DashboardBootstrapData;
+          setCurrentUserId(boot.userId);
+          setUserProfile(boot.userProfile as UserProfile | null);
+          setCompanySettings(boot.companySettings as CompanySettings | null);
+          setProjects(boot.projects || []);
+          setIsProjectAdmin(Boolean(boot.isAdmin));
+          setProjectsLoaded(true);
+          setLoading(false);
+          subscribeRealtime(boot.userId);
+          return;
+        }
+      } catch (err) {
+        console.warn('Bootstrap API fallback to client queries:', err);
+      }
+
       try {
         const {
           data: { session },
@@ -417,28 +531,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         }
 
         setCurrentUserId(user.id);
-        
-        // Fast path: unblock app immediately before network requests
         setLoading(false);
 
-        // Background data: do not block first paint.
-        // Only profile + settings + user projects are critical. Organizations/departments are lazy-loaded by pages that need them.
-        void fetchProfile(user.id).catch(err => console.error('AppProvider profile load error:', err));
-        void fetchSettings().catch((err) => {
-          console.error('AppProvider settings load error:', err);
-        });
+        void fetchProfile(user.id).catch((err) => console.error('AppProvider profile load error:', err));
+        void fetchSettings().catch((err) => console.error('AppProvider settings load error:', err));
         void fetchProjects();
-
-        profileChannel = supabase
-          .channel(`profile-updates-${user.id}`)
-          .on(
-            'postgres_changes',
-            { event: 'UPDATE', schema: 'public', table: 'profiles', filter: `id=eq.${user.id}` },
-            () => {
-              void fetchProfile(user.id).catch((err) => console.error('AppProvider profile refresh error:', err));
-            }
-          )
-          .subscribe();
+        subscribeRealtime(user.id);
       } catch (err) {
         console.error('AppProvider bootstrap error:', err);
         if (!cancelled) {
@@ -451,10 +549,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
     return () => {
       cancelled = true;
-      supabase.removeChannel(settingsChannel);
+      if (settingsChannel) supabase.removeChannel(settingsChannel);
       if (profileChannel) supabase.removeChannel(profileChannel);
     };
-  }, [fetchDepartments, fetchOrganizations, fetchProfile, fetchProjects, fetchSettings, profileBypassAuth]);
+    // Run once on mount; real-time channels stay subscribed for session lifetime
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const effectiveProjectIds = useMemo<string[] | null>(() => {
     if (!projectsLoaded) return null;
@@ -500,6 +600,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         setSelectedProjectId,
         effectiveProjectIds,
         activeProject,
+        initialCounts: initialBootstrap?.counts ?? null,
         loading,
         refreshData,
         ensureOrganizations,

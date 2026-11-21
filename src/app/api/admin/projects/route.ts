@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { revalidateTag } from 'next/cache';
 import { createSupabaseServerClient } from '@/lib/supabase-server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { invalidateProjectResolverCache } from '@/lib/projects/projectResolver';
@@ -165,6 +166,7 @@ export async function POST(req: Request) {
 
     invalidateProjectResolverCache();
     invalidateAllLiveCaches();
+    revalidateTag('master-data', 'max');
     return NextResponse.json({ success: true, project: created });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Failed to create project';
@@ -234,6 +236,7 @@ export async function PATCH(req: Request) {
 
     invalidateProjectResolverCache();
     invalidateAllLiveCaches();
+    revalidateTag('master-data', 'max');
     return NextResponse.json({ success: true, project: updated });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Failed to update project';

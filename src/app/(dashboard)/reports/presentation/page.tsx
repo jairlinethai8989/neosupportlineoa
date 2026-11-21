@@ -15,7 +15,6 @@ import {
   EyeOff,
 } from 'lucide-react';
 import { useNotificationContext } from '@/contexts/NotificationContext';
-import { supabase } from '@/lib/supabase';
 import dynamic from 'next/dynamic';
 import { Button, EmptyState, Input, PageHeader, Select, Textarea } from '@/components/ui';
 import styles from '@/components/reports/reports.module.css';
@@ -230,25 +229,10 @@ export default function PresentationPage() {
   });
 
   const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
-  const [, setHasGlobalApiKey] = useState(false);
   const presentationRef = useRef<HTMLDivElement>(null);
   const { addToast } = useNotificationContext();
 
   const activeTheme = getThemeStyles(selectedTemplate);
-
-  useEffect(() => {
-    async function checkGlobalApiKey() {
-      try {
-        const { data: c } = await supabase.from('company_settings').select('gemini_api_key').limit(1).maybeSingle();
-        if (c?.gemini_api_key) {
-          setHasGlobalApiKey(true);
-        }
-      } catch (err) {
-        console.error('Error checking global api key:', err);
-      }
-    }
-    void checkGlobalApiKey();
-  }, []);
 
   useEffect(() => {
     if (!isDrawerOpen) return;

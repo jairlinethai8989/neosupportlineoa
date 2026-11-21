@@ -71,7 +71,7 @@ const NotificationContext = createContext<NotificationContextValue>({
 });
 
 export function NotificationProvider({ children }: { children: React.ReactNode }) {
-  const { authUserId, userProfile } = useAppContext();
+  const { authUserId, userProfile, initialCounts, effectiveProjectIds } = useAppContext();
   const fallbackProfileId =
     typeof userProfile?.id === 'string' && userProfile.id !== 'profile-bypass'
       ? userProfile.id
@@ -80,7 +80,14 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
 
   const { locale } = useStaffLocale();
   const role = userProfile?.role || null;
-  const notif = useNotifications(agentId, role, locale, userProfile);
+  const notif = useNotifications(
+    agentId,
+    role,
+    locale,
+    userProfile,
+    initialCounts,
+    effectiveProjectIds
+  );
 
   const value = React.useMemo(() => ({
     ...notif,

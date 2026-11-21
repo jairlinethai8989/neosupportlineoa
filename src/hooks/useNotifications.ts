@@ -45,7 +45,9 @@ export function useNotifications(
   agentId: string | null,
   role: string | null = null,
   locale: StaffLocale = 'th',
-  userProfile: any = null
+  userProfile: any = null,
+  initialCounts: { newTicketsCount: number; inboxCount: number } | null = null,
+  effectiveProjectIds: string[] | null = null
 ) {
   // User-specific localStorage keys to isolate notification clear/read state between users
   const userStorageKey = useMemo(() => agentId ? `neo_notif_read_ids_v1_${agentId}` : 'neo_notif_read_ids_v1', [agentId]);
@@ -58,9 +60,11 @@ export function useNotifications(
   const [toasts, setToasts] = useState<ToastNotif[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [slaAlertCount, setSlaAlertCount] = useState(0);
-  const [newTicketsCount, setNewTicketsCount] = useState(0);
-  const [inboxCount, setInboxCount] = useState(0);
+  const [newTicketsCount, setNewTicketsCount] = useState(initialCounts?.newTicketsCount ?? 0);
+  const [inboxCount, setInboxCount] = useState(initialCounts?.inboxCount ?? 0);
   const [lastDbEvent, setLastDbEvent] = useState<RealtimeDbEvent | null>(null);
+  const hasInitialCountsRef = useRef(Boolean(initialCounts));
+  const initialProjectScopeKeyRef = useRef<string | undefined>(undefined);
 
   const notifications = useMemo(() => {
     return [...slaNotifs, ...logNotifs].sort((a, b) => {
@@ -458,20 +462,36 @@ export function useNotifications(
   }, [agentId, role, getClearBeforeMs, getReadIds, locale]);
 
   const fetchNewTicketsCount = useCallback(async () => {
-    const { count } = await supabase
+    if (Array.isArray(effectiveProjectIds) && effectiveProjectIds.length === 0) {
+      setNewTicketsCount(0);
+      return;
+    }
+    let query = supabase
       .from('tickets')
-      .select('*', { count: 'exact', head: true })
+      .select('id', { count: 'exact', head: true })
       .or('status.ilike.new,status.ilike.New');
+    if (effectiveProjectIds && effectiveProjectIds.length > 0) {
+      query = query.in('project_id', effectiveProjectIds);
+    }
+    const { count } = await query;
     if (count !== null) setNewTicketsCount(count);
-  }, []);
+  }, [effectiveProjectIds]);
 
   const fetchInboxCount = useCallback(async () => {
-    const { count } = await supabase
+    if (Array.isArray(effectiveProjectIds) && effectiveProjectIds.length === 0) {
+      setInboxCount(0);
+      return;
+    }
+    let query = supabase
       .from('conversations')
-      .select('*', { count: 'exact', head: true })
+      .select('id', { count: 'exact', head: true })
       .eq('status', 'active');
+    if (effectiveProjectIds && effectiveProjectIds.length > 0) {
+      query = query.in('project_id', effectiveProjectIds);
+    }
+    const { count } = await query;
     if (count !== null) setInboxCount(count);
-  }, []);
+  }, [effectiveProjectIds]);
 
   const fetchSlaBreaches = useCallback(async () => {
     const twoHoursFromNow = new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString();
@@ -584,16 +604,33 @@ export function useNotifications(
     }
   }, [agentId, userProfile]);
 
-  // Effect 2: Setup real-time subscriptions and initialize log/SLA fetching
+  // Effect 1b: Re-fetch scoped sidebar counts when user switches active project
+  const projectScopeKey = effectiveProjectIds ? effectiveProjectIds.join(',') : 'all';
   useEffect(() => {
     if (!agentId) return;
-    
-    setTimeout(() => { 
-      void fetchLogsRef.current(); 
-      void fetchNewTicketsCountRef.current(); 
-      void fetchInboxCountRef.current();
-      scheduleFetchSlaBreachesRef.current(1600); 
-    }, 2000);
+    if (initialProjectScopeKeyRef.current === undefined) {
+      initialProjectScopeKeyRef.current = projectScopeKey;
+      return;
+    }
+    if (initialProjectScopeKeyRef.current !== projectScopeKey) {
+      initialProjectScopeKeyRef.current = projectScopeKey;
+      void fetchNewTicketsCount();
+      void fetchInboxCount();
+    }
+  }, [agentId, projectScopeKey, fetchNewTicketsCount, fetchInboxCount]);
+
+  // Effect 2: Setup real-time subscriptions and initialize log/SLA fetching (deferred after first paint)
+  useEffect(() => {
+    if (!agentId) return;
+
+    const initTimer = setTimeout(() => {
+      void fetchLogsRef.current();
+      if (!hasInitialCountsRef.current) {
+        void fetchNewTicketsCountRef.current();
+        void fetchInboxCountRef.current();
+      }
+      scheduleFetchSlaBreachesRef.current(1200);
+    }, 2200);
 
     const consolidatedChannel = supabase.channel(`global-notifications-${agentId}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'ticket_logs' }, (p) => {
@@ -637,6 +674,7 @@ export function useNotifications(
 
     return () => {
       supabase.removeChannel(consolidatedChannel);
+      clearTimeout(initTimer);
       clearInterval(slaInterval); clearTimeout(firstLoadTimer);
       if (logsRefreshTimerRef.current) clearTimeout(logsRefreshTimerRef.current);
       if (slaRefreshTimerRef.current) clearTimeout(slaRefreshTimerRef.current);

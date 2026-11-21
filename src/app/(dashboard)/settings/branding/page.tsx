@@ -39,10 +39,11 @@ export default function BrandingSettingsPage() {
 
   useEffect(() => {
     async function fetchData() {
-      const { data: c } = await supabase.from('company_settings').select('*').limit(1).single();
-      if (c && !c.modules) {
-        c.modules = [];
-      }
+      const { data: c } = await supabase
+        .from('company_settings')
+        .select('id, company_name, logo_url')
+        .limit(1)
+        .single();
       setCompany(c);
       setLoading(false);
     }

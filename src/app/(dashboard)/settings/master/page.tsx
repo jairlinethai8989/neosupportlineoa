@@ -977,99 +977,88 @@ function doGet(e) {
 }
 
 function GeminiConfigForm({
-  globalSettings,
   onSaveSuccess,
 }: {
-  globalSettings: any;
+  globalSettings?: any;
   onSaveSuccess: () => void;
 }) {
   const { addToast } = useNotificationContext();
-  const [apiKey, setApiKey] = useState(globalSettings?.gemini_api_key || '');
+  const [apiKey, setApiKey] = useState('');
+  const [hasSavedKey, setHasSavedKey] = useState(false);
+  const [maskedKey, setMaskedKey] = useState('');
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
 
   useEffect(() => {
-    if (globalSettings?.gemini_api_key) {
-      setApiKey(globalSettings.gemini_api_key);
+    let active = true;
+    async function loadGeminiStatus() {
+      try {
+        const res = await fetch('/api/admin/settings/gemini', { cache: 'no-store' });
+        if (!res.ok || !active) return;
+        const data = await res.json();
+        setHasSavedKey(Boolean(data.hasKey));
+        setMaskedKey(data.maskedKey || '');
+      } catch (err) {
+        console.error('Failed to load Gemini API status:', err);
+      }
     }
-  }, [globalSettings]);
+    void loadGeminiStatus();
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const handleTestApi = async () => {
-    if (!apiKey.trim()) {
+    if (!apiKey.trim() && !hasSavedKey) {
       setTestResult({ success: false, message: 'กรุณากรอก API Key ก่อนทดสอบ' });
       return;
     }
     setTesting(true);
     setTestResult(null);
 
-    const endpoints = [
-      {
-        url: `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey.trim()}`,
-        label: 'Gemini 1.5 Flash (v1)',
-      },
-      {
-        url: `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey.trim()}`,
-        label: 'Gemini 1.5 Flash (v1beta)',
-      },
-      {
-        url: `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey.trim()}`,
-        label: 'Gemini 2.5 Flash (v1beta)',
-      },
-    ];
-
-    let lastErrorMsg = '';
-
-    for (const endpoint of endpoints) {
-      try {
-        const response = await fetch(endpoint.url, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: 'Respond with exactly one word: OK' }] }],
-          }),
-        });
-
-        if (response.ok) {
-          const data = await response.json();
-          if (data.candidates && data.candidates.length > 0) {
-            setTestResult({
-              success: true,
-              message: `การเชื่อมต่อสำเร็จผ่าน ${endpoint.label}! API Key สามารถใช้งานได้`,
-            });
-            setTesting(false);
-            return;
-          }
-        } else {
-          const errorData = await response.json().catch(() => null);
-          lastErrorMsg = errorData?.error?.message || response.statusText;
-        }
-      } catch (e: any) {
-        lastErrorMsg = e.message;
-      }
+    try {
+      const res = await fetch('/api/admin/settings/gemini', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'test',
+          ...(apiKey.trim() ? { apiKey: apiKey.trim() } : {}),
+        }),
+      });
+      const data = await res.json();
+      setTestResult({
+        success: Boolean(data.success),
+        message: data.message || (data.success ? 'เชื่อมต่อสำเร็จ' : 'ไม่สามารถเชื่อมต่อได้'),
+      });
+    } catch (e: any) {
+      setTestResult({
+        success: false,
+        message: `ล้มเหลว: ${e.message || 'ไม่สามารถเชื่อมต่อได้'}`,
+      });
+    } finally {
+      setTesting(false);
     }
-
-    setTestResult({
-      success: false,
-      message: `ล้มเหลว: ${lastErrorMsg || 'ไม่สามารถเชื่อมต่อได้ทุกรุ่นจำลอง'}`,
-    });
-    setTesting(false);
   };
 
   const handleSave = async () => {
     setSaving(true);
     try {
-      const { error } = await supabase
-        .from('company_settings')
-        .update({ gemini_api_key: apiKey.trim() })
-        .eq('id', globalSettings.id);
-
-      if (error) {
-        console.error('Save error:', error);
-        alert('ไม่สามารถบันทึกได้: ' + error.message);
+      const res = await fetch('/api/admin/settings/gemini', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'save',
+          apiKey: apiKey.trim(),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        alert('ไม่สามารถบันทึกได้: ' + (data.error || res.statusText));
       } else {
+        setHasSavedKey(Boolean(data.hasKey));
+        setMaskedKey(data.maskedKey || '');
+        setApiKey('');
         onSaveSuccess();
         addToast({
           id: `gemini-save-success-${Date.now()}`,
@@ -1102,10 +1091,16 @@ function GeminiConfigForm({
         </CardHeader>
 
         <CardBody className={styles.stackMd}>
+          {hasSavedKey && (
+            <div className={`${styles.alertBanner} ${styles.alertSuccess}`} role="status">
+              <span>ตั้งค่า Key ไว้แล้วในระบบ ({maskedKey}) — กรอกค่าใหม่เฉพาะเมื่อต้องการเปลี่ยน</span>
+            </div>
+          )}
+
           <Input
             type="password"
             label="Gemini API Key สำหรับสรุปรายงาน"
-            placeholder="AIza..."
+            placeholder={hasSavedKey ? 'กรอก API Key ใหม่เพื่อแทนที่ค่าเดิม' : 'AIza...'}
             value={apiKey}
             onChange={(e) => {
               setApiKey(e.target.value);
@@ -1128,7 +1123,7 @@ function GeminiConfigForm({
               variant="secondary"
               onClick={handleTestApi}
               loading={testing}
-              disabled={!apiKey}
+              disabled={!apiKey.trim() && !hasSavedKey}
               leftIcon={<Sparkles size={16} aria-hidden="true" />}
               fullWidth
             >
@@ -1138,6 +1133,7 @@ function GeminiConfigForm({
               variant="primary"
               onClick={handleSave}
               loading={saving}
+              disabled={!apiKey.trim()}
               leftIcon={<Check size={16} aria-hidden="true" />}
               fullWidth
             >
