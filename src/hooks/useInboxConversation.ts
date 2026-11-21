@@ -42,6 +42,76 @@ interface UseInboxConversationOptions {
 }
 
 const MESSAGE_PAGE_SIZE = 50;
+const MAX_CACHED_THREADS = 20;
+const PREFETCH_FRESH_MS = 8_000;
+
+interface CachedInboxThread {
+  messages: InboxMessage[];
+  ticket: InboxTicket | null;
+  hasMore: boolean;
+  oldestCursor: string | null;
+  fetchedAt: number;
+}
+
+const inboxThreadCache = new Map<string, CachedInboxThread>();
+const inflightThreadPrefetches = new Map<string, Promise<void>>();
+
+function writeThreadCache(conversationId: string, entry: CachedInboxThread) {
+  if (inboxThreadCache.has(conversationId)) {
+    inboxThreadCache.delete(conversationId);
+  } else if (inboxThreadCache.size >= MAX_CACHED_THREADS) {
+    const oldestKey = inboxThreadCache.keys().next().value;
+    if (oldestKey) inboxThreadCache.delete(oldestKey);
+  }
+  inboxThreadCache.set(conversationId, entry);
+}
+
+export function seedInboxThreadCache(input: {
+  conversationId: string;
+  messages: InboxMessage[];
+  ticket: InboxTicket | null;
+}) {
+  writeThreadCache(input.conversationId, {
+    messages: input.messages,
+    ticket: input.ticket,
+    hasMore: input.messages.length === MESSAGE_PAGE_SIZE,
+    oldestCursor: input.messages.length > 0 ? input.messages[0].created_at : null,
+    fetchedAt: Date.now(),
+  });
+}
+
+export function prefetchInboxThread(conversation: InboxConversation) {
+  const existing = inboxThreadCache.get(conversation.id);
+  if (existing && Date.now() - existing.fetchedAt < PREFETCH_FRESH_MS) return;
+  if (inflightThreadPrefetches.has(conversation.id)) return;
+
+  const ticketId = conversation.current_ticket_id || conversation.ticket_data?.id || null;
+  const task = Promise.all([
+    listInboxMessagesPage({
+      conversationId: conversation.id,
+      ticketId,
+      limit: MESSAGE_PAGE_SIZE,
+    }),
+    ticketId
+      ? getInboxTicketById(ticketId).catch(() => null)
+      : getLatestInboxTicketForConversation(conversation.id).catch(() => null),
+  ])
+    .then(([msgs, tkt]) => {
+      writeThreadCache(conversation.id, {
+        messages: msgs,
+        ticket: tkt,
+        hasMore: msgs.length === MESSAGE_PAGE_SIZE,
+        oldestCursor: msgs.length > 0 ? msgs[0].created_at : null,
+        fetchedAt: Date.now(),
+      });
+    })
+    .catch(() => {})
+    .finally(() => {
+      inflightThreadPrefetches.delete(conversation.id);
+    });
+
+  inflightThreadPrefetches.set(conversation.id, task);
+}
 
 export function useInboxConversation({
   selectedChat,
@@ -82,8 +152,16 @@ export function useInboxConversation({
     lastRenderedMessageIdRef.current = lastMessageId;
   }, [messages]);
 
+  const selectedChatRef = useRef<InboxConversation | null>(selectedChat);
+  selectedChatRef.current = selectedChat;
+  const agentRef = useRef<InboxAgent | null>(agent);
+  agentRef.current = agent;
+  const selectedConversationId = selectedChat?.id || null;
+  const selectedTicketId = selectedChat?.current_ticket_id || selectedChat?.ticket_data?.id || null;
+
   useEffect(() => {
-    if (!selectedChat) {
+    const activeChat = selectedChatRef.current;
+    if (!selectedConversationId || !activeChat) {
       setMessages([]);
       setCurrentTicket(null);
       setHasMoreMessages(false);
@@ -91,106 +169,145 @@ export function useInboxConversation({
       return;
     }
 
+    let cancelled = false;
+    const cached = inboxThreadCache.get(selectedConversationId);
+    if (cached) {
+      setMessages(cached.messages);
+      setCurrentTicket(cached.ticket);
+      setHasMoreMessages(cached.hasMore);
+      oldestMessageCursorRef.current = cached.oldestCursor;
+    }
+
     async function fetchConversationState() {
+      const chatSnapshot = selectedChatRef.current;
+      if (!chatSnapshot || !selectedConversationId) return;
+
       try {
-      const urlParams = new URLSearchParams(window.location.search);
-      const urlTicketId = urlParams.get('tid');
-      const urlConversationId = urlParams.get('cid');
-      const threadTicketId =
-        urlTicketId ||
-        selectedChat!.current_ticket_id ||
-        selectedChat!.ticket_data?.id ||
-        null;
+        const urlParams = new URLSearchParams(window.location.search);
+        const urlTicketId = urlParams.get('tid');
+        const urlConversationId = urlParams.get('cid');
+        const threadTicketId =
+          urlTicketId ||
+          chatSnapshot.current_ticket_id ||
+          chatSnapshot.ticket_data?.id ||
+          null;
 
-      const optimisticClaim = urlParams.get('oc') === '1';
-      const shouldUseUrlTicket =
-        Boolean(urlTicketId) &&
-        (!urlConversationId || urlConversationId === selectedChat!.id);
-      const prefetchedTicketId =
-        (shouldUseUrlTicket ? urlTicketId : null) ||
-        selectedChat!.current_ticket_id ||
-        selectedChat!.ticket_data?.id ||
-        null;
+        const optimisticClaim = urlParams.get('oc') === '1';
+        const shouldUseUrlTicket =
+          Boolean(urlTicketId) &&
+          (!urlConversationId || urlConversationId === selectedConversationId);
+        const prefetchedTicketId =
+          (shouldUseUrlTicket ? urlTicketId : null) ||
+          chatSnapshot.current_ticket_id ||
+          chatSnapshot.ticket_data?.id ||
+          null;
 
-      // Fetch initial messages and known ticket in parallel to eliminate sequential waterfall
-      const [initialPage, prefetchedTicket] = await Promise.all([
-        listInboxMessagesPage({
-          conversationId: selectedChat!.id,
-          ticketId: threadTicketId,
-          limit: MESSAGE_PAGE_SIZE,
-        }),
-        prefetchedTicketId
-          ? getInboxTicketById(prefetchedTicketId).catch(() => null)
-          : Promise.resolve(null),
-      ]);
-
-      setMessages(initialPage);
-      oldestMessageCursorRef.current =
-        initialPage.length > 0 ? initialPage[0].created_at : null;
-      setHasMoreMessages(initialPage.length === MESSAGE_PAGE_SIZE);
-
-      const latestMessageTicketId =
-        [...initialPage]
-          .reverse()
-          .find((message) => Boolean(message.ticket_id))
-          ?.ticket_id || null;
-
-      let targetTicketId: string | null = null;
-      let targetTicketData: InboxConversation['ticket_data'] = null;
-
-      if (shouldUseUrlTicket && urlTicketId) {
-        targetTicketId = urlTicketId;
-      } else if (latestMessageTicketId) {
-        targetTicketId = latestMessageTicketId;
-      } else if (selectedChat!.ticket_data) {
-        targetTicketData = selectedChat!.ticket_data;
-      } else if (selectedChat!.current_ticket_id) {
-        targetTicketId = selectedChat!.current_ticket_id;
-      }
-
-      if (targetTicketId) {
-        const ticket =
-          targetTicketId === prefetchedTicketId && prefetchedTicket
-            ? prefetchedTicket
-            : await getInboxTicketById(targetTicketId);
-        if (ticket) {
-          if (optimisticClaim && agent && (targetTicketId === urlTicketId || targetTicketId === latestMessageTicketId)) {
-            ticket.assigned_agent_id = agent.id;
-            ticket.status = 'In Progress';
-          }
-          setCurrentTicket(ticket);
+        // If freshly cached/SSR-hydrated (< PREFETCH_FRESH_MS), skip duplicate initial round-trip
+        const existingCache = inboxThreadCache.get(selectedConversationId);
+        if (
+          existingCache &&
+          Date.now() - existingCache.fetchedAt < PREFETCH_FRESH_MS &&
+          !optimisticClaim &&
+          (!prefetchedTicketId || existingCache.ticket?.id === prefetchedTicketId)
+        ) {
           return;
         }
-      }
 
-      if (targetTicketData) {
-        setCurrentTicket({
-          id: targetTicketData.id,
-          ticket_no: targetTicketData.ticket_no,
-          subject: targetTicketData.subject,
-          customer_id: selectedChat!.customer_id,
-          status: 'In Progress',
-          assigned_agent_id: null,
-          module: null,
-          issue_type: null,
-          description: null,
+        const [initialPage, prefetchedTicket] = await Promise.all([
+          listInboxMessagesPage({
+            conversationId: selectedConversationId,
+            ticketId: threadTicketId,
+            limit: MESSAGE_PAGE_SIZE,
+          }),
+          prefetchedTicketId
+            ? getInboxTicketById(prefetchedTicketId).catch(() => null)
+            : Promise.resolve(null),
+        ]);
+
+        if (cancelled) return;
+
+        const oldestCursor =
+          initialPage.length > 0 ? initialPage[0].created_at : null;
+        const hasMore = initialPage.length === MESSAGE_PAGE_SIZE;
+
+        setMessages(initialPage);
+        oldestMessageCursorRef.current = oldestCursor;
+        setHasMoreMessages(hasMore);
+
+        const latestMessageTicketId =
+          [...initialPage]
+            .reverse()
+            .find((message) => Boolean(message.ticket_id))
+            ?.ticket_id || null;
+
+        let targetTicketId: string | null = null;
+        let targetTicketData: InboxConversation['ticket_data'] = null;
+
+        if (shouldUseUrlTicket && urlTicketId) {
+          targetTicketId = urlTicketId;
+        } else if (latestMessageTicketId) {
+          targetTicketId = latestMessageTicketId;
+        } else if (chatSnapshot.ticket_data) {
+          targetTicketData = chatSnapshot.ticket_data;
+        } else if (chatSnapshot.current_ticket_id) {
+          targetTicketId = chatSnapshot.current_ticket_id;
+        }
+
+        let resolvedTicket: InboxTicket | null = null;
+
+        if (targetTicketId) {
+          const ticket =
+            targetTicketId === prefetchedTicketId && prefetchedTicket
+              ? prefetchedTicket
+              : await getInboxTicketById(targetTicketId);
+          if (cancelled) return;
+          if (ticket) {
+            const activeAgent = agentRef.current;
+            if (
+              optimisticClaim &&
+              activeAgent &&
+              (targetTicketId === urlTicketId || targetTicketId === latestMessageTicketId)
+            ) {
+              ticket.assigned_agent_id = activeAgent.id;
+              ticket.status = 'In Progress';
+            }
+            resolvedTicket = ticket;
+          }
+        } else if (targetTicketData) {
+          resolvedTicket = {
+            id: targetTicketData.id,
+            ticket_no: targetTicketData.ticket_no,
+            subject: targetTicketData.subject,
+            customer_id: chatSnapshot.customer_id,
+            status: 'In Progress',
+            assigned_agent_id: null,
+            module: null,
+            issue_type: null,
+            description: null,
+          };
+        } else {
+          const conversationTicket = await getLatestInboxTicketForConversation(selectedConversationId);
+          if (cancelled) return;
+          resolvedTicket = conversationTicket || null;
+        }
+
+        setCurrentTicket(resolvedTicket);
+        writeThreadCache(selectedConversationId, {
+          messages: initialPage,
+          ticket: resolvedTicket,
+          hasMore,
+          oldestCursor,
+          fetchedAt: Date.now(),
         });
-        return;
-      }
-
-      const conversationTicket = await getLatestInboxTicketForConversation(selectedChat!.id);
-      if (conversationTicket) {
-        setCurrentTicket(conversationTicket);
-      } else {
-        setCurrentTicket(null);
-      }
       } catch (error) {
-        console.error('Failed to fetch inbox conversation state:', error);
-        setCurrentTicket(null);
+        if (!cancelled) {
+          console.error('Failed to fetch inbox conversation state:', error);
+          setCurrentTicket(null);
+        }
       }
     }
 
-    fetchConversationState();
+    void fetchConversationState();
 
     const appendIncomingMessage = (payload: RealtimePostgresChangesPayload<InboxMessage>) => {
       const normalizedMessage = normalizeInboxMessage(payload.new);
@@ -241,14 +358,14 @@ export function useInboxConversation({
 
     const threadTicketId = getThreadTicketId();
     const channel = supabase
-      .channel(`chat_realtime_${selectedChat!.id}`)
+      .channel(`chat_realtime_${selectedConversationId}`)
       .on(
         'postgres_changes',
         {
           event: 'INSERT',
           schema: 'public',
           table: 'messages',
-          filter: `conversation_id=eq.${selectedChat!.id}`,
+          filter: `conversation_id=eq.${selectedConversationId}`,
         },
         appendIncomingMessage
       )
@@ -258,7 +375,7 @@ export function useInboxConversation({
           event: 'UPDATE',
           schema: 'public',
           table: 'messages',
-          filter: `conversation_id=eq.${selectedChat!.id}`,
+          filter: `conversation_id=eq.${selectedConversationId}`,
         },
         updateIncomingMessage
       )
@@ -268,7 +385,7 @@ export function useInboxConversation({
           event: 'DELETE',
           schema: 'public',
           table: 'messages',
-          filter: `conversation_id=eq.${selectedChat!.id}`,
+          filter: `conversation_id=eq.${selectedConversationId}`,
         },
         deleteIncomingMessage
       );
@@ -310,9 +427,22 @@ export function useInboxConversation({
     channel.subscribe();
 
     return () => {
+      cancelled = true;
       supabase.removeChannel(channel);
     };
-  }, [getThreadTicketId, selectedChat, setSelectedChat, addToast, agent]);
+  }, [getThreadTicketId, selectedConversationId, selectedTicketId]);
+
+  useEffect(() => {
+    if (!selectedConversationId || messages.length === 0) return;
+    const existing = inboxThreadCache.get(selectedConversationId);
+    writeThreadCache(selectedConversationId, {
+      messages,
+      ticket: currentTicket,
+      hasMore: hasMoreMessages,
+      oldestCursor: oldestMessageCursorRef.current,
+      fetchedAt: existing?.fetchedAt || Date.now(),
+    });
+  }, [selectedConversationId, messages, currentTicket, hasMoreMessages]);
 
   async function handleLoadOlderMessages() {
     if (!selectedChat || !hasMoreMessages || loadingMoreMessages) return;

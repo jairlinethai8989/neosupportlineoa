@@ -76,16 +76,46 @@ interface InboxWorkspaceCache {
 
 let inboxWorkspaceCache: InboxWorkspaceCache | null = null;
 
+export interface InitialInboxListData {
+  conversations: InboxConversation[];
+  hasNextPage: boolean;
+  nextCursor: { lastMessageAt: string; id: string } | null;
+  scopeKey: string;
+}
+
 export function useRealtimeInbox(options: {
   page?: number;
   pageSize?: number;
+  initialData?: InitialInboxListData | null;
 } = {}) {
   const {
     page = 1,
-    pageSize = 10
+    pageSize = 10,
+    initialData = null,
   } = options;
   const { effectiveProjectIds, selectedProjectId, projectsLoaded } = useAppContext();
   const scopeKey = `${selectedProjectId}:${effectiveProjectIds ? effectiveProjectIds.join(',') : 'all'}`;
+
+  // Seed module cache once if server SSR data matches current scope and cache is empty
+  if (
+    initialData &&
+    page === 1 &&
+    !inboxWorkspaceCache &&
+    initialData.scopeKey === scopeKey
+  ) {
+    const cursorMap = new Map<number, { lastMessageAt: string; id: string } | null>([[1, null]]);
+    if (initialData.hasNextPage && initialData.nextCursor) {
+      cursorMap.set(2, initialData.nextCursor);
+    }
+    inboxWorkspaceCache = {
+      conversationsByPage: new Map([[1, initialData.conversations]]),
+      hasNextPageByPage: new Map([[1, initialData.hasNextPage]]),
+      cursorByPage: cursorMap,
+      page: 1,
+      pageSize,
+      scopeKey,
+    };
+  }
 
   const getOrInitializeCache = useCallback((): InboxWorkspaceCache => {
     if (!inboxWorkspaceCache) {
@@ -113,6 +143,9 @@ export function useRealtimeInbox(options: {
     if (!initialCache) return true;
     return !initialCache.conversationsByPage.has(page);
   });
+  const skipInitialFetchRef = useRef(
+    Boolean(initialData && page === 1 && initialData.scopeKey === scopeKey)
+  );
 
   const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const refreshInFlightRef = useRef(false);
@@ -251,6 +284,10 @@ export function useRealtimeInbox(options: {
   }, [page, pageSize, getOrInitializeCache]);
 
   useEffect(() => {
+    if (skipInitialFetchRef.current) {
+      skipInitialFetchRef.current = false;
+      return;
+    }
     const cache = getOrInitializeCache();
     const hasCache = cache.conversationsByPage.has(page);
     void fetchConversations({ silent: hasCache });
@@ -264,6 +301,19 @@ export function useRealtimeInbox(options: {
         'postgres_changes',
         { event: '*', schema: 'public', table: 'conversations' },
         async (payload) => {
+          const eventProjectId =
+            (payload.new as { project_id?: string | null })?.project_id ||
+            (payload.old as { project_id?: string | null })?.project_id ||
+            null;
+
+          if (
+            effectiveProjectIds &&
+            eventProjectId &&
+            !effectiveProjectIds.includes(eventProjectId)
+          ) {
+            return;
+          }
+
           if (page !== 1) {
             scheduleRefresh(300);
             return;
@@ -289,6 +339,7 @@ export function useRealtimeInbox(options: {
               return;
             }
 
+            const activeLike = isConversationActiveLike(latestConversation);
             setConversations((current) => {
               if (
                 effectiveProjectIds &&
@@ -297,14 +348,16 @@ export function useRealtimeInbox(options: {
               ) {
                 return current.filter((conversation) => conversation.id !== rowId);
               }
-              if (!isConversationActiveLike(latestConversation)) {
+              if (!activeLike) {
                 return current.filter((conversation) => conversation.id !== rowId);
               }
               return upsertConversation(current, latestConversation, pageSize);
             });
 
-            // Reconcile pagination counts and ordering from server state.
-            scheduleRefresh(1200);
+            // Only backfill queue from server when a conversation leaves the active queue
+            if (!activeLike) {
+              scheduleRefresh(800);
+            }
           } catch (error) {
             console.error('Inbox realtime patch error:', error);
             scheduleRefresh(350);

@@ -12,6 +12,7 @@ interface InboxSidebarProps {
   conversations: InboxConversation[];
   selectedChat: InboxConversation | null;
   onSelectChat: (chat: InboxConversation) => void;
+  onPrefetchChat?: (chat: InboxConversation) => void;
   viewMode: InboxViewMode;
   currentPage: number;
   hasNextPage: boolean;
@@ -28,15 +29,16 @@ function isConversationActive(chat: InboxConversation) {
   );
 }
 
-export const InboxSidebar: React.FC<InboxSidebarProps> = ({
+export const InboxSidebar: React.FC<InboxSidebarProps> = React.memo(function InboxSidebar({
   conversations,
   selectedChat,
   onSelectChat,
+  onPrefetchChat,
   viewMode,
   currentPage,
   hasNextPage,
   onPageChange,
-}) => {
+}: InboxSidebarProps) {
   const { locale, t } = useStaffLocale();
   const [filterTab, setFilterTab] = useState<QueueFilterTab>('all');
   const [searchTerm, setSearchTerm] = useState('');
@@ -132,6 +134,8 @@ export const InboxSidebar: React.FC<InboxSidebarProps> = ({
                 key={chat.id}
                 type="button"
                 onClick={() => onSelectChat(chat)}
+                onMouseEnter={() => onPrefetchChat?.(chat)}
+                onFocus={() => onPrefetchChat?.(chat)}
                 aria-current={selected ? 'true' : undefined}
                 className={clsx(styles.queueItem, selected && styles.queueItemSelected)}
               >
@@ -219,4 +223,4 @@ export const InboxSidebar: React.FC<InboxSidebarProps> = ({
       )}
     </aside>
   );
-};
+});

@@ -62,6 +62,183 @@ interface ChatWindowProps {
   onToggleSidebar?: () => void;
 }
 
+interface MessagesStreamProps {
+  messages: InboxMessage[];
+  agent: InboxAgent | null;
+  hasMoreMessages: boolean;
+  loadingMoreMessages: boolean;
+  onLoadOlderMessages: () => Promise<void>;
+  onEditImage: (url: string) => void;
+  onDeleteMessage?: (id: string) => void | Promise<void>;
+  messagesEndRef: RefObject<HTMLDivElement | null>;
+}
+
+const MemoizedMessagesStream = React.memo(function MessagesStream({
+  messages,
+  agent,
+  hasMoreMessages,
+  loadingMoreMessages,
+  onLoadOlderMessages,
+  onEditImage,
+  onDeleteMessage,
+  messagesEndRef,
+}: MessagesStreamProps) {
+  const { locale, t } = useStaffLocale();
+
+  const handleMessagesScroll = async (event: React.UIEvent<HTMLDivElement>) => {
+    const target = event.currentTarget;
+    if (!hasMoreMessages || loadingMoreMessages || target.scrollTop > 60) return;
+
+    const prevScrollTop = target.scrollTop;
+    const prevScrollHeight = target.scrollHeight;
+    await onLoadOlderMessages();
+
+    requestAnimationFrame(() => {
+      const nextScrollHeight = target.scrollHeight;
+      target.scrollTop = nextScrollHeight - prevScrollHeight + prevScrollTop;
+    });
+  };
+
+  return (
+    <div className={styles.messagesStream} onScroll={handleMessagesScroll}>
+      {(hasMoreMessages || loadingMoreMessages) && (
+        <div className={styles.loadOlderHint}>
+          {loadingMoreMessages ? t('inbox.loadingOlderMessages') : t('inbox.scrollToLoadOlder')}
+        </div>
+      )}
+
+      {hasMoreMessages && (
+        <div className={styles.mobileOnly} style={{ justifyContent: 'center' }}>
+          <Button
+            size="sm"
+            variant="secondary"
+            loading={loadingMoreMessages}
+            onClick={() => void onLoadOlderMessages()}
+          >
+            {loadingMoreMessages ? t('common.messages.loading') : t('inbox.loadOlder')}
+          </Button>
+        </div>
+      )}
+
+      {messages.length === 0 && (
+        <EmptyState compact title={t('inbox.waitingNewMessage')} />
+      )}
+
+      {messages
+        .filter((message) => message.message_type !== 'unsent')
+        .map((msg) => {
+          const isOwn = msg.staff_id === agent?.id;
+          const isAdmin = agent?.role === 'Administrator';
+          const canDelete = Boolean(
+            (isOwn || isAdmin) && msg.sender_type === 'agent' && onDeleteMessage
+          );
+          const isInternal = Boolean(msg.is_internal);
+          const isAgent = msg.sender_type === 'agent';
+          const isSystem = msg.sender_type === 'system';
+
+          const mediaSource = msg.media_path || msg.content || '';
+          const isImage =
+            Boolean(mediaSource) &&
+            (msg.message_type === 'image' ||
+              (String(mediaSource).startsWith('http') &&
+                /\.(jpeg|jpg|gif|png|webp)$/i.test(String(mediaSource))));
+          const isFile =
+            !isImage &&
+            (msg.message_type === 'file' ||
+              (String(mediaSource).startsWith('http') && msg.message_type !== 'text'));
+
+          return (
+            <div
+              key={msg.id}
+              className={clsx(
+                styles.messageGroup,
+                isSystem && !isInternal
+                  ? styles.messageGroupSystem
+                  : isAgent
+                    ? styles.messageGroupAgent
+                    : styles.messageGroupCustomer
+              )}
+            >
+              {isInternal && (
+                <div className={styles.internalLabel}>
+                  <Lock size={11} aria-hidden="true" />
+                  <span>
+                    {locale === 'th'
+                      ? 'โน้ตภายในทีม (ลูกค้าไม่เห็น)'
+                      : 'Internal Note (Hidden from customer)'}
+                  </span>
+                </div>
+              )}
+
+              <div
+                className={clsx(
+                  styles.bubble,
+                  isInternal
+                    ? styles.bubbleInternal
+                    : isSystem
+                      ? styles.bubbleSystem
+                      : isAgent
+                        ? styles.bubbleAgent
+                        : styles.bubbleCustomer
+                )}
+              >
+                {isImage ? (
+                  <button
+                    type="button"
+                    onClick={() => onEditImage(mediaSource)}
+                    aria-label={t('inbox.imageEditHint')}
+                    title={t('inbox.imageEditHint')}
+                    className={styles.bubbleImageBtn}
+                  >
+                    <img
+                      src={mediaSource}
+                      loading="lazy"
+                      alt="Chat attachment"
+                      className={styles.bubbleImage}
+                    />
+                  </button>
+                ) : isFile ? (
+                  <a
+                    href={mediaSource}
+                    target="_blank"
+                    rel="noreferrer"
+                    className={styles.attachmentLink}
+                  >
+                    <Clock size={15} aria-hidden="true" />
+                    <span>{t('inbox.viewAttachment')}</span>
+                  </a>
+                ) : (
+                  msg.content
+                )}
+              </div>
+
+              <div className={styles.messageMeta}>
+                <span className="mono tabular-nums">
+                  {new Date(msg.created_at).toLocaleTimeString('th-TH', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    hour12: false,
+                  })}
+                </span>
+                {canDelete && (
+                  <button
+                    type="button"
+                    onClick={() => onDeleteMessage && void onDeleteMessage(msg.id)}
+                    className={styles.unsendBtn}
+                    aria-label={locale === 'th' ? 'ยกเลิกข้อความ' : 'Unsend message'}
+                  >
+                    Unsend
+                  </button>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      <div ref={messagesEndRef} />
+    </div>
+  );
+});
+
 export const ChatWindow: React.FC<ChatWindowProps> = ({
   selectedChat,
   messages,
@@ -123,20 +300,6 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
 
   const isComposerLocked =
     isViewOnly || (!isInternalMode && (isResolved || isUnassigned || !isSessionActive));
-
-  const handleMessagesScroll = async (event: React.UIEvent<HTMLDivElement>) => {
-    const target = event.currentTarget;
-    if (!hasMoreMessages || loadingMoreMessages || target.scrollTop > 60) return;
-
-    const prevScrollTop = target.scrollTop;
-    const prevScrollHeight = target.scrollHeight;
-    await onLoadOlderMessages();
-
-    requestAnimationFrame(() => {
-      const nextScrollHeight = target.scrollHeight;
-      target.scrollTop = nextScrollHeight - prevScrollHeight + prevScrollTop;
-    });
-  };
 
   return (
     <section
@@ -241,142 +404,16 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
       </header>
 
       {/* Message Stream */}
-      <div className={styles.messagesStream} onScroll={handleMessagesScroll}>
-        {(hasMoreMessages || loadingMoreMessages) && (
-          <div className={styles.loadOlderHint}>
-            {loadingMoreMessages ? t('inbox.loadingOlderMessages') : t('inbox.scrollToLoadOlder')}
-          </div>
-        )}
-
-        {hasMoreMessages && (
-          <div className={styles.mobileOnly} style={{ justifyContent: 'center' }}>
-            <Button
-              size="sm"
-              variant="secondary"
-              loading={loadingMoreMessages}
-              onClick={() => void onLoadOlderMessages()}
-            >
-              {loadingMoreMessages ? t('common.messages.loading') : t('inbox.loadOlder')}
-            </Button>
-          </div>
-        )}
-
-        {messages.length === 0 && (
-          <EmptyState compact title={t('inbox.waitingNewMessage')} />
-        )}
-
-        {messages
-          .filter((message) => message.message_type !== 'unsent')
-          .map((msg) => {
-            const isOwn = msg.staff_id === agent?.id;
-            const isAdmin = agent?.role === 'Administrator';
-            const canDelete = Boolean(
-              (isOwn || isAdmin) && msg.sender_type === 'agent' && onDeleteMessage
-            );
-            const isInternal = Boolean(msg.is_internal);
-            const isAgent = msg.sender_type === 'agent';
-            const isSystem = msg.sender_type === 'system';
-
-            const mediaSource = msg.media_path || msg.content || '';
-            const isImage =
-              Boolean(mediaSource) &&
-              (msg.message_type === 'image' ||
-                (String(mediaSource).startsWith('http') &&
-                  /\.(jpeg|jpg|gif|png|webp)$/i.test(String(mediaSource))));
-            const isFile =
-              !isImage &&
-              (msg.message_type === 'file' ||
-                (String(mediaSource).startsWith('http') && msg.message_type !== 'text'));
-
-            return (
-              <div
-                key={msg.id}
-                className={clsx(
-                  styles.messageGroup,
-                  isSystem && !isInternal
-                    ? styles.messageGroupSystem
-                    : isAgent
-                      ? styles.messageGroupAgent
-                      : styles.messageGroupCustomer
-                )}
-              >
-                {isInternal && (
-                  <div className={styles.internalLabel}>
-                    <Lock size={11} aria-hidden="true" />
-                    <span>
-                      {locale === 'th'
-                        ? 'โน้ตภายในทีม (ลูกค้าไม่เห็น)'
-                        : 'Internal Note (Hidden from customer)'}
-                    </span>
-                  </div>
-                )}
-
-                <div
-                  className={clsx(
-                    styles.bubble,
-                    isInternal
-                      ? styles.bubbleInternal
-                      : isSystem
-                        ? styles.bubbleSystem
-                        : isAgent
-                          ? styles.bubbleAgent
-                          : styles.bubbleCustomer
-                  )}
-                >
-                  {isImage ? (
-                    <button
-                      type="button"
-                      onClick={() => onEditImage(mediaSource)}
-                      aria-label={t('inbox.imageEditHint')}
-                      title={t('inbox.imageEditHint')}
-                      className={styles.bubbleImageBtn}
-                    >
-                      <img
-                        src={mediaSource}
-                        loading="lazy"
-                        alt="Chat attachment"
-                        className={styles.bubbleImage}
-                      />
-                    </button>
-                  ) : isFile ? (
-                    <a
-                      href={mediaSource}
-                      target="_blank"
-                      rel="noreferrer"
-                      className={styles.attachmentLink}
-                    >
-                      <Clock size={15} aria-hidden="true" />
-                      <span>{t('inbox.viewAttachment')}</span>
-                    </a>
-                  ) : (
-                    msg.content
-                  )}
-                </div>
-
-                <div className={styles.messageMeta}>
-                  <span className="mono tabular-nums">
-                    {new Date(msg.created_at).toLocaleTimeString('th-TH', {
-                      hour: '2-digit',
-                      minute: '2-digit',
-                      hour12: false,
-                    })}
-                  </span>
-                  {canDelete && (
-                    <button
-                      type="button"
-                      onClick={() => onDeleteMessage && void onDeleteMessage(msg.id)}
-                      className={styles.unsendBtn}
-                      aria-label={locale === 'th' ? 'ยกเลิกข้อความ' : 'Unsend message'}
-                    >
-                      Unsend
-                    </button>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        <div ref={messagesEndRef} />
-      </div>
+      <MemoizedMessagesStream
+        messages={messages}
+        agent={agent}
+        hasMoreMessages={hasMoreMessages}
+        loadingMoreMessages={loadingMoreMessages}
+        onLoadOlderMessages={onLoadOlderMessages}
+        onEditImage={onEditImage}
+        onDeleteMessage={onDeleteMessage}
+        messagesEndRef={messagesEndRef}
+      />
 
       {/* Composer */}
       <div className={clsx(styles.composerArea, isInternalMode && styles.composerAreaWhisper)}>

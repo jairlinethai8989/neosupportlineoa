@@ -38,12 +38,6 @@ interface TicketSidebarProps {
   onWarn: (title: string, body: string) => void;
 }
 
-interface TicketSlaMeta {
-  priority: string | null;
-  sla_due_at: string | null;
-  created_at: string | null;
-}
-
 function getSlaProgress(slaDueAt?: string | null, createdAt?: string | null) {
   if (!slaDueAt) return null;
   const dueMs = new Date(slaDueAt).getTime();
@@ -61,7 +55,7 @@ function getSlaProgress(slaDueAt?: string | null, createdAt?: string | null) {
   return { remainingMins, elapsedPct, tone };
 }
 
-export const TicketSidebar: React.FC<TicketSidebarProps> = ({
+export const TicketSidebar: React.FC<TicketSidebarProps> = React.memo(function TicketSidebar({
   selectedChat,
   currentTicket,
   agent,
@@ -73,7 +67,7 @@ export const TicketSidebar: React.FC<TicketSidebarProps> = ({
   onCloseSession,
   onCopySurvey,
   onWarn,
-}) => {
+}: TicketSidebarProps) {
   const { locale, t } = useStaffLocale();
   void onTransfer;
 
@@ -101,43 +95,39 @@ export const TicketSidebar: React.FC<TicketSidebarProps> = ({
     token: string;
     expires_at: string;
   } | null>(null);
-  const [slaMeta, setSlaMeta] = useState<TicketSlaMeta | null>(null);
 
   useEffect(() => {
-    if (!currentTicket?.id) {
+    const shouldCheckHandoff = Boolean(
+      currentTicket?.id &&
+        (currentTicket.escalation_token ||
+          statusLower === 'escalated' ||
+          statusLower === 'pending')
+    );
+    if (!shouldCheckHandoff || !currentTicket?.id) {
       setActiveHandoff(null);
-      setSlaMeta(null);
       return;
     }
 
     let cancelled = false;
     const fetchInspectorMeta = async () => {
-      const [{ data: handoffData }, { data: ticketMeta }] = await Promise.all([
-        supabase
-          .from('ticket_handoffs')
-          .select('secure_pin, token, expires_at')
-          .eq('ticket_id', currentTicket.id)
-          .in('status', ['Active', 'Claimed'])
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .maybeSingle(),
-        supabase
-          .from('tickets')
-          .select('priority, sla_due_at, created_at')
-          .eq('id', currentTicket.id)
-          .maybeSingle(),
-      ]);
+      const { data: handoffData } = await supabase
+        .from('ticket_handoffs')
+        .select('secure_pin, token, expires_at')
+        .eq('ticket_id', currentTicket.id)
+        .in('status', ['Active', 'Claimed'])
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
 
       if (cancelled) return;
       setActiveHandoff(handoffData || null);
-      setSlaMeta((ticketMeta as TicketSlaMeta | null) || null);
     };
 
     void fetchInspectorMeta();
     return () => {
       cancelled = true;
     };
-  }, [currentTicket?.id, currentTicket?.status]);
+  }, [currentTicket?.id, currentTicket?.escalation_token, statusLower]);
 
   const customer = selectedChat.customers;
   const hasCustomerIdentity = Boolean(
@@ -152,7 +142,7 @@ export const TicketSidebar: React.FC<TicketSidebarProps> = ({
     magicLink ||
     (activeHandoff?.token ? `${window.location.origin}/escalate/${activeHandoff.token}` : null);
 
-  const slaInfo = getSlaProgress(slaMeta?.sla_due_at, slaMeta?.created_at);
+  const slaInfo = getSlaProgress(currentTicket?.sla_due_at, currentTicket?.created_at);
 
   const handleCopyLink = (link: string) => {
     navigator.clipboard.writeText(link);
@@ -193,7 +183,7 @@ export const TicketSidebar: React.FC<TicketSidebarProps> = ({
     }
   };
 
-  const priorityLower = String(slaMeta?.priority || '').toLowerCase();
+  const priorityLower = String(currentTicket?.priority || '').toLowerCase();
   const priorityVariant =
     priorityLower === 'critical' || priorityLower === 'วิกฤต'
       ? 'danger'
@@ -293,9 +283,9 @@ export const TicketSidebar: React.FC<TicketSidebarProps> = ({
                 #{currentTicket.ticket_no}
               </span>
               <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-                {slaMeta?.priority && (
+                {currentTicket?.priority && (
                   <Badge size="sm" variant={priorityVariant}>
-                    {translateTicketPriority(slaMeta.priority, locale)}
+                    {translateTicketPriority(currentTicket.priority, locale)}
                   </Badge>
                 )}
                 <Badge size="sm" variant={isResolved ? 'success' : 'primary'}>
@@ -582,4 +572,4 @@ export const TicketSidebar: React.FC<TicketSidebarProps> = ({
       </Modal>
     </aside>
   );
-};
+});

@@ -58,6 +58,9 @@ export interface InboxTicket {
   subject: string | null;
   description?: string | null;
   status: string | null;
+  priority?: string | null;
+  sla_due_at?: string | null;
+  created_at?: string | null;
   assigned_agent_id: string | null;
   module?: string | null;
   issue_type?: string | null;
